@@ -382,14 +382,14 @@ async function renderPos(){
 
 /* ---------------------- PIN 패드 ---------------------- */
 const padVeil=document.getElementById("padVeil");
-let padBuf="", padEmp=null, padState=null;
+let padBuf="", padEmp=null, padState=null, padBusy=false;
 function openPad(emp,state){
   padEmp=emp; padState=state; padBuf="";
   document.getElementById("padTitle").textContent = state==="WORKING"?"퇴근 — PIN 입력":"출근 — PIN 입력";
   document.getElementById("padWho").textContent = emp.name+(state==="WORKING"?" · 현재 근무중":"");
   buildKeys(); drawDots(); padVeil.classList.add("show");
 }
-function closePad(){ padVeil.classList.remove("show"); padBuf=""; }
+function closePad(){ padVeil.classList.remove("show"); padBuf=""; padBusy=false; }
 document.getElementById("padCancel").onclick=closePad;
 padVeil.addEventListener("click",e=>{ if(e.target===padVeil) closePad(); });
 function drawDots(){
@@ -401,30 +401,40 @@ function buildKeys(){
   const layout=["1","2","3","4","5","6","7","8","9","del","0","ok"];
   for(const key of layout){
     const b=document.createElement("button");
-    if(key==="del"){ b.textContent="←"; b.className="act"; b.onclick=()=>{padBuf=padBuf.slice(0,-1);drawDots();}; }
+    if(key==="del"){ b.textContent="←"; b.className="act"; b.onclick=()=>{ if(padBusy)return; padBuf=padBuf.slice(0,-1);drawDots(); }; }
     else if(key==="ok"){ b.textContent="확인"; b.className="act"; b.onclick=submitPad; }
-    else { b.textContent=key; b.onclick=()=>{ if(padBuf.length<4){padBuf+=key;drawDots(); if(padBuf.length===4) submitPad();} }; }
+    else { b.textContent=key; b.onclick=()=>{ if(padBusy)return; if(padBuf.length<4){padBuf+=key;drawDots(); if(padBuf.length===4) submitPad();} }; }
     k.appendChild(b);
   }
 }
 async function submitPad(){
+  if(padBusy) return;                 // 중복 실행 방지 (자동제출+확인버튼, 지연 중 재터치)
   if(padBuf.length<4){ return; }
-  const ok=await BE.verifyPin(padEmp.id,padBuf);
-  if(!ok){ closePad(); toast("err","PIN 오류","직원 또는 PIN을 확인해주세요."); return; }
-  // 8초 중복방지
-  const last=await BE.lastEvent(padEmp.id);
-  if(last){ const el=(kstNow()-fromIso(last.event_at))/1000; if(el<CONFIG.DUP_GUARD_SEC){ closePad(); toast("err","잠시 후 다시","방금 처리되었습니다."); return; } }
-  const type = padState==="WORKING" ? "OUT" : "IN";
-  await BE.insertEvent(padEmp.id,type);
-  closePad();
-  const now=kstNow();
-  if(type==="IN") toast("in",`${padEmp.name}님 출근`,`${hhmm(now)} 기록됨`);
-  else{
-    let worked="";
-    if(last && last.event_type==="IN") worked = "근무 "+fmtDur((now-fromIso(last.event_at))/1000);
-    toast("out",`${padEmp.name}님 퇴근`,`${hhmm(now)} · ${worked}`);
+  padBusy=true;
+  document.getElementById("padTitle").textContent="처리 중…";
+  const pin=padBuf;
+  try{
+    const ok=await BE.verifyPin(padEmp.id,pin);
+    if(!ok){ closePad(); toast("err","PIN 오류","직원 또는 PIN을 확인해주세요."); return; }
+    // 처리 직전 최신 상태를 다시 조회 (다른 기기에서 이미 찍었을 수 있음)
+    const {state,last}=await empState(padEmp.id);
+    if(last){ const el=(kstNow()-fromIso(last.event_at))/1000; if(el<CONFIG.DUP_GUARD_SEC){ closePad(); toast("err","잠시 후 다시","방금 처리되었습니다."); return; } }
+    const type = state==="WORKING" ? "OUT" : "IN";
+    await BE.insertEvent(padEmp.id,type);
+    closePad();
+    const now=kstNow();
+    if(type==="IN") toast("in",`${padEmp.name}님 출근`,`${hhmm(now)} 기록됨`);
+    else{
+      let worked="";
+      if(last && last.event_type==="IN") worked="근무 "+fmtDur((now-fromIso(last.event_at))/1000);
+      toast("out",`${padEmp.name}님 퇴근`,`${hhmm(now)} · ${worked}`);
+    }
+    renderPos();
+  }catch(e){
+    closePad(); toast("err","처리 실패","네트워크를 확인하고 다시 시도해주세요.");
+  }finally{
+    padBusy=false;
   }
-  renderPos();
 }
 
 /* ---------------------- 토스트 ---------------------- */
