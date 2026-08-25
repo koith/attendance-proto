@@ -145,6 +145,7 @@
   <div style="padding:12px 18px 0"><div class="tabs">
     <a id="tabPos" href="#pos" class="on">타각</a>
     <a id="tabAdmin" href="#admin">관리자</a>
+    <a id="tabPay" href="#pay">급여</a>
   </div></div>
   <main id="view"></main>
 </div>
@@ -209,6 +210,26 @@ function fmtDur(sec){
   const m=Math.max(0,Math.floor(sec/60)); const h=Math.floor(m/60), mm=m%60;
   if(h&&mm) return `${h}시간 ${mm}분`; if(h) return `${h}시간`; return `${mm}분`;
 }
+/* ---- 엑셀 ROUND/ROUNDDOWN 정확 재현 (Sprint2 replay 검증 통과) ---- */
+function xround(x,n){ // ROUND(x,10^-n): n=-1 → 10원 반올림
+  const step=Math.pow(10,-n); return Math.round(x/step)*step;
+}
+function xrounddown(x,n){ const step=Math.pow(10,-n); return Math.floor(x/step)*step; }
+/* ---- 월 급여 계산: emp속성 + 월실근무시간 → 급여내역 ---- */
+function calcPayroll(emp, monthHours, weeks){
+  const wage=emp.wage||0;
+  const base=xround(wage*monthHours,-1);              // 기본급 10원 반올림
+  let juhyu=0, weekly=0;
+  const jh=emp.juhyu_hours||0;
+  if(jh>0){
+    weekly = (emp.juhyu_round!=null) ? xround(wage*jh, emp.juhyu_round) : wage*jh;
+    juhyu = weekly*(weeks||0);
+  }
+  const gross=Math.round(base+juhyu);
+  const rate=(emp.tax_rate!=null)?emp.tax_rate:0.033;
+  const net=xrounddown(gross*(1-rate),-1);            // 세후 10원 버림
+  return {base, weekly, juhyu, gross, net, rate};
+}
 
 /* ============================ 백엔드 어댑터 ============================ */
 /* 두 구현이 같은 인터페이스를 제공:
@@ -259,6 +280,9 @@ const LocalBE = (()=>{
     async todayEvents(){ const s=load(); const t=kstNow(); const p=n=>String(n).padStart(2,"0");
       const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
       return s.events.filter(x=>x.event_at.slice(0,10)===day); },
+    async monthEvents(ym){ const s=load(); return s.events.filter(x=>x.event_at.slice(0,7)===ym); },
+    async updateEmployee(id,fields){ const s=load(); const e=s.emps.find(x=>x.id===id); if(e)Object.assign(e,fields); save(s); },
+    async getEmployee(id){ return load().emps.find(x=>x.id===id)||null; },
   };
 })();
 
@@ -278,7 +302,7 @@ const SupaBE = (()=>{
   }
   return {
     async listEmployees(){ return q(`/employees?is_active=eq.true&select=id,name&order=name`); },
-    async allEmployees(){ return q(`/employees?select=id,name,is_active&order=name`); },
+    async allEmployees(){ return q(`/employees?select=*&order=name`); },
     async createEmployee(name,pin){ const {encoded}=await pbkdf2(pin);
       return q(`/employees`,{method:"POST",headers:{...H(),Prefer:"return=minimal"},body:JSON.stringify({name:name.trim(),pin_hash:encoded,is_active:true})}); },
     async deactivateEmployee(id){ return q(`/employees?id=eq.${id}`,{method:"PATCH",headers:{...H(),Prefer:"return=minimal"},body:JSON.stringify({is_active:false})}); },
@@ -289,6 +313,12 @@ const SupaBE = (()=>{
     async todayEvents(){ const t=kstNow(); const p=n=>String(n).padStart(2,"0");
       const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
       return q(`/attendance_events?event_at=gte.${day}T00:00:00&event_at=lt.${day}T23:59:59&order=employee_id,event_at`); },
+    async monthEvents(ym){ // ym="2026-07"
+      const [y,m]=ym.split("-").map(Number); const p=n=>String(n).padStart(2,"0");
+      const nextM = m===12?`${y+1}-01`:`${y}-${p(m+1)}`;
+      return q(`/attendance_events?event_at=gte.${ym}-01T00:00:00&event_at=lt.${nextM}-01T00:00:00&order=employee_id,event_at`); },
+    async updateEmployee(id,fields){ return q(`/employees?id=eq.${id}`,{method:"PATCH",headers:{...H(),Prefer:"return=minimal"},body:JSON.stringify(fields)}); },
+    async getEmployee(id){ const r=await q(`/employees?id=eq.${id}&select=*`); return r&&r[0]||null; },
   };
 })();
 
@@ -323,10 +353,12 @@ const view=document.getElementById("view");
 function setTab(t){
   document.getElementById("tabPos").classList.toggle("on",t==="pos");
   document.getElementById("tabAdmin").classList.toggle("on",t==="admin");
+  document.getElementById("tabPay").classList.toggle("on",t==="pay");
 }
 function route(){
   const h=(location.hash||"#pos").replace("#","");
   if(h==="admin"){ setTab("admin"); renderAdmin(); }
+  else if(h==="pay"){ setTab("pay"); renderPay(); }
   else{ setTab("pos"); renderPos(); }
 }
 window.addEventListener("hashchange",route);
@@ -456,18 +488,130 @@ async function renderAdmin(){
 }
 
 /* 직원 등록 모달 */
-document.getElementById("newCancel").onclick=()=>document.getElementById("addVeil").classList.remove("show");
+function bindAddModal(){
+  document.getElementById("newCancel").onclick=()=>document.getElementById("addVeil").classList.remove("show");
+  document.getElementById("newSave").onclick=async()=>{
+    const name=document.getElementById("newName").value.trim();
+    const pin=document.getElementById("newPin").value.trim();
+    if(!name){ alert("이름을 입력하세요."); return; }
+    if(!/^\d{4}$/.test(pin)){ alert("PIN은 숫자 4자리입니다."); return; }
+    try{ await BE.createEmployee(name,pin); }catch(e){ alert(e.message); return; }
+    document.getElementById("newName").value=""; document.getElementById("newPin").value="";
+    document.getElementById("addVeil").classList.remove("show");
+    renderAdmin();
+  };
+}
 document.getElementById("addVeil").addEventListener("click",e=>{ if(e.target.id==="addVeil") e.currentTarget.classList.remove("show"); });
-document.getElementById("newSave").onclick=async()=>{
-  const name=document.getElementById("newName").value.trim();
-  const pin=document.getElementById("newPin").value.trim();
-  if(!name){ alert("이름을 입력하세요."); return; }
-  if(!/^\d{4}$/.test(pin)){ alert("PIN은 숫자 4자리입니다."); return; }
-  try{ await BE.createEmployee(name,pin); }catch(e){ alert(e.message); return; }
-  document.getElementById("newName").value=""; document.getElementById("newPin").value="";
-  document.getElementById("addVeil").classList.remove("show");
-  renderAdmin();
-};
+bindAddModal();
+
+/* ---------------------- 급여 화면 (Sprint 2) ---------------------- */
+// 월 내 각 직원의 완결세션 합계시간 + 근무주수(주휴 계산용) 산출
+function weeksInMonth(ym){
+  // 해당 월에 걸친 주(월요일 시작) 수를 근사 — 엑셀 관행상 보통 4주 사용
+  return 4; // V0.1: 매장 관행(4주 기준). 추후 실제 근무주 계산으로 확장.
+}
+async function renderPay(){
+  const now=kstNow(); const p=n=>String(n).padStart(2,"0");
+  const curYm=`${now.getFullYear()}-${p(now.getMonth()+1)}`;
+  view.innerHTML=`
+    <div class="section-t">급여 정산</div>
+    <div class="field" style="max-width:200px">
+      <label>정산 월</label>
+      <input id="payMonth" type="month" value="${curYm}">
+    </div>
+    <div style="font-size:.75rem;color:var(--muted);margin:-4px 2px 14px">
+      ⚠ 세후(3.3%)·주휴 처리는 현재 매장 관행값입니다. 실제 신고는 회계사 확인 후.
+    </div>
+    <div id="payList"></div>`;
+  document.getElementById("payMonth").addEventListener("change",e=>drawPay(e.target.value));
+  drawPay(curYm);
+}
+async function drawPay(ym){
+  const el=document.getElementById("payList");
+  el.innerHTML=`<div class="empty">계산 중…</div>`;
+  let emps=[], events=[];
+  try{ emps=await BE.allEmployees(); events=await BE.monthEvents(ym); }
+  catch(e){ el.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
+  const active=emps.filter(e=>e.is_active!==false && e.active!==false);
+  if(!active.length){ el.innerHTML=`<div class="empty">직원이 없습니다.</div>`; return; }
+  const weeks=weeksInMonth(ym);
+  el.innerHTML="";
+  let totalNet=0;
+  for(const e of active){
+    const rows=events.filter(x=>x.employee_id===e.id);
+    const sess=pairEvents(rows);
+    const sec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
+    const hours=Math.round(sec/3600*2)/2; // 30분 단위
+    const issues=sess.filter(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
+    const hasWage = e.wage!=null && e.wage>0;
+    const pay = hasWage ? calcPayroll(e, hours, weeks) : null;
+    if(pay) totalNet+=pay.net;
+    const card=document.createElement("div");
+    card.className="row"; card.style.flexDirection="column"; card.style.alignItems="stretch"; card.style.gap="10px";
+    card.innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="nm" style="flex:1">${e.name}
+          ${issues?`<span class="badge issue" style="margin-left:6px">확인필요 ${issues}</span>`:''}
+        </div>
+        <button class="link-x" data-edit="${e.id}">설정</button>
+      </div>
+      ${hasWage ? `
+      <div style="font-size:.85rem;color:var(--sub);line-height:1.9">
+        <div>실근무 <b style="color:var(--ink)">${hours}시간</b> · 시급 ${e.wage.toLocaleString()}원</div>
+        <div>기본급 <b style="color:var(--ink)">${pay.base.toLocaleString()}</b>
+          ${pay.juhyu?` · 주휴 <b style="color:var(--ink)">${pay.juhyu.toLocaleString()}</b>`:''}</div>
+        <div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--line)">
+          세전 <b style="color:var(--ink)">${pay.gross.toLocaleString()}</b>
+          → 세후(${(pay.rate*100).toFixed(1)}%) <b style="color:var(--in);font-size:1.05rem">${pay.net.toLocaleString()}원</b></div>
+        ${e.memo?`<div style="color:var(--muted);font-size:.78rem;margin-top:4px">📝 ${e.memo}</div>`:''}
+      </div>` : `
+      <div style="font-size:.82rem;color:var(--muted)">실근무 ${hours}시간 · 시급 미설정 — [설정]에서 시급을 입력하세요</div>`}
+    `;
+    card.querySelector("[data-edit]").onclick=()=>openPayEdit(e);
+    el.appendChild(card);
+  }
+  const sum=document.createElement("div");
+  sum.className="row"; sum.style.marginTop="6px"; sum.style.borderColor="var(--accent)";
+  sum.innerHTML=`<div class="nm" style="flex:1">세후 합계</div><div class="nm" style="color:var(--in)">${totalNet.toLocaleString()}원</div>`;
+  el.appendChild(sum);
+}
+function openPayEdit(emp){
+  const v=document.getElementById("addVeil");
+  const modal=v.querySelector(".modal");
+  modal.innerHTML=`
+    <h3>${emp.name} · 급여 설정</h3>
+    <div class="field"><label>시급 (원)</label><input id="peWage" inputmode="numeric" value="${emp.wage||''}" placeholder="예: 12000"></div>
+    <div class="field"><label>주당 주휴시간 (0=주휴없음)</label><input id="peJh" inputmode="decimal" value="${emp.juhyu_hours||0}" placeholder="예: 4.4"></div>
+    <div class="field"><label>주휴 주당액 반올림 (-3=1000원, 비움=반올림안함)</label><input id="peJr" inputmode="numeric" value="${emp.juhyu_round??''}" placeholder="예: -3"></div>
+    <div class="field"><label>원천징수율 (0.033 = 3.3%)</label><input id="peTax" inputmode="decimal" value="${emp.tax_rate??0.033}"></div>
+    <div class="field"><label>메모 (예외 사유)</label><input id="peMemo" value="${emp.memo||''}" placeholder="예: 15h미만 1주 차감"></div>
+    <button class="btn-primary" id="peSave">저장</button>
+    <button class="link-x" id="peCancel" style="width:100%;margin-top:8px">취소</button>`;
+  v.classList.add("show");
+  modal.querySelector("#peCancel").onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
+  modal.querySelector("#peSave").onclick=async()=>{
+    const fields={
+      wage: parseInt(document.getElementById("peWage").value)||null,
+      juhyu_hours: parseFloat(document.getElementById("peJh").value)||0,
+      juhyu_round: document.getElementById("peJr").value===''?null:parseInt(document.getElementById("peJr").value),
+      tax_rate: parseFloat(document.getElementById("peTax").value)||0.033,
+      memo: document.getElementById("peMemo").value.trim()||null,
+    };
+    try{ await BE.updateEmployee(emp.id,fields); }catch(e){ alert(e.message); return; }
+    v.classList.remove("show"); restoreAddModal();
+    drawPay(document.getElementById("payMonth").value);
+  };
+}
+function restoreAddModal(){
+  const modal=document.getElementById("addVeil").querySelector(".modal");
+  modal.innerHTML=`
+    <h3>직원 등록</h3>
+    <div class="field"><label>이름</label><input id="newName" autocomplete="off" placeholder="예: 이현진"></div>
+    <div class="field"><label>PIN (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="숫자 4자리"></div>
+    <button class="btn-primary" id="newSave">등록</button>
+    <button class="link-x" id="newCancel" style="width:100%;margin-top:8px">취소</button>`;
+  bindAddModal();
+}
 
 /* ---------------------- 부팅 ---------------------- */
 document.getElementById("storeName").textContent=CONFIG.STORE_NAME;
