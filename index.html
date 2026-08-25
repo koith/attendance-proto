@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>백억커피 근태</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1f232c; --line:#2a2f3a;
+    --ink:#f2f4f8; --sub:#98a0ad; --muted:#6b7280;
+    --in:#22c55e; --in-d:#16a34a; --out:#f97316; --out-d:#ea580c;
+    --warn:#f43f5e; --accent:#5b8cff; --chip:#232834;
+    --r:16px; --tap:64px;
+    font-size:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    overscroll-behavior:none;
+  }
+  .wrap{max-width:760px; margin:0 auto; min-height:100%; display:flex; flex-direction:column;}
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px; border-bottom:1px solid var(--line);
+    position:sticky; top:0; background:rgba(15,17,21,.92); backdrop-filter:blur(8px); z-index:5;
+  }
+  .brand{display:flex; align-items:baseline; gap:8px;}
+  .brand b{font-size:1.05rem; letter-spacing:-.02em;}
+  .brand span{font-size:.78rem; color:var(--sub);}
+  .clock{font-variant-numeric:tabular-nums; font-size:1rem; color:var(--sub); letter-spacing:.01em;}
+  .tabs{display:flex; gap:6px;}
+  .tabs a{
+    font-size:.82rem; color:var(--sub); text-decoration:none;
+    padding:7px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  .tabs a.on{color:var(--ink); background:var(--chip); border-color:var(--accent);}
+  main{flex:1; padding:18px; display:flex; flex-direction:column;}
+
+  /* connection banner */
+  .conn{font-size:.74rem; padding:8px 14px; text-align:center; border-bottom:1px solid var(--line);}
+  .conn.local{background:#3a2a12; color:#f4c37a;}
+  .conn.live{background:#0f2a1a; color:#7ee2a8;}
+
+  /* ---------- POS ---------- */
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px;}
+  .emp{
+    min-height:var(--tap); border:1px solid var(--line); background:var(--panel);
+    border-radius:var(--r); padding:14px 12px; display:flex; flex-direction:column; gap:6px;
+    justify-content:center; cursor:pointer; transition:transform .06s, border-color .15s;
+  }
+  .emp:active{transform:scale(.97);}
+  .emp .nm{font-size:1.1rem; font-weight:600; letter-spacing:-.01em;}
+  .emp .st{font-size:.78rem; color:var(--sub); display:flex; align-items:center; gap:6px;}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--muted); display:inline-block;}
+  .emp.working{border-color:var(--in-d);}
+  .emp.working .dot{background:var(--in); box-shadow:0 0 0 3px rgba(34,197,94,.18);}
+  .emp.working .st{color:var(--in);}
+
+  /* PIN pad */
+  .pad-veil{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-end; z-index:20;}
+  .pad-veil.show{display:flex;}
+  .pad{
+    width:100%; max-width:760px; margin:0 auto; background:var(--panel);
+    border-radius:22px 22px 0 0; border-top:1px solid var(--line);
+    padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+    animation:rise .18s ease-out;
+  }
+  @keyframes rise{from{transform:translateY(20px); opacity:.6;} to{transform:none; opacity:1;}}
+  .pad h3{margin:2px 0 2px; font-size:1.15rem;}
+  .pad .who{color:var(--sub); font-size:.85rem; margin-bottom:14px;}
+  .dots{display:flex; gap:14px; justify-content:center; margin:6px 0 18px;}
+  .dots i{width:14px; height:14px; border-radius:50%; border:2px solid var(--line);}
+  .dots i.f{background:var(--accent); border-color:var(--accent);}
+  .keys{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .keys button{
+    height:60px; font-size:1.5rem; border-radius:14px; border:1px solid var(--line);
+    background:var(--panel2); color:var(--ink); font-variant-numeric:tabular-nums; cursor:pointer;
+  }
+  .keys button:active{background:var(--chip);}
+  .keys .ghost{background:transparent; border-color:transparent;}
+  .keys .act{font-size:1rem; color:var(--sub);}
+  .pad .cancel{width:100%; margin-top:12px; height:48px; background:transparent; color:var(--sub);
+    border:1px solid var(--line); border-radius:12px; font-size:.95rem;}
+
+  /* toast */
+  .toast{
+    position:fixed; left:50%; top:22%; transform:translateX(-50%) translateY(-8px);
+    background:var(--panel2); border:1px solid var(--line); color:var(--ink);
+    padding:18px 22px; border-radius:16px; font-size:1.05rem; z-index:40;
+    opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; text-align:center;
+    box-shadow:0 12px 40px rgba(0,0,0,.5); min-width:220px;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .toast.in{border-color:var(--in-d);} .toast.out{border-color:var(--out-d);} .toast.err{border-color:var(--warn);}
+  .toast .big{font-size:1.5rem; font-weight:700; margin-bottom:4px;}
+  .toast .sub{font-size:.85rem; color:var(--sub);}
+
+  /* ---------- ADMIN ---------- */
+  .section-t{font-size:.8rem; color:var(--sub); text-transform:uppercase; letter-spacing:.08em; margin:4px 2px 10px;}
+  .row{
+    display:flex; align-items:center; gap:12px; background:var(--panel);
+    border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:10px;
+  }
+  .row .nm{font-weight:600; font-size:1.02rem; flex:1;}
+  .row .times{font-size:.85rem; color:var(--sub); font-variant-numeric:tabular-nums; text-align:right;}
+  .row .times b{color:var(--ink); font-weight:600;}
+  .badge{font-size:.7rem; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--sub);}
+  .badge.work{color:var(--in); border-color:var(--in-d);}
+  .badge.issue{color:var(--warn); border-color:var(--warn);}
+  .empty{color:var(--muted); text-align:center; padding:40px 0; font-size:.9rem;}
+  .addbtn{
+    width:100%; height:52px; border-radius:14px; border:1px dashed var(--line);
+    background:transparent; color:var(--sub); font-size:.95rem; margin-top:4px; cursor:pointer;
+  }
+  .field{display:flex; flex-direction:column; gap:6px; margin-bottom:12px;}
+  .field label{font-size:.8rem; color:var(--sub);}
+  .field input{
+    height:50px; border-radius:12px; border:1px solid var(--line); background:var(--panel2);
+    color:var(--ink); padding:0 14px; font-size:1rem;
+  }
+  .btn-primary{
+    width:100%; height:52px; border-radius:14px; border:none; background:var(--accent);
+    color:#fff; font-size:1rem; font-weight:600; cursor:pointer;
+  }
+  .btn-primary:active{filter:brightness(.92);}
+  .link-x{background:none; border:none; color:var(--muted); font-size:.8rem; cursor:pointer; padding:6px;}
+  .modal-veil{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:30; padding:20px;}
+  .modal-veil.show{display:flex;}
+  .modal{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:20px; width:100%; max-width:380px;}
+  .modal h3{margin:0 0 16px; font-size:1.1rem;}
+</style>
+</head>
+<body>
+<div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
+<div class="wrap">
+  <header>
+    <div class="brand"><b>백억커피</b><span id="storeName">인하대점</span></div>
+    <div class="clock" id="clock">--:--:--</div>
+  </header>
+  <div style="padding:12px 18px 0"><div class="tabs">
+    <a id="tabPos" href="#pos" class="on">타각</a>
+    <a id="tabAdmin" href="#admin">관리자</a>
+  </div></div>
+  <main id="view"></main>
+</div>
+
+<!-- PIN pad -->
+<div class="pad-veil" id="padVeil">
+  <div class="pad">
+    <h3 id="padTitle">PIN 입력</h3>
+    <div class="who" id="padWho"></div>
+    <div class="dots" id="padDots"></div>
+    <div class="keys" id="padKeys"></div>
+    <button class="cancel" id="padCancel">취소</button>
+  </div>
+</div>
+
+<!-- add employee modal -->
+<div class="modal-veil" id="addVeil">
+  <div class="modal">
+    <h3>직원 등록</h3>
+    <div class="field"><label>이름</label><input id="newName" autocomplete="off" placeholder="예: 이현진"></div>
+    <div class="field"><label>PIN (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="숫자 4자리"></div>
+    <button class="btn-primary" id="newSave">등록</button>
+    <button class="link-x" id="newCancel" style="width:100%;margin-top:8px">취소</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================================
+   백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
+   백엔드 어댑터: Supabase URL/키를 넣으면 자동으로 클라우드 모드,
+   없으면 localStorage 로컬 모드로 완전 동작 (UI/동선 검증용).
+   GPT 프로토타입의 검증된 로직 이식: IN/OUT 페어링, 자정넘김,
+   8초 중복방지, 미완결 세션 감지, 서버(=KST)시각 저장.
+   ========================================================================= */
+
+const CONFIG = {
+  SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
+  STORE_NAME: "인하대점",
+  DEVICE_ID: "POS_INHA_01",
+  DUP_GUARD_SEC: 8,
+};
+
+/* ---------- 시각 유틸: 항상 Asia/Seoul 기준 ---------- */
+function kstNow(){
+  // 브라우저 로컬시각을 KST로 보정한 Date 문자열(ISO, 초단위)
+  const d = new Date();
+  // toLocaleString으로 KST 벽시계 값을 만든 뒤 Date로 되돌림
+  const kst = new Date(d.toLocaleString("en-US",{timeZone:"Asia/Seoul"}));
+  return kst;
+}
+function iso(d){ // 초단위 ISO (타임존 표기 없이 KST 벽시계)
+  const p=n=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+function fromIso(s){ return new Date(s); }
+function hhmm(d){ const p=n=>String(n).padStart(2,"0"); return `${p(d.getHours())}:${p(d.getMinutes())}`; }
+function hms(d){ const p=n=>String(n).padStart(2,"0"); return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
+function fmtDur(sec){
+  const m=Math.max(0,Math.floor(sec/60)); const h=Math.floor(m/60), mm=m%60;
+  if(h&&mm) return `${h}시간 ${mm}분`; if(h) return `${h}시간`; return `${mm}분`;
+}
+
+/* ============================ 백엔드 어댑터 ============================ */
+/* 두 구현이 같은 인터페이스를 제공:
+   listEmployees(), createEmployee(name,pin), deactivateEmployee(id),
+   verifyPin(id,pin), lastEvent(id), insertEvent(id,type),
+   todayEvents()  →  모두 Promise 반환 */
+
+const LIVE = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY);
+
+/* ---- PIN 해시 (WebCrypto PBKDF2-SHA256, GPT판과 동일 방식) ---- */
+async function pbkdf2(pin, saltB64){
+  const enc=new TextEncoder();
+  let salt;
+  if(saltB64){ salt=Uint8Array.from(atob(saltB64),c=>c.charCodeAt(0)); }
+  else { salt=crypto.getRandomValues(new Uint8Array(16)); }
+  const key=await crypto.subtle.importKey("raw",enc.encode(pin),{name:"PBKDF2"},false,["deriveBits"]);
+  const bits=await crypto.subtle.deriveBits({name:"PBKDF2",salt,iterations:150000,hash:"SHA-256"},key,256);
+  const digest=btoa(String.fromCharCode(...new Uint8Array(bits)));
+  const sB64=btoa(String.fromCharCode(...salt));
+  return {encoded:`pbkdf2_sha256$${sB64}$${digest}`, saltB64:sB64, digest};
+}
+async function pinMatches(pin, encoded){
+  try{ const [,sB64]=encoded.split("$"); const {encoded:re}=await pbkdf2(pin,sB64); return re===encoded; }
+  catch(e){ return false; }
+}
+
+/* ---------------------- LocalStorage 구현 ---------------------- */
+const LocalBE = (()=>{
+  const K="baekeok_att_v1";
+  function load(){ try{return JSON.parse(localStorage.getItem(K))||seed();}catch(e){return seed();} }
+  function save(s){ localStorage.setItem(K,JSON.stringify(s)); }
+  function seed(){ const s={emps:[],events:[],seq:1}; localStorage.setItem(K,JSON.stringify(s)); return s; }
+  return {
+    async listEmployees(){ return load().emps.filter(e=>e.active).sort((a,b)=>a.name.localeCompare(b.name,"ko")); },
+    async allEmployees(){ return load().emps.sort((a,b)=>a.name.localeCompare(b.name,"ko")); },
+    async createEmployee(name,pin){
+      const s=load();
+      if(s.emps.some(e=>e.active&&e.name===name.trim())) throw new Error("같은 이름의 활성 직원이 이미 있습니다.");
+      const {encoded}=await pbkdf2(pin);
+      s.emps.push({id:s.seq++, name:name.trim(), pin_hash:encoded, active:true});
+      save(s);
+    },
+    async deactivateEmployee(id){ const s=load(); const e=s.emps.find(x=>x.id===id); if(e)e.active=false; save(s); },
+    async verifyPin(id,pin){ const e=load().emps.find(x=>x.id===id&&x.active); if(!e)return false; return pinMatches(pin,e.pin_hash); },
+    async lastEvent(id){ const ev=load().events.filter(x=>x.employee_id===id).sort((a,b)=>a.event_at<b.event_at?1:-1); return ev[0]||null; },
+    async insertEvent(id,type){ const s=load(); const now=iso(kstNow());
+      s.events.push({id:s.seq++, employee_id:id, event_type:type, event_at:now, server_received_at:now, device_id:CONFIG.DEVICE_ID}); save(s); },
+    async todayEvents(){ const s=load(); const t=kstNow(); const p=n=>String(n).padStart(2,"0");
+      const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
+      return s.events.filter(x=>x.event_at.slice(0,10)===day); },
+  };
+})();
+
+/* ---------------------- Supabase 구현 (준비만) ---------------------- */
+/* Supabase 프로젝트 생성 후 CONFIG 채우면 이 경로가 활성화됩니다.
+   테이블 스키마는 README/SQL 참고. 여기서는 REST(PostgREST) 직접 호출. */
+const SupaBE = (()=>{
+  const base=()=>`${CONFIG.SUPABASE_URL}/rest/v1`;
+  const H=()=>({ "apikey":CONFIG.SUPABASE_ANON_KEY, "Authorization":`Bearer ${CONFIG.SUPABASE_ANON_KEY}`, "Content-Type":"application/json" });
+  async function q(path,opt={}){ const r=await fetch(base()+path,{headers:H(),...opt}); if(!r.ok) throw new Error(await r.text()); return r.status===204?null:r.json(); }
+  return {
+    async listEmployees(){ return q(`/employees?is_active=eq.true&select=id,name&order=name`); },
+    async allEmployees(){ return q(`/employees?select=id,name,is_active&order=name`); },
+    async createEmployee(name,pin){ const {encoded}=await pbkdf2(pin);
+      return q(`/employees`,{method:"POST",headers:{...H(),Prefer:"return=minimal"},body:JSON.stringify({name:name.trim(),pin_hash:encoded,is_active:true})}); },
+    async deactivateEmployee(id){ return q(`/employees?id=eq.${id}`,{method:"PATCH",headers:{...H(),Prefer:"return=minimal"},body:JSON.stringify({is_active:false})}); },
+    async verifyPin(id,pin){ const r=await q(`/employees?id=eq.${id}&is_active=eq.true&select=pin_hash`); if(!r.length)return false; return pinMatches(pin,r[0].pin_hash); },
+    async lastEvent(id){ const r=await q(`/attendance_events?employee_id=eq.${id}&order=event_at.desc,id.desc&limit=1`); return r[0]||null; },
+    async insertEvent(id,type){ const now=iso(kstNow());
+      return q(`/attendance_events`,{method:"POST",headers:{...H(),Prefer:"return=minimal"},body:JSON.stringify({employee_id:id,event_type:type,event_at:now,server_received_at:now,device_id:CONFIG.DEVICE_ID})}); },
+    async todayEvents(){ const t=kstNow(); const p=n=>String(n).padStart(2,"0");
+      const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
+      return q(`/attendance_events?event_at=gte.${day}T00:00:00&event_at=lt.${day}T23:59:59&order=employee_id,event_at`); },
+  };
+})();
+
+const BE = LIVE ? SupaBE : LocalBE;
+
+/* ============================ 공통 로직 ============================ */
+// GPT판 pair_events 이식: IN/OUT 세션화 + 미완결/고아 감지
+function pairEvents(rows){
+  const s=[...rows].sort((a,b)=> a.event_at<b.event_at?-1:1);
+  const out=[]; let openIn=null;
+  for(const r of s){
+    const when=fromIso(r.event_at);
+    if(r.event_type==="IN"){
+      if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"INCOMPLETE"});
+      openIn=when;
+    }else if(r.event_type==="OUT"){
+      if(openIn!==null){ out.push({in:openIn,out:when,sec:(when-openIn)/1000,status:"COMPLETE"}); openIn=null; }
+      else out.push({in:null,out:when,sec:null,status:"ORPHAN_OUT"});
+    }
+  }
+  if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"WORKING"});
+  return out;
+}
+async function empState(id){
+  const last=await BE.lastEvent(id);
+  if(last && last.event_type==="IN") return {state:"WORKING",last};
+  return {state:"OFF",last};
+}
+
+/* ============================ UI: 라우팅 ============================ */
+const view=document.getElementById("view");
+function setTab(t){
+  document.getElementById("tabPos").classList.toggle("on",t==="pos");
+  document.getElementById("tabAdmin").classList.toggle("on",t==="admin");
+}
+function route(){
+  const h=(location.hash||"#pos").replace("#","");
+  if(h==="admin"){ setTab("admin"); renderAdmin(); }
+  else{ setTab("pos"); renderPos(); }
+}
+window.addEventListener("hashchange",route);
+
+/* ---------------------- POS 화면 ---------------------- */
+async function renderPos(){
+  view.innerHTML=`<div class="grid" id="empGrid"></div>`;
+  const grid=document.getElementById("empGrid");
+  let emps=[];
+  try{ emps=await BE.listEmployees(); }catch(e){ grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
+  if(!emps.length){ grid.innerHTML=`<div class="empty">등록된 직원이 없습니다.<br>관리자 탭에서 먼저 직원을 등록하세요.</div>`; return; }
+  for(const e of emps){
+    const {state}=await empState(e.id);
+    const card=document.createElement("div");
+    card.className="emp"+(state==="WORKING"?" working":"");
+    card.innerHTML=`<div class="nm">${e.name}</div><div class="st"><span class="dot"></span>${state==="WORKING"?"근무중":"대기"}</div>`;
+    card.onclick=()=>openPad(e,state);
+    grid.appendChild(card);
+  }
+}
+
+/* ---------------------- PIN 패드 ---------------------- */
+const padVeil=document.getElementById("padVeil");
+let padBuf="", padEmp=null, padState=null;
+function openPad(emp,state){
+  padEmp=emp; padState=state; padBuf="";
+  document.getElementById("padTitle").textContent = state==="WORKING"?"퇴근 — PIN 입력":"출근 — PIN 입력";
+  document.getElementById("padWho").textContent = emp.name+(state==="WORKING"?" · 현재 근무중":"");
+  buildKeys(); drawDots(); padVeil.classList.add("show");
+}
+function closePad(){ padVeil.classList.remove("show"); padBuf=""; }
+document.getElementById("padCancel").onclick=closePad;
+padVeil.addEventListener("click",e=>{ if(e.target===padVeil) closePad(); });
+function drawDots(){
+  const d=document.getElementById("padDots"); d.innerHTML="";
+  for(let i=0;i<4;i++){ const s=document.createElement("i"); if(i<padBuf.length)s.className="f"; d.appendChild(s); }
+}
+function buildKeys(){
+  const k=document.getElementById("padKeys"); k.innerHTML="";
+  const layout=["1","2","3","4","5","6","7","8","9","del","0","ok"];
+  for(const key of layout){
+    const b=document.createElement("button");
+    if(key==="del"){ b.textContent="←"; b.className="act"; b.onclick=()=>{padBuf=padBuf.slice(0,-1);drawDots();}; }
+    else if(key==="ok"){ b.textContent="확인"; b.className="act"; b.onclick=submitPad; }
+    else { b.textContent=key; b.onclick=()=>{ if(padBuf.length<4){padBuf+=key;drawDots(); if(padBuf.length===4) submitPad();} }; }
+    k.appendChild(b);
+  }
+}
+async function submitPad(){
+  if(padBuf.length<4){ return; }
+  const ok=await BE.verifyPin(padEmp.id,padBuf);
+  if(!ok){ closePad(); toast("err","PIN 오류","직원 또는 PIN을 확인해주세요."); return; }
+  // 8초 중복방지
+  const last=await BE.lastEvent(padEmp.id);
+  if(last){ const el=(kstNow()-fromIso(last.event_at))/1000; if(el<CONFIG.DUP_GUARD_SEC){ closePad(); toast("err","잠시 후 다시","방금 처리되었습니다."); return; } }
+  const type = padState==="WORKING" ? "OUT" : "IN";
+  await BE.insertEvent(padEmp.id,type);
+  closePad();
+  const now=kstNow();
+  if(type==="IN") toast("in",`${padEmp.name}님 출근`,`${hhmm(now)} 기록됨`);
+  else{
+    let worked="";
+    if(last && last.event_type==="IN") worked = "근무 "+fmtDur((now-fromIso(last.event_at))/1000);
+    toast("out",`${padEmp.name}님 퇴근`,`${hhmm(now)} · ${worked}`);
+  }
+  renderPos();
+}
+
+/* ---------------------- 토스트 ---------------------- */
+let toastTimer=null;
+function toast(kind,big,sub){
+  const t=document.getElementById("toast");
+  t.className="toast "+kind; t.innerHTML=`<div class="big">${big}</div><div class="sub">${sub||""}</div>`;
+  t.classList.add("show"); clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove("show"),2200);
+}
+
+/* ---------------------- 관리자 화면 ---------------------- */
+async function renderAdmin(){
+  view.innerHTML=`
+    <div class="section-t">오늘 근태 · <span id="adToday"></span></div>
+    <div id="adList"></div>
+    <div class="section-t" style="margin-top:20px">직원 관리</div>
+    <div id="adEmps"></div>
+    <button class="addbtn" id="adAdd">+ 직원 등록</button>`;
+  const t=kstNow(); const p=n=>String(n).padStart(2,"0");
+  document.getElementById("adToday").textContent=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
+  document.getElementById("adAdd").onclick=()=>document.getElementById("addVeil").classList.add("show");
+
+  // 오늘 근태 요약
+  let emps=[], events=[];
+  try{ emps=await BE.allEmployees(); events=await BE.todayEvents(); }
+  catch(e){ document.getElementById("adList").innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
+  const listEl=document.getElementById("adList");
+  const active=emps.filter(e=>e.is_active!==false && e.active!==false);
+  if(!active.length){ listEl.innerHTML=`<div class="empty">등록된 직원이 없습니다.</div>`; }
+  else{
+    listEl.innerHTML="";
+    for(const e of active){
+      const rows=events.filter(x=>x.employee_id===e.id);
+      const sess=pairEvents(rows);
+      let sec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
+      const working=sess.find(s=>s.status==="WORKING");
+      if(working) sec+=(kstNow()-working.in)/1000;
+      const firstIn=sess.find(s=>s.in); const lastOut=[...sess].reverse().find(s=>s.out);
+      const issue=sess.some(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT");
+      const div=document.createElement("div"); div.className="row";
+      div.innerHTML=`
+        <div class="nm">${e.name}</div>
+        <div class="times">
+          <div>출근 <b>${firstIn?hhmm(firstIn.in):"-"}</b> · 퇴근 <b>${lastOut?hhmm(lastOut.out):(working?"근무중":"-")}</b></div>
+          <div>${sec?fmtDur(sec):"-"}</div>
+        </div>
+        ${working?'<span class="badge work">근무중</span>':''}
+        ${issue?'<span class="badge issue">확인필요</span>':''}`;
+      listEl.appendChild(div);
+    }
+  }
+  // 직원 관리 목록
+  const empsEl=document.getElementById("adEmps"); empsEl.innerHTML="";
+  for(const e of active){
+    const div=document.createElement("div"); div.className="row";
+    div.innerHTML=`<div class="nm">${e.name}</div><button class="link-x">비활성화</button>`;
+    div.querySelector("button").onclick=async()=>{ if(confirm(`${e.name} 직원을 비활성화할까요?`)){ await BE.deactivateEmployee(e.id); renderAdmin(); } };
+    empsEl.appendChild(div);
+  }
+}
+
+/* 직원 등록 모달 */
+document.getElementById("newCancel").onclick=()=>document.getElementById("addVeil").classList.remove("show");
+document.getElementById("addVeil").addEventListener("click",e=>{ if(e.target.id==="addVeil") e.currentTarget.classList.remove("show"); });
+document.getElementById("newSave").onclick=async()=>{
+  const name=document.getElementById("newName").value.trim();
+  const pin=document.getElementById("newPin").value.trim();
+  if(!name){ alert("이름을 입력하세요."); return; }
+  if(!/^\d{4}$/.test(pin)){ alert("PIN은 숫자 4자리입니다."); return; }
+  try{ await BE.createEmployee(name,pin); }catch(e){ alert(e.message); return; }
+  document.getElementById("newName").value=""; document.getElementById("newPin").value="";
+  document.getElementById("addVeil").classList.remove("show");
+  renderAdmin();
+};
+
+/* ---------------------- 부팅 ---------------------- */
+document.getElementById("storeName").textContent=CONFIG.STORE_NAME;
+const connEl=document.getElementById("conn");
+if(LIVE){ connEl.className="conn live"; connEl.textContent="클라우드 연결됨 · Supabase"; }
+function tick(){ document.getElementById("clock").textContent=hms(kstNow()); }
+tick(); setInterval(tick,1000);
+route();
+</script>
+</body>
+</html>
