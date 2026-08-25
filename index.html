@@ -268,7 +268,14 @@ const LocalBE = (()=>{
 const SupaBE = (()=>{
   const base=()=>`${CONFIG.SUPABASE_URL}/rest/v1`;
   const H=()=>({ "apikey":CONFIG.SUPABASE_ANON_KEY, "Authorization":`Bearer ${CONFIG.SUPABASE_ANON_KEY}`, "Content-Type":"application/json" });
-  async function q(path,opt={}){ const r=await fetch(base()+path,{headers:H(),...opt}); if(!r.ok) throw new Error(await r.text()); return r.status===204?null:r.json(); }
+  async function q(path,opt={}){
+    const r=await fetch(base()+path,{headers:H(),...opt});
+    if(!r.ok){ throw new Error(await r.text()); }
+    if(r.status===204) return null;
+    const txt=await r.text();
+    if(!txt) return null;              // 빈 본문(예: return=minimal) 안전 처리
+    try{ return JSON.parse(txt); }catch(e){ return null; }
+  }
   return {
     async listEmployees(){ return q(`/employees?is_active=eq.true&select=id,name&order=name`); },
     async allEmployees(){ return q(`/employees?select=id,name,is_active&order=name`); },
