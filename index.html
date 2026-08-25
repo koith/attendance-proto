@@ -210,6 +210,11 @@ function fmtDur(sec){
   const m=Math.max(0,Math.floor(sec/60)); const h=Math.floor(m/60), mm=m%60;
   if(h&&mm) return `${h}시간 ${mm}분`; if(h) return `${h}시간`; return `${mm}분`;
 }
+// 급여용: 초 → 정확한 시간(소수, 반올림 없음). 계산에 사용.
+function secToHours(sec){ return sec/3600; }
+// 표시용: 초 → "H시간 M분" (분 단위 절삭 표기, 계산과 무관)
+function fmtHM(sec){ const m=Math.floor(sec/60); const h=Math.floor(m/60), mm=m%60;
+  if(h&&mm) return `${h}시간 ${mm}분`; if(h) return `${h}시간`; return `${mm}분`; }
 /* ---- 엑셀 ROUND/ROUNDDOWN 정확 재현 (Sprint2 replay 검증 통과) ---- */
 function xround(x,n){ // ROUND(x,10^-n): n=-1 → 10원 반올림
   const step=Math.pow(10,-n); return Math.round(x/step)*step;
@@ -280,7 +285,14 @@ const LocalBE = (()=>{
     async todayEvents(){ const s=load(); const t=kstNow(); const p=n=>String(n).padStart(2,"0");
       const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
       return s.events.filter(x=>x.event_at.slice(0,10)===day); },
-    async monthEvents(ym){ const s=load(); return s.events.filter(x=>x.event_at.slice(0,7)===ym); },
+    async monthEvents(ym){ // 경계 포함: 전월 말일~익월 1일까지 여유 조회 후 세션화는 호출측에서
+      const s=load(); const [y,m]=ym.split("-").map(Number);
+      const start=new Date(y,m-1,1); start.setDate(start.getDate()-1);   // 전월 말일
+      const end=new Date(y,m,1); end.setDate(end.getDate()+1);           // 익월 1일 다음
+      const p=n=>String(n).padStart(2,"0");
+      const sd=`${start.getFullYear()}-${p(start.getMonth()+1)}-${p(start.getDate())}`;
+      const ed=`${end.getFullYear()}-${p(end.getMonth()+1)}-${p(end.getDate())}`;
+      return s.events.filter(x=>{const d=x.event_at.slice(0,10); return d>=sd && d<=ed;}); },
     async updateEmployee(id,fields){ const s=load(); const e=s.emps.find(x=>x.id===id); if(e)Object.assign(e,fields); save(s); },
     async getEmployee(id){ return load().emps.find(x=>x.id===id)||null; },
   };
@@ -313,10 +325,13 @@ const SupaBE = (()=>{
     async todayEvents(){ const t=kstNow(); const p=n=>String(n).padStart(2,"0");
       const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
       return q(`/attendance_events?event_at=gte.${day}T00:00:00&event_at=lt.${day}T23:59:59&order=employee_id,event_at`); },
-    async monthEvents(ym){ // ym="2026-07"
+    async monthEvents(ym){ // 경계 포함 조회 (7/31→8/1 세션 보존)
       const [y,m]=ym.split("-").map(Number); const p=n=>String(n).padStart(2,"0");
-      const nextM = m===12?`${y+1}-01`:`${y}-${p(m+1)}`;
-      return q(`/attendance_events?event_at=gte.${ym}-01T00:00:00&event_at=lt.${nextM}-01T00:00:00&order=employee_id,event_at`); },
+      const start=new Date(y,m-1,1); start.setDate(start.getDate()-1);   // 전월 말일 00:00
+      const end=new Date(y,m,1); end.setDate(end.getDate()+2);           // 익월 1일+1 00:00 (여유)
+      const sd=`${start.getFullYear()}-${p(start.getMonth()+1)}-${p(start.getDate())}`;
+      const ed=`${end.getFullYear()}-${p(end.getMonth()+1)}-${p(end.getDate())}`;
+      return q(`/attendance_events?event_at=gte.${sd}T00:00:00&event_at=lt.${ed}T00:00:00&order=employee_id,event_at`); },
     async updateEmployee(id,fields){ return q(`/employees?id=eq.${id}`,{method:"PATCH",headers:{...H(),Prefer:"return=minimal"},body:JSON.stringify(fields)}); },
     async getEmployee(id){ const r=await q(`/employees?id=eq.${id}&select=*`); return r&&r[0]||null; },
   };
@@ -549,9 +564,17 @@ async function drawPay(ym){
   let totalNet=0;
   for(const e of active){
     const rows=events.filter(x=>x.employee_id===e.id);
-    const sess=pairEvents(rows);
+    const allSess=pairEvents(rows); // 경계 포함 데이터로 세션 먼저 완성
+    // 귀속 규칙(V0.1): 근무세션을 "출근일" 기준으로 정산월에 귀속
+    const sess=allSess.filter(s=>{
+      const anchor = s.in || s.out;            // IN 없으면(고아 OUT) OUT일 기준
+      if(!anchor) return false;
+      const p=n=>String(n).padStart(2,"0");
+      const ymOf=`${anchor.getFullYear()}-${p(anchor.getMonth()+1)}`;
+      return ymOf===ym;
+    });
     const sec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
-    const hours=Math.round(sec/3600*2)/2; // 30분 단위
+    const hours=secToHours(sec); // 반올림 없이 정확한 시간(소수)으로 계산
     const issues=sess.filter(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
     const hasWage = e.wage!=null && e.wage>0;
     const pay = hasWage ? calcPayroll(e, hours, weeks) : null;
@@ -567,7 +590,7 @@ async function drawPay(ym){
       </div>
       ${hasWage ? `
       <div style="font-size:.85rem;color:var(--sub);line-height:1.9">
-        <div>실근무 <b style="color:var(--ink)">${hours}시간</b> · 시급 ${e.wage.toLocaleString()}원</div>
+        <div>실근무 <b style="color:var(--ink)">${fmtHM(sec)}</b> · 시급 ${e.wage.toLocaleString()}원</div>
         <div>기본급 <b style="color:var(--ink)">${pay.base.toLocaleString()}</b>
           ${pay.juhyu?` · 주휴 <b style="color:var(--ink)">${pay.juhyu.toLocaleString()}</b>`:''}</div>
         <div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--line)">
@@ -575,7 +598,7 @@ async function drawPay(ym){
           → 세후(${(pay.rate*100).toFixed(1)}%) <b style="color:var(--in);font-size:1.05rem">${pay.net.toLocaleString()}원</b></div>
         ${e.memo?`<div style="color:var(--muted);font-size:.78rem;margin-top:4px">📝 ${e.memo}</div>`:''}
       </div>` : `
-      <div style="font-size:.82rem;color:var(--muted)">실근무 ${hours}시간 · 시급 미설정 — [설정]에서 시급을 입력하세요</div>`}
+      <div style="font-size:.82rem;color:var(--muted)">실근무 ${fmtHM(sec)} · 시급 미설정 — [설정]에서 시급을 입력하세요</div>`}
     `;
     card.querySelector("[data-edit]").onclick=()=>openPayEdit(e);
     el.appendChild(card);
