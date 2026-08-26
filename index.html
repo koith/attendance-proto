@@ -221,19 +221,25 @@ function xround(x,n){ // ROUND(x,10^-n): n=-1 → 10원 반올림
 }
 function xrounddown(x,n){ const step=Math.pow(10,-n); return Math.floor(x/step)*step; }
 /* ---- 월 급여 계산: emp속성 + 월실근무시간 → 급여내역 ---- */
-function calcPayroll(emp, monthHours, weeks){
-  const wage=emp.wage||0;
+// emp: 직원 기본값, ov: 이번 달 조정(payroll_period_employee) 또는 null, weeks: 그 달 주 수
+function calcPayroll(emp, monthHours, weeks, ov){
+  ov = ov||{};
+  // 기본값 + 이번 달 override 병합
+  const wage = (ov.wage_override!=null) ? ov.wage_override : (emp.wage||0);
+  const jh   = (ov.juhyu_hours_override!=null) ? ov.juhyu_hours_override : (emp.juhyu_hours||0);
+  const jweeks = (ov.juhyu_weeks_override!=null) ? ov.juhyu_weeks_override : (weeks||0);
+  const rate = (ov.tax_rate_override!=null) ? ov.tax_rate_override : ((emp.tax_rate!=null)?emp.tax_rate:0.033);
+  const adjust = ov.adjust_amount||0;
+
   const base=xround(wage*monthHours,-1);              // 기본급 10원 반올림
   let juhyu=0, weekly=0;
-  const jh=emp.juhyu_hours||0;
   if(jh>0){
     weekly = (emp.juhyu_round!=null) ? xround(wage*jh, emp.juhyu_round) : wage*jh;
-    juhyu = weekly*(weeks||0);
+    juhyu = weekly*jweeks;
   }
-  const gross=Math.round(base+juhyu);
-  const rate=(emp.tax_rate!=null)?emp.tax_rate:0.033;
-  const net=xrounddown(gross*(1-rate),-1);            // 세후 10원 버림
-  return {base, weekly, juhyu, gross, net, rate};
+  const gross=Math.round(base+juhyu+adjust);         // 임의 가감액 포함
+  const net=xrounddown(gross*(1-rate),-1);           // 세후 10원 버림
+  return {base, weekly, juhyu, adjust, gross, net, rate, wage, jweeks, usedOverride:Object.keys(ov).length>0};
 }
 
 /* ============================ 백엔드 어댑터 ============================ */
@@ -362,6 +368,10 @@ const SupaBE = (()=>{
     async resolveRequest(reqId,approve,reason){ return rpc("admin_resolve_request",{p_request_id:reqId,p_approve:approve,p_reject_reason:reason||null},true); },
     async correctEvent(action,eventId,empId,newAt,newType,reason){ return rpc("admin_correct_event",{p_action:action,p_event_id:eventId,p_employee_id:empId,p_new_at:newAt,p_new_type:newType,p_reason:reason},true); },
     async eventsWithCorrections(fromIso,toIso){ return rpc("admin_events_with_corrections",{p_from:fromIso,p_to:toIso},true); },
+    // --- M5: 급여기간 ---
+    async payrollPeriod(ym){ return rpc("admin_payroll_period",{p_ym:ym},true); },
+    async setPeriodWeeks(ym,weeks){ return rpc("admin_set_period_weeks",{p_ym:ym,p_weeks:weeks},true); },
+    async setPeriodEmployee(ym,empId,fields){ return rpc("admin_set_period_employee",{p_ym:ym,p_employee_id:empId,p_fields:fields},true); },
     async todayEvents(){ const t=kstNow(); const p=n=>String(n).padStart(2,"0");
       const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
       return this.rangeEvents(`${day}T00:00:00`,`${day}T23:59:59`); },
@@ -809,15 +819,27 @@ async function renderPay(){
   const curYm=`${now.getFullYear()}-${p(now.getMonth()+1)}`;
   view.innerHTML=`
     <div class="section-t">급여 정산</div>
-    <div class="field" style="max-width:200px">
-      <label>정산 월</label>
-      <input id="payMonth" type="month" value="${curYm}">
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+      <div class="field" style="max-width:170px;margin-bottom:8px">
+        <label>정산 월</label>
+        <input id="payMonth" type="month" value="${curYm}">
+      </div>
+      <div class="field" style="max-width:130px;margin-bottom:8px">
+        <label>주휴 주 수</label>
+        <input id="payWeeks" inputmode="numeric" placeholder="4">
+      </div>
     </div>
-    <div style="font-size:.75rem;color:var(--muted);margin:-4px 2px 14px">
-      ⚠ 세후(3.3%)·주휴 처리는 현재 매장 관행값입니다. 실제 신고는 회계사 확인 후.
+    <div style="font-size:.75rem;color:var(--muted);margin:0 2px 14px">
+      ⚠ 세후(3.3%)·주휴 처리는 현재 매장 관행값입니다. 실제 신고는 회계사 확인 후.<br>
+      주 수는 그 달 실제 근무 주에 맞춰 관리자가 확정하세요(비우면 4주).
     </div>
     <div id="payList"></div>`;
   document.getElementById("payMonth").addEventListener("change",e=>drawPay(e.target.value));
+  document.getElementById("payWeeks").addEventListener("change",async e=>{
+    const w=parseInt(e.target.value); const ym=document.getElementById("payMonth").value;
+    if(LIVE && w>0){ try{ await BE.setPeriodWeeks(ym,w); }catch(err){} }
+    drawPay(ym);
+  });
   drawPay(curYm);
 }
 async function drawPay(ym){
@@ -841,7 +863,18 @@ async function drawPay(ym){
   catch(e){ el.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
   const active=emps.filter(e=>e.is_active!==false && e.active!==false);
   if(!active.length){ el.innerHTML=`<div class="empty">직원이 없습니다.</div>`; return; }
-  const weeks=weeksInMonth(ym);
+
+  // M5: 그 달 급여기간(주 수 + 직원별 조정) 로드
+  let periodWeeks=null, overrides={};
+  if(LIVE){
+    try{
+      const pd=await BE.payrollPeriod(ym);
+      periodWeeks = pd.period && pd.period.weeks;
+      (pd.overrides||[]).forEach(o=>{ overrides[o.employee_id]=o; });
+      const wi=document.getElementById("payWeeks"); if(wi && periodWeeks) wi.value=periodWeeks;
+    }catch(e){}
+  }
+  const weeks = periodWeeks || weeksInMonth(ym);
   el.innerHTML="";
   let totalNet=0;
   for(const e of active){
@@ -858,8 +891,10 @@ async function drawPay(ym){
     const sec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
     const hours=secToHours(sec); // 반올림 없이 정확한 시간(소수)으로 계산
     const issues=sess.filter(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
-    const hasWage = e.wage!=null && e.wage>0;
-    const pay = hasWage ? calcPayroll(e, hours, weeks) : null;
+    const ov=overrides[e.id]||null;
+    const effWage = (ov&&ov.wage_override!=null)?ov.wage_override:e.wage;
+    const hasWage = effWage!=null && effWage>0;
+    const pay = hasWage ? calcPayroll(e, hours, weeks, ov) : null;
     if(pay) totalNet+=pay.net;
     const card=document.createElement("div");
     card.className="row"; card.style.flexDirection="column"; card.style.alignItems="stretch"; card.style.gap="10px";
@@ -867,28 +902,64 @@ async function drawPay(ym){
       <div style="display:flex;align-items:center;gap:10px">
         <div class="nm" style="flex:1">${e.name}
           ${issues?`<span class="badge issue" style="margin-left:6px">확인필요 ${issues}</span>`:''}
+          ${ov?`<span class="badge" style="margin-left:6px;color:var(--accent);border-color:var(--accent)">이달 조정</span>`:''}
         </div>
-        <button class="link-x" data-edit="${e.id}">설정</button>
+        <button class="link-x" data-month="${e.id}">이달 조정</button>
+        <button class="link-x" data-edit="${e.id}">기본설정</button>
       </div>
       ${hasWage ? `
       <div style="font-size:.85rem;color:var(--sub);line-height:1.9">
-        <div>실근무 <b style="color:var(--ink)">${fmtHM(sec)}</b> · 시급 ${e.wage.toLocaleString()}원</div>
+        <div>실근무 <b style="color:var(--ink)">${fmtHM(sec)}</b> · 시급 ${pay.wage.toLocaleString()}원${(ov&&ov.wage_override!=null)?' <span style="color:var(--accent);font-size:.72rem">(이달)</span>':''}</div>
         <div>기본급 <b style="color:var(--ink)">${pay.base.toLocaleString()}</b>
-          ${pay.juhyu?` · 주휴 <b style="color:var(--ink)">${pay.juhyu.toLocaleString()}</b>`:''}</div>
+          ${pay.juhyu?` · 주휴 <b style="color:var(--ink)">${pay.juhyu.toLocaleString()}</b> <span style="color:var(--muted);font-size:.72rem">(${pay.jweeks}주)</span>`:''}
+          ${pay.adjust?` · 조정 <b style="color:${pay.adjust>0?'var(--in)':'var(--warn)'}">${pay.adjust>0?'+':''}${pay.adjust.toLocaleString()}</b>`:''}</div>
         <div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--line)">
           세전 <b style="color:var(--ink)">${pay.gross.toLocaleString()}</b>
           → 세후(${(pay.rate*100).toFixed(1)}%) <b style="color:var(--in);font-size:1.05rem">${pay.net.toLocaleString()}원</b></div>
-        ${e.memo?`<div style="color:var(--muted);font-size:.78rem;margin-top:4px">📝 ${e.memo}</div>`:''}
+        ${(ov&&ov.memo)?`<div style="color:var(--accent);font-size:.78rem;margin-top:4px">📌 이달: ${ov.memo}</div>`:''}
+        ${e.memo?`<div style="color:var(--muted);font-size:.78rem;margin-top:2px">📝 ${e.memo}</div>`:''}
       </div>` : `
-      <div style="font-size:.82rem;color:var(--muted)">실근무 ${fmtHM(sec)} · 시급 미설정 — [설정]에서 시급을 입력하세요</div>`}
+      <div style="font-size:.82rem;color:var(--muted)">실근무 ${fmtHM(sec)} · 시급 미설정 — [기본설정]에서 시급을 입력하세요</div>`}
     `;
     card.querySelector("[data-edit]").onclick=()=>openPayEdit(e);
+    if(LIVE) card.querySelector("[data-month]").onclick=()=>openMonthAdjust(e, ym, ov);
     el.appendChild(card);
   }
   const sum=document.createElement("div");
   sum.className="row"; sum.style.marginTop="6px"; sum.style.borderColor="var(--accent)";
   sum.innerHTML=`<div class="nm" style="flex:1">세후 합계</div><div class="nm" style="color:var(--in)">${totalNet.toLocaleString()}원</div>`;
   el.appendChild(sum);
+}
+// M5: 이번 달만의 조정 (직원 영구설정과 분리)
+function openMonthAdjust(emp, ym, ov){
+  ov = ov||{};
+  const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
+  modal.innerHTML=`
+    <h3>${emp.name} · ${ym} 이달 조정</h3>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px">
+      이 값은 <b>${ym}에만</b> 적용됩니다. 비우면 직원 기본값 사용. 다음 달엔 영향 없음.</div>
+    <div class="field"><label>주휴 인정주수 (예: 1주 제외→3)</label><input id="maWeeks" inputmode="numeric" value="${ov.juhyu_weeks_override??''}" placeholder="비우면 기본 주수"></div>
+    <div class="field"><label>시급 (이달만)</label><input id="maWage" inputmode="numeric" value="${ov.wage_override??''}" placeholder="비우면 기본시급"></div>
+    <div class="field"><label>주휴시간 (이달만)</label><input id="maJh" inputmode="decimal" value="${ov.juhyu_hours_override??''}" placeholder="비우면 기본"></div>
+    <div class="field"><label>가감액 (수당+/공제−, 원)</label><input id="maAdj" inputmode="numeric" value="${ov.adjust_amount||''}" placeholder="예: -20000"></div>
+    <div class="field"><label>이달 사유</label><input id="maMemo" value="${ov.memo||''}" placeholder="예: 15h미만 1주 제외"></div>
+    <button class="btn-primary" id="maSave">이달 조정 저장</button>
+    <button class="link-x" id="maCancel" style="width:100%;margin-top:8px">취소</button>`;
+  v.classList.add("show");
+  modal.querySelector("#maCancel").onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
+  modal.querySelector("#maSave").onclick=async()=>{
+    const fields={
+      juhyu_weeks_override: document.getElementById("maWeeks").value,
+      wage_override: document.getElementById("maWage").value,
+      juhyu_hours_override: document.getElementById("maJh").value,
+      adjust_amount: document.getElementById("maAdj").value,
+      memo: document.getElementById("maMemo").value.trim(),
+    };
+    try{ await BE.setPeriodEmployee(ym, emp.id, fields); }catch(e){ alert(e.message); return; }
+    v.classList.remove("show"); restoreAddModal();
+    toast("in","이달 조정 저장",`${ym}에만 적용됩니다.`);
+    drawPay(ym);
+  };
 }
 function openPayEdit(emp){
   const v=document.getElementById("addVeil");
