@@ -526,7 +526,10 @@ function buildKeys(){
 async function submitPad(){
   if(padBusy) return;
   if(padBuf.length<4){ return; }
-  padBusy=true;
+  padBusy=true;                       // 즉시 잠금 (이중발화 방지)
+  // 확인 버튼 물리적으로 비활성화
+  const okBtn=[...document.querySelectorAll("#padKeys button")].find(b=>b.textContent==="확인");
+  if(okBtn){ okBtn.disabled=true; okBtn.style.opacity="0.4"; }
   document.getElementById("padTitle").textContent="처리 중…";
   const pin=padBuf;
   try{
@@ -1094,14 +1097,9 @@ const connEl=document.getElementById("conn");
 if(LIVE){ connEl.className="conn live"; connEl.textContent="클라우드 연결됨 · Supabase"; }
 function tick(){ document.getElementById("clock").textContent=hms(kstNow()); }
 tick(); setInterval(tick,1000);
-// iOS 사파리 더블탭 줌 방지 (touch-action이 안 먹는 경우 대비)
-let _lastTouch=0;
-document.addEventListener("touchend",e=>{
-  const now=Date.now();
-  if(now-_lastTouch<=350){ e.preventDefault(); }
-  _lastTouch=now;
-},{passive:false});
-// 핀치 줌(제스처) 방지
+// 더블탭 줌은 CSS touch-action:manipulation 로 처리 (전역 touchend 가로채기는
+// 버튼 click 이중발화를 유발하므로 제거함)
+// 핀치 줌(제스처)만 방지
 document.addEventListener("gesturestart",e=>e.preventDefault());
 
 if(LIVE) Auth.load();
