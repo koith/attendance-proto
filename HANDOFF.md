@@ -185,3 +185,36 @@ PIN 검증(bcrypt) → 직전이벤트 `order by id desc`로 판정(IN이면 OUT
 - **현장 Shadow Pilot → M9 한 달 병행운영**: 9월을 첫 Full-month 후보.
 - **주휴 주수 자동계산**: 회계사가 "주수 세는 법" 확정하면 구현(지금은 관리자 수동).
 - **M11 구로고척(2호점)**: 스케줄형 매장이라 WORK_SCHEDULE 필요해질 것.
+
+---
+---
+
+# ★★ 업데이트 (2026-08-26 밤) — M8.5 자동QA + M8.5B 적대적QA 완료
+
+## M8.5 자동 QA Sprint (완료)
+Shadow Pilot 전 자동 버그헌팅. 실제 배포 코드의 로직함수를 추출(extracted_logic)해 테스트.
+- **발견·수정 버그**: 주휴수당 부동소수점 오차(211200.00000000003). weekly/juhyu를 Math.round로 정수화. 배포됨.
+- 47 케이스 전원 통과. 7월 Golden 24값 = 절대사수 회귀테스트로 고정.
+- 파일: qa_m85.js (레포)
+
+## M8.5B 적대적 QA (완료)
+동시성·권한·극단값·무결성 파괴 목적.
+- **발견 버그(Critical): 동시 punch race condition**. 두 요청이 커밋 전 동시에 직전이벤트 읽으면 둘다 같은판정→중복IN. iOS 이중발화를 UI에서 막았어도 서버 레벨에서 부활 가능(POS 여러대/네트워크 재전송).
+- **수정**: punch에 `pg_advisory_xact_lock(hashtext('punch_emp_'||id))` 추가 → 직원별 서버 직렬화. schema_v7_race.sql 실행 완료.
+- Fuzz 61,541 세션(deterministic seed 1~2000) 음수/상태이상 0. 극단 timestamp(0초/1초/25h) 정확. 급여 1000케이스 전부 정수KRW.
+- 파일: qa_m85b.js, schema_v7_race.sql (레포)
+
+## 금액계산 원칙 (ChatGPT 합의)
+모든 급여금액 저장·최종계산은 정수 KRW. JS Number 소수연산 의존 금지. 비율계산 필요시 어느 단계 어떤 rounding인지 명시. 단 반올림규칙 자체가 법/회계 판단인 항목은 M6 전 임의확정 금지.
+
+## 현재 남은 위험 (제 환경 제약으로 미검증 → 형님/실기기 몫)
+1. **race 수정의 실제 DB 동시성 검증**: 컨테이너에서 supabase.co egress 차단으로 실호출 불가. advisory lock은 Postgres 표준이라 로직상 확실하나, 실기기 2대로 같은직원 동시타각 최종확인 필요.
+2. **권한 negative test 실호출 미검증**: anon이 admin_* RPC/테이블직접접근 거부되는지. 코드상 auth.role() 체크+RLS로 구조적 방어됨. 실기기 로그아웃상태 관리자기능 시도로 갈음.
+3. **correction 입력검증**: OUT<IN 역전보정을 서버가 아직 안막음(관리자승인이 방어선). 무결성 시뮬상 음수 안나지만 입력단 검증 추가 권장.
+4. **Layer3 브라우저 E2E**: 컨테이너 크롬설치 네트워크차단으로 자동화 불가 → 실기기 Pre-Pilot으로 이관.
+
+## 다음 순서 (ChatGPT 확정)
+M8.5A ✅ → M8.5B ✅ → **실기기 Pre-Pilot**(개발자 본인이 iPhone/iPad/POS Chrome에서 10~15분 의도적 스트레스: 더블탭/연타/느린네트워크/동시타각) → M6 회계사검증 → 직원 Shadow Pilot → 9월 M9 Parallel Run
+
+## QA 재실행 방법 (다음 세션)
+컨테이너에서: extracted_logic.js_module 재생성(index.html에서 함수추출) → `node qa_m85.js` + `node qa_m85b.js`. 코드 변경 시마다 회귀 확인.
