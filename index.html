@@ -295,45 +295,75 @@ const LocalBE = (()=>{
       return s.events.filter(x=>{const d=x.event_at.slice(0,10); return d>=sd && d<=ed;}); },
     async updateEmployee(id,fields){ const s=load(); const e=s.emps.find(x=>x.id===id); if(e)Object.assign(e,fields); save(s); },
     async getEmployee(id){ return load().emps.find(x=>x.id===id)||null; },
+    // --- RPC 호환 인터페이스 (Supabase와 동일 시그니처) ---
+    async listEmployeesState(){ const s=load();
+      return s.emps.filter(e=>e.active).sort((a,b)=>a.name.localeCompare(b.name,"ko")).map(e=>{
+        const ev=s.events.filter(x=>x.employee_id===e.id).sort((a,b)=>a.event_at<b.event_at?1:-1)[0];
+        return {id:e.id,name:e.name,working:!!(ev&&ev.event_type==="IN")};
+      }); },
+    async punch(id,pin){ const s=load(); const e=s.emps.find(x=>x.id===id&&x.active);
+      if(!e) return {ok:false,error:"NO_EMPLOYEE"};
+      if(!await pinMatches(pin,e.pin_hash)) return {ok:false,error:"BAD_PIN"};
+      const last=s.events.filter(x=>x.employee_id===id).sort((a,b)=>a.event_at<b.event_at?1:-1)[0];
+      const now=kstNow();
+      if(last && (now-fromIso(last.event_at))/1000<8) return {ok:false,error:"TOO_SOON"};
+      const type=(last&&last.event_type==="IN")?"OUT":"IN";
+      const iso_now=iso(now);
+      s.events.push({id:s.seq++,employee_id:id,event_type:type,event_at:iso_now,server_received_at:iso_now,device_id:CONFIG.DEVICE_ID}); save(s);
+      return {ok:true,type,at:iso_now,name:e.name}; },
+    async rangeEvents(fromStr,toStr){ const s=load();
+      return s.events.filter(x=>x.event_at>=fromStr && x.event_at<toStr); },
   };
 })();
 
 /* ---------------------- Supabase 구현 (준비만) ---------------------- */
 /* Supabase 프로젝트 생성 후 CONFIG 채우면 이 경로가 활성화됩니다.
    테이블 스키마는 README/SQL 참고. 여기서는 REST(PostgREST) 직접 호출. */
+/* Supabase Auth 세션 (관리자 로그인) */
+const Auth = {
+  token:null,
+  load(){ try{ this.token=JSON.parse(localStorage.getItem("baekeok_auth"))?.access_token||null; }catch(e){ this.token=null; } return this.token; },
+  save(session){ localStorage.setItem("baekeok_auth",JSON.stringify(session)); this.token=session.access_token; },
+  clear(){ localStorage.removeItem("baekeok_auth"); this.token=null; },
+  async login(email,password){
+    const r=await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=password`,{
+      method:"POST", headers:{apikey:CONFIG.SUPABASE_ANON_KEY,"Content-Type":"application/json"},
+      body:JSON.stringify({email,password})});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error_description||d.msg||"로그인 실패");
+    this.save(d); return d;
+  },
+  isLoggedIn(){ return !!this.token; },
+};
+
 const SupaBE = (()=>{
-  const base=()=>`${CONFIG.SUPABASE_URL}/rest/v1`;
-  const H=()=>({ "apikey":CONFIG.SUPABASE_ANON_KEY, "Authorization":`Bearer ${CONFIG.SUPABASE_ANON_KEY}`, "Content-Type":"application/json" });
-  async function q(path,opt={}){
-    const r=await fetch(base()+path,{headers:H(),...opt});
+  const rpc=async(fn,args={},useAuth=false)=>{
+    const headers={apikey:CONFIG.SUPABASE_ANON_KEY,"Content-Type":"application/json",
+      "Authorization":`Bearer ${useAuth&&Auth.token?Auth.token:CONFIG.SUPABASE_ANON_KEY}`};
+    const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:"POST",headers,body:JSON.stringify(args)});
     if(!r.ok){ throw new Error(await r.text()); }
-    if(r.status===204) return null;
-    const txt=await r.text();
-    if(!txt) return null;              // 빈 본문(예: return=minimal) 안전 처리
-    try{ return JSON.parse(txt); }catch(e){ return null; }
-  }
+    const t=await r.text(); if(!t) return null;
+    try{ return JSON.parse(t); }catch(e){ return null; }
+  };
   return {
-    async listEmployees(){ return q(`/employees?is_active=eq.true&select=id,name&order=name`); },
-    async allEmployees(){ return q(`/employees?select=*&order=name`); },
-    async createEmployee(name,pin){ const {encoded}=await pbkdf2(pin);
-      return q(`/employees`,{method:"POST",headers:{...H(),Prefer:"return=minimal"},body:JSON.stringify({name:name.trim(),pin_hash:encoded,is_active:true})}); },
-    async deactivateEmployee(id){ return q(`/employees?id=eq.${id}`,{method:"PATCH",headers:{...H(),Prefer:"return=minimal"},body:JSON.stringify({is_active:false})}); },
-    async verifyPin(id,pin){ const r=await q(`/employees?id=eq.${id}&is_active=eq.true&select=pin_hash`); if(!r.length)return false; return pinMatches(pin,r[0].pin_hash); },
-    async lastEvent(id){ const r=await q(`/attendance_events?employee_id=eq.${id}&order=event_at.desc,id.desc&limit=1`); return r[0]||null; },
-    async insertEvent(id,type){ const now=iso(kstNow());
-      return q(`/attendance_events`,{method:"POST",headers:{...H(),Prefer:"return=minimal"},body:JSON.stringify({employee_id:id,event_type:type,event_at:now,server_received_at:now,device_id:CONFIG.DEVICE_ID})}); },
+    // --- POS (anon) ---
+    async listEmployeesState(){ return rpc("list_employees_state"); },
+    async punch(id,pin){ return rpc("punch",{p_employee_id:id,p_pin:pin,p_device:CONFIG.DEVICE_ID}); },
+    // --- 관리자 (authenticated) ---
+    async allEmployees(){ return rpc("admin_list_employees",{},true); },
+    async createEmployee(name,pin){ return rpc("admin_create_employee",{p_name:name.trim(),p_pin:pin},true); },
+    async deactivateEmployee(id){ return rpc("admin_deactivate_employee",{p_id:id},true); },
+    async updateEmployee(id,fields){ return rpc("admin_update_employee",{p_id:id,p_fields:fields},true); },
+    async rangeEvents(fromIso,toIso){ return rpc("admin_events",{p_from:fromIso,p_to:toIso},true); },
     async todayEvents(){ const t=kstNow(); const p=n=>String(n).padStart(2,"0");
       const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
-      return q(`/attendance_events?event_at=gte.${day}T00:00:00&event_at=lt.${day}T23:59:59&order=employee_id,event_at`); },
-    async monthEvents(ym){ // 경계 포함 조회 (7/31→8/1 세션 보존)
-      const [y,m]=ym.split("-").map(Number); const p=n=>String(n).padStart(2,"0");
-      const start=new Date(y,m-1,1); start.setDate(start.getDate()-1);   // 전월 말일 00:00
-      const end=new Date(y,m,1); end.setDate(end.getDate()+2);           // 익월 1일+1 00:00 (여유)
+      return this.rangeEvents(`${day}T00:00:00`,`${day}T23:59:59`); },
+    async monthEvents(ym){ const [y,m]=ym.split("-").map(Number); const p=n=>String(n).padStart(2,"0");
+      const start=new Date(y,m-1,1); start.setDate(start.getDate()-1);
+      const end=new Date(y,m,1); end.setDate(end.getDate()+2);
       const sd=`${start.getFullYear()}-${p(start.getMonth()+1)}-${p(start.getDate())}`;
       const ed=`${end.getFullYear()}-${p(end.getMonth()+1)}-${p(end.getDate())}`;
-      return q(`/attendance_events?event_at=gte.${sd}T00:00:00&event_at=lt.${ed}T00:00:00&order=employee_id,event_at`); },
-    async updateEmployee(id,fields){ return q(`/employees?id=eq.${id}`,{method:"PATCH",headers:{...H(),Prefer:"return=minimal"},body:JSON.stringify(fields)}); },
-    async getEmployee(id){ const r=await q(`/employees?id=eq.${id}&select=*`); return r&&r[0]||null; },
+      return this.rangeEvents(`${sd}T00:00:00`,`${ed}T00:00:00`); },
   };
 })();
 
@@ -372,9 +402,28 @@ function setTab(t){
 }
 function route(){
   const h=(location.hash||"#pos").replace("#","");
-  if(h==="admin"){ setTab("admin"); renderAdmin(); }
-  else if(h==="pay"){ setTab("pay"); renderPay(); }
+  if(h==="admin"){ setTab("admin"); requireAuth(renderAdmin); }
+  else if(h==="pay"){ setTab("pay"); requireAuth(renderPay); }
   else{ setTab("pos"); renderPos(); }
+}
+// 관리자 탭 로그인 게이트
+function requireAuth(then){
+  if(!LIVE || Auth.isLoggedIn()){ then(); return; }
+  view.innerHTML=`
+    <div class="section-t">관리자 로그인</div>
+    <div class="field"><label>이메일</label><input id="loginEmail" type="email" autocomplete="username" placeholder="관리자 이메일"></div>
+    <div class="field"><label>비밀번호</label><input id="loginPw" type="password" autocomplete="current-password" placeholder="비밀번호"></div>
+    <button class="btn-primary" id="loginBtn">로그인</button>
+    <div id="loginErr" style="color:var(--warn);font-size:.85rem;margin-top:10px"></div>`;
+  document.getElementById("loginBtn").onclick=async()=>{
+    const email=document.getElementById("loginEmail").value.trim();
+    const pw=document.getElementById("loginPw").value;
+    const errEl=document.getElementById("loginErr");
+    if(!email||!pw){ errEl.textContent="이메일과 비밀번호를 입력하세요."; return; }
+    document.getElementById("loginBtn").textContent="로그인 중…";
+    try{ await Auth.login(email,pw); then(); }
+    catch(e){ errEl.textContent="로그인 실패: 이메일/비밀번호를 확인하세요."; document.getElementById("loginBtn").textContent="로그인"; }
+  };
 }
 window.addEventListener("hashchange",route);
 
@@ -383,14 +432,13 @@ async function renderPos(){
   view.innerHTML=`<div class="grid" id="empGrid"></div>`;
   const grid=document.getElementById("empGrid");
   let emps=[];
-  try{ emps=await BE.listEmployees(); }catch(e){ grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
+  try{ emps=await BE.listEmployeesState(); }catch(e){ grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
   if(!emps.length){ grid.innerHTML=`<div class="empty">등록된 직원이 없습니다.<br>관리자 탭에서 먼저 직원을 등록하세요.</div>`; return; }
   for(const e of emps){
-    const {state}=await empState(e.id);
     const card=document.createElement("div");
-    card.className="emp"+(state==="WORKING"?" working":"");
-    card.innerHTML=`<div class="nm">${e.name}</div><div class="st"><span class="dot"></span>${state==="WORKING"?"근무중":"대기"}</div>`;
-    card.onclick=()=>openPad(e,state);
+    card.className="emp"+(e.working?" working":"");
+    card.innerHTML=`<div class="nm">${e.name}</div><div class="st"><span class="dot"></span>${e.working?"근무중":"대기"}</div>`;
+    card.onclick=()=>openPad(e, e.working?"WORKING":"OFF");
     grid.appendChild(card);
   }
 }
@@ -423,27 +471,21 @@ function buildKeys(){
   }
 }
 async function submitPad(){
-  if(padBusy) return;                 // 중복 실행 방지 (자동제출+확인버튼, 지연 중 재터치)
+  if(padBusy) return;
   if(padBuf.length<4){ return; }
   padBusy=true;
   document.getElementById("padTitle").textContent="처리 중…";
   const pin=padBuf;
   try{
-    const ok=await BE.verifyPin(padEmp.id,pin);
-    if(!ok){ closePad(); toast("err","비밀번호 오류","직원 또는 비밀번호를 확인해주세요."); return; }
-    // 처리 직전 최신 상태를 다시 조회 (다른 기기에서 이미 찍었을 수 있음)
-    const {state,last}=await empState(padEmp.id);
-    if(last){ const el=(kstNow()-fromIso(last.event_at))/1000; if(el<CONFIG.DUP_GUARD_SEC){ closePad(); toast("err","잠시 후 다시","방금 처리되었습니다."); return; } }
-    const type = state==="WORKING" ? "OUT" : "IN";
-    await BE.insertEvent(padEmp.id,type);
+    const res=await BE.punch(padEmp.id,pin);
+    if(!res||!res.ok){
+      const msg={NO_EMPLOYEE:"직원을 찾을 수 없습니다.",BAD_PIN:"비밀번호가 올바르지 않습니다.",TOO_SOON:"방금 처리되었습니다. 잠시 후 다시."}[res&&res.error]||"처리 실패";
+      closePad(); toast("err",(res&&res.error==="BAD_PIN")?"비밀번호 오류":"오류",msg); return;
+    }
     closePad();
     const now=kstNow();
-    if(type==="IN") toast("in",`${padEmp.name}님 출근`,`${hhmm(now)} 기록됨`);
-    else{
-      let worked="";
-      if(last && last.event_type==="IN") worked="근무 "+fmtDur((now-fromIso(last.event_at))/1000);
-      toast("out",`${padEmp.name}님 퇴근`,`${hhmm(now)} · ${worked}`);
-    }
+    if(res.type==="IN") toast("in",`${res.name||padEmp.name}님 출근`,`${hhmm(now)} 기록됨`);
+    else toast("out",`${res.name||padEmp.name}님 퇴근`,`${hhmm(now)} 기록됨`);
     renderPos();
   }catch(e){
     closePad(); toast("err","처리 실패","네트워크를 확인하고 다시 시도해주세요.");
@@ -476,7 +518,10 @@ async function renderAdmin(){
   // 오늘 근태 요약
   let emps=[], events=[];
   try{ emps=await BE.allEmployees(); events=await BE.todayEvents(); }
-  catch(e){ document.getElementById("adList").innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
+  catch(e){
+    if(String(e.message).includes("JWT")||String(e.message).includes("401")){ Auth.clear(); requireAuth(renderAdmin); return; }
+    document.getElementById("adList").innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return;
+  }
   const listEl=document.getElementById("adList");
   const active=emps.filter(e=>e.is_active!==false && e.active!==false);
   if(!active.length){ listEl.innerHTML=`<div class="empty">등록된 직원이 없습니다.</div>`; }
@@ -652,6 +697,7 @@ const connEl=document.getElementById("conn");
 if(LIVE){ connEl.className="conn live"; connEl.textContent="클라우드 연결됨 · Supabase"; }
 function tick(){ document.getElementById("clock").textContent=hms(kstNow()); }
 tick(); setInterval(tick,1000);
+if(LIVE) Auth.load();
 route();
 </script>
 </body>
