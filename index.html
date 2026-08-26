@@ -15,7 +15,7 @@
     --r:16px; --tap:64px;
     font-size:16px;
   }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; touch-action:manipulation;}
   html,body{margin:0; height:100%;}
   body{
     background:var(--bg); color:var(--ink);
@@ -112,7 +112,7 @@
   .badge{font-size:.7rem; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--sub);}
   .badge.work{color:var(--in); border-color:var(--in-d);}
   .badge.issue{color:var(--warn); border-color:var(--warn);}
-  .empty{color:var(--muted); text-align:center; padding:40px 0; font-size:.9rem;}
+  .empty{color:var(--muted); text-align:center; padding:40px 16px; font-size:.9rem; grid-column:1/-1; width:100%;}
   .addbtn{
     width:100%; height:52px; border-radius:14px; border:1px dashed var(--line);
     background:transparent; color:var(--sub); font-size:.95rem; margin-top:4px; cursor:pointer;
@@ -519,7 +519,7 @@ function buildKeys(){
     const b=document.createElement("button");
     if(key==="del"){ b.textContent="←"; b.className="act"; b.onclick=()=>{ if(padBusy)return; padBuf=padBuf.slice(0,-1);drawDots(); }; }
     else if(key==="ok"){ b.textContent="확인"; b.className="act"; b.onclick=submitPad; }
-    else { b.textContent=key; b.onclick=()=>{ if(padBusy)return; if(padBuf.length<4){padBuf+=key;drawDots(); if(padBuf.length===4) submitPad();} }; }
+    else { b.textContent=key; b.onclick=()=>{ if(padBusy)return; if(padBuf.length<4){padBuf+=key;drawDots();} }; }
     k.appendChild(b);
   }
 }
@@ -1094,6 +1094,16 @@ const connEl=document.getElementById("conn");
 if(LIVE){ connEl.className="conn live"; connEl.textContent="클라우드 연결됨 · Supabase"; }
 function tick(){ document.getElementById("clock").textContent=hms(kstNow()); }
 tick(); setInterval(tick,1000);
+// iOS 사파리 더블탭 줌 방지 (touch-action이 안 먹는 경우 대비)
+let _lastTouch=0;
+document.addEventListener("touchend",e=>{
+  const now=Date.now();
+  if(now-_lastTouch<=350){ e.preventDefault(); }
+  _lastTouch=now;
+},{passive:false});
+// 핀치 줌(제스처) 방지
+document.addEventListener("gesturestart",e=>e.preventDefault());
+
 if(LIVE) Auth.load();
 route();
 </script>
