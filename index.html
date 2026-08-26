@@ -4,15 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>백억커피 근태</title>
 <style>
   :root{
-    --bg:#0f1115; --panel:#171a21; --panel2:#1f232c; --line:#2a2f3a;
-    --ink:#f2f4f8; --sub:#98a0ad; --muted:#6b7280;
-    --in:#22c55e; --in-d:#16a34a; --out:#f97316; --out-d:#ea580c;
-    --warn:#f43f5e; --accent:#5b8cff; --chip:#232834;
-    --r:16px; --tap:64px;
+    /* B2B 업무도구 톤: 회백색 배경 + 흰 Surface + 진한 본문 + 단일 accent */
+    --bg:#f4f5f7; --panel:#ffffff; --panel2:#f7f8fa; --line:#e2e5ea;
+    --ink:#1a1d23; --sub:#5c6470; --muted:#9aa1ad;
+    --in:#15803d; --in-d:#166534; --out:#c2410c; --out-d:#9a3412;
+    --warn:#dc2626; --accent:#2563eb; --chip:#eef1f6;
+    --r:12px; --tap:64px;
     font-size:16px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; touch-action:manipulation;}
@@ -27,7 +28,7 @@
   header{
     display:flex; align-items:center; justify-content:space-between;
     padding:14px 18px; border-bottom:1px solid var(--line);
-    position:sticky; top:0; background:rgba(15,17,21,.92); backdrop-filter:blur(8px); z-index:5;
+    position:sticky; top:0; background:rgba(255,255,255,.92); backdrop-filter:blur(8px); z-index:5;
   }
   .brand{display:flex; align-items:baseline; gap:8px;}
   .brand b{font-size:1.05rem; letter-spacing:-.02em;}
@@ -43,23 +44,46 @@
 
   /* connection banner */
   .conn{font-size:.74rem; padding:8px 14px; text-align:center; border-bottom:1px solid var(--line);}
-  .conn.local{background:#3a2a12; color:#f4c37a;}
-  .conn.live{background:#0f2a1a; color:#7ee2a8;}
+  .conn.local{background:#fef3c7; color:#92600a;}
+  .conn.live{background:#dcfce7; color:#15803d;}
 
   /* ---------- POS ---------- */
-  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;}
   .emp{
-    min-height:var(--tap); border:1px solid var(--line); background:var(--panel);
-    border-radius:var(--r); padding:14px 12px; display:flex; flex-direction:column; gap:6px;
-    justify-content:center; cursor:pointer; transition:transform .06s, border-color .15s;
+    min-height:92px; border:1px solid var(--line); background:var(--panel);
+    border-radius:var(--r); padding:16px 14px; display:flex; flex-direction:column; gap:8px;
+    justify-content:center; cursor:pointer; transition:transform .06s, border-color .15s, background .15s;
   }
   .emp:active{transform:scale(.97);}
-  .emp .nm{font-size:1.1rem; font-weight:600; letter-spacing:-.01em;}
-  .emp .st{font-size:.78rem; color:var(--sub); display:flex; align-items:center; gap:6px;}
-  .dot{width:8px; height:8px; border-radius:50%; background:var(--muted); display:inline-block;}
-  .emp.working{border-color:var(--in-d);}
-  .emp.working .dot{background:var(--in); box-shadow:0 0 0 3px rgba(34,197,94,.18);}
-  .emp.working .st{color:var(--in);}
+  .emp .nm{font-size:1.15rem; font-weight:650; letter-spacing:-.01em;}
+  .emp .st{font-size:.82rem; color:var(--sub); display:flex; align-items:center; gap:6px;}
+  .emp .since{font-size:.78rem; color:var(--sub); font-variant-numeric:tabular-nums;}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--muted); display:inline-block; flex:none;}
+  .emp.working{border-color:var(--in); background:#f2fbf5;}
+  .emp.working .dot{background:var(--in);}
+  .emp.working .st{color:var(--in); font-weight:600;}
+
+  /* 전체화면 성공 오버레이 */
+  .success{
+    position:fixed; inset:0; z-index:60; display:none;
+    flex-direction:column; align-items:center; justify-content:center; gap:6px;
+    padding:24px; text-align:center;
+    animation:fadein .2s ease-out;
+  }
+  .success.show{display:flex;}
+  .success.in{background:#f2fbf5;} .success.out{background:#fff7ed;}
+  @keyframes fadein{from{opacity:0;} to{opacity:1;}}
+  .success .check{
+    width:88px; height:88px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:2.6rem; color:#fff; margin-bottom:12px; animation:pop .3s cubic-bezier(.2,1.4,.5,1);
+  }
+  .success.in .check{background:var(--in);} .success.out .check{background:var(--out);}
+  @keyframes pop{from{transform:scale(.5);opacity:0;} to{transform:scale(1);opacity:1;}}
+  .success .act-label{font-size:1.5rem; font-weight:700; color:var(--ink);}
+  .success .nm-big{font-size:1.15rem; font-weight:600; margin-top:8px;}
+  .success .time-big{font-size:2.2rem; font-weight:750; font-variant-numeric:tabular-nums; letter-spacing:-.02em; margin:2px 0 8px;}
+  .success .msg{font-size:.95rem; color:var(--sub);}
+  .success .worked{font-size:1rem; color:var(--ink); font-weight:600; margin-top:4px;}
 
   /* PIN pad */
   .pad-veil{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-end; z-index:20;}
@@ -71,19 +95,21 @@
     animation:rise .18s ease-out;
   }
   @keyframes rise{from{transform:translateY(20px); opacity:.6;} to{transform:none; opacity:1;}}
-  .pad h3{margin:2px 0 2px; font-size:1.15rem;}
-  .pad .who{color:var(--sub); font-size:.85rem; margin-bottom:14px;}
+  .pad h3{margin:2px 0 4px; font-size:1.4rem; font-weight:700; text-align:center;}
+  .pad .who{color:var(--sub); font-size:.9rem; margin-bottom:16px; text-align:center;}
   .dots{display:flex; gap:14px; justify-content:center; margin:6px 0 18px;}
   .dots i{width:14px; height:14px; border-radius:50%; border:2px solid var(--line);}
   .dots i.f{background:var(--accent); border-color:var(--accent);}
   .keys{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
   .keys button{
-    height:60px; font-size:1.5rem; border-radius:14px; border:1px solid var(--line);
+    height:60px; font-size:1.5rem; border-radius:12px; border:1px solid var(--line);
     background:var(--panel2); color:var(--ink); font-variant-numeric:tabular-nums; cursor:pointer;
   }
   .keys button:active{background:var(--chip);}
   .keys .ghost{background:transparent; border-color:transparent;}
   .keys .act{font-size:1rem; color:var(--sub);}
+  .keys .ok-action{font-size:1.05rem; font-weight:650; color:#fff; background:var(--accent); border-color:var(--accent);}
+  .keys .ok-action:active{filter:brightness(.92); background:var(--accent);}
   .pad .cancel{width:100%; margin-top:12px; height:48px; background:transparent; color:var(--sub);
     border:1px solid var(--line); border-radius:12px; font-size:.95rem;}
 
@@ -93,7 +119,7 @@
     background:var(--panel2); border:1px solid var(--line); color:var(--ink);
     padding:18px 22px; border-radius:16px; font-size:1.05rem; z-index:40;
     opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; text-align:center;
-    box-shadow:0 12px 40px rgba(0,0,0,.5); min-width:220px;
+    box-shadow:0 8px 30px rgba(0,0,0,.15); min-width:220px;
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
   .toast.in{border-color:var(--in-d);} .toast.out{border-color:var(--out-d);} .toast.err{border-color:var(--warn);}
@@ -174,6 +200,15 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- 전체화면 성공 오버레이 (POS 타각 완료) -->
+<div class="success" id="success">
+  <div class="check" id="successCheck">✓</div>
+  <div class="act-label" id="successAction">출근 완료</div>
+  <div class="nm-big" id="successName">이현진</div>
+  <div class="time-big" id="successTime">09:57</div>
+  <div class="msg" id="successMsg">오늘도 좋은 하루 되세요</div>
+</div>
 
 <script>
 /* =========================================================================
@@ -481,16 +516,17 @@ window.addEventListener("hashchange",route);
 /* ---------------------- POS 화면 ---------------------- */
 async function renderPos(){
   view.innerHTML=`<div class="grid" id="empGrid"></div>
-    <button class="addbtn" id="myRecBtn" style="margin-top:16px">내 근태 기록 / 정정요청</button>`;
+    <div id="posPrompt" style="text-align:center;color:var(--sub);font-size:.88rem;margin-top:14px">직원을 선택하세요</div>
+    <button class="addbtn" id="myRecBtn" style="margin-top:16px">내 근태 기록 · 정정요청</button>`;
   document.getElementById("myRecBtn").onclick=openMyRecord;
   const grid=document.getElementById("empGrid");
   let emps=[];
-  try{ emps=await BE.listEmployeesState(); }catch(e){ grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
-  if(!emps.length){ grid.innerHTML=`<div class="empty">등록된 직원이 없습니다.<br>관리자 탭에서 먼저 직원을 등록하세요.</div>`; return; }
+  try{ emps=await BE.listEmployeesState(); }catch(e){ grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; document.getElementById("posPrompt").style.display="none"; return; }
+  if(!emps.length){ grid.innerHTML=`<div class="empty">등록된 직원이 없습니다.<br>관리자 탭에서 먼저 직원을 등록하세요.</div>`; document.getElementById("posPrompt").style.display="none"; return; }
   for(const e of emps){
     const card=document.createElement("div");
     card.className="emp"+(e.working?" working":"");
-    card.innerHTML=`<div class="nm">${e.name}</div><div class="st"><span class="dot"></span>${e.working?"근무중":"대기"}</div>`;
+    card.innerHTML=`<div class="nm">${e.name}</div><div class="st"><span class="dot"></span>${e.working?"근무중":"출근 전"}</div>`;
     card.onclick=()=>openPad(e, e.working?"WORKING":"OFF");
     grid.appendChild(card);
   }
@@ -501,8 +537,9 @@ const padVeil=document.getElementById("padVeil");
 let padBuf="", padEmp=null, padState=null, padBusy=false;
 function openPad(emp,state){
   padEmp=emp; padState=state; padBuf="";
-  document.getElementById("padTitle").textContent = state==="WORKING"?"퇴근 — 비밀번호 입력":"출근 — 비밀번호 입력";
-  document.getElementById("padWho").textContent = emp.name+(state==="WORKING"?" · 현재 근무중":"");
+  const isOut = state==="WORKING";
+  document.getElementById("padTitle").textContent = emp.name;
+  document.getElementById("padWho").textContent = isOut ? "● 근무중 · 비밀번호 입력" : "출근 전 · 비밀번호 입력";
   buildKeys(); drawDots(); padVeil.classList.add("show");
 }
 function closePad(){ padVeil.classList.remove("show"); padBuf=""; padBusy=false; }
@@ -514,11 +551,12 @@ function drawDots(){
 }
 function buildKeys(){
   const k=document.getElementById("padKeys"); k.innerHTML="";
+  const actionLabel = padState==="WORKING" ? "퇴근하기" : "출근하기";
   const layout=["1","2","3","4","5","6","7","8","9","del","0","ok"];
   for(const key of layout){
     const b=document.createElement("button");
     if(key==="del"){ b.textContent="←"; b.className="act"; b.onclick=()=>{ if(padBusy)return; padBuf=padBuf.slice(0,-1);drawDots(); }; }
-    else if(key==="ok"){ b.textContent="확인"; b.className="act"; b.onclick=submitPad; }
+    else if(key==="ok"){ b.textContent=actionLabel; b.className="act ok-action"; b.onclick=submitPad; }
     else { b.textContent=key; b.onclick=()=>{ if(padBusy)return; if(padBuf.length<4){padBuf+=key;drawDots();} }; }
     k.appendChild(b);
   }
@@ -527,10 +565,8 @@ async function submitPad(){
   if(padBusy) return;
   if(padBuf.length<4){ return; }
   padBusy=true;                       // 즉시 잠금 (이중발화 방지)
-  // 확인 버튼 물리적으로 비활성화
-  const okBtn=[...document.querySelectorAll("#padKeys button")].find(b=>b.textContent==="확인");
-  if(okBtn){ okBtn.disabled=true; okBtn.style.opacity="0.4"; }
-  document.getElementById("padTitle").textContent="처리 중…";
+  const okBtn=document.querySelector("#padKeys .ok-action");
+  if(okBtn){ okBtn.disabled=true; okBtn.style.opacity="0.4"; okBtn.textContent="처리 중…"; }
   const pin=padBuf;
   try{
     const res=await BE.punch(padEmp.id,pin);
@@ -539,15 +575,30 @@ async function submitPad(){
       closePad(); toast("err",(res&&res.error==="BAD_PIN")?"비밀번호 오류":"오류",msg); return;
     }
     closePad();
-    const now=kstNow();
-    if(res.type==="IN") toast("in",`${res.name||padEmp.name}님 출근`,`${hhmm(now)} 기록됨`);
-    else toast("out",`${res.name||padEmp.name}님 퇴근`,`${hhmm(now)} 기록됨`);
+    showSuccess(res.type, res.name||padEmp.name, kstNow(), res);
     renderPos();
   }catch(e){
     closePad(); toast("err","처리 실패","네트워크를 확인하고 다시 시도해주세요.");
   }finally{
     padBusy=false;
   }
+}
+// 전체화면 성공 오버레이 (2초 후 자동 종료)
+let _successTimer=null;
+function showSuccess(type, name, now, res){
+  const el=document.getElementById("success");
+  const isIn = type==="IN";
+  el.className="success "+(isIn?"in":"out");
+  document.getElementById("successCheck").textContent="✓";
+  document.getElementById("successAction").textContent = isIn?"출근 완료":"퇴근 완료";
+  document.getElementById("successName").textContent = name;
+  document.getElementById("successTime").textContent = hhmm(now);
+  const msgEl=document.getElementById("successMsg");
+  msgEl.textContent = isIn ? "오늘도 좋은 하루 되세요" : "수고하셨습니다";
+  el.classList.add("show");
+  clearTimeout(_successTimer);
+  _successTimer=setTimeout(()=>el.classList.remove("show"), 2000);
+  el.onclick=()=>{ clearTimeout(_successTimer); el.classList.remove("show"); };
 }
 
 /* ---------------------- 직원 본인 기록 / 정정요청 (M4) ---------------------- */
