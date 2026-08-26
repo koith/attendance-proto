@@ -139,3 +139,49 @@ function weeksInMonth(ym){ return 4; }  // 하드코딩
 - 원본 엑셀: `인하대점_백억커피_07월_인사관리.xlsx`(급여정산요약+근무시간+월력이미지3장), `구로고척_..._정산.xlsx`(26개월 스케줄).
 - replay 스크립트 로직은 index.html의 `calcPayroll`와 동일. 재검증 시 7월 6인 기대값:
   - 이현진 세후 2,037,660 / 이현서 600,500 / 이창헌 1,234,120 / 안덕원 503,960 / 김다인 1,019,890 / 이서현 89,810.
+
+---
+---
+
+# ★ 업데이트 (2026-08-26 저녁) — M3~M8 완료 + 버그수정
+
+이 아래가 최신 상태다. 위쪽 내용보다 이 섹션이 우선한다.
+
+## 완료된 마일스톤 (전부 배포·검증됨)
+- **M3 Hardening**: 서버측 bcrypt PIN 검증(pgcrypto), 서버시각(now()), RLS, 관리자 Supabase Auth 로그인(이메일). 관리자 계정은 대시보드 Authentication에서 생성.
+- **M4 종이 없애기**: 직원 정정요청(내 기록 보기→요청) + 관리자 승인 큐 + 관리자 직접수정. **원본 불변** 원칙: attendance_events는 안 고치고 event_corrections에 보정 누적, applyCorrections()로 유효값 계산.
+- **M5 급여기간 모델**: 직원 영구설정 vs 이달 조정(payroll_period_employee) 분리. 이달 override가 다음달 오염 안 시킴. 주휴 주수는 payroll_period.weeks(관리자 설정, 비우면 4). 검증 6/6.
+- **M8 월마감+Excel**: 급여 마감 시 payroll_snapshot에 계산근거 고정, fingerprint로 마감후 변경 감지, SheetJS(CDN)로 브라우저에서 세무사용 xlsx 다운로드. 검증 5/5.
+- **7월 Replay 회귀**: 모든 변경 후에도 6/6 유지(이현진 2,037,660 등).
+
+## 적용된 SQL (Supabase에서 실행 완료)
+schema.sql(기본) → v2(급여컬럼) → v3_final(Auth+RPC) → v4(정정/보정) → v5(급여기간) → v6(마감).
+추가 수동 조치(중요, 재구축 시 필수):
+1. `create extension pgcrypto with schema public;` — 안 하면 gen_salt 못 찾음. (Supabase 기본은 extensions 스키마라 함수의 search_path와 안 맞음)
+2. 그래도 안 되면 `alter table employees drop column if exists pin_hash;` — 옛 PBKDF2 NOT NULL 컬럼이 방해. 지금은 pin_bcrypt만 씀.
+3. 모든 pgcrypto 쓰는 함수는 `set search_path=public,extensions` 필수.
+
+## 오늘 잡은 버그들 (재발 방지용 기록)
+1. **직원등록 gen_salt 오류**: pgcrypto 스키마 문제 → 위 수동조치로 해결.
+2. **중복 출근 버그**(핵심): 같은 사람이 IN만 연속으로 찍힘. 
+   - 1차 원인: punch RPC가 `order by event_at`(초단위 동률) → `order by id desc`로 변경.
+   - 진짜 원인: **앱의 전역 touchend 핸들러**(더블탭 줌 방지용)가 iOS 사파리에서 확인버튼 click을 이중발화 → submitPad 2회 호출. 해당 핸들러 제거로 해결. 더블탭 줌은 CSS `touch-action:manipulation`로만 처리.
+   - 추가 방어: submitPad에서 즉시 padBusy=true + 확인버튼 disabled.
+3. **확인버튼 자동제출**: 4자리 채우면 자동실행 → 확인 눌러야 실행하도록 변경.
+4. **빈 화면 메시지 좌측 정렬**: .empty에 grid-column:1/-1 추가.
+5. **punch 8초 제한(TOO_SOON) 제거**: 시간으로 막지 않기로 결정. 연타 방지는 "팝업 닫힘 + 버튼잠금 + 재선택시 비번 재입력"으로 충분. 현재 punch 함수에 TOO_SOON 없음(최종본).
+
+## 현재 punch 함수 최종 상태
+PIN 검증(bcrypt) → 직전이벤트 `order by id desc`로 판정(IN이면 OUT, 아니면 IN) → insert. 시간제한 없음. search_path=public,extensions.
+
+## 배포/운영
+- URL: https://koith.github.io/attendance-proto/ (캐시 `?v=N`, 현재 v12+)
+- 앱은 punch/list_employees_state(anon) + admin_*(authenticated) RPC만 호출. 테이블 직접접근 안 함(RLS).
+- 개발: 아이폰 사파리, GitHub Contents API push, node --check 필수.
+- 노출된 GitHub PAT는 작업 후 revoke 권고(미확인).
+
+## 다음 (사람·현장 검증 단계, 개발 아님)
+- **M6 회계사 검증**: 주휴 공식·휴게·3.3% 세율이 법적으로 맞는지. 데이터/화면 들고 갈 준비 됨.
+- **현장 Shadow Pilot → M9 한 달 병행운영**: 9월을 첫 Full-month 후보.
+- **주휴 주수 자동계산**: 회계사가 "주수 세는 법" 확정하면 구현(지금은 관리자 수동).
+- **M11 구로고척(2호점)**: 스케줄형 매장이라 WORK_SCHEDULE 필요해질 것.
