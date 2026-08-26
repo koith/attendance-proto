@@ -355,6 +355,13 @@ const SupaBE = (()=>{
     async deactivateEmployee(id){ return rpc("admin_deactivate_employee",{p_id:id},true); },
     async updateEmployee(id,fields){ return rpc("admin_update_employee",{p_id:id,p_fields:fields},true); },
     async rangeEvents(fromIso,toIso){ return rpc("admin_events",{p_from:fromIso,p_to:toIso},true); },
+    // --- M4: 정정/수정 ---
+    async myEvents(id,pin,fromIso,toIso){ return rpc("my_events",{p_employee_id:id,p_pin:pin,p_from:fromIso,p_to:toIso}); },
+    async requestCorrection(id,pin,kind,eventId,reqAt,reqType,note){ return rpc("request_correction",{p_employee_id:id,p_pin:pin,p_kind:kind,p_event_id:eventId,p_requested_at:reqAt,p_requested_type:reqType,p_note:note}); },
+    async pendingRequests(){ return rpc("admin_pending_requests",{},true); },
+    async resolveRequest(reqId,approve,reason){ return rpc("admin_resolve_request",{p_request_id:reqId,p_approve:approve,p_reject_reason:reason||null},true); },
+    async correctEvent(action,eventId,empId,newAt,newType,reason){ return rpc("admin_correct_event",{p_action:action,p_event_id:eventId,p_employee_id:empId,p_new_at:newAt,p_new_type:newType,p_reason:reason},true); },
+    async eventsWithCorrections(fromIso,toIso){ return rpc("admin_events_with_corrections",{p_from:fromIso,p_to:toIso},true); },
     async todayEvents(){ const t=kstNow(); const p=n=>String(n).padStart(2,"0");
       const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
       return this.rangeEvents(`${day}T00:00:00`,`${day}T23:59:59`); },
@@ -371,6 +378,35 @@ const BE = LIVE ? SupaBE : LocalBE;
 
 /* ============================ 공통 로직 ============================ */
 // GPT판 pair_events 이식: IN/OUT 세션화 + 미완결/고아 감지
+// 원본 이벤트 + 보정 → 유효 이벤트 목록 (원본 불변, 최신 보정 우선)
+function applyCorrections(events, corrections){
+  const corrByEvent={}; const added=[];
+  for(const c of (corrections||[])){
+    if(c.action==="ADD"){ added.push(c); continue; }
+    // 같은 event_id의 보정 중 최신만 유효
+    if(c.event_id!=null){ const prev=corrByEvent[c.event_id];
+      if(!prev || new Date(c.created_at)>new Date(prev.created_at)) corrByEvent[c.event_id]=c; }
+  }
+  const eff=[];
+  for(const e of (events||[])){
+    const c=corrByEvent[e.id];
+    if(c){
+      if(c.action==="VOID") continue; // 무효화된 이벤트 제외
+      eff.push({ id:e.id, employee_id:e.employee_id,
+        event_type: c.action==="EDIT_TYPE"&&c.new_event_type ? c.new_event_type : e.event_type,
+        event_at: c.action==="EDIT_TIME"&&c.new_event_at ? c.new_event_at : e.event_at,
+        corrected:true });
+    } else {
+      eff.push({ id:e.id, employee_id:e.employee_id, event_type:e.event_type, event_at:e.event_at });
+    }
+  }
+  // 관리자가 추가(ADD)한 누락분
+  for(const c of added){
+    eff.push({ id:"add_"+c.id, employee_id:c.employee_id, event_type:c.new_event_type,
+      event_at:c.new_event_at, corrected:true, addedByAdmin:true });
+  }
+  return eff;
+}
 function pairEvents(rows){
   const s=[...rows].sort((a,b)=> a.event_at<b.event_at?-1:1);
   const out=[]; let openIn=null;
@@ -429,7 +465,9 @@ window.addEventListener("hashchange",route);
 
 /* ---------------------- POS 화면 ---------------------- */
 async function renderPos(){
-  view.innerHTML=`<div class="grid" id="empGrid"></div>`;
+  view.innerHTML=`<div class="grid" id="empGrid"></div>
+    <button class="addbtn" id="myRecBtn" style="margin-top:16px">내 근태 기록 / 정정요청</button>`;
+  document.getElementById("myRecBtn").onclick=openMyRecord;
   const grid=document.getElementById("empGrid");
   let emps=[];
   try{ emps=await BE.listEmployeesState(); }catch(e){ grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
@@ -494,6 +532,97 @@ async function submitPad(){
   }
 }
 
+/* ---------------------- 직원 본인 기록 / 정정요청 (M4) ---------------------- */
+async function openMyRecord(){
+  // 직원 선택 → 비번 → 내 기록
+  let emps=[];
+  try{ emps=await BE.listEmployeesState(); }catch(e){ toast("err","오류",e.message); return; }
+  if(!emps.length){ toast("err","직원 없음",""); return; }
+  const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
+  modal.innerHTML=`
+    <h3>내 근태 기록</h3>
+    <div class="field"><label>본인 선택</label>
+      <select id="mrEmp" style="height:50px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 12px">
+        ${emps.map(e=>`<option value="${e.id}">${e.name}</option>`).join("")}</select></div>
+    <div class="field"><label>비밀번호 (4자리)</label><input id="mrPin" inputmode="numeric" maxlength="4" type="password" placeholder="숫자 4자리"></div>
+    <button class="btn-primary" id="mrView">내 기록 보기</button>
+    <button class="link-x" id="mrCancel" style="width:100%;margin-top:8px">취소</button>
+    <div id="mrResult" style="margin-top:14px"></div>`;
+  v.classList.add("show");
+  modal.querySelector("#mrCancel").onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
+  modal.querySelector("#mrView").onclick=async()=>{
+    const id=Number(document.getElementById("mrEmp").value);
+    const pin=document.getElementById("mrPin").value;
+    if(!/^\d{4}$/.test(pin)){ alert("비밀번호 4자리"); return; }
+    const t=kstNow(); const p=n=>String(n).padStart(2,"0");
+    // 최근 14일
+    const to=new Date(t); to.setDate(to.getDate()+1);
+    const from=new Date(t); from.setDate(from.getDate()-14);
+    const fs=`${from.getFullYear()}-${p(from.getMonth()+1)}-${p(from.getDate())}T00:00:00`;
+    const ts=`${to.getFullYear()}-${p(to.getMonth()+1)}-${p(to.getDate())}T00:00:00`;
+    let res;
+    try{ res=await BE.myEvents(id,pin,fs,ts); }catch(e){ toast("err","오류",e.message); return; }
+    if(!res||!res.ok){ toast("err",res&&res.error==="BAD_PIN"?"비밀번호 오류":"오류",""); return; }
+    renderMyResult(id,pin,res.events||[],res.requests||[]);
+  };
+}
+function renderMyResult(empId,pin,events,requests){
+  const el=document.getElementById("mrResult");
+  const sess=pairEvents(events);
+  let html=`<div class="section-t">최근 2주</div>`;
+  if(!sess.length) html+=`<div style="color:var(--muted);font-size:.85rem">기록이 없습니다.</div>`;
+  else{
+    for(const s of sess){
+      const d=s.in||s.out; const date=d?`${d.getMonth()+1}/${d.getDate()}`:"-";
+      let label,warn="";
+      if(s.status==="COMPLETE") label=`출근 ${hhmm(s.in)} · 퇴근 ${hhmm(s.out)}`;
+      else if(s.status==="WORKING") label=`출근 ${hhmm(s.in)} · 근무중`;
+      else if(s.status==="INCOMPLETE"){ label=`출근 ${hhmm(s.in)} · 퇴근 누락`; warn="MISSING_OUT"; }
+      else if(s.status==="ORPHAN_OUT"){ label=`퇴근 ${hhmm(s.out)} · 출근 누락`; warn="MISSING_IN"; }
+      html+=`<div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:.88rem">
+        <span style="color:var(--sub);min-width:44px">${date}</span>
+        <span style="flex:1${warn?';color:var(--warn)':''}">${label}</span>
+        <button class="link-x" data-fixreq="${warn||'WRONG_TIME'}" data-at="${(s.in||s.out).toISOString()}">정정요청</button>
+      </div>`;
+    }
+  }
+  if(requests&&requests.length){
+    html+=`<div class="section-t" style="margin-top:14px">내 정정요청</div>`;
+    const st={PENDING:"대기중",APPROVED:"승인됨",REJECTED:"반려됨"};
+    for(const r of requests.slice(0,5)){
+      html+=`<div style="font-size:.82rem;color:var(--sub);padding:4px 0">${r.created_at.slice(5,10)} · ${st[r.status]||r.status} ${r.note?'· '+r.note:''}</div>`;
+    }
+  }
+  el.innerHTML=html;
+  el.querySelectorAll("[data-fixreq]").forEach(b=>b.onclick=()=>{
+    const kind=b.getAttribute("data-fixreq");
+    openReqForm(empId,pin,kind);
+  });
+}
+function openReqForm(empId,pin,kind){
+  const el=document.getElementById("mrResult");
+  const kindLabel={MISSING_OUT:"퇴근 누락",MISSING_IN:"출근 누락",WRONG_TIME:"시각 정정"}[kind]||"정정";
+  el.innerHTML=`
+    <div class="section-t">${kindLabel} 요청</div>
+    <div class="field"><label>올바른 시각</label><input id="reqTime" type="datetime-local"></div>
+    <div class="field"><label>사유</label><input id="reqNote" placeholder="예: 마감하고 퇴근 못 찍음"></div>
+    <button class="btn-primary" id="reqSend">요청 보내기</button>`;
+  document.getElementById("reqSend").onclick=async()=>{
+    const tv=document.getElementById("reqTime").value;
+    const note=document.getElementById("reqNote").value.trim();
+    if(!tv){ alert("시각을 입력하세요."); return; }
+    const at=tv.length===16?tv+":00":tv;
+    const reqType = kind==="MISSING_OUT"?"OUT":kind==="MISSING_IN"?"IN":null;
+    let res;
+    try{ res=await BE.requestCorrection(empId,pin,kind,null,at,reqType,note); }
+    catch(e){ toast("err","오류",e.message); return; }
+    if(res&&res.ok){
+      document.getElementById("addVeil").classList.remove("show"); restoreAddModal();
+      toast("in","요청 전송됨","관리자 승인을 기다려주세요.");
+    } else toast("err","실패",(res&&res.error)||"");
+  };
+}
+
 /* ---------------------- 토스트 ---------------------- */
 let toastTimer=null;
 function toast(kind,big,sub){
@@ -506,18 +635,31 @@ function toast(kind,big,sub){
 /* ---------------------- 관리자 화면 ---------------------- */
 async function renderAdmin(){
   view.innerHTML=`
+    <div id="adReqSection"></div>
     <div class="section-t">오늘 근태 · <span id="adToday"></span></div>
     <div id="adList"></div>
     <div class="section-t" style="margin-top:20px">직원 관리</div>
     <div id="adEmps"></div>
     <button class="addbtn" id="adAdd">+ 직원 등록</button>`;
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
-  document.getElementById("adToday").textContent=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
+  const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
+  document.getElementById("adToday").textContent=day;
   document.getElementById("adAdd").onclick=()=>document.getElementById("addVeil").classList.add("show");
 
-  // 오늘 근태 요약
-  let emps=[], events=[];
-  try{ emps=await BE.allEmployees(); events=await BE.todayEvents(); }
+  // 정정요청 대기 큐 (LIVE 전용)
+  if(LIVE){ renderPendingRequests(); }
+
+  // 오늘 근태 (원본+보정 반영)
+  let emps=[], eff=[];
+  try{
+    emps=await BE.allEmployees();
+    if(LIVE){
+      const data=await BE.eventsWithCorrections(`${day}T00:00:00`,`${day}T23:59:59`);
+      eff=applyCorrections(data.events, data.corrections);
+    } else {
+      eff=await BE.todayEvents();
+    }
+  }
   catch(e){
     if(String(e.message).includes("JWT")||String(e.message).includes("401")){ Auth.clear(); requireAuth(renderAdmin); return; }
     document.getElementById("adList").innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return;
@@ -528,7 +670,7 @@ async function renderAdmin(){
   else{
     listEl.innerHTML="";
     for(const e of active){
-      const rows=events.filter(x=>x.employee_id===e.id);
+      const rows=eff.filter(x=>x.employee_id===e.id);
       const sess=pairEvents(rows);
       let sec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
       const working=sess.find(s=>s.status==="WORKING");
@@ -537,13 +679,15 @@ async function renderAdmin(){
       const issue=sess.some(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT");
       const div=document.createElement("div"); div.className="row";
       div.innerHTML=`
-        <div class="nm">${e.name}</div>
+        <div class="nm" style="flex:1">${e.name}</div>
         <div class="times">
           <div>출근 <b>${firstIn?hhmm(firstIn.in):"-"}</b> · 퇴근 <b>${lastOut?hhmm(lastOut.out):(working?"근무중":"-")}</b></div>
           <div>${sec?fmtDur(sec):"-"}</div>
         </div>
         ${working?'<span class="badge work">근무중</span>':''}
-        ${issue?'<span class="badge issue">확인필요</span>':''}`;
+        ${issue?'<span class="badge issue">확인필요</span>':''}
+        ${LIVE?`<button class="link-x" data-fix="${e.id}">수정</button>`:''}`;
+      if(LIVE){ div.querySelector("[data-fix]").onclick=()=>openAdminFix(e, rows); }
       listEl.appendChild(div);
     }
   }
@@ -551,10 +695,90 @@ async function renderAdmin(){
   const empsEl=document.getElementById("adEmps"); empsEl.innerHTML="";
   for(const e of active){
     const div=document.createElement("div"); div.className="row";
-    div.innerHTML=`<div class="nm">${e.name}</div><button class="link-x">비활성화</button>`;
+    div.innerHTML=`<div class="nm" style="flex:1">${e.name}</div><button class="link-x">비활성화</button>`;
     div.querySelector("button").onclick=async()=>{ if(confirm(`${e.name} 직원을 비활성화할까요?`)){ await BE.deactivateEmployee(e.id); renderAdmin(); } };
     empsEl.appendChild(div);
   }
+}
+
+// 정정요청 대기 큐
+async function renderPendingRequests(){
+  const sec=document.getElementById("adReqSection");
+  let reqs=[];
+  try{ reqs=await BE.pendingRequests(); }catch(e){ return; }
+  if(!reqs||!reqs.length){ sec.innerHTML=""; return; }
+  const kindLabel={MISSING_OUT:"퇴근 누락",MISSING_IN:"출근 누락",WRONG_TIME:"시각 정정",OTHER:"기타"};
+  sec.innerHTML=`<div class="section-t">⚠ 정정요청 ${reqs.length}건 대기</div>`;
+  for(const r of reqs){
+    const when=r.requested_at?hhmm(fromIso(r.requested_at))+` (${r.requested_at.slice(5,10)})`:"-";
+    const div=document.createElement("div"); div.className="row"; div.style.flexDirection="column"; div.style.alignItems="stretch"; div.style.gap="8px";
+    div.innerHTML=`
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="nm" style="flex:1">${r.employee_name} · ${kindLabel[r.kind]||r.kind}</div>
+      </div>
+      <div style="font-size:.85rem;color:var(--sub)">요청시각 <b style="color:var(--ink)">${when}</b>${r.requested_type?` (${r.requested_type==="IN"?"출근":"퇴근"})`:""}</div>
+      ${r.note?`<div style="font-size:.82rem;color:var(--muted)">사유: ${r.note}</div>`:""}
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn-primary" style="height:42px;flex:1" data-ap="${r.id}">승인</button>
+        <button class="link-x" style="border:1px solid var(--line);border-radius:12px;flex:1" data-rj="${r.id}">반려</button>
+      </div>`;
+    div.querySelector("[data-ap]").onclick=async()=>{
+      if(!confirm(`${r.employee_name}님의 ${kindLabel[r.kind]} 요청을 승인할까요?`)) return;
+      const res=await BE.resolveRequest(r.id,true,null);
+      if(res&&res.ok){ toast("in","승인됨","정정이 반영되었습니다."); renderAdmin(); }
+      else toast("err","실패",(res&&res.error)||"오류");
+    };
+    div.querySelector("[data-rj]").onclick=async()=>{
+      const reason=prompt("반려 사유(선택):")||"";
+      const res=await BE.resolveRequest(r.id,false,reason);
+      if(res&&res.ok){ toast("out","반려됨",""); renderAdmin(); }
+      else toast("err","실패",(res&&res.error)||"오류");
+    };
+    sec.appendChild(div);
+  }
+}
+
+// 관리자 직접 수정 모달
+function openAdminFix(emp, effRows){
+  const v=document.getElementById("addVeil");
+  const modal=v.querySelector(".modal");
+  const rowsHtml = effRows.length
+    ? effRows.map(r=>`<div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)">
+        <span style="flex:1">${r.event_type==="IN"?"출근":"퇴근"} ${hhmm(fromIso(r.event_at))}${r.corrected?' <span style="color:var(--accent);font-size:.7rem">(보정됨)</span>':''}</span>
+        <button class="link-x" data-void="${r.id}" data-emp="${emp.id}">무효화</button>
+      </div>`).join("")
+    : `<div style="color:var(--muted);font-size:.85rem">오늘 기록 없음</div>`;
+  modal.innerHTML=`
+    <h3>${emp.name} · 근태 수정</h3>
+    <div style="margin-bottom:14px">${rowsHtml}</div>
+    <div class="section-t">누락분 추가</div>
+    <div class="field"><label>종류</label>
+      <select id="fixType" style="height:50px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 12px">
+        <option value="IN">출근</option><option value="OUT">퇴근</option></select></div>
+    <div class="field"><label>시각</label><input id="fixTime" type="datetime-local"></div>
+    <div class="field"><label>사유</label><input id="fixReason" placeholder="예: 퇴근 누락 보정"></div>
+    <button class="btn-primary" id="fixAdd">추가</button>
+    <button class="link-x" id="fixCancel" style="width:100%;margin-top:8px">닫기</button>`;
+  v.classList.add("show");
+  modal.querySelectorAll("[data-void]").forEach(b=>b.onclick=async()=>{
+    if(!confirm("이 기록을 무효화할까요? (원본은 보존됩니다)")) return;
+    const reason=prompt("무효화 사유:")||"관리자 무효화";
+    const eid=b.getAttribute("data-void"); const empId=b.getAttribute("data-emp");
+    if(String(eid).startsWith("add_")){ toast("err","불가","추가된 항목은 무효화 대신 다시 추가로 관리하세요."); return; }
+    const res=await BE.correctEvent("VOID",Number(eid),Number(empId),null,null,reason);
+    if(res!=null){ toast("out","무효화됨",""); v.classList.remove("show"); restoreAddModal(); renderAdmin(); }
+  });
+  modal.querySelector("#fixCancel").onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
+  modal.querySelector("#fixAdd").onclick=async()=>{
+    const type=document.getElementById("fixType").value;
+    const tv=document.getElementById("fixTime").value; // "YYYY-MM-DDTHH:MM"
+    const reason=document.getElementById("fixReason").value.trim()||"관리자 추가";
+    if(!tv){ alert("시각을 입력하세요."); return; }
+    const at=tv.length===16?tv+":00":tv;
+    const res=await BE.correctEvent("ADD",null,emp.id,at,type,reason);
+    if(res!=null){ toast("in","추가됨","누락분이 반영되었습니다."); v.classList.remove("show"); restoreAddModal(); renderAdmin(); }
+    else toast("err","실패","");
+  };
 }
 
 /* 직원 등록 모달 */
@@ -600,7 +824,20 @@ async function drawPay(ym){
   const el=document.getElementById("payList");
   el.innerHTML=`<div class="empty">계산 중…</div>`;
   let emps=[], events=[];
-  try{ emps=await BE.allEmployees(); events=await BE.monthEvents(ym); }
+  try{
+    emps=await BE.allEmployees();
+    if(LIVE){
+      const [y,m]=ym.split("-").map(Number); const p=n=>String(n).padStart(2,"0");
+      const start=new Date(y,m-1,1); start.setDate(start.getDate()-1);
+      const end=new Date(y,m,1); end.setDate(end.getDate()+2);
+      const sd=`${start.getFullYear()}-${p(start.getMonth()+1)}-${p(start.getDate())}`;
+      const ed=`${end.getFullYear()}-${p(end.getMonth()+1)}-${p(end.getDate())}`;
+      const data=await BE.eventsWithCorrections(`${sd}T00:00:00`,`${ed}T00:00:00`);
+      events=applyCorrections(data.events, data.corrections);
+    } else {
+      events=await BE.monthEvents(ym);
+    }
+  }
   catch(e){ el.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
   const active=emps.filter(e=>e.is_active!==false && e.active!==false);
   if(!active.length){ el.innerHTML=`<div class="empty">직원이 없습니다.</div>`; return; }
