@@ -134,6 +134,7 @@
   .modal{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:20px; width:100%; max-width:380px;}
   .modal h3{margin:0 0 16px; font-size:1.1rem;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
@@ -372,6 +373,10 @@ const SupaBE = (()=>{
     async payrollPeriod(ym){ return rpc("admin_payroll_period",{p_ym:ym},true); },
     async setPeriodWeeks(ym,weeks){ return rpc("admin_set_period_weeks",{p_ym:ym,p_weeks:weeks},true); },
     async setPeriodEmployee(ym,empId,fields){ return rpc("admin_set_period_employee",{p_ym:ym,p_employee_id:empId,p_fields:fields},true); },
+    // --- M8: 마감/스냅샷 ---
+    async closePayroll(ym,rows,fingerprint){ return rpc("admin_close_payroll",{p_ym:ym,p_rows:rows,p_fingerprint:fingerprint},true); },
+    async reopenPayroll(ym){ return rpc("admin_reopen_payroll",{p_ym:ym},true); },
+    async snapshot(ym){ return rpc("admin_snapshot",{p_ym:ym},true); },
     async todayEvents(){ const t=kstNow(); const p=n=>String(n).padStart(2,"0");
       const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
       return this.rangeEvents(`${day}T00:00:00`,`${day}T23:59:59`); },
@@ -877,6 +882,7 @@ async function drawPay(ym){
   const weeks = periodWeeks || weeksInMonth(ym);
   el.innerHTML="";
   let totalNet=0;
+  const payrollRows=[];   // 마감/엑셀용 결과 수집
   for(const e of active){
     const rows=events.filter(x=>x.employee_id===e.id);
     const allSess=pairEvents(rows); // 경계 포함 데이터로 세션 먼저 완성
@@ -895,7 +901,12 @@ async function drawPay(ym){
     const effWage = (ov&&ov.wage_override!=null)?ov.wage_override:e.wage;
     const hasWage = effWage!=null && effWage>0;
     const pay = hasWage ? calcPayroll(e, hours, weeks, ov) : null;
-    if(pay) totalNet+=pay.net;
+    if(pay){ totalNet+=pay.net;
+      payrollRows.push({employee_id:e.id, employee_name:e.name, hours:Math.round(hours*100)/100,
+        wage:pay.wage, weeks:pay.jweeks, base_pay:pay.base, juhyu_pay:pay.juhyu, adjust:pay.adjust,
+        gross_pay:pay.gross, tax_rate:pay.rate, net_pay:pay.net, issues,
+        memo:(ov&&ov.memo)||e.memo||""});
+    }
     const card=document.createElement("div");
     card.className="row"; card.style.flexDirection="column"; card.style.alignItems="stretch"; card.style.gap="10px";
     card.innerHTML=`
@@ -929,6 +940,84 @@ async function drawPay(ym){
   sum.className="row"; sum.style.marginTop="6px"; sum.style.borderColor="var(--accent)";
   sum.innerHTML=`<div class="nm" style="flex:1">세후 합계</div><div class="nm" style="color:var(--in)">${totalNet.toLocaleString()}원</div>`;
   el.appendChild(sum);
+
+  // ---- M8: 마감/엑셀/변경감지 ----
+  // 현재 근태 지문 (이벤트 개수 + 최신 이벤트/보정 시각)
+  const curFp = fingerprintOf(events);
+  let snapStatus="OPEN", snapFp=null;
+  if(LIVE){
+    try{ const snap=await BE.snapshot(ym); snapStatus=snap.status; snapFp=snap.fingerprint; }catch(e){}
+  }
+  const box=document.createElement("div");
+  box.style.marginTop="16px";
+  if(!LIVE){
+    box.innerHTML=`<div style="font-size:.8rem;color:var(--muted);text-align:center">마감·엑셀 출력은 클라우드 연결 시 사용 가능합니다.</div>`;
+  } else if(snapStatus==="CLOSED"){
+    const changed = snapFp && curFp!==snapFp;
+    box.innerHTML=`
+      <div class="row" style="border-color:${changed?'var(--warn)':'var(--in-d)'};flex-direction:column;align-items:stretch;gap:10px">
+        <div style="font-weight:600;color:${changed?'var(--warn)':'var(--in)'}">
+          ${changed?'⚠ 마감 후 근태가 변경됨 — 재계산 필요':'🔒 '+ym+' 마감 완료'}</div>
+        ${changed?'<div style="font-size:.82rem;color:var(--sub)">마감을 해제하고 다시 마감하면 최신 근태로 갱신됩니다.</div>':''}
+        <div style="display:flex;gap:8px">
+          <button class="btn-primary" id="btnExport" style="flex:1">세무사용 Excel 다운로드</button>
+          <button class="link-x" id="btnReopen" style="border:1px solid var(--line);border-radius:12px;flex:1">마감 해제</button>
+        </div>
+      </div>`;
+  } else {
+    const hasIssues = payrollRows.some(r=>r.issues>0);
+    box.innerHTML=`
+      <div class="row" style="flex-direction:column;align-items:stretch;gap:10px">
+        ${hasIssues?'<div style="font-size:.82rem;color:var(--warn)">⚠ 확인필요 근태가 있습니다. 정정 후 마감을 권장합니다.</div>':''}
+        <div style="display:flex;gap:8px">
+          <button class="btn-primary" id="btnClose" style="flex:1">${ym} 급여 마감</button>
+          <button class="link-x" id="btnExport" style="border:1px solid var(--line);border-radius:12px;flex:1">Excel 미리 출력</button>
+        </div>
+      </div>`;
+  }
+  el.appendChild(box);
+
+  const expBtn=document.getElementById("btnExport");
+  if(expBtn) expBtn.onclick=()=>exportPayrollXlsx(ym, payrollRows, totalNet, weeks);
+  const closeBtn=document.getElementById("btnClose");
+  if(closeBtn) closeBtn.onclick=async()=>{
+    if(!confirm(`${ym} 급여를 마감할까요?\n마감 시점의 계산근거가 고정됩니다.`)) return;
+    const res=await BE.closePayroll(ym, payrollRows.map(({issues,...r})=>r), curFp);
+    if(res&&res.ok){ toast("in","마감 완료",`${res.count}명 · 근거 고정됨`); drawPay(ym); }
+    else toast("err","마감 실패",(res&&res.error)||"");
+  };
+  const reopenBtn=document.getElementById("btnReopen");
+  if(reopenBtn) reopenBtn.onclick=async()=>{
+    if(!confirm(`${ym} 마감을 해제할까요?`)) return;
+    const res=await BE.reopenPayroll(ym);
+    if(res&&res.ok){ toast("out","마감 해제됨",""); drawPay(ym); }
+  };
+}
+// 근태 지문: 이벤트 개수 + 최신 시각 (마감 후 변경 감지)
+function fingerprintOf(events){
+  const n=events.length;
+  let latest="";
+  for(const e of events){ const k=(e.event_at||"")+(e.corrected?"*":""); if(k>latest) latest=k; }
+  return `${n}|${latest}`;
+}
+// 세무사용 Excel 출력 (SheetJS, 브라우저에서 바로 다운로드)
+function exportPayrollXlsx(ym, rows, totalNet, weeks){
+  if(typeof XLSX==="undefined"){ toast("err","Excel 모듈 로딩중","잠시 후 다시 시도"); return; }
+  const header=["성명","실근무시간","시급","주휴주수","기본급","주휴수당","조정","세전급여","원천징수율","세후급여","비고"];
+  const data=[header];
+  for(const r of rows){
+    data.push([r.employee_name, r.hours, r.wage, r.weeks, r.base_pay, r.juhyu_pay, r.adjust,
+      r.gross_pay, (r.tax_rate*100).toFixed(1)+"%", r.net_pay, r.memo||""]);
+  }
+  data.push([]);
+  data.push(["합계","","","","","","","","","", ""]);
+  data.push(["세후 합계",""," "," ","","","","","",totalNet,""]);
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws["!cols"]=[{wch:10},{wch:11},{wch:9},{wch:8},{wch:11},{wch:11},{wch:9},{wch:11},{wch:10},{wch:12},{wch:20}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, ym);
+  XLSX.writeFile(wb, `백억커피_인하대점_급여_${ym}.xlsx`);
+  toast("in","Excel 생성됨",`${ym} 급여자료`);
 }
 // M5: 이번 달만의 조정 (직원 영구설정과 분리)
 function openMonthAdjust(emp, ym, ov){
