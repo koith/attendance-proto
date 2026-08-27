@@ -420,6 +420,17 @@ const SupaBE = (()=>{
     async closePayroll(ym,rows,fingerprint){ return rpc("admin_close_payroll",{p_ym:ym,p_rows:rows,p_fingerprint:fingerprint},true); },
     async reopenPayroll(ym){ return rpc("admin_reopen_payroll",{p_ym:ym},true); },
     async snapshot(ym){ return rpc("admin_snapshot",{p_ym:ym},true); },
+    // M8.7: 구글시트 동기화 (Edge Function 호출)
+    async syncSheet(ym, payload){
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/sync-sheet`,{
+        method:"POST",
+        headers:{apikey:CONFIG.SUPABASE_ANON_KEY,"Authorization":`Bearer ${Auth.token||CONFIG.SUPABASE_ANON_KEY}`,"Content-Type":"application/json"},
+        body:JSON.stringify({ym,payload})
+      });
+      const t=await r.text(); let j=null; try{ j=JSON.parse(t); }catch(e){}
+      if(!r.ok || (j&&j.ok===false)) throw new Error((j&&(j.error||j.detail))||t.slice(0,200));
+      return j;
+    },
     async todayEvents(){ const t=kstNow(); const p=n=>String(n).padStart(2,"0");
       const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
       return this.rangeEvents(`${day}T00:00:00`,`${day}T23:59:59`); },
@@ -931,71 +942,81 @@ async function renderPay(){
   });
   drawPay(curYm);
 }
-async function drawPay(ym){
-  const el=document.getElementById("payList");
-  el.innerHTML=`<div class="empty">계산 중…</div>`;
+// 공통 계산: ym → {active, events, weeks, overrides, rows[], totalNet}
+// drawPay(화면)와 buildSheetSyncPayload(시트)가 동일하게 재사용 (계산 중복 방지)
+async function computeMonthPayroll(ym){
   let emps=[], events=[];
-  try{
-    emps=await BE.allEmployees();
-    if(LIVE){
-      const [y,m]=ym.split("-").map(Number); const p=n=>String(n).padStart(2,"0");
-      const start=new Date(y,m-1,1); start.setDate(start.getDate()-1);
-      const end=new Date(y,m,1); end.setDate(end.getDate()+2);
-      const sd=`${start.getFullYear()}-${p(start.getMonth()+1)}-${p(start.getDate())}`;
-      const ed=`${end.getFullYear()}-${p(end.getMonth()+1)}-${p(end.getDate())}`;
-      const data=await BE.eventsWithCorrections(`${sd}T00:00:00`,`${ed}T00:00:00`);
-      events=applyCorrections(data.events, data.corrections);
-    } else {
-      events=await BE.monthEvents(ym);
-    }
+  emps=await BE.allEmployees();
+  if(LIVE){
+    const [y,m]=ym.split("-").map(Number); const p=n=>String(n).padStart(2,"0");
+    const start=new Date(y,m-1,1); start.setDate(start.getDate()-1);
+    const end=new Date(y,m,1); end.setDate(end.getDate()+2);
+    const sd=`${start.getFullYear()}-${p(start.getMonth()+1)}-${p(start.getDate())}`;
+    const ed=`${end.getFullYear()}-${p(end.getMonth()+1)}-${p(end.getDate())}`;
+    const data=await BE.eventsWithCorrections(`${sd}T00:00:00`,`${ed}T00:00:00`);
+    events=applyCorrections(data.events, data.corrections);
+  } else {
+    events=await BE.monthEvents(ym);
   }
-  catch(e){ el.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
   const active=emps.filter(e=>e.is_active!==false && e.active!==false);
-  if(!active.length){ el.innerHTML=`<div class="empty">직원이 없습니다.</div>`; return; }
-
-  // M5: 그 달 급여기간(주 수 + 직원별 조정) 로드
   let periodWeeks=null, overrides={};
   if(LIVE){
     try{
       const pd=await BE.payrollPeriod(ym);
       periodWeeks = pd.period && pd.period.weeks;
       (pd.overrides||[]).forEach(o=>{ overrides[o.employee_id]=o; });
-      const wi=document.getElementById("payWeeks"); if(wi && periodWeeks) wi.value=periodWeeks;
     }catch(e){}
   }
   const weeks = periodWeeks || weeksInMonth(ym);
+  const p2=n=>String(n).padStart(2,"0");
+  const rows=[]; let totalNet=0, totalGross=0;
+  for(const e of active){
+    const evs=events.filter(x=>x.employee_id===e.id);
+    const allSess=pairEvents(evs);
+    const sess=allSess.filter(s=>{ const a=s.in||s.out; if(!a)return false;
+      return `${a.getFullYear()}-${p2(a.getMonth()+1)}`===ym; });
+    const sec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
+    const hours=secToHours(sec);
+    const issues=sess.filter(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
+    const ov=overrides[e.id]||null;
+    const effWage=(ov&&ov.wage_override!=null)?ov.wage_override:e.wage;
+    const hasWage=effWage!=null&&effWage>0;
+    const pay=hasWage?calcPayroll(e,hours,weeks,ov):null;
+    if(pay){ totalNet+=pay.net; totalGross+=pay.gross; }
+    rows.push({employee_id:e.id, employee_name:e.name, emp:e, hours, sec, sessions:sess, issues, ov,
+      hasWage, pay, memo:(ov&&ov.memo)||e.memo||""});
+  }
+  return {active, events, weeks, overrides, rows, totalNet, totalGross};
+}
+
+async function drawPay(ym){
+  const el=document.getElementById("payList");
+  el.innerHTML=`<div class="empty">계산 중…</div>`;
+  let R;
+  try{ R=await computeMonthPayroll(ym); }
+  catch(e){ el.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
+  const active=R.active, weeks=R.weeks, overrides=R.overrides;
+  if(!active.length){ el.innerHTML=`<div class="empty">직원이 없습니다.</div>`; return; }
+  const wi=document.getElementById("payWeeks"); if(wi && R.weeks) wi.value=R.weeks;
   el.innerHTML="";
   let totalNet=0;
   const payrollRows=[];   // 마감/엑셀용 결과 수집
-  for(const e of active){
-    const rows=events.filter(x=>x.employee_id===e.id);
-    const allSess=pairEvents(rows); // 경계 포함 데이터로 세션 먼저 완성
-    // 귀속 규칙(V0.1): 근무세션을 "출근일" 기준으로 정산월에 귀속
-    const sess=allSess.filter(s=>{
-      const anchor = s.in || s.out;            // IN 없으면(고아 OUT) OUT일 기준
-      if(!anchor) return false;
-      const p=n=>String(n).padStart(2,"0");
-      const ymOf=`${anchor.getFullYear()}-${p(anchor.getMonth()+1)}`;
-      return ymOf===ym;
-    });
-    const sec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
-    const hours=secToHours(sec); // 반올림 없이 정확한 시간(소수)으로 계산
-    const issues=sess.filter(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
-    const ov=overrides[e.id]||null;
-    const effWage = (ov&&ov.wage_override!=null)?ov.wage_override:e.wage;
-    const hasWage = effWage!=null && effWage>0;
-    const pay = hasWage ? calcPayroll(e, hours, weeks, ov) : null;
+  for(const rec of R.rows){
+    const e=rec.emp;
+    const sess=rec.sessions; const sec=rec.sec; const hours=rec.hours; const issues=rec.issues; const ov=rec.ov;
+    const hasWage=rec.hasWage; const pay=rec.pay;
     if(pay){ totalNet+=pay.net;
-      payrollRows.push({employee_id:e.id, employee_name:e.name, hours:Math.round(hours*100)/100,
+      payrollRows.push({employee_id:rec.employee_id, employee_name:rec.employee_name, hours:Math.round(hours*100)/100,
         wage:pay.wage, weeks:pay.jweeks, base_pay:pay.base, juhyu_pay:pay.juhyu, adjust:pay.adjust,
         gross_pay:pay.gross, tax_rate:pay.rate, net_pay:pay.net, issues,
-        memo:(ov&&ov.memo)||e.memo||""});
+        memo:rec.memo});
     }
+    const eName=rec.employee_name;
     const card=document.createElement("div");
     card.className="row"; card.style.flexDirection="column"; card.style.alignItems="stretch"; card.style.gap="10px";
     card.innerHTML=`
       <div style="display:flex;align-items:center;gap:10px">
-        <div class="nm" style="flex:1">${e.name}
+        <div class="nm" style="flex:1">${eName}
           ${issues?`<span class="badge issue" style="margin-left:6px">확인필요 ${issues}</span>`:''}
           ${ov?`<span class="badge" style="margin-left:6px;color:var(--accent);border-color:var(--accent)">이달 조정</span>`:''}
         </div>
@@ -1027,7 +1048,7 @@ async function drawPay(ym){
 
   // ---- M8: 마감/엑셀/변경감지 ----
   // 현재 근태 지문 (이벤트 개수 + 최신 이벤트/보정 시각)
-  const curFp = fingerprintOf(events);
+  const curFp = fingerprintOf(R.events);
   let snapStatus="OPEN", snapFp=null;
   if(LIVE){
     try{ const snap=await BE.snapshot(ym); snapStatus=snap.status; snapFp=snap.fingerprint; }catch(e){}
@@ -1061,6 +1082,27 @@ async function drawPay(ym){
   }
   el.appendChild(box);
 
+  // M8.7: 구글시트 갱신 버튼 (LIVE 전용)
+  if(LIVE){
+    const gbox=document.createElement("div"); gbox.style.marginTop="10px";
+    gbox.innerHTML=`<button class="link-x" id="btnSyncSheet" style="width:100%;border:1px solid var(--line);border-radius:12px;height:44px">구글시트 갱신</button>
+      <div id="syncMsg" style="font-size:.78rem;color:var(--muted);text-align:center;margin-top:6px"></div>`;
+    el.appendChild(gbox);
+    document.getElementById("btnSyncSheet").onclick=async()=>{
+      const btn=document.getElementById("btnSyncSheet"); const msg=document.getElementById("syncMsg");
+      btn.disabled=true; btn.textContent="갱신 중…";
+      try{
+        const payload=await buildSheetSyncPayload(ym);  // DOM 아닌 DB조회+기존계산 재사용
+        const res=await BE.syncSheet(ym, payload);
+        msg.textContent = res.closed ? `마감완료 자료로 갱신됨 (${ym})` : `예상 자료로 갱신됨 (${ym})`;
+        toast("in","구글시트 갱신 완료", res.closed?"마감 확정본":"예상(미마감)");
+      }catch(e){
+        msg.textContent="갱신 실패: "+e.message;
+        toast("err","구글시트 갱신 실패", e.message.slice(0,40));
+      }finally{ btn.disabled=false; btn.textContent="구글시트 갱신"; }
+    };
+  }
+
   const expBtn=document.getElementById("btnExport");
   if(expBtn) expBtn.onclick=()=>exportPayrollXlsx(ym, payrollRows, totalNet, weeks);
   const closeBtn=document.getElementById("btnClose");
@@ -1077,6 +1119,57 @@ async function drawPay(ym){
     if(res&&res.ok){ toast("out","마감 해제됨",""); drawPay(ym); }
   };
 }
+// M8.7: 시트 동기화 payload 생성 (DOM 아님 — DB조회+기존 계산함수 재사용)
+async function buildSheetSyncPayload(ym){
+  const R=await computeMonthPayroll(ym);
+  const p2=n=>String(n).padStart(2,"0");
+  const dstr=d=>`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+  // 근태 일별요약 + 세션상세
+  const attRows=[], sessRows=[];
+  for(const rec of R.rows){
+    // 날짜별 그룹핑 (출근일 기준)
+    const byDay={};
+    for(const s of rec.sessions){
+      const anchor=s.in||s.out; if(!anchor) continue;
+      const day=dstr(anchor);
+      (byDay[day]=byDay[day]||[]).push(s);
+    }
+    for(const day of Object.keys(byDay).sort()){
+      const daySess=byDay[day];
+      let daySec=0, hasCorrected=false, issue=false;
+      daySess.forEach((s,i)=>{
+        if(s.status==="COMPLETE") daySec+=(s.sec||0);
+        if(s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT") issue=true;
+        if(s.corrected) hasCorrected=true;
+        sessRows.push([day, rec.employee_name, i+1,
+          s.in?hhmm(s.in):"—", s.out?hhmm(s.out):"—",
+          s.status==="COMPLETE"?fmtHM(s.sec):(s.status==="WORKING"?"근무중":"—"),
+          _statusLabel(s.status)]);
+      });
+      const firstIn=daySess.find(s=>s.in), lastOut=[...daySess].reverse().find(s=>s.out);
+      attRows.push([day, rec.employee_name,
+        firstIn?hhmm(firstIn.in):"—", lastOut?hhmm(lastOut.out):"—",
+        daySec?fmtHM(daySec):"—", daySess.length,
+        issue?"확인필요":"정상", hasCorrected?"정정":""]);
+    }
+  }
+  // 급여 (마감 전 예상; 마감 후엔 Edge Function이 snapshot으로 대체)
+  const payRows=[];
+  for(const rec of R.rows){
+    if(!rec.pay){ payRows.push([rec.employee_name, fmtHM(rec.sec), "미설정","—","—","—","—","시급 설정 필요"]); continue; }
+    const p=rec.pay;
+    payRows.push([rec.employee_name, fmtHM(rec.sec), won(p.wage), won(p.base),
+      won(p.juhyu), won(p.adjust), won(p.gross), "예상"]);
+  }
+  return {
+    attendance:{ header:["날짜","직원명","출근","퇴근","실근무시간","세션수","상태","정정여부"], rows:attRows },
+    sessions:{ header:["날짜","직원명","세션#","출근","퇴근","근무시간","상태"], rows:sessRows },
+    payroll:{ header:["직원명","총 실근무시간","시급","기본급","주휴","조정","예상 세전급여","상태"], rows:payRows },
+  };
+}
+function _statusLabel(s){ return {COMPLETE:"정상",WORKING:"근무중",INCOMPLETE:"퇴근누락",ORPHAN_OUT:"출근누락"}[s]||s; }
+function won(n){ return (n||0).toLocaleString("ko-KR")+"원"; }
+
 // 근태 지문: 이벤트 개수 + 최신 시각 (마감 후 변경 감지)
 function fingerprintOf(events){
   const n=events.length;
