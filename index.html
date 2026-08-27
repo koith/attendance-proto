@@ -48,20 +48,24 @@
   .conn.live{background:#dcfce7; color:#15803d;}
 
   /* ---------- POS ---------- */
-  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px;}
   .emp{
-    min-height:92px; border:1px solid var(--line); background:var(--panel);
-    border-radius:var(--r); padding:16px 14px; display:flex; flex-direction:column; gap:8px;
-    justify-content:center; cursor:pointer; transition:transform .06s, border-color .15s, background .15s;
+    position:relative; min-height:64px; border:1px solid var(--line); background:var(--panel);
+    border-radius:var(--r); padding:14px 16px; display:flex; flex-direction:column; gap:4px;
+    justify-content:center; cursor:pointer; transition:transform .06s, border-color .12s; overflow:hidden;
   }
-  .emp:active{transform:scale(.97);}
-  .emp .nm{font-size:1.15rem; font-weight:650; letter-spacing:-.01em;}
-  .emp .st{font-size:.82rem; color:var(--sub); display:flex; align-items:center; gap:6px;}
-  .emp .since{font-size:.78rem; color:var(--sub); font-variant-numeric:tabular-nums;}
-  .dot{width:8px; height:8px; border-radius:50%; background:var(--muted); display:inline-block; flex:none;}
-  .emp.working{border-color:var(--in); background:#f2fbf5;}
-  .emp.working .dot{background:var(--in);}
-  .emp.working .st{color:var(--in); font-weight:600;}
+  .emp:active{transform:scale(.98);}
+  .emp .row1{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .emp .nm{font-size:1.1rem; font-weight:650; color:var(--ink); letter-spacing:-.01em;}
+  .emp .since{font-size:.85rem; color:var(--sub); font-variant-numeric:tabular-nums;}
+  .emp .badge-off{font-size:.82rem; color:var(--muted); font-weight:500;}
+  /* 근무중: 흰 surface + 굵은 녹색 좌측선 + 미세 tint + 배지 */
+  .emp.working{border-color:#bfe3cb; background:linear-gradient(90deg,#f3fbf6,#ffffff 40%);}
+  .emp.working::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--in);}
+  .badge-on{
+    font-size:.74rem; font-weight:650; color:#fff; background:var(--in);
+    padding:2px 8px; border-radius:999px; white-space:nowrap;
+  }
 
   /* 전체화면 성공 오버레이 */
   .success{
@@ -339,10 +343,14 @@ const LocalBE = (()=>{
     async getEmployee(id){ return load().emps.find(x=>x.id===id)||null; },
     // --- RPC 호환 인터페이스 (Supabase와 동일 시그니처) ---
     async listEmployeesState(){ const s=load();
-      return s.emps.filter(e=>e.active).sort((a,b)=>a.name.localeCompare(b.name,"ko")).map(e=>{
-        const ev=s.events.filter(x=>x.employee_id===e.id).sort((a,b)=>a.event_at<b.event_at?1:-1)[0];
-        return {id:e.id,name:e.name,working:!!(ev&&ev.event_type==="IN")};
-      }); },
+      const list=s.emps.filter(e=>e.active).map(e=>{
+        const ev=s.events.filter(x=>x.employee_id===e.id).sort((a,b)=>a.id<b.id?1:-1)[0];
+        const working=!!(ev&&ev.event_type==="IN");
+        return {id:e.id,name:e.name,working, working_since: working?ev.event_at:null};
+      });
+      // 근무중 먼저, 그다음 이름순
+      return list.sort((a,b)=> (b.working?1:0)-(a.working?1:0) || a.name.localeCompare(b.name,"ko"));
+    },
     async punch(id,pin){ const s=load(); const e=s.emps.find(x=>x.id===id&&x.active);
       if(!e) return {ok:false,error:"NO_EMPLOYEE"};
       if(!await pinMatches(pin,e.pin_hash)) return {ok:false,error:"BAD_PIN"};
@@ -481,6 +489,7 @@ async function empState(id){
 
 /* ============================ UI: 라우팅 ============================ */
 const view=document.getElementById("view");
+let _posTimer=null;
 function setTab(t){
   document.getElementById("tabPos").classList.toggle("on",t==="pos");
   document.getElementById("tabAdmin").classList.toggle("on",t==="admin");
@@ -488,6 +497,7 @@ function setTab(t){
 }
 function route(){
   const h=(location.hash||"#pos").replace("#","");
+  if(h!=="pos"){ clearInterval(_posTimer); }
   if(h==="admin"){ setTab("admin"); requireAuth(renderAdmin); }
   else if(h==="pay"){ setTab("pay"); requireAuth(renderPay); }
   else{ setTab("pos"); renderPos(); }
@@ -514,22 +524,42 @@ function requireAuth(then){
 window.addEventListener("hashchange",route);
 
 /* ---------------------- POS 화면 ---------------------- */
+function fmtElapsed(sinceIso){
+  if(!sinceIso) return "";
+  const sec=(kstNow()-fromIso(sinceIso))/1000;
+  const m=Math.max(0,Math.floor(sec/60)); const h=Math.floor(m/60), mm=m%60;
+  if(h&&mm) return `${h}시간 ${mm}분`; if(h) return `${h}시간`; return `${mm}분`;
+}
 async function renderPos(){
   view.innerHTML=`<div class="grid" id="empGrid"></div>
-    <div id="posPrompt" style="text-align:center;color:var(--sub);font-size:.88rem;margin-top:14px">직원을 선택하세요</div>
-    <button class="addbtn" id="myRecBtn" style="margin-top:16px">내 근태 기록 · 정정요청</button>`;
+    <button class="addbtn" id="myRecBtn" style="margin-top:18px">내 근태 기록 · 정정요청</button>`;
   document.getElementById("myRecBtn").onclick=openMyRecord;
   const grid=document.getElementById("empGrid");
   let emps=[];
-  try{ emps=await BE.listEmployeesState(); }catch(e){ grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; document.getElementById("posPrompt").style.display="none"; return; }
-  if(!emps.length){ grid.innerHTML=`<div class="empty">등록된 직원이 없습니다.<br>관리자 탭에서 먼저 직원을 등록하세요.</div>`; document.getElementById("posPrompt").style.display="none"; return; }
+  try{ emps=await BE.listEmployeesState(); }catch(e){ grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
+  if(!emps.length){ grid.innerHTML=`<div class="empty">등록된 직원이 없습니다.<br>관리자 탭에서 먼저 직원을 등록하세요.</div>`; return; }
   for(const e of emps){
     const card=document.createElement("div");
     card.className="emp"+(e.working?" working":"");
-    card.innerHTML=`<div class="nm">${e.name}</div><div class="st"><span class="dot"></span>${e.working?"근무중":"출근 전"}</div>`;
+    if(e.working){
+      card.innerHTML=`
+        <div class="row1"><span class="nm">${e.name}</span><span class="badge-on">근무 중</span></div>
+        <div class="since" data-since="${e.working_since||''}">${e.working_since?`${hhmm(fromIso(e.working_since))} 출근 · ${fmtElapsed(e.working_since)}`:'근무 중'}</div>`;
+    }else{
+      card.innerHTML=`
+        <div class="row1"><span class="nm">${e.name}</span><span class="badge-off">출근 전</span></div>`;
+    }
     card.onclick=()=>openPad(e, e.working?"WORKING":"OFF");
     grid.appendChild(card);
   }
+  // 경과시간 1분마다 갱신 (초 단위 렌더링 안 함)
+  clearInterval(_posTimer);
+  _posTimer=setInterval(()=>{
+    document.querySelectorAll(".since[data-since]").forEach(el=>{
+      const since=el.getAttribute("data-since"); if(!since) return;
+      el.textContent=`${hhmm(fromIso(since))} 출근 · ${fmtElapsed(since)}`;
+    });
+  }, 60000);
 }
 
 /* ---------------------- PIN 패드 ---------------------- */
