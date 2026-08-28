@@ -1088,18 +1088,11 @@ async function drawPay(ym){
     const gbox=document.createElement("div"); gbox.style.marginTop="10px";
     gbox.innerHTML=`<button class="link-x" id="btnSyncSheet" style="width:100%;border:1px solid var(--line);border-radius:12px;height:44px">구글시트 갱신</button>
       <div id="syncMsg" style="font-size:.78rem;color:var(--muted);text-align:center;margin-top:6px"></div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="link-x" id="btnOpenSheet" style="flex:1;border:1px solid var(--line);border-radius:12px;height:40px;font-size:.9rem">구글시트 열기</button>
-        <button class="link-x" id="btnShareSheet" style="flex:1;border:1px solid var(--line);border-radius:12px;height:40px;font-size:.9rem">시트 공유 설정</button>
-      </div>
-      <div style="font-size:.72rem;color:var(--muted);text-align:center;margin-top:6px">공유 설정에서 점주 이메일을 '뷰어'로 추가하세요</div>`;
+      <button class="link-x" id="btnOpenSheet" style="width:100%;border:1px solid var(--line);border-radius:12px;height:40px;font-size:.9rem;margin-top:8px">구글시트 열기</button>
+      <div style="font-size:.72rem;color:var(--muted);text-align:center;margin-top:6px">점주 초대: 시트 열기 → 우측 상단 '공유' → 이메일을 '뷰어'로 추가</div>`;
     el.appendChild(gbox);
     document.getElementById("btnOpenSheet").onclick=()=>{
       window.open(`https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/edit`,"_blank");
-    };
-    document.getElementById("btnShareSheet").onclick=()=>{
-      // 구글시트 공유 대화상자 직접 링크
-      window.open(`https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/edit?usp=sharing#gid=0`,"_blank");
     };
     document.getElementById("btnSyncSheet").onclick=async()=>{
       const btn=document.getElementById("btnSyncSheet"); const msg=document.getElementById("syncMsg");
