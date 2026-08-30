@@ -586,7 +586,7 @@ function openPad(emp,state){
 }
 function closePad(){ padVeil.classList.remove("show"); padBuf=""; padBusy=false; }
 document.getElementById("padCancel").onclick=closePad;
-padVeil.addEventListener("click",e=>{ if(e.target===padVeil) closePad(); });
+// PIN 패드도 backdrop 클릭으로 닫지 않음 — "취소" 버튼으로만 종료 (오터치 방지)
 function drawDots(){
   const d=document.getElementById("padDots"); d.innerHTML="";
   for(let i=0;i<4;i++){ const s=document.createElement("i"); if(i<padBuf.length)s.className="f"; d.appendChild(s); }
@@ -964,7 +964,8 @@ function bindAddModal(){
     renderAdmin();
   };
 }
-document.getElementById("addVeil").addEventListener("click",e=>{ if(e.target.id==="addVeil") e.currentTarget.classList.remove("show"); });
+// backdrop(배경) 클릭으로 닫지 않음 — 입력값 보호. 명시적 취소/닫기 버튼으로만 종료.
+// (P0-1/P0-2: 실수로 배경 눌러 PIN·급여설정·정정 입력이 사라지는 문제 방지)
 bindAddModal();
 
 /* ---------------------- 급여 화면 (Sprint 2) ---------------------- */
