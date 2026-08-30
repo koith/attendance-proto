@@ -774,7 +774,7 @@ function openReqForm(empId,pin,sess,events,requests,emps){
     const pv=document.getElementById("reqPreview"); const btn=document.getElementById("reqSend");
     if(inD&&outD){
       const sec=(outD-inD)/1000;
-      if(sec<=0){ pv.innerHTML=`<span style="color:var(--warn)">⚠ 퇴근이 출근보다 빠릅니다. 날짜/시간을 확인하세요.</span>`; btn.disabled=true; btn.style.opacity=".5"; return; }
+      if(sec<=0){ pv.innerHTML=`<span style="color:var(--warn)">⚠ 퇴근 시각은 출근 시각보다 늦어야 합니다. 날짜/시간을 확인하세요.</span>`; btn.disabled=true; btn.style.opacity=".5"; return; }
       const long = sec>LONG_SESSION_THRESHOLD_HOURS*3600;
       pv.innerHTML=`예상 근무시간 <b>${fmtDur(sec)}</b>${long?` <span style="color:var(--warn)">· 장시간 근무 · 확인필요</span>`:''}`;
       btn.disabled=false; btn.style.opacity="1";
@@ -798,7 +798,7 @@ function openReqForm(empId,pin,sess,events,requests,emps){
       if(sess.outId) reqs.push({kind:"WRONG_TIME",eventId:sess.outId,at,type:"OUT"});
       else reqs.push({kind:"MISSING_OUT",eventId:null,at,type:"OUT"}); }
     // validation: 둘 다 수정 시 퇴근>출근
-    if(fixIn&&fixOut){ if(readDT("out")<=readDT("in")){ alert("퇴근이 출근보다 빠릅니다."); return; } }
+    if(fixIn&&fixOut){ if(readDT("out")<=readDT("in")){ alert("퇴근 시각은 출근 시각보다 늦어야 합니다."); return; } }
     try{
       for(const r of reqs){
         const res=await BE.requestCorrection(empId,pin,r.kind,r.eventId,r.at,r.type,note);
