@@ -524,7 +524,7 @@ function openAddVeil(){
     x.onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
     modal.insertBefore(x, modal.firstChild);
   }
-  openAddVeil();
+  v.classList.add("show");
 }
 function setTab(t){
   document.getElementById("tabPos").classList.toggle("on",t==="pos");
