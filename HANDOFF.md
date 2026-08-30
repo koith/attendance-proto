@@ -218,3 +218,63 @@ M8.5A ✅ → M8.5B ✅ → **실기기 Pre-Pilot**(개발자 본인이 iPhone/i
 
 ## QA 재실행 방법 (다음 세션)
 컨테이너에서: extracted_logic.js_module 재생성(index.html에서 함수추출) → `node qa_m85.js` + `node qa_m85b.js`. 코드 변경 시마다 회귀 확인.
+
+---
+---
+
+# ★★★ 업데이트 (2026-08-30) — 실사용 회의 반영 + P0 통합 + 브랜드 (v24)
+
+## 현재 배포: v24 (koith.github.io/attendance-proto/?v=24)
+
+## 이번 세션에서 완료 (회의 20260828 실사용 피드백 반영)
+### 실제 버그 수정
+- **정정 승인→시트 미반영 (P0-5)**: 근본원인 = 프론트가 request_correction에 event_id=null 하드코딩 + pairEvents가 원본 이벤트 id 안 보존. → pairEvents에 inId/outId/inRaw/outRaw 추가, 정정 UI가 정확한 event_id 전송. 회귀 QA(qa_correction.js) 13개.
+- **급여설정 저장 42883**: admin_update_employee(p_fields **json**)에서 '?' 연산자(jsonb 전용) 사용. → schema_v9_jsonb.sql로 json→jsonb. **DB 적용 완료 확인함**(pg_proc에서 jsonb 1개만). 
+- **반려 prompt 취소 버그**: prompt 취소해도 반려 실행되던 것 → null 체크로 중단.
+
+### UX 수정
+- modal backdrop 클릭 닫힘 제거(입력보호), 명시적 취소/X로만 종료
+- modal 우상단 X 버튼 공통 주입(openAddVeil 헬퍼)
+- 배경 스크롤 잠금(body:has), modal 내부 더블탭 줌 차단(touch-action)
+- 탭(출퇴근/관리자/급여) + 타이틀 sticky 고정(.topbar)
+- 내 근태 flow를 업무 state 기반 재구성: STEP1 인증→STEP2 기록→STEP3 정정. 뒤로가기 각 단계 하나씩. **STEP2→STEP1 시 PIN 폐기(인증 우회 방지)**
+- 정정 날짜/시간 입력: datetime-local → 년/월/일 + 시:분 분리 select. 세션 기존값 기본. 실시간 예상근무시간 + validation(퇴근≤출근 차단, 문구 "퇴근 시각은 출근 시각보다 늦어야 합니다")
+- 주휴 반올림/원천징수 → select 드롭다운 (아이폰 numeric 키패드 음수 입력 불가 해결)
+- PIN alert → 인라인 안내
+- LONG_SESSION_THRESHOLD_HOURS=16 상수화 (heuristic, 계산 무영향, "장시간 근무·확인필요" 표시)
+
+### 브랜드
+- 로고 2개 레포에 저장: logo_combine.jpg(타이틀용), logo_single.jpg(아이콘용)
+- 타이틀 텍스트 → logo_combine 이미지 교체
+- 브랜드 그린 #1d5d3a를 Primary(--accent, --in)로. :root 변수만 바꾸면 타 업종 대응 가능.
+
+## 적용된 SQL (이번 세션, DB 반영 완료)
+- schema_v8_pending.sql: admin_pending_requests가 orig_event_at/orig_event_type 반환(승인화면 수정전 표시)
+- schema_v9_jsonb.sql: admin_update_employee json→jsonb (42883). pg_proc 검증 완료.
+
+## QA: 총 81개 (qa_m85 47 + qa_m85b 8 + qa_m87 13 + qa_correction 13). 전부 PASS. Golden 7월 6/6 유지.
+
+## ★ 미해결 버그 (다음 세션 최우선)
+**오버나이트 세션 시간 계산 오류.** 구글시트에서 발견:
+- 홍당무 8/27 02:23출근→10:58퇴근인데 "32시간 34분" (실제 8h35m이어야)
+- 홍당무 8/30 13:07→13:07인데 "23시간 59분" (0분이어야)
+- 장필순도 8/27 02:23→10:57 "32시간 34분"
+계산식(Date 차이)은 맞으므로 원인은 (a)원본 event_at 날짜 꼬임 (b)pairEvents 짝짓기 오류 (c)정정으로 시각만 바뀌고 날짜 안맞음 중 하나.
+**진단 SQL (홍당무 실제 이벤트 확인):**
+```
+select ae.id, ae.event_type, ae.event_at, ec.action, ec.new_event_at, ec.created_at
+from attendance_events ae
+left join event_corrections ec on ec.event_id=ae.id
+where ae.employee_id=(select id from employees where name='홍당무')
+order by ae.id;
+```
+이 결과로 32시간의 실제 원인 규명 필요.
+
+## 다음 순서
+1. 오버나이트 버그 규명·수정 (위 SQL부터)
+2. v24 통합 실기기 검증 (backdrop/뒤로/인증우회/날짜시간/correction승인/시트반영/급여저장) → 통과 시 P0 CLOSED
+3. **계약관리 2단계 설계안** (구현 아직 X): Employee ↔ Employment Contract 분리, effective date/history, 시급제/월급제, 계약스케줄, 야간수당, 4대보험/사업소득 타입, 입퇴사, 계약서 Storage, 특약메모. 기존 employee/payroll_period/snapshot과의 관계 설계.
+4. 자동 시트 갱신(P1) - 계약관리 후
+
+## 법률/세무 금지 (M6 회계사 검증 전까지)
+주휴 요건/계산식, 야간수당 적용조건/가산율, 휴게 자동공제, 3.3%/4대보험 계산식을 AI가 임의 확정 금지. 타입 선택·값 저장만.
