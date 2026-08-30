@@ -25,18 +25,24 @@
     overscroll-behavior:none;
   }
   .wrap{max-width:760px; margin:0 auto; min-height:100%; display:flex; flex-direction:column;}
+  /* 태블릿/POS(1024x768 핵심 실사용) — 좌우 여백 줄이고 콘텐츠 폭 확대 */
+  @media (min-width:769px){ .wrap{max-width:1024px;} }
+  /* 데스크톱 — 넉넉히 열되 가독성 위해 상한 유지(100% stretch 아님) */
+  @media (min-width:1280px){ .wrap{max-width:1280px;} }
   /* modal 열리면 배경 스크롤 잠금 */
   body:has(.modal-veil.show), body:has(.pad-veil.show){ overflow:hidden; }
   .topbar{ position:sticky; top:0; z-index:10; background:var(--bg); }
   header{
     display:flex; align-items:center; justify-content:space-between;
-    padding:14px 18px; border-bottom:1px solid var(--line);
-    background:rgba(255,255,255,.92); backdrop-filter:blur(8px);
+    padding:8px 18px; border-bottom:1px solid var(--accent-d);
+    background:var(--accent);
   }
-  .brand{display:flex; align-items:center; gap:8px;}
-  .brand b{font-size:1.05rem; letter-spacing:-.02em;}
-  .brand span{font-size:.78rem; color:var(--sub);}
-  .clock{font-variant-numeric:tabular-nums; font-size:1rem; color:var(--sub); letter-spacing:.01em;}
+  /* 로고: 원본 배경이 헤더와 동일한 #1d5d3a라 헤더에 그대로 녹아듦. 상하여백 로고에 내장 */
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand img{height:44px; width:auto; display:block;}
+  .brand b{font-size:1.05rem; letter-spacing:-.02em; color:#fff;}
+  .brand span{font-size:.9rem; color:rgba(255,255,255,.9);}
+  .clock{font-variant-numeric:tabular-nums; font-size:1rem; color:rgba(255,255,255,.9); letter-spacing:.01em;}
   .tabwrap{ background:var(--bg); border-bottom:1px solid var(--line); }
   .tabs{display:flex; gap:6px;}
   .tabs a{
@@ -179,8 +185,8 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <img src="logo_combine.jpg" alt="백억커피" style="height:30px;width:auto;border-radius:4px">
-        <span id="storeName" style="margin-left:6px">인하대점</span>
+        <img src="logo_combine.jpg" alt="백억커피">
+        <span id="storeName">인하대점</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
