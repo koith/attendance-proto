@@ -644,42 +644,58 @@ function showSuccess(type, name, now, res){
 }
 
 /* ---------------------- 직원 본인 기록 / 정정요청 (M4) ---------------------- */
+// ── 내 근태 flow: 업무 state 기반 (화면 history 아님) ──
+// STEP1 인증(직원선택+PIN) → STEP2 내기록 → STEP3 정정작성
+// 뒤로: STEP3→STEP2 (같은 직원, 인증 유지) / STEP2→STEP1 (인증 폐기 = 재인증 강제)
+// 다른 직원으로 바꾸려면 STEP1에서 PIN 재입력 필수 → 인증 우회 불가.
 async function openMyRecord(){
-  // 직원 선택 → 비번 → 내 기록
   let emps=[];
   try{ emps=await BE.listEmployeesState(); }catch(e){ toast("err","오류",e.message); return; }
   if(!emps.length){ toast("err","직원 없음",""); return; }
+  mrShowAuth(emps, null);
+}
+// STEP 1: 인증 화면 (preselId: 뒤로 왔을 때 직원 선택만 복원, PIN은 항상 재입력)
+function mrShowAuth(emps, preselId){
   const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
   modal.innerHTML=`
     <h3>내 근태 기록</h3>
     <div class="field"><label>본인 선택</label>
       <select id="mrEmp" style="height:50px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 12px">
-        ${emps.map(e=>`<option value="${e.id}">${e.name}</option>`).join("")}</select></div>
+        ${emps.map(e=>`<option value="${e.id}" ${preselId===e.id?'selected':''}>${e.name}</option>`).join("")}</select></div>
     <div class="field"><label>비밀번호 (4자리)</label><input id="mrPin" inputmode="numeric" maxlength="4" type="password" placeholder="숫자 4자리"></div>
     <button class="btn-primary" id="mrView">내 기록 보기</button>
-    <button class="link-x" id="mrCancel" style="width:100%;margin-top:8px">취소</button>
-    <div id="mrResult" style="margin-top:14px"></div>`;
+    <button class="link-x" id="mrCancel" style="width:100%;margin-top:8px">취소</button>`;
   v.classList.add("show");
   modal.querySelector("#mrCancel").onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
   modal.querySelector("#mrView").onclick=async()=>{
     const id=Number(document.getElementById("mrEmp").value);
     const pin=document.getElementById("mrPin").value;
     if(!/^\d{4}$/.test(pin)){ alert("비밀번호 4자리"); return; }
-    const t=kstNow(); const p=n=>String(n).padStart(2,"0");
-    // 최근 14일
-    const to=new Date(t); to.setDate(to.getDate()+1);
-    const from=new Date(t); from.setDate(from.getDate()-14);
-    const fs=`${from.getFullYear()}-${p(from.getMonth()+1)}-${p(from.getDate())}T00:00:00`;
-    const ts=`${to.getFullYear()}-${p(to.getMonth()+1)}-${p(to.getDate())}T00:00:00`;
+    const r=mrRange();
     let res;
-    try{ res=await BE.myEvents(id,pin,fs,ts); }catch(e){ toast("err","오류",e.message); return; }
+    try{ res=await BE.myEvents(id,pin,r.fs,r.ts); }catch(e){ toast("err","오류",e.message); return; }
     if(!res||!res.ok){ toast("err",res&&res.error==="BAD_PIN"?"비밀번호 오류":"오류",""); return; }
-    renderMyResult(id,pin,res.events||[],res.requests||[]);
+    // 인증 성공 → STEP2. emps를 넘겨 뒤로가기 시 재사용
+    mrShowRecord(id,pin,res.events||[],res.requests||[],emps);
   };
+}
+// STEP 2: 내 기록 (뒤로 = 인증 폐기하고 STEP1)
+function mrShowRecord(empId,pin,events,requests,emps){
+  const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
+  const empName=(emps.find(e=>e.id===empId)||{}).name||"";
+  modal.innerHTML=`
+    <h3>${empName} · 내 근태</h3>
+    <div id="mrResult"></div>
+    <button class="link-x" id="mrBackAuth" style="width:100%;margin-top:12px">← 본인 선택으로</button>`;
+  v.classList.add("show");
+  // 본인 선택으로 = 인증 폐기 (pin은 이 스코프에만 있고 여기서 버려짐 → 재인증 강제)
+  modal.querySelector("#mrBackAuth").onclick=()=>{ mrShowAuth(emps, empId); };
+  renderMyResult(empId,pin,events,requests,emps);
 }
 function fmtDT(d){ if(!d) return "—"; const p=n=>String(n).padStart(2,"0"); return `${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
 function fmtDur(sec){ if(sec==null) return "—"; const m=Math.floor(sec/60); const h=Math.floor(m/60),mm=m%60; return h?`${h}시간 ${mm}분`:`${mm}분`; }
-function renderMyResult(empId,pin,events,requests){
+const LONG_SESSION_THRESHOLD_HOURS = 16; // heuristic (합의/법률 아님) — 장시간근무 확인필요 표시용
+function renderMyResult(empId,pin,events,requests,emps){
   const el=document.getElementById("mrResult");
   const sess=pairEvents(events);
   let html=`<div class="section-t">최근 2주 근무</div>`;
@@ -687,10 +703,9 @@ function renderMyResult(empId,pin,events,requests){
   else{
     for(let i=0;i<sess.length;i++){
       const s=sess[i];
-      // 자정 넘김 여부: 출근일과 퇴근일이 다르면 날짜 명시
       const crossDay = s.in&&s.out && (s.in.getDate()!==s.out.getDate()||s.in.getMonth()!==s.out.getMonth());
       let statusBadge="", warnColor="";
-      if(s.status==="COMPLETE"){ if(s.sec>16*3600){ statusBadge=`<span class="badge issue">확인필요</span>`; warnColor="color:var(--warn)"; } }
+      if(s.status==="COMPLETE"){ if(s.sec>LONG_SESSION_THRESHOLD_HOURS*3600){ statusBadge=`<span class="badge issue">장시간 근무 · 확인필요</span>`; warnColor="color:var(--warn)"; } }
       else if(s.status==="WORKING") statusBadge=`<span class="badge" style="background:var(--in);color:#fff">근무중</span>`;
       else if(s.status==="INCOMPLETE"){ statusBadge=`<span class="badge issue">퇴근누락</span>`; warnColor="color:var(--warn)"; }
       else if(s.status==="ORPHAN_OUT"){ statusBadge=`<span class="badge issue">출근누락</span>`; warnColor="color:var(--warn)"; }
@@ -715,59 +730,75 @@ function renderMyResult(empId,pin,events,requests){
   }
   el.innerHTML=html;
   el.querySelectorAll("[data-sess]").forEach(b=>b.onclick=()=>{
-    openReqForm(empId,pin,sess[Number(b.getAttribute("data-sess"))]);
+    openReqForm(empId,pin,sess[Number(b.getAttribute("data-sess"))],events,requests,emps);
   });
 }
-// 정정요청 폼: 세션의 출근/퇴근을 수정 전/후로 보여주고, 무엇을 고칠지 선택
-function openReqForm(empId,pin,sess){
+// 정정요청 폼: 날짜+시간 분리 입력, 실시간 예상근무시간, 전송전 validation
+function openReqForm(empId,pin,sess,events,requests,emps){
   const el=document.getElementById("mrResult");
-  const inStr = sess.in?toLocalInput(sess.in):"";
-  const outStr = sess.out?toLocalInput(sess.out):"";
+  // 기본값: 세션의 기존 출근/퇴근 (없으면 세션 기준일)
+  const baseDay = sess.in||sess.out||kstNow();
+  const inInit = sess.in||baseDay, outInit = sess.out||baseDay;
   el.innerHTML=`
     <div class="section-t">근태 정정 요청</div>
     <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:.85rem;margin-bottom:12px">
-      <div style="color:var(--sub);margin-bottom:4px">수정 전 (현재 기록)</div>
+      <div style="color:var(--sub);margin-bottom:4px">현재 기록</div>
       <div>출근: <b>${fmtDT(sess.in)}</b></div>
       <div>퇴근: <b>${fmtDT(sess.out)}</b></div>
       <div style="color:var(--sub);margin-top:2px">근무 ${fmtDur(sess.sec)}</div>
     </div>
     <div class="section-t" style="font-size:.85rem">수정 후</div>
-    <div class="field"><label style="display:flex;align-items:center;gap:6px">
-      <input type="checkbox" id="fixIn" ${sess.status==='ORPHAN_OUT'?'checked':''} style="width:auto"> 출근 시각 수정</label>
-      <input id="reqIn" type="datetime-local" value="${inStr}" style="margin-top:4px"></div>
-    <div class="field"><label style="display:flex;align-items:center;gap:6px">
-      <input type="checkbox" id="fixOut" ${sess.status==='INCOMPLETE'?'checked':''} style="width:auto"> 퇴근 시각 수정</label>
-      <input id="reqOut" type="datetime-local" value="${outStr}" style="margin-top:4px"></div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:.85rem;margin-bottom:4px">
+      <input type="checkbox" id="fixIn" ${sess.status==='ORPHAN_OUT'?'checked':''} style="width:auto"> 출근 수정</label>
+    <div id="inRow" style="display:flex;gap:6px;margin-bottom:10px">
+      ${dateTimeInputs('in', inInit)}</div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:.85rem;margin-bottom:4px">
+      <input type="checkbox" id="fixOut" ${sess.status==='INCOMPLETE'?'checked':''} style="width:auto"> 퇴근 수정</label>
+    <div id="outRow" style="display:flex;gap:6px;margin-bottom:10px">
+      ${dateTimeInputs('out', outInit)}</div>
+    <div id="reqPreview" style="font-size:.85rem;padding:8px;border-radius:8px;background:var(--chip);margin-bottom:10px"></div>
     <div class="field"><label>정정 사유</label><input id="reqNote" placeholder="예: 마감하고 퇴근 못 찍음"></div>
     <button class="btn-primary" id="reqSend">정정 요청 보내기</button>
-    <button class="link-x" id="reqBack" style="width:100%;margin-top:8px">뒤로</button>`;
+    <button class="link-x" id="reqBack" style="width:100%;margin-top:8px">← 뒤로 (내 기록)</button>`;
 
-  document.getElementById("reqBack").onclick=()=>{
-    // 목록으로 복귀
-    BE.myEvents(empId,pin,mrRange().fs,mrRange().ts).then(r=>{
-      if(r&&r.ok) renderMyResult(empId,pin,r.events||[],r.requests||[]);
-    });
-  };
+  // 예상 근무시간 실시간 계산 + validation
+  function readDT(prefix){
+    const y=+document.getElementById(prefix+"Y").value, mo=+document.getElementById(prefix+"Mo").value,
+      da=+document.getElementById(prefix+"D").value, h=+document.getElementById(prefix+"H").value, mi=+document.getElementById(prefix+"Mi").value;
+    return new Date(y,mo-1,da,h,mi,0);
+  }
+  function updatePreview(){
+    const fixIn=document.getElementById("fixIn").checked, fixOut=document.getElementById("fixOut").checked;
+    const inD = fixIn?readDT("in"):(sess.in||null);
+    const outD = fixOut?readDT("out"):(sess.out||null);
+    const pv=document.getElementById("reqPreview"); const btn=document.getElementById("reqSend");
+    if(inD&&outD){
+      const sec=(outD-inD)/1000;
+      if(sec<=0){ pv.innerHTML=`<span style="color:var(--warn)">⚠ 퇴근이 출근보다 빠릅니다. 날짜/시간을 확인하세요.</span>`; btn.disabled=true; btn.style.opacity=".5"; return; }
+      const long = sec>LONG_SESSION_THRESHOLD_HOURS*3600;
+      pv.innerHTML=`예상 근무시간 <b>${fmtDur(sec)}</b>${long?` <span style="color:var(--warn)">· 장시간 근무 · 확인필요</span>`:''}`;
+      btn.disabled=false; btn.style.opacity="1";
+    } else { pv.innerHTML=`<span style="color:var(--sub)">출근 또는 퇴근 한쪽만 수정합니다.</span>`; btn.disabled=false; btn.style.opacity="1"; }
+  }
+  el.querySelectorAll("select,input").forEach(x=>x.addEventListener("change",updatePreview));
+  document.getElementById("fixIn").addEventListener("change",updatePreview);
+  document.getElementById("fixOut").addEventListener("change",updatePreview);
+  updatePreview();
+
+  document.getElementById("reqBack").onclick=()=>{ mrShowRecord(empId,pin,events,requests,emps); };
   document.getElementById("reqSend").onclick=async()=>{
-    const fixIn=document.getElementById("fixIn").checked;
-    const fixOut=document.getElementById("fixOut").checked;
+    const fixIn=document.getElementById("fixIn").checked, fixOut=document.getElementById("fixOut").checked;
     const note=document.getElementById("reqNote").value.trim();
     if(!fixIn&&!fixOut){ alert("수정할 항목(출근/퇴근)을 선택하세요."); return; }
-    // 각 항목을 개별 정정요청으로 전송 (event_id를 정확히 지정)
     const reqs=[];
-    if(fixIn){
-      const tv=document.getElementById("reqIn").value; if(!tv){ alert("출근 시각을 입력하세요."); return; }
-      const at=tv.length===16?tv+":00":tv;
-      // 출근 이벤트가 있으면 그 id로 WRONG_TIME, 없으면(출근누락) MISSING_IN + ADD
+    if(fixIn){ const d=readDT("in"); const at=isoLocal(d);
       if(sess.inId) reqs.push({kind:"WRONG_TIME",eventId:sess.inId,at,type:"IN"});
-      else reqs.push({kind:"MISSING_IN",eventId:null,at,type:"IN"});
-    }
-    if(fixOut){
-      const tv=document.getElementById("reqOut").value; if(!tv){ alert("퇴근 시각을 입력하세요."); return; }
-      const at=tv.length===16?tv+":00":tv;
+      else reqs.push({kind:"MISSING_IN",eventId:null,at,type:"IN"}); }
+    if(fixOut){ const d=readDT("out"); const at=isoLocal(d);
       if(sess.outId) reqs.push({kind:"WRONG_TIME",eventId:sess.outId,at,type:"OUT"});
-      else reqs.push({kind:"MISSING_OUT",eventId:null,at,type:"OUT"});
-    }
+      else reqs.push({kind:"MISSING_OUT",eventId:null,at,type:"OUT"}); }
+    // validation: 둘 다 수정 시 퇴근>출근
+    if(fixIn&&fixOut){ if(readDT("out")<=readDT("in")){ alert("퇴근이 출근보다 빠릅니다."); return; } }
     try{
       for(const r of reqs){
         const res=await BE.requestCorrection(empId,pin,r.kind,r.eventId,r.at,r.type,note);
@@ -778,8 +809,23 @@ function openReqForm(empId,pin,sess){
     }catch(e){ toast("err","오류",e.message); }
   };
 }
-// datetime-local 입력용 포맷 (초 제외)
-function toLocalInput(d){ const p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
+// 날짜(년/월/일 select) + 시간(시:분 select) 분리 입력 — datetime-local 의존 줄임
+function dateTimeInputs(prefix, d){
+  const y=d.getFullYear(), mo=d.getMonth()+1, da=d.getDate(), h=d.getHours(), mi=d.getMinutes();
+  const opt=(n,sel)=>`<option value="${n}" ${n===sel?'selected':''}>${n}</option>`;
+  const years=[y-1,y,y+1].map(v=>opt(v,y)).join("");
+  const months=Array.from({length:12},(_,k)=>opt(k+1,mo)).join("");
+  const days=Array.from({length:31},(_,k)=>opt(k+1,da)).join("");
+  const hours=Array.from({length:24},(_,k)=>`<option value="${k}" ${k===h?'selected':''}>${String(k).padStart(2,'0')}</option>`).join("");
+  const mins=Array.from({length:60},(_,k)=>`<option value="${k}" ${k===mi?'selected':''}>${String(k).padStart(2,'0')}</option>`).join("");
+  const sty="height:44px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 4px";
+  return `<select id="${prefix}Y" style="${sty};flex:1.3">${years}</select>
+    <select id="${prefix}Mo" style="${sty};flex:1">${months}</select>
+    <select id="${prefix}D" style="${sty};flex:1">${days}</select>
+    <select id="${prefix}H" style="${sty};flex:1">${hours}</select>
+    <select id="${prefix}Mi" style="${sty};flex:1">${mins}</select>`;
+}
+function isoLocal(d){ const p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`; }
 function mrRange(){ const t=kstNow(); const p=n=>String(n).padStart(2,"0");
   const to=new Date(t); to.setDate(to.getDate()+1); const from=new Date(t); from.setDate(from.getDate()-14);
   return {fs:`${from.getFullYear()}-${p(from.getMonth()+1)}-${p(from.getDate())}T00:00:00`, ts:`${to.getFullYear()}-${p(to.getMonth()+1)}-${p(to.getDate())}T00:00:00`}; }
