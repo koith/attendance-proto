@@ -26,3 +26,12 @@ end;
 $$;
 
 grant execute on function admin_update_employee(bigint, jsonb) to authenticated;
+
+-- ============================================================
+-- [적용 후 검증] 아래를 실행해 jsonb 함수 하나만 남았는지 확인:
+--   select proname, pg_get_function_arguments(oid) as args
+--   from pg_proc where proname='admin_update_employee';
+-- 기대: 1행, args = "p_id bigint, p_fields jsonb"
+-- 만약 2행(json+jsonb)이면 아래 한 번 더 실행:
+--   drop function admin_update_employee(bigint, json);
+-- ============================================================
