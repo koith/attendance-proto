@@ -25,15 +25,19 @@
     overscroll-behavior:none;
   }
   .wrap{max-width:760px; margin:0 auto; min-height:100%; display:flex; flex-direction:column;}
+  /* modal 열리면 배경 스크롤 잠금 */
+  body:has(.modal-veil.show), body:has(.pad-veil.show){ overflow:hidden; }
+  .topbar{ position:sticky; top:0; z-index:10; background:var(--bg); }
   header{
     display:flex; align-items:center; justify-content:space-between;
     padding:14px 18px; border-bottom:1px solid var(--line);
-    position:sticky; top:0; background:rgba(255,255,255,.92); backdrop-filter:blur(8px); z-index:5;
+    background:rgba(255,255,255,.92); backdrop-filter:blur(8px);
   }
   .brand{display:flex; align-items:baseline; gap:8px;}
   .brand b{font-size:1.05rem; letter-spacing:-.02em;}
   .brand span{font-size:.78rem; color:var(--sub);}
   .clock{font-variant-numeric:tabular-nums; font-size:1rem; color:var(--sub); letter-spacing:.01em;}
+  .tabwrap{ background:var(--bg); border-bottom:1px solid var(--line); }
   .tabs{display:flex; gap:6px;}
   .tabs a{
     font-size:.82rem; color:var(--sub); text-decoration:none;
@@ -90,7 +94,7 @@
   .success .worked{font-size:1rem; color:var(--ink); font-weight:600; margin-top:4px;}
 
   /* PIN pad */
-  .pad-veil{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-end; z-index:20;}
+  .pad-veil{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-end; z-index:20; touch-action:none;}
   .pad-veil.show{display:flex;}
   .pad{
     width:100%; max-width:760px; margin:0 auto; background:var(--panel);
@@ -159,25 +163,33 @@
   }
   .btn-primary:active{filter:brightness(.92);}
   .link-x{background:none; border:none; color:var(--muted); font-size:.8rem; cursor:pointer; padding:6px;}
-  .modal-veil{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:30; padding:20px;}
+  .modal-veil{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:30; padding:20px; touch-action:none;}
+  .modal{position:relative;}
+  .modal-x{position:absolute; top:12px; right:14px; width:32px; height:32px; border:none; background:transparent; color:var(--sub); font-size:1.5rem; line-height:1; cursor:pointer; padding:0; z-index:2;}
+  .modal-x:active{color:var(--ink);}
   .modal-veil.show{display:flex;}
-  .modal{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:20px; width:100%; max-width:380px;}
+  .modal{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:20px; width:100%; max-width:380px; max-height:88vh; overflow-y:auto; touch-action:pan-y;}
   .modal h3{margin:0 0 16px; font-size:1.1rem;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-<div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
 <div class="wrap">
-  <header>
-    <div class="brand"><b>백억커피</b><span id="storeName">인하대점</span></div>
-    <div class="clock" id="clock">--:--:--</div>
-  </header>
-  <div style="padding:12px 18px 0"><div class="tabs">
-    <a id="tabPos" href="#pos" class="on">출퇴근</a>
-    <a id="tabAdmin" href="#admin">관리자</a>
-    <a id="tabPay" href="#pay">급여</a>
-  </div></div>
+  <div class="topbar">
+    <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
+    <header>
+      <div class="brand">
+        <img id="brandLogo" src="" alt="" style="height:26px;width:auto;display:none;margin-right:2px">
+        <b>백억커피</b><span id="storeName">인하대점</span>
+      </div>
+      <div class="clock" id="clock">--:--:--</div>
+    </header>
+    <div style="padding:10px 18px" class="tabwrap"><div class="tabs">
+      <a id="tabPos" href="#pos" class="on">출퇴근</a>
+      <a id="tabAdmin" href="#admin">관리자</a>
+      <a id="tabPay" href="#pay">급여</a>
+    </div></div>
+  </div>
   <main id="view"></main>
 </div>
 
@@ -502,6 +514,18 @@ async function empState(id){
 /* ============================ UI: 라우팅 ============================ */
 const view=document.getElementById("view");
 let _posTimer=null;
+// addVeil 열기: modal 우상단 X 자동 주입(닫기 = 취소와 동일). 모든 열기 지점이 이걸 사용.
+function openAddVeil(){
+  const v=document.getElementById("addVeil");
+  const modal=v.querySelector(".modal");
+  if(modal && !modal.querySelector(".modal-x")){
+    const x=document.createElement("button");
+    x.className="modal-x"; x.setAttribute("aria-label","닫기"); x.textContent="×";
+    x.onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
+    modal.insertBefore(x, modal.firstChild);
+  }
+  openAddVeil();
+}
 function setTab(t){
   document.getElementById("tabPos").classList.toggle("on",t==="pos");
   document.getElementById("tabAdmin").classList.toggle("on",t==="admin");
@@ -662,19 +686,26 @@ function mrShowAuth(emps, preselId){
     <div class="field"><label>본인 선택</label>
       <select id="mrEmp" style="height:50px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 12px">
         ${emps.map(e=>`<option value="${e.id}" ${preselId===e.id?'selected':''}>${e.name}</option>`).join("")}</select></div>
-    <div class="field"><label>비밀번호 (4자리)</label><input id="mrPin" inputmode="numeric" maxlength="4" type="password" placeholder="숫자 4자리"></div>
+    <div class="field"><label>비밀번호 (4자리)</label><input id="mrPin" inputmode="numeric" maxlength="4" type="password" placeholder="비밀번호를 입력하세요"></div>
+    <div id="mrHint" style="font-size:.8rem;color:var(--warn);min-height:1.1em;margin:-6px 0 6px"></div>
     <button class="btn-primary" id="mrView">내 기록 보기</button>
     <button class="link-x" id="mrCancel" style="width:100%;margin-top:8px">취소</button>`;
-  v.classList.add("show");
+  openAddVeil();
   modal.querySelector("#mrCancel").onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
   modal.querySelector("#mrView").onclick=async()=>{
     const id=Number(document.getElementById("mrEmp").value);
     const pin=document.getElementById("mrPin").value;
-    if(!/^\d{4}$/.test(pin)){ alert("비밀번호 4자리"); return; }
+    const hint=document.getElementById("mrHint");
+    if(!/^\d{4}$/.test(pin)){ hint.textContent="비밀번호 4자리를 입력하세요."; document.getElementById("mrPin").focus(); return; }
+    hint.textContent="";
     const r=mrRange();
     let res;
     try{ res=await BE.myEvents(id,pin,r.fs,r.ts); }catch(e){ toast("err","오류",e.message); return; }
-    if(!res||!res.ok){ toast("err",res&&res.error==="BAD_PIN"?"비밀번호 오류":"오류",""); return; }
+    if(!res||!res.ok){
+      if(res&&res.error==="BAD_PIN"){ hint.textContent="비밀번호가 올바르지 않습니다."; document.getElementById("mrPin").value=""; document.getElementById("mrPin").focus(); }
+      else toast("err","오류","");
+      return;
+    }
     // 인증 성공 → STEP2. emps를 넘겨 뒤로가기 시 재사용
     mrShowRecord(id,pin,res.events||[],res.requests||[],emps);
   };
@@ -686,8 +717,8 @@ function mrShowRecord(empId,pin,events,requests,emps){
   modal.innerHTML=`
     <h3>${empName} · 내 근태</h3>
     <div id="mrResult"></div>
-    <button class="link-x" id="mrBackAuth" style="width:100%;margin-top:12px">← 본인 선택으로</button>`;
-  v.classList.add("show");
+    <button class="link-x" id="mrBackAuth" style="width:100%;margin-top:12px">← 뒤로 (본인 선택)</button>`;
+  openAddVeil();
   // 본인 선택으로 = 인증 폐기 (pin은 이 스코프에만 있고 여기서 버려짐 → 재인증 강제)
   modal.querySelector("#mrBackAuth").onclick=()=>{ mrShowAuth(emps, empId); };
   renderMyResult(empId,pin,events,requests,emps);
@@ -851,7 +882,7 @@ async function renderAdmin(){
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
   const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
   document.getElementById("adToday").textContent=day;
-  document.getElementById("adAdd").onclick=()=>document.getElementById("addVeil").classList.add("show");
+  document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };
 
   // 정정요청 대기 큐 (LIVE 전용)
   if(LIVE){ renderPendingRequests(); }
@@ -944,8 +975,9 @@ async function renderPendingRequests(){
       else toast("err","실패",(res&&res.error)||"오류");
     };
     div.querySelector("[data-rj]").onclick=async()=>{
-      const reason=prompt("반려 사유(선택):")||"";
-      const res=await BE.resolveRequest(r.id,false,reason);
+      const reason=prompt("반려 사유(선택):");
+      if(reason===null) return;  // prompt 취소 → 아무 것도 안 함 (반려 안 됨)
+      const res=await BE.resolveRequest(r.id,false,reason||"");
       if(res&&res.ok){ toast("out","반려됨",""); renderAdmin(); }
       else toast("err","실패",(res&&res.error)||"오류");
     };
@@ -974,7 +1006,7 @@ function openAdminFix(emp, effRows){
     <div class="field"><label>사유</label><input id="fixReason" placeholder="예: 퇴근 누락 보정"></div>
     <button class="btn-primary" id="fixAdd">추가</button>
     <button class="link-x" id="fixCancel" style="width:100%;margin-top:8px">닫기</button>`;
-  v.classList.add("show");
+  openAddVeil();
   modal.querySelectorAll("[data-void]").forEach(b=>b.onclick=async()=>{
     if(!confirm("이 기록을 무효화할까요? (원본은 보존됩니다)")) return;
     const reason=prompt("무효화 사유:")||"관리자 무효화";
@@ -1322,7 +1354,7 @@ function openMonthAdjust(emp, ym, ov){
     <div class="field"><label>이달 사유</label><input id="maMemo" value="${ov.memo||''}" placeholder="예: 15h미만 1주 제외"></div>
     <button class="btn-primary" id="maSave">이달 조정 저장</button>
     <button class="link-x" id="maCancel" style="width:100%;margin-top:8px">취소</button>`;
-  v.classList.add("show");
+  openAddVeil();
   modal.querySelector("#maCancel").onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
   modal.querySelector("#maSave").onclick=async()=>{
     const fields={
@@ -1345,19 +1377,30 @@ function openPayEdit(emp){
     <h3>${emp.name} · 급여 설정</h3>
     <div class="field"><label>시급 (원)</label><input id="peWage" inputmode="numeric" value="${emp.wage||''}" placeholder="예: 12000"></div>
     <div class="field"><label>주당 주휴시간 (0=주휴없음)</label><input id="peJh" inputmode="decimal" value="${emp.juhyu_hours||0}" placeholder="예: 4.4"></div>
-    <div class="field"><label>주휴 주당액 반올림 (-3=1000원, 비움=반올림안함)</label><input id="peJr" inputmode="numeric" value="${emp.juhyu_round??''}" placeholder="예: -3"></div>
-    <div class="field"><label>원천징수율 (0.033 = 3.3%)</label><input id="peTax" inputmode="decimal" value="${emp.tax_rate??0.033}"></div>
+    <div class="field"><label>주휴 주당액 반올림 단위</label>
+      <select id="peJr" style="height:48px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 12px">
+        <option value="" ${emp.juhyu_round==null?'selected':''}>반올림 안 함</option>
+        <option value="-1" ${emp.juhyu_round===-1?'selected':''}>10원 단위</option>
+        <option value="-2" ${emp.juhyu_round===-2?'selected':''}>100원 단위</option>
+        <option value="-3" ${emp.juhyu_round===-3?'selected':''}>1,000원 단위</option>
+      </select></div>
+    <div class="field"><label>원천징수율</label>
+      <select id="peTax" style="height:48px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 12px">
+        <option value="0.033" ${(emp.tax_rate??0.033)==0.033?'selected':''}>3.3% (사업소득)</option>
+        <option value="0" ${(emp.tax_rate??0.033)==0?'selected':''}>0% (원천징수 없음)</option>
+      </select>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:4px">4대보험 등 정확한 율은 회계사 확인 후 반영</div></div>
     <div class="field"><label>메모 (예외 사유)</label><input id="peMemo" value="${emp.memo||''}" placeholder="예: 15h미만 1주 차감"></div>
     <button class="btn-primary" id="peSave">저장</button>
     <button class="link-x" id="peCancel" style="width:100%;margin-top:8px">취소</button>`;
-  v.classList.add("show");
+  openAddVeil();
   modal.querySelector("#peCancel").onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
   modal.querySelector("#peSave").onclick=async()=>{
     const fields={
       wage: parseInt(document.getElementById("peWage").value)||null,
       juhyu_hours: parseFloat(document.getElementById("peJh").value)||0,
       juhyu_round: document.getElementById("peJr").value===''?null:parseInt(document.getElementById("peJr").value),
-      tax_rate: parseFloat(document.getElementById("peTax").value)||0.033,
+      tax_rate: (v=>v===''?0.033:parseFloat(v))(document.getElementById("peTax").value),
       memo: document.getElementById("peMemo").value.trim()||null,
     };
     try{ await BE.updateEmployee(emp.id,fields); }catch(e){ alert(e.message); return; }
