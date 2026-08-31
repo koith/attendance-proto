@@ -217,7 +217,6 @@
     <div class="field"><label>이름</label><input id="newName" autocomplete="off" placeholder="예: 이현진"></div>
     <div class="field"><label>비밀번호 (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="숫자 4자리"></div>
     <button class="btn-primary" id="newSave">등록</button>
-    <button class="link-x" id="newCancel" style="width:100%;margin-top:8px">취소</button>
   </div>
 </div>
 
@@ -694,10 +693,8 @@ function mrShowAuth(emps, preselId){
         ${emps.map(e=>`<option value="${e.id}" ${preselId===e.id?'selected':''}>${e.name}</option>`).join("")}</select></div>
     <div class="field"><label>비밀번호 (4자리)</label><input id="mrPin" inputmode="numeric" maxlength="4" type="password" placeholder="비밀번호를 입력하세요"></div>
     <div id="mrHint" style="font-size:.8rem;color:var(--warn);min-height:1.1em;margin:-6px 0 6px"></div>
-    <button class="btn-primary" id="mrView">내 기록 보기</button>
-    <button class="link-x" id="mrCancel" style="width:100%;margin-top:8px">취소</button>`;
+    <button class="btn-primary" id="mrView">내 기록 보기</button>`;
   openAddVeil();
-  modal.querySelector("#mrCancel").onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
   modal.querySelector("#mrView").onclick=async()=>{
     const id=Number(document.getElementById("mrEmp").value);
     const pin=document.getElementById("mrPin").value;
@@ -1010,8 +1007,7 @@ function openAdminFix(emp, effRows){
         <option value="IN">출근</option><option value="OUT">퇴근</option></select></div>
     <div class="field"><label>시각</label><input id="fixTime" type="datetime-local"></div>
     <div class="field"><label>사유</label><input id="fixReason" placeholder="예: 퇴근 누락 보정"></div>
-    <button class="btn-primary" id="fixAdd">추가</button>
-    <button class="link-x" id="fixCancel" style="width:100%;margin-top:8px">닫기</button>`;
+    <button class="btn-primary" id="fixAdd">추가</button>`;
   openAddVeil();
   modal.querySelectorAll("[data-void]").forEach(b=>b.onclick=async()=>{
     if(!confirm("이 기록을 무효화할까요? (원본은 보존됩니다)")) return;
@@ -1021,7 +1017,6 @@ function openAdminFix(emp, effRows){
     const res=await BE.correctEvent("VOID",Number(eid),Number(empId),null,null,reason);
     if(res!=null){ toast("out","무효화됨",""); v.classList.remove("show"); restoreAddModal(); renderAdmin(); }
   });
-  modal.querySelector("#fixCancel").onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
   modal.querySelector("#fixAdd").onclick=async()=>{
     const type=document.getElementById("fixType").value;
     const tv=document.getElementById("fixTime").value; // "YYYY-MM-DDTHH:MM"
@@ -1036,7 +1031,6 @@ function openAdminFix(emp, effRows){
 
 /* 직원 등록 모달 */
 function bindAddModal(){
-  document.getElementById("newCancel").onclick=()=>document.getElementById("addVeil").classList.remove("show");
   document.getElementById("newSave").onclick=async()=>{
     const name=document.getElementById("newName").value.trim();
     const pin=document.getElementById("newPin").value.trim();
@@ -1358,10 +1352,8 @@ function openMonthAdjust(emp, ym, ov){
     <div class="field"><label>주휴시간 (이달만)</label><input id="maJh" inputmode="decimal" value="${ov.juhyu_hours_override??''}" placeholder="비우면 기본"></div>
     <div class="field"><label>가감액 (수당+/공제−, 원)</label><input id="maAdj" inputmode="numeric" value="${ov.adjust_amount||''}" placeholder="예: -20000"></div>
     <div class="field"><label>이달 사유</label><input id="maMemo" value="${ov.memo||''}" placeholder="예: 15h미만 1주 제외"></div>
-    <button class="btn-primary" id="maSave">이달 조정 저장</button>
-    <button class="link-x" id="maCancel" style="width:100%;margin-top:8px">취소</button>`;
+    <button class="btn-primary" id="maSave">이달 조정 저장</button>`;
   openAddVeil();
-  modal.querySelector("#maCancel").onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
   modal.querySelector("#maSave").onclick=async()=>{
     const fields={
       juhyu_weeks_override: document.getElementById("maWeeks").value,
@@ -1420,8 +1412,7 @@ function restoreAddModal(){
     <h3>직원 등록</h3>
     <div class="field"><label>이름</label><input id="newName" autocomplete="off" placeholder="예: 이현진"></div>
     <div class="field"><label>비밀번호 (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="숫자 4자리"></div>
-    <button class="btn-primary" id="newSave">등록</button>
-    <button class="link-x" id="newCancel" style="width:100%;margin-top:8px">취소</button>`;
+    <button class="btn-primary" id="newSave">등록</button>`;
   bindAddModal();
 }
 
