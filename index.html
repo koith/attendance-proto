@@ -689,6 +689,7 @@ async function openMyRecord(){
 // STEP 1: 인증 화면 (preselId: 뒤로 왔을 때 직원 선택만 복원, PIN은 항상 재입력)
 function mrShowAuth(emps, preselId){
   const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
+  modal.classList.remove("has-back");
   modal.innerHTML=`
     <h3>내 근태 기록</h3>
     <div class="field"><label>본인 선택</label>
@@ -719,15 +720,18 @@ function mrShowAuth(emps, preselId){
 // STEP 2: 내 기록 (뒤로 = 인증 폐기하고 STEP1)
 function mrShowRecord(empId,pin,events,requests,emps){
   const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
-  modal.classList.remove("has-back");
   const empName=(emps.find(e=>e.id===empId)||{}).name||"";
   modal.innerHTML=`
     <h3>${empName} · 내 근태</h3>
-    <div id="mrResult"></div>
-    <button class="link-x" id="mrBackAuth" style="width:100%;margin-top:12px">← 뒤로 (본인 선택)</button>`;
+    <div id="mrResult"></div>`;
   openAddVeil();
-  // 본인 선택으로 = 인증 폐기 (pin은 이 스코프에만 있고 여기서 버려짐 → 재인증 강제)
-  modal.querySelector("#mrBackAuth").onclick=()=>{ mrShowAuth(emps, empId); };
+  // 좌상단 뒤로(‹) 주입: 본인 선택으로 = 인증 폐기 (pin 버려짐 → 재인증 강제)
+  modal.classList.add("has-back");
+  const oldBk=modal.querySelector(".modal-back"); if(oldBk) oldBk.remove();
+  const bk=document.createElement("button");
+  bk.className="modal-back"; bk.setAttribute("aria-label","뒤로"); bk.textContent="‹";
+  bk.onclick=()=>{ mrShowAuth(emps, empId); };
+  modal.insertBefore(bk, modal.firstChild);
   renderMyResult(empId,pin,events,requests,emps);
 }
 function fmtDT(d){ if(!d) return "—"; const p=n=>String(n).padStart(2,"0"); return `${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
@@ -774,19 +778,16 @@ function renderMyResult(empId,pin,events,requests,emps){
 // 정정요청 폼: 날짜+시간 분리 입력, 실시간 예상근무시간, 전송전 validation
 function openReqForm(empId,pin,sess,events,requests,emps){
   const el=document.getElementById("mrResult");
-  // STEP3에서는 STEP2 껍데기의 "뒤로(본인 선택)"를 숨김 (좌상단 뒤로가 역할 담당)
-  const backAuth=document.getElementById("mrBackAuth"); if(backAuth) backAuth.style.display="none";
-  // 제목을 정정 요청용으로 변경 + 좌상단 뒤로 버튼 주입 (모바일 백버튼 위치)
+  // 제목을 정정 요청용으로 변경 + 좌상단 뒤로 버튼 재주입 (모바일 백버튼 위치)
   const modal=document.getElementById("addVeil").querySelector(".modal");
   const empName=(emps.find(e=>e.id===empId)||{}).name||"";
   const h3=modal.querySelector("h3"); if(h3) h3.textContent=`${empName} · 근태 정정 요청`;
   modal.classList.add("has-back");
-  if(!modal.querySelector(".modal-back")){
-    const bk=document.createElement("button");
-    bk.className="modal-back"; bk.setAttribute("aria-label","뒤로"); bk.textContent="‹";
-    bk.onclick=()=>{ mrShowRecord(empId,pin,events,requests,emps); };
-    modal.insertBefore(bk, modal.firstChild);
-  }
+  const oldBk=modal.querySelector(".modal-back"); if(oldBk) oldBk.remove();
+  const bk=document.createElement("button");
+  bk.className="modal-back"; bk.setAttribute("aria-label","뒤로"); bk.textContent="‹";
+  bk.onclick=()=>{ mrShowRecord(empId,pin,events,requests,emps); };  // STEP3 뒤로 = 내 기록(STEP2)
+  modal.insertBefore(bk, modal.firstChild);
   // 기본값: 세션의 기존 출근/퇴근 (없으면 세션 기준일)
   const baseDay = sess.in||sess.out||kstNow();
   const inInit = sess.in||baseDay, outInit = sess.out||baseDay;
