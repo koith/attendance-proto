@@ -831,13 +831,24 @@ function openReqForm(empId,pin,sess,events,requests,emps){
     let cur=+daSel.value; if(cur>last) cur=last;       // 초과 선택은 말일로 clamp
     daSel.innerHTML=Array.from({length:last},(_,k)=>`<option value="${k+1}" ${k+1===cur?'selected':''}>${k+1}</option>`).join("");
   }
+  // 해당 행(출근/퇴근)의 날짜·시간을 건드리면 그 항목을 자동으로 '수정' 체크
+  function autoCheck(prefix){
+    const cb=document.getElementById(prefix==="in"?"fixIn":"fixOut");
+    if(cb && !cb.checked){ cb.checked=true; }
+  }
   ["in","out"].forEach(p=>{
-    document.getElementById(p+"Y").addEventListener("change",()=>{ syncDays(p); updatePreview(); });
-    document.getElementById(p+"Mo").addEventListener("change",()=>{ syncDays(p); updatePreview(); });
+    ["Y","Mo","D","H","Mi"].forEach(part=>{
+      const sel=document.getElementById(p+part);
+      sel.addEventListener("change",()=>{
+        if(part==="Y"||part==="Mo") syncDays(p);  // 년/월 바뀌면 일 옵션 재생성
+        autoCheck(p);                              // 값 건드리면 자동 체크
+        updatePreview();
+      });
+    });
   });
-  el.querySelectorAll("select,input").forEach(x=>x.addEventListener("change",updatePreview));
   document.getElementById("fixIn").addEventListener("change",updatePreview);
   document.getElementById("fixOut").addEventListener("change",updatePreview);
+  document.getElementById("reqNote").addEventListener("change",updatePreview);
   updatePreview();
 
   document.getElementById("reqBack").onclick=()=>{ mrShowRecord(empId,pin,events,requests,emps); };
