@@ -803,6 +803,13 @@ function openReqForm(empId,pin,sess,events,requests,emps){
       da=+document.getElementById(prefix+"D").value, h=+document.getElementById(prefix+"H").value, mi=+document.getElementById(prefix+"Mi").value;
     return new Date(y,mo-1,da,h,mi,0);
   }
+  // 입력한 년/월/일이 실제 존재하는 날짜인지 검사 (예: 2월 31일 → new Date가 3월로 넘김)
+  function validDT(prefix){
+    const y=+document.getElementById(prefix+"Y").value, mo=+document.getElementById(prefix+"Mo").value,
+      da=+document.getElementById(prefix+"D").value;
+    const d=new Date(y,mo-1,da);
+    return d.getFullYear()===y && d.getMonth()===mo-1 && d.getDate()===da;
+  }
   function updatePreview(){
     const fixIn=document.getElementById("fixIn").checked, fixOut=document.getElementById("fixOut").checked;
     const inD = fixIn?readDT("in"):(sess.in||null);
@@ -826,6 +833,8 @@ function openReqForm(empId,pin,sess,events,requests,emps){
     const fixIn=document.getElementById("fixIn").checked, fixOut=document.getElementById("fixOut").checked;
     const note=document.getElementById("reqNote").value.trim();
     if(!fixIn&&!fixOut){ alert("수정할 항목(출근/퇴근)을 선택하세요."); return; }
+    if(fixIn && !validDT("in")){ alert("출근 날짜가 올바르지 않습니다. 해당 월에 없는 날짜입니다."); return; }
+    if(fixOut && !validDT("out")){ alert("퇴근 날짜가 올바르지 않습니다. 해당 월에 없는 날짜입니다."); return; }
     const reqs=[];
     if(fixIn){ const d=readDT("in"); const at=isoLocal(d);
       if(sess.inId) reqs.push({kind:"WRONG_TIME",eventId:sess.inId,at,type:"IN"});
