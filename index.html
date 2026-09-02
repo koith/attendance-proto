@@ -8,11 +8,20 @@
 <title>백억커피 근태</title>
 <style>
   :root{
-    /* 백억커피 브랜드 그린 기반 팔레트 */
-    --bg:#f4f6f4; --panel:#ffffff; --panel2:#f5f8f6; --line:#dfe6e0;
-    --ink:#16231b; --sub:#5c6b60; --muted:#93a398;
-    --in:#1d5d3a; --in-d:#164a2e; --out:#c2410c; --out-d:#9a3412;
-    --warn:#dc2626; --accent:#1d5d3a; --accent-d:#164a2e; --chip:#e8f0ea;
+    /* ===== 백억커피 UI Design System V1 tokens (source of truth) ===== */
+    --brand-700:#1d5d3a; --brand-800:#16482d; --brand-050:#eef6f1;
+    --surface:#ffffff; --surface-muted:#f5f8f6; --page:#f4f7f5;
+    --text:#172019; --text-muted:#66736a; --border:#dbe4de;
+    --danger:#b42318; --danger-d:#8f1c12; --warning:#8a5b00;
+    --radius-sm:10px; --radius-md:14px; --radius-lg:20px;
+    --control-sm:36px; --control-md:44px; --control-lg:52px;
+    --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px;
+    --space-5:20px; --space-6:24px; --space-8:32px;
+    /* ===== 기존 변수명 → V1 토큰에 정렬 (하위호환) ===== */
+    --bg:var(--page); --panel:var(--surface); --panel2:var(--surface-muted); --line:var(--border);
+    --ink:var(--text); --sub:var(--text-muted); --muted:#93a398;
+    --in:var(--brand-700); --in-d:var(--brand-800); --out:#c2410c; --out-d:#9a3412;
+    --warn:var(--danger); --accent:var(--brand-700); --accent-d:var(--brand-800); --chip:var(--brand-050);
     --r:12px; --tap:64px;
     font-size:16px;
   }
@@ -149,40 +158,70 @@
   .row .nm{font-weight:600; font-size:1.02rem; flex:1;}
   .row .times{font-size:.85rem; color:var(--sub); font-variant-numeric:tabular-nums; text-align:right;}
   .row .times b{color:var(--ink); font-weight:600;}
-  .badge{font-size:.7rem; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--sub);}
-  .badge.work{color:var(--in); border-color:var(--in-d);}
-  .badge.issue{color:var(--warn); border-color:var(--warn);}
+  /* ===== V1 Status badge (pill, 클릭 불가) ===== */
+  .badge{display:inline-flex; align-items:center; gap:4px; font-size:.72rem; font-weight:600; padding:3px 9px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted); background:var(--surface); cursor:default; user-select:none;}
+  .badge.work, .badge.success{color:var(--brand-700); border-color:#bfe3cb; background:var(--brand-050);}
+  .badge.issue, .badge.warning{color:var(--warning); border-color:#e8d9a8; background:#fdf6e3;}
+  .badge.danger{color:var(--danger); border-color:#f0c4be; background:#fbeae8;}
   .empty{color:var(--muted); text-align:center; padding:40px 16px; font-size:.9rem; grid-column:1/-1; width:100%;}
-  .addbtn{
-    width:100%; height:52px; border-radius:14px; border:1px dashed var(--line);
-    background:transparent; color:var(--sub); font-size:.95rem; margin-top:4px; cursor:pointer;
+  /* ===== V1 Button primitives ===== */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:var(--space-2);
+    height:var(--control-md); padding:0 var(--space-4); border-radius:12px;
+    font-size:.95rem; font-weight:600; cursor:pointer; border:1px solid transparent;
+    line-height:1; white-space:nowrap; transition:filter .12s, background .12s;
   }
-  .field{display:flex; flex-direction:column; gap:6px; margin-bottom:12px;}
-  .field label{font-size:.8rem; color:var(--sub);}
-  .field input{
-    height:50px; border-radius:12px; border:1px solid var(--line); background:var(--panel2);
-    color:var(--ink); padding:0 14px; font-size:1rem;
-  }
-  .btn-primary{
-    width:100%; height:52px; border-radius:14px; border:none; background:var(--accent);
-    color:#fff; font-size:1rem; font-weight:600; cursor:pointer;
-  }
+  .btn:focus-visible{outline:2px solid var(--brand-700); outline-offset:2px;}
+  .btn:disabled{opacity:.45; cursor:not-allowed;}
+  .btn-lg{height:var(--control-lg); font-size:1rem; border-radius:14px;}
+  .btn-sm{height:var(--control-sm); font-size:.85rem; padding:0 var(--space-3); font-weight:500;}
+  .btn-block{width:100%;}
+  /* Primary: solid brand green */
+  .btn-primary{background:var(--brand-700); color:#fff; border-color:var(--brand-700);}
   .btn-primary:active{filter:brightness(.92);}
-  .link-x{
-    background:var(--panel2); border:1px solid var(--line); border-radius:10px;
-    color:var(--ink); font-size:.85rem; cursor:pointer; padding:8px 14px; line-height:1;
+  /* Secondary: muted surface + border */
+  .btn-secondary{background:var(--surface); color:var(--brand-700); border-color:var(--border);}
+  .btn-secondary:active{background:var(--surface-muted);}
+  /* Danger: destructive/reject */
+  .btn-danger{background:var(--surface); color:var(--danger); border-color:var(--danger);}
+  .btn-danger:active{background:#fbeae8;}
+  /* Tertiary/text: low-emphasis */
+  .btn-tertiary{background:transparent; color:var(--text-muted); border-color:transparent; font-weight:500;}
+  .btn-tertiary:active{color:var(--text);}
+  /* Icon-only action (back/close 등) */
+  .btn-icon{display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; padding:0; border:none; background:transparent; color:var(--text-muted); cursor:pointer; border-radius:10px;}
+  .btn-icon:active{color:var(--text); background:var(--surface-muted);}
+  /* 하위호환: 기존 .link-x는 secondary로 동작 (잔여 마크업 보호) */
+  .link-x{display:inline-flex; align-items:center; justify-content:center; gap:var(--space-2); height:var(--control-md); padding:0 var(--space-4); border-radius:12px; background:var(--surface); color:var(--brand-700); border:1px solid var(--border); font-size:.9rem; font-weight:500; cursor:pointer; line-height:1;}
+  .link-x:active{background:var(--surface-muted);}
+  /* ===== V1 Icon system ===== */
+  .ui-icon{width:1.125rem; height:1.125rem; display:inline-block; flex:0 0 auto; vertical-align:-0.125em; color:currentColor;}
+  .ui-icon--sm{width:1rem; height:1rem;} .ui-icon--lg{width:1.25rem; height:1.25rem;} .ui-icon--standalone{width:1.5rem; height:1.5rem;}
+  .addbtn{
+    display:inline-flex; align-items:center; justify-content:center; gap:var(--space-2);
+    width:100%; height:var(--control-lg); border-radius:14px; border:1px dashed var(--border);
+    background:transparent; color:var(--text-muted); font-size:.95rem; cursor:pointer;
   }
-  .link-x:active{filter:brightness(.94);}
+  .addbtn:active{background:var(--surface-muted);}
+  /* ===== V1 Form primitives ===== */
+  .field{display:flex; flex-direction:column; gap:var(--space-2); margin-bottom:var(--space-3);}
+  .field label{font-size:.8rem; color:var(--text-muted); font-weight:500;}
+  .field input, .form-control{
+    height:var(--control-lg); border-radius:12px; border:1px solid var(--border); background:var(--surface-muted);
+    color:var(--text); padding:0 14px; font-size:1rem; width:100%;
+  }
+  .field input::placeholder, .form-control::placeholder{color:var(--muted);}
+  .field input:focus, .form-control:focus{outline:none; border-color:var(--brand-700); background:var(--surface);}
   .modal-veil{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:30; padding:20px; touch-action:none;}
   .modal{position:relative;}
-  .modal-x{position:absolute; top:12px; right:14px; width:32px; height:32px; border:none; background:transparent; color:var(--sub); font-size:1.5rem; line-height:1; cursor:pointer; padding:0; z-index:2;}
-  .modal-x:active{color:var(--ink);}
-  .modal-back{position:absolute; top:12px; left:14px; width:32px; height:32px; border:none; background:transparent; color:var(--sub); font-size:1.4rem; line-height:1; cursor:pointer; padding:0; z-index:2;}
-  .modal-back:active{color:var(--ink);}
-  .modal.has-back h3{padding-left:34px;}
+  .modal-x{position:absolute; top:12px; right:12px; z-index:2;}
+  .modal-back{position:absolute; top:12px; left:12px; z-index:2;}
+  .modal.has-back h3{padding-left:40px;}
   .modal-veil.show{display:flex;}
-  .modal{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:20px; width:100%; max-width:380px; max-height:88vh; overflow-y:auto; touch-action:pan-y;}
+  .modal{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; width:100%; max-width:380px; max-height:88vh; overflow-y:auto; touch-action:pan-y;}
   .modal h3{margin:0 0 16px; font-size:1.1rem;}
+  /* modal 내 select들도 form-control 표면으로 통일 (정정 날짜/시간 등) */
+  .modal select{background:var(--surface-muted); border:1px solid var(--border); color:var(--text); border-radius:10px;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -223,7 +262,7 @@
     <h3>직원 등록</h3>
     <div class="field"><label>이름</label><input id="newName" autocomplete="off" placeholder="예: 이현진"></div>
     <div class="field"><label>비밀번호 (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="숫자 4자리"></div>
-    <button class="btn-primary" id="newSave">등록</button>
+    <button class="btn btn-primary btn-block btn-lg" id="newSave">등록</button>
   </div>
 </div>
 
@@ -246,6 +285,12 @@
    GPT 프로토타입의 검증된 로직 이식: IN/OUT 페어링, 자정넘김,
    8초 중복방지, 미완결 세션 감지, 서버(=KST)시각 저장.
    ========================================================================= */
+
+/* ===== V1 Design System 아이콘 (24x24 viewBox, currentColor) ===== */
+const ICON = {
+  back:`<svg class="ui-icon ui-icon--standalone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>`,
+  close:`<svg class="ui-icon ui-icon--standalone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
+};
 
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
@@ -532,7 +577,7 @@ function openAddVeil(){
   const modal=v.querySelector(".modal");
   if(modal && !modal.querySelector(".modal-x")){
     const x=document.createElement("button");
-    x.className="modal-x"; x.setAttribute("aria-label","닫기"); x.textContent="×";
+    x.className="btn-icon modal-x"; x.setAttribute("aria-label","닫기"); x.innerHTML=ICON.close;
     x.onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
     modal.insertBefore(x, modal.firstChild);
   }
@@ -557,7 +602,7 @@ function requireAuth(then){
     <div class="section-t">관리자 로그인</div>
     <div class="field"><label>이메일</label><input id="loginEmail" type="email" autocomplete="username" placeholder="관리자 이메일"></div>
     <div class="field"><label>비밀번호</label><input id="loginPw" type="password" autocomplete="current-password" placeholder="비밀번호"></div>
-    <button class="btn-primary" id="loginBtn">로그인</button>
+    <button class="btn btn-primary btn-block btn-lg" id="loginBtn">로그인</button>
     <div id="loginErr" style="color:var(--warn);font-size:.85rem;margin-top:10px"></div>`;
   document.getElementById("loginBtn").onclick=async()=>{
     const email=document.getElementById("loginEmail").value.trim();
@@ -701,7 +746,7 @@ function mrShowAuth(emps, preselId){
         ${emps.map(e=>`<option value="${e.id}" ${preselId===e.id?'selected':''}>${e.name}</option>`).join("")}</select></div>
     <div class="field"><label>비밀번호 (4자리)</label><input id="mrPin" inputmode="numeric" maxlength="4" type="password" placeholder="비밀번호를 입력하세요"></div>
     <div id="mrHint" style="font-size:.8rem;color:var(--warn);min-height:1.1em;margin:-6px 0 6px"></div>
-    <button class="btn-primary" id="mrView">내 기록 보기</button>`;
+    <button class="btn btn-primary btn-block btn-lg" id="mrView">내 기록 보기</button>`;
   openAddVeil();
   modal.querySelector("#mrView").onclick=async()=>{
     const id=Number(document.getElementById("mrEmp").value);
@@ -733,7 +778,7 @@ function mrShowRecord(empId,pin,events,requests,emps){
   modal.classList.add("has-back");
   const oldBk=modal.querySelector(".modal-back"); if(oldBk) oldBk.remove();
   const bk=document.createElement("button");
-  bk.className="modal-back"; bk.setAttribute("aria-label","뒤로"); bk.textContent="‹";
+  bk.className="btn-icon modal-back"; bk.setAttribute("aria-label","뒤로"); bk.innerHTML=ICON.back;
   bk.onclick=()=>{ mrShowAuth(emps, empId); };
   modal.insertBefore(bk, modal.firstChild);
   renderMyResult(empId,pin,events,requests,emps);
@@ -762,7 +807,7 @@ function renderMyResult(empId,pin,events,requests,emps){
         </div>
         <div style="display:flex;justify-content:space-between;color:var(--sub);font-size:.82rem">
           <span>${crossDay?'⚠ 날짜 넘김 · ':''}근무 ${fmtDur(s.sec)}</span>
-          <button class="link-x" data-sess="${i}" style="font-size:.82rem">정정요청</button>
+          <button class="btn btn-secondary btn-sm" data-sess="${i}">정정요청</button>
         </div>
       </div>`;
     }
@@ -789,7 +834,7 @@ function openReqForm(empId,pin,sess,events,requests,emps){
   modal.classList.add("has-back");
   const oldBk=modal.querySelector(".modal-back"); if(oldBk) oldBk.remove();
   const bk=document.createElement("button");
-  bk.className="modal-back"; bk.setAttribute("aria-label","뒤로"); bk.textContent="‹";
+  bk.className="btn-icon modal-back"; bk.setAttribute("aria-label","뒤로"); bk.innerHTML=ICON.back;
   bk.onclick=()=>{ mrShowRecord(empId,pin,events,requests,emps); };  // STEP3 뒤로 = 내 기록(STEP2)
   modal.insertBefore(bk, modal.firstChild);
   // 기본값: 세션의 기존 출근/퇴근 (없으면 세션 기준일)
@@ -814,7 +859,7 @@ function openReqForm(empId,pin,sess,events,requests,emps){
       ${dateTimeInputs('out', outInit)}</div>
     <div id="reqPreview" style="font-size:.85rem;padding:8px;border-radius:8px;background:var(--chip);margin-bottom:10px"></div>
     <div class="field"><label>정정 사유</label><input id="reqNote" placeholder="예: 마감하고 퇴근 못 찍음"></div>
-    <button class="btn-primary" id="reqSend">정정 요청 보내기</button>`;
+    <button class="btn btn-primary btn-block btn-lg" id="reqSend">정정 요청 보내기</button>`;
 
   // 예상 근무시간 실시간 계산 + validation
   function readDT(prefix){
@@ -979,7 +1024,7 @@ async function renderAdmin(){
         </div>
         ${working?'<span class="badge work">근무중</span>':''}
         ${issue?'<span class="badge issue">확인필요</span>':''}
-        ${LIVE?`<button class="link-x" data-fix="${e.id}">수정</button>`:''}`;
+        ${LIVE?`<button class="btn btn-secondary btn-sm" data-fix="${e.id}">수정</button>`:''}`;
       if(LIVE){ div.querySelector("[data-fix]").onclick=()=>openAdminFix(e, rows); }
       listEl.appendChild(div);
     }
@@ -988,7 +1033,7 @@ async function renderAdmin(){
   const empsEl=document.getElementById("adEmps"); empsEl.innerHTML="";
   for(const e of active){
     const div=document.createElement("div"); div.className="row";
-    div.innerHTML=`<div class="nm" style="flex:1">${e.name}</div><button class="link-x">비활성화</button>`;
+    div.innerHTML=`<div class="nm" style="flex:1">${e.name}</div><button class="btn btn-danger btn-sm">비활성화</button>`;
     div.querySelector("button").onclick=async()=>{ if(confirm(`${e.name} 직원을 비활성화할까요?`)){ await BE.deactivateEmployee(e.id); renderAdmin(); } };
     empsEl.appendChild(div);
   }
@@ -1020,8 +1065,8 @@ async function renderPendingRequests(){
       </div>
       ${r.note?`<div style="font-size:.82rem;color:var(--muted)">사유: ${r.note}</div>`:""}
       <div style="display:flex;gap:8px;margin-top:4px">
-        <button class="btn-primary" style="height:42px;flex:1" data-ap="${r.id}">승인</button>
-        <button class="link-x" style="flex:1" data-rj="${r.id}">반려</button>
+        <button class="btn btn-primary" style="flex:1" data-ap="${r.id}">승인</button>
+        <button class="btn btn-danger" style="flex:1" data-rj="${r.id}">반려</button>
       </div>`;
     div.querySelector("[data-ap]").onclick=async()=>{
       if(!confirm(`${r.employee_name}님의 ${target?target+' ':''}${kindLabel[r.kind]} 요청을 승인할까요?\n${beforeVal} → ${afterVal}`)) return;
@@ -1047,7 +1092,7 @@ function openAdminFix(emp, effRows){
   const rowsHtml = effRows.length
     ? effRows.map(r=>`<div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)">
         <span style="flex:1">${r.event_type==="IN"?"출근":"퇴근"} ${hhmm(fromIso(r.event_at))}${r.corrected?' <span style="color:var(--accent);font-size:.7rem">(보정됨)</span>':''}</span>
-        <button class="link-x" data-void="${r.id}" data-emp="${emp.id}">무효화</button>
+        <button class="btn btn-danger btn-sm" data-void="${r.id}" data-emp="${emp.id}">무효화</button>
       </div>`).join("")
     : `<div style="color:var(--muted);font-size:.85rem">오늘 기록 없음</div>`;
   modal.innerHTML=`
@@ -1059,7 +1104,7 @@ function openAdminFix(emp, effRows){
         <option value="IN">출근</option><option value="OUT">퇴근</option></select></div>
     <div class="field"><label>시각</label><input id="fixTime" type="datetime-local"></div>
     <div class="field"><label>사유</label><input id="fixReason" placeholder="예: 퇴근 누락 보정"></div>
-    <button class="btn-primary" id="fixAdd">추가</button>`;
+    <button class="btn btn-primary btn-block btn-lg" id="fixAdd">추가</button>`;
   openAddVeil();
   modal.querySelectorAll("[data-void]").forEach(b=>b.onclick=async()=>{
     if(!confirm("이 기록을 무효화할까요? (원본은 보존됩니다)")) return;
@@ -1210,8 +1255,8 @@ async function drawPay(ym){
           ${issues?`<span class="badge issue" style="margin-left:6px">확인필요 ${issues}</span>`:''}
           ${ov?`<span class="badge" style="margin-left:6px;color:var(--accent);border-color:var(--accent)">이달 조정</span>`:''}
         </div>
-        <button class="link-x" data-month="${e.id}">이달 조정</button>
-        <button class="link-x" data-edit="${e.id}">기본설정</button>
+        <button class="btn btn-secondary btn-sm" data-month="${e.id}">이달 조정</button>
+        <button class="btn btn-secondary btn-sm" data-edit="${e.id}">기본설정</button>
       </div>
       ${hasWage ? `
       <div style="font-size:.85rem;color:var(--sub);line-height:1.9">
@@ -1255,8 +1300,8 @@ async function drawPay(ym){
           ${changed?'⚠ 마감 후 근태가 변경됨 — 재계산 필요':'🔒 '+ym+' 마감 완료'}</div>
         ${changed?'<div style="font-size:.82rem;color:var(--sub)">마감을 해제하고 다시 마감하면 최신 근태로 갱신됩니다.</div>':''}
         <div style="display:flex;gap:8px">
-          <button class="btn-primary" id="btnExport" style="flex:1">세무사용 Excel 다운로드</button>
-          <button class="link-x" id="btnReopen" style="flex:1">마감 해제</button>
+          <button class="btn btn-primary" id="btnExport" style="flex:1">세무사용 Excel 다운로드</button>
+          <button class="btn btn-secondary" id="btnReopen" style="flex:1">마감 해제</button>
         </div>
       </div>`;
   } else {
@@ -1265,8 +1310,8 @@ async function drawPay(ym){
       <div class="row" style="flex-direction:column;align-items:stretch;gap:10px">
         ${hasIssues?'<div style="font-size:.82rem;color:var(--warn)">⚠ 확인필요 근태가 있습니다. 정정 후 마감을 권장합니다.</div>':''}
         <div style="display:flex;gap:8px">
-          <button class="btn-primary" id="btnClose" style="flex:1">${ym} 급여 마감</button>
-          <button class="link-x" id="btnExport" style="flex:1">Excel 미리 출력</button>
+          <button class="btn btn-primary btn-lg" id="btnClose" style="flex:1">${ym} 급여 마감</button>
+          <button class="btn btn-secondary" id="btnExport" style="flex:1">Excel 미리 출력</button>
         </div>
       </div>`;
   }
@@ -1275,9 +1320,9 @@ async function drawPay(ym){
   // M8.7: 구글시트 갱신 버튼 (LIVE 전용)
   if(LIVE){
     const gbox=document.createElement("div"); gbox.style.marginTop="10px";
-    gbox.innerHTML=`<button class="link-x" id="btnSyncSheet" style="width:100%;height:44px">구글시트 갱신</button>
+    gbox.innerHTML=`<button class="btn btn-secondary btn-block" id="btnSyncSheet">구글시트 갱신</button>
       <div id="syncMsg" style="font-size:.78rem;color:var(--muted);text-align:center;margin-top:6px"></div>
-      <button class="link-x" id="btnOpenSheet" style="width:100%;height:40px;font-size:.9rem;margin-top:8px">구글시트 열기</button>
+      <button class="btn btn-secondary btn-block" id="btnOpenSheet" style="margin-top:8px">구글시트 열기</button>
       <div style="font-size:.72rem;color:var(--muted);text-align:center;margin-top:6px">점주 초대: 시트 열기 → 우측 상단 '공유' → 이메일을 '뷰어'로 추가</div>`;
     el.appendChild(gbox);
     document.getElementById("btnOpenSheet").onclick=()=>{
@@ -1404,7 +1449,7 @@ function openMonthAdjust(emp, ym, ov){
     <div class="field"><label>주휴시간 (이달만)</label><input id="maJh" inputmode="decimal" value="${ov.juhyu_hours_override??''}" placeholder="비우면 기본"></div>
     <div class="field"><label>가감액 (수당+/공제−, 원)</label><input id="maAdj" inputmode="numeric" value="${ov.adjust_amount||''}" placeholder="예: -20000"></div>
     <div class="field"><label>이달 사유</label><input id="maMemo" value="${ov.memo||''}" placeholder="예: 15h미만 1주 제외"></div>
-    <button class="btn-primary" id="maSave">이달 조정 저장</button>`;
+    <button class="btn btn-primary btn-block btn-lg" id="maSave">이달 조정 저장</button>`;
   openAddVeil();
   modal.querySelector("#maSave").onclick=async()=>{
     const fields={
@@ -1441,8 +1486,8 @@ function openPayEdit(emp){
       </select>
       <div style="font-size:.72rem;color:var(--muted);margin-top:4px">4대보험 등 정확한 율은 회계사 확인 후 반영</div></div>
     <div class="field"><label>메모 (예외 사유)</label><input id="peMemo" value="${emp.memo||''}" placeholder="예: 15h미만 1주 차감"></div>
-    <button class="btn-primary" id="peSave">저장</button>
-    <button class="link-x" id="peCancel" style="width:100%;margin-top:8px">취소</button>`;
+    <button class="btn btn-primary btn-block btn-lg" id="peSave">저장</button>
+    <button class="btn btn-tertiary btn-block" id="peCancel" style="margin-top:8px">취소</button>`;
   openAddVeil();
   modal.querySelector("#peCancel").onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
   modal.querySelector("#peSave").onclick=async()=>{
@@ -1465,7 +1510,7 @@ function restoreAddModal(){
     <h3>직원 등록</h3>
     <div class="field"><label>이름</label><input id="newName" autocomplete="off" placeholder="예: 이현진"></div>
     <div class="field"><label>비밀번호 (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="숫자 4자리"></div>
-    <button class="btn-primary" id="newSave">등록</button>`;
+    <button class="btn btn-primary btn-block btn-lg" id="newSave">등록</button>`;
   bindAddModal();
 }
 
