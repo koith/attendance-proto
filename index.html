@@ -136,18 +136,21 @@
   .pad .cancel{width:100%; margin-top:12px; height:48px; background:transparent; color:var(--sub);
     border:1px solid var(--line); border-radius:12px; font-size:.95rem;}
 
-  /* toast */
+  /* toast (V1 primitive: 짧은 제목 1줄, 긴 내용은 wrap하되 화면 안에 가둠) */
   .toast{
     position:fixed; left:50%; top:22%; transform:translateX(-50%) translateY(-8px);
-    background:var(--panel2); border:1px solid var(--line); color:var(--ink);
-    padding:18px 22px; border-radius:16px; font-size:1.05rem; z-index:40;
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    padding:16px 20px; border-radius:var(--radius-md); font-size:1.05rem; z-index:40;
     opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; text-align:center;
-    box-shadow:0 8px 30px rgba(0,0,0,.15); min-width:220px;
+    box-shadow:0 8px 30px rgba(0,0,0,.15);
+    min-width:220px; max-width:min(340px, calc(100vw - 32px)); box-sizing:border-box;
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
-  .toast.in{border-color:var(--in-d);} .toast.out{border-color:var(--out-d);} .toast.err{border-color:var(--warn);}
-  .toast .big{font-size:1.5rem; font-weight:700; margin-bottom:4px;}
-  .toast .sub{font-size:.85rem; color:var(--sub);}
+  .toast.in{border-color:var(--brand-800);} .toast.out{border-color:var(--out-d);} .toast.err{border-color:var(--danger);}
+  /* 짧은 제목은 한 줄 유지. 넘칠 만큼 길면 ellipsis (화면 밖 이탈 방지) */
+  .toast .big{font-size:1.4rem; font-weight:700; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;}
+  /* supporting text는 별도 줄, 자연스럽게 wrap */
+  .toast .sub{font-size:.85rem; color:var(--text-muted); white-space:normal; word-break:keep-all;}
 
   /* ---------- ADMIN ---------- */
   .section-t{font-size:.8rem; color:var(--sub); text-transform:uppercase; letter-spacing:.08em; margin:4px 2px 10px;}
@@ -156,6 +159,10 @@
     border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:10px;
   }
   .row .nm{font-weight:600; font-size:1.02rem; flex:1;}
+  /* KPI summary (세후 합계 등): 정보 결과값. 버튼 아님을 명확히 (brand 강조 표면) */
+  .kpi-row{display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--brand-050); border:1px solid #bfe3cb; border-radius:var(--radius-md); padding:16px 18px; margin:6px 0 10px;}
+  .kpi-row .kpi-label{font-weight:600; font-size:1rem; color:var(--text);}
+  .kpi-row .kpi-value{font-weight:700; font-size:1.15rem; color:var(--brand-700); font-variant-numeric:tabular-nums;}
   .row .times{font-size:.85rem; color:var(--sub); font-variant-numeric:tabular-nums; text-align:right;}
   .row .times b{color:var(--ink); font-weight:600;}
   /* ===== V1 Status badge (pill, 클릭 불가) ===== */
@@ -176,6 +183,9 @@
   .btn-lg{height:var(--control-lg); font-size:1rem; border-radius:14px;}
   .btn-sm{height:var(--control-sm); font-size:.85rem; padding:0 var(--space-3); font-weight:500;}
   .btn-block{width:100%;}
+  /* equal-pair: 같은 row의 peer action들을 동일 geometry(1fr/1fr)로 배치 */
+  .btn-pair{display:grid; grid-template-columns:1fr 1fr; gap:var(--space-2);}
+  .btn-pair > .btn{width:100%;}
   /* Primary: solid brand green */
   .btn-primary{background:var(--brand-700); color:#fff; border-color:var(--brand-700);}
   .btn-primary:active{filter:brightness(.92);}
@@ -204,7 +214,9 @@
   }
   .addbtn:active{background:var(--surface-muted);}
   /* ===== V1 Form primitives ===== */
-  .field{display:flex; flex-direction:column; gap:var(--space-2); margin-bottom:var(--space-3);}
+  .field{display:flex; flex-direction:column; gap:var(--space-2); margin-bottom:var(--space-3); min-width:0;}
+  /* 2-column form group: 각 컬럼이 자기 폭 안에 완전히 포함 (minmax0로 intrinsic overflow 차단) */
+  .form-grid-2{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:var(--space-3); align-items:end; margin-bottom:var(--space-2);}
   .field label{font-size:.8rem; color:var(--text-muted); font-weight:500;}
   .field input, .form-control{
     height:var(--control-lg); border-radius:12px; border:1px solid var(--border); background:var(--surface-muted);
@@ -1064,9 +1076,9 @@ async function renderPendingRequests(){
           <span style="color:var(--sub)">수정 후</span><span style="font-weight:700;color:var(--accent)">${afterVal}</span></div>
       </div>
       ${r.note?`<div style="font-size:.82rem;color:var(--muted)">사유: ${r.note}</div>`:""}
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <button class="btn btn-primary" style="flex:1" data-ap="${r.id}">승인</button>
-        <button class="btn btn-danger" style="flex:1" data-rj="${r.id}">반려</button>
+      <div class="btn-pair" style="margin-top:4px">
+        <button class="btn btn-primary" data-ap="${r.id}">승인</button>
+        <button class="btn btn-danger" data-rj="${r.id}">반려</button>
       </div>`;
     div.querySelector("[data-ap]").onclick=async()=>{
       if(!confirm(`${r.employee_name}님의 ${target?target+' ':''}${kindLabel[r.kind]} 요청을 승인할까요?\n${beforeVal} → ${afterVal}`)) return;
@@ -1154,12 +1166,12 @@ async function renderPay(){
   const curYm=`${now.getFullYear()}-${p(now.getMonth()+1)}`;
   view.innerHTML=`
     <div class="section-t">급여 정산</div>
-    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-      <div class="field" style="max-width:170px;margin-bottom:8px">
+    <div class="form-grid-2">
+      <div class="field">
         <label>정산 월</label>
         <input id="payMonth" type="month" value="${curYm}">
       </div>
-      <div class="field" style="max-width:130px;margin-bottom:8px">
+      <div class="field">
         <label>주휴 주 수</label>
         <input id="payWeeks" inputmode="numeric" placeholder="4">
       </div>
@@ -1277,8 +1289,8 @@ async function drawPay(ym){
     el.appendChild(card);
   }
   const sum=document.createElement("div");
-  sum.className="row"; sum.style.marginTop="6px"; sum.style.borderColor="var(--accent)";
-  sum.innerHTML=`<div class="nm" style="flex:1">세후 합계</div><div class="nm" style="color:var(--in)">${totalNet.toLocaleString()}원</div>`;
+  sum.className="kpi-row";
+  sum.innerHTML=`<div class="kpi-label">세후 합계</div><div class="kpi-value">${totalNet.toLocaleString()}원</div>`;
   el.appendChild(sum);
 
   // ---- M8: 마감/엑셀/변경감지 ----
@@ -1299,9 +1311,9 @@ async function drawPay(ym){
         <div style="font-weight:600;color:${changed?'var(--warn)':'var(--in)'}">
           ${changed?'⚠ 마감 후 근태가 변경됨 — 재계산 필요':'🔒 '+ym+' 마감 완료'}</div>
         ${changed?'<div style="font-size:.82rem;color:var(--sub)">마감을 해제하고 다시 마감하면 최신 근태로 갱신됩니다.</div>':''}
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-primary" id="btnExport" style="flex:1">세무사용 Excel 다운로드</button>
-          <button class="btn btn-secondary" id="btnReopen" style="flex:1">마감 해제</button>
+        <div class="btn-pair">
+          <button class="btn btn-primary" id="btnExport">세무사용 Excel 다운로드</button>
+          <button class="btn btn-secondary" id="btnReopen">마감 해제</button>
         </div>
       </div>`;
   } else {
@@ -1309,9 +1321,9 @@ async function drawPay(ym){
     box.innerHTML=`
       <div class="row" style="flex-direction:column;align-items:stretch;gap:10px">
         ${hasIssues?'<div style="font-size:.82rem;color:var(--warn)">⚠ 확인필요 근태가 있습니다. 정정 후 마감을 권장합니다.</div>':''}
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-primary btn-lg" id="btnClose" style="flex:1">${ym} 급여 마감</button>
-          <button class="btn btn-secondary" id="btnExport" style="flex:1">Excel 미리 출력</button>
+        <div class="btn-pair">
+          <button class="btn btn-primary" id="btnClose">${ym} 급여 마감</button>
+          <button class="btn btn-secondary" id="btnExport">Excel 미리 출력</button>
         </div>
       </div>`;
   }
