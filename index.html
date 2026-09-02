@@ -168,7 +168,11 @@
     color:#fff; font-size:1rem; font-weight:600; cursor:pointer;
   }
   .btn-primary:active{filter:brightness(.92);}
-  .link-x{background:none; border:none; color:var(--muted); font-size:.8rem; cursor:pointer; padding:6px;}
+  .link-x{
+    background:var(--panel2); border:1px solid var(--line); border-radius:10px;
+    color:var(--ink); font-size:.85rem; cursor:pointer; padding:8px 14px; line-height:1;
+  }
+  .link-x:active{filter:brightness(.94);}
   .modal-veil{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:30; padding:20px; touch-action:none;}
   .modal{position:relative;}
   .modal-x{position:absolute; top:12px; right:14px; width:32px; height:32px; border:none; background:transparent; color:var(--sub); font-size:1.5rem; line-height:1; cursor:pointer; padding:0; z-index:2;}
@@ -1017,7 +1021,7 @@ async function renderPendingRequests(){
       ${r.note?`<div style="font-size:.82rem;color:var(--muted)">사유: ${r.note}</div>`:""}
       <div style="display:flex;gap:8px;margin-top:4px">
         <button class="btn-primary" style="height:42px;flex:1" data-ap="${r.id}">승인</button>
-        <button class="link-x" style="border:1px solid var(--line);border-radius:12px;flex:1" data-rj="${r.id}">반려</button>
+        <button class="link-x" style="flex:1" data-rj="${r.id}">반려</button>
       </div>`;
     div.querySelector("[data-ap]").onclick=async()=>{
       if(!confirm(`${r.employee_name}님의 ${target?target+' ':''}${kindLabel[r.kind]} 요청을 승인할까요?\n${beforeVal} → ${afterVal}`)) return;
@@ -1252,7 +1256,7 @@ async function drawPay(ym){
         ${changed?'<div style="font-size:.82rem;color:var(--sub)">마감을 해제하고 다시 마감하면 최신 근태로 갱신됩니다.</div>':''}
         <div style="display:flex;gap:8px">
           <button class="btn-primary" id="btnExport" style="flex:1">세무사용 Excel 다운로드</button>
-          <button class="link-x" id="btnReopen" style="border:1px solid var(--line);border-radius:12px;flex:1">마감 해제</button>
+          <button class="link-x" id="btnReopen" style="flex:1">마감 해제</button>
         </div>
       </div>`;
   } else {
@@ -1262,7 +1266,7 @@ async function drawPay(ym){
         ${hasIssues?'<div style="font-size:.82rem;color:var(--warn)">⚠ 확인필요 근태가 있습니다. 정정 후 마감을 권장합니다.</div>':''}
         <div style="display:flex;gap:8px">
           <button class="btn-primary" id="btnClose" style="flex:1">${ym} 급여 마감</button>
-          <button class="link-x" id="btnExport" style="border:1px solid var(--line);border-radius:12px;flex:1">Excel 미리 출력</button>
+          <button class="link-x" id="btnExport" style="flex:1">Excel 미리 출력</button>
         </div>
       </div>`;
   }
@@ -1271,9 +1275,9 @@ async function drawPay(ym){
   // M8.7: 구글시트 갱신 버튼 (LIVE 전용)
   if(LIVE){
     const gbox=document.createElement("div"); gbox.style.marginTop="10px";
-    gbox.innerHTML=`<button class="link-x" id="btnSyncSheet" style="width:100%;border:1px solid var(--line);border-radius:12px;height:44px">구글시트 갱신</button>
+    gbox.innerHTML=`<button class="link-x" id="btnSyncSheet" style="width:100%;height:44px">구글시트 갱신</button>
       <div id="syncMsg" style="font-size:.78rem;color:var(--muted);text-align:center;margin-top:6px"></div>
-      <button class="link-x" id="btnOpenSheet" style="width:100%;border:1px solid var(--line);border-radius:12px;height:40px;font-size:.9rem;margin-top:8px">구글시트 열기</button>
+      <button class="link-x" id="btnOpenSheet" style="width:100%;height:40px;font-size:.9rem;margin-top:8px">구글시트 열기</button>
       <div style="font-size:.72rem;color:var(--muted);text-align:center;margin-top:6px">점주 초대: 시트 열기 → 우측 상단 '공유' → 이메일을 '뷰어'로 추가</div>`;
     el.appendChild(gbox);
     document.getElementById("btnOpenSheet").onclick=()=>{
