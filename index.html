@@ -823,6 +823,18 @@ function openReqForm(empId,pin,sess,events,requests,emps){
       btn.disabled=false; btn.style.opacity="1";
     } else { pv.innerHTML=`<span style="color:var(--sub)">출근 또는 퇴근 한쪽만 수정합니다.</span>`; btn.disabled=false; btn.style.opacity="1"; }
   }
+  // 년/월이 바뀌면 일(day) 옵션을 그 달 실제 일수로 재생성 (2월 31일 등 아예 안 보이게)
+  function syncDays(prefix){
+    const y=+document.getElementById(prefix+"Y").value, mo=+document.getElementById(prefix+"Mo").value;
+    const last=new Date(y,mo,0).getDate();            // 해당 월의 말일 (28/29/30/31)
+    const daSel=document.getElementById(prefix+"D");
+    let cur=+daSel.value; if(cur>last) cur=last;       // 초과 선택은 말일로 clamp
+    daSel.innerHTML=Array.from({length:last},(_,k)=>`<option value="${k+1}" ${k+1===cur?'selected':''}>${k+1}</option>`).join("");
+  }
+  ["in","out"].forEach(p=>{
+    document.getElementById(p+"Y").addEventListener("change",()=>{ syncDays(p); updatePreview(); });
+    document.getElementById(p+"Mo").addEventListener("change",()=>{ syncDays(p); updatePreview(); });
+  });
   el.querySelectorAll("select,input").forEach(x=>x.addEventListener("change",updatePreview));
   document.getElementById("fixIn").addEventListener("change",updatePreview);
   document.getElementById("fixOut").addEventListener("change",updatePreview);
@@ -860,7 +872,7 @@ function dateTimeInputs(prefix, d){
   const opt=(n,sel)=>`<option value="${n}" ${n===sel?'selected':''}>${n}</option>`;
   const years=[y-1,y,y+1].map(v=>opt(v,y)).join("");
   const months=Array.from({length:12},(_,k)=>opt(k+1,mo)).join("");
-  const days=Array.from({length:31},(_,k)=>opt(k+1,da)).join("");
+  const days=Array.from({length:new Date(y,mo,0).getDate()},(_,k)=>opt(k+1,da)).join("");
   const hours=Array.from({length:24},(_,k)=>`<option value="${k}" ${k===h?'selected':''}>${String(k).padStart(2,'0')}</option>`).join("");
   const mins=Array.from({length:60},(_,k)=>`<option value="${k}" ${k===mi?'selected':''}>${String(k).padStart(2,'0')}</option>`).join("");
   const sty="height:44px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 4px";
