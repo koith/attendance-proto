@@ -1174,61 +1174,17 @@ function weeksInMonth(ym){
   // 해당 월에 걸친 주(월요일 시작) 수를 근사 — 엑셀 관행상 보통 4주 사용
   return 4; // V0.1: 매장 관행(4주 기준). 추후 실제 근무주 계산으로 확장.
 }
-// ?layoutdebug=1 일 때만 급여 상단 field layout 실측값 표시 (read-only 진단, 레이아웃 변경 없음)
-function renderLayoutDebug(){
-  try{
-    const params=new URLSearchParams(location.search);
-    if(params.get("layoutdebug")!=="1") return;
-    const panel=document.getElementById("layoutDebugPanel"); if(!panel) return;
-    const grid=document.getElementById("payGrid");
-    const f1=document.getElementById("payField1"), f2=document.getElementById("payField2");
-    const mi=document.getElementById("payMonth"), wi=document.getElementById("payWeeks");
-    if(!grid||!f1||!f2||!mi||!wi){ panel.textContent="debug: element 없음"; panel.style.display="block"; return; }
-    const R=el=>el.getBoundingClientRect();
-    const g=R(grid), r1=R(f1), r2=R(f2), rm=R(mi), rw=R(wi);
-    const n=v=>Math.round(v*10)/10;
-    const csGrid=getComputedStyle(grid), csMi=getComputedStyle(mi);
-    const rows=[
-      ["form-grid-2", `L${n(g.left)} R${n(g.right)} W${n(g.width)}`],
-      ["field1(월)", `L${n(r1.left)} R${n(r1.right)} W${n(r1.width)}`],
-      ["field2(주휴)", `L${n(r2.left)} R${n(r2.right)} W${n(r2.width)}`],
-      ["month input", `L${n(rm.left)} R${n(rm.right)} W${n(rm.width)}`],
-      ["weeks input", `L${n(rw.left)} R${n(rw.right)} W${n(rw.width)}`],
-      ["— 계산 —",""],
-      ["fieldGap", `${n(r2.left-r1.right)}px`],
-      ["visibleInputGap", `${n(rw.left-rm.right)}px`],
-      ["monthOverflowRight", `${n(rm.right-r1.right)}px`],
-      ["weeksOverflowLeft", `${n(r2.left-rw.left)}px`],
-      ["— computed —",""],
-      ["grid-template-columns", csGrid.gridTemplateColumns],
-      ["column-gap", csGrid.columnGap],
-      ["input width", csMi.width],
-      ["input min-width", csMi.minWidth],
-      ["input box-sizing", csMi.boxSizing],
-      ["input margin L/R", `${csMi.marginLeft}/${csMi.marginRight}`],
-      ["input padding L/R", `${csMi.paddingLeft}/${csMi.paddingRight}`],
-    ];
-    panel.innerHTML=`<div style="font:12px/1.6 monospace;background:#111;color:#0f0;padding:12px;border-radius:8px;margin:0 0 14px;white-space:pre-wrap;overflow-x:auto">`
-      + `LAYOUT DEBUG (viewport ${window.innerWidth}x${window.innerHeight})\n`
-      + rows.map(([k,v])=>v===""?`\n[${k}]`:`${k.padEnd(22)}: ${v}`).join("\n")
-      + `</div>`;
-    panel.style.display="block";
-  }catch(e){
-    const panel=document.getElementById("layoutDebugPanel");
-    if(panel){ panel.textContent="debug error: "+e.message; panel.style.display="block"; }
-  }
-}
 async function renderPay(){
   const now=kstNow(); const p=n=>String(n).padStart(2,"0");
   const curYm=`${now.getFullYear()}-${p(now.getMonth()+1)}`;
   view.innerHTML=`
     <div class="section-t">급여 정산</div>
-    <div class="form-grid-2" id="payGrid">
-      <div class="field" id="payField1">
+    <div class="form-grid-2">
+      <div class="field">
         <label>정산 월</label>
         <div class="month-wrap"><input id="payMonth" type="month" value="${curYm}"></div>
       </div>
-      <div class="field" id="payField2">
+      <div class="field">
         <label>주휴 주 수</label>
         <input id="payWeeks" inputmode="numeric" placeholder="4">
       </div>
@@ -1237,9 +1193,7 @@ async function renderPay(){
       ⚠ 세후(3.3%)·주휴 처리는 현재 매장 관행값입니다. 실제 신고는 회계사 확인 후.<br>
       주 수는 그 달 실제 근무 주에 맞춰 관리자가 확정하세요(비우면 4주).
     </div>
-    <div id="layoutDebugPanel" style="display:none"></div>
     <div id="payList"></div>`;
-  requestAnimationFrame(()=>requestAnimationFrame(renderLayoutDebug));
   document.getElementById("payMonth").addEventListener("change",e=>drawPay(e.target.value));
   document.getElementById("payWeeks").addEventListener("change",async e=>{
     const w=parseInt(e.target.value); const ym=document.getElementById("payMonth").value;
