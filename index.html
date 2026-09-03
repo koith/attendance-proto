@@ -215,16 +215,16 @@
   .addbtn:active{background:var(--surface-muted);}
   /* ===== V1 Form primitives ===== */
   .field{display:flex; flex-direction:column; gap:var(--space-2); margin-bottom:var(--space-3); min-width:0;}
-  /* 2-col form group: month control이 넓게 필요하므로 비대칭(월 넉넉/주휴 숫자1자리는 좁게).
-     gap은 --space-4(16px). min-width:0으로 native control intrinsic width 넘침 차단. */
-  .form-grid-2{display:grid; grid-template-columns:minmax(0,1.7fr) minmax(0,1fr); gap:var(--space-4); align-items:end; margin-bottom:var(--space-2);}
+  /* 2-col form group. month칸은 native intrinsic width(auto), 주휴칸은 나머지(1fr). gap 16px. */
+  .form-grid-2{display:grid; grid-template-columns:auto minmax(0,1fr); gap:var(--space-4); align-items:end; margin-bottom:var(--space-2);}
   .field label{font-size:.8rem; color:var(--text-muted); font-weight:500;}
   .field input, .form-control{
-    display:block;
     height:var(--control-lg); border-radius:12px; border:1px solid var(--border); background:var(--surface-muted);
-    color:var(--text); padding:0 14px; font-size:1rem; width:100%; min-width:0; max-width:100%;
-    -webkit-box-sizing:border-box; box-sizing:border-box;
+    color:var(--text); padding:0 14px; font-size:1rem; width:100%;
   }
+  /* input[type=month]는 native intrinsic sizing 복원 (width:100%+padding이 iOS Safari에서
+     box-sizing을 무시하고 content-box로 부풀어 칸을 넘치는 문제 회피. 정상 커밋 fdc8aafa 방식) */
+  .field input[type=month]{width:auto; max-width:100%;}
   .field input::placeholder, .form-control::placeholder{color:var(--muted);}
   .field input:focus, .form-control:focus{outline:none; border-color:var(--brand-700); background:var(--surface);}
   .modal-veil{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:30; padding:20px; touch-action:none;}
