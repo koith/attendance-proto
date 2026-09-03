@@ -215,12 +215,13 @@
   .addbtn:active{background:var(--surface-muted);}
   /* ===== V1 Form primitives ===== */
   .field{display:flex; flex-direction:column; gap:var(--space-2); margin-bottom:var(--space-3); min-width:0;}
-  /* 2-column form group: 각 컬럼이 자기 폭 안에 완전히 포함 (minmax0로 intrinsic overflow 차단) */
-  .form-grid-2{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:var(--space-3); align-items:end; margin-bottom:var(--space-2);}
+  /* 2-col form group: month control이 넓게 필요하므로 비대칭(월 넉넉/주휴 숫자1자리는 좁게).
+     gap은 --space-4(16px). min-width:0으로 native control intrinsic width 넘침 차단. */
+  .form-grid-2{display:grid; grid-template-columns:minmax(0,1.7fr) minmax(0,1fr); gap:var(--space-4); align-items:end; margin-bottom:var(--space-2);}
   .field label{font-size:.8rem; color:var(--text-muted); font-weight:500;}
   .field input, .form-control{
     height:var(--control-lg); border-radius:12px; border:1px solid var(--border); background:var(--surface-muted);
-    color:var(--text); padding:0 14px; font-size:1rem; width:100%;
+    color:var(--text); padding:0 14px; font-size:1rem; width:100%; min-width:0; box-sizing:border-box;
   }
   .field input::placeholder, .form-control::placeholder{color:var(--muted);}
   .field input:focus, .form-control:focus{outline:none; border-color:var(--brand-700); background:var(--surface);}
