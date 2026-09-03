@@ -222,9 +222,19 @@
     height:var(--control-lg); border-radius:12px; border:1px solid var(--border); background:var(--surface-muted);
     color:var(--text); padding:0 14px; font-size:1rem; width:100%;
   }
-  /* input[type=month]는 native intrinsic sizing 복원 (width:100%+padding이 iOS Safari에서
-     box-sizing을 무시하고 content-box로 부풀어 칸을 넘치는 문제 회피. 정상 커밋 fdc8aafa 방식) */
-  .field input[type=month]{width:auto; max-width:100%;}
+  /* month input: full-width visual wrapper가 박스(border/bg/radius/height) 담당.
+     native input은 wrapper 안에서 picker 기능만 (width:100% 강제 안 함 → iOS box-sizing 버그 회피).
+     appearance 유지 → native month picker 정상 동작. */
+  .month-wrap{
+    display:flex; align-items:center; width:100%;
+    height:var(--control-lg); border-radius:12px; border:1px solid var(--border);
+    background:var(--surface-muted); padding:0 14px; overflow:hidden;
+  }
+  .month-wrap:focus-within{border-color:var(--brand-700); background:var(--surface);}
+  .month-wrap input[type=month]{
+    flex:1; width:auto; min-width:0; height:100%;
+    border:none; background:transparent; padding:0; font-size:1rem; color:var(--text);
+  }
   .field input::placeholder, .form-control::placeholder{color:var(--muted);}
   .field input:focus, .form-control:focus{outline:none; border-color:var(--brand-700); background:var(--surface);}
   .modal-veil{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:30; padding:20px; touch-action:none;}
@@ -1216,7 +1226,7 @@ async function renderPay(){
     <div class="form-grid-2" id="payGrid">
       <div class="field" id="payField1">
         <label>정산 월</label>
-        <input id="payMonth" type="month" value="${curYm}">
+        <div class="month-wrap"><input id="payMonth" type="month" value="${curYm}"></div>
       </div>
       <div class="field" id="payField2">
         <label>주휴 주 수</label>
