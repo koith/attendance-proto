@@ -493,6 +493,7 @@ const SupaBE = (()=>{
   return {
     // --- POS (anon) ---
     async listEmployeesState(){ return rpc("list_employees_state"); },
+    async isAdmin(){ return rpc("is_admin",{},true); },
     async punch(id,pin){ return rpc("punch",{p_employee_id:id,p_pin:pin,p_device:CONFIG.DEVICE_ID}); },
     // --- 관리자 (authenticated) ---
     async allEmployees(){ return rpc("admin_list_employees",{},true); },
@@ -635,7 +636,18 @@ function requireAuth(then){
     const errEl=document.getElementById("loginErr");
     if(!email||!pw){ errEl.textContent="이메일과 비밀번호를 입력하세요."; return; }
     document.getElementById("loginBtn").textContent="로그인 중…";
-    try{ await Auth.login(email,pw); then(); }
+    try{
+      await Auth.login(email,pw);
+      // 로그인 성공 ≠ 관리자. 서버 is_admin()으로 권한 확인
+      let ok=false; try{ ok = await BE.isAdmin(); }catch(_){ ok=false; }
+      if(!ok){
+        Auth.clear();
+        errEl.textContent="이 계정은 관리자 권한이 없습니다. 관리자에게 문의하세요.";
+        document.getElementById("loginBtn").textContent="로그인";
+        return;
+      }
+      then();
+    }
     catch(e){ errEl.textContent="로그인 실패: 이메일/비밀번호를 확인하세요."; document.getElementById("loginBtn").textContent="로그인"; }
   };
 }
@@ -1025,6 +1037,7 @@ async function renderAdmin(){
   }
   catch(e){
     if(String(e.message).includes("JWT")||String(e.message).includes("401")){ Auth.clear(); requireAuth(renderAdmin); return; }
+    if(String(e.message).includes("NOT_AUTHORIZED")){ document.getElementById("adList").innerHTML=`<div class="empty">관리자 권한이 없습니다.</div>`; return; }
     document.getElementById("adList").innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return;
   }
   const listEl=document.getElementById("adList");
