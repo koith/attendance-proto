@@ -479,6 +479,22 @@ const Auth = {
     this.save(d); return d;
   },
   isLoggedIn(){ return !!this.token; },
+  async getUser(){
+    if(!this.token) return null;
+    const r=await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/user`,{
+      headers:{apikey:CONFIG.SUPABASE_ANON_KEY, Authorization:`Bearer ${this.token}`}});
+    if(!r.ok) return null;
+    return r.json();
+  },
+  async requestEmailChange(newEmail){
+    // updateUser: 이메일 변경 "요청". confirmation 정책에 따라 즉시 완료가 아닐 수 있음.
+    const r=await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/user`,{
+      method:"PUT", headers:{apikey:CONFIG.SUPABASE_ANON_KEY, Authorization:`Bearer ${this.token}`, "Content-Type":"application/json"},
+      body:JSON.stringify({email:newEmail.trim()})});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error_description||d.msg||d.message||"이메일 변경 요청 실패");
+    return d;
+  },
 };
 
 const SupaBE = (()=>{
@@ -494,6 +510,9 @@ const SupaBE = (()=>{
     // --- POS (anon) ---
     async listEmployeesState(){ return rpc("list_employees_state"); },
     async isAdmin(){ return rpc("is_admin",{},true); },
+    async listAdmins(){ return rpc("admin_list_admins",{},true); },
+    async grantAdmin(email){ return rpc("admin_grant",{p_email:email},true); },
+    async revokeAdmin(userId){ return rpc("admin_revoke",{p_user_id:userId},true); },
     async punch(id,pin){ return rpc("punch",{p_employee_id:id,p_pin:pin,p_device:CONFIG.DEVICE_ID}); },
     // --- 관리자 (authenticated) ---
     async allEmployees(){ return rpc("admin_list_employees",{},true); },
@@ -1007,6 +1026,85 @@ function toast(kind,big,sub){
   toastTimer=setTimeout(()=>t.classList.remove("show"),2200);
 }
 
+/* ---------------------- 계정 관리 (V0 global admin) ---------------------- */
+async function renderAccountMgmt(){
+  const box=document.getElementById("adAccount"); if(!box) return;
+  box.innerHTML=`<div class="empty">불러오는 중…</div>`;
+  let me=null, admins=[];
+  try{
+    me=await Auth.getUser();
+    admins=await BE.listAdmins();
+  }catch(e){
+    box.innerHTML=`<div class="empty">계정 정보 불러오기 실패: ${e.message}</div>`; return;
+  }
+  const myId = me && me.id;
+  const myEmail = me && me.email;
+  // 관리자 목록
+  let html=`<div class="row" style="flex-direction:column;align-items:stretch;gap:10px">`;
+  html+=`<div style="font-size:.85rem;color:var(--text-muted)">내 계정: <b style="color:var(--text)">${myEmail||"-"}</b></div>`;
+  html+=`<div style="display:flex;flex-direction:column;gap:8px">`;
+  for(const a of admins){
+    const isMe = a.user_id===myId;
+    html+=`<div style="display:flex;align-items:center;gap:8px">
+      <div style="flex:1;font-size:.9rem">${a.email}${isMe?' <span style="color:var(--brand-700);font-size:.75rem">(나)</span>':''}</div>
+      ${isMe?'':`<button class="btn btn-danger btn-sm" data-revoke="${a.user_id}" data-email="${a.email}">해제</button>`}
+    </div>`;
+  }
+  html+=`</div></div>`;
+  // 관리자 권한 부여 (기존 Auth 사용자 승격)
+  html+=`<div class="row" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:10px">
+    <div style="font-size:.85rem;color:var(--text-muted)">기존 사용자에게 관리자 권한 부여</div>
+    <div style="font-size:.75rem;color:var(--muted)">이미 로그인 계정이 있는 사용자만 승격됩니다(신규 초대 아님)</div>
+    <input class="form-control" id="grantEmail" placeholder="사용자 이메일" inputmode="email">
+    <button class="btn btn-secondary" id="grantBtn">관리자 권한 부여</button>
+  </div>`;
+  // 내 이메일 변경
+  html+=`<div class="row" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:10px">
+    <div style="font-size:.85rem;color:var(--text-muted)">내 로그인 이메일 변경</div>
+    <input class="form-control" id="newEmail" placeholder="새 이메일" inputmode="email">
+    <button class="btn btn-secondary" id="emailBtn">이메일 변경 요청</button>
+    <div id="emailMsg" style="font-size:.8rem;color:var(--text-muted)"></div>
+  </div>`;
+  box.innerHTML=html;
+
+  // 해제
+  box.querySelectorAll("[data-revoke]").forEach(b=>b.onclick=async()=>{
+    const uid=b.getAttribute("data-revoke"), em=b.getAttribute("data-email");
+    if(!confirm(`${em} 관리자 권한을 해제할까요?`)) return;
+    try{
+      const r=await BE.revokeAdmin(uid);
+      if(r&&r.ok){ toast("out","해제됨",em); renderAccountMgmt(); }
+      else{ toast("err","해제 실패", r&&r.error==="CANNOT_REMOVE_LAST_ADMIN"?"마지막 관리자는 해제 불가":r&&r.error==="CANNOT_REVOKE_SELF"?"자기 자신은 해제 불가":r&&r.error==="ADMIN_NOT_FOUND"?"이미 관리자가 아님":(r&&r.error||"")); }
+    }catch(e){ toast("err","해제 실패",e.message); }
+  });
+  // 권한 부여
+  document.getElementById("grantBtn").onclick=async()=>{
+    const em=document.getElementById("grantEmail").value.trim();
+    if(!em){ toast("err","입력 필요","이메일을 입력하세요"); return; }
+    try{
+      const r=await BE.grantAdmin(em);
+      if(r&&r.ok){ toast("in","권한 부여됨",em); renderAccountMgmt(); }
+      else{ toast("err","부여 실패", r&&r.error==="AUTH_USER_NOT_FOUND"?"해당 이메일의 로그인 계정이 없습니다":r&&r.error==="ALREADY_ADMIN"?"이미 관리자입니다":r&&r.error==="AUTH_USER_AMBIGUOUS"?"이메일 중복":(r&&r.error||"")); }
+    }catch(e){ toast("err","부여 실패",e.message); }
+  };
+  // 이메일 변경 (요청 ≠ 완료 구분)
+  document.getElementById("emailBtn").onclick=async()=>{
+    const ne=document.getElementById("newEmail").value.trim();
+    const msg=document.getElementById("emailMsg");
+    if(!ne){ msg.textContent="새 이메일을 입력하세요."; return; }
+    try{
+      await Auth.requestEmailChange(ne);
+      // updateUser 성공 = "요청" 접수. 실제 반영은 confirmation에 따라 다름 → 현재 상태 재조회
+      const u=await Auth.getUser();
+      if(u && u.email && u.email.toLowerCase()===ne.toLowerCase()){
+        msg.textContent="이메일이 변경 완료되었습니다.";
+      } else {
+        msg.textContent="변경 요청됨. 새 이메일(또는 기존 이메일)로 온 확인 링크를 눌러야 최종 반영됩니다. 반영 후 재로그인하세요.";
+      }
+    }catch(e){ msg.textContent="변경 요청 실패: "+e.message; }
+  };
+}
+
 /* ---------------------- 관리자 화면 ---------------------- */
 async function renderAdmin(){
   view.innerHTML=`
@@ -1015,11 +1113,14 @@ async function renderAdmin(){
     <div id="adList"></div>
     <div class="section-t" style="margin-top:20px">직원 관리</div>
     <div id="adEmps"></div>
-    <button class="addbtn" id="adAdd">+ 직원 등록</button>`;
+    <button class="addbtn" id="adAdd">+ 직원 등록</button>
+    <div class="section-t" style="margin-top:20px">계정 관리</div>
+    <div id="adAccount"></div>`;
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
   const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
   document.getElementById("adToday").textContent=day;
   document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };
+  if(LIVE){ renderAccountMgmt(); }
 
   // 정정요청 대기 큐 (LIVE 전용)
   if(LIVE){ renderPendingRequests(); }
