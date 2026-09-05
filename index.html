@@ -492,7 +492,13 @@ const Auth = {
       method:"PUT", headers:{apikey:CONFIG.SUPABASE_ANON_KEY, Authorization:`Bearer ${this.token}`, "Content-Type":"application/json"},
       body:JSON.stringify({email:newEmail.trim()})});
     const d=await r.json();
-    if(!r.ok) throw new Error(d.error_description||d.msg||d.message||"이메일 변경 요청 실패");
+    if(!r.ok){
+      const err=new Error(d.error_description||d.msg||d.message||"이메일 변경 요청 실패");
+      err.authCode=d.error_code||d.code||null;   // 안정적 식별값 우선
+      err.authRaw=(d.error_description||d.msg||d.message||"");
+      err.httpStatus=r.status;
+      throw err;
+    }
     return d;
   },
 };
@@ -1038,16 +1044,15 @@ async function renderAccountMgmt(){
     box.innerHTML=`<div class="empty">계정 정보 불러오기 실패: ${e.message}</div>`; return;
   }
   const myId = me && me.id;
-  const myEmail = me && me.email;
-  // 관리자 목록
+  // 관리자 목록 (자기 계정엔 (나) 표시, 자기 자신엔 해제 버튼 없음)
   let html=`<div class="row" style="flex-direction:column;align-items:stretch;gap:10px">`;
-  html+=`<div style="font-size:.85rem;color:var(--text-muted)">내 계정: <b style="color:var(--text)">${myEmail||"-"}</b></div>`;
+  html+=`<div style="font-size:.85rem;color:var(--text-muted)">관리자 계정</div>`;
   html+=`<div style="display:flex;flex-direction:column;gap:8px">`;
   for(const a of admins){
     const isMe = a.user_id===myId;
     html+=`<div style="display:flex;align-items:center;gap:8px">
       <div style="flex:1;font-size:.9rem">${a.email}${isMe?' <span style="color:var(--brand-700);font-size:.75rem">(나)</span>':''}</div>
-      ${isMe?'':`<button class="btn btn-danger btn-sm" data-revoke="${a.user_id}" data-email="${a.email}">해제</button>`}
+      ${isMe?'':`<button class="btn btn-danger btn-sm" data-revoke="${a.user_id}" data-email="${a.email}">권한 해제</button>`}
     </div>`;
   }
   html+=`</div></div>`;
@@ -1094,14 +1099,21 @@ async function renderAccountMgmt(){
     if(!ne){ msg.textContent="새 이메일을 입력하세요."; return; }
     try{
       await Auth.requestEmailChange(ne);
-      // updateUser 성공 = "요청" 접수. 실제 반영은 confirmation에 따라 다름 → 현재 상태 재조회
       const u=await Auth.getUser();
       if(u && u.email && u.email.toLowerCase()===ne.toLowerCase()){
         msg.textContent="이메일이 변경 완료되었습니다.";
       } else {
         msg.textContent="변경 요청됨. 새 이메일(또는 기존 이메일)로 온 확인 링크를 눌러야 최종 반영됩니다. 반영 후 재로그인하세요.";
       }
-    }catch(e){ msg.textContent="변경 요청 실패: "+e.message; }
+    }catch(e){
+      // Supabase 원문 대신 사용자용 한국어. code/raw 소문자 매칭.
+      const raw=((e.authRaw||e.message||"")+"").toLowerCase();
+      const code=((e.authCode||"")+"").toLowerCase();
+      let m="이메일 변경 요청에 실패했습니다.";
+      if(code.includes("rate")||raw.includes("rate limit")) m="이메일 변경 요청을 너무 자주 시도했습니다. 잠시 후 다시 시도해주세요.";
+      else if(code.includes("email")&&code.includes("invalid")||raw.includes("invalid")&&raw.includes("email")||raw.includes("is invalid")) m="올바른 이메일 주소를 입력해주세요.";
+      msg.textContent=m;
+    }
   };
 }
 
