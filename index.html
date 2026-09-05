@@ -338,7 +338,26 @@ function iso(d){ // 초단위 ISO (타임존 표기 없이 KST 벽시계)
   const p=n=>String(n).padStart(2,"0");
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
-function fromIso(s){ return new Date(s); }
+// event_at 파서: 앱/DB에 실제 존재하는 형식만 명시 처리. iOS Safari/Chrome 동일 결과 보장.
+// 지원 형식 (전부 KST 로컬 벽시계 의미 — TZ없는 값을 UTC로 재해석하지 않음):
+//   1) "YYYY-MM-DD HH:mm:ss[.ffffff]"  (공백구분, DB timestamp without timezone / raw punch)
+//   2) "YYYY-MM-DDTHH:mm[:ss]"          (T구분, isoLocal/correction, TZ없음)
+//   3) TZ 명시("Z" 또는 ±HH:mm)가 있으면 표준 Date로 파싱(현재 코드경로엔 없으나 방어적)
+// 반환: Date. 파싱 실패 시 Invalid Date(NaN) — 호출부에서 방어(급여로 조용히 흘리지 않음).
+function fromIso(s){
+  if(s instanceof Date) return s;
+  if(s==null) return new Date(NaN);
+  const str=String(s).trim();
+  // TZ 명시가 있으면 표준 파싱에 맡김 (Z 또는 +09:00/-05:00 등)
+  if(/[zZ]$|[+\-]\d{2}:?\d{2}$/.test(str)) return new Date(str);
+  // TZ 없는 로컬 벽시계: 공백/T 구분 모두 허용, 초·소수초 선택
+  const m=str.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/);
+  if(!m) return new Date(NaN);
+  const [_,Y,Mo,D,H,Mi,S]=m;
+  // new Date(y,mo-1,...) = 브라우저 로컬시간대 기준 생성 = KST 벽시계 값 보존(서버가 KST로 기록해온 의미)
+  return new Date(+Y, +Mo-1, +D, +H, +Mi, S?+S:0, 0);
+}
+function fromIsoValid(s){ const d=fromIso(s); return isNaN(d)?null:d; }
 function hhmm(d){ const p=n=>String(n).padStart(2,"0"); return `${p(d.getHours())}:${p(d.getMinutes())}`; }
 function hms(d){ const p=n=>String(n).padStart(2,"0"); return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
 function fmtDur(sec){
@@ -598,7 +617,16 @@ function applyCorrections(events, corrections){
   return eff;
 }
 function pairEvents(rows){
-  const s=[...rows].sort((a,b)=> a.event_at<b.event_at?-1:1);
+  // 정렬: effective 시간값 우선, 동일 시각이면 event id로 deterministic tie-break
+  //  (문자열 사전식 비교 제거 — 형식 혼재 시 순서 역전 방지. correction 후에도 원본 id 유지됨)
+  const s=[...rows].sort((a,b)=>{
+    const ta=fromIso(a.event_at).getTime(), tb=fromIso(b.event_at).getTime();
+    const na=isNaN(ta), nb=isNaN(tb);
+    if(na||nb){ if(na&&nb) return 0; return na?1:-1; }  // Invalid는 뒤로
+    if(ta!==tb) return ta-tb;
+    // 동일 시각 → id 차선 (raw 생성순서 보존). id는 숫자 또는 "add_N"
+    return idOrder(a.id) - idOrder(b.id);
+  });
   const out=[]; let openIn=null, openInId=null, openInRaw=null;
   for(const r of s){
     const when=fromIso(r.event_at);
@@ -606,12 +634,23 @@ function pairEvents(rows){
       if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"INCOMPLETE",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null});
       openIn=when; openInId=r.id; openInRaw=r.event_at;
     }else if(r.event_type==="OUT"){
-      if(openIn!==null){ out.push({in:openIn,out:when,sec:(when-openIn)/1000,status:"COMPLETE",inId:openInId,outId:r.id,inRaw:openInRaw,outRaw:r.event_at}); openIn=null; openInId=null; openInRaw=null; }
+      if(openIn!==null){
+        // Invalid Date 방어: 어느 한쪽이라도 파싱 실패면 sec=null(합산 제외), status로 표시
+        const sec=(isNaN(openIn)||isNaN(when))?null:(when-openIn)/1000;
+        out.push({in:openIn,out:when,sec,status:sec==null?"INVALID_TIME":"COMPLETE",inId:openInId,outId:r.id,inRaw:openInRaw,outRaw:r.event_at}); openIn=null; openInId=null; openInRaw=null;
+      }
       else out.push({in:null,out:when,sec:null,status:"ORPHAN_OUT",inId:null,outId:r.id,inRaw:null,outRaw:r.event_at});
     }
   }
   if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"WORKING",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null});
   return out;
+}
+// id 정렬 보조: 숫자 id는 그대로, "add_N"(관리자 추가)은 N을 큰 오프셋 뒤에 둬 raw 뒤 안정 배치
+function idOrder(id){
+  if(typeof id==="number") return id;
+  const m=String(id).match(/^add_(\d+)$/);
+  if(m) return 1e15 + (+m[1]);   // add는 동일시각 시 raw 다음
+  const n=Number(id); return isNaN(n)?0:n;
 }
 async function empState(id){
   const last=await BE.lastEvent(id);
