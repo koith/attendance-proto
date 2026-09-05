@@ -318,6 +318,8 @@
 const ICON = {
   back:`<svg class="ui-icon ui-icon--standalone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>`,
   close:`<svg class="ui-icon ui-icon--standalone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
+  file:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>`,
+  upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
 const CONFIG = {
@@ -551,6 +553,7 @@ const SupaBE = (()=>{
     // 계약서 (schema_v11): metadata는 RPC, 파일은 Storage(admin JWT)
     async docList(empId){ return rpc("admin_doc_list",{p_employee_id:empId},true); },
     async docAdd(empId,path,filename,ctype,size){ return rpc("admin_doc_add",{p_employee_id:empId,p_storage_path:path,p_filename:filename,p_content_type:ctype,p_byte_size:size},true); },
+    async docDelete(docId){ return rpc("admin_doc_delete",{p_document_id:docId},true); },
     async docUpload(path,file){
       // Storage 직접 업로드 (upsert 금지 → x-upsert:false). objects policy가 is_admin 강제.
       const r=await fetch(`${CONFIG.SUPABASE_URL}/storage/v1/object/employee-docs/${path}`,{
@@ -1681,35 +1684,66 @@ async function openDocsModal(emp){
   modal.innerHTML=`
     <h3>${emp.name} · 근로계약서</h3>
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px">PDF/JPEG/PNG, 최대 10MB. 새로 첨부해도 기존 파일은 보존됩니다.</div>
-    <input type="file" id="docFile" accept="application/pdf,image/jpeg,image/png" style="margin-bottom:8px;width:100%">
-    <button class="btn btn-primary btn-block" id="docUploadBtn">첨부</button>
+    <input type="file" id="docFile" accept="application/pdf,image/jpeg,image/png" style="display:none">
+    <div class="btn-pair">
+      <button class="btn btn-secondary" id="docPickBtn">${ICON.file} 파일 선택</button>
+      <button class="btn btn-primary" id="docUploadBtn">${ICON.upload} 첨부</button>
+    </div>
+    <div id="docPicked" style="font-size:.82rem;color:var(--text-muted);margin-top:8px">선택된 파일 없음</div>
     <div id="docMsg" style="font-size:.8rem;color:var(--text-muted);margin-top:6px"></div>
-    <div class="section-t" style="margin-top:16px;font-size:.85rem">첨부 목록</div>
+    <div class="section-t" style="margin-top:16px;font-size:.85rem">첨부 목록 <span id="docCount"></span></div>
     <div id="docList"><div class="empty">불러오는 중…</div></div>`;
   openAddVeil();
   const msg=document.getElementById("docMsg");
+  const fEl=document.getElementById("docFile");
+  const picked=document.getElementById("docPicked");
+  document.getElementById("docPickBtn").onclick=()=>fEl.click();
+  fEl.onchange=()=>{ const f=fEl.files&&fEl.files[0]; picked.textContent = f?`${f.name} · ${Math.round(f.size/1024)}KB`:"선택된 파일 없음"; msg.textContent=""; };
+
   async function refresh(){
     const box=document.getElementById("docList");
+    const cnt=document.getElementById("docCount");
     try{
       const rows=await BE.docList(emp.id);
+      cnt.textContent = rows&&rows.length ? `(${rows.length})` : "";
       if(!rows||!rows.length){ box.innerHTML=`<div class="empty">첨부된 계약서 없음</div>`; return; }
       box.innerHTML="";
+      const nowMs=Date.now();
       for(const d of rows){
         const item=document.createElement("div"); item.className="row";
         const dt=new Date(d.uploaded_at); const p=n=>String(n).padStart(2,"0");
         const when=`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`;
-        item.innerHTML=`<div style="flex:1;font-size:.88rem"><div>${d.filename}</div><div style="color:var(--muted);font-size:.75rem">${when} · ${Math.round((d.byte_size||0)/1024)}KB</div></div>
-          <button class="btn btn-secondary btn-sm" data-open="${d.storage_path}">열기</button>`;
+        // 오첨부 정정: 최근 24h만 삭제 버튼 노출 (예전 파일은 보존, 버튼 없음)
+        const deletable = (nowMs - dt.getTime()) < 24*3600*1000;
+        item.innerHTML=`<div style="flex:1;min-width:0"><div style="font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.filename}</div><div style="color:var(--muted);font-size:.75rem">${when} · ${Math.round((d.byte_size||0)/1024)}KB</div></div>
+          <button class="btn btn-secondary btn-sm" data-open="${d.storage_path}">열기</button>
+          ${deletable?`<button class="btn btn-danger btn-sm" data-del="${d.id}" data-path="${d.storage_path}">삭제</button>`:''}`;
         item.querySelector("[data-open]").onclick=async()=>{
           try{ const url=await BE.docSignedUrl(d.storage_path,60); window.open(url,"_blank"); }
           catch(e){ toast("err","열람 실패","다시 시도하세요"); }
+        };
+        const delBtn=item.querySelector("[data-del]");
+        if(delBtn) delBtn.onclick=async()=>{
+          if(!confirm(`계약서를 삭제할까요?\n선택한 파일은 Storage와 DB에서 모두 삭제됩니다. 되돌릴 수 없습니다.`)) return;
+          try{
+            // 1) metadata 삭제 RPC (권한/최근24h/본인 검증) → storage_path 반환
+            const r=await BE.docDelete(d.id);
+            if(!r||!r.ok){
+              toast("err","삭제 실패", r&&r.error==="NOT_OWN_UPLOAD"?"본인이 올린 파일만 삭제 가능":r&&r.error==="TOO_OLD_TO_DELETE"?"24시간이 지나 삭제 불가(보존)":r&&r.error==="DOC_NOT_FOUND"?"이미 삭제됨":(r&&r.error||""));
+              return;
+            }
+            // 2) Storage object 삭제 (metadata 이미 삭제됨. 실패해도 목록엔 안 보임=orphan)
+            await BE.docRemove(r.storage_path);
+            toast("out","삭제됨",d.filename);
+            refresh();
+          }catch(e){ toast("err","삭제 실패",e.message); }
         };
         box.appendChild(item);
       }
     }catch(e){ box.innerHTML=`<div class="empty">목록 실패: ${e.message}</div>`; }
   }
   document.getElementById("docUploadBtn").onclick=async()=>{
-    const fEl=document.getElementById("docFile"); const file=fEl.files&&fEl.files[0];
+    const file=fEl.files&&fEl.files[0];
     if(!file){ msg.textContent="파일을 선택하세요."; return; }
     if(!DOC_TYPES[file.type]){ msg.textContent="PDF/JPEG/PNG만 첨부할 수 있습니다."; return; }
     if(file.size>10485760){ msg.textContent="10MB 이하만 첨부할 수 있습니다."; return; }
@@ -1729,7 +1763,7 @@ async function openDocsModal(emp){
       return;
     }
     msg.textContent="첨부 완료.";
-    fEl.value="";
+    fEl.value=""; picked.textContent="선택된 파일 없음";
     refresh();
   };
   refresh();
