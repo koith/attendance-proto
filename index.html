@@ -545,6 +545,33 @@ const SupaBE = (()=>{
     // --- POS (anon) ---
     async listEmployeesState(){ return rpc("list_employees_state"); },
     async isAdmin(){ return rpc("is_admin",{},true); },
+    // 계약서 (schema_v11): metadata는 RPC, 파일은 Storage(admin JWT)
+    async docList(empId){ return rpc("admin_doc_list",{p_employee_id:empId},true); },
+    async docAdd(empId,path,filename,ctype,size){ return rpc("admin_doc_add",{p_employee_id:empId,p_storage_path:path,p_filename:filename,p_content_type:ctype,p_byte_size:size},true); },
+    async docUpload(path,file){
+      // Storage 직접 업로드 (upsert 금지 → x-upsert:false). objects policy가 is_admin 강제.
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/storage/v1/object/employee-docs/${path}`,{
+        method:"POST",
+        headers:{ apikey:CONFIG.SUPABASE_ANON_KEY, Authorization:`Bearer ${Auth.token}`, "Content-Type":file.type, "x-upsert":"false" },
+        body:file });
+      if(!r.ok){ let m=""; try{m=(await r.json()).message||"";}catch(_){}  throw new Error("STORAGE_UPLOAD_FAILED:"+r.status+":"+m); }
+      return true;
+    },
+    async docRemove(path){
+      // compensating cleanup
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/storage/v1/object/employee-docs/${path}`,{
+        method:"DELETE", headers:{ apikey:CONFIG.SUPABASE_ANON_KEY, Authorization:`Bearer ${Auth.token}` }});
+      return r.ok;
+    },
+    async docSignedUrl(path,expiresSec){
+      // 짧은 만료 signed URL 발급 (admin JWT). DB 저장 안 함.
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/storage/v1/object/sign/employee-docs/${path}`,{
+        method:"POST", headers:{ apikey:CONFIG.SUPABASE_ANON_KEY, Authorization:`Bearer ${Auth.token}`, "Content-Type":"application/json" },
+        body:JSON.stringify({expiresIn:expiresSec||60}) });
+      if(!r.ok) throw new Error("SIGN_FAILED:"+r.status);
+      const d=await r.json();
+      return CONFIG.SUPABASE_URL + "/storage/v1" + d.signedURL;  // signedURL은 상대경로
+    },
     async listAdmins(){ return rpc("admin_list_admins",{},true); },
     async grantAdmin(email){ return rpc("admin_grant",{p_email:email},true); },
     async revokeAdmin(userId){ return rpc("admin_revoke",{p_user_id:userId},true); },
@@ -1233,8 +1260,11 @@ async function renderAdmin(){
   const empsEl=document.getElementById("adEmps"); empsEl.innerHTML="";
   for(const e of active){
     const div=document.createElement("div"); div.className="row";
-    div.innerHTML=`<div class="nm" style="flex:1">${e.name}</div><button class="btn btn-danger btn-sm">비활성화</button>`;
-    div.querySelector("button").onclick=async()=>{ if(confirm(`${e.name} 직원을 비활성화할까요?`)){ await BE.deactivateEmployee(e.id); renderAdmin(); } };
+    div.innerHTML=`<div class="nm" style="flex:1">${e.name}</div>
+      <button class="btn btn-secondary btn-sm" data-docs="${e.id}">계약서</button>
+      <button class="btn btn-danger btn-sm" data-deact="${e.id}">비활성화</button>`;
+    div.querySelector("[data-deact]").onclick=async()=>{ if(confirm(`${e.name} 직원을 비활성화할까요?`)){ await BE.deactivateEmployee(e.id); renderAdmin(); } };
+    div.querySelector("[data-docs]").onclick=()=>openDocsModal(e);
     empsEl.appendChild(div);
   }
 }
@@ -1637,6 +1667,71 @@ function exportPayrollXlsx(ym, rows, totalNet, weeks){
   toast("in","Excel 생성됨",`${ym} 급여자료`);
 }
 // M5: 이번 달만의 조정 (직원 영구설정과 분리)
+/* ---------------------- 계약서 (schema_v11, 관리자 전용) ---------------------- */
+function uuidv4(){
+  if(typeof crypto!=="undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);});
+}
+const DOC_TYPES={ "application/pdf":"pdf", "image/jpeg":"jpg", "image/png":"png" };
+async function openDocsModal(emp){
+  const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
+  modal.innerHTML=`
+    <h3>${emp.name} · 근로계약서</h3>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px">PDF/JPEG/PNG, 최대 10MB. 새로 첨부해도 기존 파일은 보존됩니다.</div>
+    <input type="file" id="docFile" accept="application/pdf,image/jpeg,image/png" style="margin-bottom:8px;width:100%">
+    <button class="btn btn-primary btn-block" id="docUploadBtn">첨부</button>
+    <div id="docMsg" style="font-size:.8rem;color:var(--text-muted);margin-top:6px"></div>
+    <div class="section-t" style="margin-top:16px;font-size:.85rem">첨부 목록</div>
+    <div id="docList"><div class="empty">불러오는 중…</div></div>`;
+  openAddVeil();
+  const msg=document.getElementById("docMsg");
+  async function refresh(){
+    const box=document.getElementById("docList");
+    try{
+      const rows=await BE.docList(emp.id);
+      if(!rows||!rows.length){ box.innerHTML=`<div class="empty">첨부된 계약서 없음</div>`; return; }
+      box.innerHTML="";
+      for(const d of rows){
+        const item=document.createElement("div"); item.className="row";
+        const dt=new Date(d.uploaded_at); const p=n=>String(n).padStart(2,"0");
+        const when=`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`;
+        item.innerHTML=`<div style="flex:1;font-size:.88rem"><div>${d.filename}</div><div style="color:var(--muted);font-size:.75rem">${when} · ${Math.round((d.byte_size||0)/1024)}KB</div></div>
+          <button class="btn btn-secondary btn-sm" data-open="${d.storage_path}">열기</button>`;
+        item.querySelector("[data-open]").onclick=async()=>{
+          try{ const url=await BE.docSignedUrl(d.storage_path,60); window.open(url,"_blank"); }
+          catch(e){ toast("err","열람 실패","다시 시도하세요"); }
+        };
+        box.appendChild(item);
+      }
+    }catch(e){ box.innerHTML=`<div class="empty">목록 실패: ${e.message}</div>`; }
+  }
+  document.getElementById("docUploadBtn").onclick=async()=>{
+    const fEl=document.getElementById("docFile"); const file=fEl.files&&fEl.files[0];
+    if(!file){ msg.textContent="파일을 선택하세요."; return; }
+    if(!DOC_TYPES[file.type]){ msg.textContent="PDF/JPEG/PNG만 첨부할 수 있습니다."; return; }
+    if(file.size>10485760){ msg.textContent="10MB 이하만 첨부할 수 있습니다."; return; }
+    const ext=DOC_TYPES[file.type];
+    const path=`${emp.id}/${uuidv4()}.${ext}`;
+    msg.textContent="업로드 중…";
+    try{ await BE.docUpload(path,file); }
+    catch(e){ msg.textContent="업로드 실패: 파일 저장에 실패했습니다."; return; }
+    let added=null;
+    try{ added=await BE.docAdd(emp.id,path,file.name,file.type,file.size); }
+    catch(e){ added={ok:false,error:"RPC_"+e.message}; }
+    if(!added||!added.ok){
+      const removed=await BE.docRemove(path);
+      msg.textContent = removed
+        ? "첨부 실패: 정보 등록에 실패해 업로드를 취소했습니다. 다시 시도하세요."
+        : "첨부 실패: 정보 등록 실패 + 파일 정리도 실패. 관리자에게 문의하세요.";
+      return;
+    }
+    msg.textContent="첨부 완료.";
+    fEl.value="";
+    refresh();
+  };
+  refresh();
+}
+
 function openMonthAdjust(emp, ym, ov){
   ov = ov||{};
   const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
