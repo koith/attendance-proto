@@ -374,6 +374,16 @@ function xround(x,n){ // ROUND(x,10^-n): n=-1 → 10원 반올림
   const step=Math.pow(10,-n); return Math.round(x/step)*step;
 }
 function xrounddown(x,n){ const step=Math.pow(10,-n); return Math.floor(x/step)*step; }
+// 원천징수율 % 입력 파싱: "" → null(기본값 사용), 정상 → 0~1 numeric, 오류 → false
+// UI 입력오류 방지 수준만 검증(법률/세법 범위 하드코딩 아님). 0~100% 허용.
+function parseTaxPct(raw){
+  const s=String(raw==null?'':raw).trim();
+  if(s==='') return null;
+  if(!/^\d+(\.\d+)?$/.test(s)) return false;   // 숫자/소수만 (음수·문자 거부)
+  const pct=parseFloat(s);
+  if(isNaN(pct) || pct<0 || pct>100) return false;
+  return pct/100;   // % → numeric (3.3 → 0.033)
+}
 /* ---- 월 급여 계산: emp속성 + 월실근무시간 → 급여내역 ---- */
 // emp: 직원 기본값, ov: 이번 달 조정(payroll_period_employee) 또는 null, weeks: 그 달 주 수
 function calcPayroll(emp, monthHours, weeks, ov){
@@ -1637,15 +1647,24 @@ function openMonthAdjust(emp, ym, ov){
     <div class="field"><label>주휴 인정주수 (예: 1주 제외→3)</label><input id="maWeeks" inputmode="numeric" value="${ov.juhyu_weeks_override??''}" placeholder="비우면 기본 주수"></div>
     <div class="field"><label>시급 (이달만)</label><input id="maWage" inputmode="numeric" value="${ov.wage_override??''}" placeholder="비우면 기본시급"></div>
     <div class="field"><label>주휴시간 (이달만)</label><input id="maJh" inputmode="decimal" value="${ov.juhyu_hours_override??''}" placeholder="비우면 기본"></div>
+    <div class="field"><label>원천징수율 % (이달만)</label><input id="maTax" inputmode="decimal" value="${ov.tax_rate_override!=null?(ov.tax_rate_override*100).toString():''}" placeholder="비우면 기본율"></div>
     <div class="field"><label>가감액 (수당+/공제−, 원)</label><input id="maAdj" inputmode="numeric" value="${ov.adjust_amount||''}" placeholder="예: -20000"></div>
     <div class="field"><label>이달 사유</label><input id="maMemo" value="${ov.memo||''}" placeholder="예: 15h미만 1주 제외"></div>
     <button class="btn btn-primary btn-block btn-lg" id="maSave">이달 조정 저장</button>`;
   openAddVeil();
   modal.querySelector("#maSave").onclick=async()=>{
+    const maTaxRaw=document.getElementById("maTax").value.trim();
+    let taxOv="";
+    if(maTaxRaw!==""){
+      const p=parseTaxPct(maTaxRaw);
+      if(p===false||p===null){ alert("이달 원천징수율은 0~100 사이 숫자(%)로 입력하거나 비워두세요."); return; }
+      taxOv=String(p);   // numeric 문자열. RPC가 nullif+numeric 캐스팅
+    }
     const fields={
       juhyu_weeks_override: document.getElementById("maWeeks").value,
       wage_override: document.getElementById("maWage").value,
       juhyu_hours_override: document.getElementById("maJh").value,
+      tax_rate_override: taxOv,   // 빈문자열이면 RPC nullif로 NULL → fallback 유지
       adjust_amount: document.getElementById("maAdj").value,
       memo: document.getElementById("maMemo").value.trim(),
     };
@@ -1669,23 +1688,22 @@ function openPayEdit(emp){
         <option value="-2" ${emp.juhyu_round===-2?'selected':''}>100원 단위</option>
         <option value="-3" ${emp.juhyu_round===-3?'selected':''}>1,000원 단위</option>
       </select></div>
-    <div class="field"><label>원천징수율</label>
-      <select id="peTax" style="height:48px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 12px">
-        <option value="0.033" ${(emp.tax_rate??0.033)==0.033?'selected':''}>3.3% (사업소득)</option>
-        <option value="0" ${(emp.tax_rate??0.033)==0?'selected':''}>0% (원천징수 없음)</option>
-      </select>
-      <div style="font-size:.72rem;color:var(--muted);margin-top:4px">4대보험 등 정확한 율은 회계사 확인 후 반영</div></div>
+    <div class="field"><label>원천징수율 (%)</label>
+      <input id="peTax" inputmode="decimal" value="${((emp.tax_rate??0.033)*100).toString()}" placeholder="예: 3.3">
+      <div style="font-size:.72rem;color:var(--muted);margin-top:4px">퍼센트로 입력 (예: 3.3, 0). 4대보험 등 정확한 율은 회계사 확인 후 반영</div></div>
     <div class="field"><label>메모 (예외 사유)</label><input id="peMemo" value="${emp.memo||''}" placeholder="예: 15h미만 1주 차감"></div>
     <button class="btn btn-primary btn-block btn-lg" id="peSave">저장</button>
     <button class="btn btn-tertiary btn-block" id="peCancel" style="margin-top:8px">취소</button>`;
   openAddVeil();
   modal.querySelector("#peCancel").onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
   modal.querySelector("#peSave").onclick=async()=>{
+    const taxPct = parseTaxPct(document.getElementById("peTax").value);
+    if(taxPct===false){ alert("원천징수율은 0 이상 100 이하의 숫자(%)로 입력하세요."); return; }
     const fields={
       wage: parseInt(document.getElementById("peWage").value)||null,
       juhyu_hours: parseFloat(document.getElementById("peJh").value)||0,
       juhyu_round: document.getElementById("peJr").value===''?null:parseInt(document.getElementById("peJr").value),
-      tax_rate: (v=>v===''?0.033:parseFloat(v))(document.getElementById("peTax").value),
+      tax_rate: taxPct===null ? 0.033 : taxPct,   // 빈값 → 기본 3.3% (기존 semantics 보존)
       memo: document.getElementById("peMemo").value.trim()||null,
     };
     try{ await BE.updateEmployee(emp.id,fields); }catch(e){ alert(e.message); return; }
