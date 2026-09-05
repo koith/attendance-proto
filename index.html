@@ -26,6 +26,9 @@
     font-size:16px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; touch-action:manipulation;}
+  /* iOS Safari: font-size<16px input/select에 focus 시 자동 줌 발생 → 전역 16px 최소 보장으로 차단.
+     (user-scalable=no가 iOS16.4+에서 무시되어 줌 후 원복 안 되는 문제의 근본 해결) */
+  input, select, textarea{ font-size:16px; }
   html,body{margin:0; height:100%;}
   body{
     background:var(--bg); color:var(--ink);
@@ -158,7 +161,7 @@
     display:flex; align-items:center; gap:12px; background:var(--panel);
     border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:10px;
   }
-  .row .nm{font-weight:600; font-size:1.02rem; flex:1;}
+  .row .nm{font-weight:600; font-size:1.02rem; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   /* KPI summary (세후 합계 등): 정보 결과값. 버튼 아님을 명확히 (brand 강조 표면) */
   .kpi-row{display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--brand-050); border:1px solid #bfe3cb; border-radius:var(--radius-md); padding:16px 18px; margin:6px 0 10px;}
   .kpi-row .kpi-label{font-weight:600; font-size:1rem; color:var(--text);}
