@@ -81,7 +81,18 @@
   .emp .nm{font-size:1.1rem; font-weight:650; color:var(--ink); letter-spacing:-.01em;}
   .emp .since{font-size:.85rem; color:var(--sub); font-variant-numeric:tabular-nums;}
   .emp .badge-off{font-size:.82rem; color:var(--muted); font-weight:500;}
-  /* 근무중: 흰 surface + 굵은 녹색 좌측선 + 미세 tint + 배지 */
+  /* 오늘 근태 카드: column 정렬(이름 고정폭 / 정보 신축 / 상태·버튼 고정). 문구 길이에 카드 안 흔들림.
+     향후 WorkSchedule/progress는 .att-info 안(2줄 구조)에 progress bar 행을 추가하는 방향으로 확장. */
+  .att-card{display:grid; grid-template-columns:64px 1fr auto; gap:10px; align-items:center;
+    background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:10px;}
+  .att-card.working{border-color:#bfe3cb; background:linear-gradient(90deg,#f3fbf6,#ffffff 40%);}
+  .att-name{font-weight:600; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .att-info{min-width:0;}
+  .att-info .line1{font-size:.88rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .att-info .line2{font-size:.82rem; color:var(--text-muted); margin-top:2px;}
+  .att-info .line1 b{font-weight:700;}
+  .att-right{display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex:0 0 auto;}
+  .att-badges{display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end;}
   .emp.working{border-color:#bfe3cb; background:linear-gradient(90deg,#f3fbf6,#ffffff 40%);}
   .emp.working::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--in);}
   .badge-on{
@@ -1281,17 +1292,39 @@ async function renderAdmin(){
       if(working) sec+=(kstNow()-working.in)/1000;
       const firstIn=sess.find(s=>s.in); const lastOut=[...sess].reverse().find(s=>s.out);
       const issue=sess.some(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT");
-      const div=document.createElement("div"); div.className="row";
+
+      // 상태별 표시 (attendance fact만. WorkSchedule 없으므로 결근/지각 판정 안 함)
+      let line1="", line2="";
+      if(!firstIn && !working){
+        // 오늘 IN 없음 → "출근 기록 없음" (미출근/결근 판정 아님)
+        line1=`<span style="color:var(--text-muted)">출근 기록 없음</span>`;
+        line2="";
+      } else if(working){
+        // 근무중: OUT 없으므로 '퇴근' label 표시 안 함
+        line1=`출근 <b>${hhmm(working.in)}</b>`;
+        line2=`${sec?fmtDur(sec):"0분"}`;
+      } else {
+        // IN+OUT 완료: 실제 둘 다 있을 때만 퇴근 label
+        line1=`출근 <b>${firstIn?hhmm(firstIn.in):"-"}</b> · 퇴근 <b>${lastOut?hhmm(lastOut.out):"-"}</b>`;
+        line2=`근무 ${sec?fmtDur(sec):"-"}`;
+      }
+
+      const badges =
+        (working?'<span class="badge work">근무중</span>':'') +
+        (issue?'<span class="badge issue">확인필요</span>':'');
+
+      const div=document.createElement("div"); div.className="att-card"+(working?" working":"");
       div.innerHTML=`
-        <div class="nm" style="flex:1">${e.name}</div>
-        <div class="times">
-          <div>출근 <b>${firstIn?hhmm(firstIn.in):"-"}</b> · 퇴근 <b>${lastOut?hhmm(lastOut.out):(working?"근무중":"-")}</b></div>
-          <div>${sec?fmtDur(sec):"-"}</div>
+        <div class="att-name">${e.name}</div>
+        <div class="att-info">
+          <div class="line1">${line1}</div>
+          ${line2?`<div class="line2">${line2}</div>`:''}
         </div>
-        ${working?'<span class="badge work">근무중</span>':''}
-        ${issue?'<span class="badge issue">확인필요</span>':''}
-        ${LIVE?`<button class="btn btn-secondary btn-sm" data-fix="${e.id}">수정</button>`:''}`;
-      if(LIVE){ div.querySelector("[data-fix]").onclick=()=>openAdminFix(e, rows); }
+        <div class="att-right">
+          ${badges?`<div class="att-badges">${badges}</div>`:''}
+          ${LIVE?`<button class="btn btn-secondary btn-sm" data-fix="${e.id}">수정</button>`:''}
+        </div>`;
+      if(LIVE){ const fb=div.querySelector("[data-fix]"); if(fb) fb.onclick=()=>openAdminFix(e, rows); }
       listEl.appendChild(div);
     }
   }
