@@ -251,7 +251,7 @@
   .modal-back{position:absolute; top:12px; left:12px; z-index:2;}
   .modal.has-back h3{padding-left:40px;}
   .modal-veil.show{display:flex;}
-  .modal{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; width:100%; max-width:380px; max-height:88vh; overflow-y:auto; touch-action:manipulation;}
+  .modal{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; width:100%; max-width:380px; max-height:88vh; overflow-y:auto; touch-action:pan-y;}
   .modal h3{margin:0 0 16px; font-size:1.1rem;}
   /* modal 내 select들도 form-control 표면으로 통일 (정정 날짜/시간 등) */
   .modal select{background:var(--surface-muted); border:1px solid var(--border); color:var(--text); border-radius:10px;}
@@ -719,7 +719,35 @@ function openAddVeil(){
     x.onclick=()=>{ v.classList.remove("show"); restoreAddModal(); };
     modal.insertBefore(x, modal.firstChild);
   }
+  attachNoDoubleTapZoom(v);   // 모달 영역 한정 double-tap zoom 차단 (helper, 1회 부착)
   v.classList.add("show");
+}
+// iOS Safari double-tap zoom 국소 차단.
+//  - 대상: 전달된 요소(모달 오버레이) 내부에서만. document/body 전역 아님.
+//  - 판정: 300ms 이내 + 근접 좌표(30px)에서 두 번째 touchend = 실제 double-tap → 그것만 preventDefault.
+//  - single tap / 먼 위치 / 느린 탭 = 통과 → 버튼 click·세로스크롤 정상. touchend double-fire 유발 안 함.
+//  - 핀치는 별도 gesture/멀티터치 핸들러가 담당(그대로 유지).
+function attachNoDoubleTapZoom(el){
+  if(!el || el.__ndtz) return;   // 중복 부착 방지
+  el.__ndtz = true;
+  let lastT=0, lastX=0, lastY=0;
+  el.addEventListener("touchend", (e)=>{
+    if(e.touches && e.touches.length>0) return;      // 멀티터치 잔여는 무시
+    // 파일선택/select/textarea/input 등 네이티브 동작이 필요한 타겟은 제외 (다이얼로그/키보드 보호)
+    const tgt=e.target;
+    if(tgt && tgt.closest && tgt.closest('input,select,textarea,label')) { return; }
+    const t=e.changedTouches && e.changedTouches[0];
+    if(!t) return;
+    const now=Date.now();
+    const dt=now-lastT;
+    const dx=Math.abs(t.clientX-lastX), dy=Math.abs(t.clientY-lastY);
+    if(dt>0 && dt<=300 && dx<30 && dy<30){
+      e.preventDefault();
+      lastT=0;
+    }else{
+      lastT=now; lastX=t.clientX; lastY=t.clientY;
+    }
+  }, {passive:false});
 }
 function setTab(t){
   document.getElementById("tabPos").classList.toggle("on",t==="pos");
