@@ -201,6 +201,9 @@
   /* Tertiary/text: low-emphasis */
   .btn-tertiary{background:transparent; color:var(--text-muted); border-color:transparent; font-weight:500;}
   .btn-tertiary:active{color:var(--text);}
+  /* 만료된 삭제버튼: 회색 비활성 외양(실제 disabled 아님, 탭하면 안내팝업) */
+  .btn.btn-expired{ background:var(--surface-muted); color:var(--muted); border-color:var(--border); }
+  .btn.btn-expired:active{ filter:none; }
   /* Icon-only action (back/close 등) */
   .btn-icon{display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; padding:0; border:none; background:transparent; color:var(--text-muted); cursor:pointer; border-radius:10px;}
   .btn-icon:active{color:var(--text); background:var(--surface-muted);}
@@ -1691,6 +1694,14 @@ function mapDocDeleteErr(r){
 }
 async function openDocsModal(emp){
   const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
+  // 현재 관리자 email (본인 업로드 판정용). 실패해도 진행(그 경우 삭제버튼 안 뜸=안전).
+  let myEmail=null; try{ const u=await Auth.getUser(); myEmail=u&&u.email; }catch(_){}
+  const DELETE_WINDOW_MS = 24*3600*1000;
+  let timers=[];  // countdown interval 목록 (cleanup용)
+  function clearTimers(){ timers.forEach(t=>clearInterval(t)); timers=[]; }
+  // 모달이 닫히거나 다른 내용으로 바뀌면 timer 정리
+  const closeObserver=()=>{ if(!document.body.contains(modal)||!modal.querySelector("#docList")) { clearTimers(); } };
+
   modal.innerHTML=`
     <h3>${emp.name} · 근로계약서</h3>
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px">PDF/JPEG/PNG, 최대 10MB. 새로 첨부해도 기존 파일은 보존됩니다.</div>
@@ -1704,13 +1715,26 @@ async function openDocsModal(emp){
     <div class="section-t" style="margin-top:16px;font-size:.85rem">첨부 목록 <span id="docCount"></span></div>
     <div id="docList"><div class="empty">불러오는 중…</div></div>`;
   openAddVeil();
+  // X버튼/뒤로 눌러 닫힐 때도 timer 정리 (openAddVeil이 주입한 close 핸들러에 얹기)
+  const xbtn=modal.querySelector(".modal-x"); if(xbtn){ const orig=xbtn.onclick; xbtn.onclick=(e)=>{ clearTimers(); if(orig) orig(e); }; }
+
   const msg=document.getElementById("docMsg");
   const fEl=document.getElementById("docFile");
   const picked=document.getElementById("docPicked");
   document.getElementById("docPickBtn").onclick=()=>fEl.click();
   fEl.onchange=()=>{ const f=fEl.files&&fEl.files[0]; picked.textContent = f?`${f.name} · ${Math.round(f.size/1024)}KB`:"선택된 파일 없음"; msg.textContent=""; };
 
+  // 남은시간 → "N시간 N분" / 마지막 1분 "N초" / 만료
+  function fmtRemain(ms){
+    if(ms<=0) return null;
+    if(ms < 60*1000){ return `${Math.ceil(ms/1000)}초`; }
+    const totalMin=Math.floor(ms/60000);
+    const h=Math.floor(totalMin/60), m=totalMin%60;
+    return h>0 ? `${h}시간 ${m}분` : `${m}분`;
+  }
+
   async function refresh(){
+    clearTimers();  // refresh 시 기존 timer 전부 제거 (중복 방지)
     const box=document.getElementById("docList");
     const cnt=document.getElementById("docCount");
     try{
@@ -1718,47 +1742,80 @@ async function openDocsModal(emp){
       cnt.textContent = rows&&rows.length ? `(${rows.length})` : "";
       if(!rows||!rows.length){ box.innerHTML=`<div class="empty">첨부된 계약서 없음</div>`; return; }
       box.innerHTML="";
-      const nowMs=Date.now();
       for(const d of rows){
         const item=document.createElement("div"); item.className="row";
         const dt=new Date(d.uploaded_at); const p=n=>String(n).padStart(2,"0");
         const when=`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`;
-        // 오첨부 정정: 최근 24h만 삭제 버튼 노출 (예전 파일은 보존, 버튼 없음)
-        const deletable = (nowMs - dt.getTime()) < 24*3600*1000;
-        item.innerHTML=`<div style="flex:1;min-width:0"><div style="font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.filename}</div><div style="color:var(--muted);font-size:.75rem">${when} · ${Math.round((d.byte_size||0)/1024)}KB</div></div>
-          <button class="btn btn-secondary btn-sm" data-open="${d.storage_path}">열기</button>
-          ${deletable?`<button class="btn btn-danger btn-sm" data-del="${d.id}" data-path="${d.storage_path}">삭제</button>`:''}`;
+        const isMine = myEmail && d.uploaded_by_email && d.uploaded_by_email===myEmail;
+        const expireAt = dt.getTime() + DELETE_WINDOW_MS;
+
+        // 액션 버튼: 타인=열기만 / 본인=열기+삭제(countdown 또는 만료)
+        let actionHtml = `<button class="btn btn-secondary btn-sm" data-open="${d.storage_path}">열기</button>`;
+        if(isMine){
+          actionHtml += `<button class="btn btn-danger btn-sm" data-del="${d.id}" data-exp="${expireAt}">삭제</button>`;
+        }
+        item.innerHTML=`<div style="flex:1;min-width:0"><div style="font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.filename}</div><div style="color:var(--muted);font-size:.75rem">${when} · ${Math.round((d.byte_size||0)/1024)}KB</div></div>${actionHtml}`;
+
         item.querySelector("[data-open]").onclick=async()=>{
           try{ const url=await BE.docSignedUrl(d.storage_path,60); window.open(url,"_blank"); }
           catch(e){ toast("err","열람 실패","다시 시도하세요"); }
         };
+
         const delBtn=item.querySelector("[data-del]");
-        if(delBtn) delBtn.onclick=async()=>{
-          if(!confirm(`계약서를 삭제할까요?\n선택한 파일은 Storage와 DB에서 모두 삭제됩니다. 되돌릴 수 없습니다.`)) return;
-          try{
-            // 순서: Storage object 먼저 → metadata. (Storage 실패 시 metadata 보존 → 목록에 남아 재시도 가능)
-            //  metadata 먼저 지우면 실패 시 orphan object가 목록에서 사라져 복구 불가하므로 이 순서 채택.
-            // 1) Storage object 삭제
-            let storageOk=false;
-            try{ storageOk=await BE.docRemove(d.storage_path); }catch(_){ storageOk=false; }
-            if(!storageOk){
-              toast("err","삭제 실패","파일 삭제에 실패했습니다. 잠시 후 다시 시도하세요.");
-              return;  // metadata 보존 → 목록 유지 → 재시도 가능
+        if(delBtn){
+          // countdown 렌더 + 만료 전환
+          const applyLabel=()=>{
+            const remain = expireAt - Date.now();
+            if(remain>0){
+              delBtn.textContent = `삭제 · ${fmtRemain(remain)}`;
+              delBtn.classList.remove("btn-expired");
+              delBtn.dataset.expired="0";
+            }else{
+              delBtn.textContent = "삭제 · 만료";
+              delBtn.classList.add("btn-expired");   // 회색 비활성 스타일(실제 disabled 아님)
+              delBtn.dataset.expired="1";
             }
-            // 2) metadata 삭제 RPC (is_admin+본인+24h 검증)
-            let r=null;
-            try{ r=await BE.docDelete(d.id); }
-            catch(_){ r={ok:false,error:"RPC_UNAVAILABLE"}; }  // 함수 미배포 등 → 매핑
-            if(!r||!r.ok){
-              toast("err","삭제 실패", mapDocDeleteErr(r));
-              // Storage는 이미 삭제됨 → metadata 남음(깨진 항목). 목록에 보여 재시도 가능.
-              refresh();
+          };
+          applyLabel();
+          // timer: 만료 전이면 갱신. 남은시간 1분 초과면 30초마다, 1분 이하면 1초마다.
+          const tick=()=>{
+            const remain=expireAt-Date.now();
+            applyLabel();
+            if(remain<=0){ clearInterval(iv); timers=timers.filter(t=>t!==iv); }
+          };
+          const iv=setInterval(tick, 1000);  // 1초마다(초단위 표시 위해). 분 단위 구간도 1초 tick이나 표시는 분.
+          timers.push(iv);
+
+          delBtn.onclick=async()=>{
+            if(delBtn.dataset.expired==="1"){
+              // 만료: 실제 삭제 호출 안 함. 안내만.
+              alert("삭제할 수 없는 계약서입니다\n\n오첨부 정정을 위한 삭제 가능시간인 업로드 후 24시간이 만료되었습니다. 계약 기록 보존을 위해 24시간이 지난 파일은 삭제할 수 없습니다.");
               return;
             }
-            toast("out","삭제됨",d.filename);
-            refresh();
-          }catch(e){ toast("err","삭제 실패","잠시 후 다시 시도하세요."); }
-        };
+            const remainNow = expireAt - Date.now();
+            const remainStr = fmtRemain(remainNow) || "곧 만료";
+            if(!confirm(`계약서를 삭제할까요?\n\n오첨부 정정을 위해 업로드 후 24시간 동안만 삭제할 수 있습니다. 24시간이 지나면 계약 기록 보존을 위해 삭제할 수 없습니다.\n\n현재 삭제 가능 시간: ${remainStr}`)) return;
+            try{
+              // Storage → metadata 순서 (실패 시 재시도 가능)
+              let storageOk=false;
+              try{ storageOk=await BE.docRemove(d.storage_path); }catch(_){ storageOk=false; }
+              if(!storageOk){ toast("err","삭제 실패","파일 삭제에 실패했습니다. 잠시 후 다시 시도하세요."); return; }
+              let r=null;
+              try{ r=await BE.docDelete(d.id); }catch(_){ r={ok:false,error:"RPC_UNAVAILABLE"}; }
+              if(!r||!r.ok){
+                // 확인창 열어둔 사이 서버 24h 만료 등
+                if(r&&r.error==="TOO_OLD_TO_DELETE"){
+                  toast("err","삭제 불가","삭제 가능시간이 만료되어 보존된 계약서입니다.");
+                }else{
+                  toast("err","삭제 실패", mapDocDeleteErr(r));
+                }
+                refresh(); return;
+              }
+              toast("out","삭제됨",d.filename);
+              refresh();
+            }catch(e){ toast("err","삭제 실패","잠시 후 다시 시도하세요."); }
+          };
+        }
         box.appendChild(item);
       }
     }catch(e){ box.innerHTML=`<div class="empty">목록 실패: ${e.message}</div>`; }
