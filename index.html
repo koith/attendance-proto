@@ -29,7 +29,7 @@
   /* iOS Safari: font-size<16px input/select에 focus 시 자동 줌 발생 → 전역 16px 최소 보장으로 차단.
      (user-scalable=no가 iOS16.4+에서 무시되어 줌 후 원복 안 되는 문제의 근본 해결) */
   input, select, textarea{ font-size:16px; }
-  html,body{margin:0; height:100%;}
+  html,body{margin:0; height:100%; touch-action:manipulation;}
   body{
     background:var(--bg); color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
@@ -204,6 +204,8 @@
   /* 만료된 삭제버튼: 회색 비활성 외양(실제 disabled 아님, 탭하면 안내팝업) */
   .btn.btn-expired{ background:var(--surface-muted); color:var(--muted); border-color:var(--border); }
   .btn.btn-expired:active{ filter:none; }
+  /* countdown 삭제 버튼: 문구 길이 변해도 폭 고정("삭제 · 23시간 59분" 수용), 한 줄, 흔들림 방지 */
+  .doc-del-btn{ width:132px; flex:0 0 132px; white-space:nowrap; overflow:hidden; text-align:center; padding-left:6px; padding-right:6px; }
   /* Icon-only action (back/close 등) */
   .btn-icon{display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; padding:0; border:none; background:transparent; color:var(--text-muted); cursor:pointer; border-radius:10px;}
   .btn-icon:active{color:var(--text); background:var(--surface-muted);}
@@ -1752,7 +1754,7 @@ async function openDocsModal(emp){
         // 액션 버튼: 타인=열기만 / 본인=열기+삭제(countdown 또는 만료)
         let actionHtml = `<button class="btn btn-secondary btn-sm" data-open="${d.storage_path}">열기</button>`;
         if(isMine){
-          actionHtml += `<button class="btn btn-danger btn-sm" data-del="${d.id}" data-exp="${expireAt}">삭제</button>`;
+          actionHtml += `<button class="btn btn-danger btn-sm doc-del-btn" data-del="${d.id}" data-exp="${expireAt}">삭제</button>`;
         }
         item.innerHTML=`<div style="flex:1;min-width:0"><div style="font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.filename}</div><div style="color:var(--muted);font-size:.75rem">${when} · ${Math.round((d.byte_size||0)/1024)}KB</div></div>${actionHtml}`;
 
@@ -1938,10 +1940,16 @@ const connEl=document.getElementById("conn");
 if(LIVE){ connEl.className="conn live"; connEl.textContent="클라우드 연결됨 · Supabase"; }
 function tick(){ document.getElementById("clock").textContent=hms(kstNow()); }
 tick(); setInterval(tick,1000);
-// 더블탭 줌은 CSS touch-action:manipulation 로 처리 (전역 touchend 가로채기는
-// 버튼 click 이중발화를 유발하므로 제거함)
-// 핀치 줌(제스처)만 방지
-document.addEventListener("gesturestart",e=>e.preventDefault());
+// iOS Safari zoom 차단 (viewport meta는 16.4+에서 무시되므로 JS로 보강)
+// 단일 터치(세로 스크롤/버튼 탭/모달 조작/파일선택)는 그대로 두고, 확대 제스처만 차단.
+// 1) 핀치 제스처(gesture 이벤트)
+document.addEventListener("gesturestart", e=>e.preventDefault());
+document.addEventListener("gesturechange", e=>e.preventDefault());
+document.addEventListener("gestureend", e=>e.preventDefault());
+// 2) 손가락 2개 이상 touchmove = 핀치 → 차단 (1개는 스크롤이므로 통과)
+document.addEventListener("touchmove", e=>{ if(e.touches && e.touches.length>1) e.preventDefault(); }, {passive:false});
+// 3) 더블탭 줌은 CSS touch-action:manipulation(html/body/전역)로 처리 — JS touchend 가로채기는
+//    버튼 click 이중발화/취소 위험이 있어 쓰지 않음.
 
 if(LIVE) Auth.load();
 route();
