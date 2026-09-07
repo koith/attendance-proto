@@ -1264,20 +1264,17 @@ async function renderAdmin(){
   if(LIVE){ renderPendingRequests(); }
 
   // 오늘 근태 (원본+보정 반영)
-  let emps=[], eff=[];
+  let emps=[], eff=[], opState=[];
   try{
     emps=await BE.allEmployees();
-    // 진행 중 세션(전날 이전 IN, 아직 OUT 없음)도 포착하기 위해 조회 범위를 며칠 앞으로 확장.
-    // (오늘 하루만 조회하면 어제 IN한 열린 세션이 누락됨 = 홍당무 버그의 원인)
-    // pairEvents/applyCorrections 계산 함수는 그대로. 조회 범위만 넓힘.
-    const back=new Date(t); back.setDate(back.getDate()-3);
-    const bp=n=>String(n).padStart(2,"0");
-    const backDay=`${back.getFullYear()}-${bp(back.getMonth()+1)}-${bp(back.getDate())}`;
+    // Current Operational State: 날짜 무관 현재 열린 punch 상태 (POS와 동일 소스). 진행중 판정/열린 IN시각.
+    try{ opState=await BE.listEmployeesState(); }catch(_){ opState=[]; }
+    // Today Attendance: 오늘 날짜 effective 세션 (완료 세션 표시용). horizon 없음 — 오늘 범위만.
     if(LIVE){
-      const data=await BE.eventsWithCorrections(`${backDay}T00:00:00`,`${day}T23:59:59`);
+      const data=await BE.eventsWithCorrections(`${day}T00:00:00`,`${day}T23:59:59`);
       eff=applyCorrections(data.events, data.corrections);
     } else {
-      eff=await BE.rangeEvents(`${backDay}T00:00:00`,`${day}T23:59:59`);
+      eff=await BE.todayEvents();
     }
   }
   catch(e){
@@ -1292,41 +1289,43 @@ async function renderAdmin(){
     listEl.innerHTML="";
     for(const e of active){
       const rows=eff.filter(x=>x.employee_id===e.id);
-      const allSess=pairEvents(rows);
-      // 오늘 근태에 표시할 세션: (1) 현재 진행중(WORKING, 날짜 무관 — 전날 IN이어도) + (2) 오늘 완료/이슈 세션
-      const isToday=(d)=> d && `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`===day;
-      const sess=allSess.filter(s=>{
-        if(s.status==="WORKING") return true;                  // 진행중은 언제 IN했든 표시
-        if(s.status==="COMPLETE") return isToday(s.out)||isToday(s.in); // 오늘 완료만
-        return isToday(s.in)||isToday(s.out);                  // 오늘 관련 이슈(퇴근/출근 누락)만
-      });
-      let sec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
-      const working=sess.find(s=>s.status==="WORKING");
-      if(working) sec+=(kstNow()-working.in)/1000;
-      const firstIn=sess.find(s=>s.in); const lastOut=[...sess].reverse().find(s=>s.out);
-      const issue=sess.some(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT");
+      const todaySess=pairEvents(rows);   // 오늘 범위 effective 세션 (Today Attendance)
+      // Current Operational State (날짜 무관): 현재 열린 punch 상태 + 열린 IN 시각
+      const op=opState.find(o=>o.id===e.id);
+      const isWorking = !!(op && op.working);
+      const openInAt = isWorking && op.working_since ? fromIso(op.working_since) : null;
 
-      // 상태별 표시 (attendance fact만. WorkSchedule 없으므로 결근/지각 판정 안 함)
+      // 오늘 완료 세션 summary (Today Attendance) — 완료 카드용. 기존 pairEvents 의미 보존.
+      const isToday=(d)=> d && `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`===day;
+      const todayComplete=todaySess.filter(s=>s.status==="COMPLETE" && (isToday(s.in)||isToday(s.out)));
+      const todaySec=todayComplete.reduce((a,s)=>a+(s.sec||0),0);
+      const firstIn=todaySess.find(s=>s.in && isToday(s.in));
+      const lastOut=[...todaySess].reverse().find(s=>s.out && isToday(s.out));
+      const issue=todaySess.some(s=>(s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT") && (isToday(s.in)||isToday(s.out)));
+
+      // 상태별 표시
       let line1="", line2="";
-      if(!firstIn && !working){
-        // 진행중 IN도 없고 오늘 표시할 기록도 없음
-        line1=`<span style="color:var(--text-muted)">출근 기록 없음</span>`;
-        line2="";
-      } else if(working){
-        // 근무중: OUT 없으므로 '퇴근' label 표시 안 함. 전날 IN이어도 진행 시각 표시.
-        line1=`출근 <b>${hhmm(working.in)}</b>`;
-        line2=`${sec?fmtDur(sec):"0분"}`;
+      if(isWorking){
+        // A/D: 현재 열린 세션 기준. 출근=열린 IN시각(operational), 경과=현재 세션 경과(now-openIn).
+        //  전날/오래된 IN이어도 누락 안 됨(operational state가 소스, horizon 없음).
+        const openMs = openInAt ? (kstNow()-openInAt) : null;
+        line1 = openInAt ? `출근 <b>${hhmm(openInAt)}</b>` : `근무 중`;
+        line2 = openMs!=null ? `${fmtDur(openMs/1000)}` : ``;   // 현재 진행 세션 경과 (오늘 누적 아님)
+      } else if(firstIn || lastOut || issue){
+        // B(완료): 오늘 attendance summary. 실제 OUT 있을 때만 퇴근 label. 기존 세션 의미 보존.
+        line1 = `출근 <b>${firstIn?hhmm(firstIn.in):"-"}</b> · 퇴근 <b>${lastOut?hhmm(lastOut.out):"-"}</b>`;
+        line2 = `근무 ${todaySec?fmtDur(todaySec):"-"}`;
       } else {
-        // IN+OUT 완료: 실제 둘 다 있을 때만 퇴근 label
-        line1=`출근 <b>${firstIn?hhmm(firstIn.in):"-"}</b> · 퇴근 <b>${lastOut?hhmm(lastOut.out):"-"}</b>`;
-        line2=`근무 ${sec?fmtDur(sec):"-"}`;
+        // C: 현재 working도 아니고 오늘 기록도 없음
+        line1 = `<span style="color:var(--text-muted)">출근 기록 없음</span>`;
+        line2 = "";
       }
 
       const badges =
-        (working?'<span class="badge work">근무중</span>':'') +
+        (isWorking?'<span class="badge work">근무중</span>':'') +
         (issue?'<span class="badge issue">확인필요</span>':'');
 
-      const div=document.createElement("div"); div.className="att-card"+(working?" working":"");
+      const div=document.createElement("div"); div.className="att-card"+(isWorking?" working":"");
       div.innerHTML=`
         <div class="att-name">${e.name}</div>
         <div class="att-info">
