@@ -93,6 +93,15 @@
   .att-info .line1 b{font-weight:700;}
   .att-right{display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex:0 0 auto;}
   .att-badges{display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end;}
+  /* WorkSchedule 층 */
+  .sch-line{font-size:.8rem; color:var(--brand-700); margin-bottom:2px;}
+  .sch-line.sch-none{color:var(--muted);}
+  .sch-line.sch-off{color:var(--text-muted);}
+  .sch-prog{height:6px; background:var(--surface-muted); border-radius:4px; overflow:hidden; margin-top:6px;}
+  .sch-prog-bar{height:100%; background:var(--brand-700); border-radius:4px; transition:width .3s;}
+  .sch-prog-bar.over{background:var(--warning);}
+  .sch-prog-sub{font-size:.72rem; color:var(--text-muted); margin-top:3px;}
+  .sch-prog-sub.over{color:var(--warning); font-weight:600;}
   .emp.working{border-color:#bfe3cb; background:linear-gradient(90deg,#f3fbf6,#ffffff 40%);}
   .emp.working::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--in);}
   .badge-on{
@@ -461,6 +470,12 @@ const LocalBE = (()=>{
   return {
     async listEmployees(){ return load().emps.filter(e=>e.active).sort((a,b)=>a.name.localeCompare(b.name,"ko")); },
     async allEmployees(){ return load().emps.sort((a,b)=>a.name.localeCompare(b.name,"ko")); },
+    async scheduleList(f,t){ const s=load(); return (s.schedules||[]).filter(w=>w.work_date>=f&&w.work_date<=t); },
+    async scheduleSet(empId,date,status,start,end,memo){ const s=load(); s.schedules=s.schedules||[];
+      const ov=(status==="WORK"&&start&&end&&end<start); const i=s.schedules.findIndex(w=>w.employee_id===empId&&w.work_date===date);
+      const row={id:i>=0?s.schedules[i].id:(s.seq++),employee_id:empId,work_date:date,status,planned_start:status==="WORK"?start:null,planned_end:status==="WORK"?end:null,overnight:ov,memo:memo||null};
+      if(i>=0)s.schedules[i]=row; else s.schedules.push(row); localStorage.setItem(K,JSON.stringify(s)); return {ok:true}; },
+    async scheduleDelete(empId,date){ const s=load(); s.schedules=(s.schedules||[]).filter(w=>!(w.employee_id===empId&&w.work_date===date)); localStorage.setItem(K,JSON.stringify(s)); return {ok:true,deleted:1}; },
     async createEmployee(name,pin){
       const s=load();
       if(s.emps.some(e=>e.active&&e.name===name.trim())) throw new Error("같은 이름의 활성 직원이 이미 있습니다.");
@@ -566,6 +581,9 @@ const SupaBE = (()=>{
     // --- POS (anon) ---
     async listEmployeesState(){ return rpc("list_employees_state"); },
     async isAdmin(){ return rpc("is_admin",{},true); },
+    async scheduleList(fromDate,toDate){ return rpc("admin_schedule_list",{p_from:fromDate,p_to:toDate},true); },
+    async scheduleSet(empId,date,status,start,end,memo){ return rpc("admin_schedule_set",{p_employee_id:empId,p_work_date:date,p_status:status,p_start:start||null,p_end:end||null,p_memo:memo||null},true); },
+    async scheduleDelete(empId,date){ return rpc("admin_schedule_delete",{p_employee_id:empId,p_work_date:date},true); },
     // 계약서 (schema_v11): metadata는 RPC, 파일은 Storage(admin JWT)
     async docList(empId){ return rpc("admin_doc_list",{p_employee_id:empId},true); },
     async docAdd(empId,path,filename,ctype,size){ return rpc("admin_doc_add",{p_employee_id:empId,p_storage_path:path,p_filename:filename,p_content_type:ctype,p_byte_size:size},true); },
@@ -1252,24 +1270,25 @@ async function renderAdmin(){
     <div class="section-t" style="margin-top:20px">직원 관리</div>
     <div id="adEmps"></div>
     <button class="addbtn" id="adAdd">+ 직원 등록</button>
+    <button class="addbtn" id="adSched" style="margin-top:8px">📅 근무 스케줄 관리</button>
     <div class="section-t" style="margin-top:20px">계정 관리</div>
     <div id="adAccount"></div>`;
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
   const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
   document.getElementById("adToday").textContent=day;
   document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };
+  document.getElementById("adSched").onclick=()=>openScheduleModal();
   if(LIVE){ renderAccountMgmt(); }
 
   // 정정요청 대기 큐 (LIVE 전용)
   if(LIVE){ renderPendingRequests(); }
 
   // 오늘 근태 (원본+보정 반영)
-  let emps=[], eff=[], opState=[];
+  let emps=[], eff=[], opState=[], todaySched=[];
   try{
     emps=await BE.allEmployees();
-    // Current Operational State: 날짜 무관 현재 열린 punch 상태 (POS와 동일 소스). 진행중 판정/열린 IN시각.
     try{ opState=await BE.listEmployeesState(); }catch(_){ opState=[]; }
-    // Today Attendance: 오늘 날짜 effective 세션 (완료 세션 표시용). horizon 없음 — 오늘 범위만.
+    try{ todaySched=await BE.scheduleList(day,day); }catch(_){ todaySched=[]; }  // 오늘 스케줄(계획)
     if(LIVE){
       const data=await BE.eventsWithCorrections(`${day}T00:00:00`,`${day}T23:59:59`);
       eff=applyCorrections(data.events, data.corrections);
@@ -1321,6 +1340,37 @@ async function renderAdmin(){
         line2 = "";
       }
 
+      // ── WorkSchedule 층 (계획 데이터. 급여/판정 안 함) ──
+      const sch=todaySched.find(w=>w.employee_id===e.id);
+      let schLine="", progressHtml="";
+      if(!sch){
+        schLine=`<div class="sch-line sch-none">근무 스케줄 미등록</div>`;   // C: row 없음
+      } else if(sch.status==="OFF"){
+        schLine=`<div class="sch-line sch-off">오늘 근무 예정 없음</div>`;     // B: 명시적 OFF
+      } else {
+        // A: WORK. 예정 표시 + progress(예정 근무량 있을 때만)
+        schLine=`<div class="sch-line">예정 ${sch.planned_start?sch.planned_start.slice(0,5):"-"} ~ ${sch.planned_end?sch.planned_end.slice(0,5):"-"}${sch.overnight?' <span style="color:var(--muted)">(익일)</span>':''}</div>`;
+        // 예정 근무시간(분) = end - start (overnight면 +24h)
+        if(sch.planned_start && sch.planned_end){
+          const toMin=t=>{const[h,m]=t.split(":");return +h*60+ +m;};
+          let planMin=toMin(sch.planned_end)-toMin(sch.planned_start);
+          if(sch.overnight) planMin+=24*60;
+          // 실제 누적 근무(분): 오늘 완료 세션 + 현재 열린 세션 경과 (progress numerator, 표시용 aggregate)
+          let actualSec=todaySec + (isWorking&&openInAt ? (kstNow()-openInAt)/1000 : 0);
+          const actualMin=actualSec/60;
+          if(planMin>0){
+            const pct=Math.min(100, Math.round(actualMin/planMin*100));
+            const over=actualMin-planMin;
+            const remain=planMin-actualMin;
+            const overClass = over>0 ? " over" : "";
+            const sub = over>0
+              ? `예정시간 초과 +${fmtDur(over*60)}`
+              : `남은 예정시간 ${fmtDur(Math.max(0,remain)*60)}`;
+            progressHtml=`<div class="sch-prog"><div class="sch-prog-bar${overClass}" style="width:${pct}%"></div></div><div class="sch-prog-sub${overClass}">${sub}</div>`;
+          }
+        }
+      }
+
       const badges =
         (isWorking?'<span class="badge work">근무중</span>':'') +
         (issue?'<span class="badge issue">확인필요</span>':'');
@@ -1329,8 +1379,10 @@ async function renderAdmin(){
       div.innerHTML=`
         <div class="att-name">${e.name}</div>
         <div class="att-info">
+          ${schLine}
           <div class="line1">${line1}</div>
           ${line2?`<div class="line2">${line2}</div>`:''}
+          ${progressHtml}
         </div>
         <div class="att-right">
           ${badges?`<div class="att-badges">${badges}</div>`:''}
@@ -1767,6 +1819,69 @@ function mapDocDeleteErr(r){
   // RPC 미배포(함수 없음)·기타 서버오류: 원문 대신 일반 안내
   return "삭제 기능을 사용할 수 없습니다. 관리자에게 문의하세요.";
 }
+async function openScheduleModal(){
+  const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
+  const t=kstNow(); const p=n=>String(n).padStart(2,"0");
+  const today=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
+  modal.innerHTML=`
+    <h3>근무 스케줄 관리</h3>
+    <div class="field"><label>날짜</label><input id="schDate" type="date" value="${today}"></div>
+    <div id="schList"><div class="empty">불러오는 중…</div></div>`;
+  openAddVeil();
+  const dateEl=document.getElementById("schDate");
+  async function refresh(){
+    const box=document.getElementById("schList");
+    const date=dateEl.value; if(!date){ box.innerHTML=""; return; }
+    let emps=[], sched=[];
+    try{ emps=await BE.allEmployees(); sched=await BE.scheduleList(date,date); }
+    catch(e){ box.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
+    const active=emps.filter(e=>e.is_active!==false && e.active!==false);
+    box.innerHTML="";
+    for(const e of active){
+      const w=sched.find(x=>x.employee_id===e.id);
+      const st=w?w.status:""; const ss=w&&w.planned_start?w.planned_start.slice(0,5):""; const se=w&&w.planned_end?w.planned_end.slice(0,5):"";
+      const row=document.createElement("div"); row.className="row"; row.style.cssText="flex-direction:column;align-items:stretch;gap:6px;border-bottom:1px solid var(--border);padding:10px 0";
+      row.innerHTML=`
+        <div style="font-weight:600">${e.name}${w?'':' <span style="color:var(--muted);font-size:.75rem">미등록</span>'}</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <select class="sch-st" style="height:44px">
+            <option value="">선택</option>
+            <option value="WORK" ${st==="WORK"?"selected":""}>근무</option>
+            <option value="OFF" ${st==="OFF"?"selected":""}>휴무(OFF)</option>
+          </select>
+          <input class="sch-s" type="time" value="${ss}" style="height:44px;${st==="WORK"?"":"display:none"}">
+          <span class="sch-tilde" style="${st==="WORK"?"":"display:none"}">~</span>
+          <input class="sch-e" type="time" value="${se}" style="height:44px;${st==="WORK"?"":"display:none"}">
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-primary btn-sm sch-save" style="flex:1">저장</button>
+          ${w?`<button class="btn btn-danger btn-sm sch-del" style="flex:0 0 auto">등록취소</button>`:''}
+        </div>`;
+      const stSel=row.querySelector(".sch-st"), sIn=row.querySelector(".sch-s"), eIn=row.querySelector(".sch-e"), til=row.querySelector(".sch-tilde");
+      stSel.onchange=()=>{ const on=stSel.value==="WORK"; sIn.style.display=on?"":"none"; eIn.style.display=on?"":"none"; til.style.display=on?"":"none"; };
+      row.querySelector(".sch-save").onclick=async()=>{
+        const status=stSel.value;
+        if(!status){ toast("err","선택 필요","근무 또는 휴무를 선택하세요"); return; }
+        if(status==="WORK" && (!sIn.value||!eIn.value)){ toast("err","시간 필요","예정 출근/퇴근을 입력하세요"); return; }
+        try{
+          const r=await BE.scheduleSet(e.id,date,status,sIn.value,eIn.value,null);
+          if(r&&r.ok!==false){ toast("in","저장됨",e.name); refresh(); }
+          else{ toast("err","저장 실패", r&&r.error==="ZERO_DURATION"?"출근/퇴근 시각이 같습니다":(r&&r.error||"")); }
+        }catch(err){ toast("err","저장 실패",err.message); }
+      };
+      const del=row.querySelector(".sch-del");
+      if(del) del.onclick=async()=>{
+        if(!confirm(`${e.name}의 ${date} 스케줄 등록을 취소할까요?\n(미등록 상태로 돌아갑니다)`)) return;
+        try{ await BE.scheduleDelete(e.id,date); toast("out","등록취소",e.name); refresh(); }
+        catch(err){ toast("err","취소 실패",err.message); }
+      };
+      box.appendChild(row);
+    }
+  }
+  dateEl.onchange=refresh;
+  refresh();
+}
+
 async function openDocsModal(emp){
   const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
   // 현재 관리자 email (본인 업로드 판정용). 실패해도 진행(그 경우 삭제버튼 안 뜸=안전).
