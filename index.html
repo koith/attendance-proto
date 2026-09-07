@@ -472,8 +472,8 @@ const LocalBE = (()=>{
     async allEmployees(){ return load().emps.sort((a,b)=>a.name.localeCompare(b.name,"ko")); },
     async scheduleList(f,t){ const s=load(); return (s.schedules||[]).filter(w=>w.work_date>=f&&w.work_date<=t); },
     async scheduleSet(empId,date,status,start,end,memo){ const s=load(); s.schedules=s.schedules||[];
-      const ov=(status==="WORK"&&start&&end&&end<start); const i=s.schedules.findIndex(w=>w.employee_id===empId&&w.work_date===date);
-      const row={id:i>=0?s.schedules[i].id:(s.seq++),employee_id:empId,work_date:date,status,planned_start:status==="WORK"?start:null,planned_end:status==="WORK"?end:null,overnight:ov,memo:memo||null};
+      const i=s.schedules.findIndex(w=>w.employee_id===empId&&w.work_date===date);
+      const row={id:i>=0?s.schedules[i].id:(s.seq++),employee_id:empId,work_date:date,status,planned_start:status==="WORK"?start:null,planned_end:status==="WORK"?end:null,memo:memo||null};
       if(i>=0)s.schedules[i]=row; else s.schedules.push(row); localStorage.setItem(K,JSON.stringify(s)); return {ok:true}; },
     async scheduleDelete(empId,date){ const s=load(); s.schedules=(s.schedules||[]).filter(w=>!(w.employee_id===empId&&w.work_date===date)); localStorage.setItem(K,JSON.stringify(s)); return {ok:true,deleted:1}; },
     async createEmployee(name,pin){
@@ -1349,12 +1349,13 @@ async function renderAdmin(){
         schLine=`<div class="sch-line sch-off">오늘 근무 예정 없음</div>`;     // B: 명시적 OFF
       } else {
         // A: WORK. 예정 표시 + progress(예정 근무량 있을 때만)
-        schLine=`<div class="sch-line">예정 ${sch.planned_start?sch.planned_start.slice(0,5):"-"} ~ ${sch.planned_end?sch.planned_end.slice(0,5):"-"}${sch.overnight?' <span style="color:var(--muted)">(익일)</span>':''}</div>`;
+        const isOv = !!(sch.planned_start && sch.planned_end && sch.planned_end < sch.planned_start);  // 파생: end<start=익일
+        schLine=`<div class="sch-line">예정 ${sch.planned_start?sch.planned_start.slice(0,5):"-"} ~ ${sch.planned_end?sch.planned_end.slice(0,5):"-"}${isOv?' <span style="color:var(--muted)">(익일)</span>':''}</div>`;
         // 예정 근무시간(분) = end - start (overnight면 +24h)
         if(sch.planned_start && sch.planned_end){
           const toMin=t=>{const[h,m]=t.split(":");return +h*60+ +m;};
           let planMin=toMin(sch.planned_end)-toMin(sch.planned_start);
-          if(sch.overnight) planMin+=24*60;
+          if(isOv) planMin+=24*60;
           // 실제 누적 근무(분): 오늘 완료 세션 + 현재 열린 세션 경과 (progress numerator, 표시용 aggregate)
           let actualSec=todaySec + (isWorking&&openInAt ? (kstNow()-openInAt)/1000 : 0);
           const actualMin=actualSec/60;
