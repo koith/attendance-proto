@@ -10,6 +10,7 @@ function canNext(step,s){if(step===1)return !!s.emp;if(step===2)return s.mode===
 function nthWeekdaySource(target,src){const ord=Math.floor((Number(target.slice(8))-1)/7),w=wd(target),first=wd(`${src}-01`),d=1+((w-first+7)%7)+ord*7;return d<=dim(src)?date(src,d):null}
 function copyPrev({ym,scopeEmpId,emps,original,draft,copyKeys=new Set(),prevRows}){const map=new Map(prevRows.map(r=>[`${r.employee_id}|${r.work_date}`,r]));let n=0;const targets=scopeEmpId==null?emps:emps.filter(e=>e.id===scopeEmpId);for(const e of targets)for(const d of dates(ym)){const k=`${e.id}|${d}`;if(original.has(k)||draft.has(k))continue;const src=nthWeekdaySource(d,prevYM(ym)),r=src&&map.get(`${e.id}|${src}`);if(!r)continue;draft.set(k,{...r,employee_id:e.id,work_date:d});if(scopeEmpId!=null)copyKeys.add(k);n++}return n}
 function clearCopied(draft,copyKeys){for(const k of copyKeys)draft.delete(k);copyKeys.clear()}
+function scopedPayload(draft,empId){return [...draft].filter(([k])=>k.startsWith(`${empId}|`)).map(([k,r])=>{const[e,d]=k.split('|');return{op:'SET',employee_id:Number(e),work_date:d,status:r.status}})}
 let pass=0;function t(n,f){f();pass++;console.log('PASS',n)}
 t('28/29/30/31',()=>assert.deepEqual(['2026-02','2028-02','2026-09','2026-08'].map(dim),[28,29,30,31]));
 t('직원 미선택 next 불가',()=>assert.equal(canNext(1,{emp:null}),false));t('직원 선택',()=>assert.equal(canNext(1,{emp:9}),true));
@@ -29,5 +30,6 @@ t('전월 서로 다른 WORK/OFF 보존',()=>{const draft=new Map,original=new M
 t('전월 기존 일정 보호',()=>{const draft=new Map,original=new Map([['1|2026-09-07',{status:'OFF'}]]),emps=[{id:1}],prevRows=[{employee_id:1,work_date:'2026-08-03',status:'WORK',planned_start:'09:00',planned_end:'18:00'}];copyPrev({ym:'2026-09',scopeEmpId:1,emps,original,draft,prevRows});assert(!draft.has('1|2026-09-07'))});
 t('전월 dirty 보호',()=>{const draft=new Map([['1|2026-09-07',{status:'WORK',planned_start:'12:00',planned_end:'21:00'}]]),original=new Map,emps=[{id:1}],prevRows=[{employee_id:1,work_date:'2026-08-03',status:'OFF'}];copyPrev({ym:'2026-09',scopeEmpId:1,emps,original,draft,prevRows});assert.equal(draft.get('1|2026-09-07').planned_start,'12:00')});
 t('전월 직원 변경시 copied draft만 제거',()=>{const draft=new Map([['1|2026-09-07',{status:'OFF'}],['2|2026-09-08',{status:'WORK'}]]),copyKeys=new Set(['1|2026-09-07']);clearCopied(draft,copyKeys);assert(!draft.has('1|2026-09-07'));assert(draft.has('2|2026-09-08'));assert.equal(copyKeys.size,0)});
+t('Wizard 저장은 현재 직원 payload만',()=>{const draft=new Map([['1|2026-09-07',{status:'OFF'}],['2|2026-09-08',{status:'WORK'}]]);const p=scopedPayload(draft,1);assert.equal(p.length,1);assert.equal(p[0].employee_id,1)});
 t('전월 28→31 없는 순번은 미복사',()=>assert.equal(nthWeekdaySource('2026-03-30','2026-02'),null));
 console.log(`Monthly V1.1 QA: ${pass} PASS`);
