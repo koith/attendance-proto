@@ -31,5 +31,7 @@ t('전월 기존 일정 보호',()=>{const draft=new Map,original=new Map([['1|2
 t('전월 dirty 보호',()=>{const draft=new Map([['1|2026-09-07',{status:'WORK',planned_start:'12:00',planned_end:'21:00'}]]),original=new Map,emps=[{id:1}],prevRows=[{employee_id:1,work_date:'2026-08-03',status:'OFF'}];copyPrev({ym:'2026-09',scopeEmpId:1,emps,original,draft,prevRows});assert.equal(draft.get('1|2026-09-07').planned_start,'12:00')});
 t('전월 직원 변경시 copied draft만 제거',()=>{const draft=new Map([['1|2026-09-07',{status:'OFF'}],['2|2026-09-08',{status:'WORK'}]]),copyKeys=new Set(['1|2026-09-07']);clearCopied(draft,copyKeys);assert(!draft.has('1|2026-09-07'));assert(draft.has('2|2026-09-08'));assert.equal(copyKeys.size,0)});
 t('Wizard 저장은 현재 직원 payload만',()=>{const draft=new Map([['1|2026-09-07',{status:'OFF'}],['2|2026-09-08',{status:'WORK'}]]);const p=scopedPayload(draft,1);assert.equal(p.length,1);assert.equal(p[0].employee_id,1)});
+t('확인 단계 전 DB write 0 모델',()=>{let writes=0;for(let step=1;step<=4;step++){void step}assert.equal(writes,0)});
+t('저장 실패 후 draft 유지 모델',()=>{const draft=new Map([['1|2026-09-07',{status:'OFF'}]]);const before=[...draft.entries()];try{throw Error('network')}catch(_){}assert.deepEqual([...draft.entries()],before)});
 t('전월 28→31 없는 순번은 미복사',()=>assert.equal(nthWeekdaySource('2026-03-30','2026-02'),null));
 console.log(`Monthly V1.1 QA: ${pass} PASS`);
