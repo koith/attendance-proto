@@ -1271,6 +1271,7 @@ async function renderAdmin(){
     <div id="adEmps"></div>
     <button class="addbtn" id="adAdd">+ 직원 등록</button>
     <button class="addbtn" id="adSched" style="margin-top:8px">📅 근무 스케줄 관리</button>
+    <button class="addbtn" id="adSchedMonth" style="margin-top:8px">🗓️ 월간 근무 스케줄</button>
     <div class="section-t" style="margin-top:20px">계정 관리</div>
     <div id="adAccount"></div>`;
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
@@ -1278,6 +1279,7 @@ async function renderAdmin(){
   document.getElementById("adToday").textContent=day;
   document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };
   document.getElementById("adSched").onclick=()=>openScheduleModal();
+  document.getElementById("adSchedMonth").onclick=()=>{ location.href="monthly_schedule.html"; };
   if(LIVE){ renderAccountMgmt(); }
 
   // 정정요청 대기 큐 (LIVE 전용)
