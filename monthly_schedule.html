@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>백억커피 월간 근무표</title>
+<link rel="stylesheet" href="monthly_schedule.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="head"><button class="back" id="back">‹ 관리자</button><h1>월간 근무 스케줄</h1></div>
+    <div class="monthbar"><button class="btn" id="prevMonth">‹</button><input id="month" type="month"><button class="btn" id="nextMonth">›</button><button class="btn" id="thisMonth">이번 달</button></div>
+  </div>
+  <div id="app"><div class="loading">불러오는 중…</div></div>
+</div>
+<div class="sticky-save" id="savebar" style="display:none"><div class="dirtycount" id="dirtyCount">변경 0건<small>저장 전까지 DB에 반영되지 않습니다.</small></div><button class="btn danger" id="cancelDraft">변경 취소</button><button class="btn primary" id="saveDraft">저장</button></div>
+<div class="toast" id="toast"></div>
+<script src="monthly_schedule.js"></script>
+</body>
+</html>
