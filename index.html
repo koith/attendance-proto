@@ -604,7 +604,7 @@ const SupaBE = (()=>{
       return r.ok;
     },
     async docSignedUrl(path,expiresSec){
-      // 짧은 만료 signed URL 발급 (admin JWT). DB 저장 안 함.
+      // 짧은 만료 signed URL 발급 (admin JWT). DB 저장 안 함
       const r=await fetch(`${CONFIG.SUPABASE_URL}/storage/v1/object/sign/employee-docs/${path}`,{
         method:"POST", headers:{ apikey:CONFIG.SUPABASE_ANON_KEY, Authorization:`Bearer ${Auth.token}`, "Content-Type":"application/json" },
         body:JSON.stringify({expiresIn:expiresSec||60}) });
@@ -1356,17 +1356,26 @@ async function renderAdmin(){
           const toMin=t=>{const[h,m]=t.split(":");return +h*60+ +m;};
           let planMin=toMin(sch.planned_end)-toMin(sch.planned_start);
           if(isOv) planMin+=24*60;
-          // 실제 누적 근무(분): 오늘 완료 세션 + 현재 열린 세션 경과 (progress numerator, 표시용 aggregate)
-          let actualSec=todaySec + (isWorking&&openInAt ? (kstNow()-openInAt)/1000 : 0);
+          // v62: 오늘 progress는 완료된 오늘 세션 + 열린 세션의 오늘 00:00 이후 구간만 합산.
+          let openTodaySec=0;
+          if(isWorking&&openInAt&&!isNaN(openInAt)){
+            const now=kstNow();
+            const todayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+            const openFrom=Math.max(openInAt.getTime(),todayStart.getTime());
+            openTodaySec=Math.max(0,(now.getTime()-openFrom)/1000);
+          }
+          const actualSec=Math.max(0,todaySec+openTodaySec);
           const actualMin=actualSec/60;
           if(planMin>0){
-            const pct=Math.min(100, Math.round(actualMin/planMin*100));
+            const pct=Math.min(100,Math.max(0,Math.round(actualMin/planMin*100)));
             const over=actualMin-planMin;
             const remain=planMin-actualMin;
             const overClass = over>0 ? " over" : "";
             const sub = over>0
               ? `예정시간 초과 +${fmtDur(over*60)}`
-              : `남은 예정시간 ${fmtDur(Math.max(0,remain)*60)}`;
+              : actualSec>0
+                ? `남은 예정시간 ${fmtDur(Math.max(0,remain)*60)}`
+                : `예정 근무 ${fmtDur(planMin*60)}`;
             progressHtml=`<div class="sch-prog"><div class="sch-prog-bar${overClass}" style="width:${pct}%"></div></div><div class="sch-prog-sub${overClass}">${sub}</div>`;
           }
         }
@@ -1859,7 +1868,14 @@ async function openScheduleModal(){
           ${w?`<button class="btn btn-danger btn-sm sch-del" style="flex:0 0 auto">등록취소</button>`:''}
         </div>`;
       const stSel=row.querySelector(".sch-st"), sIn=row.querySelector(".sch-s"), eIn=row.querySelector(".sch-e"), til=row.querySelector(".sch-tilde");
-      stSel.onchange=()=>{ const on=stSel.value==="WORK"; sIn.style.display=on?"":"none"; eIn.style.display=on?"":"none"; til.style.display=on?"":"none"; };
+      stSel.onchange=()=>{
+        const on=stSel.value==="WORK";
+        if(on && !sIn.value && !eIn.value){
+          const now=kstNow(); const h=now.getHours();
+          sIn.value=`${p(h)}:00`; eIn.value=`${p((h+1)%24)}:00`;
+        }
+        sIn.style.display=on?"":"none"; eIn.style.display=on?"":"none"; til.style.display=on?"":"none";
+      };
       row.querySelector(".sch-save").onclick=async()=>{
         const status=stSel.value;
         if(!status){ toast("err","선택 필요","근무 또는 휴무를 선택하세요"); return; }
@@ -1868,7 +1884,11 @@ async function openScheduleModal(){
           const r=await BE.scheduleSet(e.id,date,status,sIn.value,eIn.value,null);
           if(r&&r.ok!==false){ toast("in","저장됨",e.name); refresh(); }
           else{ toast("err","저장 실패", r&&r.error==="ZERO_DURATION"?"출근/퇴근 시각이 같습니다":(r&&r.error||"")); }
-        }catch(err){ toast("err","저장 실패",err.message); }
+        }catch(err){
+          const raw=String(err&&err.message||err||"");
+          const isNetwork=(err&&err.name==="TypeError")||/failed to fetch|load failed|networkerror|network request failed|fetch/i.test(raw);
+          toast("err","저장 실패",isNetwork?"네트워크 연결을 확인한 뒤 다시 저장하세요. 입력값은 유지됩니다.":(raw||"알 수 없는 오류"));
+        }
       };
       const del=row.querySelector(".sch-del");
       if(del) del.onclick=async()=>{
