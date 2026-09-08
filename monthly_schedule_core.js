@@ -1,36 +1,38 @@
-const CONFIG={SUPABASE_URL:"https://waluhdgqhwjjwmflhrle.supabase.co",SUPABASE_ANON_KEY:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw"};
+const CONFIG={SUPABASE_URL:"https://waluhdgqhwjjwmflhrle.supabase.co",SUPABASE_ANON_KEY:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB..."};
 const Auth={token:null,load(){try{this.token=JSON.parse(localStorage.getItem("baekeok_auth"))?.access_token||null}catch(_){this.token=null}return this.token}};
 const rpc=async(fn,args={})=>{const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:"POST",headers:{apikey:CONFIG.SUPABASE_ANON_KEY,"Content-Type":"application/json",Authorization:`Bearer ${Auth.token||CONFIG.SUPABASE_ANON_KEY}`},body:JSON.stringify(args)});if(!r.ok)throw new Error(await r.text());const t=await r.text();return t?JSON.parse(t):null};
 const BE={isAdmin:()=>rpc("is_admin"),allEmployees:()=>rpc("admin_list_employees"),scheduleList:(a,b)=>rpc("admin_schedule_list",{p_from:a,p_to:b}),scheduleBatch:c=>rpc("admin_schedule_batch",{p_changes:c})};
-const S={ym:"",emps:[],empId:null,original:new Map(),draft:new Map(),selected:new Set(),week:0,mode:"WORK",start:"",end:"",weekdays:new Set([1,2,3,4,5]),busy:false};
+const S={ym:"",emps:[],empId:null,original:new Map(),draft:new Map(),selected:new Set(),week:0,mode:"WORK",start:"",end:"",weekdays:new Set(),busy:false,step:1,saved:false};
 const p=n=>String(n).padStart(2,"0");
 function kstNow(){return new Date(new Date().toLocaleString("en-US",{timeZone:"Asia/Seoul"}))}
 function monthNow(){const d=kstNow();return `${d.getFullYear()}-${p(d.getMonth()+1)}`}
-function parseYM(ym){const [y,m]=ym.split("-").map(Number);return {y,m}}
-function daysInMonth(ym){const {y,m}=parseYM(ym);return new Date(y,m,0).getDate()}
+function parseYM(ym){const[y,m]=ym.split("-").map(Number);return{y,m}}
+function daysInMonth(ym){const{y,m}=parseYM(ym);return new Date(y,m,0).getDate()}
 function isoDate(ym,d){return `${ym}-${p(d)}`}
-function localDate(iso){const [y,m,d]=iso.split("-").map(Number);return new Date(y,m-1,d)}
+function localDate(iso){const[y,m,d]=iso.split("-").map(Number);return new Date(y,m-1,d)}
 function weekday(iso){return localDate(iso).getDay()}
-function prevYM(ym){let {y,m}=parseYM(ym);m--;if(m<1){m=12;y--}return `${y}-${p(m)}`}
-function nextYM(ym){let {y,m}=parseYM(ym);m++;if(m>12){m=1;y++}return `${y}-${p(m)}`}
-function monthRange(ym){return [isoDate(ym,1),isoDate(ym,daysInMonth(ym))]}
-function rowKey(empId,date){return `${empId}|${date}`}
-function normRow(r){if(!r)return null;return {employee_id:Number(r.employee_id),work_date:String(r.work_date).slice(0,10),status:r.status,planned_start:r.status==="WORK"&&r.planned_start?String(r.planned_start).slice(0,5):null,planned_end:r.status==="WORK"&&r.planned_end?String(r.planned_end).slice(0,5):null,memo:r.memo||null}}
-function sameRow(a,b){a=normRow(a);b=normRow(b);return JSON.stringify(a)===JSON.stringify(b)}
-function effective(empId,date){const k=rowKey(empId,date);return S.draft.has(k)?S.draft.get(k):(S.original.get(k)||null)}
-function setDraft(empId,date,row){const k=rowKey(empId,date),orig=S.original.get(k)||null,n=normRow(row);if(sameRow(orig,n))S.draft.delete(k);else S.draft.set(k,n)}
-function plannedMinutes(r){r=normRow(r);if(!r||r.status!=="WORK")return 0;const cv=t=>{const [h,m]=t.split(":").map(Number);return h*60+m};let n=cv(r.planned_end)-cv(r.planned_start);if(n<0)n+=1440;return n}
+function prevYM(ym){let{y,m}=parseYM(ym);if(--m<1){m=12;y--}return `${y}-${p(m)}`}
+function nextYM(ym){let{y,m}=parseYM(ym);if(++m>12){m=1;y++}return `${y}-${p(m)}`}
+function monthRange(ym){return[isoDate(ym,1),isoDate(ym,daysInMonth(ym))]}
+function rowKey(e,d){return `${e}|${d}`}
+function normRow(r){if(!r)return null;return{employee_id:Number(r.employee_id),work_date:String(r.work_date).slice(0,10),status:r.status,planned_start:r.status==="WORK"&&r.planned_start?String(r.planned_start).slice(0,5):null,planned_end:r.status==="WORK"&&r.planned_end?String(r.planned_end).slice(0,5):null,memo:r.memo||null}}
+function sameRow(a,b){return JSON.stringify(normRow(a))===JSON.stringify(normRow(b))}
+function effective(e,d){const k=rowKey(e,d);return S.draft.has(k)?S.draft.get(k):(S.original.get(k)||null)}
+function setDraft(e,d,r){const k=rowKey(e,d),o=S.original.get(k)||null,n=normRow(r);if(sameRow(o,n))S.draft.delete(k);else S.draft.set(k,n)}
+function plannedMinutes(r){r=normRow(r);if(!r||r.status!=="WORK")return 0;const cv=t=>{const[h,m]=t.split(":").map(Number);return h*60+m};let n=cv(r.planned_end)-cv(r.planned_start);if(n<0)n+=1440;return n}
 function fmtMin(n){const h=Math.floor(n/60),m=Math.round(n%60);return h?`${h}시간 ${m}분`:`${m}분`}
-function cellLabel(r){r=normRow(r);if(!r)return "미등록";if(r.status==="OFF")return "OFF";return `${r.planned_start.replace(':','')}–${r.planned_end.replace(':','')}`}
-function cellClass(r){return !r?"none":r.status==="OFF"?"off":"work"}
+function cellLabel(r){r=normRow(r);if(!r)return"미등록";if(r.status==="OFF")return"OFF";return `${r.planned_start.replace(':','')}–${r.planned_end.replace(':','')}`}
+function cellClass(r){return!r?"none":r.status==="OFF"?"off":"work"}
 function toast(msg,err=false){const e=document.getElementById("toast");e.textContent=msg;e.className="toast show"+(err?" err":"");clearTimeout(toast.t);toast.t=setTimeout(()=>e.className="toast",2600)}
 function currentEmp(){return S.emps.find(e=>Number(e.id)===Number(S.empId))}
-function activeEmps(rows){return rows.filter(e=>e.is_active!==false&&e.active!==false)}
+function activeEmps(a){return a.filter(e=>e.is_active!==false&&e.active!==false)}
 function monthDates(ym){return Array.from({length:daysInMonth(ym)},(_,i)=>isoDate(ym,i+1))}
-function weekRows(ym){const dates=monthDates(ym),first=weekday(dates[0]),cells=Array(first).fill(null).concat(dates);while(cells.length%7)cells.push(null);return Array.from({length:cells.length/7},(_,i)=>cells.slice(i*7,i*7+7))}
-function nthWeekdaySource(targetIso,sourceYM){const ord=Math.floor((Number(targetIso.slice(8,10))-1)/7);const wd=weekday(targetIso);const first=localDate(`${sourceYM}-01`).getDay();const firstDay=1+((wd-first+7)%7);const d=firstDay+ord*7;return d<=daysInMonth(sourceYM)?isoDate(sourceYM,d):null}
-function hasPastSelection(){const now=kstNow(),today=`${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())}`;return [...S.selected].some(d=>d<today)}
+function weekRows(ym){const ds=monthDates(ym),cells=Array(weekday(ds[0])).fill(null).concat(ds);while(cells.length%7)cells.push(null);return Array.from({length:cells.length/7},(_,i)=>cells.slice(i*7,i*7+7))}
+function nthWeekdaySource(t,src){const ord=Math.floor((Number(t.slice(8))-1)/7),wd=weekday(t),first=weekday(`${src}-01`),d=1+((wd-first+7)%7)+ord*7;return d<=daysInMonth(src)?isoDate(src,d):null}
 function ensureWorkDefault(){if(S.start||S.end)return;const h=kstNow().getHours();S.start=`${p(h)}:00`;S.end=`${p((h+1)%24)}:00`}
-function currentWeekIndex(ym){if(ym!==monthNow())return 0;const now=kstNow(),first=localDate(`${ym}-01`).getDay();return Math.min(Math.floor((now.getDate()+first-1)/7),weekRows(ym).length-1)}
-function updateSavebar(){const n=S.draft.size,b=document.getElementById("savebar");b.style.display=n?"flex":"none";document.getElementById("dirtyCount").innerHTML=`변경 ${n}건<small>저장 전까지 DB에 반영되지 않습니다.</small>`;document.getElementById("saveDraft").textContent=`${n}건 저장`}
-function summary(empId){let work=0,off=0,none=0,min=0;for(const d of monthDates(S.ym)){const r=effective(empId,d);if(!r)none++;else if(r.status==="OFF")off++;else{work++;min+=plannedMinutes(r)}}return {work,off,none,min}}
+function summary(e){let work=0,off=0,none=0,min=0;for(const d of monthDates(S.ym)){const r=effective(e,d);if(!r)none++;else if(r.status==="OFF")off++;else{work++;min+=plannedMinutes(r)}}return{work,off,none,min}}
+const RECENT_KEY="baekeok_monthly_recent_shifts_v1";
+function recentShifts(){try{return JSON.parse(localStorage.getItem(RECENT_KEY)||"[]").filter(x=>/^\d\d:\d\d$/.test(x.start)&&/^\d\d:\d\d$/.test(x.end)).slice(0,4)}catch(_){return[]}}
+function rememberShift(start,end){if(!start||!end||start===end)return;const a=[{start,end},...recentShifts().filter(x=>x.start!==start||x.end!==end)].slice(0,4);try{localStorage.setItem(RECENT_KEY,JSON.stringify(a))}catch(_){}return a}
+function selectWeekday(wd){const ds=monthDates(S.ym).filter(d=>weekday(d)===wd),all=ds.every(d=>S.selected.has(d));for(const d of ds)all?S.selected.delete(d):S.selected.add(d)}
+function selectedMinutes(){if(S.mode!=="WORK")return 0;return S.selected.size*plannedMinutes({employee_id:S.empId,work_date:`${S.ym}-01`,status:"WORK",planned_start:S.start,planned_end:S.end})}
