@@ -794,7 +794,7 @@ function setTab(t){
 function route(){
   const h=(location.hash||"#pos").replace("#","");
   if(h!=="pos"){ clearInterval(_posTimer); }
-  if(h==="admin"){ const q=new URLSearchParams(location.search); if(!q.has("legacyAdmin")){ location.replace("admin_hub.html"); return; } setTab("admin"); requireAuth(async()=>{ await renderAdmin(); if(q.get("openSchedule")==="1") openScheduleModal(); }); }
+  if(h==="admin"){ const q=new URLSearchParams(location.search); if(!q.has("legacyAdmin")){ location.replace("admin_hub.html"); return; } setTab("admin"); requireAuth(async()=>{ if(q.get("returnHub")==="1"){ location.replace("admin_hub.html"); return; } await renderAdmin(); if(q.get("openSchedule")==="1") openScheduleModal(); else if(q.get("task")==="employees"||q.get("task")==="docs") document.getElementById("adEmps")?.scrollIntoView({block:"start"}); else if(q.get("task")==="today") document.getElementById("adList")?.scrollIntoView({block:"start"}); }); }
   else if(h==="pay"){ setTab("pay"); requireAuth(renderPay); }
   else{ setTab("pos"); renderPos(); }
 }
