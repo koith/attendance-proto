@@ -4,8 +4,8 @@ const idx=r('index.html'),hub=r('admin_hub.html'),mh=r('monthly_schedule.html'),
 t('관리 탭은 실제 operational renderAdmin 직행',()=>{assert(idx.includes('if(h==="admin"){ const q=new URLSearchParams(location.search); setTab("admin"); requireAuth(async()=>{ await renderAdmin();'));assert(!idx.includes('if(!q.has("legacyAdmin")){ location.replace("admin_hub.html")'))});
 t('standalone admin_hub는 관리 landing으로 redirect',()=>{assert(hub.includes("location.replace('index.html#admin')"));assert(!hub.includes('무엇을 할까요?'))});
 t('관리 landing 빠른 메뉴 4개',()=>['quickSchedule','quickEmployees','quickContracts','quickDocs'].forEach(x=>assert(idx.includes(x))));
-t('근태 확인 operational link',()=>assert(idx.includes('attendance_review.html')));
-t('관리 하위화면 복귀 통일',()=>{assert(mj.includes("location.href='index.html#admin'"));assert(dj.includes("location.href='index.html#admin'"));assert(ec.includes("location.href='index.html#admin'"));assert(ar.includes("location.href='index.html#admin'"))});
+t('근태 확인 operational alert는 관리 pending queue를 가리킴',()=>{assert(idx.includes('id="attendanceAlert" href="#admin"'));assert(idx.includes('reqs=await BE.pendingRequests()'));assert(idx.includes('sec.scrollIntoView'));assert(!idx.includes('id="attendanceAlert" href="attendance_review.html"'))});
+t('관리 하위화면 복귀 통일',()=>{assert(mj.includes("location.href='index.html#admin'"));assert(dj.includes("location.href='index.html#admin'"));assert(ec.includes("'index.html#admin'"));assert(ar.includes("location.href='index.html#admin'"))});
 t('일별/월간은 같은 full-page schedule shell',()=>{assert(mh.includes('daily_schedule.html'));assert(dh.includes('monthly_schedule.html'));assert(dh.includes('<h1>근무 스케줄</h1>'));assert(mh.includes('<h1>근무 스케줄</h1>'))});
 t('일별 view는 legacy modal 호출 없음',()=>{assert(!dh.includes('openScheduleModal'));assert(!dj.includes('openScheduleModal'));assert(idx.includes('location.href="daily_schedule.html"'))});
 t('daily 모바일 overflow 방어',()=>{['overflow-x:hidden','max-width:100%','min-width:0','grid-template-columns:minmax(0,1fr) 20px minmax(0,1fr)'].forEach(x=>assert(dc.includes(x))) });

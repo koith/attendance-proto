@@ -1,7 +1,7 @@
 name: ia-ux-regression
 on:
   push:
-    branches: [chatgpt-ux-v1.1-mobile-repair, chatgpt-ux-v1.1.1-mobile-polish]
+    branches: [chatgpt-ux-v1.1-mobile-repair, chatgpt-ux-v1.1.1-mobile-polish, chatgpt-ux-v1.1.2-iphone-final-repair]
   pull_request:
     branches: [main]
 jobs:
@@ -22,12 +22,15 @@ jobs:
           node --check monthly_schedule_core.js
           node --check qa_ux_v11.mjs
           node --check qa_ux_v111.mjs
+          node --check qa_ux_v112.mjs
           node --check qa_employment_contract_v1.mjs
           node --check qa_extract_logic.mjs
       - name: UX V1.1 QA
         run: node qa_ux_v11.mjs
       - name: UX V1.1.1 QA
         run: node qa_ux_v111.mjs
+      - name: UX V1.1.2 QA
+        run: node qa_ux_v112.mjs
       - name: Contract V1 QA
         run: node qa_employment_contract_v1.mjs
       - name: Monthly V1 QA
