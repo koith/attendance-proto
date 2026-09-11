@@ -21,6 +21,10 @@ jobs:
           new='if(h==="admin"){ const q=new URLSearchParams(location.search); if(!q.has("legacyAdmin")){ location.replace("admin_hub.html"); return; } setTab("admin"); requireAuth(async()=>{ await renderAdmin(); if(q.get("openSchedule")==="1") openScheduleModal(); }); }'
           if old in s: s=s.replace(old,new,1)
           elif new not in s: raise SystemExit('admin route anchor not found')
+          old='<select class="sch-st" style="height:44px">'
+          new='<select class="sch-st" style="height:44px;min-width:132px;flex:1 1 132px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel)">'
+          if old in s: s=s.replace(old,new,1)
+          elif new not in s: raise SystemExit('schedule select anchor not found')
           p.write_text(s)
           p=Path('monthly_schedule.js'); s=p.read_text()
           old="document.getElementById('back').onclick=()=>location.href='index.html#admin';"
@@ -29,13 +33,16 @@ jobs:
           elif new not in s: raise SystemExit('monthly back anchor not found')
           p.write_text(s)
           PY
-      - name: Inspect schedule modal controls
-        run: grep -nE 'openScheduleModal|schedule.*select|sch.*select|근무 스케줄 관리' index.html | head -80 || true
+      - name: Verify patched anchors
+        run: |
+          grep -n 'admin_hub.html' index.html
+          grep -n 'min-width:132px' index.html
+          grep -n "admin_hub.html" monthly_schedule.js
       - name: Commit patch
         run: |
           if git diff --quiet; then exit 0; fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add index.html monthly_schedule.js
-          git commit -m 'refactor: route admin through task hub'
+          git commit -m 'fix: polish admin routing and schedule controls'
           git push
