@@ -19,6 +19,7 @@ jobs:
           node --check monthly_schedule.js
           node --check monthly_schedule_core.js
           node --check qa_employment_contract_v1.mjs
+          node --check qa_extract_logic.mjs
       - name: Contract V1 QA
         run: node qa_employment_contract_v1.mjs
       - name: Monthly V1 QA
@@ -31,6 +32,8 @@ jobs:
         run: node qa_timezone_v62.mjs
       - name: Overnight QA
         run: node qa_overnight.mjs
+      - name: Extract current index logic
+        run: node qa_extract_logic.mjs
       - name: Correction QA
         run: node qa_correction.js
       - name: Payroll Golden and regression
