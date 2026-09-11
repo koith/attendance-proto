@@ -24,9 +24,10 @@ jobs:
           node qa_ux_v112.mjs
       - name: Commit repair
         run: |
+          git restore .github/workflows/ia-ux-regression.yml
           if git diff --quiet; then exit 0; fi
           git config user.name github-actions[bot]
           git config user.email 41898282+koith@users.noreply.github.com
-          git add index.html employment_contracts_v3.js daily_schedule.js daily_schedule.css monthly_schedule.js monthly_schedule.css qa_ux_v111.mjs qa_ux_v112.mjs .github/workflows/ia-ux-regression.yml
+          git add index.html employment_contracts_v3.js daily_schedule.js daily_schedule.css monthly_schedule.js monthly_schedule.css qa_ux_v111.mjs qa_ux_v112.mjs
           git commit -m 'fix: repair final iPhone UX V1.1.2 issues'
           git push
