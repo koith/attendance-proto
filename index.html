@@ -265,6 +265,14 @@
   }
   .field input::placeholder, .form-control::placeholder{color:var(--muted);}
   .field input:focus, .form-control:focus{outline:none; border-color:var(--brand-700); background:var(--surface);}
+  /* textarea: input과 동일 외관 + 기본 4줄 노출(모바일). height 대신 min-height로 자동확장 허용. */
+  .field textarea{
+    min-height:96px; border-radius:12px; border:1px solid var(--border); background:var(--surface-muted);
+    color:var(--text); padding:10px 14px; font-size:1rem; width:100%;
+    line-height:1.5; resize:vertical; font-family:inherit;
+  }
+  .field textarea::placeholder{color:var(--muted);}
+  .field textarea:focus{outline:none; border-color:var(--brand-700); background:var(--surface);}
   .modal-veil{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:30; padding:20px; touch-action:none;}
   .modal{position:relative;}
   .modal-x{position:absolute; top:12px; right:12px; z-index:2;}
@@ -2114,7 +2122,7 @@ function openPayEdit(emp){
     <div class="field"><label>원천징수율 (%)</label>
       <input id="peTax" inputmode="decimal" value="${((emp.tax_rate??0.033)*100).toString()}" placeholder="예: 3.3">
       <div style="font-size:.72rem;color:var(--muted);margin-top:4px">퍼센트로 입력 (예: 3.3, 0). 4대보험 등 정확한 율은 회계사 확인 후 반영</div></div>
-    <div class="field"><label>메모 (예외 사유)</label><input id="peMemo" value="${emp.memo||''}" placeholder="예: 15h미만 1주 차감"></div>
+    <div class="field"><label>메모 (예외 사유)</label><textarea id="peMemo" rows="4" placeholder="예: 15h미만 1주 차감">${emp.memo||''}</textarea></div>
     <button class="btn btn-primary btn-block btn-lg" id="peSave">저장</button>
     <button class="btn btn-tertiary btn-block" id="peCancel" style="margin-top:8px">취소</button>`;
   openAddVeil();
