@@ -183,7 +183,7 @@
   .admin-quick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
   .admin-quick-grid button{min-width:0;min-height:64px;border:1px solid var(--border);border-radius:12px;background:var(--surface-muted);color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:7px 3px;}
   .admin-quick-grid button span{font-size:1.15rem}.admin-quick-grid button b{font-size:.73rem;font-weight:650;}
-  .admin-attendance-alert{display:flex;align-items:center;justify-content:space-between;min-height:44px;margin-top:10px;padding:9px 10px;border-radius:10px;background:var(--surface-muted);color:var(--brand-700);text-decoration:none;font-size:.84rem;font-weight:650;}.admin-attendance-alert.quiet{color:var(--text-muted);font-weight:500;}
+  .admin-pending-head{display:flex;align-items:center;justify-content:space-between;min-height:36px;margin-top:14px;padding:2px;color:var(--text-muted);font-size:.8rem;font-weight:650;letter-spacing:.02em}.pending-badge{display:inline-flex;align-items:center;justify-content:center;min-width:34px;min-height:24px;padding:2px 8px;border-radius:999px;background:var(--brand-050);color:var(--brand-700);font-size:.74rem;font-weight:700;letter-spacing:0}.admin-pending-head.quiet .pending-badge{background:var(--surface-muted);color:var(--text-muted);font-weight:600}
   .modal,.modal *{min-width:0;box-sizing:border-box}.modal .field input,.modal .field select,.modal .field textarea{width:100%;max-width:100%;min-width:0;}
   @media(max-width:430px){.admin-quick-grid{gap:6px}.admin-quick-grid button{min-height:60px}.modal{max-width:calc(100vw - 24px)!important;margin-left:auto;margin-right:auto}.modal .field input[type=datetime-local],.modal .field input[type=date],.modal .field input[type=time]{width:100%;max-width:100%;min-width:0;-webkit-appearance:none;appearance:none;}}
   /* ---------- ADMIN ---------- */
@@ -1291,7 +1291,7 @@ async function renderAdmin(){
         <button type="button" id="quickContracts"><span>💼</span><b>계약</b></button>
         <button type="button" id="quickDocs"><span>📄</span><b>계약서</b></button>
       </div>
-      <a class="admin-attendance-alert" id="attendanceAlert" href="#admin"><span id="attendanceAlertText">근태 확인</span><span>›</span></a>
+      <div class="admin-pending-head" id="attendanceAlert"><span>직원 정정요청</span><span class="pending-badge" id="attendanceAlertText">0건</span></div>
     </section>
     <div id="adReqSection"></div>
     <div class="section-t">오늘 근태 · <span id="adToday"></span></div>
@@ -1457,17 +1457,13 @@ async function renderAdmin(){
 async function renderPendingRequests(){
   const sec=document.getElementById("adReqSection"), alert=document.getElementById("attendanceAlert"), alertText=document.getElementById("attendanceAlertText");
   let reqs=[];
-  try{ reqs=await BE.pendingRequests(); }catch(e){ if(alertText) alertText.textContent="근태 확인"; return; }
-  if(alertText) alertText.textContent=reqs.length?`⚠ 확인할 근태 ${reqs.length}건`:"확인할 근태 없음";
-  if(alert){
-    alert.classList.toggle("quiet",!reqs.length);
-    alert.setAttribute("aria-disabled",reqs.length?"false":"true");
-    alert.onclick=e=>{e.preventDefault();if(!reqs.length)return;sec.scrollIntoView({behavior:"smooth",block:"start"});};
-  }
+  try{ reqs=await BE.pendingRequests(); }catch(e){ if(alertText) alertText.textContent="—"; return; }
+  if(alertText) alertText.textContent=`${reqs.length}건`;
+  if(alert) alert.classList.toggle("quiet",!reqs.length);
   if(!reqs||!reqs.length){ sec.innerHTML=""; return; }
   const kindLabel={MISSING_OUT:"퇴근 누락 보완",MISSING_IN:"출근 누락 보완",WRONG_TIME:"시각 정정",OTHER:"기타"};
   const typeLabel={IN:"출근",OUT:"퇴근"};
-  sec.innerHTML=`<div class="section-t">직원 정정요청</div>`;
+  sec.innerHTML="";
   for(const r of reqs){
     const p=n=>String(n).padStart(2,"0");
     const fmt=iso=>{ if(!iso) return "—"; const d=fromIso(iso); return `${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
