@@ -17,14 +17,17 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           p=Path('index.html'); s=p.read_text()
-          old='if(h==="admin"){ setTab("admin"); requireAuth(renderAdmin); }'
-          new='if(h==="admin"){ const q=new URLSearchParams(location.search); if(!q.has("legacyAdmin")){ location.replace("admin_hub.html"); return; } setTab("admin"); requireAuth(async()=>{ await renderAdmin(); if(q.get("openSchedule")==="1") openScheduleModal(); }); }'
+          old='if(h==="admin"){ const q=new URLSearchParams(location.search); if(!q.has("legacyAdmin")){ location.replace("admin_hub.html"); return; } setTab("admin"); requireAuth(async()=>{ await renderAdmin(); if(q.get("openSchedule")==="1") openScheduleModal(); }); }'
+          new='if(h==="admin"){ const q=new URLSearchParams(location.search); if(!q.has("legacyAdmin")){ location.replace("admin_hub.html"); return; } setTab("admin"); requireAuth(async()=>{ if(q.get("returnHub")==="1"){ location.replace("admin_hub.html"); return; } await renderAdmin(); if(q.get("openSchedule")==="1") openScheduleModal(); else if(q.get("task")==="employees"||q.get("task")==="docs") document.getElementById("adEmps")?.scrollIntoView({block:"start"}); else if(q.get("task")==="today") document.getElementById("adList")?.scrollIntoView({block:"start"}); }); }'
           if old in s: s=s.replace(old,new,1)
-          elif new not in s: raise SystemExit('admin route anchor not found')
+          elif new not in s:
+            old0='if(h==="admin"){ setTab("admin"); requireAuth(renderAdmin); }'
+            if old0 in s: s=s.replace(old0,new,1)
+            else: raise SystemExit('admin route anchor not found')
           old='<select class="sch-st" style="height:44px">'
-          new='<select class="sch-st" style="height:44px;min-width:132px;flex:1 1 132px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel)">'
-          if old in s: s=s.replace(old,new,1)
-          elif new not in s: raise SystemExit('schedule select anchor not found')
+          wide='<select class="sch-st" style="height:44px;min-width:132px;flex:1 1 132px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel)">'
+          if old in s: s=s.replace(old,wide,1)
+          elif wide not in s: raise SystemExit('schedule select anchor not found')
           p.write_text(s)
           p=Path('monthly_schedule.js'); s=p.read_text()
           old="document.getElementById('back').onclick=()=>location.href='index.html#admin';"
@@ -36,6 +39,7 @@ jobs:
       - name: Verify patched anchors
         run: |
           grep -n 'admin_hub.html' index.html
+          grep -n 'returnHub' index.html
           grep -n 'min-width:132px' index.html
           grep -n "admin_hub.html" monthly_schedule.js
       - name: Commit patch
@@ -44,5 +48,5 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add index.html monthly_schedule.js
-          git commit -m 'fix: polish admin routing and schedule controls'
+          git commit -m 'refactor: flatten admin task navigation'
           git push
