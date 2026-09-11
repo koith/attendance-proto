@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 
-const WD=['일','월','화','수','목','금','토'];
 const toMin=t=>{const[h,m]=String(t).split(':').map(Number);return h*60+m};
 function contractMinutes(a,b){if(!a||!b||a===b)throw Error('ZERO_DURATION');let n=toMin(b)-toMin(a);if(n<0)n+=1440;return n}
 function weeklyMinutes(rows){return rows.reduce((n,r)=>n+contractMinutes(r.start,r.end),0)}
@@ -9,14 +8,13 @@ function validateTax(type,rate){if(type==='BUSINESS_INCOME')return rate!=null&&r
 function validatePayroll(type,hourly,monthly){if(type==='HOURLY')return hourly>0&&monthly==null;if(type==='MONTHLY')return monthly>0&&hourly==null;return false}
 function validateNight(enabled,mode,value){if(!enabled)return mode==null&&value==null;return ['RATE','FLAT'].includes(mode)&&value!=null&&value>=0}
 function localDateTime(s){const[y,mo,d,h,m]=s.match(/\d+/g).map(Number);return new Date(y,mo-1,d,h,m,0,0)}
-function nightMinutesForSession(start,end,threshold='22:00'){
-  const a=localDateTime(start),b=localDateTime(end);if(!(b>a))throw Error('BAD_SESSION');
-  const[hh,mm]=threshold.split(':').map(Number);const t=new Date(a.getFullYear(),a.getMonth(),a.getDate(),hh,mm,0,0);
-  if(b<=t)return 0;const from=a>t?a:t;return Math.floor((b-from)/60000)
-}
+function nightMinutesForSession(start,end,threshold='22:00'){const a=localDateTime(start),b=localDateTime(end);if(!(b>a))throw Error('BAD_SESSION');const[hh,mm]=threshold.split(':').map(Number);const t=new Date(a.getFullYear(),a.getMonth(),a.getDate(),hh,mm,0,0);if(b<=t)return 0;const from=a>t?a:t;return Math.floor((b-from)/60000)}
 function overlap(a1,a2,b1,b2){const ax=a2??'9999-12-31',bx=b2??'9999-12-31';return a1<=bx&&b1<=ax}
 function applyCorrection(ev,c){return c?.action==='EDIT_TIME'?{...ev,event_at:c.new_event_at}:ev}
 function assertDecision(v){return ['NEEDS_REVIEW','UNEXCUSED','NOT_UNEXCUSED'].includes(v)}
+function resolvePeriod(periods,state){if(state.creatingPeriod)return null;if(state.periodId&&periods.some(x=>x.id===state.periodId))return state.periodId;return periods[0]?.id??null}
+function resolveContract(contracts,state){if(state.creatingContract)return null;if(state.contractId&&contracts.some(x=>x.id===state.contractId))return state.contractId;return contracts[0]?.id??null}
+function rerenderEditState(state){return {payrollType:state.payrollType,taxTreatment:state.taxTreatment,nightEnabled:state.nightEnabled,workdays:new Map(state.workdays)}}
 
 let pass=0;const t=(name,fn)=>{fn();pass++;console.log('PASS',name)};
 t('HOURLY 저장 규칙',()=>assert.equal(validatePayroll('HOURLY',12500,null),true));
@@ -50,6 +48,10 @@ t('고용기간 비중첩',()=>assert.equal(overlap('2026-01-01','2026-06-30','2
 t('계약 없는 legacy 직원 자동계약 없음',()=>{const bundle={periods:[],contracts:[],workdays:[]};assert.equal(bundle.contracts.length,0)});
 t('absence tri-state',()=>{for(const x of ['NEEDS_REVIEW','UNEXCUSED','NOT_UNEXCUSED'])assert.equal(assertDecision(x),true)});
 t('schedule 없음만으로 UNEXCUSED 자동확정 안 함',()=>{const detected={schedule:'WORK',attendance:[]};const decision='NEEDS_REVIEW';assert.equal(detected.schedule,'WORK');assert.equal(decision,'NEEDS_REVIEW')});
-t('J1/J2/J3는 pending policy',()=>assert.deepEqual(['J1_MONTH_BOUNDARY','J2_PARTIAL_EMPLOYMENT_WEEK','J3_FOUR_INSURANCE_DEDUCTION_SHAPE'].length,3));
+t('J1/J2/J3는 pending policy',()=>assert.equal(['J1_MONTH_BOUNDARY','J2_PARTIAL_EMPLOYMENT_WEEK','J3_FOUR_INSURANCE_DEDUCTION_SHAPE'].length,3));
 t('야간 FLAT 지급단위는 설정값만 저장',()=>{const cfg={enabled:true,mode:'FLAT',value:2000,unit:null};assert.equal(cfg.unit,null)});
+t('새 고용기간 모드에서는 기존 기간 자동선택 안 함',()=>assert.equal(resolvePeriod([{id:1}],{periodId:null,creatingPeriod:true}),null));
+t('새 계약 모드에서는 기존 계약 자동선택 안 함',()=>assert.equal(resolveContract([{id:1}],{contractId:null,creatingContract:true}),null));
+t('기존 계약 편집 중 급여형태 변경이 rerender 후 유지',()=>{const s=rerenderEditState({payrollType:'MONTHLY',taxTreatment:'FOUR_INSURANCE',nightEnabled:true,workdays:new Map()});assert.equal(s.payrollType,'MONTHLY');assert.equal(s.taxTreatment,'FOUR_INSURANCE');assert.equal(s.nightEnabled,true)});
+t('MONTHLY 전환 후 workdays 비운 상태 유지',()=>{const s=rerenderEditState({payrollType:'MONTHLY',taxTreatment:'BUSINESS_INCOME',nightEnabled:false,workdays:new Map()});assert.equal(s.workdays.size,0)});
 console.log(`EmploymentContract V1 QA: ${pass} PASS`);
