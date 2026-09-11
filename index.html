@@ -175,6 +175,17 @@
   /* supporting text는 별도 줄, 자연스럽게 wrap */
   .toast .sub{font-size:.85rem; color:var(--text-muted); white-space:normal; word-break:keep-all;}
 
+
+  /* V1.1 admin landing / mobile Safari guards */
+  button,a,.btn,.emp,.att-card,.tabs a{touch-action:manipulation;}
+  .admin-quick{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:16px;}
+  .admin-quick-title{font-size:.82rem;color:var(--text-muted);margin-bottom:10px;}
+  .admin-quick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+  .admin-quick-grid button{min-width:0;min-height:64px;border:1px solid var(--border);border-radius:12px;background:var(--surface-muted);color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:7px 3px;}
+  .admin-quick-grid button span{font-size:1.15rem}.admin-quick-grid button b{font-size:.73rem;font-weight:650;}
+  .admin-review-link{display:flex;align-items:center;justify-content:space-between;min-height:44px;margin-top:8px;padding:0 4px;color:var(--brand-700);text-decoration:none;font-size:.84rem;}
+  .modal,.modal *{min-width:0;box-sizing:border-box}.modal .field input,.modal .field select,.modal .field textarea{width:100%;max-width:100%;min-width:0;}
+  @media(max-width:430px){.admin-quick-grid{gap:6px}.admin-quick-grid button{min-height:60px}.modal{max-width:calc(100vw - 24px)!important;margin-left:auto;margin-right:auto}.modal .field input[type=datetime-local],.modal .field input[type=date],.modal .field input[type=time]{width:100%;max-width:100%;min-width:0;-webkit-appearance:none;appearance:none;}}
   /* ---------- ADMIN ---------- */
   .section-t{font-size:.8rem; color:var(--sub); text-transform:uppercase; letter-spacing:.08em; margin:4px 2px 10px;}
   .row{
@@ -794,7 +805,7 @@ function setTab(t){
 function route(){
   const h=(location.hash||"#pos").replace("#","");
   if(h!=="pos"){ clearInterval(_posTimer); }
-  if(h==="admin"){ const q=new URLSearchParams(location.search); if(!q.has("legacyAdmin")){ location.replace("admin_hub.html"); return; } setTab("admin"); requireAuth(async()=>{ if(q.get("returnHub")==="1"){ location.replace("admin_hub.html"); return; } await renderAdmin(); if(q.get("openSchedule")==="1") openScheduleModal(); else if(q.get("task")==="employees"||q.get("task")==="docs") document.getElementById("adEmps")?.scrollIntoView({block:"start"}); else if(q.get("task")==="today") document.getElementById("adList")?.scrollIntoView({block:"start"}); }); }
+  if(h==="admin"){ const q=new URLSearchParams(location.search); setTab("admin"); requireAuth(async()=>{ await renderAdmin(); if(q.get("task")==="employees"||q.get("task")==="docs") document.getElementById("adEmps")?.scrollIntoView({block:"start"}); else if(q.get("task")==="today") document.getElementById("adList")?.scrollIntoView({block:"start"}); }); }
   else if(h==="pay"){ setTab("pay"); requireAuth(renderPay); }
   else{ setTab("pos"); renderPos(); }
 }
@@ -1272,6 +1283,16 @@ async function renderAccountMgmt(){
 /* ---------------------- 관리자 화면 ---------------------- */
 async function renderAdmin(){
   view.innerHTML=`
+    <section class="admin-quick" aria-label="빠른 메뉴">
+      <div class="admin-quick-title"><b>빠른 메뉴</b></div>
+      <div class="admin-quick-grid">
+        <button type="button" id="quickSchedule"><span>📅</span><b>스케줄</b></button>
+        <button type="button" id="quickEmployees"><span>👤</span><b>직원</b></button>
+        <button type="button" id="quickContracts"><span>💼</span><b>계약</b></button>
+        <button type="button" id="quickDocs"><span>📄</span><b>계약서</b></button>
+      </div>
+      <a class="admin-review-link" href="attendance_review.html">근태 확인 <span>›</span></a>
+    </section>
     <div id="adReqSection"></div>
     <div class="section-t">오늘 근태 · <span id="adToday"></span></div>
     <div id="adList"></div>
@@ -1286,8 +1307,12 @@ async function renderAdmin(){
   const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
   document.getElementById("adToday").textContent=day;
   document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };
-  document.getElementById("adSched").onclick=()=>openScheduleModal();
+  document.getElementById("adSched").onclick=()=>{ location.href="daily_schedule.html"; };
   document.getElementById("adSchedMonth").onclick=()=>{ location.href="monthly_schedule.html"; };
+  document.getElementById("quickSchedule").onclick=()=>{ location.href="daily_schedule.html"; };
+  document.getElementById("quickEmployees").onclick=()=>document.getElementById("adEmps")?.scrollIntoView({behavior:"smooth",block:"start"});
+  document.getElementById("quickContracts").onclick=()=>{ location.href="employment_contracts.html"; };
+  document.getElementById("quickDocs").onclick=()=>document.getElementById("adEmps")?.scrollIntoView({behavior:"smooth",block:"start"});
   if(LIVE){ renderAccountMgmt(); }
 
   // 정정요청 대기 큐 (LIVE 전용)
@@ -1417,9 +1442,11 @@ async function renderAdmin(){
   for(const e of active){
     const div=document.createElement("div"); div.className="row";
     div.innerHTML=`<div class="nm" style="flex:1">${e.name}</div>
+      <button class="btn btn-secondary btn-sm" data-contract="${e.id}">계약</button>
       <button class="btn btn-secondary btn-sm" data-docs="${e.id}">계약서</button>
       <button class="btn btn-danger btn-sm" data-deact="${e.id}">비활성화</button>`;
     div.querySelector("[data-deact]").onclick=async()=>{ if(confirm(`${e.name} 직원을 비활성화할까요?`)){ await BE.deactivateEmployee(e.id); renderAdmin(); } };
+    div.querySelector("[data-contract]").onclick=()=>{ location.href=`employment_contracts.html?employee=${e.id}`; };
     div.querySelector("[data-docs]").onclick=()=>openDocsModal(e);
     empsEl.appendChild(div);
   }
