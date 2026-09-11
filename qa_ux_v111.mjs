@@ -10,6 +10,6 @@ t('standalone attendance shortcut removed',()=>{assert(!idx.includes('class="adm
 t('attendance operational alert routes to review',()=>assert(idx.includes('id="attendanceAlert" href="attendance_review.html"')));
 t('pending count reuses pendingRequests source',()=>{assert(idx.includes('reqs=await BE.pendingRequests()'));assert(idx.includes('attendanceAlertText'));assert(idx.includes('확인할 근태 ${reqs.length}건'))});
 t('monthly payload projection unchanged',()=>{assert(mj.includes('function wizardProjectedPayload()'));assert(mj.includes('function wizardPayload(){return wizardProjectedPayload()}'))});
-t('daily save RPC path unchanged',()=>{assert(dj.includes('scheduleSet'));assert(dj.includes('scheduleDelete'))});
+t('daily save/delete RPC path unchanged',()=>{assert(dj.includes("rpc('admin_schedule_set'"));assert(dj.includes("rpc('admin_schedule_delete'"))});
 t('touch-action policy retained',()=>{assert(idx.includes('touch-action:manipulation'));assert(dc.includes('touch-action:manipulation'));assert(mc.includes('touch-action:manipulation'))});
 console.log(`UX V1.1.1 QA: ${pass} PASS`);
