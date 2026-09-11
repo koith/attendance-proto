@@ -1,14 +1,15 @@
 import fs from 'node:fs';import assert from 'node:assert/strict';
 const r=p=>fs.readFileSync(p,'utf8');let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
-const dh=r('daily_schedule.html'),dc=r('daily_schedule.css'),mh=r('monthly_schedule.html'),mc=r('monthly_schedule.css'),ec=r('employment_contracts_v3.js'),ecs=r('employment_contracts.css'),idx=r('index.html'),mj=r('monthly_schedule.js'),dj=r('daily_schedule.js');
-t('daily time-range separator grammar',()=>{assert(dc.includes('.time-range>span'));assert(dc.includes('width:20px'));assert(dc.includes('gap:10px'))});
-t('monthly time-range separator grammar',()=>{assert(mc.includes('.time-row>span'));assert(mc.includes('width:20px'));assert(mc.includes('gap:10px'))});
+const dh=r('daily_schedule.html'),dc=r('daily_schedule.css'),mh=r('monthly_schedule.html'),mc=r('monthly_schedule.css'),ec=r('employment_contracts_v3.js'),ecs=r('employment_contracts.css'),idx=r('index.html'),mj=r('monthly_schedule.js'),dj=r('daily_schedule.js'),ios=r('schedule_time_ios_v112.css');
+t('daily time-range separator grammar',()=>{assert(dc.includes('.time-range>.time-sep'));assert(dc.includes('width:20px'));assert(dc.includes('gap:10px'))});
+t('monthly time-range separator grammar',()=>{assert(mc.includes('.time-row>.time-sep'));assert(mc.includes('width:20px'));assert(mc.includes('gap:10px'))});
 t('daily/monthly period navigator shared grammar',()=>{assert(dh.includes('class="period-nav"'));assert(mh.includes('class="period-nav"'));assert(dc.includes('.period-nav{'));assert(mc.includes('.period-nav{'))});
 t('mobile navigator overflow guards',()=>{assert(dc.includes('minmax(0,1fr)'));assert(mc.includes('minmax(0,1fr)'));assert(dc.includes('overflow:hidden'));assert(mc.includes('overflow:hidden'))});
 t('employment period memo only is compact textarea',()=>{assert(ec.includes('<textarea id="periodNote" rows="2"'));assert(ecs.includes('#periodNote{'));assert(ec.includes('<textarea id="contractMemo" rows="4"'))});
 t('standalone attendance shortcut removed',()=>{assert(!idx.includes('class="admin-review-link"'));assert(idx.includes('id="attendanceAlert"'))});
 t('attendance operational alert remains operational action',()=>{assert(idx.includes('id="attendanceAlert" href="#admin"'));assert(idx.includes('sec.scrollIntoView'))});
 t('pending count reuses pendingRequests source',()=>{assert(idx.includes('reqs=await BE.pendingRequests()'));assert(idx.includes('attendanceAlertText'));assert(idx.includes('확인할 근태 ${reqs.length}건'))});
+t('shared iOS time guard loaded by daily and monthly',()=>{assert(dh.includes('schedule_time_ios_v112.css'));assert(mh.includes('schedule_time_ios_v112.css'));assert(ios.includes('flex:1 1 0%'));assert(ios.includes('width:0!important'));assert(ios.includes('min-width:0!important'))});
 t('monthly payload projection unchanged',()=>{assert(mj.includes('function wizardProjectedPayload()'));assert(mj.includes('function wizardPayload(){return wizardProjectedPayload()}'))});
 t('daily save/delete RPC path unchanged',()=>{assert(dj.includes("rpc('admin_schedule_set'"));assert(dj.includes("rpc('admin_schedule_delete'"))});
 t('touch-action policy retained',()=>{assert(idx.includes('touch-action:manipulation'));assert(dc.includes('touch-action:manipulation'));assert(mc.includes('touch-action:manipulation'))});
