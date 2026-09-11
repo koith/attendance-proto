@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>백억커피 급여·계약 설정</title>
+<link rel="stylesheet" href="employment_contracts.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <button class="back" id="back">‹ 급여</button>
+    <div><h1>급여 · 계약 설정</h1><p>계약조건과 운영 판정을 분리해 관리합니다.</p></div>
+  </header>
+  <section class="card employee-card">
+    <label>직원</label>
+    <select id="employee"><option value="">직원 선택</option></select>
+    <div id="legacy" class="hint"></div>
+  </section>
+  <div id="app"><div class="loading">관리자 권한 확인 중…</div></div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="employment_contracts_v2.js"></script>
+</body>
+</html>

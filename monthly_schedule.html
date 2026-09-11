@@ -10,7 +10,7 @@
 <body>
 <div class="wrap">
   <div class="top">
-    <div class="head"><button class="back" id="back">‹ 관리자</button><h1>월간 근무 스케줄</h1></div>
+    <div class="head"><button class="back" id="back">‹ 관리자</button><h1>월간 근무 스케줄</h1><button class="btn" id="contractSettings">급여·계약</button></div>
     <div class="monthbar"><button class="btn" id="prevMonth">‹</button><input id="month" type="month"><button class="btn" id="nextMonth">›</button><button class="btn" id="thisMonth">이번 달</button></div>
   </div>
   <div id="app"><div class="loading">불러오는 중…</div></div>
@@ -19,5 +19,6 @@
 <div class="toast" id="toast"></div>
 <script src="monthly_schedule_core.js"></script>
 <script src="monthly_schedule.js"></script>
+<script>document.getElementById('contractSettings').onclick=()=>location.href='employment_contracts.html';</script>
 </body>
 </html>
