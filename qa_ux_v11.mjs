@@ -8,7 +8,7 @@ t('근태 확인 operational link',()=>assert(idx.includes('attendance_review.ht
 t('관리 하위화면 복귀 통일',()=>{assert(mj.includes("location.href='index.html#admin'"));assert(dj.includes("location.href='index.html#admin'"));assert(ec.includes("location.href='index.html#admin'"));assert(ar.includes("location.href='index.html#admin'"))});
 t('일별/월간은 같은 full-page schedule shell',()=>{assert(mh.includes('daily_schedule.html'));assert(dh.includes('monthly_schedule.html'));assert(dh.includes('<h1>근무 스케줄</h1>'));assert(mh.includes('<h1>근무 스케줄</h1>'))});
 t('일별 view는 legacy modal 호출 없음',()=>{assert(!dh.includes('openScheduleModal'));assert(!dj.includes('openScheduleModal'));assert(idx.includes('location.href="daily_schedule.html"'))});
-t('daily 모바일 overflow 방어',()=>{['overflow-x:hidden','max-width:100%','min-width:0','grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)'].forEach(x=>assert(dc.includes(x))) });
+t('daily 모바일 overflow 방어',()=>{['overflow-x:hidden','max-width:100%','min-width:0','grid-template-columns:minmax(0,1fr) 20px minmax(0,1fr)'].forEach(x=>assert(dc.includes(x))) });
 t('correction modal Safari intrinsic width 방어',()=>{assert(idx.includes('.modal .field input[type=datetime-local]'));assert(idx.includes('-webkit-appearance:none'));assert(idx.includes('max-width:calc(100vw - 24px)'))});
 t('double tap은 CSS manipulation, action은 click 단일 모델',()=>{assert(idx.includes('button,a,.btn,.emp,.att-card,.tabs a{touch-action:manipulation;}'));assert(dc.includes('touch-action:manipulation'));assert.equal((idx.match(/addEventListener\("touchend"/g)||[]).length,1)});
 t('daily save/delete double-fire busy guard',()=>{assert(dj.includes('if(busy.has(id))return'));assert(dj.includes('save.disabled=true'));assert(dj.includes('del.disabled=true'))});
