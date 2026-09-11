@@ -15,6 +15,7 @@ jobs:
           node-version: 22
       - name: Syntax
         run: |
+          node --check admin_hub.js
           node --check employment_contracts_v3.js
           node --check attendance_review.js
           node --check monthly_schedule.js
