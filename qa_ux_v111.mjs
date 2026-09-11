@@ -7,8 +7,8 @@ t('daily/monthly period navigator shared grammar',()=>{assert(dh.includes('class
 t('mobile navigator overflow guards',()=>{assert(dc.includes('minmax(0,1fr)'));assert(mc.includes('minmax(0,1fr)'));assert(dc.includes('overflow:hidden'));assert(mc.includes('overflow:hidden'))});
 t('employment period memo only is compact textarea',()=>{assert(ec.includes('<textarea id="periodNote" rows="2"'));assert(ecs.includes('#periodNote{'));assert(ec.includes('<textarea id="contractMemo" rows="4"'))});
 t('standalone attendance shortcut removed',()=>{assert(!idx.includes('class="admin-review-link"'));assert(idx.includes('id="attendanceAlert"'))});
-t('attendance operational alert remains operational action',()=>{assert(idx.includes('id="attendanceAlert" href="#admin"'));assert(idx.includes('sec.scrollIntoView'))});
-t('pending count reuses pendingRequests source',()=>{assert(idx.includes('reqs=await BE.pendingRequests()'));assert(idx.includes('attendanceAlertText'));assert(idx.includes('확인할 근태 ${reqs.length}건'))});
+t('attendance pending status is integrated, not a navigation action',()=>{assert(idx.includes('class="admin-pending-head" id="attendanceAlert"'));assert(!idx.includes('id="attendanceAlert" href='));assert(!idx.includes('sec.scrollIntoView({behavior:"smooth"'))});
+t('pending count reuses pendingRequests source',()=>{assert(idx.includes('reqs=await BE.pendingRequests()'));assert(idx.includes('attendanceAlertText'));assert(idx.includes('alertText.textContent=`${reqs.length}건`'));assert(idx.includes('for(const r of reqs)'))});
 t('shared iOS time guard loaded by daily and monthly',()=>{assert(dh.includes('schedule_time_ios_v112.css'));assert(mh.includes('schedule_time_ios_v112.css'));assert(ios.includes('flex:1 1 0%'));assert(ios.includes('width:0!important'));assert(ios.includes('min-width:0!important'))});
 t('monthly payload projection unchanged',()=>{assert(mj.includes('function wizardProjectedPayload()'));assert(mj.includes('function wizardPayload(){return wizardProjectedPayload()}'))});
 t('daily save/delete RPC path unchanged',()=>{assert(dj.includes("rpc('admin_schedule_set'"));assert(dj.includes("rpc('admin_schedule_delete'"))});
