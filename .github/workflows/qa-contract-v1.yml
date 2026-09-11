@@ -1,0 +1,42 @@
+name: contract-v1-regression
+on:
+  push:
+    branches: [chatgpt-payroll-contract-v1]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax
+        run: |
+          node --check employment_contracts.js
+          node --check monthly_schedule.js
+          node --check monthly_schedule_core.js
+          node --check qa_employment_contract_v1.mjs
+      - name: Contract V1 QA
+        run: node qa_employment_contract_v1.mjs
+      - name: Monthly V1 QA
+        run: node qa_month_schedule_v1.mjs
+      - name: Monthly V1.1 QA
+        run: node qa_month_schedule_v1_1.mjs
+      - name: WorkSchedule QA
+        run: node qa_work_schedule.mjs
+      - name: Timezone QA
+        run: node qa_timezone_v62.mjs
+      - name: Overnight QA
+        run: node qa_overnight.mjs
+      - name: Correction QA
+        run: node qa_correction.js
+      - name: Payroll Golden and regression
+        run: |
+          node qa_m85.js
+          node qa_m85b.js
+      - name: Admin authz QA
+        env:
+          SUPABASE_URL: https://waluhdgqhwjjwmflhrle.supabase.co
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw
+        run: node qa/s1_authz_qa.mjs
