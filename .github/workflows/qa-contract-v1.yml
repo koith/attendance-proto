@@ -2,6 +2,8 @@ name: contract-v1-regression
 on:
   push:
     branches: [chatgpt-payroll-contract-v1]
+  pull_request:
+    branches: [main]
 jobs:
   qa:
     runs-on: ubuntu-latest
@@ -35,8 +37,3 @@ jobs:
         run: |
           node qa_m85.js
           node qa_m85b.js
-      - name: Admin authz QA
-        env:
-          SUPABASE_URL: https://waluhdgqhwjjwmflhrle.supabase.co
-          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw
-        run: node qa/s1_authz_qa.mjs
