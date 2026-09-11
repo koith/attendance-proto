@@ -1,0 +1,24 @@
+name: abc-repair-patch
+on:
+  push:
+    branches: [chatgpt-ux-v1.1.2-abc-repair]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt-ux-v1.1.2-abc-repair
+      - name: Apply deterministic repair patch
+        run: python tools/ux_v112_abc_patch.py
+      - name: Commit repair
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html employment_contracts.css employment_contracts_v3.js qa_ux_v11.mjs qa_ux_v112.mjs
+          git commit -m "fix: repair contract save and pending UX"
+          git push
