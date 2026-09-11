@@ -7,7 +7,7 @@ t('daily/monthly period navigator shared grammar',()=>{assert(dh.includes('class
 t('mobile navigator overflow guards',()=>{assert(dc.includes('minmax(0,1fr)'));assert(mc.includes('minmax(0,1fr)'));assert(dc.includes('overflow:hidden'));assert(mc.includes('overflow:hidden'))});
 t('employment period memo only is compact textarea',()=>{assert(ec.includes('<textarea id="periodNote" rows="2"'));assert(ecs.includes('#periodNote{'));assert(ec.includes('<textarea id="contractMemo" rows="4"'))});
 t('standalone attendance shortcut removed',()=>{assert(!idx.includes('class="admin-review-link"'));assert(idx.includes('id="attendanceAlert"'))});
-t('attendance operational alert routes to review',()=>assert(idx.includes('id="attendanceAlert" href="attendance_review.html"')));
+t('attendance operational alert remains operational action',()=>{assert(idx.includes('id="attendanceAlert" href="#admin"'));assert(idx.includes('sec.scrollIntoView'))});
 t('pending count reuses pendingRequests source',()=>{assert(idx.includes('reqs=await BE.pendingRequests()'));assert(idx.includes('attendanceAlertText'));assert(idx.includes('확인할 근태 ${reqs.length}건'))});
 t('monthly payload projection unchanged',()=>{assert(mj.includes('function wizardProjectedPayload()'));assert(mj.includes('function wizardPayload(){return wizardProjectedPayload()}'))});
 t('daily save/delete RPC path unchanged',()=>{assert(dj.includes("rpc('admin_schedule_set'"));assert(dj.includes("rpc('admin_schedule_delete'"))});

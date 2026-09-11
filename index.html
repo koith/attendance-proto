@@ -1291,7 +1291,7 @@ async function renderAdmin(){
         <button type="button" id="quickContracts"><span>💼</span><b>계약</b></button>
         <button type="button" id="quickDocs"><span>📄</span><b>계약서</b></button>
       </div>
-      <a class="admin-attendance-alert" id="attendanceAlert" href="attendance_review.html"><span id="attendanceAlertText">근태 확인</span><span>›</span></a>
+      <a class="admin-attendance-alert" id="attendanceAlert" href="#admin"><span id="attendanceAlertText">근태 확인</span><span>›</span></a>
     </section>
     <div id="adReqSection"></div>
     <div class="section-t">오늘 근태 · <span id="adToday"></span></div>
@@ -1311,7 +1311,7 @@ async function renderAdmin(){
   document.getElementById("adSchedMonth").onclick=()=>{ location.href="monthly_schedule.html"; };
   document.getElementById("quickSchedule").onclick=()=>{ location.href="daily_schedule.html"; };
   document.getElementById("quickEmployees").onclick=()=>document.getElementById("adEmps")?.scrollIntoView({behavior:"smooth",block:"start"});
-  document.getElementById("quickContracts").onclick=()=>{ location.href="employment_contracts.html"; };
+  document.getElementById("quickContracts").onclick=()=>{ location.href="employment_contracts.html?from=admin"; };
   document.getElementById("quickDocs").onclick=()=>document.getElementById("adEmps")?.scrollIntoView({behavior:"smooth",block:"start"});
   if(LIVE){ renderAccountMgmt(); }
 
@@ -1446,10 +1446,11 @@ async function renderAdmin(){
       <button class="btn btn-secondary btn-sm" data-docs="${e.id}">계약서</button>
       <button class="btn btn-danger btn-sm" data-deact="${e.id}">비활성화</button>`;
     div.querySelector("[data-deact]").onclick=async()=>{ if(confirm(`${e.name} 직원을 비활성화할까요?`)){ await BE.deactivateEmployee(e.id); renderAdmin(); } };
-    div.querySelector("[data-contract]").onclick=()=>{ location.href=`employment_contracts.html?employee=${e.id}`; };
+    div.querySelector("[data-contract]").onclick=()=>{ location.href=`employment_contracts.html?employee=${e.id}&from=employees`; };
     div.querySelector("[data-docs]").onclick=()=>openDocsModal(e);
     empsEl.appendChild(div);
   }
+  if(new URLSearchParams(location.search).get("focus")==="employees") empsEl.scrollIntoView({behavior:"auto",block:"start"});
 }
 
 // 정정요청 대기 큐
@@ -1458,7 +1459,11 @@ async function renderPendingRequests(){
   let reqs=[];
   try{ reqs=await BE.pendingRequests(); }catch(e){ if(alertText) alertText.textContent="근태 확인"; return; }
   if(alertText) alertText.textContent=reqs.length?`⚠ 확인할 근태 ${reqs.length}건`:"확인할 근태 없음";
-  if(alert) alert.classList.toggle("quiet",!reqs.length);
+  if(alert){
+    alert.classList.toggle("quiet",!reqs.length);
+    alert.setAttribute("aria-disabled",reqs.length?"false":"true");
+    alert.onclick=e=>{e.preventDefault();if(!reqs.length)return;sec.scrollIntoView({behavior:"smooth",block:"start"});};
+  }
   if(!reqs||!reqs.length){ sec.innerHTML=""; return; }
   const kindLabel={MISSING_OUT:"퇴근 누락 보완",MISSING_IN:"출근 누락 보완",WRONG_TIME:"시각 정정",OTHER:"기타"};
   const typeLabel={IN:"출근",OUT:"퇴근"};
