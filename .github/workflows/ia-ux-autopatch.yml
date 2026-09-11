@@ -12,7 +12,7 @@ jobs:
         with:
           ref: chatgpt-ia-ux-polish-v1
           fetch-depth: 1
-      - name: Patch large legacy shell safely
+      - name: Patch legacy shell and editor safely
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -35,18 +35,34 @@ jobs:
           if old in s: s=s.replace(old,new,1)
           elif new not in s: raise SystemExit('monthly back anchor not found')
           p.write_text(s)
+
+          p=Path('employment_contracts_v3.js'); s=p.read_text()
+          reps=[
+          ("loadedContractId:null,busy:false", "loadedContractId:null,creatingContract:false,busy:false"),
+          ("function currentContract(){return periodContracts().find(x=>Number(x.id)===Number(S.contractId))||null}", "function currentContract(){if(S.creatingContract)return null;return periodContracts().find(x=>Number(x.id)===Number(S.contractId))||null}"),
+          ("const cs=periodContracts();if(!S.contractId||!cs.some(x=>Number(x.id)===Number(S.contractId)))S.contractId=cs[0]?.id?Number(cs[0].id):null;const c=currentContract();", "const cs=periodContracts();if(S.creatingContract)S.contractId=null;else if(!S.contractId||!cs.some(x=>Number(x.id)===Number(S.contractId)))S.contractId=cs[0]?.id?Number(cs[0].id):null;const c=currentContract();"),
+          ("if(cs)cs.onchange=()=>{S.contractId=Number(cs.value);S.loadedContractId=null;render()}", "if(cs)cs.onchange=()=>{S.creatingContract=false;S.contractId=Number(cs.value);S.loadedContractId=null;render()}"),
+          ("if(nc)nc.onclick=()=>{S.contractId=null;hydrate(null);render();const d=el('history');if(d)d.open=true}", "if(nc)nc.onclick=()=>{S.creatingContract=true;S.contractId=null;hydrate(null);render();const d=el('history');if(d)d.open=true}"),
+          ("p_id:c?.id||null", "p_id:S.creatingContract?null:(c?.id||null)"),
+          ("S.contractId=Number(r.id);S.loadedContractId=null;await loadBundle();toast('계약·급여조건을 저장했습니다.')", "S.creatingContract=false;S.contractId=Number(r.id);S.loadedContractId=null;await loadBundle();toast('계약·급여조건을 저장했습니다.')"),
+          ("S.periodId=Number(ps.value);S.contractId=null;S.loadedContractId=null;render()", "S.creatingContract=false;S.periodId=Number(ps.value);S.contractId=null;S.loadedContractId=null;render()"),
+          ("S.employeeId=Number(el('employee').value)||null;S.bundle={periods:[],contracts:[],workdays:[]};S.periodId=null;S.contractId=null;hydrate(null);", "S.employeeId=Number(el('employee').value)||null;S.bundle={periods:[],contracts:[],workdays:[]};S.periodId=null;S.contractId=null;S.creatingContract=false;hydrate(null);")]
+          for a,b in reps:
+            if a in s: s=s.replace(a,b,1)
+            elif b not in s: raise SystemExit('contract editor anchor not found: '+a[:50])
+          p.write_text(s)
           PY
       - name: Verify patched anchors
         run: |
-          grep -n 'admin_hub.html' index.html
           grep -n 'returnHub' index.html
           grep -n 'min-width:132px' index.html
           grep -n "admin_hub.html" monthly_schedule.js
+          grep -n 'creatingContract' employment_contracts_v3.js
       - name: Commit patch
         run: |
           if git diff --quiet; then exit 0; fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add index.html monthly_schedule.js
-          git commit -m 'refactor: flatten admin task navigation'
+          git add index.html monthly_schedule.js employment_contracts_v3.js
+          git commit -m 'fix: preserve IA routes and new contract editor state'
           git push
