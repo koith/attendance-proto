@@ -1,0 +1,46 @@
+name: ia-ux-regression
+on:
+  push:
+    branches: [chatgpt-ia-ux-polish-v1]
+  pull_request:
+    branches: [main]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax
+        run: |
+          node --check employment_contracts_v3.js
+          node --check attendance_review.js
+          node --check monthly_schedule.js
+          node --check monthly_schedule_core.js
+          node --check qa_ia_ux_v1.mjs
+          node --check qa_employment_contract_v1.mjs
+          node --check qa_extract_logic.mjs
+      - name: IA UX V1 QA
+        run: node qa_ia_ux_v1.mjs
+      - name: Contract V1 QA
+        run: node qa_employment_contract_v1.mjs
+      - name: Monthly V1 QA
+        run: node qa_month_schedule_v1.mjs
+      - name: Monthly V1.1 QA
+        run: node qa_month_schedule_v1_1.mjs
+      - name: WorkSchedule QA
+        run: node qa_work_schedule.mjs
+      - name: Timezone QA
+        run: node qa_timezone_v62.mjs
+      - name: Overnight QA
+        run: node qa_overnight.mjs
+      - name: Extract current index logic
+        run: node qa_extract_logic.mjs
+      - name: Correction QA
+        run: node qa_correction.js
+      - name: Payroll Golden and regression
+        run: |
+          node qa_m85.js
+          node qa_m85b.js
