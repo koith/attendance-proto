@@ -2,7 +2,7 @@ import fs from 'node:fs';
 let pass=0,fail=0;const ok=(n,c)=>{if(c){pass++;console.log('✓ '+n)}else{fail++;console.error('✗ '+n)}};
 const d=fs.readFileSync('daily_schedule.js','utf8');
 const g=fs.readFileSync('monthly_schedule_contract_guard.js','utf8');
-ok('daily static controls bind before schedule load',d.indexOf('bindStaticControls()')<d.indexOf('load()}')&&!d.includes('await BE.isAdmin()'));
+ok('daily static controls bind before schedule load',d.includes("async function init(){Auth.load();bindStaticControls();if(!Auth.token)return location.href='index.html#admin';load()}")&&!d.includes('await BE.isAdmin()'));
 ok('daily load failure offers retry',d.includes('id="retry"')&&d.includes("el('retry').onclick=load"));
 ok('monthly guide writes are idempotent',g.includes('if(guide.innerHTML!==guideHtml)guide.innerHTML=guideHtml')&&g.includes('if(note.textContent!==text)note.textContent=text'));
 ok('monthly contract decoration is post-render',g.includes('const baseRender=render')&&g.includes('requestAnimationFrame'));
