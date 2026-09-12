@@ -1283,9 +1283,18 @@ async function renderAccountMgmt(){
 
 /* ---------------------- 관리자 화면 ---------------------- */
 async function renderAdmin(){
+  let adminUser=null;
+  try{ adminUser=LIVE?await Auth.getUser():null; }catch(_){ adminUser=null; }
+  const adminEmail=String(adminUser?.email||"관리자").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
   view.innerHTML=`
     <section class="admin-quick" aria-label="빠른 메뉴">
-      <div class="admin-quick-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px"><b>빠른 메뉴</b><button type="button" class="btn btn-secondary" style="min-height:36px;padding:7px 12px" onclick="Auth.clear();location.reload()">로그아웃</button></div>
+      <div class="admin-quick-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <b>빠른 메뉴</b>
+        <div style="display:flex;align-items:center;gap:8px;min-width:0">
+          <span title="${adminEmail}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.76rem;color:var(--text-muted)">${adminEmail}</span>
+          <button type="button" class="btn btn-secondary" style="min-height:36px;padding:7px 12px;flex:0 0 auto" onclick="Auth.clear();location.reload()">로그아웃</button>
+        </div>
+      </div>
       <div class="admin-quick-grid">
         <button type="button" id="quickSchedule"><span>📅</span><b>스케줄</b></button>
         <button type="button" id="quickEmployees"><span>👤</span><b>직원</b></button>
