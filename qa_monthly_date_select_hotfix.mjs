@@ -6,7 +6,7 @@ ok('step 2 next still advances wizard',m.includes("if(S.step===2&&S.mode==='WORK
 ok('date-select label remains step 2 CTA',m.includes('id="next">날짜 선택</button>'));
 ok('contract guide no longer observes app DOM',!g.includes('new MutationObserver')&&!g.includes('contractGuideObserver.observe'));
 ok('contract decoration is skipped before date step on mobile',g.includes('if(mobile()&&S.step<3)return'));
-ok('render wrapper decorates only after base render',()=>{});
-const wrapStart=g.indexOf('render=function(){');const baseCall=g.indexOf('baseRender();',wrapStart);const decorateCall=g.indexOf('requestAnimationFrame',baseCall);ok('render wrapper decorates only after base render',wrapStart>=0&&baseCall>wrapStart&&decorateCall>baseCall&&g.includes('S.step>=3'));
+const wrapStart=g.indexOf('render=function(){'),baseCall=g.indexOf('baseRender();',wrapStart),decorateCall=g.indexOf('requestAnimationFrame',baseCall);
+ok('render wrapper decorates only after base render',wrapStart>=0&&baseCall>wrapStart&&decorateCall>baseCall&&g.includes('S.step>=3'));
 ok('save interception remains limited to actual save buttons',g.includes("closest?.('#saveWizard')")&&g.includes("closest?.('#saveDraft')")&&!g.includes("closest?.('#next')"));
 console.log(`\nMonthly date-select hotfix QA: ${pass} passed, ${fail} failed`);if(fail)process.exit(1);
