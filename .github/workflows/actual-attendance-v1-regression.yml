@@ -1,0 +1,26 @@
+name: actual-attendance-v1-regression
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [chatgpt-actual-attendance-v1]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax
+        run: |
+          node --check actual_attendance.js
+          node --check qa_actual_attendance_v1.mjs
+      - name: Actual attendance V1 QA
+        run: node qa_actual_attendance_v1.mjs
+      - name: Entry integration
+        run: |
+          grep -q 'actual_attendance.html' index.html
+          grep -q 'actual_attendance.js' actual_attendance.html
+          grep -q 'actual_attendance.css' actual_attendance.html
