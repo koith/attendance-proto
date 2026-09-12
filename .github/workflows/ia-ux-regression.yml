@@ -1,7 +1,7 @@
 name: ia-ux-regression
 on:
   push:
-    branches: [chatgpt-ux-v1.1-mobile-repair, chatgpt-ux-v1.1.1-mobile-polish, chatgpt-ux-v1.1.2-iphone-final-repair, chatgpt-ux-v1.1.2-abc-repair, chatgpt-ux-v1.1.2-iphone-smoke-repair, chatgpt-ux-v1.1.2-period-time-row-repair, chatgpt-senior-requirements-audit-contract-ia, chatgpt-contract-return-schedule-guard, chatgpt-ios-network-resume-schedule-repair, chatgpt-schedule-buttons-hotfix, chatgpt-monthly-date-select-hotfix, chatgpt-admin-monthly-ux-cleanup, chatgpt-schedule-visual-ux-repair]
+    branches: [chatgpt-ux-v1.1-mobile-repair, chatgpt-ux-v1.1.1-mobile-polish, chatgpt-ux-v1.1.2-iphone-final-repair, chatgpt-ux-v1.1.2-abc-repair, chatgpt-ux-v1.1.2-iphone-smoke-repair, chatgpt-ux-v1.1.2-period-time-row-repair, chatgpt-senior-requirements-audit-contract-ia, chatgpt-contract-return-schedule-guard, chatgpt-ios-network-resume-schedule-repair, chatgpt-schedule-buttons-hotfix, chatgpt-monthly-date-select-hotfix, chatgpt-admin-monthly-ux-cleanup, chatgpt-schedule-visual-ux-repair, chatgpt-monthly-calendar-state-design]
   pull_request:
     branches: [main]
 jobs:
@@ -22,6 +22,7 @@ jobs:
           node --check monthly_schedule.js
           node --check monthly_schedule_core.js
           node --check monthly_schedule_contract_guard.js
+          node --check monthly_calendar_state_v1.js
           node --check ios_navigation_resilience.js
           node --check no_double_tap_zoom.js
           node --check qa_ux_v11.mjs
@@ -37,6 +38,7 @@ jobs:
           node --check qa_monthly_date_select_hotfix.mjs
           node --check qa_admin_monthly_ux_cleanup.mjs
           node --check qa_schedule_visual_ux_repair.mjs
+          node --check qa_monthly_calendar_state_v1.mjs
           node --check qa_employment_contract_v1.mjs
           node --check qa_extract_logic.mjs
       - name: UX V1.1 QA
@@ -65,6 +67,8 @@ jobs:
         run: node qa_admin_monthly_ux_cleanup.mjs
       - name: Schedule visual UX repair QA
         run: node qa_schedule_visual_ux_repair.mjs
+      - name: Monthly calendar state QA
+        run: node qa_monthly_calendar_state_v1.mjs
       - name: Contract V1 QA
         run: node qa_employment_contract_v1.mjs
       - name: Monthly V1 QA

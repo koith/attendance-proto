@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+let pass=0,fail=0;const ok=(n,c)=>{if(c){pass++;console.log('✓ '+n)}else{fail++;console.error('✗ '+n)}};
+const html=fs.readFileSync('monthly_schedule.html','utf8');
+const css=fs.readFileSync('monthly_calendar_state_v1.css','utf8');
+const js=fs.readFileSync('monthly_calendar_state_v1.js','utf8');
+ok('state css is loaded after contract guard',html.indexOf('monthly_schedule_contract_guard.css')<html.indexOf('monthly_calendar_state_v1.css'));
+ok('state js is loaded after contract guard',html.indexOf('monthly_schedule_contract_guard.js')<html.indexOf('monthly_calendar_state_v1.js'));
+ok('legend explains all major states',js.includes('미등록')&&js.includes('계약일')&&js.includes('저장된 일정')&&js.includes('현재 선택')&&js.includes('계약 외 선택'));
+ok('selection is not represented by fill color alone',css.includes('box-shadow:inset 0 0 0 2px var(--calendar-selected)')&&css.includes('border-color:var(--calendar-selected)'));
+ok('contract exception has separate semantic palette',css.includes('--calendar-extra:')&&css.includes('.calday.contract-extra.selected'));
+ok('contract baseline has separate semantic palette',css.includes('--calendar-contract:')&&css.includes('.calday.contract-day:before'));
+ok('saved schedule has separate semantic fill',css.includes('--calendar-saved-bg:')&&css.includes('.calday.saved:not(.selected)'));
+ok('calendar buttons expose selected state to assistive tech',js.includes("setAttribute('aria-pressed'"));
+ok('calendar buttons expose state labels',js.includes("setAttribute('aria-label'"));
+ok('render wrapper has no MutationObserver loop',!js.includes('MutationObserver')&&js.includes('requestAnimationFrame(decorateCalendarStateSemantics)'));
+console.log(`\nMonthly calendar state QA: ${pass} passed, ${fail} failed`);if(fail)process.exit(1);
