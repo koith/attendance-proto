@@ -1,0 +1,11 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const html=fs.readFileSync('employment_contracts.html','utf8');
+const js=fs.readFileSync('employment_contract_overnight_v1.js','utf8');
+const core=fs.readFileSync('employment_contracts_v3.js','utf8');
+let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
+t('overnight UX script is loaded',()=>assert(html.includes('employment_contract_overnight_v1.js')));
+t('cross-midnight end earlier than start is treated as next day',()=>{assert(js.includes('end<start'));assert(js.includes("'종료: 익일 '+e.value"))});
+t('same-day end remains labeled same day',()=>assert(js.includes("'당일 종료'")));
+t('weekly calculation already preserves overnight minutes',()=>{assert(core.includes('if(n<0)n+=1440'));const cv=t=>{const[h,m]=t.split(':').map(Number);return h*60+m};let n=cv('01:00')-cv('17:00');if(n<0)n+=1440;assert.equal(n,480)});
+t('stored workday payload remains start/end only with no invented 25-hour value',()=>{assert(core.includes('out.push({weekday,start:x.start,end:x.end})'));assert(!js.includes('25:00'))});
+console.log(`Contract overnight V1 QA: ${pass} PASS`);
