@@ -75,7 +75,11 @@ bindHistory=function(p){
 
 function returnToContractOrigin(){
   const from=new URLSearchParams(location.search).get('from');
-  location.href=from==='employees'?'index.html?focus=employees#admin':'index.html#admin';
+  const resume=Date.now();
+  const target=from==='employees'
+    ? `index.html?focus=employees&resume=${resume}#admin`
+    : `index.html?resume=${resume}#admin`;
+  location.replace(target);
 }
 
 saveContract=async function(){
