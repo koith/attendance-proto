@@ -1,7 +1,7 @@
 name: ia-ux-regression
 on:
   push:
-    branches: [chatgpt-ux-v1.1-mobile-repair, chatgpt-ux-v1.1.1-mobile-polish, chatgpt-ux-v1.1.2-iphone-final-repair, chatgpt-ux-v1.1.2-abc-repair, chatgpt-ux-v1.1.2-iphone-smoke-repair, chatgpt-ux-v1.1.2-period-time-row-repair]
+    branches: [chatgpt-ux-v1.1-mobile-repair, chatgpt-ux-v1.1.1-mobile-polish, chatgpt-ux-v1.1.2-iphone-final-repair, chatgpt-ux-v1.1.2-abc-repair, chatgpt-ux-v1.1.2-iphone-smoke-repair, chatgpt-ux-v1.1.2-period-time-row-repair, chatgpt-senior-requirements-audit-contract-ia]
   pull_request:
     branches: [main]
 jobs:
@@ -17,6 +17,7 @@ jobs:
         run: |
           node --check daily_schedule.js
           node --check employment_contracts_v3.js
+          node --check employment_contracts_ia_v4.js
           node --check attendance_review.js
           node --check monthly_schedule.js
           node --check monthly_schedule_core.js
@@ -27,6 +28,7 @@ jobs:
           node --check qa_ux_v112_abc.mjs
           node --check qa_ux_v112_smoke.mjs
           node --check qa_ux_v112_period_time.mjs
+          node --check qa_senior_audit_contract_ia.mjs
           node --check qa_employment_contract_v1.mjs
           node --check qa_extract_logic.mjs
       - name: UX V1.1 QA
@@ -41,6 +43,8 @@ jobs:
         run: node qa_ux_v112_smoke.mjs
       - name: UX V1.1.2 period/time-row repair QA
         run: node qa_ux_v112_period_time.mjs
+      - name: Senior requirements audit and contract IA QA
+        run: node qa_senior_audit_contract_ia.mjs
       - name: Contract V1 QA
         run: node qa_employment_contract_v1.mjs
       - name: Monthly V1 QA
