@@ -35,11 +35,14 @@ t('successful save is read back from employment bundle',()=>{
   assert(ec.includes("if(!S.bundle.contracts.some(x=>Number(x.id)===Number(r.id)))throw Error('READBACK_FAILED')"));
 });
 
-t('employment native date value box is explicitly vertically constrained',()=>{
-  assert(css.includes('.field input[type="date"]{display:block;height:46px;min-height:46px;line-height:46px;padding-top:0;padding-bottom:0}'));
-  assert(css.includes('.field input[type="date"]::-webkit-date-and-time-value{min-height:46px;line-height:46px;text-align:left;margin:0}'));
-  assert(css.includes('.field input[type="date"]::-webkit-datetime-edit{padding:0}'));
-  assert(!css.includes('.field input[type="date"]{-webkit-appearance:none'));
+t('employment date value is rendered by a deterministic centered overlay',()=>{
+  assert(css.includes('.date-shell{position:relative;height:46px;min-height:46px'));
+  assert(css.includes('.date-shell-value{position:absolute'));
+  assert(css.includes('top:50%;transform:translateY(-50%)'));
+  assert(css.includes('-webkit-text-fill-color:transparent!important'));
+  assert(ec.includes('function enhanceDateInput(input)'));
+  assert(ec.includes("enhanceDateInput(el('periodStart'))"));
+  assert(ec.includes("enhanceDateInput(el('periodEnd'))"));
 });
 
 t('history heading uses the same card inset as its body',()=>{
