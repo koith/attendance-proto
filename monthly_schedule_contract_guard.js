@@ -51,12 +51,12 @@ async function decorateContractGuide(){
       const head=document.querySelector('.weekday-head');
       let guide=document.getElementById('contractGuide');
       if(!guide&&head){guide=document.createElement('div');guide.id='contractGuide';guide.className='contract-guide';head.parentNode.insertBefore(guide,head)}
-      if(guide)guide.innerHTML=`계약 근무요일 <b>${contractWeekdayLabel(bundle,sample)}</b><br><span>다른 요일도 대타·추가근무 일정으로 등록할 수 있습니다.</span>`;
+      if(guide){const guideHtml=`계약 근무요일 <b>${contractWeekdayLabel(bundle,sample)}</b><br><span>다른 요일도 대타·추가근무 일정으로 등록할 수 있습니다.</span>`;if(guide.innerHTML!==guideHtml)guide.innerHTML=guideHtml}
     }
     const selected=[...S.selected].map(d=>({d,issue:contractIssue(bundle,d)})).filter(x=>x.issue);
     let note=document.getElementById('contractExceptionNote');
     const count=document.querySelector('.selected-count');
-    if(selected.length&&count){if(!note){note=document.createElement('div');note.id='contractExceptionNote';note.className='contract-exception-note';count.after(note)}note.textContent=`⚠ ${issueText(selected.map(x=>({row:{},issue:x.issue})))} 포함 — 저장 시 확인합니다.`}
+    if(selected.length&&count){if(!note){note=document.createElement('div');note.id='contractExceptionNote';note.className='contract-exception-note';count.after(note)}const text=`⚠ ${issueText(selected.map(x=>({row:{},issue:x.issue})))} 포함 — 저장 시 확인합니다.`;if(note.textContent!==text)note.textContent=text}
     else if(note)note.remove();
   }
   const review=document.querySelector('.review');
@@ -65,13 +65,15 @@ async function decorateContractGuide(){
     const issues=await issuesForPayload(payload);
     let row=document.getElementById('contractReviewException');
     if(issues.length&&!row){row=document.createElement('div');row.id='contractReviewException';row.className='contract-review-exception';review.after(row)}
-    if(row){if(issues.length)row.textContent=`⚠ ${issueText(issues)} · 계약과 다른 예정근무입니다.`;else row.remove()}
+    if(row){if(issues.length){const text=`⚠ ${issueText(issues)} · 계약과 다른 예정근무입니다.`;if(row.textContent!==text)row.textContent=text}else row.remove()}
   }
 }
 
-const contractGuideObserver=new MutationObserver(()=>{queueMicrotask(decorateContractGuide)});
+let decorateQueued=false;
+const queueDecorate=()=>{if(decorateQueued)return;decorateQueued=true;requestAnimationFrame(()=>{decorateQueued=false;decorateContractGuide()})};
+const contractGuideObserver=new MutationObserver(queueDecorate);
 contractGuideObserver.observe(document.getElementById('app'),{childList:true,subtree:true});
-queueMicrotask(decorateContractGuide);
+queueDecorate();
 
 document.addEventListener('click',async e=>{
   const save=e.target.closest?.('#saveWizard');
