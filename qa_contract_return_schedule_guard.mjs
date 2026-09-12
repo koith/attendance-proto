@@ -7,7 +7,7 @@ const m=fs.readFileSync('monthly_schedule.js','utf8');
 ok('first contract detected before save',c.includes('const isFirstContract=!c?.id'));
 ok('first contract save returns to origin after readback',c.includes("if(isFirstContract)setTimeout(returnToContractOrigin,700)")&&c.indexOf("READBACK_FAILED")<c.indexOf("setTimeout(returnToContractOrigin,700)"));
 ok('existing contract edit stays on page',!c.includes('if(!isFirstContract)setTimeout'));
-ok('employee/admin back context reused',c.includes("from==='employees'?'index.html?focus=employees#admin':'index.html#admin'"));
+ok('employee/admin back context reused',c.includes("from==='employees'")&&c.includes('focus=employees&resume=${resume}#admin')&&c.includes('index.html?resume=${resume}#admin'));
 ok('monthly guard loaded after existing schedule code',mh.indexOf('monthly_schedule.js')<mh.indexOf('monthly_schedule_contract_guard.js'));
 ok('contract source uses existing employment bundle RPC',g.includes("admin_employment_bundle"));
 ok('hourly weekday comparison is contract workday based',g.includes("c.payroll_type!=='HOURLY'")&&g.includes('contract_id')&&g.includes('weekday(date)'));
