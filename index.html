@@ -1452,11 +1452,9 @@ async function renderAdmin(){
     const seq=String(i+1).padStart(2,"0");
     div.innerHTML=`<div class="nm" style="flex:1"><span style="display:inline-block;min-width:30px;color:var(--text-muted);font-size:.78rem;font-variant-numeric:tabular-nums">${seq}</span>${e.name}</div>
       <button class="btn btn-secondary btn-sm" data-contract="${e.id}">계약</button>
-      <button class="btn btn-secondary btn-sm" data-docs="${e.id}">계약서</button>
       <button class="btn btn-danger btn-sm" data-deact="${e.id}">비활성화</button>`;
     div.querySelector("[data-deact]").onclick=async()=>{ if(confirm(`${e.name} 직원을 비활성화할까요?`)){ await BE.deactivateEmployee(e.id); renderAdmin(); } };
     div.querySelector("[data-contract]").onclick=()=>{ location.href=`employment_contracts.html?employee=${e.id}&from=employees`; };
-    div.querySelector("[data-docs]").onclick=()=>openDocsModal(e);
     empsEl.appendChild(div);
   }
   if(new URLSearchParams(location.search).get("focus")==="employees") empsEl.scrollIntoView({behavior:"auto",block:"start"});
