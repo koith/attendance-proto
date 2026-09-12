@@ -1,0 +1,14 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const html=fs.readFileSync('employment_contracts.html','utf8');
+const js=fs.readFileSync('employment_contract_docs_v1.js','utf8');
+const ia=fs.readFileSync('employment_contracts_ia_v4.js','utf8');
+let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
+t('contract doc integration loads after atomic flow and before form-state wrapper',()=>{const a=html.indexOf('employment_period_atomic_v1.js'),d=html.indexOf('employment_contract_docs_v1.js'),s=html.indexOf('employment_contract_form_state_fix.js');assert(a>0&&d>a&&s>d)});
+t('documents are queried by employee + selected contract',()=>{assert(js.includes("admin_contract_doc_list"));assert(js.includes('p_contract_id:contractId'));assert(js.includes('const c=currentContract()'))});
+t('new uploads record selected contract metadata',()=>{assert(js.includes("admin_contract_doc_add"));assert(js.includes('BE.contractDocAdd(S.employeeId,c.id,path,file)'));assert(js.includes('p_contract_id:contractId'))});
+t('contract detail exposes contract-local attachment panel',()=>{assert(js.includes('<h3>근로계약서</h3>'));assert(js.includes('id="contractDocList"'));assert(js.includes('id="contractDocPick"'))});
+t('legacy employee-only documents remain visible as unclassified and are never auto-assigned',()=>{assert(js.includes('admin_unclassified_doc_list'));assert(js.includes('기존 미분류 계약서'));assert(!js.includes('UPDATE employee_documents'));assert(!js.includes('assignContract'))});
+t('upload validates supported file types and 10MB limit',()=>{assert(js.includes("'application/pdf','image/jpeg','image/png'"));assert(js.includes('file.size>10485760'))});
+t('existing delete policy remains explicit rather than silently bypassed',()=>{assert(js.includes("TOO_OLD_TO_DELETE"));assert(js.includes("NOT_OWN_UPLOAD"));assert(js.includes("admin_doc_delete"))});
+t('period detail contract list remains source for selecting document context',()=>{assert(ia.includes('data-contract-view'));assert(ia.includes('S.contractId=Number(b.dataset.contractView)'))});
+console.log(`Contract docs V1 QA: ${pass} PASS`);
