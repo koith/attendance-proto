@@ -42,6 +42,5 @@
     originalRenderDay(day);
     const ss=sessionsForDay(day);
     document.querySelectorAll('.sessions .session').forEach((row,i)=>{const s=ss[i];if(!s)return;const actions=document.createElement('div');actions.className='session-actions';actions.innerHTML='<button type="button" class="session-fix">정정</button>';actions.querySelector('button').onclick=()=>openCorrection(day,s);row.appendChild(actions)});
-    document.querySelectorAll('.person-row .bar').forEach((bar,i)=>{const s=ss[i];if(!s)return;bar.setAttribute('role','button');bar.setAttribute('tabindex','0');bar.setAttribute('aria-label','근태 정정 열기');bar.onclick=()=>openCorrection(day,s);bar.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openCorrection(day,s)}}});
   };
 })();
