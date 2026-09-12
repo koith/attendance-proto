@@ -1,0 +1,11 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const r=p=>fs.readFileSync(p,'utf8');const h=r('actual_attendance.html'),j=r('actual_attendance_correction.js'),c=r('actual_attendance_correction.css');let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
+t('정정 스크립트는 실근무 본체 뒤에 로드',()=>{assert(h.indexOf('actual_attendance.js')<h.indexOf('actual_attendance_correction.js'));assert(h.includes('actual_attendance_correction.css'))});
+t('세션별 정정 진입을 제공',()=>{assert(j.includes("document.querySelectorAll('.sessions .session')"));assert(j.includes("class=\"session-fix\">정정"));assert(!j.includes(".person-row .bar'))"))});
+t('정정은 raw attendance 변경 대신 admin_correct_event 사용',()=>{assert(j.includes("rpc('admin_correct_event'"));assert(j.includes("p_action:'EDIT_TIME'"));assert(j.includes("p_action:'ADD'"));assert(!j.includes('attendance_events'))});
+t('기존 이벤트 id를 보존해 EDIT_TIME correction 생성',()=>{assert(j.includes('p_event_id:Number(s.inId)'));assert(j.includes('p_event_id:Number(s.outId)'));assert(j.includes("p_new_type:'IN'"));assert(j.includes("p_new_type:'OUT'"))});
+t('누락 출퇴근은 ADD correction으로만 보완',()=>{assert(j.includes("if(!s.inId&&nextIn)"));assert(j.includes("if(!s.outId&&nextOut)"));assert(j.includes('p_event_id:null'))});
+t('정정 사유 필수 및 역전시간 방지',()=>{assert(j.includes("if(!reason)return toastCorrection('정정 사유를 입력하세요.'"));assert(j.includes('if(a&&b&&b<=a)'));assert(j.includes('퇴근 시각은 출근 시각보다 늦어야 합니다.'))});
+t('저장 후 effective attendance를 재조회하고 같은 날짜로 복귀',()=>{assert(j.includes('await loadMonth();renderDay(day)'))});
+t('모바일 datetime 입력 폭 방어',()=>{assert(c.includes('input{display:block;width:100%;min-width:0;max-width:100%'));assert(c.includes('-webkit-appearance:none'))});
+console.log(`Actual attendance correction V1 QA: ${pass} PASS`);
