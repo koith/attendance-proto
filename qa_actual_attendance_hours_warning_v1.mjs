@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+const js=fs.readFileSync('actual_attendance_hours_warning_v1.js','utf8');
+const html=fs.readFileSync('actual_attendance.html','utf8');
+const must=(v,m)=>{if(!v)throw new Error(m)};
+must(html.includes('actual_attendance_hours_warning_v1.js'),'hours warning layer not loaded');
+must(js.includes('DISPLAY_START=7'),'07:00 display start missing');
+must(js.includes('DISPLAY_END=25'),'25:00 display end missing');
+must(js.includes('warning only'),'warning-only intent missing');
+must(!js.includes('admin_correct_event'),'warning layer must not correct attendance');
+must(!js.includes('attendance_events'),'warning layer must not touch raw attendance');
+console.log('actual attendance hours warning QA PASS');
