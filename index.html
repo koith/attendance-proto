@@ -297,6 +297,7 @@
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js" defer></script>
+<script src="payroll_elapsed_weeks_v1.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -1569,8 +1570,8 @@ bindAddModal();
 /* ---------------------- 급여 화면 (Sprint 2) ---------------------- */
 // 월 내 각 직원의 완결세션 합계시간 + 근무주수(주휴 계산용) 산출
 function weeksInMonth(ym){
-  // 해당 월에 걸친 주(월요일 시작) 수를 근사 — 엑셀 관행상 보통 4주 사용
-  return 4; // V0.1: 매장 관행(4주 기준). 추후 실제 근무주 계산으로 확장.
+  // 과거월의 기존 4주 기준은 보존하되, 현재/미래월은 아직 끝나지 않은 주를 선반영하지 않는다.
+  return window.__payrollElapsedWeeksV1.completedWeeksInMonth(ym,kstNow());
 }
 async function renderPay(){
   const now=kstNow(); const p=n=>String(n).padStart(2,"0");
