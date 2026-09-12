@@ -1,0 +1,39 @@
+name: actual-attendance-entry-patch
+on:
+  push:
+    branches: [chatgpt-actual-attendance-v1]
+jobs:
+  patch:
+    if: "!contains(github.event.head_commit.message, '[actual-entry-patched]')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt-actual-attendance-v1
+      - name: Patch admin quick action
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          old='<button type="button" id="quickSchedule"><span>📅</span><b>스케줄</b></button>'
+          new='<button type="button" id="quickSchedule"><span>📊</span><b>근무현황</b></button>'
+          assert old in s, 'quickSchedule label marker missing'
+          s=s.replace(old,new,1)
+          old='document.getElementById("quickSchedule").onclick=()=>{ location.href="monthly_schedule.html"; };'
+          new='document.getElementById("quickSchedule").onclick=()=>{ location.href="actual_attendance.html"; };'
+          assert old in s, 'quickSchedule handler marker missing'
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Remove one-shot workflow
+        run: rm .github/workflows/actual-attendance-entry-patch.yml
+      - name: Commit patch
+        run: |
+          git config user.name koith
+          git config user.email 48688331+koith@users.noreply.github.com
+          git add index.html .github/workflows/actual-attendance-entry-patch.yml
+          git commit -m 'Route admin quick action to actual attendance [actual-entry-patched]'
+          git push origin HEAD:chatgpt-actual-attendance-v1
