@@ -1285,7 +1285,7 @@ async function renderAccountMgmt(){
 async function renderAdmin(){
   view.innerHTML=`
     <section class="admin-quick" aria-label="빠른 메뉴">
-      <div class="admin-quick-title"><b>빠른 메뉴</b></div>
+      <div class="admin-quick-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px"><b>빠른 메뉴</b><button type="button" class="btn btn-secondary" style="min-height:36px;padding:7px 12px" onclick="Auth.clear();location.reload()">로그아웃</button></div>
       <div class="admin-quick-grid">
         <button type="button" id="quickSchedule"><span>📅</span><b>스케줄</b></button>
         <button type="button" id="quickEmployees"><span>👤</span><b>직원</b></button>
