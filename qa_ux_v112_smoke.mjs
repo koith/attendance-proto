@@ -1,0 +1,11 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const r=p=>fs.readFileSync(p,'utf8');let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
+const ec=r('employment_contracts_v3.js'),css=r('employment_contracts.css'),guard=r('no_double_tap_zoom.js');
+const pages=['index.html','employment_contracts.html','daily_schedule.html','monthly_schedule.html','attendance_review.html'];
+t('contract date value uses deterministic centered overlay',()=>{assert(css.includes('.date-shell-value{position:absolute'));assert(css.includes('top:50%;transform:translateY(-50%)'));assert(css.includes('-webkit-text-fill-color:transparent!important'));assert(ec.includes("function enhanceDateInput(input)"));assert(ec.includes("enhanceDateInput(el('periodStart'))"));assert(ec.includes("enhanceDateInput(el('periodEnd'))"))});
+t('programmatic new-period clear also syncs date overlay',()=>{assert(ec.includes("syncDateShell(el('periodStart'));syncDateShell(el('periodEnd'))"))});
+t('successful contract toast is one line',()=>{assert(ec.includes("(err?' err':' one-line')"));assert(css.includes('.toast.one-line{width:max-content'));assert(css.includes('white-space:nowrap'))});
+t('shared double-tap guard cancels only second nearby non-form touch',()=>{assert(guard.includes("document.addEventListener('touchend'"));assert(guard.includes('{passive:false,capture:true}'));assert(guard.includes("now-lastAt<320"));assert(guard.includes("input,select,textarea,label"));assert(guard.includes('e.preventDefault()'))});
+t('double-tap guard is loaded on operational pages',()=>pages.forEach(p=>assert(r(p).includes('<script src="no_double_tap_zoom.js" defer></script>'))));
+t('contract save fix remains intact',()=>{assert(ec.includes('p_effective_to:c?.effective_to??p.ended_on??null'));assert(ec.includes("throw Error('READBACK_FAILED')"));assert(ec.includes("toast('계약·급여조건을 저장했습니다.')"))});
+console.log(`UX V1.1.2 iPhone smoke QA: ${pass} PASS`);
