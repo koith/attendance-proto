@@ -180,7 +180,7 @@
   button,a,.btn,.emp,.att-card,.tabs a{touch-action:manipulation;}
   .admin-quick{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:16px;}
   .admin-quick-title{font-size:.82rem;color:var(--text-muted);margin-bottom:10px;}
-  .admin-quick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+  .admin-quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
   .admin-quick-grid button{min-width:0;min-height:64px;border:1px solid var(--border);border-radius:12px;background:var(--surface-muted);color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:7px 3px;}
   .admin-quick-grid button span{font-size:1.15rem}.admin-quick-grid button b{font-size:.73rem;font-weight:650;}
   .admin-pending-head{display:flex;align-items:center;justify-content:space-between;min-height:36px;margin-top:14px;padding:2px;color:var(--text-muted);font-size:.8rem;font-weight:650;letter-spacing:.02em}.pending-badge{display:inline-flex;align-items:center;justify-content:center;min-width:34px;min-height:24px;padding:2px 8px;border-radius:999px;background:var(--brand-050);color:var(--brand-700);font-size:.74rem;font-weight:700;letter-spacing:0}.admin-pending-head.quiet .pending-badge{background:var(--surface-muted);color:var(--text-muted);font-weight:600}
@@ -1290,7 +1290,6 @@ async function renderAdmin(){
         <button type="button" id="quickSchedule"><span>📅</span><b>스케줄</b></button>
         <button type="button" id="quickEmployees"><span>👤</span><b>직원</b></button>
         <button type="button" id="quickContracts"><span>💼</span><b>계약</b></button>
-        <button type="button" id="quickDocs"><span>📄</span><b>계약서</b></button>
       </div>
       <div class="admin-pending-head" id="attendanceAlert"><span>직원 정정요청</span><span class="pending-badge" id="attendanceAlertText">0건</span></div>
     </section>
@@ -1313,7 +1312,6 @@ async function renderAdmin(){
   document.getElementById("quickSchedule").onclick=()=>{ location.href="daily_schedule.html"; };
   document.getElementById("quickEmployees").onclick=()=>document.getElementById("adEmps")?.scrollIntoView({behavior:"smooth",block:"start"});
   document.getElementById("quickContracts").onclick=()=>{ location.href="employment_contracts.html?from=admin"; };
-  document.getElementById("quickDocs").onclick=()=>document.getElementById("adEmps")?.scrollIntoView({behavior:"smooth",block:"start"});
   if(LIVE){ renderAccountMgmt(); }
 
   // 정정요청 대기 큐 (LIVE 전용)
