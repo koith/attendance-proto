@@ -1,0 +1,21 @@
+name: contract-docs-v1-regression
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [chatgpt-contract-doc-history]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax
+        run: |
+          node --check employment_contract_docs_v1.js
+          node --check qa_contract_docs_v1.mjs
+      - name: Contract documents V1 QA
+        run: node qa_contract_docs_v1.mjs
