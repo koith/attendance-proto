@@ -1297,7 +1297,7 @@ async function renderAdmin(){
         </div>
       </div>
       <div class="admin-quick-grid">
-        <button type="button" id="quickSchedule"><span>📅</span><b>스케줄</b></button>
+        <button type="button" id="quickSchedule"><span>📊</span><b>근무현황</b></button>
         <button type="button" id="quickEmployees"><span>👤</span><b>직원</b></button>
         <button type="button" id="quickContracts"><span>💼</span><b>계약</b></button>
       </div>
@@ -1319,7 +1319,7 @@ async function renderAdmin(){
   document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };
   document.getElementById("adSched").onclick=()=>{ location.href="daily_schedule.html"; };
   document.getElementById("adSchedMonth").onclick=()=>{ location.href="monthly_schedule.html"; };
-  document.getElementById("quickSchedule").onclick=()=>{ location.href="monthly_schedule.html"; };
+  document.getElementById("quickSchedule").onclick=()=>{ location.href="actual_attendance.html"; };
   document.getElementById("quickEmployees").onclick=()=>document.getElementById("adEmps")?.scrollIntoView({behavior:"smooth",block:"start"});
   document.getElementById("quickContracts").onclick=()=>{ location.href="employment_contracts.html?from=admin"; };
   if(LIVE){ renderAccountMgmt(); }
