@@ -19,3 +19,8 @@ jobs:
           node --check qa_actual_attendance_v1.mjs
       - name: Actual attendance V1 QA
         run: node qa_actual_attendance_v1.mjs
+      - name: Entry integration
+        run: |
+          grep -q 'actual_attendance.html' index.html
+          grep -q 'actual_attendance.js' actual_attendance.html
+          grep -q 'actual_attendance.css' actual_attendance.html
