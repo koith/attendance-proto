@@ -1,0 +1,20 @@
+:root{--calendar-contract:#245b8a;--calendar-contract-bg:#eaf3fb;--calendar-saved:#1d5d3a;--calendar-saved-bg:#edf7f0;--calendar-selected:#14532d;--calendar-extra:#9a5a00;--calendar-extra-bg:#fff4d6;--calendar-neutral:#ffffff;--calendar-neutral-border:#cfd8d2}
+.calendar-legend{display:flex;flex-wrap:wrap;gap:8px 10px;margin:10px 0 8px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#fafcfb;font-size:.7rem;color:var(--muted)}
+.calendar-legend .legend-item{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.calendar-legend .legend-swatch{width:16px;height:16px;border-radius:5px;border:1px solid var(--calendar-neutral-border);background:#fff;display:inline-block;position:relative;flex:0 0 auto}
+.calendar-legend .contract .legend-swatch{border:2px solid var(--calendar-contract);background:var(--calendar-contract-bg)}
+.calendar-legend .saved .legend-swatch{border-color:#86b596;background:var(--calendar-saved-bg)}
+.calendar-legend .selected .legend-swatch{border:3px solid var(--calendar-selected);background:#fff}
+.calendar-legend .extra .legend-swatch{border:3px solid var(--calendar-extra);background:var(--calendar-extra-bg)}
+.calendar-legend-note{margin:-2px 0 10px;font-size:.66rem;line-height:1.4;color:var(--muted)}
+.calday,.daycell{border-color:var(--calendar-neutral-border);background:var(--calendar-neutral)}
+.calday.saved:not(.selected),.daycell.saved:not(.selected){background:var(--calendar-saved-bg);border-color:#86b596}
+.calday.selected:not(.contract-extra),.daycell.selected:not(.contract-extra){background:#fff!important;border-color:var(--calendar-selected)!important;box-shadow:inset 0 0 0 2px var(--calendar-selected)!important;color:var(--text)!important}
+.calday.selected:not(.contract-extra) small,.daycell.selected:not(.contract-extra) .s{color:var(--calendar-selected)!important}
+.calday.contract-extra.selected,.daycell.contract-extra.selected{background:var(--calendar-extra-bg)!important;border-color:var(--calendar-extra)!important;box-shadow:inset 0 0 0 2px var(--calendar-extra)!important;color:#6f4300!important}
+.calday.contract-extra.selected small,.daycell.contract-extra.selected .s{color:#6f4300!important}
+.calday.contract-day:before{background:var(--calendar-contract-bg)!important;color:var(--calendar-contract)!important;border:1px solid #b7d2e8}
+.calday.contract-day.selected:before{background:var(--calendar-contract-bg)!important;color:var(--calendar-contract)!important}
+.calday.contract-extra:not(.selected),.daycell.contract-extra:not(.selected){box-shadow:none!important;border-style:dashed;border-color:#caa45b}
+.calday:focus-visible,.daycell:focus-visible{outline:3px solid #111;outline-offset:2px}
+@media(max-width:768px){.calendar-legend{gap:7px 9px;font-size:.68rem}.calendar-legend .legend-swatch{width:15px;height:15px}.calendar-legend-note{font-size:.64rem}}
