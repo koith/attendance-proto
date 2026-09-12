@@ -3,7 +3,7 @@
   const drafts=new Map();
   const ids=['hourlyWage','monthlySalary','businessRate','nightStart','nightMode','nightValue','contractMemo'];
   const originalRender=render;
-  const contextKey=()=>[S.employeeId??'',S.periodId??'',S.creatingContract?'new':(S.contractId??'')].join(':');
+  const contextKey=()=>[S.employeeId??'',S.pendingNewPeriod?'pending-period':(S.periodId??''),S.creatingContract?'new':(S.contractId??'')].join(':');
   function capture(key){
     if(!key)return;
     const draft={};
