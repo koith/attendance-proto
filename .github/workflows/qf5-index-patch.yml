@@ -1,0 +1,36 @@
+name: qf5-index-patch
+on:
+  push:
+    branches: [chatgpt-quick-fix-pack-5]
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[qf5-patched]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt-quick-fix-pack-5
+      - name: Remove duplicate employee-level contract document entry
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html');s=p.read_text()
+          old='''      <button class="btn btn-secondary btn-sm" data-contract="${e.id}">계약</button>\n      <button class="btn btn-secondary btn-sm" data-docs="${e.id}">계약서</button>\n      <button class="btn btn-danger btn-sm" data-deact="${e.id}">비활성화</button>`;'''
+          new='''      <button class="btn btn-secondary btn-sm" data-contract="${e.id}">계약</button>\n      <button class="btn btn-danger btn-sm" data-deact="${e.id}">비활성화</button>`;'''
+          if s.count(old)!=1: raise SystemExit(f'button block matches={s.count(old)}')
+          s=s.replace(old,new)
+          old2='''    div.querySelector("[data-docs]").onclick=()=>openDocsModal(e);\n'''
+          if s.count(old2)!=1: raise SystemExit(f'docs handler matches={s.count(old2)}')
+          s=s.replace(old2,'')
+          p.write_text(s)
+          PY
+      - name: Remove one-shot workflow and commit
+        run: |
+          rm .github/workflows/qf5-index-patch.yml
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add index.html .github/workflows/qf5-index-patch.yml
+          git commit -m "Remove duplicate employee contract-file entry [qf5-patched]"
+          git push origin HEAD:chatgpt-quick-fix-pack-5
