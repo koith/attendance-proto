@@ -13,17 +13,20 @@ async function ensureContractBundle(empId){
 function applicableContract(bundle,date){
   return [...(bundle?.contracts||[])].filter(c=>String(c.effective_from)<=date&&(!c.effective_to||String(c.effective_to)>=date)).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)))[0]||null;
 }
+function hourlyContractWorkdays(bundle,date){
+  const c=applicableContract(bundle,date);if(!c||c.payroll_type!=='HOURLY')return null;
+  return {contract:c,days:new Set((bundle?.workdays||[]).filter(w=>Number(w.contract_id)===Number(c.id)).map(w=>Number(w.weekday)))};
+}
+function isContractWorkday(bundle,date){const h=hourlyContractWorkdays(bundle,date);return !!(h&&h.days.has(weekday(date)))}
 function contractIssue(bundle,date){
   const c=applicableContract(bundle,date);
   if(!c)return (bundle?.contracts||[]).length?'NO_APPLICABLE_CONTRACT':'NO_CONTRACT';
   if(c.payroll_type!=='HOURLY')return null;
-  const allowed=new Set((bundle?.workdays||[]).filter(w=>Number(w.contract_id)===Number(c.id)).map(w=>Number(w.weekday)));
-  return allowed.has(weekday(date))?null:'OUTSIDE_CONTRACT_WEEKDAY';
+  const h=hourlyContractWorkdays(bundle,date);return h&&h.days.has(weekday(date))?null:'OUTSIDE_CONTRACT_WEEKDAY';
 }
 function contractWeekdayLabel(bundle,date){
-  const c=applicableContract(bundle,date);if(!c||c.payroll_type!=='HOURLY')return'';
-  const days=(bundle?.workdays||[]).filter(w=>Number(w.contract_id)===Number(c.id)).map(w=>Number(w.weekday)).sort((a,b)=>a-b);
-  return days.map(x=>WD[x]).join('·');
+  const h=hourlyContractWorkdays(bundle,date);if(!h)return'';
+  return [...h.days].sort((a,b)=>a-b).map(x=>WD[x]).join('·');
 }
 async function issuesForPayload(payload){
   const work=(payload||[]).filter(x=>x&&x.op==='SET'&&x.status==='WORK');
@@ -45,14 +48,14 @@ async function decorateContractGuide(){
     document.querySelectorAll('.calday[data-date]').forEach(b=>{
       const issue=contractIssue(bundle,b.dataset.date);
       b.classList.toggle('contract-extra',!!issue);
-      b.classList.toggle('contract-day',!issue&&!!applicableContract(bundle,b.dataset.date));
+      b.classList.toggle('contract-day',isContractWorkday(bundle,b.dataset.date));
     });
     const sample=monthDates(S.ym).find(d=>applicableContract(bundle,d)?.payroll_type==='HOURLY');
     if(sample){
       const head=document.querySelector('.weekday-head');
       let guide=document.getElementById('contractGuide');
       if(!guide&&head){guide=document.createElement('div');guide.id='contractGuide';guide.className='contract-guide';head.parentNode.insertBefore(guide,head)}
-      if(guide){const guideHtml=`계약 근무요일 <b>${contractWeekdayLabel(bundle,sample)}</b><br><span>다른 요일도 대타·추가근무 일정으로 등록할 수 있습니다.</span>`;if(guide.innerHTML!==guideHtml)guide.innerHTML=guideHtml}
+      if(guide){const guideHtml=`계약 근무요일 <b>${contractWeekdayLabel(bundle,sample)}</b><br><span>달력의 ‘계약’ 표시는 정기 계약요일이며, 다른 요일도 대타·추가근무 일정으로 등록할 수 있습니다.</span>`;if(guide.innerHTML!==guideHtml)guide.innerHTML=guideHtml}
     }
     const selected=[...S.selected].map(d=>({d,issue:contractIssue(bundle,d)})).filter(x=>x.issue);
     let note=document.getElementById('contractExceptionNote');
@@ -70,11 +73,14 @@ async function decorateContractGuide(){
   }
 }
 
-/* Decorate only after the app's own render has completed. Do not observe app DOM mutations:
-   the observer previously coupled contract decoration to wizard navigation and could interfere with
-   the step-2 `날짜 선택` transition on iOS Safari. */
+/* Decorate only after the app's own render has completed. Mobile save success returns directly
+   to the same employee's refreshed month instead of inserting a redundant completion screen. */
 const baseRender=render;
-render=function(){baseRender();if(!mobile()||S.step>=3)requestAnimationFrame(()=>{decorateContractGuide()})};
+render=function(){
+  if(mobile()&&S.saved){S.saved=false;S.step=3;S.selected.clear()}
+  baseRender();
+  if(!mobile()||S.step>=3)requestAnimationFrame(()=>{decorateContractGuide()})
+};
 if(!mobile()||S.step>=3)requestAnimationFrame(()=>{decorateContractGuide()});
 
 document.addEventListener('click',async e=>{
