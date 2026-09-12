@@ -1,7 +1,7 @@
 name: ia-ux-regression
 on:
   push:
-    branches: [chatgpt-ux-v1.1-mobile-repair, chatgpt-ux-v1.1.1-mobile-polish, chatgpt-ux-v1.1.2-iphone-final-repair, chatgpt-ux-v1.1.2-abc-repair, chatgpt-ux-v1.1.2-iphone-smoke-repair, chatgpt-ux-v1.1.2-period-time-row-repair, chatgpt-senior-requirements-audit-contract-ia, chatgpt-contract-return-schedule-guard, chatgpt-ios-network-resume-schedule-repair, chatgpt-schedule-buttons-hotfix, chatgpt-monthly-date-select-hotfix, chatgpt-admin-monthly-ux-cleanup, chatgpt-schedule-visual-ux-repair, chatgpt-monthly-calendar-state-design, chatgpt-schedule-auth-badge-final, chatgpt-ios-pinch-admin-repair, chatgpt-quick-fix-pack-1, chatgpt-atomic-period-contract]
+    branches: [chatgpt-ux-v1.1-mobile-repair, chatgpt-ux-v1.1.1-mobile-polish, chatgpt-ux-v1.1.2-iphone-final-repair, chatgpt-ux-v1.1.2-abc-repair, chatgpt-ux-v1.1.2-iphone-smoke-repair, chatgpt-ux-v1.1.2-period-time-row-repair, chatgpt-senior-requirements-audit-contract-ia, chatgpt-contract-return-schedule-guard, chatgpt-ios-network-resume-schedule-repair, chatgpt-schedule-buttons-hotfix, chatgpt-monthly-date-select-hotfix, chatgpt-admin-monthly-ux-cleanup, chatgpt-schedule-visual-ux-repair, chatgpt-monthly-calendar-state-design, chatgpt-schedule-auth-badge-final, chatgpt-ios-pinch-admin-repair, chatgpt-quick-fix-pack-1, chatgpt-atomic-period-contract, chatgpt-overnight-contract-ui]
   pull_request:
     branches: [main]
 jobs:
@@ -20,6 +20,7 @@ jobs:
           node --check employment_contracts_ia_v4.js
           node --check employment_contract_form_state_fix.js
           node --check employment_period_atomic_v1.js
+          node --check employment_contract_overnight_ui.js
           node --check attendance_review.js
           node --check monthly_schedule.js
           node --check monthly_schedule_core.js
@@ -45,6 +46,7 @@ jobs:
           node --check qa_schedule_auth_contract_badge.mjs
           node --check qa_contract_form_state_fix.mjs
           node --check qa_atomic_period_contract.mjs
+          node --check qa_contract_overnight_ui.mjs
           node --check qa_employment_contract_v1.mjs
           node --check qa_extract_logic.mjs
       - name: UX V1.1 QA
@@ -81,6 +83,8 @@ jobs:
         run: node qa_contract_form_state_fix.mjs
       - name: Atomic employment period + contract QA
         run: node qa_atomic_period_contract.mjs
+      - name: Contract overnight UI QA
+        run: node qa_contract_overnight_ui.mjs
       - name: Contract V1 QA
         run: node qa_employment_contract_v1.mjs
       - name: Monthly V1 QA
