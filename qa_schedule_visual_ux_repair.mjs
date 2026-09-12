@@ -1,0 +1,18 @@
+import fs from 'node:fs';
+let pass=0,fail=0;const ok=(n,c)=>{if(c){pass++;console.log('✓ '+n)}else{fail++;console.error('✗ '+n)}};
+const dailyCss=fs.readFileSync('daily_schedule.css','utf8');
+const monthCss=fs.readFileSync('monthly_schedule.css','utf8');
+const timeCss=fs.readFileSync('schedule_time_ios_v112.css','utf8');
+const dailyJs=fs.readFileSync('daily_schedule.js','utf8');
+const guard=fs.readFileSync('monthly_schedule_contract_guard.js','utf8');
+const guardCss=fs.readFileSync('monthly_schedule_contract_guard.css','utf8');
+ok('daily title uses symmetric grid centering',dailyCss.includes('grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)')&&dailyCss.includes('.head h1{font-size:1.08rem;margin:0;text-align:center;justify-self:center}'));
+ok('monthly title uses symmetric grid centering',monthCss.includes('grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)')&&monthCss.includes('.head h1{font-size:1.12rem;margin:0;text-align:center;justify-self:center}'));
+ok('iOS time values use vertical flex centering',timeCss.includes('::-webkit-date-and-time-value')&&timeCss.includes('align-items:center')&&timeCss.includes('::-webkit-datetime-edit-fields-wrapper'));
+ok('daily save is primary action',dailyJs.includes('class="btn primary save"'));
+ok('daily registration cancel is danger action',dailyJs.includes('class="btn danger del"')&&dailyCss.includes('.btn.danger{background:#fff1f0'));
+ok('contract exception selected state uses distinct amber visual',guardCss.includes('.calday.contract-extra.selected{background:#fff3cd')&&guardCss.includes('border-color:#b7791f'));
+ok('contract exception selection remains non-blocking',guard.includes("closest?.('.calday[data-date]')")&&!guard.includes("closest?.('.calday[data-date]');\n  if(!day")?true:guard.includes('if(!day||day.classList.contains'));
+ok('contract exception cue is brief',guard.includes('briefContractToast')&&guard.includes('950'));
+ok('contract exception save confirmation remains',guard.includes("closest?.('#saveWizard')")&&guard.includes('confirm('));
+console.log(`\nSchedule visual UX repair QA: ${pass} passed, ${fail} failed`);if(fail)process.exit(1);

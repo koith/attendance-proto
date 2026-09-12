@@ -39,6 +39,11 @@ function issueText(issues){
   const uncovered=issues.length-outside;
   const bits=[];if(outside)bits.push(`계약 외 요일 ${outside}일`);if(uncovered)bits.push(`계약 적용 밖 ${uncovered}일`);return bits.join(' · ');
 }
+function briefContractToast(msg){
+  const e=document.getElementById('toast');if(!e)return;
+  e.textContent=msg;e.className='toast show contract-brief';
+  clearTimeout(briefContractToast.t);briefContractToast.t=setTimeout(()=>e.className='toast',950);
+}
 async function decorateContractGuide(){
   if(mobile()&&S.step<3)return;
   const emp=currentEmp();if(!emp)return;
@@ -82,6 +87,17 @@ render=function(){
   if(!mobile()||S.step>=3)requestAnimationFrame(()=>{decorateContractGuide()})
 };
 if(!mobile()||S.step>=3)requestAnimationFrame(()=>{decorateContractGuide()});
+
+/* A contract-exception date stays selectable. Give a short, non-blocking cue only when it is being selected. */
+document.addEventListener('click',async e=>{
+  const day=e.target.closest?.('.calday[data-date]');
+  if(!day||day.classList.contains('selected'))return;
+  const emp=currentEmp();if(!emp)return;
+  try{
+    const bundle=await ensureContractBundle(emp.id),issue=contractIssue(bundle,day.dataset.date);
+    if(issue)briefContractToast(issue==='OUTSIDE_CONTRACT_WEEKDAY'?'계약 외 근무일입니다.':'계약 적용기간 밖입니다.');
+  }catch(_){}
+});
 
 document.addEventListener('click',async e=>{
   const save=e.target.closest?.('#saveWizard');
