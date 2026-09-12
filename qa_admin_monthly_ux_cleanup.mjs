@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+let pass=0,fail=0;const ok=(n,c)=>{if(c){pass++;console.log('✓ '+n)}else{fail++;console.error('✗ '+n)}};
+const index=fs.readFileSync('index.html','utf8');
+const guard=fs.readFileSync('monthly_schedule_contract_guard.js','utf8');
+const css=fs.readFileSync('monthly_schedule_contract_guard.css','utf8');
+ok('admin quick menu uses three equal columns',index.includes('.admin-quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}'));
+ok('contract document duplicate quick action removed',!index.includes('id="quickDocs"')&&!index.includes('document.getElementById("quickDocs")'));
+ok('schedule employee contract quick actions remain',index.includes('id="quickSchedule"')&&index.includes('id="quickEmployees"')&&index.includes('id="quickContracts"'));
+ok('hourly contract weekdays have explicit calendar marker predicate',guard.includes('function isContractWorkday')&&guard.includes("b.classList.toggle('contract-day',isContractWorkday"));
+ok('monthly contracts are not mislabeled as weekday contracts',guard.includes("if(!c||c.payroll_type!=='HOURLY')return null"));
+ok('contract-day marker is visually distinct from saved schedule state',css.includes(".calday.contract-day:before{content:'계약'"));
+ok('mobile successful save skips redundant completion screen',guard.includes('if(mobile()&&S.saved){S.saved=false;S.step=3;S.selected.clear()}'));
+ok('contract guide remains informational and exceptions remain allowed',guard.includes('대타·추가근무 일정으로 등록할 수 있습니다')&&!guard.includes('return false'));
+console.log(`\nAdmin/monthly UX cleanup QA: ${pass} passed, ${fail} failed`);if(fail)process.exit(1);
