@@ -1,0 +1,49 @@
+name: admin-account-label-patch
+on:
+  push:
+    branches: [chatgpt-admin-account-label]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt-admin-account-label
+      - name: Patch admin account label
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          old='''async function renderAdmin(){\n  view.innerHTML=`\n    <section class="admin-quick" aria-label="빠른 메뉴">\n      <div class="admin-quick-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px"><b>빠른 메뉴</b><button type="button" class="btn btn-secondary" style="min-height:36px;padding:7px 12px" onclick="Auth.clear();location.reload()">로그아웃</button></div>'''
+          new='''async function renderAdmin(){\n  let adminUser=null;\n  try{ adminUser=LIVE?await Auth.getUser():null; }catch(_){ adminUser=null; }\n  view.innerHTML=`\n    <section class="admin-quick" aria-label="빠른 메뉴">\n      <div class="admin-quick-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px">\n        <b>빠른 메뉴</b>\n        <div style="display:flex;align-items:center;gap:8px;min-width:0">\n          <span id="adminAccountEmail" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.76rem;color:var(--text-muted)"></span>\n          <button type="button" class="btn btn-secondary" style="min-height:36px;padding:7px 12px;flex:0 0 auto" onclick="Auth.clear();location.reload()">로그아웃</button>\n        </div>\n      </div>'''
+          if old not in s: raise SystemExit('index target not found')
+          s=s.replace(old,new,1)
+          marker='''      </div>\n      <div class="admin-quick-grid">'''
+          repl='''      </div>\n      <div class="admin-quick-grid">'''
+          p.write_text(s)
+          PY
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          needle='''      </div>\n      <div class="admin-quick-grid">\n        <button type="button" id="quickSchedule">'''
+          replacement='''      </div>\n      <div class="admin-quick-grid">\n        <button type="button" id="quickSchedule">'''
+          if needle not in s: raise SystemExit('grid marker not found')
+          # set text after template is attached; place immediately after closing template marker later
+          target='''      </div>\n    </section>`;'''
+          inject='''      </div>\n    </section>`;\n  const adminAccountEmail=document.getElementById("adminAccountEmail");\n  if(adminAccountEmail) adminAccountEmail.textContent=adminUser?.email||"관리자";'''
+          if target not in s: raise SystemExit('template close target not found')
+          s=s.replace(target,inject,1)
+          p.write_text(s)
+          PY
+      - name: Self-remove patch workflow and commit
+        run: |
+          rm .github/workflows/admin-account-label-patch.yml
+          git config user.name koith
+          git config user.email 48688331+koith@users.noreply.github.com
+          git add index.html .github/workflows/admin-account-label-patch.yml
+          git commit -m "Show signed-in admin account beside logout"
+          git push origin chatgpt-admin-account-label
