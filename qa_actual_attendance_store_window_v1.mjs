@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+const js=fs.readFileSync('actual_attendance_store_window_v1.js','utf8');
+const html=fs.readFileSync('actual_attendance.html','utf8');
+const must=(v,m)=>{if(!v)throw new Error(m)};
+must(html.includes('actual_attendance_store_window_v1.js'),'store-window layer not loaded');
+must(js.includes('const OPEN_HOUR=7'),'open hour reference missing');
+must(js.includes('const CLOSE_HOUR=25'),'close hour reference missing');
+must(js.includes('07:00 이전 출근'),'early-start warning missing');
+must(js.includes('익일 01:00 이후 퇴근'),'late-end warning missing');
+must(!js.includes('admin_correct_event'),'classifier must not mutate corrections');
+must(!js.includes('attendance_events'),'classifier must not write raw attendance');
+console.log('actual attendance store-window QA PASS');
