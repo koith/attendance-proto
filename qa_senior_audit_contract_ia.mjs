@@ -1,0 +1,21 @@
+import fs from 'node:fs';
+let pass=0,fail=0;
+function ok(name,cond){if(cond){pass++;console.log('✓ '+name)}else{fail++;console.error('✗ '+name)}}
+const html=fs.readFileSync('employment_contracts.html','utf8');
+const ia=fs.readFileSync('employment_contracts_ia_v4.js','utf8');
+const audit=fs.readFileSync('SENIOR_REQUIREMENTS_AUDIT_2026-09-12.md','utf8');
+const base=fs.readFileSync('employment_contracts_v3.js','utf8');
+ok('V4 IA loaded after V3',html.indexOf('employment_contracts_v3.js')<html.indexOf('employment_contracts_ia_v4.js'));
+ok('history default is browse-first',ia.includes("S.historyMode='list'")&&ia.includes('history-period-list'));
+ok('new employment period is progressive',ia.includes("S.creatingPeriod=true")&&ia.includes('새 고용기간')&&ia.includes('cancelPeriod')&&ia.includes('>등록<'));
+ok('period edit is drill-in only',ia.includes("S.historyMode==='periodDetail'")&&ia.includes('고용기간 변경 저장'));
+ok('contract history is read-oriented',ia.includes('계약조건 이력')&&ia.includes('data-contract-view')&&!ia.includes('newContract'));
+ok('main contract save remains single primary save',base.includes('id="saveContract"')&&base.includes("el('saveContract').onclick=saveContract"));
+ok('contract save/read-back path untouched',base.includes("throw Error('READBACK_FAILED')")&&base.includes("toast('계약·급여조건을 저장했습니다.')"));
+ok('audit tracks required states',audit.includes('DONE')&&audit.includes('PARTIAL')&&audit.includes('BLOCKED_POLICY')&&audit.includes('NOT_STARTED'));
+ok('audit preserves policy blockers',audit.includes('J1:')&&audit.includes('J2:')&&audit.includes('J3:')&&audit.includes('J4:')&&audit.includes('MONTHLY'));
+ok('audit keeps planned vs actual split',audit.includes('WorkSchedule planned / Attendance actual 분리'));
+ok('audit marks flat night policy blocked',audit.includes('| 야간수당 FLAT 계산 | BLOCKED_POLICY'));
+ok('audit does not claim monthly payroll done',audit.includes('| MONTHLY 급여 계산 | BLOCKED_POLICY'));
+console.log(`\nSenior audit/contract IA QA: ${pass} passed, ${fail} failed`);
+if(fail)process.exit(1);
