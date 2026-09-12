@@ -72,3 +72,46 @@ bindHistory=function(p){
   const cp=el('cancelPeriod');if(cp)cp.onclick=()=>{S.creatingPeriod=false;S.periodId=null;S.contractId=null;S.loadedContractId=null;S.historyMode='list';render()};
   const sp=el('savePeriod');if(sp)sp.onclick=savePeriod;
 };
+
+function returnToContractOrigin(){
+  const from=new URLSearchParams(location.search).get('from');
+  location.href=from==='employees'?'index.html?focus=employees#admin':'index.html#admin';
+}
+
+saveContract=async function(){
+  if(S.busy)return;
+  const p=currentPeriod(),c=currentContract();
+  if(!p)return;
+  const isFirstContract=!c?.id;
+  let workdays=[];
+  try{
+    if(S.payrollType==='HOURLY'){
+      workdays=collectWorkdays();
+      if(!workdays.length)throw Error('근무요일을 선택해주세요.');
+    }
+  }catch(e){return toast(e.message,true)}
+  const wage=S.payrollType==='HOURLY'?num(el('hourlyWage').value):null;
+  const salary=S.payrollType==='MONTHLY'?num(el('monthlySalary').value):null;
+  if(S.payrollType==='HOURLY'&&(!wage||wage<=0))return toast('시급을 입력해주세요.',true);
+  if(S.payrollType==='MONTHLY'&&(!salary||salary<=0))return toast('월급액을 입력해주세요.',true);
+  let rate=null;
+  if(S.taxTreatment==='BUSINESS_INCOME'){
+    const pct=num(el('businessRate').value);
+    if(pct==null||pct<0||pct>100)return toast('공제율을 확인해주세요.',true);
+    rate=pct/100;
+  }
+  const night=el('nightEnabled').checked,nmode=night?el('nightMode').value:null,nvalue=night?num(el('nightValue').value):null;
+  if(night&&(nvalue==null||nvalue<0))return toast('야간수당 값을 입력해주세요.',true);
+  S.busy=true;
+  try{
+    const r=await BE.contractSet({p_id:S.creatingContract?null:(c?.id||null),p_employment_period_id:p.id,p_effective_from:c?.effective_from??p.started_on,p_effective_to:c?.effective_to??p.ended_on??null,p_payroll_type:S.payrollType,p_hourly_wage:wage,p_monthly_salary:salary,p_tax_treatment:S.taxTreatment,p_business_deduction_rate:rate,p_night_allowance_enabled:night,p_night_allowance_mode:nmode,p_night_allowance_value:nvalue,p_night_allowance_start:night?(el('nightStart').value||'22:00'):'22:00',p_memo:el('contractMemo').value.trim()||null,p_workdays:workdays});
+    if(!r?.ok)throw Error(r?.error||'SAVE_FAILED');
+    S.creatingContract=false;S.contractId=Number(r.id);S.loadedContractId=null;
+    await loadBundle();
+    if(!S.bundle.contracts.some(x=>Number(x.id)===Number(r.id)))throw Error('READBACK_FAILED');
+    toast('계약·급여조건을 저장했습니다.');
+    if(isFirstContract)setTimeout(returnToContractOrigin,700);
+  }catch(e){
+    console.error('[contract-save]',e);toast(contractSaveErrorMessage(e?.message),true);
+  }finally{S.busy=false}
+};
