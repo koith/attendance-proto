@@ -1308,8 +1308,8 @@ async function renderAdmin(){
     <div class="section-t" style="margin-top:20px">직원 관리</div>
     <div id="adEmps"></div>
     <button class="addbtn" id="adAdd">+ 직원 등록</button>
-    <button class="addbtn" id="adSched" style="margin-top:8px">📅 근무 스케줄 관리</button>
     <button class="addbtn" id="adSchedMonth" style="margin-top:8px">🗓️ 월간 근무 스케줄</button>
+    <button class="addbtn" id="adSched" style="margin-top:8px">📅 일별 근무 스케줄</button>
     <div class="section-t" style="margin-top:20px">계정 관리</div>
     <div id="adAccount"></div>`;
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
@@ -1318,7 +1318,7 @@ async function renderAdmin(){
   document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };
   document.getElementById("adSched").onclick=()=>{ location.href="daily_schedule.html"; };
   document.getElementById("adSchedMonth").onclick=()=>{ location.href="monthly_schedule.html"; };
-  document.getElementById("quickSchedule").onclick=()=>{ location.href="daily_schedule.html"; };
+  document.getElementById("quickSchedule").onclick=()=>{ location.href="monthly_schedule.html"; };
   document.getElementById("quickEmployees").onclick=()=>document.getElementById("adEmps")?.scrollIntoView({behavior:"smooth",block:"start"});
   document.getElementById("quickContracts").onclick=()=>{ location.href="employment_contracts.html?from=admin"; };
   if(LIVE){ renderAccountMgmt(); }
@@ -1345,7 +1345,7 @@ async function renderAdmin(){
     document.getElementById("adList").innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return;
   }
   const listEl=document.getElementById("adList");
-  const active=emps.filter(e=>e.is_active!==false && e.active!==false);
+  const active=emps.filter(e=>e.is_active!==false && e.active!==false).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ko-KR"));
   if(!active.length){ listEl.innerHTML=`<div class="empty">등록된 직원이 없습니다.</div>`; }
   else{
     listEl.innerHTML="";
@@ -1447,9 +1447,10 @@ async function renderAdmin(){
   }
   // 직원 관리 목록
   const empsEl=document.getElementById("adEmps"); empsEl.innerHTML="";
-  for(const e of active){
+  for(const [i,e] of active.entries()){
     const div=document.createElement("div"); div.className="row";
-    div.innerHTML=`<div class="nm" style="flex:1">${e.name}</div>
+    const seq=String(i+1).padStart(2,"0");
+    div.innerHTML=`<div class="nm" style="flex:1"><span style="display:inline-block;min-width:30px;color:var(--text-muted);font-size:.78rem;font-variant-numeric:tabular-nums">${seq}</span>${e.name}</div>
       <button class="btn btn-secondary btn-sm" data-contract="${e.id}">계약</button>
       <button class="btn btn-secondary btn-sm" data-docs="${e.id}">계약서</button>
       <button class="btn btn-danger btn-sm" data-deact="${e.id}">비활성화</button>`;
