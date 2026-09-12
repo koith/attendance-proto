@@ -1,0 +1,23 @@
+name: period-time-repair-patch
+on:
+  push:
+    branches: [chatgpt-ux-v1.1.2-period-time-row-repair]
+    paths: [tools/period_time_patch_trigger.txt]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt-ux-v1.1.2-period-time-row-repair
+      - name: Apply period/time-row repair
+        run: python tools/period_time_repair_patch.py
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add employment_contracts_v3.js employment_contracts.css qa_ux_v112_period_time.mjs .github/workflows/ia-ux-regression.yml
+          git commit -m "fix: sequence employment period creation and constrain contract time rows"
+          git push
