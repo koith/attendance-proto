@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>실근무 현황</title>
+<link rel="stylesheet" href="actual_attendance.css">
+<script src="no_double_tap_zoom.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <button class="back" id="back">‹ 관리</button>
+    <div class="titlebox"><h1>실근무 현황</h1><p>실제 출퇴근 기록 · 정정 반영</p></div>
+  </header>
+  <section class="toolbar">
+    <button class="nav" id="prevMonth" aria-label="이전 달">‹</button>
+    <button class="month" id="monthLabel"></button>
+    <button class="nav" id="nextMonth" aria-label="다음 달">›</button>
+  </section>
+  <div id="app"><div class="loading">불러오는 중…</div></div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="actual_attendance.js"></script>
+</body>
+</html>
