@@ -37,6 +37,7 @@ function issueText(issues){
   const bits=[];if(outside)bits.push(`계약 외 요일 ${outside}일`);if(uncovered)bits.push(`계약 적용 밖 ${uncovered}일`);return bits.join(' · ');
 }
 async function decorateContractGuide(){
+  if(mobile()&&S.step<3)return;
   const emp=currentEmp();if(!emp)return;
   let bundle;try{bundle=await ensureContractBundle(emp.id)}catch(_){return}
   const cal=document.querySelector('.calendar');
@@ -69,11 +70,12 @@ async function decorateContractGuide(){
   }
 }
 
-let decorateQueued=false;
-const queueDecorate=()=>{if(decorateQueued)return;decorateQueued=true;requestAnimationFrame(()=>{decorateQueued=false;decorateContractGuide()})};
-const contractGuideObserver=new MutationObserver(queueDecorate);
-contractGuideObserver.observe(document.getElementById('app'),{childList:true,subtree:true});
-queueDecorate();
+/* Decorate only after the app's own render has completed. Do not observe app DOM mutations:
+   the observer previously coupled contract decoration to wizard navigation and could interfere with
+   the step-2 `날짜 선택` transition on iOS Safari. */
+const baseRender=render;
+render=function(){baseRender();if(!mobile()||S.step>=3)requestAnimationFrame(()=>{decorateContractGuide()})};
+if(!mobile()||S.step>=3)requestAnimationFrame(()=>{decorateContractGuide()});
 
 document.addEventListener('click',async e=>{
   const save=e.target.closest?.('#saveWizard');
