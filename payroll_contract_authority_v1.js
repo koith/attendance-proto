@@ -46,9 +46,12 @@
     return {mode:'CONTRACT',contract:candidates[0]};
   }
   function contractEmployee(emp,c){
+    const weeklyMinutes=Number(c.weekly_contracted_minutes||0);
     return {...emp,
       wage:Number(c.hourly_wage||0),
-      juhyu_hours:Number(c.weekly_contracted_minutes||0)/60/5,
+      // Mirror admin_contract_weekly_preview: below 900 min/week is not a weekly-holiday candidate.
+      // J1/J2 and absence-week entitlement remain policy-bound and are not invented here.
+      juhyu_hours:weeklyMinutes>=900?weeklyMinutes/60/5:0,
       tax_rate:Number(c.business_deduction_rate||0)
     };
   }
