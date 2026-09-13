@@ -8,7 +8,7 @@ t('recurring duplicate monthly overrides are excluded from calculation',()=>{ass
 t('existing finalized payroll formula is reused',()=>{assert(mod.includes('calcPayroll(emp,row.hours,R.weeks,ov)'));assert(!mod.includes('wage*row.hours'))});
 t('monthly and four-insurance semantics are not invented',()=>{assert(mod.includes('월급제 급여 계산정책 미확정'));assert(mod.includes('4대보험 공제 계산정책 미확정'))});
 t('contract gaps and mid-month incompatible changes fail visibly instead of guessing',()=>{assert(mod.includes('계약기간 밖 실근무'));assert(mod.includes('월중 계약조건 변경'))});
-t('legacy no-contract employees remain backward compatible with visible warning',()=>{assert(mod.includes("mode:'LEGACY'"));assert(mod.includes('기존 급여설정으로 임시 계산'))});
-t('payroll duplicate edit entry is removed and month adjustment hides recurring contract fields',()=>{assert(mod.includes("card.querySelector('[data-edit]')?.remove()"));assert(mod.includes("['maWage','maJh','maTax']"))});
+t('legacy no-contract employees remain backward compatible and are routed to contract registration',()=>{assert(mod.includes("mode:'LEGACY'"));assert(mod.includes('기존 급여설정으로 임시 계산'));assert(mod.includes("edit.textContent='계약 등록'"));assert(mod.includes('employment_contracts.html?employee='))});
+t('contract-backed payroll removes duplicate basic edit and month adjustment hides recurring contract fields',()=>{assert(mod.includes('else edit.remove()'));assert(mod.includes("['maWage','maJh','maTax']"))});
 t('current payroll refreshes while visible',()=>{assert(mod.includes('setInterval(refresh,60000)'));assert(mod.includes("visibilitychange"))});
 console.log(`Payroll contract authority V1 QA: ${pass} PASS`);
