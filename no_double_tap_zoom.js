@@ -26,15 +26,13 @@
     lastAt=now;lastX=touch.clientX;lastY=touch.clientY;lastTarget=target;
   },{passive:false,capture:true});
 
-  /* Main-app integration guard: the payroll contract-authority files existed but index.html
-     never loaded them, so production silently fell back to legacy employee.wage. Load the
-     helper only on the main app after its inline payroll functions have been parsed. */
+  /* Main app payroll wiring. The old guard waited for #payList, but that element is created
+     only after the user opens the payroll tab, so the authority layer never loaded on a fresh app. */
   const wirePayroll=()=>{
-    if(!document.getElementById('payList'))return;
     if(typeof window.computeMonthPayroll!=='function'&&typeof computeMonthPayroll!=='function')return;
     if(document.querySelector('script[data-payroll-elapsed-weeks]'))return;
     const s=document.createElement('script');
-    s.src='payroll_elapsed_weeks_v1.js?v=20260913c';
+    s.src='payroll_elapsed_weeks_v1.js?v=20260913d';
     s.dataset.payrollElapsedWeeks='1';
     document.body.appendChild(s);
   };
