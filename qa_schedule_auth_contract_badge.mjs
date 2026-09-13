@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-const html=fs.readFileSync('monthly_schedule.html','utf8');
+const html=fs.readFileSync('planned_monthly_schedule.html','utf8');
 const bridge=fs.readFileSync('schedule_admin_preflight.js','utf8');
 const daily=fs.readFileSync('daily_schedule.js','utf8');
 const css=fs.readFileSync('monthly_calendar_state_v1.css','utf8');
