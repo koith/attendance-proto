@@ -1,53 +1,61 @@
 # 선배 요구사항 Production 재감사 — 2026-09-13
 
-기준: 회의록 `업무자동화회의_20260912`, production `main@584a4b6e8ad1aaaae6ececbc16b1d9e722aaffea`, 운영 Supabase `waluhdgqhwjjwmflhrle`.
+기준: 회의록 `업무자동화회의_20260912`, production `main@f16334295a91f69c9d3eb46e8f709459feba4fa7`, 운영 Supabase `waluhdgqhwjjwmflhrle`.
 
 판정 원칙:
-- 코드가 존재한다는 이유만으로 완료 처리하지 않는다.
+- 코드 존재만으로 완료 처리하지 않는다.
 - 선배가 회의에서 말한 사용 시나리오가 실제 데이터 흐름과 화면에서 성립해야 충족이다.
-- iPhone 실기기 확인이 끝나지 않은 항목은 코드가 있어도 `ACCEPTANCE_PENDING`으로 둔다.
+- iPhone 실기기 확인이 끝나지 않은 항목은 배포됐어도 `ACCEPTANCE_PENDING`으로 둔다.
 - 회의에서 확정하지 않은 정책은 임의 구현하지 않는다.
 
-| 요구 | 현재 판정 | 확인 내용 | 필요한 조치 |
+| 요구 | 현재 판정 | 현재 production 상태 | 남은 조치 |
 |---|---|---|---|
-| 직원 가나다순 + 01,02… 번호 | IMPLEMENTED / ACCEPTANCE_PENDING | 관리자 직원목록이 이름순 정렬 후 `padStart(2,'0')` 번호 표시 | 실기기 확인 |
-| 계약 입력 중 시급 등 값 유실 방지 | IMPLEMENTED / ACCEPTANCE_PENDING | form-state draft wrapper 존재 | 실제 편집 시나리오 재확인 |
-| 익일(25시 개념) 계약시간 | IMPLEMENTED / ACCEPTANCE_PENDING | 종료시간이 시작시간보다 이르면 익일로 계산, 익일 UI layer 존재 | iPhone time input/표시 재확인 |
-| 계약조건 작성 흐름 안에 근로계약서 첨부 | FIXING | main은 계약서가 저장 후 이력 상세에만 노출되어 회의 요구 미충족 | 본 재감사 브랜치에서 계약 저장 폼 안으로 이동, 신규 계약은 파일을 미리 선택 후 contract_id에 연결 |
-| 계약서 아무 때나 삭제/교체 | BLOCKED_DB | 운영 `admin_doc_delete`가 업로더 본인 + 24시간 이내만 허용 | DB 함수 정책 변경 필요. 사용자 승인 후 migration |
-| 계약서가 해당 계약과 연결 | IMPLEMENTED_DB | 운영 `employee_documents.contract_id` 및 contract-local RPC 존재 | UI가 이 연결을 실제 작성 플로우에서 사용하도록 보완 |
-| 계획 스케줄보다 실제 출퇴근 결과 중심 | PARTIAL | 관리자 빠른 메뉴 `근무현황`은 actual attendance로 연결. 기존 계획 스케줄 편집기도 하단에 유지 | 실제 현황을 주 IA로 유지하고 계획표는 보조 기능으로 명확히 구분 |
-| 월간 실제근무 현황 | IMPLEMENTED / ACCEPTANCE_PENDING | `admin_events_with_corrections` 기반 월 달력, 날짜별 실제 인원/시간 | iPhone 가독성 확인 |
-| 일별 07:00~25:00 간트형 실제근무 | IMPLEMENTED / ACCEPTANCE_PENDING | 날짜 탭 시 07~25 축 + 직원별 가로 bar 렌더 | 사용자가 아직 실기기에서 확인 못함. 배포/진입/가독성 재검증 |
-| 실제근무 정정 | PARTIAL | 일별 session에서 correction RPC로 IN/OUT EDIT/ADD 가능, raw attendance 불변 | 장기간 열린 session을 날짜별 00~24 리스트로 펼쳐 선택 수정하는 회의 시나리오 미충족 |
-| 퇴근 누락 234시간 같은 장기 session 처리 | PARTIAL | 과거 미퇴근/16시간 초과 등 경고 및 바로 정정 CTA 존재 | 여러 날짜로 분할 표시하여 어느 날짜/시간을 정정할지 직관적으로 선택 가능하게 개선 |
-| 영업시간 기반 자동 이상판정 | NOT_REQUIREMENT | 회의의 07~25는 간트 시간축 문맥. 자동 판정/강제퇴근 정책은 확정되지 않음 | 별도 구현하지 않음 |
-| 계약값을 급여가 그대로 사용 | FAIL | 현재는 계약 저장 시 `employees.wage/tax_rate` legacy cache로 복사하는 bridge | 급여 계산이 해당 월 유효 계약을 직접 읽도록 전환 |
-| 급여 화면 중복 기본설정 제거 | FAIL | 급여에 `기본설정`, 이달 시급/원천징수율 override가 남아 있음 | 계약과 중복되는 입력 제거/보조 조정만 남김 |
-| 실근무/정정이 급여에 반영 | PARTIAL | 급여 월 계산은 corrected events를 읽을 수 있음 | 계약 기반 계산과 하나의 흐름으로 통합, 긴 open session 처리 재검증 |
-| 급여를 아무 때나 들어가 현재값 확인 | PARTIAL | 진입 시 계산 가능 | 화면 체류 중 자동 재계산 없음. 실제 출퇴근 변화 후 계속 갱신 요구 미충족 |
-| 주휴시간 계약값 연동 | PARTIAL / POLICY_BOUND | 기존 legacy 주휴 계산과 elapsed-week guard 존재 | 이미 확정된 주휴 정책은 보존하면서 계약 주당시간을 직접 사용하도록 연결. 미확정 J1/J2는 임의 결정 금지 |
-| 야간수당 | PARTIAL | 계약 설정은 저장되나 actual time 급여 합산은 완결되지 않음 | RATE는 확정 의미 범위에서 연결 가능, FLAT은 정책 blocker |
-| 월급제 급여 | BLOCKED_POLICY | 계약 저장은 가능, 실제 급여 semantics 미확정 | MONTHLY 정책 확정 전 계산 발명 금지 |
-| 테스트용 시간 시뮬레이션 | NOT_STARTED | 운영 시간 흐름만 존재 | 운영 raw data와 격리된 테스트 clock 설계 |
-| 대타 기록/연결 | RESEARCH | 회의에서 필요성만 있고 모델 미확정 | 설계 조사 후 별도 제안 |
-| 하이웍스 전자결재 대량수집→Excel | NOT_STARTED | 별도 후속 자동화 요구 | 문서유형 선택→전체문서 수집→구조화→Excel 파이프라인 |
-| 재고 수불부 | NOT_STARTED | 급여 이후 후속 프로젝트 | 근태/급여 완료 후 착수 |
+| 직원 가나다순 + 01,02… 번호 | DEPLOYED / ACCEPTANCE_PENDING | 관리자 직원목록 이름순 + 2자리 번호 | iPhone 확인 |
+| 계약 입력 중 시급 등 값 유실 방지 | DEPLOYED / ACCEPTANCE_PENDING | unsaved form-state 보존 | 실제 편집 재확인 |
+| 익일(25시 개념) 계약시간 | DEPLOYED / ACCEPTANCE_PENDING | 익일 시간 계산/표시 layer | iPhone time input 확인 |
+| 계약 작성 흐름 안에 근로계약서 첨부 | DEPLOYED / ACCEPTANCE_PENDING | 계약조건 폼 안에서 파일을 미리 선택하고 저장된 contract_id에 연결 | iPhone 파일선택/저장 확인 |
+| 계약서가 해당 계약과 연결 | DEPLOYED | `employee_documents.contract_id` + contract-local RPC + 작성폼 연동 | 없음 |
+| 계약서 아무 때나 삭제/교체 | BLOCKED_DB | UI 삭제는 있으나 `admin_doc_delete`가 업로더 본인 + 24시간 제한 | DB 함수 정책 변경 승인 필요 |
+| 실제 출퇴근 결과 중심 IA | DEPLOYED / ACCEPTANCE_PENDING | 관리자 빠른 메뉴 `근무현황` → actual attendance | iPhone 진입 확인 |
+| 월간 실제근무 현황 | DEPLOYED / ACCEPTANCE_PENDING | 정정 반영 실제 event 기반 월 달력 | iPhone 가독성 확인 |
+| 일별 07:00~25:00 간트형 실제근무 | DEPLOYED / ACCEPTANCE_PENDING | 날짜 탭 → 07~25 축 + 직원별 가로 bar | 사용자가 실기기에서 직접 확인 필요 |
+| 실제근무 정정 | DEPLOYED / ACCEPTANCE_PENDING | raw attendance 불변, correction overlay RPC | iPhone 저장/read-back 확인 |
+| 234시간 같은 장기 session을 날짜별 표시 | DEPLOYED / ACCEPTANCE_PENDING | 자정 넘는 세션을 날짜별 slice로 펼치고 00:00–24:00 표시; 정정은 원본 IN/OUT에 연결 | iPhone 장기기록 확인 |
+| 영업시간 기반 자동 이상판정 | NOT_REQUIREMENT | 07~25는 회의상 간트 시간축 요구이며 자동 강제퇴근 정책은 미확정 | 별도 구현하지 않음 |
+| 계약값을 급여가 그대로 사용 | DEPLOYED / ACCEPTANCE_PENDING | HOURLY/BUSINESS_INCOME은 `admin_employment_bundle`의 유효 계약을 직접 읽어 시급·계약 주당시간·세율 계산 | iPhone 급여 화면 확인 |
+| 급여 중복 기본설정 제거 | DEPLOYED / ACCEPTANCE_PENDING | 계약 보유자는 payroll `기본설정` 제거; 월 조정에서 시급/주휴시간/세율 숨김 | 확인 |
+| 계약 미등록 직원 이행경로 | DEPLOYED | legacy 계산은 임시 유지하되 `계약 등록`으로 유도 | 직원별 계약 전환 필요 |
+| 실근무/정정 → 급여 반영 | DEPLOYED / ACCEPTANCE_PENDING | corrected events + contract-authoritative payroll 계산 | 실제 정정 후 금액 변화 확인 |
+| 급여를 아무 때나 현재값 확인 | DEPLOYED / ACCEPTANCE_PENDING | 진입 계산 + 화면 노출 중 60초 갱신 + 앱 복귀 시 갱신 | iPhone 확인 |
+| 주휴시간 계약값 연동 | DEPLOYED / POLICY_BOUND | 기존 calcPayroll 공식은 그대로 두고 contract weekly minutes를 입력원으로 사용, 미래 주 선반영 방지 유지 | 확정된 주휴 정책 외 확장 금지 |
+| 월중 서로 다른 계약조건 | SAFE_BLOCK | 임의 단일 시급으로 계산하지 않고 확인 필요 표시 | 구간별 급여 정책이 필요하면 별도 확정 |
+| 월급제 급여 | BLOCKED_POLICY | 계산값을 발명하지 않고 미확정 표시 | MONTHLY semantics 확정 필요 |
+| 4대보험 공제 | BLOCKED_POLICY | 공제값을 발명하지 않고 미확정 표시 | 정책 확정 필요 |
+| 야간수당 급여 합산 | PARTIAL / POLICY_BOUND | 계약 설정 저장은 됨 | RATE/FLAT 등 확정 의미 범위 확인 후 연결 |
+| 테스트용 시간 시뮬레이션 | NOT_STARTED | 운영 punch는 서버시간 사용 | 운영 데이터와 격리된 test clock 설계 필요 |
+| 대타 기록/연결 | RESEARCH | 회의에서 필요성은 확인됐으나 모델 미확정 | 설계 조사/정책 결정 |
+| 하이웍스 전자결재 대량수집→Excel | NOT_STARTED | attendance-proto와 별도 후속 자동화 | 문서유형 선택→대량수집→구조화→Excel |
+| 재고 수불부 | NOT_STARTED | 후속 프로젝트 | 근태/급여 핵심 이후 착수 |
 
-## 이번 재감사에서 정정한 기존 오판
+## 이번 재감사에서 실제로 다시 고친 기존 오판
 
-1. `계약서 문서 DONE`은 잘못된 판정이었다. contract_id 구조는 생겼지만 계약 작성 UX에 포함되지 않았다.
-2. `실제근무 정정 DONE`도 회의 시나리오 기준으로는 과했다. 단일 session 정정은 되지만 장기간 열린 기록을 날짜별로 펼쳐 수정하는 요구가 남았다.
-3. `계약→급여 연동 DONE`으로 볼 수 없다. 현재 bridge는 authoritative contract를 payroll이 직접 읽는 구조가 아니라 legacy cache 복사다.
-4. `07:00~25:00 영업시간 기반 이상판정`은 직접 요구가 아니다. 07~25는 일별 결과 화면의 시간축 요구다.
+1. `계약서 문서 DONE`을 취소하고 계약서 첨부를 계약 작성 폼 자체에 다시 통합했다.
+2. `근태 정정 DONE`을 취소하고 234시간 같은 자정 초과 세션을 날짜별 00:00–24:00로 펼치는 표시/정정 흐름을 추가했다.
+3. `계약→급여 연동 DONE`을 취소하고 legacy employee wage 복사 방식 대신 payroll이 유효 계약을 직접 읽도록 변경했다.
+4. payroll의 중복 시급/주휴시간/세율 입력을 계약 보유 직원 흐름에서 제거했다.
+5. 급여 화면은 60초 및 앱 복귀 시 재계산하도록 보강했다.
+6. `07:00~25:00 영업시간 기반 이상판정`은 회의 직접 요구가 아니므로 폐기했다. 07~25는 일별 실근무 시간축이다.
 
-## 수정 순서
+## 배포 확인
 
-1. 계약 작성 폼에 계약서 첨부 통합 + contract_id 연결
-2. 실제근무 간트 진입/표시 배포 재검증
-3. 장기 열린 session을 날짜별로 펼치는 근태 상세/정정 UX
-4. 급여 계산의 authoritative contract 직접 참조 + 중복 입력 제거
-5. 급여 자동 갱신
-6. 전체 회귀 QA + exact-SHA Pages 배포 확인 + iPhone acceptance 목록
+- PR #36: 계약 작성 ↔ 계약서 통합
+- PR #37: 장기 근태 날짜별 slice/정정
+- PR #38: 계약 authoritative 급여 + 중복 설정 제거 + 자동 갱신
+- 현재 production SHA: `f16334295a91f69c9d3eb46e8f709459feba4fa7`
+- GitHub Pages run #152: exact SHA 기준 SUCCESS
 
-DB 변경 blocker: `admin_doc_delete`의 24시간/업로더 제한 제거는 별도 승인 후 적용한다.
+## 현재 blocker
+
+`admin_doc_delete`는 현재 **업로드한 관리자 본인만, 업로드 후 24시간 이내** 삭제를 허용한다. 선배 요구는 **언제든 삭제 버튼으로 삭제/교체**이므로 이 제한을 제거하려면 DB 함수 정책 변경이 필요하다. 사용자 승인 전에는 변경하지 않는다.
+
+정책 blocker(MONTHLY, FOUR_INSURANCE, 야간수당 일부)와 설계 미확정(대타)은 회의에 없는 의미를 임의로 만들어 구현하지 않는다.
