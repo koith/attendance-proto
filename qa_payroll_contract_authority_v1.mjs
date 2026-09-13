@@ -6,6 +6,7 @@ t('extension loads deterministically at DOM ready',()=>{assert(loader.includes("
 t('payroll reads authoritative employment bundle',()=>{assert(mod.includes("rpc('admin_employment_bundle'"));assert(mod.includes('c.hourly_wage'));assert(mod.includes('c.weekly_contracted_minutes'));assert(mod.includes('c.business_deduction_rate'))});
 t('recurring duplicate monthly overrides are excluded from calculation',()=>{assert(mod.includes('function safeOverride'));assert(!/out\.wage_override/.test(mod));assert(!/out\.juhyu_hours_override/.test(mod));assert(!/out\.tax_rate_override/.test(mod));assert(mod.includes('juhyu_weeks_override'));assert(mod.includes('adjust_amount'))});
 t('existing finalized payroll formula is reused',()=>{assert(mod.includes('calcPayroll(emp,row.hours,R.weeks,ov)'));assert(!mod.includes('wage*row.hours'))});
+t('weekly holiday candidate requires at least 900 contracted minutes',()=>{assert(mod.includes('weeklyMinutes>=900?weeklyMinutes/60/5:0'))});
 t('monthly and four-insurance semantics are not invented',()=>{assert(mod.includes('월급제 급여 계산정책 미확정'));assert(mod.includes('4대보험 공제 계산정책 미확정'))});
 t('contract gaps and mid-month incompatible changes fail visibly instead of guessing',()=>{assert(mod.includes('계약기간 밖 실근무'));assert(mod.includes('월중 계약조건 변경'))});
 t('blocked payroll still exposes authoritative contract terms',()=>{assert(mod.includes('contract:displayContract'));assert(mod.includes('function contractSummary'));assert(mod.includes('계약 시급'));assert(mod.includes('payroll-contract-summary'))});
