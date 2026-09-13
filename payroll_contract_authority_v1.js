@@ -1,5 +1,4 @@
-/* Payroll V1.2: contract is authoritative for recurring payroll terms.
-   Existing payroll formula is preserved. Monthly salary / four-insurance semantics remain blocked until policy is finalized. */
+/* Payroll V1.3: contract-authoritative payroll + gross-first presentation. */
 (()=>{
   if(globalThis.__baekeokPayrollContractAuthorityV1)return;
   globalThis.__baekeokPayrollContractAuthorityV1=true;
@@ -34,9 +33,8 @@
   async function adminRpc(fn,args={}){
     const call=async token=>fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:`Bearer ${token||CONFIG.SUPABASE_ANON_KEY}`,'Content-Type':'application/json'},body:JSON.stringify(args)});
     const s=storedSession();let token=(typeof Auth!=='undefined'&&Auth.token)||s?.access_token||null;
-    let r=await call(token);
-    if(r.status===401){const fresh=await refreshSession();if(fresh)r=await call(fresh)}
-    const text=await r.text();
+    let r=await call(token),text=await r.text();
+    if(r.status===401||r.status===403||/JWT|NOT_AUTHORIZED|expired/i.test(text)){const fresh=await refreshSession();if(fresh){r=await call(fresh);text=await r.text()}}
     if(!r.ok)throw new Error(`RPC ${fn} ${r.status}: ${text||r.statusText}`);
     return text?JSON.parse(text):null;
   }
@@ -101,24 +99,55 @@
     R.totalNet=totalNet;R.totalGross=totalGross;lastResult=R;return R;
   };
 
+  function installStyle(){
+    if(document.getElementById('payrollGrossFirstStyle'))return;
+    const s=document.createElement('style');s.id='payrollGrossFirstStyle';s.textContent=`
+      #payList .row{position:relative}
+      #payList .payroll-gross-hero{padding:12px 0 10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+      #payList .payroll-gross-label{display:block;font-size:.72rem;color:var(--text-muted);font-weight:700;letter-spacing:.01em;margin-bottom:2px}
+      #payList .payroll-gross-value{display:block;font-size:1.72rem;line-height:1.15;color:var(--ink);font-weight:800;letter-spacing:-.03em}
+      #payList .payroll-support{font-size:.72rem;line-height:1.55;color:var(--text-muted)}
+      #payList .payroll-support b{font-weight:600;color:var(--text-muted)}
+      #payList .payroll-has-issue{border-color:var(--warning)!important}
+      #payList .payroll-has-issue .nm{color:var(--warning)!important}
+      #payList .payroll-contract-summary{font-size:.7rem!important;color:var(--text-muted)!important;font-weight:500!important}
+      #payList .payroll-contract-note{font-size:.7rem!important;color:var(--warning)!important;font-weight:600!important}
+      #payList .contract-source-badge{font-size:.62rem!important;opacity:.72}
+    `;document.head.appendChild(s);
+  }
+  function compactSupport(rec){
+    if(!rec.pay)return `실근무 ${typeof fmtHM==='function'?fmtHM(rec.sec):''}`;
+    const p=rec.pay,parts=[`실근무 ${typeof fmtHM==='function'?fmtHM(rec.sec):''}`,`시급 ${Number(p.wage||0).toLocaleString()}원`,`기본급 ${Number(p.base||0).toLocaleString()}원`];
+    if(p.juhyu)parts.push(`주휴 ${Number(p.juhyu).toLocaleString()}원`);
+    if(p.adjust)parts.push(`조정 ${p.adjust>0?'+':''}${Number(p.adjust).toLocaleString()}원`);
+    parts.push(`세후 ${Number(p.net||0).toLocaleString()}원`);
+    return parts.join(' · ');
+  }
   function annotatePayroll(){
+    installStyle();
     const box=document.getElementById('payList');if(!box||!lastResult)return;
     const rows=[...box.children].filter(x=>x.classList?.contains('row')).slice(0,lastResult.rows.length);
     rows.forEach((card,i)=>{
       const rec=lastResult.rows[i];if(!rec)return;
+      card.querySelectorAll('.payroll-gross-hero,.payroll-contract-summary,.payroll-contract-note').forEach(n=>n.remove());
       const edit=card.querySelector('[data-edit]');
       if(edit){if(rec.contractMode==='LEGACY'){edit.textContent='계약 등록';edit.onclick=()=>{location.href=`employment_contracts.html?employee=${rec.employee_id}&from=admin`}}else edit.remove()}
       const head=card.querySelector('.nm');
+      const issueBadge=head?.querySelector('.badge.issue');if(issueBadge)issueBadge.remove();
+      card.classList.toggle('payroll-has-issue',!!rec.issues||!!rec.contractIssue);
       if(head&&rec.contractMode==='CONTRACT'&&!head.querySelector('.contract-source-badge')){const b=document.createElement('span');b.className='badge contract-source-badge';b.style.cssText='margin-left:6px;color:var(--accent);border-color:var(--accent)';b.textContent='계약 기준';head.appendChild(b)}
-      if(rec.contract){const s=document.createElement('div');s.className='payroll-contract-summary';s.style.cssText='font-size:.8rem;color:var(--text);font-weight:650;margin-top:2px';s.textContent=contractSummary(rec.contract);card.appendChild(s)}
-      if(rec.contractIssue){const n=document.createElement('div');n.className='payroll-contract-note';n.style.cssText='font-size:.78rem;color:var(--warning);font-weight:650;margin-top:2px';n.textContent=rec.contractIssue;card.appendChild(n)}
+      const detail=card.children[1];
+      if(detail){detail.className='payroll-support';detail.innerHTML=compactSupport(rec)}
+      if(rec.pay){const hero=document.createElement('div');hero.className='payroll-gross-hero';hero.innerHTML=`<span class="payroll-gross-label">세전 급여</span><strong class="payroll-gross-value">${Number(rec.pay.gross||0).toLocaleString()}원</strong>`;card.children[0]?.after(hero)}
+      if(rec.contract){const s=document.createElement('div');s.className='payroll-contract-summary';s.textContent=contractSummary(rec.contract);card.appendChild(s)}
+      if(rec.contractIssue){const n=document.createElement('div');n.className='payroll-contract-note';n.textContent=rec.contractIssue;card.appendChild(n)}
     });
     document.getElementById('payrollContractSourceNote')?.remove();
-    const note=document.createElement('div');note.id='payrollContractSourceNote';note.style.cssText='font-size:.76rem;color:var(--text-muted);margin:0 2px 12px';note.textContent='시급·계약 주당시간·세금 방식은 직원 계약조건을 기준으로 계산합니다. 계약기간 밖 실근무가 있으면 계약정보는 표시하되 급여 확정은 막습니다.';box.parentElement?.insertBefore(note,box);
+    const note=document.createElement('div');note.id='payrollContractSourceNote';note.style.cssText='font-size:.7rem;color:var(--text-muted);margin:0 2px 10px';note.textContent='급여는 계약조건과 정정 반영 실근무를 기준으로 계산합니다.';box.parentElement?.insertBefore(note,box);
   }
 
   drawPay=async function(ym){await baseDrawPay(ym);annotatePayroll()};
-  openMonthAdjust=function(emp,ym,ov){baseOpenMonthAdjust(emp,ym,ov);const modal=document.getElementById('addVeil')?.querySelector('.modal');if(!modal)return;['maWage','maJh','maTax'].forEach(id=>{const f=document.getElementById(id)?.closest('.field');if(f)f.style.display='none'});const title=modal.querySelector('h3');if(title){const n=document.createElement('div');n.style.cssText='font-size:.78rem;color:var(--text-muted);margin:-8px 0 12px';n.textContent='시급·주휴시간·세율은 계약조건에서 가져옵니다. 기존 중복 override 값은 보존되지만 계산에는 사용하지 않습니다.';title.after(n)}};
+  openMonthAdjust=function(emp,ym,ov){baseOpenMonthAdjust(emp,ym,ov);const modal=document.getElementById('addVeil')?.querySelector('.modal');if(!modal)return;['maWage','maJh','maTax'].forEach(id=>{const f=document.getElementById(id)?.closest('.field');if(f)f.style.display='none'});const title=modal.querySelector('h3');if(title){const n=document.createElement('div');n.style.cssText='font-size:.78rem;color:var(--text-muted);margin:-8px 0 12px';n.textContent='시급·주휴시간·세율은 계약조건에서 가져옵니다.';title.after(n)}};
   if(document.getElementById('payList')){const m=document.getElementById('payMonth');if(m)drawPay(m.value)}
   const refresh=async()=>{const list=document.getElementById('payList'),m=document.getElementById('payMonth');if(!list||!m||document.visibilityState!=='visible'||refreshBusy)return;if(document.getElementById('addVeil')?.classList.contains('show'))return;refreshBusy=true;try{await drawPay(m.value)}finally{refreshBusy=false}};
   setInterval(refresh,60000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refresh()});
