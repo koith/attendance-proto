@@ -1,1 +1,0 @@
-Acceptance targets: actual attendance loads with refreshed admin session; payroll employee cards show gross pay as primary value; supporting fields are subdued; issue count badge is absent and issue state is color-only.
