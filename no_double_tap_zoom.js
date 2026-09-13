@@ -25,19 +25,4 @@
     if(!nativeTarget&&same&&near&&now-lastAt>0&&now-lastAt<320&&e.cancelable)e.preventDefault();
     lastAt=now;lastX=touch.clientX;lastY=touch.clientY;lastTarget=target;
   },{passive:false,capture:true});
-
-  /* Main-app integration guard: the payroll contract-authority files existed but index.html
-     never loaded them, so production silently fell back to legacy employee.wage. Load the
-     helper only on the main app after its inline payroll functions have been parsed. */
-  const wirePayroll=()=>{
-    if(!document.getElementById('payList'))return;
-    if(typeof window.computeMonthPayroll!=='function'&&typeof computeMonthPayroll!=='function')return;
-    if(document.querySelector('script[data-payroll-elapsed-weeks]'))return;
-    const s=document.createElement('script');
-    s.src='payroll_elapsed_weeks_v1.js?v=20260913c';
-    s.dataset.payrollElapsedWeeks='1';
-    document.body.appendChild(s);
-  };
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',wirePayroll,{once:true});
-  else wirePayroll();
 })();
