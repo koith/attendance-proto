@@ -13,8 +13,14 @@
     toolbar.appendChild(box);
   }
   if(mode==='day'){
-    const t=kstToday(),day=dayKey(t),ym=day.slice(0,7);
-    S.ym=ym;
-    Promise.resolve(loadMonth()).then(()=>renderDay(day));
+    const today=dayKey(kstToday());
+    const baseRenderMonth=renderMonth;
+    let enterDay=true;
+    renderMonth=function(){
+      baseRenderMonth();
+      if(!enterDay)return;
+      enterDay=false;
+      queueMicrotask(()=>renderDay(today));
+    };
   }
 })();
