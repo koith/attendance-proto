@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 let pass=0,fail=0;const ok=(n,c)=>{if(c){pass++;console.log('✓ '+n)}else{fail++;console.error('✗ '+n)}};
 const c=fs.readFileSync('employment_contracts_ia_v4.js','utf8');
-const mh=fs.readFileSync('monthly_schedule.html','utf8');
+const mh=fs.readFileSync('planned_monthly_schedule.html','utf8');
 const g=fs.readFileSync('monthly_schedule_contract_guard.js','utf8');
 const m=fs.readFileSync('monthly_schedule.js','utf8');
 ok('first contract detected before save',c.includes('const isFirstContract=!c?.id'));
