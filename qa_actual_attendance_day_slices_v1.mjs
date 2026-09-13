@@ -1,0 +1,12 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const html=fs.readFileSync('actual_attendance.html','utf8');
+const js=fs.readFileSync('actual_attendance_day_slices_v1.js','utf8');
+const correction=fs.readFileSync('actual_attendance_correction.js','utf8');
+let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
+t('day slice layer loads between base renderer and correction layer',()=>{const b=html.indexOf('actual_attendance.js'),s=html.indexOf('actual_attendance_day_slices_v1.js'),c=html.indexOf('actual_attendance_correction.js');assert(b>0&&s>b&&c>s)});
+t('multi-day sessions are derived display slices rather than raw event writes',()=>{assert(js.includes('sliceDerived'));assert(js.includes('sourceIn'));assert(js.includes('sourceOut'));assert(!js.includes('admin_correct_event'));assert(!js.includes('attendance_events'))});
+t('date boundaries use 00:00 and semantic 24:00',()=>{assert(js.includes("sliceStartBoundary?'00:00'"));assert(js.includes("sliceEndBoundary?'24:00'"))});
+t('open sessions can appear across dates through current time',()=>{assert(js.includes("s.status==='WORKING'?now:null"));assert(js.includes('sourceEnd<=ds'))});
+t('correction resolves a slice back to the authoritative source session',()=>{assert(correction.includes('actualAttendanceSourceSession'));assert(correction.includes('source.inId'));assert(correction.includes('source.outId'))});
+t('correction still writes overlay only',()=>{assert(correction.includes("rpc('admin_correct_event'"));assert(!correction.includes('attendance_events'))});
+console.log(`Actual attendance day slices V1 QA: ${pass} PASS`);
