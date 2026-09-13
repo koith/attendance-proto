@@ -14,14 +14,11 @@
     return Math.min(4,completed);
   }
   globalThis.__payrollElapsedWeeksV1={completedWeeksInMonth};
-
-  // Browser-only loader. DOMContentLoaded is deterministic here because index.html's inline app
-  // has already declared the payroll functions before this event fires. Do not wait for window.load.
   if(typeof window!=='undefined'&&typeof document!=='undefined'){
     const install=()=>{
       if(document.querySelector('script[data-payroll-contract-authority]'))return;
       const s=document.createElement('script');
-      s.src='payroll_contract_authority_v1.js?v=20260913e';
+      s.src='payroll_contract_authority_v1.js?v=20260913f';
       s.dataset.payrollContractAuthority='1';
       document.body.appendChild(s);
     };
