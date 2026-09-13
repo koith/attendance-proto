@@ -1,4 +1,5 @@
 import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
+// Senior IA regression: canonical day/month entries are actual-attendance result views; plan editors are secondary.
 const r=p=>fs.readFileSync(p,'utf8');let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
 const idx=r('index.html'),hub=r('admin_hub.html'),mh=r('monthly_schedule.html'),mj=r('monthly_schedule.js'),mc=r('monthly_schedule_core.js'),dh=r('daily_schedule.html'),dj=r('daily_schedule.js'),dc=r('daily_schedule.css'),pmh=r('planned_monthly_schedule.html'),pdh=r('planned_daily_schedule.html'),ec=r('employment_contracts_v3.js'),ar=r('attendance_review.js');
 t('관리 탭은 실제 operational renderAdmin 직행',()=>{assert(idx.includes('if(h==="admin"){ const q=new URLSearchParams(location.search); setTab("admin"); requireAuth(async()=>{ await renderAdmin();'));assert(!idx.includes('if(!q.has("legacyAdmin")){ location.replace("admin_hub.html")'))});
@@ -10,7 +11,7 @@ t('관리 직원목록은 이름순 정렬 후 01부터 순번 표시',()=>{asse
 t('관리 landing에서 현재 계정과 로그아웃을 함께 표시',()=>{assert(idx.includes('adminUser=LIVE?await Auth.getUser():null'));assert(idx.includes('adminUser?.email||"관리자"'));assert(idx.includes('>로그아웃</button>'));assert(idx.includes('Auth.clear();location.reload()'))});
 t('pending queue는 별도 shortcut 없이 실제 section status로 노출',()=>{assert(idx.includes('class="admin-pending-head" id="attendanceAlert"'));assert(idx.includes('reqs=await BE.pendingRequests()'));assert(!idx.includes('sec.scrollIntoView({behavior:"smooth"'));assert(!idx.includes('id="attendanceAlert" href='))});
 t('관리 하위화면 복귀 통일',()=>{assert(mj.includes("location.href='index.html#admin'"));assert(dj.includes("location.href='index.html#admin'"));assert(ec.includes("'index.html#admin'"));assert(ar.includes("location.href='index.html#admin'"))});
-t('일별/월간 canonical entry는 실근무 결과로 진입',()=>{assert(dh.includes('actual_attendance.html?view=day'));assert(mh.includes('actual_attendance.html?view=month'))});
+t('일별/월간 canonical entry는 실근무 결과로 진입',()=>{assert(dh.includes('actual_attendance.html?view=day'));assert(mh.includes('actual_attendance.html?view=month'));assert(!dh.includes('<h1>근무 스케줄</h1>'));assert(!mh.includes('<h1>근무 스케줄</h1>'))});
 t('계획 일별/월간은 별도 secondary editor shell',()=>{assert(pmh.includes('planned_daily_schedule.html'));assert(pdh.includes('planned_monthly_schedule.html'));assert(pdh.includes('<h1>계획 스케줄 편집</h1>'));assert(pmh.includes('<h1>계획 스케줄 편집</h1>'))});
 t('계획 일별 view는 legacy modal 호출 없음',()=>{assert(!pdh.includes('openScheduleModal'));assert(!dj.includes('openScheduleModal'));assert(idx.includes('location.href="daily_schedule.html"'))});
 t('daily 모바일 overflow 방어',()=>{['overflow-x:hidden','max-width:100%','min-width:0','grid-template-columns:minmax(0,1fr) 20px minmax(0,1fr)'].forEach(x=>assert(dc.includes(x))) });
