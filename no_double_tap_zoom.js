@@ -25,17 +25,4 @@
     if(!nativeTarget&&same&&near&&now-lastAt>0&&now-lastAt<320&&e.cancelable)e.preventDefault();
     lastAt=now;lastX=touch.clientX;lastY=touch.clientY;lastTarget=target;
   },{passive:false,capture:true});
-
-  /* Main app payroll wiring. The old guard waited for #payList, but that element is created
-     only after the user opens the payroll tab, so the authority layer never loaded on a fresh app. */
-  const wirePayroll=()=>{
-    if(typeof window.computeMonthPayroll!=='function'&&typeof computeMonthPayroll!=='function')return;
-    if(document.querySelector('script[data-payroll-elapsed-weeks]'))return;
-    const s=document.createElement('script');
-    s.src='payroll_elapsed_weeks_v1.js?v=20260913d';
-    s.dataset.payrollElapsedWeeks='1';
-    document.body.appendChild(s);
-  };
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',wirePayroll,{once:true});
-  else wirePayroll();
 })();
