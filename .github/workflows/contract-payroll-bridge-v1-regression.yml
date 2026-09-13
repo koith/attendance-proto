@@ -16,6 +16,11 @@ jobs:
       - name: Syntax
         run: |
           node --check employment_contract_payroll_bridge_v1.js
+          node --check payroll_contract_authority_v1.js
+          node --check payroll_elapsed_weeks_v1.js
           node --check qa_contract_payroll_bridge_v1.mjs
+          node --check qa_payroll_contract_authority_v1.mjs
       - name: Contract payroll bridge QA
         run: node qa_contract_payroll_bridge_v1.mjs
+      - name: Contract authoritative payroll QA
+        run: node qa_payroll_contract_authority_v1.mjs

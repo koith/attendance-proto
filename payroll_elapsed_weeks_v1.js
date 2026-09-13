@@ -14,4 +14,12 @@
     return Math.min(4,completed);
   }
   globalThis.__payrollElapsedWeeksV1={completedWeeksInMonth};
+
+  // Browser-only compatibility loader. Guard keeps the pure elapsed-week helper executable in Node QA.
+  if(typeof window!=='undefined'&&window.addEventListener){
+    window.addEventListener('load',()=>{
+      if(document.querySelector('script[data-payroll-contract-authority]'))return;
+      const s=document.createElement('script');s.src='payroll_contract_authority_v1.js';s.dataset.payrollContractAuthority='1';document.body.appendChild(s);
+    },{once:true});
+  }
 })();
