@@ -7,7 +7,6 @@
 
   const baseComputeMonthPayroll=computeMonthPayroll;
   const baseDrawPay=drawPay;
-  const baseRenderPay=renderPay;
   const baseOpenMonthAdjust=openMonthAdjust;
   const cache=new Map();
   let lastResult=null,refreshBusy=false;
@@ -83,25 +82,28 @@
     const rows=[...box.children].filter(x=>x.classList?.contains('row')).slice(0,lastResult.rows.length);
     rows.forEach((card,i)=>{
       const rec=lastResult.rows[i];if(!rec)return;
-      card.querySelector('[data-edit]')?.remove();
+      const edit=card.querySelector('[data-edit]');
+      if(edit){
+        if(rec.contractMode==='LEGACY'){
+          edit.textContent='계약 등록';
+          edit.onclick=()=>{location.href=`employment_contracts.html?employee=${rec.employee_id}&from=admin`};
+        }else edit.remove();
+      }
       const head=card.querySelector('.nm');
       if(head&&rec.contractMode==='CONTRACT'&&!head.querySelector('.contract-source-badge')){
         const b=document.createElement('span');b.className='badge contract-source-badge';b.style.cssText='margin-left:6px;color:var(--accent);border-color:var(--accent)';b.textContent='계약 기준';head.appendChild(b);
       }
       if(rec.contractIssue){
         const n=document.createElement('div');n.className='payroll-contract-note';n.style.cssText='font-size:.78rem;color:var(--warning);font-weight:650;margin-top:2px';n.textContent=rec.contractIssue;card.appendChild(n);
-        if(rec.contractMode==='BLOCKED'){
-          const detail=[...card.children].find(x=>x.style?.fontSize==='.82rem');if(detail)detail.textContent=`실근무 ${fmtHM(rec.sec)} · ${rec.contractIssue}`;
-        }
       }
     });
+    const old=document.getElementById('payrollContractSourceNote');old?.remove();
     const note=document.createElement('div');note.id='payrollContractSourceNote';note.style.cssText='font-size:.76rem;color:var(--text-muted);margin:0 2px 12px';
     note.textContent='시급·계약 주당시간·세금 방식은 직원 계약조건을 기준으로 계산합니다. 이달 조정은 인정주수·가감액·사유만 적용합니다.';
-    if(!document.getElementById('payrollContractSourceNote'))box.parentElement?.insertBefore(note,box);
+    box.parentElement?.insertBefore(note,box);
   }
 
   drawPay=async function(ym){await baseDrawPay(ym);annotatePayroll()};
-  renderPay=async function(){await baseRenderPay();const m=document.getElementById('payMonth');if(m)await drawPay(m.value)};
 
   openMonthAdjust=function(emp,ym,ov){
     baseOpenMonthAdjust(emp,ym,ov);
