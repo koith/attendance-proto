@@ -16,15 +16,19 @@ jobs:
       - name: Syntax
         run: |
           node --check actual_attendance.js
+          node --check actual_attendance_day_slices_v1.js
           node --check actual_attendance_correction.js
           node --check actual_attendance_anomaly_v1.js
           node --check actual_attendance_anomaly_correction_v1.js
           node --check qa_actual_attendance_v1.mjs
+          node --check qa_actual_attendance_day_slices_v1.mjs
           node --check qa_actual_attendance_correction_v1.mjs
           node --check qa_actual_attendance_anomaly_v1.mjs
           node --check qa_actual_attendance_anomaly_correction_v1.mjs
       - name: Actual attendance V1 QA
         run: node qa_actual_attendance_v1.mjs
+      - name: Actual attendance day slices V1 QA
+        run: node qa_actual_attendance_day_slices_v1.mjs
       - name: Actual attendance correction V1 QA
         run: node qa_actual_attendance_correction_v1.mjs
       - name: Actual attendance anomaly V1 QA
@@ -35,6 +39,7 @@ jobs:
         run: |
           grep -q 'actual_attendance.html' index.html
           grep -q 'actual_attendance.js' actual_attendance.html
+          grep -q 'actual_attendance_day_slices_v1.js' actual_attendance.html
           grep -q 'actual_attendance.css' actual_attendance.html
           grep -q 'actual_attendance_correction.js' actual_attendance.html
           grep -q 'actual_attendance_correction.css' actual_attendance.html
