@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+const js=fs.readFileSync('payroll_contract_authority_v1.js','utf8');
+const loader=fs.readFileSync('payroll_elapsed_weeks_v1.js','utf8');
+const need=(ok,msg)=>{if(!ok)throw new Error(msg)};
+need(js.includes('payroll-gross-hero'),'gross payroll hero must exist');
+need(js.includes('세전 급여'),'gross label must be explicit and primary');
+need(js.includes('payroll-gross-value'),'gross value must have dedicated dominant styling');
+need(js.includes("issueBadge=head?.querySelector('.badge.issue');if(issueBadge)issueBadge.remove()"),'issue count badge must be removed');
+need(js.includes("card.classList.toggle('payroll-has-issue'"),'issue state must be color/class based');
+need(js.includes('font-size:1.72rem'),'gross value must be visually dominant');
+need(loader.includes('payroll_contract_authority_v1.js?v=20260913f'),'loader cache version must point to latest payroll UX');
+console.log('gross-first payroll UX QA PASS');
