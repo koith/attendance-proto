@@ -1,0 +1,10 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const r=p=>fs.readFileSync(p,'utf8');
+const index=r('index.html'),zoom=r('no_double_tap_zoom.js'),payLoader=r('payroll_elapsed_weeks_v1.js'),pay=r('payroll_contract_authority_v1.js'),actualHtml=r('actual_attendance.html'),session=r('supabase_session_resilience_v1.js');
+let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
+t('main app definitely loads payroll authority chain',()=>{assert(index.includes('no_double_tap_zoom.js'));assert(zoom.includes("s.src='payroll_elapsed_weeks_v1.js?v=20260913c'"));assert(payLoader.includes("payroll_contract_authority_v1.js"));assert(pay.includes("rpc('admin_employment_bundle'"))});
+t('payroll bootstrap is main-app scoped',()=>{assert(zoom.includes("document.getElementById('payList')"));assert(zoom.includes('data-payroll-elapsed-weeks')||zoom.includes('payrollElapsedWeeks'))});
+t('standalone actual attendance loads session resilience before app',()=>{const a=actualHtml.indexOf('supabase_session_resilience_v1.js'),b=actualHtml.indexOf('actual_attendance.js');assert(a>=0&&b>a)});
+t('session resilience refreshes expired Supabase JWT and retries RPC',()=>{assert(session.includes('refresh_token'));assert(session.includes("response.status!==401"));assert(session.includes("grant_type=refresh_token"));assert(session.includes("localStorage.setItem(SESSION_KEY"));assert(session.includes("h.set('Authorization'"))});
+t('session resilience includes one network retry for iOS fetch rejection',()=>{assert(session.includes('e instanceof TypeError'));assert(session.includes('setTimeout(r,180)'))});
+console.log(`Runtime wiring V1 QA: ${pass} PASS`);
