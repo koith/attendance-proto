@@ -21,7 +21,7 @@
     const install=()=>{
       if(document.querySelector('script[data-payroll-contract-authority]'))return;
       const s=document.createElement('script');
-      s.src='payroll_contract_authority_v1.js?v=20260913b';
+      s.src='payroll_contract_authority_v1.js?v=20260913e';
       s.dataset.payrollContractAuthority='1';
       document.body.appendChild(s);
     };
