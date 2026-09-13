@@ -1,0 +1,1 @@
+(()=>{globalThis.__baekeokActualAttendanceRuntimeV2=true;})();
