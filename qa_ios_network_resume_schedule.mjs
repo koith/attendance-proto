@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 let pass=0,fail=0;const ok=(n,c)=>{if(c){pass++;console.log('✓ '+n)}else{fail++;console.error('✗ '+n)}};
 const contract=fs.readFileSync('employment_contracts_ia_v4.js','utf8');
-const daily=fs.readFileSync('daily_schedule.html','utf8');
-const monthly=fs.readFileSync('monthly_schedule.html','utf8');
+const daily=fs.readFileSync('planned_daily_schedule.html','utf8');
+const monthly=fs.readFileSync('planned_monthly_schedule.html','utf8');
 const resil=fs.readFileSync('ios_navigation_resilience.js','utf8');
 ok('contract return uses fresh navigation token',contract.includes('resume=${resume}')&&contract.includes('location.replace(target)'));
-ok('daily loads resilience before app script',daily.indexOf('ios_navigation_resilience.js')<daily.indexOf('daily_schedule.js'));
-ok('monthly loads resilience before core',monthly.indexOf('ios_navigation_resilience.js')<monthly.indexOf('monthly_schedule_core.js'));
+ok('planned daily loads resilience before app script',daily.indexOf('ios_navigation_resilience.js')<daily.indexOf('daily_schedule.js'));
+ok('planned monthly loads resilience before core',monthly.indexOf('ios_navigation_resilience.js')<monthly.indexOf('monthly_schedule_core.js'));
 ok('retry is limited to Supabase requests',resil.includes("/\\.supabase\\.co\\//")&&resil.includes('if(!isSupabase)return rawFetch'));
 ok('transient network rejects are retried',resil.includes('attempt<3')&&resil.includes('await sleep'));
 ok('BFCache schedule resumes force fresh handlers',resil.includes("addEventListener('pageshow'")&&resil.includes('if(e.persisted)location.reload()'));

@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 let pass=0,fail=0;const ok=(n,c)=>{if(c){pass++;console.log('✓ '+n)}else{fail++;console.error('✗ '+n)}};
-const html=fs.readFileSync('monthly_schedule.html','utf8');
+const html=fs.readFileSync('planned_monthly_schedule.html','utf8');
 const css=fs.readFileSync('monthly_calendar_state_v1.css','utf8');
 const js=fs.readFileSync('monthly_calendar_state_v1.js','utf8');
 ok('state css is loaded after contract guard',html.indexOf('monthly_schedule_contract_guard.css')<html.indexOf('monthly_calendar_state_v1.css'));

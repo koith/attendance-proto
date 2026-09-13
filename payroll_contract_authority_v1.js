@@ -23,7 +23,6 @@
   }
   function safeOverride(ov){
     if(!ov)return null;
-    // Contract-owned recurring terms are intentionally excluded: wage, weekly-hours and tax-rate.
     const out={};
     if(ov.juhyu_weeks_override!=null)out.juhyu_weeks_override=ov.juhyu_weeks_override;
     if(ov.adjust_amount!=null)out.adjust_amount=ov.adjust_amount;
@@ -36,23 +35,31 @@
     const complete=(row.sessions||[]).filter(s=>s.status==='COMPLETE'&&s.in);
     const used=contracts.filter(c=>complete.some(s=>covers(c,dayKey(s.in))));
     const candidates=used.length?used:contracts;
-    if(candidates.some(c=>c.payroll_type==='MONTHLY'))return {mode:'BLOCKED',issue:'월급제 급여 계산정책 미확정'};
-    if(candidates.some(c=>c.tax_treatment==='FOUR_INSURANCE'))return {mode:'BLOCKED',issue:'4대보험 공제 계산정책 미확정'};
-    if(candidates.some(c=>c.payroll_type!=='HOURLY'||c.tax_treatment!=='BUSINESS_INCOME'))return {mode:'BLOCKED',issue:'급여 계약조건 확인 필요'};
-    const uncovered=complete.some(s=>!contracts.some(c=>covers(c,dayKey(s.in))));
-    if(uncovered)return {mode:'BLOCKED',issue:'계약기간 밖 실근무가 포함되어 급여 확인 필요'};
+    const displayContract=candidates[0]||contracts[0]||null;
+    if(candidates.some(c=>c.payroll_type==='MONTHLY'))return {mode:'BLOCKED',contract:displayContract,issue:'월급제 급여 계산정책 미확정'};
+    if(candidates.some(c=>c.tax_treatment==='FOUR_INSURANCE'))return {mode:'BLOCKED',contract:displayContract,issue:'4대보험 공제 계산정책 미확정'};
+    if(candidates.some(c=>c.payroll_type!=='HOURLY'||c.tax_treatment!=='BUSINESS_INCOME'))return {mode:'BLOCKED',contract:displayContract,issue:'급여 계약조건 확인 필요'};
+    const uncoveredDays=[...new Set(complete.filter(s=>!contracts.some(c=>covers(c,dayKey(s.in)))).map(s=>dayKey(s.in)))];
+    if(uncoveredDays.length)return {mode:'BLOCKED',contract:displayContract,issue:`계약기간 밖 실근무 ${uncoveredDays.join(', ')} · 급여 확인 필요`};
     const keys=new Set(candidates.map(termsKey));
-    if(keys.size>1)return {mode:'BLOCKED',issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};
+    if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};
     return {mode:'CONTRACT',contract:candidates[0]};
   }
   function contractEmployee(emp,c){
+    const weeklyMinutes=Number(c.weekly_contracted_minutes||0);
     return {...emp,
       wage:Number(c.hourly_wage||0),
-      // Preserve the existing weekly allowance formula; only replace its manually duplicated source
-      // with the contract's authoritative weekly minutes. Senior meeting rule: weekly hours / 5.
-      juhyu_hours:Number(c.weekly_contracted_minutes||0)/60/5,
+      // Mirror admin_contract_weekly_preview: below 900 min/week is not a weekly-holiday candidate.
+      // J1/J2 and absence-week entitlement remain policy-bound and are not invented here.
+      juhyu_hours:weeklyMinutes>=900?weeklyMinutes/60/5:0,
       tax_rate:Number(c.business_deduction_rate||0)
     };
+  }
+  function contractSummary(c){
+    if(!c)return '';
+    const period=`${c.effective_from}${c.effective_to?' ~ '+c.effective_to:''}`;
+    if(c.payroll_type==='HOURLY')return `계약 시급 ${Number(c.hourly_wage||0).toLocaleString()}원 · ${period}`;
+    return `계약 월급 ${Number(c.monthly_salary||0).toLocaleString()}원 · ${period}`;
   }
 
   computeMonthPayroll=async function(ym){
@@ -70,7 +77,7 @@
           row.memo=(ov&&ov.memo)||row.emp.memo||'';
         }else if(pick.mode==='BLOCKED'){
           row.pay=null;row.hasWage=false;
-        } // LEGACY intentionally preserves the old result for employees not migrated to a contract yet.
+        }
       }catch(e){console.error('[payroll-contract-authority]',row.employee_id,e);row.contractMode='ERROR';row.contractIssue='계약조건을 불러오지 못했습니다.';}
       if(row.pay){totalNet+=row.pay.net;totalGross+=row.pay.gross;}
     }));
@@ -93,13 +100,16 @@
       if(head&&rec.contractMode==='CONTRACT'&&!head.querySelector('.contract-source-badge')){
         const b=document.createElement('span');b.className='badge contract-source-badge';b.style.cssText='margin-left:6px;color:var(--accent);border-color:var(--accent)';b.textContent='계약 기준';head.appendChild(b);
       }
+      if(rec.contract){
+        const s=document.createElement('div');s.className='payroll-contract-summary';s.style.cssText='font-size:.8rem;color:var(--text);font-weight:650;margin-top:2px';s.textContent=contractSummary(rec.contract);card.appendChild(s);
+      }
       if(rec.contractIssue){
         const n=document.createElement('div');n.className='payroll-contract-note';n.style.cssText='font-size:.78rem;color:var(--warning);font-weight:650;margin-top:2px';n.textContent=rec.contractIssue;card.appendChild(n);
       }
     });
     const old=document.getElementById('payrollContractSourceNote');old?.remove();
     const note=document.createElement('div');note.id='payrollContractSourceNote';note.style.cssText='font-size:.76rem;color:var(--text-muted);margin:0 2px 12px';
-    note.textContent='시급·계약 주당시간·세금 방식은 직원 계약조건을 기준으로 계산합니다. 이달 조정은 인정주수·가감액·사유만 적용합니다.';
+    note.textContent='시급·계약 주당시간·세금 방식은 직원 계약조건을 기준으로 계산합니다. 계약기간 밖 실근무가 있으면 계약정보는 표시하되 급여 확정은 막습니다.';
     box.parentElement?.insertBefore(note,box);
   }
 
@@ -112,7 +122,6 @@
     const title=modal.querySelector('h3');if(title){const n=document.createElement('div');n.style.cssText='font-size:.78rem;color:var(--text-muted);margin:-8px 0 12px';n.textContent='시급·주휴시간·세율은 계약조건에서 가져옵니다. 기존 중복 override 값은 보존되지만 계산에는 사용하지 않습니다.';title.after(n)}
   };
 
-  // Install after the original inline app boot. If payroll is already visible, redraw with contract authority.
   if(document.getElementById('payList')){const m=document.getElementById('payMonth');if(m)drawPay(m.value)}
   const refresh=async()=>{
     const list=document.getElementById('payList'),m=document.getElementById('payMonth');

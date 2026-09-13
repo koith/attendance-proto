@@ -15,11 +15,17 @@
   }
   globalThis.__payrollElapsedWeeksV1={completedWeeksInMonth};
 
-  // Browser-only compatibility loader. Guard keeps the pure elapsed-week helper executable in Node QA.
-  if(typeof window!=='undefined'&&window.addEventListener){
-    window.addEventListener('load',()=>{
+  // Browser-only loader. DOMContentLoaded is deterministic here because index.html's inline app
+  // has already declared the payroll functions before this event fires. Do not wait for window.load.
+  if(typeof window!=='undefined'&&typeof document!=='undefined'){
+    const install=()=>{
       if(document.querySelector('script[data-payroll-contract-authority]'))return;
-      const s=document.createElement('script');s.src='payroll_contract_authority_v1.js';s.dataset.payrollContractAuthority='1';document.body.appendChild(s);
-    },{once:true});
+      const s=document.createElement('script');
+      s.src='payroll_contract_authority_v1.js?v=20260913b';
+      s.dataset.payrollContractAuthority='1';
+      document.body.appendChild(s);
+    };
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
+    else install();
   }
 })();
