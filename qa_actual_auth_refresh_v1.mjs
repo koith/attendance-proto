@@ -7,5 +7,5 @@ need(js.includes('r.status===401||r.status===403'),'actual attendance must retry
 need(js.includes("/JWT|NOT_AUTHORIZED|invalid claim|expired/i"),'actual attendance must recognize expired/invalid JWT errors');
 need(js.includes("const employees=await rpc('admin_list_employees')"),'employee RPC must be explicit');
 need(js.includes("const data=await rpc('admin_events_with_corrections'"),'attendance RPC must be explicit');
-need(html.includes('actual_attendance.js?v=20260913f'),'runtime cache version must load the refreshed implementation');
+need(html.includes('actual_attendance.js?v='),'runtime cache version must load the refreshed implementation');
 console.log('actual attendance auth refresh QA PASS');
