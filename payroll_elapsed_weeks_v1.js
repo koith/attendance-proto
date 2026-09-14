@@ -15,12 +15,10 @@
   }
   globalThis.__payrollElapsedWeeksV1={completedWeeksInMonth};
   if(typeof window!=='undefined'&&typeof document!=='undefined'){
+    const append=(src,key)=>{if(document.querySelector(`script[data-${key}]`))return;const s=document.createElement('script');s.src=src;s.dataset[key.replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]='1';document.body.appendChild(s)};
     const install=()=>{
-      if(document.querySelector('script[data-payroll-contract-authority]'))return;
-      const s=document.createElement('script');
-      s.src='payroll_contract_authority_v1.js?v=20260913f';
-      s.dataset.payrollContractAuthority='1';
-      document.body.appendChild(s);
+      append('employee_identity_ux_v1.js?v=20260914b','employee-identity-ux');
+      append('payroll_contract_authority_v1.js?v=20260913f','payroll-contract-authority');
     };
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
     else install();
