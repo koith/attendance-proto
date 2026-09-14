@@ -1,0 +1,15 @@
+name: correction-payroll-integrity-v1-regression
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --check qa_correction_payroll_integrity_v1.mjs
+      - run: node qa_correction_payroll_integrity_v1.mjs
