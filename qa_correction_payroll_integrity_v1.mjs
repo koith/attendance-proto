@@ -1,0 +1,11 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const index=fs.readFileSync('index.html','utf8');
+const correction=fs.readFileSync('actual_attendance_correction.js','utf8');
+const payroll=fs.readFileSync('payroll_contract_authority_v1.js','utf8');
+let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
+t('admin attendance edits use correction overlay RPC, never raw attendance mutation',()=>{assert(correction.includes("admin_correct_event"));assert(correction.includes("EDIT_TIME"));assert(correction.includes("ADD"));assert(!correction.includes('attendance_events'))});
+t('payroll month calculation reads effective attendance with corrections',()=>{assert(index.includes('BE.eventsWithCorrections'));assert(index.includes('applyCorrections(data.events, data.corrections)'));assert(index.includes('const allSess=pairEvents(evs)'))});
+t('corrected effective timestamps flow into session duration and hours',()=>{assert(index.includes('event_at: c.action==="EDIT_TIME"&&c.new_event_at ? c.new_event_at : e.event_at'));assert(index.includes('const sec=sess.filter(s=>s.status==="COMPLETE").reduce'));assert(index.includes('const hours=secToHours(sec)'))});
+t('contract-authoritative payroll recalculates from those effective hours',()=>{assert(payroll.includes('calcPayroll(emp,row.hours,R.weeks,ov)'));assert(payroll.includes('setInterval(refresh,60000)'));assert(payroll.includes('visibilitychange'))});
+t('unsupported salary semantics remain blocked rather than guessed',()=>{assert(payroll.includes('월급제 급여 계산정책 미확정'));assert(payroll.includes('4대보험 공제 계산정책 미확정'))});
+console.log(`Correction→payroll integrity QA: ${pass} PASS`);
