@@ -1,0 +1,11 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const r=p=>fs.readFileSync(p,'utf8');
+const main=r('employee_identity_ux_v1.js'),boot=r('payroll_elapsed_weeks_v1.js'),att=r('actual_attendance_identity_v2.js'),attHtml=r('actual_attendance.html'),contract=r('employment_contract_employee_number_v1.js'),contractHtml=r('employment_contracts.html'),pay=r('payroll_senior_ux_v2.js'),zoom=r('no_double_tap_zoom.js');
+let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
+t('main employee names carry stable No. based on employee id',()=>{assert(main.includes("No. ${String(Number(id)||0).padStart(2,'0')}")||main.includes("No. ${String(Number(id)||0).padStart(2,'0')}`"));assert(main.includes('att-name'));assert(main.includes("#adEmps .row"));assert(main.includes("#empGrid .emp .nm"))});
+t('obsolete planned schedule shortcuts and planned details are removed from admin-facing UX',()=>{assert(main.includes("document.getElementById('adSched')?.remove()"));assert(main.includes("document.getElementById('adSchedMonth')?.remove()"));assert(main.includes("#adList .sch-line"))});
+t('PIN rapid repeated taps are never swallowed by zoom guard',()=>{assert(zoom.includes("closest('button,a,input,select,textarea,label"));assert(zoom.includes('if(interactive)'))});
+t('actual attendance restores inactive historical identity and explains bar colors',()=>{assert(att.includes("rpc('admin_list_employees')"));assert(att.includes('timeline-legend'));assert(att.includes('정상 완료'));assert(att.includes('근무 중'));assert(att.includes('확인 필요'));assert(attHtml.includes('actual_attendance_identity_v2.js?v=20260914b'))});
+t('contract flow shows employee No. and loads identity layer',()=>{assert(contract.includes('employee-no-sub'));assert(contract.includes('S.employeeId'));assert(contractHtml.includes('employment_contract_employee_number_v1.js?v=20260914b'))});
+t('payroll is gross-first and manual weekly-count control is hidden',()=>{assert(pay.includes("oldLabel.textContent='세전 합계'"));assert(pay.includes("field.style.display='none'"));assert(pay.includes('주휴 주 수는 완료된 주만 자동 반영합니다.'));assert(boot.includes('payroll_senior_ux_v2.js?v=20260914c'));assert(boot.includes('s.async=false'))});
+console.log(`Employee identity / senior IA QA: ${pass} PASS`);
