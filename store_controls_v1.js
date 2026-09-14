@@ -1,0 +1,53 @@
+/* Store controls V1: admin-configured open/close time + automatic correction-based forced checkout. */
+(()=>{
+  if(window.__baekeokStoreControlsV1)return;
+  window.__baekeokStoreControlsV1=true;
+  if(typeof BE==='undefined'||typeof renderAdmin!=='function')return;
+  const TEST_KEY='baekeok_test_mode_v1';
+  const inTest=()=>{try{return !!JSON.parse(localStorage.getItem(TEST_KEY)||'null')?.enabled}catch(_){return false}};
+  BE.storeSettingsGet=()=>rpc('admin_store_settings_get',{},true);
+  BE.storeSettingsSet=(openMin,closeMin,grace)=>rpc('admin_store_settings_set',{p_open_minute:openMin,p_close_minute:closeMin,p_close_grace_minutes:grace},true);
+  BE.enforceStoreClose=()=>rpc('system_enforce_store_close');
+  const p=n=>String(n).padStart(2,'0');
+  const fmt=m=>`${Math.floor(Number(m||0)/60)}:${p(Number(m||0)%60)}`;
+  const parseOpen=s=>{const m=String(s||'').match(/^(\d{1,2}):(\d{2})$/);if(!m)return null;const v=+m[1]*60 + +m[2];return v>=0&&v<1440?v:null};
+  const parseClose=(h,m)=>{h=Number(h);m=Number(m);if(!Number.isInteger(h)||!Number.isInteger(m)||h<0||h>47||m<0||m>59)return null;return h*60+m};
+  function style(){if(document.getElementById('storeControlsV1Style'))return;const s=document.createElement('style');s.id='storeControlsV1Style';s.textContent=`
+    .store-settings-card{margin:18px 0;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+    .store-settings-card h3{margin:0 0 10px;font-size:.95rem}.store-settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .store-settings-card label{display:block;font-size:.72rem;color:var(--text-muted);margin-bottom:5px}.store-settings-card input{width:100%;height:44px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--ink);padding:0 10px;box-sizing:border-box}
+    .store-close-pair{display:grid;grid-template-columns:1fr auto 1fr;gap:5px;align-items:center}.store-close-hint{font-size:.7rem;color:var(--text-muted);margin-top:8px;line-height:1.45}.store-force-status{font-size:.72rem;color:var(--text-muted);margin-top:8px;min-height:1.1em}
+  `;document.head.appendChild(s)}
+  async function mount(){
+    style();
+    const emps=document.getElementById('adEmps');if(!emps||document.getElementById('storeSettingsCard'))return;
+    const before=emps.previousElementSibling||emps;
+    const card=document.createElement('section');card.id='storeSettingsCard';card.className='store-settings-card';
+    card.innerHTML=`<h3>매장 정보</h3><div class="store-settings-grid"><div><label>오픈 시간</label><input id="storeOpen" inputmode="numeric" placeholder="07:00"></div><div><label>마감 시간 (24시 이후 가능)</label><div class="store-close-pair"><input id="storeCloseH" inputmode="numeric" placeholder="25"><span>:</span><input id="storeCloseM" inputmode="numeric" placeholder="00"></div></div><div><label>마감 후 유예 (분)</label><input id="storeGrace" inputmode="numeric" type="number" min="0" max="360" step="10"></div><div style="display:flex;align-items:end"><button class="btn btn-primary btn-block" id="storeSave">저장</button></div></div><div class="store-close-hint" id="storeCutoffHint"></div><div class="store-force-status" id="storeForceStatus"></div>`;
+    before.parentNode.insertBefore(card,before);
+    try{
+      const s=await BE.storeSettingsGet();
+      document.getElementById('storeOpen').value=`${p(Math.floor(s.open_minute/60))}:${p(s.open_minute%60)}`;
+      document.getElementById('storeCloseH').value=Math.floor(s.close_minute/60);
+      document.getElementById('storeCloseM').value=p(s.close_minute%60);
+      document.getElementById('storeGrace').value=s.close_grace_minutes;
+      const updateHint=()=>{const c=parseClose(document.getElementById('storeCloseH').value,document.getElementById('storeCloseM').value),g=Number(document.getElementById('storeGrace').value||0);document.getElementById('storeCutoffHint').textContent=c==null?'마감 시간을 확인하세요.':`자동 강제퇴근 기준: ${fmt(c+g)} · raw 근태는 보존되고 시스템 정정 OUT으로 기록됩니다.`};
+      ['storeCloseH','storeCloseM','storeGrace'].forEach(id=>document.getElementById(id).addEventListener('input',updateHint));updateHint();
+    }catch(e){document.getElementById('storeForceStatus').textContent='매장 정보를 불러오지 못했습니다.'}
+    document.getElementById('storeSave').onclick=async()=>{
+      if(inTest()){toast('err','테스트 모드','운영 매장 정보는 변경하지 않습니다.');return}
+      const o=parseOpen(document.getElementById('storeOpen').value),c=parseClose(document.getElementById('storeCloseH').value,document.getElementById('storeCloseM').value),g=Number(document.getElementById('storeGrace').value);
+      if(o==null||c==null||c<=o||!Number.isInteger(g)||g<0||g>360){toast('err','입력 확인','오픈·마감·유예 시간을 확인하세요.');return}
+      try{const r=await BE.storeSettingsSet(o,c,g);if(r?.ok){toast('in','매장 정보 저장됨',`마감 ${fmt(c)} · 유예 ${g}분`);await enforce(true)}else toast('err','저장 실패',r?.error||'');}catch(e){toast('err','저장 실패',e.message)}
+    };
+  }
+  let busy=false;
+  async function enforce(show=false){
+    if(!LIVE||inTest()||busy)return;
+    busy=true;
+    try{const r=await BE.enforceStoreClose();if(show||Number(r?.closed)>0){const el=document.getElementById('storeForceStatus');if(el)el.textContent=Number(r?.closed)>0?`자동 강제퇴근 ${r.closed}명 반영됨`:`현재 강제퇴근 대상 없음`;if(Number(r?.closed)>0){toast('out','마감 자동퇴근',`${r.closed}명 반영`);if(location.hash==='#admin')setTimeout(()=>renderAdmin(),100)}}}catch(e){console.warn('[store-close]',e)}finally{busy=false}
+  }
+  const base=renderAdmin;
+  renderAdmin=async function(...args){const r=await base.apply(this,args);await mount();return r};
+  setTimeout(()=>enforce(false),1200);setInterval(()=>enforce(false),60000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')enforce(false)});
+})();

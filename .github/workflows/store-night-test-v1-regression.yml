@@ -1,0 +1,21 @@
+name: store-night-test-v1-regression
+on:
+  pull_request:
+    paths:
+      - 'store_controls_v1.js'
+      - 'test_mode_*'
+      - 'actual_attendance*'
+      - 'employment_contract*'
+      - 'payroll_*'
+      - 'qa_store_night_test_v1.mjs'
+      - '.github/workflows/store-night-test-v1-regression.yml'
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --check store_controls_v1.js && node --check test_mode_core_v1.js && node --check test_mode_write_guard_v1.js && node --check test_mode_ui_v1.js && node --check actual_attendance_test_mode_v1.js && node --check employment_contract_night_end_v1.js && node --check payroll_night_allowance_v1.js && node --check payroll_night_allowance_ui_v1.js
+      - run: node qa_store_night_test_v1.mjs

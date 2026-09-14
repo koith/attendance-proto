@@ -16,8 +16,14 @@
     const append=(src,key)=>{if(document.querySelector(`script[data-${key}]`))return;const s=document.createElement('script');s.src=src;s.async=false;s.dataset[key.replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]='1';document.body.appendChild(s)};
     const install=()=>{
       append('employee_identity_ux_v1.js?v=20260914c','employee-identity-ux');
+      append('test_mode_core_v1.js?v=20260915a','test-mode-core');
+      append('test_mode_write_guard_v1.js?v=20260915a','test-mode-write-guard');
+      append('store_controls_v1.js?v=20260915a','store-controls');
       append('payroll_contract_authority_v1.js?v=20260913f','payroll-contract-authority');
+      append('payroll_night_allowance_v1.js?v=20260915a','payroll-night-allowance');
       append('payroll_senior_ux_v2.js?v=20260914c','payroll-senior-ux');
+      append('payroll_night_allowance_ui_v1.js?v=20260915a','payroll-night-ui');
+      append('test_mode_ui_v1.js?v=20260915a','test-mode-ui');
     };
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true}); else install();
   }
