@@ -35,6 +35,7 @@
       ['storeCloseH','storeCloseM','storeGrace'].forEach(id=>document.getElementById(id).addEventListener('input',updateHint));updateHint();
     }catch(e){document.getElementById('storeForceStatus').textContent='매장 정보를 불러오지 못했습니다.'}
     document.getElementById('storeSave').onclick=async()=>{
+      if(inTest()){toast('err','테스트 모드','운영 매장 정보는 변경하지 않습니다.');return}
       const o=parseOpen(document.getElementById('storeOpen').value),c=parseClose(document.getElementById('storeCloseH').value,document.getElementById('storeCloseM').value),g=Number(document.getElementById('storeGrace').value);
       if(o==null||c==null||c<=o||!Number.isInteger(g)||g<0||g>360){toast('err','입력 확인','오픈·마감·유예 시간을 확인하세요.');return}
       try{const r=await BE.storeSettingsSet(o,c,g);if(r?.ok){toast('in','매장 정보 저장됨',`마감 ${fmt(c)} · 유예 ${g}분`);await enforce(true)}else toast('err','저장 실패',r?.error||'');}catch(e){toast('err','저장 실패',e.message)}
