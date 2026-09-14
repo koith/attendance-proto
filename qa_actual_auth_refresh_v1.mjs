@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+const js=fs.readFileSync('actual_attendance.js','utf8');
+const html=fs.readFileSync('actual_attendance.html','utf8');
+const need=(ok,msg)=>{if(!ok)throw new Error(msg)};
+need(js.includes('refreshAuth()'),'actual attendance must own an auth refresh path');
+need(js.includes('r.status===401||r.status===403'),'actual attendance must retry both 401 and 403 auth failures');
+need(js.includes("/JWT|NOT_AUTHORIZED|invalid claim|expired/i"),'actual attendance must recognize expired/invalid JWT errors');
+need(js.includes("const employees=await rpc('admin_list_employees')"),'employee RPC must be explicit');
+need(js.includes("const data=await rpc('admin_events_with_corrections'"),'attendance RPC must be explicit');
+need(html.includes('actual_attendance.js?v=20260913f'),'runtime cache version must load the refreshed implementation');
+console.log('actual attendance auth refresh QA PASS');

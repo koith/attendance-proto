@@ -1,0 +1,22 @@
+name: hotfix-actual-payroll-v1-regression
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: |
+          node --check actual_attendance.js
+          node --check payroll_contract_authority_v1.js
+          node --check qa_actual_auth_refresh_v1.mjs
+          node --check qa_payroll_gross_focus_v1.mjs
+          node --check qa_actual_payroll_hotfix_meta_v1.mjs
+      - run: node qa_actual_auth_refresh_v1.mjs
+      - run: node qa_payroll_gross_focus_v1.mjs
+      - run: node qa_actual_payroll_hotfix_meta_v1.mjs
