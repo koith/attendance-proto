@@ -20,4 +20,15 @@
   addEventListener('pageshow',e=>{
     if(e.persisted)location.reload();
   });
+
+  /* Admin IA: actual attendance has one canonical entry point in Quick Menu.
+     Remove the legacy daily/monthly planned-schedule shortcuts when renderAdmin
+     creates them. WorkSchedule data/editors remain intact; only duplicate entry
+     points are removed to prevent users returning to an unexpected admin depth. */
+  const cleanAdminScheduleShortcuts=()=>{
+    document.getElementById('adSchedMonth')?.remove();
+    document.getElementById('adSched')?.remove();
+  };
+  cleanAdminScheduleShortcuts();
+  new MutationObserver(cleanAdminScheduleShortcuts).observe(document.documentElement,{childList:true,subtree:true});
 })();
