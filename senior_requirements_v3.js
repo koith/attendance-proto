@@ -3,9 +3,8 @@
   if(window.__seniorRequirementsV3)return;window.__seniorRequirementsV3=true;
   const style=document.createElement('style');style.id='seniorRequirementsV3Style';style.textContent=`.sch-line,.sch-prog,.sch-prog-sub{display:none!important}#payList .payroll-gross-label::after{content:' · 현재까지 누적';font-weight:500;color:var(--text-muted)}`;document.head.appendChild(style);
 
-  // Senior direction: the default operational view is actual attendance, not planned schedule.
+  // Senior direction: actual_attendance is the default operational source, not planned schedule.
   // Keep WorkSchedule data intact; only remove it from the default attendance cards.
-
   // Live payroll UI is updated by payroll_live_accrual_v1 without rebuilding the whole list.
   // Do not call drawPay() on a timer: full redraws cause visible flicker and input/scroll loss on iPhone.
 
@@ -28,18 +27,13 @@
             b.onclick=async()=>{
               if(!confirm('이 근로계약서 파일을 삭제할까요?\n\n관리자는 첨부 시점과 관계없이 삭제할 수 있습니다.'))return;
               b.disabled=true;
-              try{
-                const r=await BE.docDelete(d.id);if(!r?.ok)throw new Error(r?.error||'DOC_DELETE_FAILED');
-                const storageOk=await BE.docRemove(d.storage_path);
-                if(typeof toast==='function')toast(storageOk?'out':'err',storageOk?'삭제 완료':'삭제 완료 · 파일 정리 필요',storageOk?'근로계약서 파일을 삭제했습니다.':'문서 목록에서는 삭제됐지만 저장소 파일 정리가 필요합니다.');
-                row.remove();
-              }catch(e){console.error('[senior-v3 doc delete]',e);b.disabled=false;if(typeof toast==='function')toast('err','삭제 실패','문서 정보는 유지되었습니다. 다시 시도해주세요.')}
+              try{const r=await BE.docDelete(d.id);if(!r?.ok)throw new Error(r?.error||'DOC_DELETE_FAILED');const storageOk=await BE.docRemove(d.storage_path);if(typeof toast==='function')toast(storageOk?'out':'err',storageOk?'삭제 완료':'삭제 완료 · 파일 정리 필요',storageOk?'근로계약서 파일을 삭제했습니다.':'문서 목록에서는 삭제됐지만 저장소 파일 정리가 필요합니다.');row.remove()}
+              catch(e){console.error('[senior-v3 doc delete]',e);b.disabled=false;if(typeof toast==='function')toast('err','삭제 실패','문서 정보는 유지되었습니다. 다시 시도해주세요.')}
             };row.appendChild(b);
           });
         }catch(e){console.warn('[senior-v3 doc list]',e)}finally{patching=false}
       };
-      const obs=new MutationObserver(()=>patch());const box=document.getElementById('docList');if(box){obs.observe(box,{childList:true,subtree:true});patch()}
-      setTimeout(()=>{stopped=true;obs.disconnect()},120000);return result;
+      const obs=new MutationObserver(()=>patch());const box=document.getElementById('docList');if(box){obs.observe(box,{childList:true,subtree:true});patch()}setTimeout(()=>{stopped=true;obs.disconnect()},120000);return result;
     };
   }
 })();
