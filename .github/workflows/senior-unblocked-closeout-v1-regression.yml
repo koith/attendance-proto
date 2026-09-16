@@ -18,7 +18,7 @@ jobs:
           grep -q 'window.BaekeokTest' test_mode_ui_v1.js
           grep -q 'testModeSubstitutions' substitution_v1.js
           grep -q 'computeActualMinutes' substitution_v1.js
-          grep -q 'payroll-live-accrual' payroll_live_accrual_v1.js
+          grep -q '__payrollLiveAccrualV1' payroll_live_accrual_v1.js
           grep -q 'night_allowance_end' payroll_night_allowance_v1.js
           grep -q 'admin_store_settings' store_controls_v1.js
           grep -q 'actual_attendance' senior_requirements_v3.js
