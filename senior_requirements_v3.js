@@ -6,16 +6,8 @@
   // Senior direction: the default operational view is actual attendance, not planned schedule.
   // Keep WorkSchedule data intact; only remove it from the default attendance cards.
 
-  // While somebody is working, refresh accrued hours/pay from corrected actual attendance.
-  let liveBusy=false;
-  const liveRefresh=async()=>{
-    if(liveBusy||document.visibilityState!=='visible'||typeof drawPay!=='function')return;
-    const list=document.getElementById('payList'),month=document.getElementById('payMonth');
-    if(!list||!month||document.getElementById('addVeil')?.classList.contains('show'))return;
-    liveBusy=true;try{await drawPay(month.value)}catch(e){console.warn('[senior-v3 live payroll]',e)}finally{liveBusy=false}
-  };
-  setInterval(liveRefresh,10000);
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')liveRefresh()});
+  // Live payroll UI is updated by payroll_live_accrual_v1 without rebuilding the whole list.
+  // Do not call drawPay() on a timer: full redraws cause visible flicker and input/scroll loss on iPhone.
 
   // Delete metadata first: a later storage failure can leave only an inaccessible orphan file,
   // never a visible DB document record whose underlying file has already disappeared.
