@@ -1,0 +1,19 @@
+name: substitution-test-isolation-v1-regression
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax
+        run: |
+          node --check substitution_v1.js
+          node --check qa_substitution_test_isolation_v1.mjs
+      - name: TEST isolation QA
+        run: node qa_substitution_test_isolation_v1.mjs
