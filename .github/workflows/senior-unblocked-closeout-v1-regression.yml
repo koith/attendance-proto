@@ -1,0 +1,28 @@
+name: senior-unblocked-closeout-v1-regression
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guard implemented senior requirements and policy boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f SENIOR_UNBLOCKED_CLOSEOUT_2026-09-16.md
+          grep -q 'MONTHLY' SENIOR_POLICY_QUESTIONS_V1.md
+          grep -q 'FOUR_INSURANCE' SENIOR_POLICY_QUESTIONS_V1.md
+          grep -q 'window.BaekeokTest' test_mode_ui_v1.js
+          grep -q 'testModeSubstitutions' substitution_v1.js
+          grep -q 'computeActualMinutes' substitution_v1.js
+          grep -q 'payroll-live-accrual' payroll_live_accrual_v1.js
+          grep -q 'night_allowance_end' payroll_night_allowance_v1.js
+          grep -q 'admin_store_settings' store_controls_v1.js
+          grep -q 'actual_attendance' senior_requirements_v3.js
+          if grep -R -E 'FOUR_INSURANCE.*(0\.[0-9]+|[0-9]+%)|MONTHLY.*deduct.*=' --include='*.js' .; then
+            echo 'Potential invented blocked-policy calculation detected'
+            exit 1
+          fi
