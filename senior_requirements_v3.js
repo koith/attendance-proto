@@ -7,7 +7,6 @@
   // Keep WorkSchedule data intact; only remove it from the default attendance cards.
 
   // While somebody is working, refresh accrued hours/pay from corrected actual attendance.
-  // Existing payroll calculation remains contract-authoritative; this only shortens UI staleness.
   let liveBusy=false;
   const liveRefresh=async()=>{
     if(liveBusy||document.visibilityState!=='visible'||typeof drawPay!=='function')return;
@@ -18,8 +17,8 @@
   setInterval(liveRefresh,10000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')liveRefresh()});
 
-  // DB policy allows an administrator to delete a contract document at any time.
-  // Replace legacy uploader/24h-only buttons after the legacy modal renders.
+  // Delete metadata first: a later storage failure can leave only an inaccessible orphan file,
+  // never a visible DB document record whose underlying file has already disappeared.
   if(typeof openDocsModal==='function'&&typeof BE!=='undefined'){
     const legacyOpenDocsModal=openDocsModal;
     openDocsModal=async function(emp){
@@ -38,10 +37,11 @@
               if(!confirm('이 근로계약서 파일을 삭제할까요?\n\n관리자는 첨부 시점과 관계없이 삭제할 수 있습니다.'))return;
               b.disabled=true;
               try{
-                const storageOk=await BE.docRemove(d.storage_path);if(!storageOk)throw new Error('STORAGE_DELETE_FAILED');
                 const r=await BE.docDelete(d.id);if(!r?.ok)throw new Error(r?.error||'DOC_DELETE_FAILED');
-                if(typeof toast==='function')toast('out','삭제 완료','근로계약서 파일을 삭제했습니다.');row.remove();
-              }catch(e){console.error('[senior-v3 doc delete]',e);b.disabled=false;if(typeof toast==='function')toast('err','삭제 실패','파일 삭제에 실패했습니다. 다시 시도해주세요.')}
+                const storageOk=await BE.docRemove(d.storage_path);
+                if(typeof toast==='function')toast(storageOk?'out':'err',storageOk?'삭제 완료':'삭제 완료 · 파일 정리 필요',storageOk?'근로계약서 파일을 삭제했습니다.':'문서 목록에서는 삭제됐지만 저장소 파일 정리가 필요합니다.');
+                row.remove();
+              }catch(e){console.error('[senior-v3 doc delete]',e);b.disabled=false;if(typeof toast==='function')toast('err','삭제 실패','문서 정보는 유지되었습니다. 다시 시도해주세요.')}
             };row.appendChild(b);
           });
         }catch(e){console.warn('[senior-v3 doc list]',e)}finally{patching=false}

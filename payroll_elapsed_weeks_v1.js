@@ -27,6 +27,7 @@
       append('test_mode_ui_v1.js?v=20260916f','test-mode-ui');
       append('substitution_entry_v1.js?v=20260916a','substitution-entry');
       append('senior_requirements_v3.js?v=20260916a','senior-requirements-v3');
+      append('payroll_refresh_coordinator_v1.js?v=20260916a','payroll-refresh-coordinator');
     };
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true}); else install();
   }
