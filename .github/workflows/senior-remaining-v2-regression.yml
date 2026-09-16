@@ -1,0 +1,24 @@
+name: senior-remaining-v2-regression
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax
+        run: |
+          node --check payroll_live_accrual_v1.js
+          node --check payroll_night_allowance_v1.js
+          node --check substitution_v1.js
+          node --check qa_senior_remaining_v2.mjs
+          node --check qa_substitution_test_isolation_v1.mjs
+      - name: Senior remaining QA
+        run: |
+          node qa_senior_remaining_v2.mjs
+          node qa_substitution_test_isolation_v1.mjs

@@ -19,6 +19,6 @@ jobs:
         run: |
           grep -q "testModeCorner" test_mode_ui_v1.js
           grep -q "S.enabled=!S.enabled" test_mode_ui_v1.js
-          grep -q "location.reload()" test_mode_ui_v1.js
+          grep -q "baekeok:test-mode-change" test_mode_ui_v1.js
           grep -q "TEST':'LIVE" test_mode_ui_v1.js
-          grep -q "test_mode_ui_v1.js?v=20260916b" payroll_elapsed_weeks_v1.js
+          grep -q "test_mode_ui_v1.js?v=20260916f" payroll_elapsed_weeks_v1.js
