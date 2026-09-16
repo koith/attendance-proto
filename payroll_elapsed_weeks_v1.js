@@ -23,7 +23,7 @@
       append('payroll_night_allowance_v1.js?v=20260915a','payroll-night-allowance');
       append('payroll_senior_ux_v2.js?v=20260914c','payroll-senior-ux');
       append('payroll_night_allowance_ui_v1.js?v=20260915a','payroll-night-ui');
-      append('test_mode_ui_v1.js?v=20260916e','test-mode-ui');
+      append('test_mode_ui_v1.js?v=20260916f','test-mode-ui');
       append('substitution_entry_v1.js?v=20260916a','substitution-entry');
       append('senior_requirements_v3.js?v=20260916a','senior-requirements-v3');
     };
