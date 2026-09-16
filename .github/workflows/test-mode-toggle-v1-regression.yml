@@ -1,0 +1,24 @@
+name: test-mode-toggle-v1-regression
+on:
+  pull_request:
+    paths:
+      - 'test_mode_ui_v1.js'
+      - 'payroll_elapsed_weeks_v1.js'
+      - '.github/workflows/test-mode-toggle-v1-regression.yml'
+jobs:
+  test-mode-toggle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: node --check test_mode_ui_v1.js && node --check payroll_elapsed_weeks_v1.js
+      - name: Persistent corner toggle contract
+        run: |
+          grep -q "testModeCorner" test_mode_ui_v1.js
+          grep -q "S.enabled=!S.enabled" test_mode_ui_v1.js
+          grep -q "location.reload()" test_mode_ui_v1.js
+          grep -q "TEST':'LIVE" test_mode_ui_v1.js
+          grep -q "test_mode_ui_v1.js?v=20260916b" payroll_elapsed_weeks_v1.js
