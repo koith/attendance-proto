@@ -11,11 +11,16 @@
     c.classList.toggle('on',on);c.querySelector('.tm-label').textContent=on?'TEST':'LIVE';c.setAttribute('aria-pressed',on?'true':'false');
   }
   function mount(){
-    const host=document.querySelector('.admin-quick');if(!host||document.getElementById('testModeCard'))return;
+    const host=document.querySelector('.admin-quick');if(!host)return false;
+    const old=document.getElementById('testModeCard');if(old){if(old.parentElement===host)return true;old.remove()}
     const S=T.get(),d=kstNow(),p=n=>String(n).padStart(2,'0'),v=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-    const c=document.createElement('div');c.id='testModeCard';c.className='test-mode-card';c.innerHTML=`<div class="rowx"><b>테스트 모드</b><span style="font-size:.8rem;color:var(--text-muted)">${S.enabled?'켜짐':'꺼짐'} · 우상단 토글로 전환</span>${S.enabled?`<input id="testNow" type="datetime-local" value="${v}"><button class="btn btn-secondary btn-sm" id="testPlus1">+1시간</button><button class="btn btn-secondary btn-sm" id="testPlus8">+8시간</button><button class="btn btn-danger btn-sm" id="testReset">초기화</button>`:''}</div>${S.enabled?'<div style="font-size:.7rem;color:var(--text-muted);margin-top:6px">테스트 PIN 0000 · 출퇴근/정정/급여는 sandbox 데이터만 사용합니다.</div>':''}`;host.appendChild(c);
+    const c=document.createElement('div');c.id='testModeCard';c.className='test-mode-card';c.innerHTML=`<div class="rowx"><b>테스트 모드</b><span style="font-size:.8rem;color:var(--text-muted)">${S.enabled?'켜짐':'꺼짐'} · 우상단 토글로 전환</span>${S.enabled?`<input id="testNow" type="datetime-local" value="${v}"><button class="btn btn-secondary btn-sm" id="testPlus1">+1시간</button><button class="btn btn-secondary btn-sm" id="testPlus8">+8시간</button><button class="btn btn-danger btn-sm" id="testReset">초기화</button>`:''}</div>${S.enabled?'<div style="font-size:.7rem;color:var(--text-muted);margin-top:6px">테스트 PIN 0000 · 출퇴근/정정/급여는 sandbox 데이터만 사용합니다.</div>':''}`;host.prepend(c);
     if(S.enabled){document.getElementById('testNow').onchange=e=>{const n=new Date(e.target.value);if(!isNaN(n)){S.now=n.toISOString();T.set(S);location.reload()}};document.getElementById('testPlus1').onclick=()=>{S.now=new Date(kstNow().getTime()+3600000).toISOString();T.set(S);location.reload()};document.getElementById('testPlus8').onclick=()=>{S.now=new Date(kstNow().getTime()+28800000).toISOString();T.set(S);location.reload()};document.getElementById('testReset').onclick=()=>{if(confirm('테스트 데이터만 초기화할까요?')){S.events=[];S.corrections=[];S.seq=1;T.set(S);location.reload()}}}
+    return true;
   }
-  if(typeof renderAdmin==='function'){const base=renderAdmin;renderAdmin=async function(...a){const r=await base.apply(this,a);visual();mount();return r}}
-  const boot=()=>{visual();mount()};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  function sync(){visual();mount()}
+  if(typeof renderAdmin==='function'){const base=renderAdmin;renderAdmin=async function(...a){const r=await base.apply(this,a);queueMicrotask(sync);return r}}
+  const observer=new MutationObserver(()=>{if(!document.getElementById('testModeCard')&&document.querySelector('.admin-quick'))mount()});
+  const boot=()=>{sync();observer.observe(document.body,{childList:true,subtree:true});setTimeout(sync,0);setTimeout(sync,250);setTimeout(sync,1000)};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
