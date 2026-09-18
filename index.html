@@ -1217,7 +1217,11 @@ function mrRange(){ const t=kstNow(); const p=n=>String(n).padStart(2,"0");
 let toastTimer=null;
 function toast(kind,big,sub){
   const t=document.getElementById("toast");
-  t.className="toast "+kind; t.innerHTML=`<div class="big">${big}</div><div class="sub">${sub||""}</div>`;
+  t.className="toast "+kind;
+  t.replaceChildren();
+  const title=document.createElement("div");title.className="big";title.textContent=String(big??"");
+  const detail=document.createElement("div");detail.className="sub";detail.textContent=String(sub??"");
+  t.append(title,detail);
   t.classList.add("show"); clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.classList.remove("show"),2200);
 }
