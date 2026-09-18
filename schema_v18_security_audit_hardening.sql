@@ -27,7 +27,10 @@ begin
     execute format('grant execute on function %s to authenticated, service_role', r.sig);
   end loop;
 end
-$$;
+$;
+
+-- ws_archive is a trigger-only archival helper; browser roles never call it directly.
+revoke execute on function public.ws_archive() from public, anon, authenticated;
 
 create index if not exists correction_requests_event_id_idx
   on public.correction_requests(event_id);
