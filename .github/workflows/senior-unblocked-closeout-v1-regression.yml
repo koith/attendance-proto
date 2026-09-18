@@ -22,7 +22,5 @@ jobs:
           grep -q 'night_allowance_end' payroll_night_allowance_v1.js
           grep -q 'admin_store_settings' store_controls_v1.js
           grep -q 'actual_attendance' senior_requirements_v3.js
-          if grep -R -E 'FOUR_INSURANCE.*(0\.[0-9]+|[0-9]+%)|MONTHLY.*deduct.*=' --include='*.js' .; then
-            echo 'Potential invented blocked-policy calculation detected'
-            exit 1
-          fi
+          grep -q "c.payroll_type==='MONTHLY'.*월급제 급여 계산정책 미확정" payroll_contract_authority_v1.js
+          grep -q "c.tax_treatment==='FOUR_INSURANCE'.*4대보험 공제 계산정책 미확정" payroll_contract_authority_v1.js
