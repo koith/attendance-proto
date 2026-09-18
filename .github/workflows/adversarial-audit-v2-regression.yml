@@ -1,0 +1,12 @@
+name: adversarial-audit-v2-regression
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  adversarial:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Adversarial acceptance checks
+        run: node qa_adversarial_audit_v2.mjs
