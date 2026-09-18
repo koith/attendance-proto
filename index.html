@@ -634,6 +634,9 @@ const SupaBE = (()=>{
       const d=await r.json();
       return CONFIG.SUPABASE_URL + "/storage/v1" + d.signedURL;  // signedURL은 상대경로
     },
+    async storeSettingsGet(){ return rpc("admin_store_settings_get",{},true); },
+    async storeSettingsSet(openMin,closeMin,grace){ return rpc("admin_store_settings_set",{p_open_minute:openMin,p_close_minute:closeMin,p_close_grace_minutes:grace},true); },
+    async enforceStoreClose(){ return rpc("system_enforce_store_close"); },
     async listAdmins(){ return rpc("admin_list_admins",{},true); },
     async grantAdmin(email){ return rpc("admin_grant",{p_email:email},true); },
     async revokeAdmin(userId){ return rpc("admin_revoke",{p_user_id:userId},true); },
