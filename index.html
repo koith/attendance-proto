@@ -1782,10 +1782,11 @@ async function drawPay(ym){
   if(LIVE){
     const gbox=document.createElement("div"); gbox.style.marginTop="10px";
     gbox.innerHTML=`<button class="btn btn-secondary btn-block" id="btnSyncSheet">지금 갱신</button>
-      <div id="syncMsg" style="font-size:.78rem;color:var(--muted);text-align:center;margin-top:6px">자동 갱신 사용 중 · 변경 시 최대 1분 내 반영</div>
+      <div id="syncMsg" style="font-size:.78rem;color:var(--muted);text-align:center;margin-top:6px">자동 갱신 사용 중 · 마지막 갱신 확인 중</div>
       <button class="btn btn-secondary btn-block" id="btnOpenSheet" style="margin-top:8px">구글시트 열기</button>
       <div style="font-size:.72rem;color:var(--muted);text-align:center;margin-top:6px">점주 초대: 시트 열기 → 우측 상단 '공유' → 이메일을 '뷰어'로 추가</div>`;
     el.appendChild(gbox);
+    try{const st=JSON.parse(localStorage.getItem("baekeok_sheet_sync_v1")||"null");if(st?.ok&&st?.at){const d=new Date(st.at);document.getElementById("syncMsg").textContent=`자동 갱신 사용 중 · 마지막 갱신 ${d.toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})}`;}}catch(_){}
     document.getElementById("btnOpenSheet").onclick=()=>{
       window.open(`https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/edit`,"_blank");
     };
@@ -1795,7 +1796,7 @@ async function drawPay(ym){
       try{
         const payload=await buildSheetSyncPayload(ym);  // DOM 아닌 DB조회+기존계산 재사용
         const res=await BE.syncSheet(ym, payload);
-        msg.textContent = res.closed ? `마감완료 자료로 갱신됨 (${ym})` : `예상 자료로 갱신됨 (${ym})`;
+        const syncAt=new Date(); localStorage.setItem("baekeok_sheet_sync_v1",JSON.stringify({ok:true,ym,at:syncAt.toISOString()})); msg.textContent=`자동 갱신 사용 중 · 마지막 갱신 ${syncAt.toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})}`;
         toast("in","구글시트 갱신 완료", res.closed?"마감 확정본":"예상(미마감)");
       }catch(e){
         msg.textContent="갱신 실패: "+e.message;
@@ -1885,7 +1886,7 @@ const SheetAutoSync=(()=>{
       await BE.syncSheet(ym,payload);
       lastFingerprint=fp;retryMs=0;
       localStorage.setItem("baekeok_sheet_sync_v1",JSON.stringify({ok:true,ym,at:new Date().toISOString()}));
-      const msg=document.getElementById("syncMsg");if(msg)msg.textContent=`자동 갱신됨 · ${new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}`;
+      const msg=document.getElementById("syncMsg");if(msg)msg.textContent=`자동 갱신 사용 중 · 마지막 갱신 ${new Date().toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})}`;
     }catch(e){
       retryMs=retryMs?Math.min(retryMs*2,300000):15000;
       localStorage.setItem("baekeok_sheet_sync_v1",JSON.stringify({ok:false,at:new Date().toISOString(),error:String(e?.message||e)}));
