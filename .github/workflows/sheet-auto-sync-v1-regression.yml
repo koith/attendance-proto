@@ -1,0 +1,12 @@
+name: sheet-auto-sync-v1-regression
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check qa_sheet_auto_sync_v1.mjs
+      - run: node qa_sheet_auto_sync_v1.mjs
