@@ -1,0 +1,1 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';const s=fs.readFileSync('index.html','utf8');assert(s.includes('자동 갱신 사용 중 · 마지막 갱신'));assert(s.includes('baekeok_sheet_sync_v1'));assert(s.includes('syncAt.toISOString()'));console.log('force-close/sheet status v1: PASS');
