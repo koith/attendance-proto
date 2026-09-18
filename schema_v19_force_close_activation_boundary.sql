@@ -1,0 +1,5 @@
+-- Production DB migration applied through Supabase on 2026-09-19.
+-- Fixes auto-close activation boundary: eligibility is based on the shift cutoff,
+-- not the IN timestamp, so shifts opened before activation but crossing a post-activation cutoff are closed.
+-- Historical stale sessions whose cutoff predates activation remain untouched.
+-- See Supabase migration: fix_store_close_activation_boundary.
