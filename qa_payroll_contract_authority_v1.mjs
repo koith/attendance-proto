@@ -3,7 +3,7 @@ const mod=fs.readFileSync('payroll_contract_authority_v1.js','utf8');
 const loader=fs.readFileSync('payroll_elapsed_weeks_v1.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
 let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
-t('main html loads elapsed-week bootstrap directly',()=>{assert(index.includes('<script src="payroll_elapsed_weeks_v1.js"></script>'));assert(loader.includes('DOMContentLoaded'));assert(loader.includes('payroll_contract_authority_v1.js?v=20260913f'))});
+t('main html loads elapsed-week bootstrap directly',()=>{assert(/<script src="payroll_elapsed_weeks_v1\\.js(?:\\?v=[^"]+)?"><\\/script>/.test(index));assert(loader.includes('DOMContentLoaded'));assert(/payroll_contract_authority_v1\\.js\\?v=\\d+[a-z]?/.test(loader))});
 t('payroll reads authoritative employment bundle through owned authenticated RPC',()=>{assert(mod.includes("adminRpc('admin_employment_bundle'"));assert(!mod.includes("rpc('admin_employment_bundle'"));assert(mod.includes('function adminRpc'));assert(mod.includes('grant_type=refresh_token'));assert(mod.includes('c.hourly_wage'));assert(mod.includes('c.weekly_contracted_minutes'));assert(mod.includes('c.business_deduction_rate'))});
 t('recurring duplicate monthly overrides are excluded from calculation',()=>{assert(mod.includes('function safeOverride'));assert(!/out\.wage_override/.test(mod));assert(!/out\.juhyu_hours_override/.test(mod));assert(!/out\.tax_rate_override/.test(mod));assert(mod.includes('juhyu_weeks_override'));assert(mod.includes('adjust_amount'))});
 t('existing finalized payroll formula is reused',()=>{assert(mod.includes('calcPayroll(emp,row.hours,R.weeks,ov)'));assert(!mod.includes('wage*row.hours'))});
@@ -13,5 +13,5 @@ t('contract gaps and mid-month incompatible changes fail visibly instead of gues
 t('blocked payroll still exposes authoritative contract terms',()=>{assert(mod.includes('contract:displayContract'));assert(mod.includes('function contractSummary'));assert(mod.includes('계약 시급'));assert(mod.includes('payroll-contract-summary'))});
 t('legacy no-contract employees remain backward compatible and are routed to contract registration',()=>{assert(mod.includes("mode:'LEGACY'"));assert(mod.includes('기존 급여설정으로 임시 계산'));assert(mod.includes("edit.textContent='계약 등록'"));assert(mod.includes('employment_contracts.html?employee='))});
 t('contract-backed payroll removes duplicate basic edit and month adjustment hides recurring contract fields',()=>{assert(mod.includes('else edit.remove()'));assert(mod.includes("['maWage','maJh','maTax']"))});
-t('current payroll refreshes while visible',()=>{assert(mod.includes('setInterval(refresh,60000)'));assert(mod.includes('visibilitychange'))});
+t('current payroll refreshes while visible without full redraw',()=>{assert(mod.includes('setInterval(patchLive,10000)'));assert(mod.includes('window.__patchPayrollLiveValues=patchLive'));assert(!mod.includes('setInterval(refresh,60000)'));assert(mod.includes('visibilitychange'))});
 console.log(`Payroll contract authority V2 QA: ${pass} PASS`);
