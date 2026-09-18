@@ -93,8 +93,9 @@
           const msg=r?.error==='TOO_OLD_TO_DELETE'?'현재 서버 정책상 업로드 후 24시간이 지나 삭제할 수 없습니다.':r?.error==='NOT_OWN_UPLOAD'?'현재 서버 정책상 업로드한 관리자만 삭제할 수 있습니다.':'계약서를 삭제하지 못했습니다.';
           return toast(msg,true);
         }
-        await BE.contractDocRemove(r.storage_path);
-        await loadDocPanels(currentContract());toast('계약서를 삭제했습니다.');
+        const storageOk=await BE.contractDocRemove(r.storage_path);
+        await loadDocPanels(currentContract());
+        toast(storageOk?'계약서를 삭제했습니다.':'문서 목록은 삭제됐지만 저장소 파일 정리가 필요합니다.',!storageOk);
       }catch(_){toast('계약서를 삭제하지 못했습니다.',true)}
     });
   }
