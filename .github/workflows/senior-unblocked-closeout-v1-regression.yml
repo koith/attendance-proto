@@ -21,7 +21,7 @@ jobs:
           grep -q '__payrollLiveAccrualV1' payroll_live_accrual_v1.js
           grep -q 'night_allowance_end' payroll_night_allowance_v1.js
           grep -q 'admin_store_settings' store_controls_v1.js
-          grep -q 'actual_attendance' senior_requirements_v3.js
+          grep -q 'actual attendance' senior_requirements_v3.js
           grep -q "payroll_type==='MONTHLY'" payroll_contract_authority_v1.js
           grep -q '월급제 급여 계산정책 미확정' payroll_contract_authority_v1.js
           grep -q "tax_treatment==='FOUR_INSURANCE'" payroll_contract_authority_v1.js
