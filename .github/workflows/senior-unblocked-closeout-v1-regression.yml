@@ -13,15 +13,15 @@ jobs:
         run: |
           set -euo pipefail
           test -f SENIOR_UNBLOCKED_CLOSEOUT_2026-09-16.md
-          grep -q 'MONTHLY' SENIOR_POLICY_QUESTIONS_V1.md
-          grep -q 'FOUR_INSURANCE' SENIOR_POLICY_QUESTIONS_V1.md
+          grep -q '월급제' SENIOR_POLICY_QUESTIONS_V1.md
+          grep -q '4대보험' SENIOR_POLICY_QUESTIONS_V1.md
           grep -q 'window.BaekeokTest' test_mode_ui_v1.js
-          grep -q 'testModeSubstitutions' substitution_v1.js
-          grep -q 'computeActualMinutes' substitution_v1.js
+          grep -q "TEST_SUB_KEY='baekeok_test_substitution_v1'" substitution_v1.js
+          grep -q 'BaekeokTestSubstitutionRefresh' substitution_test_attendance_bridge_v1.js
           grep -q '__payrollLiveAccrualV1' payroll_live_accrual_v1.js
           grep -q 'night_allowance_end' payroll_night_allowance_v1.js
           grep -q 'admin_store_settings' store_controls_v1.js
-          grep -q 'actual attendance' senior_requirements_v3.js
+          grep -q 'actual-work-first UX' senior_requirements_v3.js
           grep -q "payroll_type==='MONTHLY'" payroll_contract_authority_v1.js
           grep -q '월급제 급여 계산정책 미확정' payroll_contract_authority_v1.js
           grep -q "tax_treatment==='FOUR_INSURANCE'" payroll_contract_authority_v1.js
