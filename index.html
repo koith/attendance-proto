@@ -297,7 +297,7 @@
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js" defer></script>
-<script src="payroll_elapsed_weeks_v1.js"></script>
+<script src="payroll_elapsed_weeks_v1.js?v=20260918a"></script>
 </head>
 <body>
 <div class="wrap">
@@ -807,7 +807,23 @@ function setTab(t){
 function route(){
   const h=(location.hash||"#pos").replace("#","");
   if(h!=="pos"){ clearInterval(_posTimer); }
-  if(h==="admin"){ const q=new URLSearchParams(location.search); setTab("admin"); requireAuth(async()=>{ await renderAdmin(); if(q.get("task")==="employees"||q.get("task")==="docs") document.getElementById("adEmps")?.scrollIntoView({block:"start"}); else if(q.get("task")==="today") document.getElementById("adList")?.scrollIntoView({block:"start"}); }); }
+  if(h==="admin"){
+    const q=new URLSearchParams(location.search);
+    setTab("admin");
+    requireAuth(async()=>{
+      await renderAdmin();
+      const task=q.get("task"),focus=q.get("focus");
+      if(task==="employees"||task==="docs"||focus==="employees") document.getElementById("adEmps")?.scrollIntoView({block:"start"});
+      else if(task==="today") document.getElementById("adList")?.scrollIntoView({block:"start"});
+      else window.scrollTo({top:0,left:0,behavior:"auto"});
+      // focus/resume are one-shot return-navigation hints. Consume them so later normal Admin taps start at the top.
+      if(q.has("focus")||q.has("resume")){
+        q.delete("focus"); q.delete("resume");
+        const qs=q.toString();
+        history.replaceState(null,"",location.pathname+(qs?"?"+qs:"")+location.hash);
+      }
+    });
+  }
   else if(h==="pay"){ setTab("pay"); requireAuth(renderPay); }
   else{ setTab("pos"); renderPos(); }
 }
@@ -1458,7 +1474,6 @@ async function renderAdmin(){
     div.querySelector("[data-contract]").onclick=()=>{ location.href=`employment_contracts.html?employee=${e.id}&from=employees`; };
     empsEl.appendChild(div);
   }
-  if(new URLSearchParams(location.search).get("focus")==="employees") empsEl.scrollIntoView({behavior:"auto",block:"start"});
 }
 
 // 정정요청 대기 큐
@@ -1589,8 +1604,7 @@ async function renderPay(){
       </div>
     </div>
     <div style="font-size:.75rem;color:var(--muted);margin:0 2px 14px">
-      ⚠ 세후(3.3%)·주휴 처리는 현재 매장 관행값입니다. 실제 신고는 회계사 확인 후.<br>
-      주 수는 그 달 실제 근무 주에 맞춰 관리자가 확정하세요(비우면 4주).
+      급여는 계약조건과 정정 반영 실근무를 기준으로 계산합니다. 월급제·4대보험은 정책 확정 전 금액 계산을 보류합니다.
     </div>
     <div id="payList"></div>`;
   document.getElementById("payMonth").addEventListener("change",e=>drawPay(e.target.value));
