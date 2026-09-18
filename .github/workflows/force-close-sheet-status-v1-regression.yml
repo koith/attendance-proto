@@ -1,0 +1,11 @@
+name: force-close-sheet-status-v1-regression
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node qa_force_close_sheet_status_v1.mjs
