@@ -1504,7 +1504,7 @@ async function renderPendingRequests(){
     const afterVal = fmt(r.requested_at);
     const div=document.createElement("div"); div.className="row"; div.style.flexDirection="column"; div.style.alignItems="stretch"; div.style.gap="8px";
     div.innerHTML=`
-      <div class="nm">${r.employee_name} · ${kindLabel[r.kind]||r.kind}${target?` (${target})`:""}</div>
+      <div class="nm">${safeHtml(r.employee_name)} · ${safeHtml(kindLabel[r.kind]||r.kind)}${target?` (${safeHtml(target)})`:""}</div>
       <div style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:.85rem">
         <div style="display:flex;justify-content:space-between;padding:2px 0">
           <span style="color:var(--sub)">수정 전</span><span style="text-decoration:line-through;color:var(--muted)">${beforeVal}</span></div>
