@@ -1359,7 +1359,11 @@ async function renderAdmin(){
     try{ opState=await BE.listEmployeesState(); }catch(_){ opState=[]; }
     try{ todaySched=await BE.scheduleList(day,day); }catch(_){ todaySched=[]; }  // 오늘 스케줄(계획)
     if(LIVE){
-      const data=await BE.eventsWithCorrections(`${day}T00:00:00`,`${day}T23:59:59`);
+      // Pairing needs boundary events too: a shift can start yesterday and end today (or cross midnight tonight).
+      const dkey=d=>`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+      const prev=new Date(t);prev.setDate(prev.getDate()-1);
+      const next=new Date(t);next.setDate(next.getDate()+2);
+      const data=await BE.eventsWithCorrections(`${dkey(prev)}T00:00:00`,`${dkey(next)}T00:00:00`);
       eff=applyCorrections(data.events, data.corrections);
     } else {
       eff=await BE.todayEvents();
