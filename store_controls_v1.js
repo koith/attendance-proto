@@ -2,7 +2,7 @@
 (()=>{
   if(window.__baekeokStoreControlsV1)return;window.__baekeokStoreControlsV1=true;if(typeof BE==='undefined'||typeof renderAdmin!=='function')return;
   const TEST_KEY='baekeok_test_mode_v1',inTest=()=>{try{return !!JSON.parse(localStorage.getItem(TEST_KEY)||'null')?.enabled}catch(_){return false}};
-  BE.storeSettingsGet=()=>rpc('admin_store_settings_get',{},true);BE.storeSettingsSet=(openMin,closeMin,grace)=>rpc('admin_store_settings_set',{p_open_minute:openMin,p_close_minute:closeMin,p_close_grace_minutes:grace},true);BE.enforceStoreClose=()=>rpc('system_enforce_store_close');
+  // Store settings RPCs are exposed by the main backend adapter. This overlay must not depend on its private rpc() closure.
   const p=n=>String(n).padStart(2,'0'),fmt=m=>`${Math.floor(Number(m||0)/60)}:${p(Number(m||0)%60)}`;
   const parseOpen=(h,m)=>{h=Number(h);m=Number(m);if(!Number.isInteger(h)||!Number.isInteger(m)||h<0||h>23||m<0||m>59)return null;return h*60+m};
   const parseClose=(h,m)=>{h=Number(h);m=Number(m);if(!Number.isInteger(h)||!Number.isInteger(m)||h<0||h>47||m<0||m>59)return null;return h*60+m};
