@@ -1,0 +1,12 @@
+name: deep-audit-v1-regression
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deep audit regression
+        run: node qa_deep_audit_v1.mjs

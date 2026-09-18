@@ -18,9 +18,9 @@
       append('employee_identity_ux_v1.js?v=20260914c','employee-identity-ux');
       append('test_mode_core_v1.js?v=20260915a','test-mode-core');
       append('test_mode_write_guard_v1.js?v=20260915a','test-mode-write-guard');
-      append('store_controls_v1.js?v=20260915a','store-controls');
+      append('store_controls_v1.js?v=20260918a','store-controls');
       append('payroll_live_accrual_v1.js?v=20260916a','payroll-live-accrual');
-      append('payroll_contract_authority_v1.js?v=20260913f','payroll-contract-authority');
+      append('payroll_contract_authority_v1.js?v=20260918a','payroll-contract-authority');
       append('payroll_night_allowance_v1.js?v=20260916b','payroll-night-allowance');
       append('payroll_senior_ux_v2.js?v=20260914c','payroll-senior-ux');
       append('payroll_night_allowance_ui_v1.js?v=20260915a','payroll-night-ui');

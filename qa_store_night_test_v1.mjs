@@ -1,8 +1,8 @@
 import fs from 'node:fs';import assert from 'node:assert/strict';
 const r=p=>fs.readFileSync(p,'utf8');
-const loader=r('payroll_elapsed_weeks_v1.js'),store=r('store_controls_v1.js'),core=r('test_mode_core_v1.js'),actual=r('actual_attendance.html'),bridge=r('actual_attendance_test_mode_v1.js'),contract=r('employment_contracts.html'),nightForm=r('employment_contract_night_end_v1.js'),nightPay=r('payroll_night_allowance_v1.js');
-assert(store.includes('admin_store_settings_get')&&store.includes('system_enforce_store_close')&&store.includes('60000'));
-assert(nightForm.includes('nightEnd')&&nightForm.includes('admin_contract_night_end_set'));
+const loader=r('payroll_elapsed_weeks_v1.js'),store=r('store_controls_v1.js'),index=r('index.html'),core=r('test_mode_core_v1.js'),actual=r('actual_attendance.html'),bridge=r('actual_attendance_test_mode_v1.js'),contract=r('employment_contracts.html'),nightForm=r('employment_contract_night_end_v1.js'),nightPay=r('payroll_night_allowance_v1.js');
+assert(index.includes('admin_store_settings_get')&&index.includes('system_enforce_store_close')&&store.includes('BE.storeSettingsGet')&&store.includes('BE.enforceStoreClose')&&store.includes('60000'));
+assert(nightForm.includes('nightEnd')&&nightForm.includes('admin_contract_night_end_set'));assert(nightForm.includes('nightEndPostSaveError')&&nightForm.includes('계약은 저장됐지만 야간 종료시간 저장에 실패했습니다.'));
 assert(nightPay.includes('night_allowance_end')&&nightPay.includes("night_allowance_mode==='FLAT'")&&nightPay.includes('p.gross+=add'));
 assert(core.includes('baekeok_test_mode_v1')&&core.includes('BE.eventsWithCorrections')&&core.includes('kstNow=()=>now()'));
 assert(actual.indexOf('actual_attendance_test_mode_v1.js')<actual.indexOf('actual_attendance.js'));

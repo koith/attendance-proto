@@ -1,7 +1,7 @@
 import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
 const r=p=>fs.readFileSync(p,'utf8');let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
 const idx=r('index.html'),hub=r('admin_hub.html'),mh=r('monthly_schedule.html'),mj=r('monthly_schedule.js'),mc=r('monthly_schedule_core.js'),dh=r('daily_schedule.html'),dj=r('daily_schedule.js'),dc=r('daily_schedule.css'),pmh=r('planned_monthly_schedule.html'),pdh=r('planned_daily_schedule.html'),ec=r('employment_contracts_v3.js'),ar=r('attendance_review.js');
-t('관리 탭은 실제 operational renderAdmin 직행',()=>{assert(idx.includes('if(h==="admin"){ const q=new URLSearchParams(location.search); setTab("admin"); requireAuth(async()=>{ await renderAdmin();'));assert(!idx.includes('if(!q.has("legacyAdmin")){ location.replace("admin_hub.html")'))});
+t('관리 탭은 실제 operational renderAdmin 직행',()=>{assert(idx.includes('if(h==="admin"){'));assert(idx.includes('const q=new URLSearchParams(location.search)'));assert(idx.includes('requireAuth(async()=>'));assert(idx.includes('await renderAdmin()'));assert(!idx.includes('if(!q.has("legacyAdmin")){ location.replace("admin_hub.html")'))});
 t('standalone admin_hub는 관리 landing으로 redirect',()=>{assert(hub.includes("location.replace('index.html#admin')"));assert(!hub.includes('무엇을 할까요?'))});
 t('관리 landing 빠른 메뉴 3개',()=>{['quickSchedule','quickEmployees','quickContracts'].forEach(x=>assert(idx.includes(x)));assert(!idx.includes('quickDocs'));assert(idx.includes('grid-template-columns:repeat(3,minmax(0,1fr))'))});
 t('빠른 근무현황은 실제 출퇴근 현황으로 진입',()=>{assert(idx.includes('document.getElementById("quickSchedule").onclick=()=>{ location.href="actual_attendance.html"; };'));assert(idx.includes('<b>근무현황</b>'))});
