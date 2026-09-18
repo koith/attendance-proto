@@ -6,7 +6,7 @@
   const SESSION_KEY='baekeok_auth';
   const isSupabase=url=>/https:\/\/[^/]+\.supabase\.co\//.test(String(url||''));
   const session=()=>{try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch(_){return null}};
-  const save=s=>{if(s&&s.access_token){const prev=session()||{};localStorage.setItem(SESSION_KEY,JSON.stringify({...prev,...s}))}};
+  const save=s=>{if(s&&s.access_token){const prev=session()||{};localStorage.setItem(SESSION_KEY,JSON.stringify({...prev,...s}));try{if(typeof Auth!=='undefined')Auth.token=s.access_token}catch(_){}}};
   const headerValue=(input,init,name)=>{
     const h=new Headers(init?.headers||(typeof input!=='string'?input?.headers:{}));return h.get(name);
   };
