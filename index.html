@@ -687,6 +687,11 @@ const SupaBE = (()=>{
 
 const BE = LIVE ? SupaBE : LocalBE;
 
+// Any database/user-controlled text inserted through innerHTML must pass this boundary.
+function safeHtml(value){
+  return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
+}
+
 /* ============================ 공통 로직 ============================ */
 // GPT판 pair_events 이식: IN/OUT 세션화 + 미완결/고아 감지
 // 원본 이벤트 + 보정 → 유효 이벤트 목록 (원본 불변, 최신 보정 우선)
@@ -883,11 +888,11 @@ async function renderPos(){
     card.className="emp"+(e.working?" working":"");
     if(e.working){
       card.innerHTML=`
-        <div class="row1"><span class="nm">${e.name}</span><span class="badge-on">근무 중</span></div>
+        <div class="row1"><span class="nm">${safeHtml(e.name)}</span><span class="badge-on">근무 중</span></div>
         <div class="since" data-since="${e.working_since||''}">${e.working_since?`${hhmm(fromIso(e.working_since))} 출근 · ${fmtElapsed(e.working_since)}`:'근무 중'}</div>`;
     }else{
       card.innerHTML=`
-        <div class="row1"><span class="nm">${e.name}</span><span class="badge-off">출근 전</span></div>`;
+        <div class="row1"><span class="nm">${safeHtml(e.name)}</span><span class="badge-off">출근 전</span></div>`;
     }
     card.onclick=()=>openPad(e, e.working?"WORKING":"OFF");
     grid.appendChild(card);
@@ -990,7 +995,7 @@ function mrShowAuth(emps, preselId){
     <h3>내 근태 기록</h3>
     <div class="field"><label>본인 선택</label>
       <select id="mrEmp" style="height:50px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 12px">
-        ${emps.map(e=>`<option value="${e.id}" ${preselId===e.id?'selected':''}>${e.name}</option>`).join("")}</select></div>
+        ${emps.map(e=>`<option value="${e.id}" ${preselId===e.id?'selected':''}>${safeHtml(e.name)}</option>`).join("")}</select></div>
     <div class="field"><label>비밀번호 (4자리)</label><input id="mrPin" inputmode="numeric" maxlength="4" type="password" placeholder="비밀번호를 입력하세요"></div>
     <div id="mrHint" style="font-size:.8rem;color:var(--warn);min-height:1.1em;margin:-6px 0 6px"></div>
     <button class="btn btn-primary btn-block btn-lg" id="mrView">내 기록 보기</button>`;
@@ -1451,7 +1456,7 @@ async function renderAdmin(){
 
       const div=document.createElement("div"); div.className="att-card"+(isWorking?" working":"");
       div.innerHTML=`
-        <div class="att-name">${e.name}</div>
+        <div class="att-name">${safeHtml(e.name)}</div>
         <div class="att-info">
           ${schLine}
           <div class="line1">${line1}</div>
@@ -1471,7 +1476,7 @@ async function renderAdmin(){
   for(const [i,e] of active.entries()){
     const div=document.createElement("div"); div.className="row";
     const seq=String(i+1).padStart(2,"0");
-    div.innerHTML=`<div class="nm" style="flex:1"><span style="display:inline-block;min-width:30px;color:var(--text-muted);font-size:.78rem;font-variant-numeric:tabular-nums">${seq}</span>${e.name}</div>
+    div.innerHTML=`<div class="nm" style="flex:1"><span style="display:inline-block;min-width:30px;color:var(--text-muted);font-size:.78rem;font-variant-numeric:tabular-nums">${seq}</span>${safeHtml(e.name)}</div>
       <button class="btn btn-secondary btn-sm" data-contract="${e.id}">계약</button>
       <button class="btn btn-danger btn-sm" data-deact="${e.id}">비활성화</button>`;
     div.querySelector("[data-deact]").onclick=async()=>{ if(confirm(`${e.name} 직원을 비활성화할까요?`)){ await BE.deactivateEmployee(e.id); renderAdmin(); } };
@@ -1506,7 +1511,7 @@ async function renderPendingRequests(){
         <div style="display:flex;justify-content:space-between;padding:2px 0">
           <span style="color:var(--sub)">수정 후</span><span style="font-weight:700;color:var(--accent)">${afterVal}</span></div>
       </div>
-      ${r.note?`<div style="font-size:.82rem;color:var(--muted)">사유: ${r.note}</div>`:""}
+      ${r.note?`<div style="font-size:.82rem;color:var(--muted)">사유: ${safeHtml(r.note)}</div>`:""}
       <div class="btn-pair" style="margin-top:4px">
         <button class="btn btn-primary" data-ap="${r.id}">승인</button>
         <button class="btn btn-danger" data-rj="${r.id}">반려</button>
@@ -1699,7 +1704,7 @@ async function drawPay(ym){
     card.className="row"; card.style.flexDirection="column"; card.style.alignItems="stretch"; card.style.gap="10px";
     card.innerHTML=`
       <div style="display:flex;align-items:center;gap:10px">
-        <div class="nm" style="flex:1">${eName}
+        <div class="nm" style="flex:1">${safeHtml(eName)}
           ${issues?`<span class="badge issue" style="margin-left:6px">확인필요 ${issues}</span>`:''}
           ${ov?`<span class="badge" style="margin-left:6px;color:var(--accent);border-color:var(--accent)">이달 조정</span>`:''}
         </div>
@@ -1715,8 +1720,8 @@ async function drawPay(ym){
         <div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--line)">
           세전 <b style="color:var(--ink)">${pay.gross.toLocaleString()}</b>
           → 세후(${(pay.rate*100).toFixed(1)}%) <b style="color:var(--in);font-size:1.05rem">${pay.net.toLocaleString()}원</b></div>
-        ${(ov&&ov.memo)?`<div style="color:var(--accent);font-size:.78rem;margin-top:4px">📌 이달: ${ov.memo}</div>`:''}
-        ${e.memo?`<div style="color:var(--muted);font-size:.78rem;margin-top:2px">📝 ${e.memo}</div>`:''}
+        ${(ov&&ov.memo)?`<div style="color:var(--accent);font-size:.78rem;margin-top:4px">📌 이달: ${safeHtml(ov.memo)}</div>`:''}
+        ${e.memo?`<div style="color:var(--muted);font-size:.78rem;margin-top:2px">📝 ${safeHtml(e.memo)}</div>`:''}
       </div>` : `
       <div style="font-size:.82rem;color:var(--muted)">실근무 ${fmtHM(sec)} · 시급 미설정 — [기본설정]에서 시급을 입력하세요</div>`}
     `;
@@ -1930,7 +1935,7 @@ async function openScheduleModal(){
       const st=w?w.status:""; const ss=w&&w.planned_start?w.planned_start.slice(0,5):""; const se=w&&w.planned_end?w.planned_end.slice(0,5):"";
       const row=document.createElement("div"); row.className="row"; row.style.cssText="flex-direction:column;align-items:stretch;gap:6px;border-bottom:1px solid var(--border);padding:10px 0";
       row.innerHTML=`
-        <div style="font-weight:600">${e.name}${w?'':' <span style="color:var(--muted);font-size:.75rem">미등록</span>'}</div>
+        <div style="font-weight:600">${safeHtml(e.name)}${w?'':' <span style="color:var(--muted);font-size:.75rem">미등록</span>'}</div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <select class="sch-st" style="height:44px;min-width:132px;flex:1 1 132px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel)">
             <option value="">선택</option>
