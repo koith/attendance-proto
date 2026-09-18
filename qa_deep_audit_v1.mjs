@@ -30,6 +30,10 @@ ok(index.includes('history.replaceState(null,"",location.pathname'), 'one-shot a
 ok(index.includes('else window.scrollTo({top:0,left:0,behavior:"auto"})'), 'normal Admin tab entry must reset to top');
 ok(!index.includes('if(new URLSearchParams(location.search).get("focus")==="employees") empsEl.scrollIntoView'), 'renderAdmin must not persistently re-apply focus query');
 ok(!store.includes('resetAdminScroll'), 'store controls must not own Admin navigation scrolling');
+ok(index.includes('async storeSettingsGet(){ return rpc("admin_store_settings_get",{},true); }'), 'main backend adapter must own authenticated store settings GET');
+ok(index.includes('async storeSettingsSet(openMin,closeMin,grace){ return rpc("admin_store_settings_set"'), 'main backend adapter must own authenticated store settings SET');
+ok(index.includes('async enforceStoreClose(){ return rpc("system_enforce_store_close"); }'), 'main backend adapter must own force-close RPC');
+ok(!store.includes("=>rpc('admin_store_settings"), 'store overlay must not call the private rpc closure');
 ok(index.includes('supabase_session_resilience_v1.js?v='), 'main app must recover expired Supabase sessions');
 ok(session.includes("if(typeof Auth!=='undefined')Auth.token=s.access_token"), 'session refresh must synchronize main Auth token');
 
