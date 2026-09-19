@@ -1,0 +1,13 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const payroll=fs.readFileSync('payroll_contract_authority_v1.js','utf8'),sub=fs.readFileSync('substitution.html','utf8');
+assert(!payroll.includes("note.textContent='급여는 계약조건과 정정 반영 실근무를 기준으로 계산합니다.'"));
+assert(!payroll.includes('warn.textContent='));
+assert(!payroll.includes("s.textContent=contractSummary(rec.contract)"));
+assert(payroll.includes("function compactSupport(rec){return")&&payroll.includes("fmtHM(rec.sec)")&&payroll.includes(" 근무"));
+assert(payroll.includes('payroll-tax-label')&&payroll.includes('(세전)'));
+assert(payroll.includes('font-size:3rem')&&payroll.includes('font-size:2rem'));
+assert(payroll.includes("n.textContent='급여 확인 필요'"));
+assert(payroll.includes("close.disabled=!!blockers.length"));
+assert(sub.includes('>← 뒤로</a>'));assert(!sub.includes('← 출퇴근 화면'));
+assert(sub.includes('maximum-scale=1')&&sub.includes('user-scalable=no'));assert(sub.includes('touch-action:manipulation'));assert(sub.includes('-webkit-text-size-adjust:100%'));
+console.log('payroll visual diet + substitute mobile UX: PASS');
