@@ -56,7 +56,8 @@
   .brand span{font-size:.9rem; color:rgba(255,255,255,.9);}
   .clock{font-variant-numeric:tabular-nums; font-size:1rem; color:rgba(255,255,255,.9); letter-spacing:.01em;}
   .tabwrap{ background:var(--bg); border-bottom:1px solid var(--line); }
-   .tabs{display:flex; gap:6px; width:100%;}\n  #substitutionEntryV1{margin-left:auto;}
+  .tabs{display:flex; gap:6px; width:100%;}
+  #substitutionEntryV1{margin-left:auto;}
   .tabs a{
     font-size:.82rem; color:var(--sub); text-decoration:none;
     padding:7px 12px; border-radius:999px; border:1px solid var(--line);
@@ -315,6 +316,7 @@
       <a id="tabPos" href="#pos" class="on">출퇴근</a>
       <a id="tabAdmin" href="#admin">관리자</a>
       <a id="tabPay" href="#pay">급여</a>
+      <a id="substitutionEntryV1" href="substitution.html">대타 근무</a>
     </div></div>
   </div>
   <main id="view"></main>
@@ -1637,7 +1639,7 @@ async function renderPay(){
     <div class="form-grid-2">
       <div class="field">
         <label>정산 월</label>
-        <div class="month-wrap"><input id="payMonth" type="month" value="${curYm}"></div>
+        <div class="month-wrap pay-month-nav"><button type="button" class="btn-icon" id="payMonthPrev" aria-label="이전 달">◀</button><input id="payMonth" type="month" value="${curYm}"><button type="button" class="btn-icon" id="payMonthNext" aria-label="다음 달">▶</button></div>
       </div>
       <div class="field">
         <label>주휴 주 수</label>
@@ -1645,7 +1647,11 @@ async function renderPay(){
       </div>
     </div>
     <div id="payList"></div>`;
-  document.getElementById("payMonth").addEventListener("change",e=>drawPay(e.target.value));
+  const payMonth=document.getElementById("payMonth");
+  const movePayMonth=delta=>{ const [y,m]=payMonth.value.split("-").map(Number); const d=new Date(y,m-1+delta,1); payMonth.value=`${d.getFullYear()}-${p(d.getMonth()+1)}`; drawPay(payMonth.value); };
+  payMonth.addEventListener("change",e=>drawPay(e.target.value));
+  document.getElementById("payMonthPrev").onclick=()=>movePayMonth(-1);
+  document.getElementById("payMonthNext").onclick=()=>movePayMonth(1);
   document.getElementById("payWeeks").addEventListener("change",async e=>{
     const w=parseInt(e.target.value); const ym=document.getElementById("payMonth").value;
     if(LIVE && w>0){ try{ await BE.setPeriodWeeks(ym,w); }catch(err){} }
@@ -2302,5 +2308,5 @@ document.addEventListener("touchmove", e=>{ if(e.touches && e.touches.length>1) 
 if(LIVE) Auth.load();
 route();
 </script>
-<script src="substitution_entry_v1.js?v=20260919b"></script><script src="meeting_ui_20260919_v1.js?v=20260919c"></script></body>
+</body>
 </html>
