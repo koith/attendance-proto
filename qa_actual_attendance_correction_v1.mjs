@@ -1,6 +1,6 @@
 import fs from 'node:fs';import assert from 'node:assert/strict';
-const r=p=>fs.readFileSync(p,'utf8');const h=r('actual_attendance.html'),j=r('actual_attendance_correction.js'),c=r('actual_attendance_correction.css');let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
-t('정정 스크립트는 실근무 본체 뒤에 로드',()=>{assert(h.indexOf('actual_attendance.js')<h.indexOf('actual_attendance_correction.js'));assert(h.includes('actual_attendance_correction.css'))});
+const r=p=>fs.readFileSync(p,'utf8');const h=r('actual_attendance.html'),all=r('actual_attendance.js'),j=all.slice(all.indexOf('Actual attendance V1.1'),all.indexOf('Actual attendance V1.2')),c=r('actual_attendance_correction.css');let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
+t('정정 스크립트는 실근무 본체 뒤에 로드',()=>{assert(h.includes('actual_attendance.js?v='));assert(!h.includes('actual_attendance_correction.js?v='));assert(h.includes('actual_attendance_correction.css'))});
 t('세션별 정정 진입을 제공',()=>{assert(j.includes("document.querySelectorAll('.sessions .session')"));assert(j.includes("class=\"session-fix\">정정"));assert(!j.includes(".person-row .bar'))"))});
 t('정정은 raw attendance 변경 대신 admin_correct_event 사용',()=>{assert(j.includes("rpc('admin_correct_event'"));assert(j.includes("p_action:'EDIT_TIME'"));assert(j.includes("p_action:'ADD'"));assert(!j.includes('attendance_events'))});
 t('기존 이벤트 id를 보존해 EDIT_TIME correction 생성',()=>{assert(j.includes('p_event_id:Number(source.inId)'));assert(j.includes('p_event_id:Number(source.outId)'));assert(j.includes("p_new_type:'IN'"));assert(j.includes("p_new_type:'OUT'"))});
