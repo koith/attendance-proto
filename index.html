@@ -1405,10 +1405,15 @@ async function renderAdmin(){
 
       // 오늘 완료 세션 summary (Today Attendance) — 완료 카드용. 기존 pairEvents 의미 보존.
       const isToday=(d)=> d && `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`===day;
+      // A session belongs to Today when either endpoint is today. For overnight work,
+      // the IN can be yesterday while OUT is today; derive display endpoints from the session,
+      // not from endpoint dates independently (which previously produced "출근 - · 퇴근 09:38").
       const todayComplete=todaySess.filter(s=>s.status==="COMPLETE" && (isToday(s.in)||isToday(s.out)));
       const todaySec=todayComplete.reduce((a,s)=>a+(s.sec||0),0);
-      const firstIn=todaySess.find(s=>s.in && isToday(s.in));
-      const lastOut=[...todaySess].reverse().find(s=>s.out && isToday(s.out));
+      const firstTodaySession=todayComplete[0]||null;
+      const lastTodaySession=todayComplete.length?todayComplete[todayComplete.length-1]:null;
+      const firstIn=firstTodaySession?.in ? {in:firstTodaySession.in} : null;
+      const lastOut=lastTodaySession?.out ? {out:lastTodaySession.out} : null;
       const issue=todaySess.some(s=>(s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT") && (isToday(s.in)||isToday(s.out)));
 
       // 상태별 표시
