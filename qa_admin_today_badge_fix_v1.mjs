@@ -1,0 +1,1 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';const s=fs.readFileSync('index.html','utf8');assert(s.includes("(issue && hasTodayAttendance?'<span class=\"badge issue\">확인필요</span>':'')"));console.log('Today badge semantics: PASS');
