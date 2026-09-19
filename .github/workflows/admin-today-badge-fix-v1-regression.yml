@@ -1,0 +1,8 @@
+name: admin-today-badge-fix-v1-regression
+on: [pull_request]
+jobs:
+ qa:
+  runs-on: ubuntu-latest
+  steps:
+   - uses: actions/checkout@v4
+   - run: node qa_admin_today_badge_fix_v1.mjs
