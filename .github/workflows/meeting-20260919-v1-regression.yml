@@ -1,0 +1,8 @@
+name: meeting-20260919-v1-regression
+on: [pull_request]
+jobs:
+ qa:
+  runs-on: ubuntu-latest
+  steps:
+   - uses: actions/checkout@v4
+   - run: node qa_meeting_20260919_v1.mjs
