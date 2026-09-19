@@ -1,1 +1,17 @@
-(()=>{if(window.__meetingUi20260919)return;window.__meetingUi20260919=true;function enhance(){const m=document.getElementById('payMonth');if(m&&!document.getElementById('payMonthNav')){const n=document.createElement('div');n.id='payMonthNav';n.style.cssText='display:grid;grid-template-columns:46px 1fr 46px;gap:8px;align-items:center';const a=document.createElement('button'),b=document.createElement('button');a.className=b.className='btn btn-secondary';a.textContent='◀';b.textContent='▶';m.parentNode.insertBefore(n,m);n.append(a,m,b);const move=d=>{const q=m.value.split('-').map(Number),x=new Date(q[0],q[1]-1+d,1);m.value=x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0');m.dispatchEvent(new Event('change',{bubbles:true}))};a.onclick=()=>move(-1);b.onclick=()=>move(1)}const box=document.getElementById('payList'),k=box&&box.querySelector('.kpi-row');if(box&&k){const l=k.querySelector('.kpi-label');if(l&&l.textContent.includes('세전')&&box.firstElementChild!==k)box.prepend(k)}}new MutationObserver(enhance).observe(document.body,{subtree:true,childList:true});enhance();setInterval(()=>{try{fetch(CONFIG.SUPABASE_URL+'/rest/v1/rpc/substitution_enforce_due',{method:'POST',headers:{apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:'Bearer '+CONFIG.SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:'{}'})}catch(_){}},60000)})();
+(()=>{if(window.__meetingUi20260919)return;window.__meetingUi20260919=true;
+function enhance(){
+ const m=document.getElementById('payMonth');
+ if(m&&!document.getElementById('payMonthNav')){
+  const n=document.createElement('div');n.id='payMonthNav';n.style.cssText='display:grid;grid-template-columns:46px 1fr 46px;gap:8px;align-items:center';
+  const a=document.createElement('button'),b=document.createElement('button');a.className=b.className='btn btn-secondary';a.textContent='◀';b.textContent='▶';
+  m.parentNode.insertBefore(n,m);n.append(a,m,b);
+  const move=d=>{const q=m.value.split('-').map(Number),x=new Date(q[0],q[1]-1+d,1);m.value=x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0');m.dispatchEvent(new Event('change',{bubbles:true}))};
+  a.onclick=()=>move(-1);b.onclick=()=>move(1);
+ }
+ const box=document.getElementById('payList'),k=box&&box.querySelector('.kpi-row');
+ if(box&&k&&box.firstElementChild!==k){const l=k.querySelector('.kpi-label');if(l&&l.textContent.includes('세전'))box.prepend(k)}
+}
+enhance();
+setInterval(enhance,2000);
+setInterval(()=>{try{fetch(CONFIG.SUPABASE_URL+'/rest/v1/rpc/substitution_enforce_due',{method:'POST',headers:{apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:'Bearer '+CONFIG.SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:'{}'})}catch(_){}},60000);
+})();
