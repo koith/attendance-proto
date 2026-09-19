@@ -1,0 +1,8 @@
+name: iphone-startup-freeze-v1-regression
+on: [pull_request]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node qa_iphone_startup_freeze_v1.mjs
