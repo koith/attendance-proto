@@ -1,0 +1,8 @@
+name: actual-attendance-canonical-v1-regression
+on: [pull_request]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node qa_actual_attendance_canonical_v1.mjs
