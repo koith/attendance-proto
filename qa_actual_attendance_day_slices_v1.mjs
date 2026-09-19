@@ -4,7 +4,7 @@ const js=fs.readFileSync('actual_attendance.js','utf8');
 const correction=js;
 let pass=0;const t=(n,f)=>{f();pass++;console.log('PASS',n)};
 t('day slice and correction layers live in one canonical runtime',()=>{assert(html.includes('actual_attendance.js?v='));assert(!html.includes('actual_attendance_day_slices_v1.js?v='));assert(!html.includes('actual_attendance_correction.js?v='));assert(js.indexOf('Actual attendance V1.4')<js.indexOf('Actual attendance V1.1'))});
-t('multi-day sessions are derived display slices rather than raw event writes',()=>{assert(js.includes('sliceDerived'));assert(js.includes('sourceIn'));assert(js.includes('sourceOut'));assert(!js.includes('admin_correct_event'));assert(!js.includes('attendance_events'))});
+t('multi-day sessions are derived display slices rather than raw event writes',()=>{assert(js.includes('sliceDerived'));assert(js.includes('sourceIn'));assert(js.includes('sourceOut'));assert(!js.slice(js.indexOf('Actual attendance V1.4'),js.indexOf('Actual attendance V1.1')).includes('admin_correct_event'));assert(!js.includes('delete from attendance_events'));assert(!js.includes('update attendance_events'))});
 t('date boundaries use 00:00 and semantic 24:00',()=>{assert(js.includes("sliceStartBoundary?'00:00'"));assert(js.includes("sliceEndBoundary?'24:00'"))});
 t('open sessions can appear across dates through current time',()=>{assert(js.includes("s.status==='WORKING'?now:null"));assert(js.includes('sourceEnd<=ds'))});
 t('correction resolves a slice back to the authoritative source session',()=>{assert(correction.includes('actualAttendanceSourceSession'));assert(correction.includes('source.inId'));assert(correction.includes('source.outId'))});
