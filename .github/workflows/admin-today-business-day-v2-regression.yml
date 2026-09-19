@@ -1,0 +1,8 @@
+name: admin-today-business-day-v2-regression
+on: [pull_request]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node qa_admin_today_business_day_v2.mjs
