@@ -1,0 +1,8 @@
+name: admin-today-session-pairing-v1-regression
+on: [pull_request]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node qa_admin_today_session_pairing_v1.mjs
