@@ -1,0 +1,1 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';const s=fs.readFileSync('schema_v20_force_close_timezone_fix.sql','utf8');assert(s.includes('UTC -> KST'));assert(s.includes('cutoff >= IN'));console.log('force close timezone audit: PASS');

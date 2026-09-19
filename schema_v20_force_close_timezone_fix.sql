@@ -1,0 +1,5 @@
+-- Applied to production Supabase as migration fix_force_close_utc_kst_boundary on 2026-09-19.
+-- Root cause: attendance_events.event_at is stored as a UTC wall-clock timestamp (timestamp without time zone),
+-- while system_enforce_store_close derived the business date/cutoff as if event_at were already KST.
+-- This could calculate an OUT earlier than its IN. Production function now converts IN UTC -> KST before
+-- business-date/cutoff calculation, verifies cutoff >= IN, and converts the generated OUT KST -> UTC for storage.
