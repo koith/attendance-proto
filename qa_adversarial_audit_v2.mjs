@@ -6,7 +6,7 @@ const must=(v,m)=>assert.ok(v,m);
 must(index.includes('function safeHtml(value)'), 'core HTML escaping boundary missing');
 for(const raw of ['<span class="nm">${e.name}</span>','<div class="att-name">${e.name}</div>','>${seq}</span>${e.name}</div>','<div class="nm" style="flex:1">${eName}','📌 이달: ${ov.memo}','📝 ${e.memo}','사유: ${r.note}']) must(!index.includes(raw), 'raw stored text interpolation remains: '+raw);
 must(index.includes('${safeHtml(e.name)}'), 'employee names are not escaped');
-must(index.includes('${safeHtml(ov.memo)}')&&index.includes('${safeHtml(e.memo)}'), 'payroll memos are not escaped');
+must(!index.includes('${ov.memo}')&&!index.includes('${e.memo}'), 'raw payroll memos must never be interpolated into HTML');
 must(index.includes('t.replaceChildren()')&&index.includes('title.textContent=String(big??"")')&&index.includes('detail.textContent=String(sub??"")'), 'toast must be text-only');
 
 must(index.includes('const prev=new Date(t);prev.setDate(prev.getDate()-1)'), 'Admin today query lacks previous-day boundary');

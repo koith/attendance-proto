@@ -45,7 +45,7 @@ ok(nightEnd.includes('nightEndPostSaveError'), 'night-end follow-up failure must
 ok(nightEnd.includes('계약은 저장됐지만 야간 종료시간 저장에 실패했습니다.'), 'night-end partial-save state must be reported');
 
 ok(!index.includes('세후(3.3%)·주휴 처리는 현재 매장 관행값입니다.'), 'legacy payroll policy copy must not be shown');
-ok(index.includes('월급제·4대보험은 정책 확정 전 금액 계산을 보류합니다.'), 'blocked payroll policies must be explicit');
+ok(!index.includes('월급제·4대보험은 정책 확정 전 금액 계산을 보류합니다.'), 'blocked-policy implementation detail must stay out of the simplified payroll summary');
 ok(payroll.includes("c.payroll_type==='MONTHLY'") && payroll.includes('월급제 급여 계산정책 미확정'), 'MONTHLY calculation must remain policy-blocked');
 ok(payroll.includes("c.tax_treatment==='FOUR_INSURANCE'") && payroll.includes('4대보험 공제 계산정책 미확정'), 'FOUR_INSURANCE calculation must remain policy-blocked');
 

@@ -56,7 +56,7 @@
   .brand span{font-size:.9rem; color:rgba(255,255,255,.9);}
   .clock{font-variant-numeric:tabular-nums; font-size:1rem; color:rgba(255,255,255,.9); letter-spacing:.01em;}
   .tabwrap{ background:var(--bg); border-bottom:1px solid var(--line); }
-  .tabs{display:flex; gap:6px;}
+   .tabs{display:flex; gap:6px; width:100%;}\n  #substitutionEntryV1{margin-left:auto;}
   .tabs a{
     font-size:.82rem; color:var(--sub); text-decoration:none;
     padding:7px 12px; border-radius:999px; border:1px solid var(--line);
@@ -1716,13 +1716,20 @@ async function drawPay(ym){
   if(!active.length){ el.innerHTML=`<div class="empty">직원이 없습니다.</div>`; return; }
   const wi=document.getElementById("payWeeks"); if(wi && R.weeks) wi.value=R.weeks;
   el.innerHTML="";
-  let totalNet=0;
   const payrollRows=[];   // 마감/엑셀용 결과 수집
+
+  // 급여 화면은 의사결정에 필요한 요약만 먼저 보여준다.
+  const sum=document.createElement("div");
+  sum.className="kpi-row";
+  sum.style.cssText="padding:20px 22px;margin-bottom:18px";
+  sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">전체 세전 급여</div><div class="kpi-value" style="font-size:2rem;font-weight:800;color:var(--ink)">${R.totalGross.toLocaleString()}원 <span style="font-size:.72rem;font-weight:600;color:var(--muted)">(세전)</span></div>`;
+  el.appendChild(sum);
+
   for(const rec of R.rows){
     const e=rec.emp;
-    const sess=rec.sessions; const sec=rec.sec; const hours=rec.hours; const issues=rec.issues; const ov=rec.ov;
+    const sec=rec.sec; const hours=rec.hours; const issues=rec.issues; const ov=rec.ov;
     const hasWage=rec.hasWage; const pay=rec.pay;
-    if(pay){ totalNet+=pay.net;
+    if(pay){
       payrollRows.push({employee_id:rec.employee_id, employee_name:rec.employee_name, hours:Math.round(hours*100)/100,
         wage:pay.wage, weeks:pay.jweeks, base_pay:pay.base, juhyu_pay:pay.juhyu, adjust:pay.adjust,
         gross_pay:pay.gross, tax_rate:pay.rate, net_pay:pay.net, issues,
@@ -1730,39 +1737,23 @@ async function drawPay(ym){
     }
     const eName=rec.employee_name;
     const card=document.createElement("div");
-    card.className="row"; card.style.flexDirection="column"; card.style.alignItems="stretch"; card.style.gap="10px";
+    card.className="row";
+    card.style.cssText="flex-direction:column;align-items:stretch;gap:8px;padding:18px 20px";
+    const grossText=pay?pay.gross.toLocaleString()+"원":"—";
     card.innerHTML=`
-      <div style="display:flex;align-items:center;gap:10px">
-        <div class="nm" style="flex:1">${safeHtml(eName)}
-          ${issues?`<span class="badge issue" style="margin-left:6px">확인필요 ${issues}</span>`:''}
-          ${ov?`<span class="badge" style="margin-left:6px;color:var(--accent);border-color:var(--accent)">이달 조정</span>`:''}
-        </div>
-        <button class="btn btn-secondary btn-sm" data-month="${e.id}">이달 조정</button>
-        <button class="btn btn-secondary btn-sm" data-edit="${e.id}">기본설정</button>
+      <div class="nm" style="font-size:1.05rem;font-weight:700;color:var(--ink)">${safeHtml(eName)}</div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px">
+        <div style="font-size:1.65rem;font-weight:800;line-height:1.15;color:var(--ink)">${grossText}<span style="font-size:.72rem;font-weight:600;color:var(--muted);margin-left:4px">${pay?'(세전)':'급여 계산 보류'}</span></div>
+        <div style="font-size:.82rem;font-weight:500;color:var(--muted);white-space:nowrap">${fmtHM(sec)} 근무</div>
       </div>
-      ${hasWage ? `
-      <div style="font-size:.85rem;color:var(--sub);line-height:1.9">
-        <div>실근무 <b style="color:var(--ink)">${fmtHM(sec)}</b> · 시급 ${pay.wage.toLocaleString()}원${(ov&&ov.wage_override!=null)?' <span style="color:var(--accent);font-size:.72rem">(이달)</span>':''}</div>
-        <div>기본급 <b style="color:var(--ink)">${pay.base.toLocaleString()}</b>
-          ${pay.juhyu?` · 주휴 <b style="color:var(--ink)">${pay.juhyu.toLocaleString()}</b> <span style="color:var(--muted);font-size:.72rem">(${pay.jweeks}주)</span>`:''}
-          ${pay.adjust?` · 조정 <b style="color:${pay.adjust>0?'var(--in)':'var(--warn)'}">${pay.adjust>0?'+':''}${pay.adjust.toLocaleString()}</b>`:''}</div>
-        <div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--line)">
-          세전 <b style="color:var(--ink)">${pay.gross.toLocaleString()}</b>
-          → 세후(${(pay.rate*100).toFixed(1)}%) <b style="color:var(--in);font-size:1.05rem">${pay.net.toLocaleString()}원</b></div>
-        ${(ov&&ov.memo)?`<div style="color:var(--accent);font-size:.78rem;margin-top:4px">📌 이달: ${safeHtml(ov.memo)}</div>`:''}
-        ${e.memo?`<div style="color:var(--muted);font-size:.78rem;margin-top:2px">📝 ${safeHtml(e.memo)}</div>`:''}
-      </div>` : `
-      <div style="font-size:.82rem;color:var(--muted)">실근무 ${fmtHM(sec)} · 시급 미설정 — [기본설정]에서 시급을 입력하세요</div>`}
+      ${issues?`<div style="font-size:.72rem;color:var(--warn)">근태 확인 필요 ${issues}건</div>`:''}
     `;
-    card.querySelector("[data-edit]").onclick=()=>openPayEdit(e);
-    if(LIVE) card.querySelector("[data-month]").onclick=()=>openMonthAdjust(e, ym, ov);
+    if(LIVE){
+      card.style.cursor="pointer";
+      card.onclick=()=>openMonthAdjust(e, ym, ov);
+    }
     el.appendChild(card);
   }
-  const sum=document.createElement("div");
-  sum.className="kpi-row";
-  sum.innerHTML=`<div class="kpi-label">세후 합계</div><div class="kpi-value">${totalNet.toLocaleString()}원</div>`;
-  el.appendChild(sum);
-
   // ---- M8: 마감/엑셀/변경감지 ----
   // 현재 근태 지문 (이벤트 개수 + 최신 이벤트/보정 시각)
   const curFp = fingerprintOf(R.events);
