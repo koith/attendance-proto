@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const s=fs.readFileSync('schema_v22_runtime_integrity.sql','utf8');
+assert(s.includes("coalesce(c.action,'')<>'VOID'"),'punch must honor VOID corrections');
+assert(s.includes("c.action='EDIT_TYPE'"),'punch/finalizer must honor type corrections');
+assert(s.includes("c.action='EDIT_TIME'"),'punch/finalizer must honor time corrections');
+assert(s.includes("c.action='ADD'"),'effective attendance must include ADD corrections');
+assert(s.includes("out_kst:=r.work_end"),'missing substitute OUT must close at planned end');
+assert(s.includes("greatest(in_kst,r.work_start)"),'late substitute check-in must reduce actual overlap');
+assert(s.includes("when mins>=planned then 'COMPLETED' else 'PARTIAL'"),'late/early-out substitute shifts must not be falsely completed');
+assert(s.includes('perform substitution_enforce_due();'),'authenticated request listing must finalize due shifts server-side');
+assert(s.includes('revoke execute on function public.substitution_enforce_due() from public, anon, authenticated'),'global due enforcer must not remain public RPC');
+assert(!/delete\s+from\s+attendance_events/i.test(s),'migration must never delete raw attendance');
+assert(!/update\s+attendance_events/i.test(s),'migration must never rewrite raw attendance');
+console.log('runtime integrity v22 regression: PASS');
