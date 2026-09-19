@@ -1,0 +1,5 @@
+-- Production migrations applied 2026-09-19:
+-- substitution_v2_clockin: PIN-authenticated substitute check-in creates canonical UTC attendance IN and marks IN_PROGRESS.
+-- substitution_v2_due_enforcer + status revision: accepted no-show -> FAILED; active substitute shift -> audit ADD OUT at requested end and COMPLETED.
+-- substitution_v2_refresh_canonical_time: substitute session comparisons use KST while raw attendance remains UTC wall-clock.
+-- Raw attendance is never deleted or rewritten.
