@@ -17,5 +17,5 @@ must(payroll.includes("mode:'MISSING_CONTRACT'"), 'missing-contract mode missing
 must(!payroll.includes("mode:'LEGACY'"), 'legacy wage fallback is still reachable');
 must(payroll.includes("pick.mode==='BLOCKED'||pick.mode==='MISSING_CONTRACT'"), 'missing contract does not null pay');
 must(payroll.includes("r.contractMode!=='CONTRACT'||Number(r.issues||0)>0"), 'close gate does not cover unresolved rows');
-must(payroll.includes('close.disabled=true'), 'close button is not disabled on unresolved payroll');
+must(payroll.includes('close.disabled=!!blockers.length'), 'close button must track unresolved payroll state');
 console.log('adversarial audit V2 QA: PASS');
