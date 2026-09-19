@@ -1644,9 +1644,6 @@ async function renderPay(){
         <input id="payWeeks" inputmode="numeric" placeholder="4">
       </div>
     </div>
-    <div style="font-size:.75rem;color:var(--muted);margin:0 2px 14px">
-      급여는 계약조건과 정정 반영 실근무를 기준으로 계산합니다. 월급제·4대보험은 정책 확정 전 금액 계산을 보류합니다.
-    </div>
     <div id="payList"></div>`;
   document.getElementById("payMonth").addEventListener("change",e=>drawPay(e.target.value));
   document.getElementById("payWeeks").addEventListener("change",async e=>{
