@@ -1385,7 +1385,19 @@ async function renderAdmin(){
     listEl.innerHTML="";
     for(const e of active){
       const rows=eff.filter(x=>x.employee_id===e.id);
-      const todaySess=pairEvents(rows);   // 오늘 범위 effective 세션 (Today Attendance)
+      // Pairing must include the employee's preceding effective event. The visible fetch window
+      // alone can turn a legitimate OUT into ORPHAN_OUT when its matching IN is older than yesterday.
+      // Operational state already resolves the full history; for Today cards, fetch a bounded history
+      // only when the window starts with OUT so the real IN/OUT session can be reconstructed.
+      let pairingRows=rows;
+      if(LIVE && rows.length && rows[0].event_type==="OUT"){
+        try{
+          const hist=await BE.eventsWithCorrections("2000-01-01T00:00:00",`${day}T00:00:00`);
+          const histEff=applyCorrections(hist.events,hist.corrections).filter(x=>x.employee_id===e.id);
+          pairingRows=[...histEff,...rows];
+        }catch(_){}
+      }
+      const todaySess=pairEvents(pairingRows);   // effective sessions; display below is still filtered to today
       // Current Operational State (날짜 무관): 현재 열린 punch 상태 + 열린 IN 시각
       const op=opState.find(o=>o.id===e.id);
       const isWorking = !!(op && op.working);
