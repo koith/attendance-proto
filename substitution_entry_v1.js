@@ -1,1 +1,10 @@
-(()=>{if(window.__substitutionEntryV1)return;window.__substitutionEntryV1=true;const install=()=>{if(location.pathname.endsWith('substitution.html')||document.getElementById('substitutionEntryV1'))return;const main=document.querySelector('main');if(!main)return;const a=document.createElement('a');a.id='substitutionEntryV1';a.href='substitution.html';a.textContent='대타 근무';a.style.cssText='display:block;text-align:center;margin:0 0 14px;padding:11px 14px;border:1px solid var(--border,#dbe4de);border-radius:12px;background:var(--surface,#fff);color:var(--brand-700,#1d5d3a);font-weight:700;text-decoration:none;font-size:.9rem';main.prepend(a)};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install()})();
+(()=>{if(window.__substitutionEntryV1)return;window.__substitutionEntryV1=true;
+const install=()=>{
+  if(location.pathname.endsWith('substitution.html')||document.getElementById('substitutionEntryV1'))return;
+  const tabs=document.querySelector('.tabs'); if(!tabs)return;
+  const a=document.createElement('a');
+  a.id='substitutionEntryV1'; a.href='substitution.html'; a.textContent='대타 근무';
+  tabs.appendChild(a);
+};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+})();
