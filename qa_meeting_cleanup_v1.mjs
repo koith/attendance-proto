@@ -1,0 +1,14 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const i=fs.readFileSync('index.html','utf8'),s=fs.readFileSync('schema_v23_employee_contract_status.sql','utf8');
+assert(!i.includes('id="adSchedMonth"'),'duplicate planned monthly shortcut must stay out of admin landing');
+assert(!i.includes('id="adSched"'),'duplicate planned daily shortcut must stay out of admin landing');
+assert(!i.includes('id="payWeeks"'),'payroll summary must not expose manual week-count clutter');
+assert(i.includes('>세전 합계</div>'),'payroll must lead with gross total');
+assert(i.includes('payMonthPrev')&&i.includes('payMonthNext'),'month arrows must remain canonical');
+assert(i.includes('historyEff=applyCorrections'),'admin Today must build one correction-aware history snapshot');
+assert(!i.includes('${nextKey}T00:00:00'),'undefined nextKey path must not return');
+assert.equal((i.match(/BE\.eventsWithCorrections\("2000-01-01T00:00:00"/g)||[]).length,1,'full history must be fetched once, not per employee');
+assert(i.includes('employeeContractStatuses'),'employee list must load aggregate contract status once');
+assert(i.includes('계약 미등록')&&i.includes('계약서 첨부')&&i.includes('계약서 없음'),'contract and document status must be distinct');
+assert(s.includes('admin_employee_contract_statuses')&&s.includes('public.is_admin()'),'contract status RPC must require admin');
+console.log('meeting UI cleanup regression: PASS');

@@ -610,6 +610,7 @@ const SupaBE = (()=>{
     async scheduleDelete(empId,date){ return rpc("admin_schedule_delete",{p_employee_id:empId,p_work_date:date},true); },
     // 계약서 (schema_v11): metadata는 RPC, 파일은 Storage(admin JWT)
     async docList(empId){ return rpc("admin_doc_list",{p_employee_id:empId},true); },
+    async employeeContractStatuses(){ return rpc("admin_employee_contract_statuses",{},true); },
     async docAdd(empId,path,filename,ctype,size){ return rpc("admin_doc_add",{p_employee_id:empId,p_storage_path:path,p_filename:filename,p_content_type:ctype,p_byte_size:size},true); },
     async docDelete(docId){ return rpc("admin_doc_delete",{p_document_id:docId},true); },
     async docUpload(path,file){
@@ -1340,16 +1341,12 @@ async function renderAdmin(){
     <div class="section-t" style="margin-top:20px">직원 관리</div>
     <div id="adEmps"></div>
     <button class="addbtn" id="adAdd">+ 직원 등록</button>
-    <button class="addbtn" id="adSchedMonth" style="margin-top:8px">🗓️ 월간 근무 스케줄</button>
-    <button class="addbtn" id="adSched" style="margin-top:8px">📅 일별 근무 스케줄</button>
     <div class="section-t" style="margin-top:20px">계정 관리</div>
     <div id="adAccount"></div>`;
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
   const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
   document.getElementById("adToday").textContent=day;
   document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };
-  document.getElementById("adSched").onclick=()=>{ location.href="daily_schedule.html"; };
-  document.getElementById("adSchedMonth").onclick=()=>{ location.href="monthly_schedule.html"; };
   document.getElementById("quickSchedule").onclick=()=>{ location.href="actual_attendance.html"; };
   document.getElementById("quickEmployees").onclick=()=>document.getElementById("adEmps")?.scrollIntoView({behavior:"smooth",block:"start"});
   document.getElementById("quickContracts").onclick=()=>{ location.href="employment_contracts.html?from=admin"; };
@@ -1359,11 +1356,12 @@ async function renderAdmin(){
   if(LIVE){ renderPendingRequests(); }
 
   // 오늘 근태 (원본+보정 반영)
-  let emps=[], eff=[], opState=[], todaySched=[];
+  let emps=[], eff=[], historyEff=[], opState=[], todaySched=[], contractStatuses=[];
   try{
     emps=await BE.allEmployees();
     try{ opState=await BE.listEmployeesState(); }catch(_){ opState=[]; }
     try{ todaySched=await BE.scheduleList(day,day); }catch(_){ todaySched=[]; }  // 오늘 스케줄(계획)
+    try{ contractStatuses=LIVE?await BE.employeeContractStatuses():[]; }catch(_){ contractStatuses=[]; }
     if(LIVE){
       // Pairing needs boundary events too: a shift can start yesterday and end today (or cross midnight tonight).
       const dkey=d=>`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
@@ -1371,6 +1369,9 @@ async function renderAdmin(){
       const next=new Date(t);next.setDate(next.getDate()+2);
       const data=await BE.eventsWithCorrections(`${dkey(prev)}T00:00:00`,`${dkey(next)}T00:00:00`);
       eff=applyCorrections(data.events, data.corrections);
+      // Fetch correction-aware history once for all employee cards. Never issue one full-history request per employee.
+      const history=await BE.eventsWithCorrections("2000-01-01T00:00:00",`${dkey(next)}T00:00:00`);
+      historyEff=applyCorrections(history.events, history.corrections);
     } else {
       eff=await BE.todayEvents();
     }
@@ -1391,18 +1392,11 @@ async function renderAdmin(){
       // alone can turn a legitimate OUT into ORPHAN_OUT when its matching IN is older than yesterday.
       // Operational state already resolves the full history; for Today cards, fetch a bounded history
       // only when the window starts with OUT so the real IN/OUT session can be reconstructed.
-      let pairingRows=rows;
-      if(LIVE){
-        try{
-          // Today cards must pair against full effective history whenever this employee has any
-          // visible event/correction. ADD OUT may close an IN from before the display window, and
-          // limiting history only to rows starting with OUT loses that matching IN.
-          if(rows.length){
-            const hist=await BE.eventsWithCorrections("2000-01-01T00:00:00",`${nextKey}T00:00:00`);
-            pairingRows=applyCorrections(hist.events,hist.corrections).filter(x=>x.employee_id===e.id);
-          }
-        }catch(_){}
-      }
+      // Use the single correction-aware history snapshot loaded above. This fixes the previous
+      // undefined nextKey path and avoids N full-history network requests for N employees.
+      const pairingRows=(LIVE&&historyEff.length)
+        ? historyEff.filter(x=>x.employee_id===e.id)
+        : rows;
       const todaySess=pairEvents(pairingRows);   // effective sessions; display below is still filtered to today
       // Current Operational State (날짜 무관): 현재 열린 punch 상태 + 열린 IN 시각
       const op=opState.find(o=>o.id===e.id);
@@ -1510,7 +1504,14 @@ async function renderAdmin(){
   for(const [i,e] of active.entries()){
     const div=document.createElement("div"); div.className="row";
     const seq=String(i+1).padStart(2,"0");
-    div.innerHTML=`<div class="nm" style="flex:1"><span style="display:inline-block;min-width:30px;color:var(--text-muted);font-size:.78rem;font-variant-numeric:tabular-nums">${seq}</span>${safeHtml(e.name)}</div>
+    const cs=contractStatuses.find(x=>Number(x.employee_id)===Number(e.id));
+    const contractBadge=cs?.contract_registered
+      ? `<span class="badge success">${cs.contract_effective?'계약 유효':'계약 등록'}</span>`
+      : `<span class="badge issue">계약 미등록</span>`;
+    const docBadge=cs?.document_attached
+      ? `<span class="badge success">계약서 첨부</span>`
+      : `<span class="badge">계약서 없음</span>`;
+    div.innerHTML=`<div class="nm" style="flex:1"><span style="display:inline-block;min-width:30px;color:var(--text-muted);font-size:.78rem;font-variant-numeric:tabular-nums">${seq}</span>${safeHtml(e.name)}<div style="display:flex;gap:4px;margin:5px 0 0 30px">${contractBadge}${docBadge}</div></div>
       <button class="btn btn-secondary btn-sm" data-contract="${e.id}">계약</button>
       <button class="btn btn-danger btn-sm" data-deact="${e.id}">비활성화</button>`;
     div.querySelector("[data-deact]").onclick=async()=>{ if(confirm(`${e.name} 직원을 비활성화할까요?`)){ await BE.deactivateEmployee(e.id); renderAdmin(); } };
@@ -1636,15 +1637,9 @@ async function renderPay(){
   const curYm=`${now.getFullYear()}-${p(now.getMonth()+1)}`;
   view.innerHTML=`
     <div class="section-t">급여 정산</div>
-    <div class="form-grid-2">
-      <div class="field">
-        <label>정산 월</label>
-        <div class="month-wrap pay-month-nav"><button type="button" class="btn-icon" id="payMonthPrev" aria-label="이전 달">◀</button><input id="payMonth" type="month" value="${curYm}"><button type="button" class="btn-icon" id="payMonthNext" aria-label="다음 달">▶</button></div>
-      </div>
-      <div class="field">
-        <label>주휴 주 수</label>
-        <input id="payWeeks" inputmode="numeric" placeholder="4">
-      </div>
+    <div class="field">
+      <label>정산 월</label>
+      <div class="month-wrap pay-month-nav"><button type="button" class="btn-icon" id="payMonthPrev" aria-label="이전 달">◀</button><input id="payMonth" type="month" value="${curYm}"><button type="button" class="btn-icon" id="payMonthNext" aria-label="다음 달">▶</button></div>
     </div>
     <div id="payList"></div>`;
   const payMonth=document.getElementById("payMonth");
@@ -1652,11 +1647,6 @@ async function renderPay(){
   payMonth.addEventListener("change",e=>drawPay(e.target.value));
   document.getElementById("payMonthPrev").onclick=()=>movePayMonth(-1);
   document.getElementById("payMonthNext").onclick=()=>movePayMonth(1);
-  document.getElementById("payWeeks").addEventListener("change",async e=>{
-    const w=parseInt(e.target.value); const ym=document.getElementById("payMonth").value;
-    if(LIVE && w>0){ try{ await BE.setPeriodWeeks(ym,w); }catch(err){} }
-    drawPay(ym);
-  });
   drawPay(curYm);
 }
 // 공통 계산: ym → {active, events, weeks, overrides, rows[], totalNet}
@@ -1728,7 +1718,7 @@ async function drawPay(ym){
   const sum=document.createElement("div");
   sum.className="kpi-row";
   sum.style.cssText="padding:20px 22px;margin-bottom:18px";
-  sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">전체 세전 급여</div><div class="kpi-value" style="font-size:2rem;font-weight:800;color:var(--ink)">${R.totalGross.toLocaleString()}원 <span style="font-size:.72rem;font-weight:600;color:var(--muted)">(세전)</span></div>`;
+  sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">세전 합계</div><div class="kpi-value" style="font-size:2rem;font-weight:800;color:var(--ink)">${R.totalGross.toLocaleString()}원</div>`;
   el.appendChild(sum);
 
   for(const rec of R.rows){
