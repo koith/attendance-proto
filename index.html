@@ -1390,11 +1390,15 @@ async function renderAdmin(){
       // Operational state already resolves the full history; for Today cards, fetch a bounded history
       // only when the window starts with OUT so the real IN/OUT session can be reconstructed.
       let pairingRows=rows;
-      if(LIVE && rows.length && rows[0].event_type==="OUT"){
+      if(LIVE){
         try{
-          const hist=await BE.eventsWithCorrections("2000-01-01T00:00:00",`${day}T00:00:00`);
-          const histEff=applyCorrections(hist.events,hist.corrections).filter(x=>x.employee_id===e.id);
-          pairingRows=[...histEff,...rows];
+          // Today cards must pair against full effective history whenever this employee has any
+          // visible event/correction. ADD OUT may close an IN from before the display window, and
+          // limiting history only to rows starting with OUT loses that matching IN.
+          if(rows.length){
+            const hist=await BE.eventsWithCorrections("2000-01-01T00:00:00",`${nextKey}T00:00:00`);
+            pairingRows=applyCorrections(hist.events,hist.corrections).filter(x=>x.employee_id===e.id);
+          }
         }catch(_){}
       }
       const todaySess=pairEvents(pairingRows);   // effective sessions; display below is still filtered to today
@@ -1415,6 +1419,9 @@ async function renderAdmin(){
       const firstIn=firstTodaySession?.in ? {in:firstTodaySession.in} : null;
       const lastOut=lastTodaySession?.out ? {out:lastTodaySession.out} : null;
       const issue=todaySess.some(s=>(s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT") && (isToday(s.in)||isToday(s.out)));
+      // Never render a meaningless "출근 - · 퇴근 -" row. If no effective endpoint overlaps
+      // today, it is not a Today attendance record; stale anomaly belongs in correction/history UI.
+      const hasTodayAttendance=!!(firstIn||lastOut);
 
       // 상태별 표시
       let line1="", line2="";
@@ -1424,7 +1431,7 @@ async function renderAdmin(){
         const openMs = openInAt ? (kstNow()-openInAt) : null;
         line1 = openInAt ? `출근 <b>${hhmm(openInAt)}</b>` : `근무 중`;
         line2 = openMs!=null ? `${fmtDur(openMs/1000)}` : ``;   // 현재 진행 세션 경과 (오늘 누적 아님)
-      } else if(firstIn || lastOut || issue){
+      } else if(hasTodayAttendance){
         // B(완료): 오늘 attendance summary. 실제 OUT 있을 때만 퇴근 label. 기존 세션 의미 보존.
         line1 = `출근 <b>${firstIn?hhmm(firstIn.in):"-"}</b> · 퇴근 <b>${lastOut?hhmm(lastOut.out):"-"}</b>`;
         line2 = `근무 ${todaySec?fmtDur(todaySec):"-"}`;
