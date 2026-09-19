@@ -1,0 +1,1 @@
+import fs from'node:fs';import assert from'node:assert/strict';const i=fs.readFileSync('index.html','utf8');assert(!i.includes('id="tabSubstitution"'));assert(!i.includes('>급여</a>\\n'));console.log('duplicate top substitution tab removed: PASS');
