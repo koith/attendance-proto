@@ -1,0 +1,8 @@
+name: force-close-timezone-audit-v1-regression
+on: [pull_request]
+jobs:
+ qa:
+  runs-on: ubuntu-latest
+  steps:
+   - uses: actions/checkout@v4
+   - run: node qa_force_close_timezone_audit_v1.mjs
