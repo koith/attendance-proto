@@ -3,3 +3,4 @@
 -- substitution_v2_due_enforcer + status revision: accepted no-show -> FAILED; active substitute shift -> audit ADD OUT at requested end and COMPLETED.
 -- substitution_v2_refresh_canonical_time: substitute session comparisons use KST while raw attendance remains UTC wall-clock.
 -- Raw attendance is never deleted or rewritten.
+-- substitution_v2_due_enforcer_partial_out_fix: production DB hotfix. Existing real OUT preserves actual overlap and resolves PARTIAL unless planned minutes were completed; only a missing OUT receives audit/correction ADD OUT at requested end.\n
