@@ -1,0 +1,8 @@
+name: runtime-integrity-v22-regression
+on: [pull_request]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node qa_runtime_integrity_v22.mjs
