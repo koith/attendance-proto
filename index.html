@@ -1484,7 +1484,7 @@ async function renderAdmin(){
 
       const badges =
         (isWorking?'<span class="badge work">근무중</span>':'') +
-        (issue?'<span class="badge issue">확인필요</span>':'');
+        (issue && hasTodayAttendance?'<span class="badge issue">확인필요</span>':'');
 
       const div=document.createElement("div"); div.className="att-card"+(isWorking?" working":"");
       div.innerHTML=`
