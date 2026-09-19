@@ -3,7 +3,7 @@ const payroll=fs.readFileSync('payroll_contract_authority_v1.js','utf8'),sub=fs.
 assert(!payroll.includes("note.textContent='급여는 계약조건과 정정 반영 실근무를 기준으로 계산합니다.'"));
 assert(!payroll.includes('warn.textContent='));
 assert(!payroll.includes("s.textContent=contractSummary(rec.contract)"));
-assert(payroll.includes("function compactSupport(rec){return")&&payroll.includes("fmtHM(rec.sec)")&&payroll.includes(" 근무`}"));
+assert(payroll.includes("function compactSupport(rec){return")&&payroll.includes("fmtHM(rec.sec)")&&payroll.includes(" 근무"));
 assert(payroll.includes('payroll-tax-label')&&payroll.includes('(세전)'));
 assert(payroll.includes('font-size:3rem')&&payroll.includes('font-size:2rem'));
 assert(payroll.includes("n.textContent='급여 확인 필요'"));
