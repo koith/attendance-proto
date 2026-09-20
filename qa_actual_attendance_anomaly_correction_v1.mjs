@@ -1,9 +1,11 @@
 import fs from 'node:fs';
-const js=fs.readFileSync('actual_attendance_anomaly_correction_v1.js','utf8');
+const all=fs.readFileSync('actual_attendance.js','utf8');
+const js=all.slice(all.indexOf('Actual attendance V1.3'),all.indexOf('Actual attendance identity V2'));
 const html=fs.readFileSync('actual_attendance.html','utf8');
 const css=fs.readFileSync('actual_attendance_correction.css','utf8');
 const must=(v,m)=>{if(!v)throw new Error(m)};
-must(html.includes('actual_attendance_anomaly_correction_v1.js'),'layer not loaded');
+must(html.includes('actual_attendance.js?v='),'canonical runtime not loaded');
+must(!html.includes('actual_attendance_anomaly_correction_v1.js?v='),'legacy anomaly-correction patch still loaded');
 must(js.includes("button.textContent='바로 정정'"),'missing direct correction CTA');
 must(js.includes('actualAttendanceIssueReason'),'not driven by anomaly classifier');
 must(js.includes('확인 후 정정하세요.'),'missing anomaly correction hint');
