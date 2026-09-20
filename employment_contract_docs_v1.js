@@ -56,7 +56,7 @@
   }
   function formPanel(c){
     return `<div class="contract-doc-area contract-doc-inline">
-      <div class="history-title-row"><h3>근로계약서</h3><span class="hint">계약조건과 함께 관리</span></div>
+      <div class="history-title-row"><h3>근로계약서 <span id="contractDocRequired" class="required-alert" aria-label="계약서 첨부 필요">!</span></h3><span class="hint">계약조건과 함께 관리</span></div>
       ${c?'<div id="contractDocList"><div class="hint">첨부된 계약서 불러오는 중…</div></div>':'<div class="hint">새 계약 저장 후 이 계약에 연결됩니다.</div>'}
       <div id="contractDocPendingWrap">${pendingLabel()}</div>
       <input id="contractDocFile" type="file" accept="application/pdf,image/jpeg,image/png" hidden>
@@ -99,10 +99,12 @@
       }catch(_){toast('계약서를 삭제하지 못했습니다.',true)}
     });
   }
+  function setDocAttention(missing){const x=el('contractDocRequired');if(x)x.hidden=!missing}
   async function loadDocPanels(c){
     if(!S.employeeId)return;
     try{
-      if(c){const docs=await BE.contractDocs(S.employeeId,c.id);bindRows(el('contractDocList'),docs||[],true)}
+      if(c){const docs=await BE.contractDocs(S.employeeId,c.id);bindRows(el('contractDocList'),docs||[],true);setDocAttention(!(docs||[]).length&&!S.pendingContractFile)}
+      else setDocAttention(!S.pendingContractFile)
       const legacy=await BE.unclassifiedDocs(S.employeeId);bindRows(el('unclassifiedDocList'),legacy||[],false);
     }catch(_){
       if(el('contractDocList'))el('contractDocList').innerHTML='<div class="hint">계약서를 불러오지 못했습니다.</div>';
@@ -118,7 +120,7 @@
   function refreshPending(){
     const box=el('contractDocPendingWrap');if(!box)return;
     box.innerHTML=pendingLabel();
-    const clear=el('contractDocClear');if(clear)clear.onclick=()=>{S.pendingContractFile=null;refreshPending()};
+    const clear=el('contractDocClear');if(clear)clear.onclick=()=>{S.pendingContractFile=null;refreshPending();setDocAttention(true)};
   }
 
   bindMain=function(c){
@@ -129,7 +131,7 @@
       input.onchange=()=>{
         const file=input.files?.[0];const err=validateFile(file);
         if(err){input.value='';return toast(err,true)}
-        S.pendingContractFile=file;refreshPending();input.value='';
+        S.pendingContractFile=file;refreshPending();setDocAttention(false);input.value='';
       };
     }
     refreshPending();
