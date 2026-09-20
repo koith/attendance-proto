@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const js=fs.readFileSync('actual_attendance.js','utf8');
+const css=fs.readFileSync('actual_attendance.css','utf8');
+const html=fs.readFileSync('actual_attendance.html','utf8');
+assert(js.includes('class="day-summary"'));
+assert(js.includes('class="day-warning"'));
+assert(js.includes("new Set(ss.map(s=>Number(s.employee_id))).size"));
+assert(js.includes("ss.filter(s=>s.status==='COMPLETE').reduce"));
+assert(!js.includes('ss.slice(0,3).map'));
+assert(css.includes('.day-overview{'));
+assert(html.includes('actual_attendance.css?v=20260920b'));
+assert(html.includes('actual_attendance.js?v=20260920b'));
+console.log('monthly attendance summary v28: PASS');

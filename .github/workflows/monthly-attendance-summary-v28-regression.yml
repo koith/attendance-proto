@@ -1,0 +1,14 @@
+name: monthly-attendance-summary-v28-regression
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node qa_monthly_attendance_summary_v28.mjs
