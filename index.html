@@ -202,9 +202,10 @@
   .row .times b{color:var(--ink); font-weight:600;}
   /* ===== V1 Status badge (pill, 클릭 불가) ===== */
   .badge{display:inline-flex; align-items:center; gap:4px; font-size:.72rem; font-weight:600; padding:3px 9px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted); background:var(--surface); cursor:default; user-select:none;}
-  .badge.work, .badge#success{color:var(--brand-700); border-color:#bfe3cb; background:var(--brand-050);}
+  .badge.work, .badge.success{color:var(--brand-700); border-color:#bfe3cb; background:var(--brand-050);}
   .badge.issue, .badge.warning{color:var(--warning); border-color:#e8d9a8; background:#fdf6e3;}
   .badge.danger{color:var(--danger); border-color:#f0c4be; background:#fbeae8;}
+  .contract-btn{position:relative;overflow:visible}.contract-alert{position:absolute;right:-6px;top:-7px;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#c62828;color:#fff;font-size:12px;font-weight:800;line-height:1;box-shadow:0 0 0 2px var(--surface)}
   .empty{color:var(--muted); text-align:center; padding:40px 16px; font-size:.9rem; grid-column:1/-1; width:100%;}
   /* ===== V1 Button primitives ===== */
   .btn{
@@ -1505,14 +1506,9 @@ async function renderAdmin(){
     const div=document.createElement("div"); div.className="row";
     const seq=String(i+1).padStart(2,"0");
     const cs=contractStatuses.find(x=>Number(x.employee_id)===Number(e.id));
-    const contractBadge=cs?.contract_registered
-      ? `<span class="badge success">${cs.contract_effective?'계약 유효':'계약 등록'}</span>`
-      : `<span class="badge issue">계약 미등록</span>`;
-    const docBadge=cs?.document_attached
-      ? `<span class="badge success">계약서 첨부</span>`
-      : `<span class="badge">계약서 없음</span>`;
-    div.innerHTML=`<div class="nm" style="flex:1"><span style="display:inline-block;min-width:30px;color:var(--text-muted);font-size:.78rem;font-variant-numeric:tabular-nums">${seq}</span>${safeHtml(e.name)}<div style="display:flex;gap:4px;margin:5px 0 0 30px">${contractBadge}${docBadge}</div></div>
-      <button class="btn btn-secondary btn-sm" data-contract="${e.id}">계약</button>
+    const contractNeedsAttention=!cs?.contract_registered||!cs?.contract_effective||!cs?.document_attached;
+    div.innerHTML=`<div class="nm" style="flex:1"><span style="display:inline-block;min-width:30px;color:var(--text-muted);font-size:.78rem;font-variant-numeric:tabular-nums">${seq}</span>${safeHtml(e.name)}</div>
+      <button class="btn btn-secondary btn-sm contract-btn" data-contract="${e.id}">계약${contractNeedsAttention?'<span class="contract-alert" aria-label="계약 확인 필요">!</span>':''}</button>
       <button class="btn btn-danger btn-sm" data-deact="${e.id}">비활성화</button>`;
     div.querySelector("[data-deact]").onclick=async()=>{ if(confirm(`${e.name} 직원을 비활성화할까요?`)){ await BE.deactivateEmployee(e.id); renderAdmin(); } };
     div.querySelector("[data-contract]").onclick=()=>{ location.href=`employment_contracts.html?employee=${e.id}&from=employees`; };
