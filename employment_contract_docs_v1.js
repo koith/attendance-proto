@@ -52,16 +52,16 @@
   function pendingLabel(){
     return S.pendingContractFile
       ? `<div class="subcard compact pending-contract-doc"><div style="min-width:0;flex:1"><strong style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(S.pendingContractFile.name)}</strong><span class="hint">계약 저장 시 함께 첨부됩니다.</span></div><button type="button" class="btn" id="contractDocClear">취소</button></div>`
-      : '<div class="hint" id="contractDocPending">선택된 새 계약서가 없습니다.</div>';
+      : '';
   }
   function formPanel(c){
     return `<div class="contract-doc-area contract-doc-inline">
-      <div class="history-title-row"><h3>근로계약서 <span id="contractDocRequired" class="required-alert" aria-label="계약서 첨부 필요">!</span></h3><span class="hint">계약조건과 함께 관리</span></div>
-      ${c?'<div id="contractDocList"><div class="hint">첨부된 계약서 불러오는 중…</div></div>':'<div class="hint">새 계약 저장 후 이 계약에 연결됩니다.</div>'}
+      <div class="history-title-row"><h3>근로계약서 <span id="contractDocRequired" class="required-alert" aria-label="계약서 첨부 필요">!</span></h3></div>
+      ${c?'<div id="contractDocList"><div class="hint">첨부된 계약서 불러오는 중…</div></div>':''}
       <div id="contractDocPendingWrap">${pendingLabel()}</div>
       <input id="contractDocFile" type="file" accept="application/pdf,image/jpeg,image/png" hidden>
       <button type="button" class="btn full" id="contractDocPick">${c?'+ 계약서 추가/교체':'+ 계약서 선택'}</button>
-      <details class="legacy-docs"><summary>기존 미분류 계약서</summary><div id="unclassifiedDocList"><div class="hint">불러오는 중…</div></div></details>
+      <details class="legacy-docs hidden" id="unclassifiedDocs"><summary>연결되지 않은 계약서</summary><div id="unclassifiedDocList"></div></details>
     </div>`;
   }
 
@@ -105,7 +105,7 @@
     try{
       if(c){const docs=await BE.contractDocs(S.employeeId,c.id);bindRows(el('contractDocList'),docs||[],true);setDocAttention(!(docs||[]).length&&!S.pendingContractFile)}
       else setDocAttention(!S.pendingContractFile)
-      const legacy=await BE.unclassifiedDocs(S.employeeId);bindRows(el('unclassifiedDocList'),legacy||[],false);
+      const legacy=await BE.unclassifiedDocs(S.employeeId),legacyBox=el('unclassifiedDocs');if(legacyBox)legacyBox.classList.toggle('hidden',!(legacy||[]).length);if((legacy||[]).length)bindRows(el('unclassifiedDocList'),legacy,false);
     }catch(_){
       if(el('contractDocList'))el('contractDocList').innerHTML='<div class="hint">계약서를 불러오지 못했습니다.</div>';
       if(el('unclassifiedDocList'))el('unclassifiedDocList').innerHTML='<div class="hint">기존 파일을 불러오지 못했습니다.</div>';

@@ -14,14 +14,13 @@ jobs:
         run: |
           node --check substitution_test_attendance_bridge_v1.js
           node --check payroll_refresh_coordinator_v1.js
-          node --check employment_contract_night_copy_v1.js
           node --check senior_requirements_v3.js
           node --check payroll_elapsed_weeks_v1.js
       - name: Stability invariants
         run: |
           grep -q 'substitution_test_attendance_bridge_v1.js' substitution.html
           grep -q 'payroll_refresh_coordinator_v1.js' payroll_elapsed_weeks_v1.js
-          grep -q 'employment_contract_night_copy_v1.js' employment_contracts.html
+          ! grep -q 'employment_contract_night_copy_v1.js' employment_contracts.html
           grep -q "const r=await BE.docDelete" senior_requirements_v3.js
           grep -q "const storageOk=await BE.docRemove" senior_requirements_v3.js
           grep -q "actual_minutes" substitution_test_attendance_bridge_v1.js

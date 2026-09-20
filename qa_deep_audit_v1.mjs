@@ -38,7 +38,7 @@ ok(index.includes('supabase_session_resilience_v1.js?v='), 'main app must recove
 ok(session.includes("if(typeof Auth!=='undefined')Auth.token=s.access_token"), 'session refresh must synchronize main Auth token');
 
 ok(!contract.includes('정액 적용 단위는 정책 확정 전까지 급여에 자동 합산하지 않습니다.'), 'stale night-pay copy must not return');
-ok(contract.includes('야간수당을 계산해 세전 급여에 합산합니다.'), 'contract copy must match implemented night payroll');
+ok(contract.includes('id="nightModal"') && contract.includes('id="nightSummary"'), 'night payroll settings must use compact modal and summary');
 ok(docs.includes('const storageOk=await BE.contractDocRemove'), 'contract document deletion must surface storage cleanup result');
 ok(docs.includes('저장소 파일 정리가 필요합니다.'), 'orphaned storage cleanup must be visible to admin');
 ok(nightEnd.includes('nightEndPostSaveError'), 'night-end follow-up failure must not turn a successful contract save into a duplicate retry');
