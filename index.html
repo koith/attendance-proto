@@ -1738,7 +1738,7 @@ async function drawPay(ym){
         <span style="font-size:.76rem;color:var(--muted);white-space:nowrap">${fmtHM(sec)} 근무</span>
         ${issues?`<span class="badge issue" style="margin-left:auto;white-space:nowrap">근태 확인 ${issues}</span>`:''}
       </div>
-      ${pay?`<div style="display:flex;align-items:baseline;gap:5px"><strong style="font-size:1.12rem;line-height:1.2">${pay.gross.toLocaleString()}원</strong><span style="font-size:.7rem;color:var(--muted)">(세전)</span></div>`:''}
+      ${pay?`<div style="display:flex;align-items:baseline;gap:5px"><strong style="font-size:.68rem;line-height:1.15">${pay.gross.toLocaleString()}원</strong><span style="font-size:.62rem;color:var(--muted)">(세전)</span></div>`:''}
     `;
     if(LIVE){
       card.style.cursor="pointer";
