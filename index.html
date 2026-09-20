@@ -2194,12 +2194,10 @@ function openMonthAdjust(emp, ym, ov){
   const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
   modal.innerHTML=`
     <h3>${emp.name} · ${ym} 이달 조정</h3>
-    <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px">
-      이 값은 <b>${ym}에만</b> 적용됩니다. 비우면 직원 기본값 사용. 다음 달엔 영향 없음.</div>
-    <div class="field"><label>주휴 인정주수 (예: 1주 제외→3)</label><input id="maWeeks" inputmode="numeric" value="${ov.juhyu_weeks_override??''}" placeholder="비우면 기본 주수"></div>
-    <div class="field"><label>시급 (이달만)</label><input id="maWage" inputmode="numeric" value="${ov.wage_override??''}" placeholder="비우면 기본시급"></div>
-    <div class="field"><label>주휴시간 (이달만)</label><input id="maJh" inputmode="decimal" value="${ov.juhyu_hours_override??''}" placeholder="비우면 기본"></div>
-    <div class="field"><label>원천징수율 % (이달만)</label><input id="maTax" inputmode="decimal" value="${ov.tax_rate_override!=null?(ov.tax_rate_override*100).toString():''}" placeholder="비우면 기본율"></div>
+    <input id="maWeeks" type="hidden" value="${ov.juhyu_weeks_override??''}">
+    <input id="maWage" type="hidden" value="${ov.wage_override??''}">
+    <input id="maJh" type="hidden" value="${ov.juhyu_hours_override??''}">
+    <input id="maTax" type="hidden" value="${ov.tax_rate_override!=null?(ov.tax_rate_override*100).toString():''}">
     <div class="field"><label>가감액 (수당+/공제−, 원)</label><input id="maAdj" inputmode="numeric" value="${ov.adjust_amount||''}" placeholder="예: -20000"></div>
     <div class="field"><label>이달 사유</label><input id="maMemo" value="${ov.memo||''}" placeholder="예: 15h미만 1주 제외"></div>
     <button class="btn btn-primary btn-block btn-lg" id="maSave">이달 조정 저장</button>`;
