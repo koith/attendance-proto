@@ -1,0 +1,11 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const index=fs.readFileSync('index.html','utf8'),js=fs.readFileSync('employment_contracts_v3.js','utf8'),css=fs.readFileSync('employment_contracts.css','utf8'),html=fs.readFileSync('employment_contracts.html','utf8');
+assert(index.includes('font-size:1.4rem;font-weight:800'));
+assert(index.includes('No. ${safeHtml(e.id)}'));
+assert(index.includes('근태 확인 ${issues}'));
+assert(index.includes('${pay?`<div style="display:flex;align-items:baseline;gap:5px"'));
+assert(!index.includes("pay?'(세전)':'급여 계산 보류'"));
+assert(!js.includes('type="checkbox" tabindex="-1" aria-hidden="true"'));
+assert(css.includes('height:32px!important;min-height:32px!important'));
+assert(html.includes('employment_contracts.css?v=20260920h'));
+console.log('payroll contract compact v29: PASS');
