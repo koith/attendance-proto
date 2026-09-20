@@ -10,13 +10,13 @@
     p_content_type:file.type,p_byte_size:file.size
   });
   BE.contractDocDelete=id=>rpc('admin_doc_delete',{p_document_id:id});
-  BE.contractDocUpload=async(path,file)=>{
+  BE.contractDocUpload=async(path,file)=>{if(typeof testModeEnabled==='function'&&testModeEnabled())throw new Error('TEST_MODE_WRITE_BLOCKED');
     const r=await fetch(`${CONFIG.SUPABASE_URL}/storage/v1/object/employee-docs/${path}`,{
       method:'POST',headers:{apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:`Bearer ${Auth.token}`,'Content-Type':file.type,'x-upsert':'false'},body:file
     });
     if(!r.ok)throw Error(`STORAGE_UPLOAD_FAILED:${r.status}`);
   };
-  BE.contractDocRemove=async path=>{
+  BE.contractDocRemove=async path=>{if(typeof testModeEnabled==='function'&&testModeEnabled())throw new Error('TEST_MODE_WRITE_BLOCKED');
     const r=await fetch(`${CONFIG.SUPABASE_URL}/storage/v1/object/employee-docs/${path}`,{
       method:'DELETE',headers:{apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:`Bearer ${Auth.token}`}
     });
