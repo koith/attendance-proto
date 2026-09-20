@@ -1,0 +1,9 @@
+name: substitution-runtime-hardening-v1-regression
+on: [pull_request]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check substitution_v2.js
+      - run: node qa_substitution_runtime_hardening_v1.mjs
