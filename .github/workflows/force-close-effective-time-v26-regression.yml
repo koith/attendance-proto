@@ -1,0 +1,14 @@
+name: force-close-effective-time-v26-regression
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node qa_force_close_effective_time_v26.mjs
