@@ -17,7 +17,7 @@ historyCard=function(p,c){
       <h2>새 고용기간</h2>
       <div class="advanced-body lifecycle-editor">
         <div class="grid2">
-          <div class="field"><label>입사일</label><input id="periodStart" type="date" value=""></div>
+          <div class="field"><label>입사일 ${requiredAlert(true)}</label><input id="periodStart" type="date" value=""></div>
           <div class="field"><label>퇴사일</label><input id="periodEnd" type="date" value=""></div>
         </div>
         <div class="field"><label>메모</label><textarea id="periodNote" rows="2" placeholder="필요한 내용만 기록"></textarea></div>
