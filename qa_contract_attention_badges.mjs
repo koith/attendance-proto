@@ -18,3 +18,8 @@ assert(ia.includes("입사일 ${requiredAlert(true)}"));
 assert(docs.includes('id="contractDocRequired"'));
 assert(docs.includes("setDocAttention(!(docs||[]).length&&!S.pendingContractFile)"));
 console.log('contract attention badge QA PASS');
+
+assert(contract.includes("function refreshRequiredAlerts()"));
+assert(contract.includes("addEventListener('input',refreshRequiredAlerts)"));
+assert(contract.includes("S.workdays.size===0"));
+assert(contract.includes("refreshRequiredAlerts()"));

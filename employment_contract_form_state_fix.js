@@ -20,7 +20,8 @@
       S.nightEnabled=night.checked;
       el('nightFields')?.classList.toggle('hidden',!night.checked);
     }
-    const mode=el('nightMode');if(mode)el('nightValueLabel').textContent=mode.value==='RATE'?'추가율 (%)':'정액 값 (원)';
+    const mode=el('nightMode');if(mode){const l=el('nightValueLabel'),badge=l?.querySelector('.required-alert');if(l){l.firstChild.textContent=mode.value==='RATE'?'추가율 (%) ':'정액 값 (원) ';if(badge)l.appendChild(badge)}}
+    if(typeof refreshRequiredAlerts==='function')refreshRequiredAlerts();
   }
   render=function(){
     const app=el('app');
