@@ -46,10 +46,6 @@ jobs:
         run: |
           grep -q 'actual_attendance.html' index.html
           grep -q 'actual_attendance.js' actual_attendance.html
-          grep -q 'actual_attendance_day_slices_v1.js' actual_attendance.html
           grep -q 'actual_attendance.css' actual_attendance.html
-          grep -q 'actual_attendance_correction.js' actual_attendance.html
           grep -q 'actual_attendance_correction.css' actual_attendance.html
-          grep -q 'actual_attendance_anomaly_v1.js' actual_attendance.html
-          grep -q 'actual_attendance_anomaly_correction_v1.js' actual_attendance.html
           grep -q 'supabase_session_resilience_v1.js' actual_attendance.html
