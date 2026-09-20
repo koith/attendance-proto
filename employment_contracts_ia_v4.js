@@ -29,7 +29,7 @@ historyCard=function(p,c){
   if(S.historyMode==='periodDetail' && p){
     const cs=periodContracts();
     return `<section class="card advanced" id="history">
-      <div class="history-title-row"><h2>고용기간 상세</h2><button class="linkbtn" id="closePeriodDetail">‹ 이력</button></div>
+      <div class="history-title-row"><h2>고용기간</h2><button class="linkbtn" id="closePeriodDetail">뒤로</button></div>
       <div class="advanced-body lifecycle-editor">
         <div class="grid2">
           <div class="field"><label>입사일</label><input id="periodStart" type="date" value="${p.started_on||''}"></div>
@@ -51,7 +51,7 @@ historyCard=function(p,c){
         const cs=(S.bundle.contracts||[]).filter(k=>Number(k.employment_period_id)===Number(x.id)).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)));
         const latest=cs[0]||null;
         return `<button class="history-period ${Number(x.id)===Number(S.periodId)?'on':''}" data-period-detail="${x.id}">
-          <span><b>${x.started_on} ~ ${x.ended_on||'재직중'}</b><small>${escapeHtml(historyContractSummary(latest))}${cs.length>1?` · 이력 ${cs.length}건`:''}</small></span><strong>상세 ›</strong>
+          <span><b>${x.started_on} ~ ${x.ended_on||'재직중'}</b><small>${escapeHtml(historyContractSummary(latest))}${cs.length>1?` · 계약 ${cs.length}건`:''}</small></span><strong>›</strong>
         </button>`;
       }).join('')}</div>`:'<div class="hint">등록된 고용기간이 없습니다.</div>'}
       <button class="btn full history-new-period" id="newPeriod">+ 새 고용기간</button>
