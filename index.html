@@ -91,9 +91,9 @@
   .att-info{min-width:0;}
   .att-info .line1{font-size:.88rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .att-info .line2{font-size:.82rem; color:var(--text-muted); margin-top:2px;}
-  .att-info .line1 b{font-weight:700;}
-  .att-right{display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex:0 0 auto;}
-  .att-badges{display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end;}
+  .att-info .line1 b{font-weight:700;}\n  .att-inline-badges{display:inline-flex;align-items:center;gap:4px;margin-left:6px;vertical-align:middle;}
+  .att-right{display:flex; flex-direction:row; align-items:center; justify-content:flex-end; gap:6px; flex:0 0 auto;}
+  .att-badges{display:flex; gap:4px; flex-wrap:nowrap; justify-content:flex-end;}
   /* WorkSchedule 층 */
   .sch-line{font-size:.8rem; color:var(--brand-700); margin-bottom:2px;}
   .sch-line.sch-none{color:var(--muted);}
@@ -1488,12 +1488,11 @@ async function renderAdmin(){
         <div class="att-name">${safeHtml(e.name)}</div>
         <div class="att-info">
           ${schLine}
-          <div class="line1">${line1}</div>
+          <div class="line1">${line1}${badges?` <span class="att-inline-badges">${badges}</span>`:''}</div>
           ${line2?`<div class="line2">${line2}</div>`:''}
           ${progressHtml}
         </div>
         <div class="att-right">
-          ${badges?`<div class="att-badges">${badges}</div>`:''}
           ${LIVE?`<button class="btn btn-secondary btn-sm" data-fix="${e.id}">수정</button>`:''}
         </div>`;
       if(LIVE){ const fb=div.querySelector("[data-fix]"); if(fb) fb.onclick=()=>openAdminFix(e, rows); }
