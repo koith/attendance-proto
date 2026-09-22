@@ -37,3 +37,16 @@
 
 /* V8 menu trend line chart */
 .ops-menu-chart svg polyline{display:block;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.ops-menu-chart svg polyline.s0,.ops-menu-chart svg circle.s0{stroke:#2f7d50}.ops-menu-chart svg polyline.s1,.ops-menu-chart svg circle.s1{stroke:#8fc7a5}.ops-menu-chart svg polyline.s2,.ops-menu-chart svg circle.s2{stroke:#4f966b}.ops-menu-chart svg polyline.s3,.ops-menu-chart svg circle.s3{stroke:#70ad87}.ops-menu-chart svg polyline.s4,.ops-menu-chart svg circle.s4{stroke:#a8d5b8}.ops-menu-chart svg polyline.s5,.ops-menu-chart svg circle.s5{stroke:#397f57}.ops-menu-chart svg polyline.s6,.ops-menu-chart svg circle.s6{stroke:#66a77e}.ops-menu-chart svg polyline.s7,.ops-menu-chart svg circle.s7{stroke:#bddfc9}.ops-menu-chart svg circle{fill:#fff;stroke-width:2;cursor:pointer;vector-effect:non-scaling-stroke}.ops-menu-chart svg circle:focus{outline:none;fill:var(--brand-050)}
+
+/* Menu trend: distinct muted series palette; brand green remains for primary UI/total chart */
+.ops-menu-chart svg polyline.s0,.ops-menu-chart svg circle.s0{stroke:#2f7d50}
+.ops-menu-chart svg polyline.s1,.ops-menu-chart svg circle.s1{stroke:#278c87}
+.ops-menu-chart svg polyline.s2,.ops-menu-chart svg circle.s2{stroke:#4f78a8}
+.ops-menu-chart svg polyline.s3,.ops-menu-chart svg circle.s3{stroke:#7669a8}
+.ops-menu-chart svg polyline.s4,.ops-menu-chart svg circle.s4{stroke:#c17a43}
+.ops-menu-chart svg polyline.s5,.ops-menu-chart svg circle.s5{stroke:#a38a38}
+.ops-menu-chart svg polyline.s6,.ops-menu-chart svg circle.s6{stroke:#b8667b}
+.ops-menu-chart svg polyline.s7,.ops-menu-chart svg circle.s7{stroke:#647b86}
+.ops-menu-chart .ops-legend i.s0{background:#2f7d50}.ops-menu-chart .ops-legend i.s1{background:#278c87}.ops-menu-chart .ops-legend i.s2{background:#4f78a8}.ops-menu-chart .ops-legend i.s3{background:#7669a8}.ops-menu-chart .ops-legend i.s4{background:#c17a43}.ops-menu-chart .ops-legend i.s5{background:#a38a38}.ops-menu-chart .ops-legend i.s6{background:#b8667b}.ops-menu-chart .ops-legend i.s7{background:#647b86}
+.ops-menu-chart:has([data-series]:hover) [data-series],.ops-menu-chart:has([data-series]:focus) [data-series]{opacity:.2}
+.ops-menu-chart:has(circle.s0:hover) .s0,.ops-menu-chart:has(circle.s0:focus) .s0,.ops-menu-chart:has(circle.s1:hover) .s1,.ops-menu-chart:has(circle.s1:focus) .s1,.ops-menu-chart:has(circle.s2:hover) .s2,.ops-menu-chart:has(circle.s2:focus) .s2,.ops-menu-chart:has(circle.s3:hover) .s3,.ops-menu-chart:has(circle.s3:focus) .s3,.ops-menu-chart:has(circle.s4:hover) .s4,.ops-menu-chart:has(circle.s4:focus) .s4,.ops-menu-chart:has(circle.s5:hover) .s5,.ops-menu-chart:has(circle.s5:focus) .s5,.ops-menu-chart:has(circle.s6:hover) .s6,.ops-menu-chart:has(circle.s6:focus) .s6,.ops-menu-chart:has(circle.s7:hover) .s7,.ops-menu-chart:has(circle.s7:focus) .s7{opacity:1}
