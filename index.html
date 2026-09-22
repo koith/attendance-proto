@@ -357,7 +357,7 @@
   <div class="msg" id="successMsg">오늘도 좋은 하루 되세요</div>
 </div>
 
-<script src="operations_v1.js?v=20260922e"></script>
+<script src="operations_v1.js?v=20260922f"></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
@@ -685,6 +685,7 @@ const SupaBE = (()=>{
       return this.rangeEvents(`${day}T00:00:00`,`${day}T23:59:59`); },
     async operationsSummary(from,to){ return rpc("admin_operations_summary",{p_from:from,p_to:to},true); },
     async operationsAnalytics(from,to){ return rpc("admin_operations_analytics",{p_from:from,p_to:to},true); },
+    async operationsTrend(windowKey){ return rpc("admin_operations_trend",{p_window:windowKey},true); },
     async inventoryOverview(){ return rpc("admin_inventory_overview",{},true); },
     async inventoryMovements(itemId,from,to){ return rpc("admin_inventory_movements",{p_item_id:itemId||null,p_from:from||null,p_to:to||null},true); },
     async recipeList(){ return rpc("admin_recipe_list",{},true); },
