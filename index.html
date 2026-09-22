@@ -297,6 +297,7 @@
   /* modal 내 select들도 form-control 표면으로 통일 (정정 날짜/시간 등) */
   .modal select{background:var(--surface-muted); border:1px solid var(--border); color:var(--text); border-radius:10px;}
 </style>
+<link rel="stylesheet" href="operations_v1.css?v=20260922a">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js" defer></script>
 <script src="supabase_session_resilience_v1.js?v=20260918a"></script>
@@ -317,6 +318,7 @@
       <a id="tabPos" href="#pos" class="on">출퇴근</a>
       <a id="tabAdmin" href="#admin">관리자</a>
       <a id="tabPay" href="#pay">급여</a>
+      <a id="tabOps" href="#ops">매장운영</a>
       <a id="substitutionEntryV1" href="substitution.html">대타 근무</a>
     </div></div>
   </div>
@@ -355,6 +357,7 @@
   <div class="msg" id="successMsg">오늘도 좋은 하루 되세요</div>
 </div>
 
+<script src="operations_v1.js?v=20260922a" defer></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
@@ -680,6 +683,10 @@ const SupaBE = (()=>{
     async todayEvents(){ const t=kstNow(); const p=n=>String(n).padStart(2,"0");
       const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
       return this.rangeEvents(`${day}T00:00:00`,`${day}T23:59:59`); },
+    async operationsSummary(from,to){ return rpc("admin_operations_summary",{p_from:from,p_to:to},true); },
+    async operationsTransactions(from,to,type){ return rpc("admin_operations_transactions",{p_from:from,p_to:to,p_type:type||null},true); },
+    async inventoryItems(){ return rpc("admin_inventory_items",{},true); },
+    async operationsImports(){ return rpc("admin_operations_imports",{},true); },
     async monthEvents(ym){ const [y,m]=ym.split("-").map(Number); const p=n=>String(n).padStart(2,"0");
       const start=new Date(y,m-1,1); start.setDate(start.getDate()-1);
       const end=new Date(y,m,1); end.setDate(end.getDate()+2);
@@ -816,6 +823,7 @@ function setTab(t){
   document.getElementById("tabPos").classList.toggle("on",t==="pos");
   document.getElementById("tabAdmin").classList.toggle("on",t==="admin");
   document.getElementById("tabPay").classList.toggle("on",t==="pay");
+  document.getElementById("tabOps").classList.toggle("on",t==="ops");
 }
 function route(){
   const h=(location.hash||"#pos").replace("#","");
@@ -838,6 +846,7 @@ function route(){
     });
   }
   else if(h==="pay"){ setTab("pay"); requireAuth(renderPay); }
+  else if(h==="ops"){ setTab("ops"); requireAuth(renderOperations); }
   else{ setTab("pos"); renderPos(); }
 }
 // 관리자 탭 로그인 게이트
