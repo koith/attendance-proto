@@ -297,7 +297,7 @@
   /* modal 내 select들도 form-control 표면으로 통일 (정정 날짜/시간 등) */
   .modal select{background:var(--surface-muted); border:1px solid var(--border); color:var(--text); border-radius:10px;}
 </style>
-<link rel="stylesheet" href="operations_v1.css?v=20260922a">
+<link rel="stylesheet" href="operations_v1.css?v=20260922b">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js" defer></script>
 <script src="supabase_session_resilience_v1.js?v=20260918a"></script>
@@ -357,7 +357,7 @@
   <div class="msg" id="successMsg">오늘도 좋은 하루 되세요</div>
 </div>
 
-<script src="operations_v1.js?v=20260922a" defer></script>
+<script src="operations_v1.js?v=20260922b" defer></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
@@ -684,6 +684,11 @@ const SupaBE = (()=>{
       const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
       return this.rangeEvents(`${day}T00:00:00`,`${day}T23:59:59`); },
     async operationsSummary(from,to){ return rpc("admin_operations_summary",{p_from:from,p_to:to},true); },
+    async operationsAnalytics(from,to){ return rpc("admin_operations_analytics",{p_from:from,p_to:to},true); },
+    async inventoryOverview(){ return rpc("admin_inventory_overview",{},true); },
+    async inventoryMovements(itemId,from,to){ return rpc("admin_inventory_movements",{p_item_id:itemId||null,p_from:from||null,p_to:to||null},true); },
+    async recipeList(){ return rpc("admin_recipe_list",{},true); },
+    async reconciliationIssues(from,to){ return rpc("admin_reconciliation_issues",{p_from:from,p_to:to},true); },
     async operationsTransactions(from,to,type){ return rpc("admin_operations_transactions",{p_from:from,p_to:to,p_type:type||null},true); },
     async inventoryItems(){ return rpc("admin_inventory_items",{},true); },
     async operationsImports(){ return rpc("admin_operations_imports",{},true); },
