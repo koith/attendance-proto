@@ -1,6 +1,6 @@
 import fs from 'node:fs';import assert from 'node:assert/strict';
 const html=fs.readFileSync('index.html','utf8'),js=fs.readFileSync('operations_v1.js','utf8'),css=fs.readFileSync('operations_v1.css','utf8');
-assert.match(html,/id="tabOps"/);assert.match(html,/operations_v1\.css\?v=20260922d/);assert.match(html,/operations_v1\.js\?v=20260922d/);assert.match(html,/h==="ops"/);
+assert.match(html,/id="tabOps"/);assert.match(html,/operations_v1\.css\?v=20260922e/);assert.match(html,/operations_v1\.js\?v=20260922e/);assert.match(html,/h==="ops"/);
 for(const n of ['operationsSummary','operationsTransactions','operationsImports','operationsAnalytics','inventoryOverview','inventoryMovements','recipeList','reconciliationIssues','seedOperationsDemo','clearOperationsDemo','operationsInquiry','operationsChannels']) assert.match(html,new RegExp(n));
 for(const t of ['리포트','데이터 조회','데이터 수집','파일 업로드','재고','레시피','대사','예시 데이터']) assert.ok(js.includes(t));
 for(const s of ['RAW','거래원장','재고','대사']) assert.ok(js.includes(s));
