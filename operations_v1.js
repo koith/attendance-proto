@@ -1,46 +1,20 @@
-/* 매장운영 V1: UI/조회 계층. 원천수집기는 다음 단계에서 각 소스별 어댑터로 연결한다. */
+/* 매장운영 V2 — 매출/매입/재고/BOM/대사 공통 기반. 실제 원천 어댑터만 추후 매장 자료로 매핑. */
 (function(){
-  const state={tab:"dashboard"};
-  const won=n=>Number(n||0).toLocaleString("ko-KR")+"원";
-  const esc=v=>window.safeHtml?window.safeHtml(v):String(v??"");
-  function monthRange(){
-    const d=window.kstNow?window.kstNow():new Date(),p=n=>String(n).padStart(2,"0");
-    const from=`${d.getFullYear()}-${p(d.getMonth()+1)}-01`;
-    const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
-    return [from,`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(last)}`];
-  }
-  function shell(){
-    const [f,t]=monthRange();
-    view.innerHTML=`<div class="ops-head"><div><h2>매장운영</h2><p>매출 · 매입 · 재고를 한 곳에서 관리합니다.</p></div></div>
-    <div class="ops-tabs">
-      <button class="ops-tab on" data-ops="dashboard">대시보드</button><button class="ops-tab" data-ops="sales">매출</button><button class="ops-tab" data-ops="purchase">매입</button><button class="ops-tab" data-ops="inventory">재고</button><button class="ops-tab" data-ops="connect">데이터 연동</button>
-    </div>
-    <div class="ops-filter"><div><label>시작일</label><input id="opsFrom" type="date" value="${f}"></div><div><label>종료일</label><input id="opsTo" type="date" value="${t}"></div><button class="btn btn-primary" id="opsRefresh">조회</button></div>
-    <div id="opsBody"></div>`;
-    document.querySelectorAll(".ops-tab").forEach(b=>b.onclick=()=>{state.tab=b.dataset.ops;document.querySelectorAll(".ops-tab").forEach(x=>x.classList.toggle("on",x===b));draw();});
-    document.getElementById("opsRefresh").onclick=draw; draw();
-  }
-  async function draw(){
-    const body=document.getElementById("opsBody"); if(!body)return;
-    body.innerHTML='<div class="ops-empty">불러오는 중…</div>';
-    try{
-      const f=document.getElementById("opsFrom").value,t=document.getElementById("opsTo").value;
-      if(!f||!t||t<f) throw new Error("조회 기간을 확인하세요.");
-      if(state.tab==="dashboard"){
-        const s=await BE.operationsSummary(f,t);
-        body.innerHTML=`<div class="ops-kpis"><div class="ops-kpi primary"><span>매출</span><b>${won(s.sales)}</b></div><div class="ops-kpi"><span>매입</span><b>${won(s.purchases)}</b></div><div class="ops-kpi"><span>환불</span><b>${won(s.refunds)}</b></div><div class="ops-kpi"><span>등록 재고품목</span><b>${Number(s.active_items||0).toLocaleString()}개</b></div></div>
-        <div class="ops-card"><div class="ops-card-head"><span class="ops-card-title">데이터 현황</span></div><div class="ops-row"><div class="ops-row-main"><b>표준 거래원장</b><small>선택 기간의 정규화 거래</small></div><strong>${Number(s.transaction_count||0).toLocaleString()}건</strong></div><div class="ops-row"><div class="ops-row-main"><b>가져오기 작업</b><small>원천 데이터 수집 배치</small></div><strong>${Number(s.import_count||0).toLocaleString()}건</strong></div></div>`;
-      }else if(state.tab==="sales"||state.tab==="purchase"){
-        const typ=state.tab==="sales"?"SALE":"PURCHASE", rows=await BE.operationsTransactions(f,t,typ);
-        body.innerHTML=rows.length?rows.map(r=>`<div class="ops-card"><div class="ops-card-head"><span class="ops-card-title">${esc(r.counterparty||r.channel||r.source||"거래")}</span><span class="ops-status ${r.status==="CONFIRMED"?"ok":""}">${esc(r.status)}</span></div><div class="ops-row"><div class="ops-row-main"><b>${esc(r.business_date)}</b><small>${esc(r.channel||r.source||"-")}</small></div><span class="ops-amount">${won(r.total_amount)}</span></div></div>`).join(""):'<div class="ops-empty">조회된 거래가 없습니다.</div>';
-      }else if(state.tab==="inventory"){
-        const rows=await BE.inventoryItems();
-        body.innerHTML='<div class="ops-note">입고·판매사용·로스·실사조정을 하나의 재고원장으로 누적합니다. BOM/레시피는 유효기간별 버전을 보존합니다.</div>'+ (rows.length?rows.map(r=>`<div class="ops-card"><div class="ops-card-head"><span class="ops-card-title">${esc(r.name)}</span><span class="ops-status ${r.is_active?"ok":""}">${r.is_active?"사용중":"중지"}</span></div><div class="ops-row"><div class="ops-row-main"><b>${esc(r.sku)}</b><small>기준 단위 ${esc(r.unit)}</small></div><span class="ops-amount">${Number(r.on_hand||0).toLocaleString()} ${esc(r.unit)}</span></div></div>`).join(""):'<div class="ops-empty">등록된 재고 품목이 없습니다.</div>');
-      }else{
-        const rows=await BE.operationsImports();
-        body.innerHTML=`<div class="ops-note">BizReport의 업로드/배치 UX를 가져오되 실제 연결은 우리 원천에 맞춰 분리합니다. 같은 원천 레코드는 고유키로 중복 적재되지 않습니다.</div><div class="ops-source-grid"><div class="ops-source"><b>KIS POS</b><small>매출·결제 원천 연결 예정</small></div><div class="ops-source"><b>배민</b><small>주문/집계 연결 예정</small></div><div class="ops-source"><b>땡겨요</b><small>매출·매입 자료 연결 예정</small></div><div class="ops-source"><b>온리원푸드넷</b><small>매입 자료 연결 예정</small></div><div class="ops-source"><b>쿠팡이츠</b><small>확보 가능한 원천부터 연결</small></div><div class="ops-source"><b>파일 업로드</b><small>CSV/XLSX staging 방식 예정</small></div></div><div style="height:12px"></div>`+(rows.length?rows.map(r=>`<div class="ops-card"><div class="ops-card-head"><span class="ops-card-title">${esc(r.source)}</span><span class="ops-status ${r.status==="COMPLETED"?"ok":""}">${esc(r.status)}</span></div><div class="ops-meta">${esc(r.file_name||"직접 연동")} · ${Number(r.row_count||0).toLocaleString()}건</div></div>`).join(""):'<div class="ops-empty">아직 가져오기 기록이 없습니다.</div>');
-      }
-    }catch(e){body.innerHTML=`<div class="ops-empty">불러오기 실패<br><small>${esc(e.message)}</small></div>`;}
-  }
-  window.renderOperations=shell;
-})();
+const S={tab:"dashboard"},won=n=>Number(n||0).toLocaleString("ko-KR")+"원",num=n=>Number(n||0).toLocaleString("ko-KR"),esc=v=>window.safeHtml?window.safeHtml(v):String(v??"");
+function range(){const d=window.kstNow?window.kstNow():new Date(),p=n=>String(n).padStart(2,"0");return [`${d.getFullYear()}-${p(d.getMonth()+1)}-01`,`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(new Date(d.getFullYear(),d.getMonth()+1,0).getDate())}`]}
+function empty(t,s=""){return `<div class="ops-empty"><b>${esc(t)}</b>${s?`<small>${esc(s)}</small>`:""}</div>`}
+function shell(){const[f,t]=range();view.innerHTML=`<div class="ops-head"><div><h2>매장운영</h2><p>매출 · 매입 · 재고 · 원가 흐름을 한 곳에서 관리합니다.</p></div></div><div class="ops-tabs">
+${[["dashboard","대시보드"],["sales","매출"],["purchase","매입"],["inventory","재고"],["recipe","레시피"],["recon","대사"],["connect","데이터 연동"]].map(([k,n],i)=>`<button class="ops-tab ${i?"":"on"}" data-ops="${k}">${n}</button>`).join("")}</div>
+<div class="ops-filter"><div><label>시작일</label><input id="opsFrom" type="date" value="${f}"></div><div><label>종료일</label><input id="opsTo" type="date" value="${t}"></div><button class="btn btn-primary" id="opsRefresh">조회</button></div><div id="opsBody"></div>`;
+document.querySelectorAll(".ops-tab").forEach(b=>b.onclick=()=>{S.tab=b.dataset.ops;document.querySelectorAll(".ops-tab").forEach(x=>x.classList.toggle("on",x===b));draw()});opsRefresh.onclick=draw;draw()}
+async function draw(){const body=document.getElementById("opsBody");if(!body)return;body.innerHTML=empty("불러오는 중…");try{const f=opsFrom.value,t=opsTo.value;if(!f||!t||t<f)throw Error("조회 기간을 확인하세요.");
+if(S.tab==="dashboard"){const[s,a]=await Promise.all([BE.operationsSummary(f,t),BE.operationsAnalytics(f,t)]);const daily=a.daily||[],channels=a.by_channel||[];body.innerHTML=`<div class="ops-kpis"><div class="ops-kpi primary"><span>매출</span><b>${won(s.sales)}</b></div><div class="ops-kpi"><span>매입</span><b>${won(s.purchases)}</b></div><div class="ops-kpi"><span>재고 부족</span><b>${num(a.low_stock)}개</b></div><div class="ops-kpi"><span>미해결 대사</span><b>${num(a.open_reconciliation)}건</b></div></div>
+<div class="ops-card"><div class="ops-card-head"><b>채널별 매출</b><span class="ops-meta">${num(s.transaction_count)}건</span></div>${channels.length?channels.map(x=>`<div class="ops-row"><div class="ops-row-main"><b>${esc(x.channel)}</b><small>${num(x.transactions)}건</small></div><strong>${won(x.amount)}</strong></div>`).join(""):empty("매출 데이터 없음","원천 데이터를 연결하면 자동 집계됩니다.")}</div>
+<div class="ops-card"><div class="ops-card-head"><b>일별 흐름</b></div>${daily.length?daily.slice(-14).map(x=>`<div class="ops-row"><div class="ops-row-main"><b>${esc(x.business_date)}</b><small>매입 ${won(x.purchases)}</small></div><strong>${won(x.sales)}</strong></div>`).join(""):empty("집계할 거래가 없습니다.")}</div>`}
+else if(S.tab==="sales"||S.tab==="purchase"){const typ=S.tab==="sales"?"SALE":"PURCHASE",rows=await BE.operationsTransactions(f,t,typ);body.innerHTML=rows.length?rows.map(r=>`<div class="ops-card"><div class="ops-card-head"><b class="ops-card-title">${esc(r.counterparty||r.channel||r.source||"거래")}</b><span class="ops-status ${r.status==="CONFIRMED"?"ok":""}">${esc(r.status)}</span></div><div class="ops-row"><div class="ops-row-main"><b>${esc(r.business_date)}</b><small>${esc(r.channel||r.source||"-")}</small></div><span class="ops-amount">${won(r.total_amount)}</span></div></div>`).join(""):empty("조회된 거래가 없습니다.","실제 원천 연결 전에는 임의 매출을 만들지 않습니다.")}
+else if(S.tab==="inventory"){const rows=await BE.inventoryOverview();body.innerHTML=`<div class="ops-note">입고 + / 판매사용·폐기 − / 실사조정 ± 방식의 불변 재고원장입니다. 품목별 현재고와 재주문 기준을 계산합니다.</div>`+(rows.length?rows.map(r=>`<div class="ops-card ${r.low_stock?"ops-alert":""}"><div class="ops-card-head"><b class="ops-card-title">${esc(r.name)}</b><span class="ops-status ${r.low_stock?"warn":r.is_active?"ok":""}">${r.low_stock?"재고 부족":r.is_active?"사용중":"중지"}</span></div><div class="ops-stock"><strong>${num(r.on_hand)} ${esc(r.unit)}</strong><span>재고가치 ${won(r.inventory_value)}</span></div><div class="ops-meta">SKU ${esc(r.sku)}${r.reorder_level!=null?` · 재주문 기준 ${num(r.reorder_level)} ${esc(r.unit)}`:""}</div></div>`).join(""):empty("등록된 재고 품목이 없습니다.","품목 마스터는 실제 규격 확인 후 등록합니다."))}
+else if(S.tab==="recipe"){const rows=await BE.recipeList();body.innerHTML=`<div class="ops-note">레시피는 덮어쓰지 않고 유효기간별 버전을 보존합니다. 판매수량 × BOM으로 이론 사용량을 계산할 수 있는 구조입니다.</div>`+(rows.length?rows.map(r=>`<div class="ops-card"><div class="ops-card-head"><b>${esc(r.menu_name)}</b><span class="ops-status">${esc(r.effective_from)}~${esc(r.effective_to||"현재")}</span></div>${(r.components||[]).map(c=>`<div class="ops-row"><span>${esc(c.item_name)}</span><strong>${num(c.quantity)} ${esc(c.unit)}</strong></div>`).join("")||empty("구성품 없음")}</div>`).join(""):empty("등록된 레시피가 없습니다.","실제 메뉴와 사용량을 받으면 버전형 BOM에 연결합니다."))}
+else if(S.tab==="recon"){const rows=await BE.reconciliationIssues(f,t);body.innerHTML=`<div class="ops-note">POS ↔ 배달/결제, 매입 ↔ 입고 등 서로 다른 원천의 누락·금액차이·취소 불일치를 기록하는 대사 큐입니다.</div>`+(rows.length?rows.map(r=>`<div class="ops-card"><div class="ops-card-head"><b>${esc(r.issue_type)}</b><span class="ops-status ${r.status==="OPEN"?"warn":"ok"}">${esc(r.status)}</span></div><div class="ops-row"><div class="ops-row-main"><b>${esc(r.business_date)}</b><small>${esc(r.left_source||"-")} ↔ ${esc(r.right_source||"-")}</small></div><strong>${r.amount_difference==null?"-":won(r.amount_difference)}</strong></div></div>`).join(""):empty("대사 이상 없음","연결된 원천이 없으면 검사 대상도 없습니다."))}
+else{const rows=await BE.operationsImports();body.innerHTML=`<div class="ops-note">수집 → RAW 보존 → 검증 → 표준원장 반영 순서입니다. 같은 source + record key는 재시도해도 중복 생성되지 않습니다.</div><div class="ops-source-grid">${[["KIS POS","매출·결제"],["배민","주문·정산"],["쿠팡이츠","주문·정산"],["땡겨요","매출·매입"],["온리원푸드넷","매입·입고"],["CSV/XLSX","수동 업로드"]].map(x=>`<div class="ops-source"><b>${x[0]}</b><small>${x[1]} 어댑터 준비</small><span class="ops-status">자료 대기</span></div>`).join("")}</div><div class="ops-card ops-pipeline"><b>표준 처리 파이프라인</b><div>원천 <i>→</i> RAW <i>→</i> 검증 <i>→</i> 거래원장 <i>→</i> 재고·원가·대사</div></div>`+(rows.length?rows.map(r=>`<div class="ops-card"><div class="ops-card-head"><b>${esc(r.source)}</b><span class="ops-status ${r.status==="COMPLETED"?"ok":""}">${esc(r.status)}</span></div><div class="ops-meta">${esc(r.file_name||"직접 연동")} · ${num(r.row_count)}건</div></div>`).join(""):empty("가져오기 기록 없음"))}
+}catch(e){body.innerHTML=empty("불러오기 실패",e.message)}}
+window.renderOperations=shell})();

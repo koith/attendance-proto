@@ -1,0 +1,4 @@
+-- Operations core V2 (production applied 2026-09-22)
+-- Adds inventory counts/count lines, reconciliation issue queue, reorder/pack metadata,
+-- admin inventory overview/movement RPCs, versioned recipe query, and operations analytics.
+-- Production authority: Supabase migration history operations_inventory_core_v2.
