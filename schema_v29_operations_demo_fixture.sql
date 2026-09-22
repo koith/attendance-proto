@@ -1,0 +1,4 @@
+-- Operations demo fixture V3 (production migration applied 2026-09-22)
+-- Adds explicit is_demo flags and admin-only seed/clear RPCs.
+-- Demo fixtures are isolated and labelled; never actual store performance.
+-- Recipe assumptions use public specialty-coffee references for pre-production UI/flow validation.
