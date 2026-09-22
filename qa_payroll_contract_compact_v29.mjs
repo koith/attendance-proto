@@ -7,5 +7,7 @@ assert(index.includes('${pay?`<div style="display:flex;align-items:baseline;gap:
 assert(!index.includes("pay?'(세전)':'급여 계산 보류'"));
 assert(!js.includes('type="checkbox" tabindex="-1" aria-hidden="true"'));
 assert(css.includes('height:38px!important;min-height:38px!important;max-height:38px!important'));
-const cssVer=html.match(/employment_contracts\\.css\\?v=([^\"']+)/)?.[1];\nconst jsVer=html.match(/employment_contracts_v3\\.js\\?v=([^\"']+)/)?.[1];\nassert(cssVer&&jsVer&&cssVer===jsVer,'contract CSS/JS cache versions must match');
+const cssVer=html.match(/employment_contracts\\.css\\?v=([^\"']+)/)?.[1];
+const jsVer=html.match(/employment_contracts_v3\\.js\\?v=([^\"']+)/)?.[1];
+assert(cssVer&&jsVer&&cssVer===jsVer,'contract CSS/JS cache versions must match');
 console.log('payroll contract compact v29: PASS');
