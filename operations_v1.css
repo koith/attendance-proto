@@ -27,7 +27,7 @@
 .ops-filter{width:100%;max-width:100%;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(72px,auto)}
 .ops-filter>div,.ops-filter input{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
 .ops-filter input[type=date]{-webkit-appearance:none;appearance:none;padding-left:7px;padding-right:4px}
-.ops-chart svg polyline{display:none}.ops-chart svg rect{stroke:none}.ops-chart svg rect.s0{fill:#2f7d50}.ops-chart svg rect.s1{fill:#8fc7a5}.ops-chart svg rect.s2{fill:#4f966b}.ops-chart svg rect.s3{fill:#70ad87}.ops-chart svg rect.s4{fill:#a8d5b8}.ops-chart svg rect.s5{fill:#397f57}.ops-chart svg rect.s6{fill:#66a77e}.ops-chart svg rect.s7{fill:#bddfc9}.ops-chart svg text{font-size:14px;font-weight:600}
+.ops-chart svg polyline{display:none}.ops-chart svg rect{stroke:#fff;stroke-width:1px;vector-effect:non-scaling-stroke}.ops-chart svg rect.s0{fill:#2f7d50}.ops-chart svg rect.s1{fill:#8fc7a5}.ops-chart svg rect.s2{fill:#4f966b}.ops-chart svg rect.s3{fill:#70ad87}.ops-chart svg rect.s4{fill:#a8d5b8}.ops-chart svg rect.s5{fill:#397f57}.ops-chart svg rect.s6{fill:#66a77e}.ops-chart svg rect.s7{fill:#bddfc9}.ops-chart svg text{font-size:14px;font-weight:600}
 .ops-legend i{height:8px;width:12px;border-radius:2px}
 @media(max-width:430px){.ops-filter{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px}.ops-filter .btn{grid-column:1/-1;width:100%;min-width:0}.ops-filter input[type=date]{font-size:16px;padding-left:5px;padding-right:2px}.ops-chart svg text{font-size:15px}.ops-chart svg{min-height:190px}}
 @media(max-width:360px){.ops-filter{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.ops-filter .btn{grid-column:1/-1}}
