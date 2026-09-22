@@ -1,0 +1,4 @@
+-- Operations foundation V1 (production applied 2026-09-22)
+-- Canonical flow: source -> operations_raw_records -> operations_transactions -> inventory/derived views.
+-- DDL is tracked in Supabase migration history as operations_foundation_v1 + operations_foundation_indexes_v1.
+-- This repository marker documents the production model; use Supabase migration history as authority.
