@@ -277,6 +277,7 @@
   .pay-month-nav input[type=month]{width:100%;min-width:0;text-align:center;text-align-last:center;padding:0 6px}
   .pay-month-nav input[type=month]::-webkit-date-and-time-value{text-align:center;width:100%}
   .payroll-list-title{margin:0 0 8px 2px;font-size:.86rem;font-weight:700;color:var(--text)}
+  .payroll-month-field{margin-bottom:12px}
   .month-wrap input[type=month]{
     flex:1; width:auto; min-width:0; height:100%;
     border:none; background:transparent; padding:0; font-size:1rem; color:var(--text);
@@ -329,7 +330,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.4</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.5</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -391,7 +392,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.69.4";
+const APP_VERSION="v0.69.5";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1837,10 +1838,8 @@ async function renderPay(){
   const now=kstNow(); const p=n=>String(n).padStart(2,"0");
   const curYm=`${now.getFullYear()}-${p(now.getMonth()+1)}`;
   view.innerHTML=`
-    <div class="section-t">급여 정산</div>
-    <div class="field">
-      <label>정산 월</label>
-      <div class="month-wrap pay-month-nav"><button type="button" class="btn-icon" id="payMonthPrev" aria-label="이전 달">◀</button><input id="payMonth" type="month" value="${curYm}"><button type="button" class="btn-icon" id="payMonthNext" aria-label="다음 달">▶</button></div>
+    <div class="field payroll-month-field">
+      <div class="month-wrap pay-month-nav"><button type="button" class="btn-icon" id="payMonthPrev" aria-label="이전 달">◀</button><input id="payMonth" type="month" value="${curYm}" aria-label="급여 정산 월"><button type="button" class="btn-icon" id="payMonthNext" aria-label="다음 달">▶</button></div>
     </div>
     <div id="payList"></div>`;
   const payMonth=document.getElementById("payMonth");
