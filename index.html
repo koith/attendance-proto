@@ -97,6 +97,9 @@
   .employee-card-name small{font-size:.68rem;font-weight:600;color:var(--muted);margin-left:3px;vertical-align:baseline}
   .employee-card-secondary{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;font-size:.78rem;color:var(--sub);font-variant-numeric:tabular-nums}
   .employee-card-secondary-main{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .employee-card-attendance{display:flex;align-items:baseline;justify-content:space-between;gap:8px;width:100%;min-width:0}
+  .employee-card-attendance-main{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;color:var(--text)}
+  .employee-card-attendance-duration{flex:0 0 auto;white-space:nowrap;color:var(--text-muted);font-weight:400}
   .employee-card-id{color:var(--muted);white-space:nowrap}
   .employee-card-pay{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap;flex:0 0 auto}
   .employee-card-pay small{font-size:.62rem;color:var(--muted);font-weight:500}
@@ -120,7 +123,7 @@
   .att-edit-icon svg{width:15px;height:15px}
   .att-info{min-width:0}
   .att-info .line1{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0;font-size:.88rem;color:var(--text);white-space:nowrap;overflow:hidden}
-  .att-info .line1-main{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .att-info .line1-main{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
   .att-info .line1-duration{flex:0 0 auto;color:var(--text-muted);font-size:.82rem;font-variant-numeric:tabular-nums}
   .att-info .line2{font-size:.82rem;color:var(--text-muted);margin-top:2px}
   .att-info .line1 b{font-weight:700}
@@ -406,7 +409,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.85</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.86</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -468,7 +471,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.85";
+const APP_VERSION="v0.86";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1025,7 +1028,7 @@ async function renderPos(){
     if(e.working){
       card.innerHTML=`
         <div class="employee-card-primary"><span class="employee-card-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></span><span class="badge-on">근무중</span></div>
-        <div class="employee-card-secondary"><span class="employee-card-secondary-main since" data-since="${e.working_since||''}">${e.working_since?`${hhmm(fromIso(e.working_since))} 출근 · (${fmtElapsed(e.working_since)}째)`:'근무 중'}</span></div>`;
+        <div class="employee-card-secondary"><div class="employee-card-attendance since" data-since="${e.working_since||''}">${e.working_since?`<span class="employee-card-attendance-main">출근 ${hhmm(fromIso(e.working_since))}</span><span class="employee-card-attendance-duration">${fmtElapsed(e.working_since)}째</span>`:'<span class="employee-card-attendance-main">근무 중</span>'}</div></div>`;
     }else{
       card.innerHTML=`
         <div class="employee-card-primary"><span class="employee-card-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></span><span class="badge-off">출근 전</span></div>
@@ -1039,7 +1042,7 @@ async function renderPos(){
   _posTimer=setInterval(()=>{
     document.querySelectorAll(".since[data-since]").forEach(el=>{
       const since=el.getAttribute("data-since"); if(!since) return;
-      el.textContent=`${hhmm(fromIso(since))} 출근 · (${fmtElapsed(since)}째)`;
+      el.innerHTML=`<span class="employee-card-attendance-main">출근 ${hhmm(fromIso(since))}</span><span class="employee-card-attendance-duration">${fmtElapsed(since)}째</span>`;
     });
   }, 60000);
 }
