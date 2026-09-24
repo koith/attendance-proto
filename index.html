@@ -142,7 +142,17 @@
   .emp.working::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--in);}
   .badge-on{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid #bfe3cb;color:var(--brand-700);background:var(--brand-050);white-space:nowrap;cursor:default;user-select:none}
 
-  /* 전체화면 성공 오버레이 */
+
+  /* 직원 카드 공통: 각 정보 영역을 침범하지 않으며, 실제 overflow 항목만 천천히 흐름 */
+  .card-flow-zone{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap;position:relative}
+  .card-flow-zone>.card-flow-text{display:inline-block;min-width:max-content;white-space:nowrap;will-change:transform}
+  .card-flow-zone.is-overflowing>.card-flow-text{animation:employee-card-marquee var(--flow-duration,8s) ease-in-out 1s infinite alternate}
+  @keyframes employee-card-marquee{0%,12%{transform:translateX(0)}88%,100%{transform:translateX(calc(-1 * var(--flow-distance,0px)))}}
+  @media(prefers-reduced-motion:reduce){.card-flow-zone.is-overflowing>.card-flow-text{animation:none;transform:none;text-overflow:ellipsis;max-width:100%;overflow:hidden}}
+  .employee-card-primary .employee-card-name,.employee-card-secondary-main,.employee-card-attendance-main,.att-name,.att-info .line1-main,.att-info .line2,.sch-line,.sch-prog-sub{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap}
+  .employee-card-primary .employee-card-name,.att-name{flex:1 1 auto}
+  .employee-card-primary>.badge-on,.employee-card-primary>.badge-off,.employee-card-primary>.badge,.att-card-head-actions,.employee-card-attendance-duration,.att-info .line1-duration{flex:0 0 auto}
+\n  /* 전체화면 성공 오버레이 */
   #success{
     position:fixed; inset:0; z-index:60; display:none;
     flex-direction:column; align-items:center; justify-content:center; gap:6px;
@@ -424,7 +434,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.95</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.96</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -501,7 +511,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.95";
+const APP_VERSION="v0.96";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1067,7 +1077,7 @@ async function renderPos(){
         <div class="employee-card-secondary"><span class="employee-card-secondary-main" aria-hidden="true">&nbsp;</span></div>`;
     }
     card.onclick=()=>openPad(e, e.working?"WORKING":"OFF");
-    grid.appendChild(card);
+    grid.appendChild(card);\n    applyEmployeeCardFlows(card);
   }
   // 경과시간 1분마다 갱신 (초 단위 렌더링 안 함)
   clearInterval(_posTimer);
@@ -1079,7 +1089,19 @@ async function renderPos(){
   }, 60000);
 }
 
-/* ---------------------- PIN 패드 ---------------------- */
+function applyEmployeeCardFlows(root=document){
+  const selectors=[".employee-card-name",".employee-card-secondary-main",".employee-card-attendance-main",".att-name",".att-info .line1-main",".att-info .line2",".sch-line",".sch-prog-sub"];
+  root.querySelectorAll(selectors.join(",")).forEach(el=>{
+    if(el.classList.contains("card-flow-zone")) return;
+    const wrap=document.createElement("span"); wrap.className="card-flow-text";
+    while(el.firstChild) wrap.appendChild(el.firstChild);
+    el.appendChild(wrap); el.classList.add("card-flow-zone");
+    const update=()=>{ const overflow=Math.max(0,wrap.scrollWidth-el.clientWidth); el.classList.toggle("is-overflowing",overflow>2); el.style.setProperty("--flow-distance",overflow+"px"); el.style.setProperty("--flow-duration",Math.max(6,Math.min(16,6+overflow/18))+"s"); };
+    requestAnimationFrame(update);
+    if(window.ResizeObserver){ const ro=new ResizeObserver(update); ro.observe(el); }
+  });
+}
+\n/* ---------------------- PIN 패드 ---------------------- */
 const padVeil=document.getElementById("padVeil");
 let padBuf="", padEmp=null, padState=null, padBusy=false, padRoster=[];
 function openPad(emp,state){
@@ -1647,7 +1669,7 @@ async function renderAdmin(){
           ${line2?`<div class="line2">${line2}</div>`:''}
           ${progressHtml}
         </div>`;
-      if(LIVE){ const fb=div.querySelector("[data-fix]"); if(fb) fb.onclick=()=>openAdminFix(e, rows); }
+      applyEmployeeCardFlows(div);\n      if(LIVE){ const fb=div.querySelector("[data-fix]"); if(fb) fb.onclick=()=>openAdminFix(e, rows); }
       listEl.appendChild(div);
     }
   }
