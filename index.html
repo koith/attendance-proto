@@ -339,11 +339,7 @@
 <!-- add employee modal -->
 <div class="modal-veil" id="addVeil">
   <div class="modal">
-    <h3>직원 등록</h3>
-    <div class="field"><label>예정 사번</label><div id="newEmpNo" style="min-height:44px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-muted);font-weight:800;color:var(--brand-700)">계산 중…</div></div>
-    <div class="field"><label>이름</label><input id="newName" autocomplete="off" placeholder="예: 이현진"></div>
-    <div class="field"><label>비밀번호 (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="숫자 4자리"></div>
-    <button class="btn btn-primary btn-block btn-lg" id="newSave">등록</button>
+    <div id="employeeOnboarding"></div>
   </div>
 </div>
 
@@ -652,6 +648,7 @@ const SupaBE = (()=>{
     // --- 관리자 (authenticated) ---
     async allEmployees(){ return rpc("admin_list_employees",{},true); },
     async createEmployee(name,pin){ return rpc("admin_create_employee",{p_name:name.trim(),p_pin:pin},true); },
+    async createEmployeeOnboarding(x){ return rpc("admin_create_employee_onboarding",x,true); },
     async deactivateEmployee(id){ return rpc("admin_deactivate_employee",{p_id:id},true); },
     async updateEmployee(id,fields){ return rpc("admin_update_employee",{p_id:id,p_fields:fields},true); },
     async rangeEvents(fromIso,toIso){ return rpc("admin_events",{p_from:fromIso,p_to:toIso},true); },
@@ -1637,21 +1634,135 @@ function openAdminFix(emp, effRows){
   };
 }
 
-/* 직원 등록 모달 */
-function bindAddModal(){
-  document.getElementById("newSave").onclick=async()=>{
-    const name=document.getElementById("newName").value.trim();
-    const pin=document.getElementById("newPin").value.trim();
-    if(!name){ alert("이름을 입력하세요."); return; }
-    if(!/^\d{4}$/.test(pin)){ alert("비밀번호는 숫자 4자리입니다."); return; }
-    let newId=null;
-    try{ newId=await BE.createEmployee(name,pin); }catch(e){ alert(e.message); return; }
-    document.getElementById("newName").value=""; document.getElementById("newPin").value="";
-    document.getElementById("addVeil").classList.remove("show");
-    if(newId!=null) toast("in","직원 등록 완료","사번 "+newId+" · "+name);
-    renderAdmin();
+/* 직원 등록 모달: 기본정보 → 급여조건 → 근무조건 → 확인 */
+let EMP_ONBOARD=null;
+function newEmployeeOnboardingState(){
+  const d=kstNow(),p=n=>String(n).padStart(2,"0");
+  return {step:1,name:"",pin:"",startedOn:`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`,
+    payrollType:"HOURLY",amount:"",taxTreatment:"BUSINESS_INCOME",rate:"3.3",
+    weekdays:new Set([1,2,3,4,5]),start:"09:00",end:"18:00",
+    night:false,nightMode:"RATE",nightValue:"",nightStart:"22:00",memo:""};
+}
+function empOnboardSaveVisible(){
+  if(!EMP_ONBOARD) EMP_ONBOARD=newEmployeeOnboardingState();
+  const get=id=>document.getElementById(id);
+  if(EMP_ONBOARD.step===1){
+    EMP_ONBOARD.name=get("newName")?.value.trim()||"";
+    EMP_ONBOARD.pin=get("newPin")?.value.trim()||"";
+    EMP_ONBOARD.startedOn=get("newStart")?.value||EMP_ONBOARD.startedOn;
+  }else if(EMP_ONBOARD.step===2){
+    EMP_ONBOARD.payrollType=get("newPayrollType")?.value||"HOURLY";
+    EMP_ONBOARD.amount=get("newPayAmount")?.value.trim()||"";
+    EMP_ONBOARD.taxTreatment=get("newTaxTreatment")?.value||"BUSINESS_INCOME";
+    EMP_ONBOARD.rate=get("newTaxRate")?.value.trim()||"";
+  }else if(EMP_ONBOARD.step===3){
+    EMP_ONBOARD.weekdays=new Set([...document.querySelectorAll("[data-ob-day]:checked")].map(x=>Number(x.value)));
+    EMP_ONBOARD.start=get("newWorkStart")?.value||"";
+    EMP_ONBOARD.end=get("newWorkEnd")?.value||"";
+    EMP_ONBOARD.night=!!get("newNightEnabled")?.checked;
+    EMP_ONBOARD.nightMode=get("newNightMode")?.value||"RATE";
+    EMP_ONBOARD.nightValue=get("newNightValue")?.value.trim()||"";
+    EMP_ONBOARD.nightStart=get("newNightStart")?.value||"22:00";
+    EMP_ONBOARD.memo=get("newContractMemo")?.value.trim()||"";
+  }
+}
+function empOnboardValidate(step){
+  empOnboardSaveVisible();
+  const s=EMP_ONBOARD;
+  if(step===1){
+    if(!s.name) return "이름을 입력하세요.";
+    if(!/^\\d{4}$/.test(s.pin)) return "비밀번호는 숫자 4자리입니다.";
+    if(!s.startedOn) return "입사일을 입력하세요.";
+  }
+  if(step===2){
+    const amount=Number(s.amount);
+    if(!Number.isFinite(amount)||amount<=0) return s.payrollType==="HOURLY"?"시급을 입력하세요.":"월급액을 입력하세요.";
+    if(s.taxTreatment==="BUSINESS_INCOME"){
+      const rate=Number(s.rate);
+      if(!Number.isFinite(rate)||rate<0||rate>100) return "사업소득 공제율을 확인하세요.";
+    }
+  }
+  if(step===3 && s.payrollType==="HOURLY"){
+    if(!s.weekdays.size) return "계약 근무요일을 하나 이상 선택하세요.";
+    if(!s.start||!s.end||s.start===s.end) return "계약 근무시간을 확인하세요.";
+    if(s.night){
+      const v=Number(s.nightValue);
+      if(!Number.isFinite(v)||v<0) return "야간수당 값을 입력하세요.";
+    }
+  }
+  return "";
+}
+function renderEmployeeOnboardingStep(){
+  const host=document.getElementById("employeeOnboarding"); if(!host)return;
+  if(!EMP_ONBOARD) EMP_ONBOARD=newEmployeeOnboardingState();
+  const s=EMP_ONBOARD,WD=["일","월","화","수","목","금","토"];
+  const prog=`<div style="display:flex;gap:5px;margin:2px 0 16px">${[1,2,3,4].map(n=>`<span style="height:4px;flex:1;border-radius:4px;background:${n<=s.step?'var(--brand-700)':'var(--border)'}"></span>`).join("")}</div>`;
+  let body="";
+  if(s.step===1) body=`
+    <h3>직원 등록 · 기본정보</h3>${prog}
+    <div class="field"><label>예정 사번</label><div id="newEmpNo" style="min-height:44px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-muted);font-weight:800;color:var(--brand-700)">계산 중…</div></div>
+    <div class="field"><label>이름</label><input id="newName" autocomplete="off" value="${escapeHtml(s.name)}" placeholder="예: 이현진"></div>
+    <div class="field"><label>비밀번호 (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" value="${escapeHtml(s.pin)}" placeholder="숫자 4자리"></div>
+    <div class="field"><label>입사일</label><input id="newStart" type="date" value="${s.startedOn}"></div>`;
+  if(s.step===2) body=`
+    <h3>직원 등록 · 급여조건</h3>${prog}
+    <div class="field"><label>급여 방식</label><select id="newPayrollType"><option value="HOURLY" ${s.payrollType==="HOURLY"?"selected":""}>시급제</option><option value="MONTHLY" ${s.payrollType==="MONTHLY"?"selected":""}>월급제</option></select></div>
+    <div class="field"><label id="newPayAmountLabel">${s.payrollType==="HOURLY"?"시급 (원)":"월급액 (원)"}</label><input id="newPayAmount" inputmode="numeric" value="${escapeHtml(s.amount)}" placeholder="${s.payrollType==="HOURLY"?"예: 12500":"예: 2500000"}"></div>
+    <div class="field"><label>세금·보험</label><select id="newTaxTreatment"><option value="BUSINESS_INCOME" ${s.taxTreatment==="BUSINESS_INCOME"?"selected":""}>사업소득</option><option value="FOUR_INSURANCE" ${s.taxTreatment==="FOUR_INSURANCE"?"selected":""}>4대보험</option></select></div>
+    <div class="field" id="newTaxRateWrap" ${s.taxTreatment==="BUSINESS_INCOME"?"":"style='display:none'"}><label>공제율 (%)</label><input id="newTaxRate" inputmode="decimal" value="${escapeHtml(s.rate)}" placeholder="예: 3.3"></div>`;
+  if(s.step===3) body=`
+    <h3>직원 등록 · 근무조건</h3>${prog}
+    ${s.payrollType==="HOURLY"?`<div class="field"><label>계약 근무요일</label><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">${WD.map((x,i)=>`<label style="display:flex;min-width:0;flex-direction:column;align-items:center;gap:4px;padding:8px 2px;border:1px solid var(--border);border-radius:9px;background:var(--surface-muted);font-size:.8rem"><input data-ob-day type="checkbox" value="${i}" ${s.weekdays.has(i)?"checked":""}>${x}</label>`).join("")}</div></div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px"><div class="field"><label>시작</label><input id="newWorkStart" type="time" value="${s.start}"></div><div class="field"><label>종료</label><input id="newWorkEnd" type="time" value="${s.end}"></div></div>`:`<div class="empty" style="margin-bottom:12px">월급제 계약은 상세 근무요일을 계약관리에서 별도로 관리합니다.</div>`}
+    <div class="field"><label style="display:flex;align-items:center;justify-content:space-between">야간수당 <input id="newNightEnabled" type="checkbox" ${s.night?"checked":""}></label></div>
+    <div id="newNightFields" ${s.night?"":"style='display:none'"}>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px"><div class="field"><label>방식</label><select id="newNightMode"><option value="RATE" ${s.nightMode==="RATE"?"selected":""}>정률 (%)</option><option value="FLAT" ${s.nightMode==="FLAT"?"selected":""}>정액 (원)</option></select></div><div class="field"><label>값</label><input id="newNightValue" inputmode="decimal" value="${escapeHtml(s.nightValue)}"></div></div>
+      <div class="field"><label>야간 시작</label><input id="newNightStart" type="time" value="${s.nightStart}"></div>
+    </div>
+    <div class="field"><label>계약 메모</label><textarea id="newContractMemo" rows="3" placeholder="필요한 내용만 기록">${escapeHtml(s.memo)}</textarea></div>`;
+  if(s.step===4){
+    const pay=Number(s.amount||0).toLocaleString(),days=[...s.weekdays].sort().map(i=>WD[i]).join("·");
+    body=`<h3>직원 등록 · 최종확인</h3>${prog}
+      <div class="card" style="padding:14px;margin:0 0 12px">
+        <div style="display:grid;grid-template-columns:84px 1fr;gap:8px 10px;font-size:.9rem">
+          <span style="color:var(--muted)">이름</span><b>${escapeHtml(s.name)}</b>
+          <span style="color:var(--muted)">입사일</span><b>${s.startedOn}</b>
+          <span style="color:var(--muted)">급여</span><b>${s.payrollType==="HOURLY"?"시급":"월급"} ${pay}원</b>
+          <span style="color:var(--muted)">세금·보험</span><b>${s.taxTreatment==="BUSINESS_INCOME"?"사업소득 "+escapeHtml(s.rate)+"%":"4대보험"}</b>
+          ${s.payrollType==="HOURLY"?`<span style="color:var(--muted)">근무조건</span><b>${days} · ${s.start}~${s.end}</b>`:""}
+          <span style="color:var(--muted)">야간수당</span><b>${s.night?"사용":"사용 안 함"}</b>
+        </div>
+      </div>
+      <div class="empty" style="text-align:left">등록을 누르면 직원·고용기간·계약조건이 함께 생성됩니다.</div>`;
+  }
+  host.innerHTML=body+`<div style="display:grid;grid-template-columns:${s.step>1?"1fr 1.4fr":"1fr"};gap:8px;margin-top:14px">${s.step>1?'<button class="btn btn-secondary btn-lg" id="obPrev">이전</button>':""}<button class="btn btn-primary btn-lg" id="obNext">${s.step===4?"등록 완료":"다음"}</button></div>`;
+  refreshNextEmployeeNumber();
+  document.getElementById("newPayrollType")?.addEventListener("change",e=>{empOnboardSaveVisible();s.payrollType=e.target.value;renderEmployeeOnboardingStep()});
+  document.getElementById("newTaxTreatment")?.addEventListener("change",e=>{empOnboardSaveVisible();s.taxTreatment=e.target.value;renderEmployeeOnboardingStep()});
+  document.getElementById("newNightEnabled")?.addEventListener("change",e=>{empOnboardSaveVisible();s.night=e.target.checked;renderEmployeeOnboardingStep()});
+  document.getElementById("obPrev")?.addEventListener("click",()=>{empOnboardSaveVisible();s.step--;renderEmployeeOnboardingStep()});
+  document.getElementById("obNext").onclick=async()=>{
+    const err=empOnboardValidate(s.step); if(err){alert(err);return}
+    if(s.step<4){s.step++;renderEmployeeOnboardingStep();return}
+    const btn=document.getElementById("obNext");btn.disabled=true;btn.textContent="등록 중…";
+    const amount=Math.round(Number(s.amount));
+    const workdays=s.payrollType==="HOURLY"?[...s.weekdays].sort().map(weekday=>({weekday,start:s.start,end:s.end})):[];
+    try{
+      const r=await BE.createEmployeeOnboarding({
+        p_name:s.name,p_pin:s.pin,p_started_on:s.startedOn,p_payroll_type:s.payrollType,
+        p_hourly_wage:s.payrollType==="HOURLY"?amount:null,p_monthly_salary:s.payrollType==="MONTHLY"?amount:null,
+        p_tax_treatment:s.taxTreatment,p_business_deduction_rate:s.taxTreatment==="BUSINESS_INCOME"?Number(s.rate)/100:null,
+        p_night_allowance_enabled:s.night,p_night_allowance_mode:s.night?s.nightMode:null,
+        p_night_allowance_value:s.night?Number(s.nightValue):null,p_night_allowance_start:s.night?s.nightStart:"22:00",
+        p_memo:s.memo||null,p_workdays:workdays
+      });
+      document.getElementById("addVeil").classList.remove("show");
+      toast("in","직원 등록 완료","사번 "+r.employee_id+" · 계약정보까지 저장됨");
+      EMP_ONBOARD=null;restoreAddModal();renderAdmin();
+    }catch(e){alert("등록 실패: "+e.message);btn.disabled=false;btn.textContent="등록 완료"}
   };
 }
+function bindAddModal(){ if(!EMP_ONBOARD) EMP_ONBOARD=newEmployeeOnboardingState(); renderEmployeeOnboardingStep(); }
 // backdrop(배경) 클릭으로 닫지 않음 — 입력값 보호. 명시적 취소/닫기 버튼으로만 종료.
 // (P0-1/P0-2: 실수로 배경 눌러 PIN·급여설정·정정 입력이 사라지는 문제 방지)
 bindAddModal();
@@ -2298,12 +2409,8 @@ function openPayEdit(emp){
 function restoreAddModal(){
   const modal=document.getElementById("addVeil").querySelector(".modal");
   modal.classList.remove("has-back");
-  modal.innerHTML=`
-    <h3>직원 등록</h3>
-    <div class="field"><label>예정 사번</label><div id="newEmpNo" style="min-height:44px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-muted);font-weight:800;color:var(--brand-700)">계산 중…</div></div>
-    <div class="field"><label>이름</label><input id="newName" autocomplete="off" placeholder="예: 이현진"></div>
-    <div class="field"><label>비밀번호 (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="숫자 4자리"></div>
-    <button class="btn btn-primary btn-block btn-lg" id="newSave">등록</button>`;
+  modal.innerHTML=`<div id="employeeOnboarding"></div>`;
+  EMP_ONBOARD=newEmployeeOnboardingState();
   bindAddModal();
 }
 
