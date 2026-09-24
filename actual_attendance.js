@@ -27,10 +27,15 @@ function renderMonth(){
   for(let i=0;i<offset;i++)html+='<div class="day blank"></div>';
   for(let d=1;d<=days;d++){
     const day=`${S.ym}-${p2(d)}`,ss=sessionsForDay(day),issues=ss.filter(x=>isIssue(x,day));
-    const worked=ss.some(x=>x.status==='COMPLETE'||x.status==='WORKING');
-    html+=`<button class="day${day===today?' today':''}${issues.length?' issue':''}" data-day="${day}"><span class="num">${d}</span>${worked?'<span class="worked-dot" aria-label="근무 기록 있음"></span>':''}${issues.length?'<span class="issue-dot" aria-label="확인 필요"></span>':''}</button>`;
+    const hasComplete=ss.some(x=>x.status==='COMPLETE'&&!isIssue(x,day));
+    const hasWorking=ss.some(x=>x.status==='WORKING'&&!isIssue(x,day));
+    const employeeIds=[...new Set(ss.map(x=>Number(x.employee_id)))];
+    const names=employeeIds.map(id=>S.employees.find(e=>Number(e.id)===id)?.name||`#${id}`);
+    const shown=names.slice(0,2),more=Math.max(0,names.length-shown.length);
+    const lines=shown.map(n=>`<div class="line"><b>${escapeHtml(n)}</b></div>`).join('')+(more?`<div class="more">+${more}명</div>`:'');
+    html+=`<button class="day${day===today?' today':''}${issues.length?' issue':''}" data-day="${day}"><span class="num">${d}</span>${lines?`<div class="lines">${lines}</div>`:''}<span class="day-dots">${hasComplete?'<i class="status-dot normal-dot" aria-label="근무 완료"></i>':''}${hasWorking?'<i class="status-dot working-dot" aria-label="현재 근무 중"></i>':''}${issues.length?'<i class="status-dot issue-dot" aria-label="확인 필요"></i>':''}</span></button>`;
   }
-  html+='</div><div class="legend"><span><i class="dot"></i>근무 기록</span><span><i class="dot warn"></i>확인 필요</span><span>날짜를 누르면 상세</span></div>';
+  html+='</div><div class="legend"><span><i class="dot normal"></i>근무 완료</span><span><i class="dot working"></i>근무 중</span><span><i class="dot issue"></i>확인 필요</span><span>날짜를 누르면 상세</span></div>';
   el('app').innerHTML=html;
   document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>renderDay(b.dataset.day));
 }
