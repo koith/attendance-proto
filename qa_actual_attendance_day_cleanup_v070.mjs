@@ -17,8 +17,8 @@ assert(!js.includes('자정을 넘긴 근무는 날짜별로 나누어 표시합
 assert(css.includes('.axis{width:100%;min-width:0!important}'),'timeline must fit available width');
 assert(css.includes('overflow-x:hidden!important'),'timeline must not horizontally scroll');
 assert(css.includes('grid-template-columns:60px minmax(0,1fr)'),'mobile portrait timeline must reserve compact name column');
-assert(html.includes('actual_attendance.css?v=20260924d'),'actual attendance CSS cache key must be bumped');
-assert(html.includes('actual_attendance.js?v=20260924c'),'actual attendance JS cache key must be bumped');
+assert(html.includes('actual_attendance.css?v=20260924e'),'actual attendance CSS cache key must be bumped');
+assert(html.includes('actual_attendance.js?v=20260924d'),'actual attendance JS cache key must be bumped');
 
 assert(main.includes('.att-card-head{display:grid;grid-template-columns:minmax(0,1fr) auto'),'admin today attendance cards must use employee-card style header');
 assert(main.includes('class="att-edit-icon" data-fix="${e.id}"'),'admin attendance edit action must be icon-only');
@@ -26,6 +26,16 @@ assert(main.includes('aria-label="${safeHtml(e.name)} 근태 수정"'),'edit ico
 assert(!main.includes('data-fix="${e.id}">수정</button>'),'text edit button must be removed from today attendance cards');
 assert(main.includes('att-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small>'),'admin attendance card must match name/No hierarchy');
 assert(main.includes('class="payroll-total-value" style="width:100%;text-align:center;'),'payroll total amount must be centered');
+
+assert(html.includes('class="close" id="back"'),'monthly actual-attendance must close from top-right X');
+assert(js.includes('id="monthTodayBtn"'),'monthly calendar must own the Today action');
+assert(js.includes("document.querySelector('.day.today')?.focus()"),'Today action must highlight/focus today without opening detail');
+assert(js.includes('‹ 뒤로가기'),'day detail must return to monthly view');
+assert(!js.includes('todayBtn'),'day detail must not retain Today control or handler');
+assert(js.includes('id="dayClose"'),'day detail must close from top-right X');
+assert(js.includes('<section class="timeline-group"><h3>직원별 실근무 시간</h3>'),'timeline group title required');
+assert(css.includes('.today-fab{position:fixed'),'Today action must sit at lower-right');
+assert(css.includes('grid-template-columns:1fr auto 1fr'),'day header must preserve left-back / centered-date / right-close alignment');
 
 new Function(js);
 console.log('actual attendance day cleanup v0.70: PASS');
