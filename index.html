@@ -431,7 +431,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <button type="button" id="hqHome" style="border:0;background:transparent;color:inherit;font:inherit;padding:0;cursor:pointer" title="본사 대시보드">본사</button><span aria-hidden="true">›</span><select id="storeSelect" aria-label="지점 선택" style="border:1px solid rgba(255,255,255,.35);background:#fff;color:#174f35;font:inherit;font-weight:700;max-width:150px;border-radius:9px;padding:5px 28px 5px 9px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.07</span>
+        <button type="button" id="hqHome" style="border:0;background:transparent;color:#fff;font:inherit;font-weight:700;padding:0;cursor:pointer" title="본사 대시보드">본사</button><span aria-hidden="true">›</span><select id="storeSelect" aria-label="지점 선택" style="border:1px solid rgba(255,255,255,.35);background:#fff;color:#174f35;font:inherit;font-weight:700;max-width:150px;border-radius:9px;padding:5px 28px 5px 9px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.08</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -439,9 +439,6 @@
     <div style="padding:10px 18px" class="tabwrap"><div class="tabs">
       <a id="tabPos" href="#pos" class="on">출퇴근</a>
       <a id="tabAdmin" href="#admin">관리</a>
-      <a id="tabPay" href="#pay">급여</a>
-      <a id="tabOps" href="#ops">매장운영</a>
-      <a id="substitutionEntryV1" href="substitution.html">대타 근무</a>
     </div></div>
   </div>
   <main id="view"></main>
@@ -510,7 +507,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.07";
+const APP_VERSION="v1.08";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -743,7 +740,7 @@ const SupaBE = (()=>{
   };
   return {
     // --- POS (anon) ---
-    async listEmployeesState(){ return rpc("list_employees_state"); },
+    async listEmployeesState(){ return rpc("list_employees_state",{p_store_id:CURRENT_STORE_ID||null}); },
     async isAdmin(){ return rpc("is_admin",{},true); },
     async scheduleList(fromDate,toDate){ return rpc("admin_schedule_list",{p_from:fromDate,p_to:toDate},true); },
     async scheduleSet(empId,date,status,start,end,memo){ return rpc("admin_schedule_set",{p_employee_id:empId,p_work_date:date,p_status:status,p_start:start||null,p_end:end||null,p_memo:memo||null},true); },
@@ -786,7 +783,7 @@ const SupaBE = (()=>{
     async revokeAdmin(userId){ return rpc("admin_revoke",{p_user_id:userId},true); },
     async punch(id,pin){ return rpc("punch",{p_employee_id:id,p_pin:pin,p_device:CONFIG.DEVICE_ID}); },
     // --- 관리자 (authenticated) ---
-    async allEmployees(){ return rpc("admin_list_all_employees",{},true); },
+    async allEmployees(){ return CURRENT_STORE_ID?rpc("list_store_employees",{p_store_id:CURRENT_STORE_ID},true):rpc("admin_list_all_employees",{},true); },
     async createEmployee(name,pin){ return rpc("admin_create_employee",{p_name:name.trim(),p_pin:pin},true); },
     async createEmployeeOnboarding(x){ return rpc("admin_create_employee_onboarding",x,true); },
     async deactivateEmployee(id){ return rpc("admin_deactivate_employee",{p_id:id},true); },
@@ -847,7 +844,7 @@ const SupaBE = (()=>{
 
 const BE = LIVE ? SupaBE : LocalBE;
 let CURRENT_STORE_ID=1;
-async function loadStores(){ const home=document.getElementById("hqHome");if(home)home.onclick=()=>{location.hash="#dashboard";}; if(!LIVE)return; try{const rows=await rpc("list_stores",{},true);const sel=document.getElementById("storeSelect");sel.innerHTML=rows.map(x=>`<option value="${x.id}">${safeHtml(x.name)}</option>`).join("");CURRENT_STORE_ID=Number(sel.value)||1;sel.onchange=()=>{CURRENT_STORE_ID=Number(sel.value)||1;if(location.hash==="#dashboard")location.hash="#pos";else route();};}catch(_){}}
+async function loadStores(){ const home=document.getElementById("hqHome");if(home)home.onclick=()=>{location.hash="#dashboard";}; if(!LIVE)return; try{const rows=await rpc("list_stores",{},true);const sel=document.getElementById("storeSelect");sel.innerHTML=rows.map(x=>`<option value="${x.id}">${safeHtml(x.name)}</option>`).join("");CURRENT_STORE_ID=Number(sel.value)||1;sel.onchange=()=>{CURRENT_STORE_ID=Number(sel.value)||1;sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));if(location.hash==="#dashboard")location.hash="#pos";else route();}; const saved=Number(sessionStorage.getItem("baekeok_store_id"));if(saved&&rows.some(x=>Number(x.id)===saved)){sel.value=String(saved);CURRENT_STORE_ID=saved;}}catch(_){}}
 
 // Any database/user-controlled text inserted through innerHTML must pass this boundary.
 function safeHtml(value){
@@ -993,8 +990,9 @@ async function renderDashboard(){
 function setTab(t){
   document.getElementById("tabPos").classList.toggle("on",t==="pos");
   document.getElementById("tabAdmin").classList.toggle("on",t==="admin"||t==="pay"||t==="ops");
-  const pay=document.getElementById("tabPay");if(pay)pay.classList.toggle("on",t==="pay");
-  const ops=document.getElementById("tabOps");if(ops)ops.classList.toggle("on",t==="ops");
+}
+function adminSubnav(active){
+  return '<div class="tabs" style="margin:0 0 14px"><a href="#admin" class="'+(active==="admin"?"on":"")+'">관리</a><a href="#pay" class="'+(active==="pay"?"on":"")+'">급여</a><a href="#ops" class="'+(active==="ops"?"on":"")+'">매장운영</a></div>';
 }
 function route(){
   const h=(location.hash||"#pos").replace("#","");
@@ -1006,6 +1004,7 @@ function route(){
     setTab("admin");
     requireAuth(async()=>{
       await renderAdmin();
+      view.insertAdjacentHTML("afterbegin",adminSubnav("admin"));
       const task=q.get("task"),focus=q.get("focus");
       if(task==="employees"||task==="docs"||focus==="employees") document.getElementById("adEmps")?.scrollIntoView({block:"start"});
       else if(task==="today") document.getElementById("adList")?.scrollIntoView({block:"start"});
@@ -1018,8 +1017,8 @@ function route(){
       }
     });
   }
-  else if(h==="pay"){ setTab("pay"); requireAuth(renderPay); }
-  else if(h==="ops"){ setTab("ops"); requireAuth(renderOperations); }
+  else if(h==="pay"){ setTab("pay"); requireAuth(async()=>{await renderPay();view.insertAdjacentHTML("afterbegin",adminSubnav("pay"));}); }
+  else if(h==="ops"){ setTab("ops"); requireAuth(async()=>{await renderOperations();view.insertAdjacentHTML("afterbegin",adminSubnav("ops"));}); }
   else{ setTab("pos"); renderPos(); }
 }
 // 관리자 탭 로그인 게이트
