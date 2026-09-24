@@ -1852,7 +1852,7 @@ async function renderPendingRequests(){
       if(res&&res.ok){ toast("out","반려됨",""); renderAdmin(); }
       else toast("err","실패",(res&&res.error)||"오류");
     };
-    sec.appendChild(div);
+    if(sec)sec.appendChild(div);if(modalList){const copy=div.cloneNode(true);copy.querySelector("[data-ap]").onclick=div.querySelector("[data-ap]").onclick;copy.querySelector("[data-rj]").onclick=div.querySelector("[data-rj]").onclick;modalList.appendChild(copy);}
   }
 }
 
