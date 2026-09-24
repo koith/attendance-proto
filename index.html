@@ -1004,7 +1004,6 @@ function adminSubnav(active){
 }
 function route(){
   const h=(location.hash||"#pos").replace("#","");
-  const back=document.getElementById("storeBackRow");if(back)back.style.display=h==="dashboard"?"none":"block"; const backBtn=document.getElementById("storeBackBtn");if(backBtn)backBtn.onclick=()=>{location.hash="#dashboard";};
   if(h!=="pos"){ clearInterval(_posTimer); }
   if(h==="dashboard"){setTab("dashboard");requireAuth(renderDashboard);}
   else if(h==="admin"){
