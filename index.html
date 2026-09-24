@@ -102,16 +102,21 @@
   .emp .badge-off,.badge-off{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--text-muted);background:var(--surface);white-space:nowrap;cursor:default;user-select:none}
   /* 오늘 근태 카드: column 정렬(이름 고정폭 / 정보 신축 / 상태·버튼 고정). 문구 길이에 카드 안 흔들림.
      향후 WorkSchedule/progress는 .att-info 안(2줄 구조)에 progress bar 행을 추가하는 방향으로 확장. */
-  .att-card{display:grid; grid-template-columns:64px 1fr auto; gap:10px; align-items:center;
-    background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:10px;}
-  .att-card.working{border-color:#bfe3cb; background:linear-gradient(90deg,#f3fbf6,#ffffff 40%);}
-  .att-name{font-weight:600; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .att-info{min-width:0;}
-  .att-info .line1{font-size:.88rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .att-info .line2{font-size:.82rem; color:var(--text-muted); margin-top:2px;}
-  .att-info .line1 b{font-weight:700;}\n  .att-inline-badges{display:inline-flex;align-items:center;gap:4px;margin-left:6px;vertical-align:middle;}
-  .att-right{display:flex; flex-direction:row; align-items:center; justify-content:flex-end; gap:6px; flex:0 0 auto;}
-  .att-badges{display:flex; gap:4px; flex-wrap:nowrap; justify-content:flex-end;}
+  .att-card{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:0 14px 12px;margin-bottom:10px;overflow:hidden}
+  .att-card.working{border-color:#bfe3cb}
+  .att-card-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;background:#e7f1eb;border-bottom:1px solid #d3e4da;margin:0 -14px 8px;padding:9px 8px 8px 14px}
+  .att-card-title{min-width:0;display:flex;align-items:baseline;gap:3px}
+  .att-name{min-width:0;font-weight:700;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+  .att-name small{font-size:.68rem;font-weight:600;color:var(--muted);margin-left:3px}
+  .att-card-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:0}
+  .att-edit-icon{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 30px;border:1px solid #c9d9cf;border-radius:8px;background:rgba(255,255,255,.72);color:var(--brand-700);padding:0;cursor:pointer}
+  .att-edit-icon:active{background:#fff}
+  .att-edit-icon svg{width:15px;height:15px}
+  .att-info{min-width:0}
+  .att-info .line1{font-size:.88rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .att-info .line2{font-size:.82rem;color:var(--text-muted);margin-top:2px}
+  .att-info .line1 b{font-weight:700}
+  @media(max-width:430px){.att-card{padding-left:10px;padding-right:10px}.att-card-head{margin-left:-10px;margin-right:-10px;padding-left:10px}.att-name{font-size:1rem}.att-card-head-actions{gap:4px}.att-edit-icon{width:28px;height:28px;flex-basis:28px}}
   /* WorkSchedule 층 */
   .sch-line{font-size:.8rem; color:var(--brand-700); margin-bottom:2px;}
   .sch-line.sch-none{color:var(--muted);}
@@ -213,6 +218,8 @@
   .kpi-row{display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--brand-050); border:1px solid #bfe3cb; border-radius:var(--radius-md); padding:16px 18px; margin:6px 0 10px;}
   .kpi-row .kpi-label{font-weight:600; font-size:1rem; color:var(--text);}
   .kpi-row .kpi-value{font-weight:700; font-size:1.15rem; color:var(--brand-700); font-variant-numeric:tabular-nums;}
+  .payroll-total-summary .kpi-label{display:block;margin-bottom:6px}
+  .payroll-total-summary .payroll-total-value{display:block;width:100%;text-align:center}
   /* Payroll number scale source of truth */
   #payList .employee-scroll-surface .row .payroll-gross-value{font-size:1.36rem!important;line-height:1.15!important;font-weight:800!important;letter-spacing:-.015em}
   .row .times{font-size:.85rem; color:var(--sub); font-variant-numeric:tabular-nums; text-align:right;}
@@ -367,7 +374,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.16</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.70</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -429,7 +436,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.69.16";
+const APP_VERSION="v0.70";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1586,15 +1593,18 @@ async function renderAdmin(){
 
       const div=document.createElement("div"); div.className="att-card"+(isWorking?" working":"");
       div.innerHTML=`
-        <div class="att-name">${safeHtml(e.name)}</div>
+        <div class="att-card-head">
+          <div class="att-card-title"><span class="att-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></span></div>
+          <div class="att-card-head-actions">
+            ${badges}
+            ${LIVE?`<button type="button" class="att-edit-icon" data-fix="${e.id}" aria-label="${safeHtml(e.name)} 근태 수정" title="근태 수정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`:''}
+          </div>
+        </div>
         <div class="att-info">
           ${schLine}
-          <div class="line1">${line1}${badges?` <span class="att-inline-badges">${badges}</span>`:''}</div>
+          <div class="line1">${line1}</div>
           ${line2?`<div class="line2">${line2}</div>`:''}
           ${progressHtml}
-        </div>
-        <div class="att-right">
-          ${LIVE?`<button class="btn btn-secondary btn-sm" data-fix="${e.id}">수정</button>`:''}
         </div>`;
       if(LIVE){ const fb=div.querySelector("[data-fix]"); if(fb) fb.onclick=()=>openAdminFix(e, rows); }
       listEl.appendChild(div);
@@ -1953,9 +1963,9 @@ async function drawPay(ym){
 
   // 급여 화면은 의사결정에 필요한 요약만 먼저 보여준다.
   const sum=document.createElement("div");
-  sum.className="kpi-row";
-  sum.style.cssText="padding:20px 22px;margin-bottom:18px";
-  sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">세전 합계</div><div class="payroll-total-value" style="font-size:1.50rem!important;line-height:1.12!important;font-weight:850!important;letter-spacing:-.02em;color:var(--ink)!important">${R.totalGross.toLocaleString()}원</div>`;
+  sum.className="kpi-row payroll-total-summary";
+  sum.style.cssText="padding:16px 22px 18px;margin-bottom:18px;display:block";
+  sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">세전 합계</div><div class="payroll-total-value" style="width:100%;text-align:center;font-size:1.50rem!important;line-height:1.12!important;font-weight:850!important;letter-spacing:-.02em;color:var(--ink)!important">${R.totalGross.toLocaleString()}원</div>`;
   el.appendChild(sum);
   const payTitle=document.createElement("div");
   payTitle.className="payroll-list-title";
