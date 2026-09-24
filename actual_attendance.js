@@ -33,7 +33,7 @@ function renderMonth(){
     const names=employeeIds.map(id=>S.employees.find(e=>Number(e.id)===id)?.name||`#${id}`);
     const shown=names.slice(0,2),more=Math.max(0,names.length-shown.length);
     const lines=shown.map(n=>`<div class="line"><b>${escapeHtml(n)}</b></div>`).join('')+(more?`<div class="more">+${more}명</div>`:'');
-    html+=`<button class="day${day===today?' today':''}${issues.length?' issue':''}" data-day="${day}"><span class="num">${d}</span>${lines?`<div class="lines">${lines}</div>`:''}<span class="day-dots">${hasComplete?'<i class="status-dot normal-dot" aria-label="근무 완료"></i>':''}${hasWorking?'<i class="status-dot working-dot" aria-label="현재 근무 중"></i>':''}${issues.length?'<i class="status-dot issue-dot" aria-label="확인 필요"></i>':''}</span></button>`;
+    html+=`<button class="day${day===today?' today':''}${issues.length?' issue':''}" data-day="${day}"><span class="num">${d}</span>${lines?`<div class="lines">${lines}</div>`:''}<span class="day-dots">${hasComplete?'<i class="status-dot calendar-normal" aria-label="근무 완료"></i>':''}${hasWorking?'<i class="status-dot calendar-working" aria-label="현재 근무 중"></i>':''}${issues.length?'<i class="status-dot calendar-issue" aria-label="확인 필요"></i>':''}</span></button>`;
   }
   html+='</div><div class="legend"><span><i class="dot normal"></i>근무 완료</span><span><i class="dot working"></i>근무 중</span><span><i class="dot issue"></i>확인 필요</span><span>날짜를 누르면 상세</span></div>';
   el('app').innerHTML=html;
