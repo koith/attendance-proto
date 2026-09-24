@@ -444,7 +444,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span aria-hidden="true">›</span><select id="storeSelect" aria-label="지점 선택" style="border:1px solid rgba(255,255,255,.35);background:#fff;color:#174f35;font:inherit;font-weight:700;width:112px;max-width:112px;border-radius:9px;padding:5px 4px 5px 8px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.12</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span aria-hidden="true">›</span><select id="storeSelect" aria-label="지점 선택" style="border:1px solid rgba(255,255,255,.35);background:#fff;color:#174f35;font:inherit;font-weight:700;width:112px;max-width:112px;border-radius:9px;padding:5px 4px 5px 8px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.13</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -462,6 +462,10 @@
   <div class="pad">
     <h3 id="padTitle">비밀번호 입력</h3>
     <div class="who" id="padWho"></div>
+    <div id="substitutePunchBox" style="display:none;margin:10px 0 12px;text-align:left">
+      <label style="display:flex;align-items:center;gap:8px;font-size:.86rem;font-weight:700"><input type="checkbox" id="substitutePunchCheck"> 다른 직원의 대타로 출근</label>
+      <select id="substitutePunchSelect" style="display:none;width:100%;height:42px;margin-top:8px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);color:var(--ink);padding:0 10px"></select>
+    </div>
     <div class="dots" id="padDots"></div>
     <div class="keys" id="padKeys"></div>
     <button class="cancel" id="padCancel">취소</button>
@@ -520,7 +524,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.12";
+const APP_VERSION="v1.13";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -685,7 +689,7 @@ const LocalBE = (()=>{
       // 근무중 먼저, 그다음 이름순
       return list.sort((a,b)=> (b.working?1:0)-(a.working?1:0) || a.name.localeCompare(b.name,"ko"));
     },
-    async punch(id,pin){ const s=load(); const e=s.emps.find(x=>x.id===id&&x.active);
+    async punch(id,pin,subForId=null){ const s=load(); const e=s.emps.find(x=>x.id===id&&x.active);
       if(!e) return {ok:false,error:"NO_EMPLOYEE"};
       if(!await pinMatches(pin,e.pin_hash)) return {ok:false,error:"BAD_PIN"};
       const last=s.events.filter(x=>x.employee_id===id).sort((a,b)=>a.event_at<b.event_at?1:-1)[0];
@@ -693,7 +697,7 @@ const LocalBE = (()=>{
       if(last && (now-fromIso(last.event_at))/1000<8) return {ok:false,error:"TOO_SOON"};
       const type=(last&&last.event_type==="IN")?"OUT":"IN";
       const iso_now=iso(now);
-      s.events.push({id:s.seq++,employee_id:id,event_type:type,event_at:iso_now,server_received_at:iso_now,device_id:CONFIG.DEVICE_ID}); save(s);
+      s.events.push({id:s.seq++,employee_id:id,event_type:type,event_at:iso_now,server_received_at:iso_now,device_id:CONFIG.DEVICE_ID,substitute_for_employee_id:type==="IN"?subForId:null}); save(s);
       return {ok:true,type,at:iso_now,name:e.name}; },
     async rangeEvents(fromStr,toStr){ const s=load();
       return s.events.filter(x=>x.event_at>=fromStr && x.event_at<toStr); },
@@ -794,7 +798,7 @@ const SupaBE = (()=>{
     async listAuthUsers(){ return rpc("admin_list_auth_users",{},true); },
     async grantAdmin(email){ return rpc("admin_grant",{p_email:email},true); },
     async revokeAdmin(userId){ return rpc("admin_revoke",{p_user_id:userId},true); },
-    async punch(id,pin){ return rpc("punch",{p_employee_id:id,p_pin:pin,p_device:CONFIG.DEVICE_ID}); },
+    async punch(id,pin,subForId=null){ return rpc("punch",{p_employee_id:id,p_pin:pin,p_device:CONFIG.DEVICE_ID,p_substitute_for_employee_id:subForId}); },
     // --- 관리자 (authenticated) ---
     async allEmployees(){ return CURRENT_STORE_ID?rpc("list_store_employees",{p_store_id:CURRENT_STORE_ID},true):rpc("admin_list_all_employees",{},true); },
     async createEmployee(name,pin){ return rpc("admin_create_employee",{p_name:name.trim(),p_pin:pin},true); },
@@ -1129,8 +1133,18 @@ function applyCardFlow(root){
 /* ---------------------- PIN 패드 ---------------------- */
 const padVeil=document.getElementById("padVeil");
 let padBuf="", padEmp=null, padState=null, padBusy=false;
-function openPad(emp,state){
+async function openPad(emp,state){
   padEmp=emp; padState=state; padBuf="";
+  const subBox=document.getElementById("substitutePunchBox"),subCheck=document.getElementById("substitutePunchCheck"),subSel=document.getElementById("substitutePunchSelect");
+  subCheck.checked=false;subSel.style.display="none";subSel.innerHTML="";
+  if(state!=="WORKING"){
+    subBox.style.display="block";
+    try{
+      const emps=await BE.listEmployeesState();
+      subSel.innerHTML='<option value="">대타 대상 직원 선택</option>'+emps.filter(x=>Number(x.id)!==Number(emp.id)).map(x=>'<option value="'+x.id+'">'+safeHtml(x.name)+'</option>').join("");
+    }catch(_){subSel.innerHTML='<option value="">대타 대상 직원 선택</option>';}
+    subCheck.onchange=()=>{subSel.style.display=subCheck.checked?"block":"none";};
+  }else subBox.style.display="none";
   const isOut = state==="WORKING";
   document.getElementById("padTitle").textContent = emp.name;
   document.getElementById("padWho").textContent = isOut ? "● 근무중 · 비밀번호 입력" : "출근 전 · 비밀번호 입력";
@@ -1163,7 +1177,13 @@ async function submitPad(){
   if(okBtn){ okBtn.disabled=true; okBtn.style.opacity="0.4"; okBtn.textContent="처리 중…"; }
   const pin=padBuf;
   try{
-    const res=await BE.punch(padEmp.id,pin);
+    const subCheck=document.getElementById("substitutePunchCheck"),subSel=document.getElementById("substitutePunchSelect");
+    let subForId=null;
+    if(padState!=="WORKING"&&subCheck.checked){
+      subForId=Number(subSel.value)||null;
+      if(!subForId){padBusy=false;if(okBtn){okBtn.disabled=false;okBtn.style.opacity="";okBtn.textContent="출근하기";}toast("err","대타 대상 선택","누구의 대타인지 선택하세요.");return;}
+    }
+    const res=await BE.punch(padEmp.id,pin,subForId);
     if(!res||!res.ok){
       const msg={NO_EMPLOYEE:"직원을 찾을 수 없습니다.",BAD_PIN:"비밀번호가 올바르지 않습니다.",TOO_SOON:"방금 처리되었습니다. 잠시 후 다시."}[res&&res.error]||"처리 실패";
       closePad(); toast("err",(res&&res.error==="BAD_PIN")?"비밀번호 오류":"오류",msg); return;
@@ -1188,7 +1208,7 @@ function showSuccess(type, name, now, res){
   document.getElementById("successName").textContent = name;
   document.getElementById("successTime").textContent = hhmm(now);
   const msgEl=document.getElementById("successMsg");
-  msgEl.textContent = isIn ? "오늘도 좋은 하루 되세요" : "수고하셨습니다";
+  msgEl.textContent = isIn ? (res&&res.substitute_for_name ? res.substitute_for_name+"님 대타 출근으로 기록되었습니다" : "오늘도 좋은 하루 되세요") : "수고하셨습니다";
   el.classList.add("show");
   clearTimeout(_successTimer);
   _successTimer=setTimeout(()=>el.classList.remove("show"), 2000);
