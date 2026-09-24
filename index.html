@@ -452,7 +452,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option>인하대점</option></select><button type="button" id="storeSelectDisplay" class="store-select-marquee" aria-label="지점 선택"><span class="store-select-marquee-text">인하대점</span></button></span><span class="app-version-badge" id="appVersion">v1.28</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option>인하대점</option></select><button type="button" id="storeSelectDisplay" class="store-select-marquee" aria-label="지점 선택"><span class="store-select-marquee-text">인하대점</span></button></span><span class="app-version-badge" id="appVersion">v1.29</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -800,7 +800,7 @@ const SupaBE = (()=>{
       return CONFIG.SUPABASE_URL + "/storage/v1" + d.signedURL;  // signedURL은 상대경로
     },
     async storeSettingsGet(){ return rpc("admin_store_settings_get",{p_store_id:CURRENT_STORE_ID||1},true); },
-    async storeSettingsSet(openMin,closeMin,grace){ return rpc("admin_store_settings_set",{p_open_minute:openMin,p_close_minute:closeMin,p_close_grace_minutes:grace,p_store_id:CURRENT_STORE_ID||1},true); },
+    async storeSettingsSet(openMin,closeMin){ return rpc("admin_store_settings_set",{p_open_minute:openMin,p_close_minute:closeMin,p_close_grace_minutes:0,p_store_id:CURRENT_STORE_ID||1},true); },
     async enforceStoreClose(){ return rpc("system_enforce_store_close"); },
     async listAdmins(){ return rpc("admin_list_admins",{},true); },
     async listAuthUsers(){ return rpc("admin_list_auth_users",{},true); },
@@ -889,7 +889,7 @@ function openHqDashboard(){
   location.hash="#dashboard";
 }
 function syncStoreSelectDisplay(){const sel=document.getElementById("storeSelect"),box=document.getElementById("storeSelectDisplay"),txt=box?.querySelector(".store-select-marquee-text");if(!sel||!box||!txt)return;txt.textContent=sel.options[sel.selectedIndex]?.text||"";box.classList.remove("flow-over");txt.style.transform="";requestAnimationFrame(()=>{const overflow=Math.max(0,txt.scrollWidth-(box.clientWidth-30));if(overflow>2){box.style.setProperty("--store-flow-distance",overflow+"px");box.style.setProperty("--store-flow-duration",Math.max(7,Math.min(14,overflow/12+6))+"s");box.classList.add("flow-over")}})}
-async function loadStores(){ if(!LIVE)return; try{const rows=await publicRpc("list_stores",{});const sel=document.getElementById("storeSelect"),display=document.getElementById("storeSelectDisplay");sel.innerHTML=rows.map(x=>`<option value="${x.id}">${safeHtml(x.name)}</option>`).join("");CURRENT_STORE_ID=Number(sel.value)||1;const choose=()=>{CURRENT_STORE_ID=Number(sel.value)||1;sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));syncStoreSelectDisplay();if(location.hash==="#dashboard")location.hash="#pos";else route()};sel.onchange=choose;display.onclick=()=>{sel.style.display="block";sel.focus();sel.click();setTimeout(()=>{sel.style.display=""},0)};const saved=Number(sessionStorage.getItem("baekeok_store_id"));if(saved&&rows.some(x=>Number(x.id)===saved)){sel.value=String(saved);CURRENT_STORE_ID=saved;}syncStoreSelectDisplay();window.addEventListener("resize",syncStoreSelectDisplay,{passive:true});}catch(_){}}
+async function loadStores(){ if(!LIVE)return; try{const rows=await publicRpc("list_stores",{});const sel=document.getElementById("storeSelect"),display=document.getElementById("storeSelectDisplay");sel.innerHTML=rows.map(x=>`<option value="${x.id}">${safeHtml(x.name)}</option>`).join("");CURRENT_STORE_ID=Number(sel.value)||1;const choose=()=>{CURRENT_STORE_ID=Number(sel.value)||1;sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));syncStoreSelectDisplay();if(location.hash==="#dashboard")location.hash="#pos";else route()};sel.onchange=choose;display.onclick=()=>{const dashboard=(location.hash||"")==="#dashboard";if(dashboard)return;const prev=sel.style.display;sel.style.display="block";sel.focus();sel.click();setTimeout(()=>{sel.style.display=prev;syncStoreContextUI()},0)};const saved=Number(sessionStorage.getItem("baekeok_store_id"));if(saved&&rows.some(x=>Number(x.id)===saved)){sel.value=String(saved);CURRENT_STORE_ID=saved;}syncStoreSelectDisplay();window.addEventListener("resize",syncStoreSelectDisplay,{passive:true});}catch(_){}}
 
 // Any database/user-controlled text inserted through innerHTML must pass this boundary.
 function safeHtml(value){
@@ -2738,6 +2738,6 @@ document.getElementById("hqHome")?.addEventListener("click",e=>{e.preventDefault
 if(LIVE) Auth.load();
 loadStores().finally(()=>route());
 </script>
-<script src="store_controls_v1.js?v=20260924g"></script>
+<script src="store_controls_v1.js?v=20260924h"></script>
 </body>
 </html>
