@@ -82,7 +82,7 @@
   .emp .row1{display:flex; align-items:center; justify-content:space-between; gap:8px;}
   .emp .nm{font-size:1.1rem; font-weight:650; color:var(--ink); letter-spacing:-.01em;}
   .emp .since{font-size:.85rem; color:var(--sub); font-variant-numeric:tabular-nums;}
-  .emp .badge-off{font-size:.82rem; color:var(--muted); font-weight:500;}
+  .emp .badge-off,.badge-off{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--text-muted);background:var(--surface);white-space:nowrap;cursor:default;user-select:none}
   /* 오늘 근태 카드: column 정렬(이름 고정폭 / 정보 신축 / 상태·버튼 고정). 문구 길이에 카드 안 흔들림.
      향후 WorkSchedule/progress는 .att-info 안(2줄 구조)에 progress bar 행을 추가하는 방향으로 확장. */
   .att-card{display:grid; grid-template-columns:64px 1fr auto; gap:10px; align-items:center;
@@ -106,10 +106,7 @@
   .sch-prog-sub.over{color:var(--warning); font-weight:600;}
   .emp.working{border-color:#bfe3cb; background:linear-gradient(90deg,#f3fbf6,#ffffff 40%);}
   .emp.working::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--in);}
-  .badge-on{
-    font-size:.74rem; font-weight:650; color:#fff; background:var(--in);
-    padding:2px 8px; border-radius:999px; white-space:nowrap;
-  }
+  .badge-on{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid #bfe3cb;color:var(--brand-700);background:var(--brand-050);white-space:nowrap;cursor:default;user-select:none}
 
   /* 전체화면 성공 오버레이 */
   #success{
@@ -204,7 +201,7 @@
   .row .times{font-size:.85rem; color:var(--sub); font-variant-numeric:tabular-nums; text-align:right;}
   .row .times b{color:var(--ink); font-weight:600;}
   /* ===== V1 Status badge (pill, 클릭 불가) ===== */
-  .badge{display:inline-flex; align-items:center; gap:4px; font-size:.72rem; font-weight:600; padding:3px 9px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted); background:var(--surface); cursor:default; user-select:none;}
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--text-muted);background:var(--surface);white-space:nowrap;cursor:default;user-select:none;}
   .badge.work, .badge.success{color:var(--brand-700); border-color:#bfe3cb; background:var(--brand-050);}
   .badge.issue, .badge.warning{color:var(--warning); border-color:#e8d9a8; background:#fdf6e3;}
   .badge.danger{color:var(--danger); border-color:#f0c4be; background:#fbeae8;}
@@ -327,7 +324,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.2</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.3</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -389,7 +386,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.69.2";
+const APP_VERSION="v0.69.3";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1108,7 +1105,7 @@ function renderMyResult(empId,pin,events,requests,emps){
       const crossDay = s.in&&s.out && (s.in.getDate()!==s.out.getDate()||s.in.getMonth()!==s.out.getMonth());
       let statusBadge="", warnColor="";
       if(s.status==="COMPLETE"){ if(s.sec>LONG_SESSION_THRESHOLD_HOURS*3600){ statusBadge=`<span class="badge issue">장시간 근무 · 확인필요</span>`; warnColor="color:var(--warn)"; } }
-      else if(s.status==="WORKING") statusBadge=`<span class="badge" style="background:var(--in);color:#fff">근무중</span>`;
+      else if(s.status==="WORKING") statusBadge=`<span class="badge work">근무중</span>`;
       else if(s.status==="INCOMPLETE"){ statusBadge=`<span class="badge issue">퇴근누락</span>`; warnColor="color:var(--warn)"; }
       else if(s.status==="ORPHAN_OUT"){ statusBadge=`<span class="badge issue">출근누락</span>`; warnColor="color:var(--warn)"; }
       html+=`<div style="padding:10px 0;border-bottom:1px solid var(--line);font-size:.88rem">
