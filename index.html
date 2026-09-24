@@ -210,12 +210,19 @@
 
   /* V1.1 admin landing / mobile Safari guards */
   button,a,.btn,.emp,.att-card,.tabs a{touch-action:manipulation;}
-  .admin-quick{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:16px;}
-  .admin-quick-title{font-size:.82rem;color:var(--text-muted);margin-bottom:10px;}
-  .admin-quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
-  .admin-quick-grid button{min-width:0;min-height:64px;border:1px solid var(--border);border-radius:12px;background:var(--surface-muted);color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:7px 3px;}
-  .admin-quick-grid button span{font-size:1.15rem}.admin-quick-grid button b{font-size:.73rem;font-weight:650;}
-  .admin-pending-head{display:flex;align-items:center;justify-content:space-between;min-height:36px;margin-top:14px;padding:2px;color:var(--text-muted);font-size:.8rem;font-weight:650;letter-spacing:.02em}.pending-badge{display:inline-flex;align-items:center;justify-content:center;min-width:34px;min-height:24px;padding:2px 8px;border-radius:999px;background:var(--brand-050);color:var(--brand-700);font-size:.74rem;font-weight:700;letter-spacing:0}.admin-pending-head.quiet .pending-badge{background:var(--surface-muted);color:var(--text-muted);font-weight:600}
+  .admin-quick{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:16px}
+  .admin-quick-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+  .admin-login-email{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.76rem;color:var(--text-muted)}
+  .admin-top-actions{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+  .admin-top-actions .btn{min-height:34px;padding:6px 9px;font-size:.76rem}
+  .admin-quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .admin-quick-grid button{position:relative;min-width:0;min-height:64px;border:1px solid var(--border);border-radius:12px;background:var(--surface-muted);color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:7px 3px}
+  .admin-quick-grid button span{font-size:1.15rem}.admin-quick-grid button b{font-size:.73rem;font-weight:650}
+  .request-count-badge{position:absolute;right:6px;top:6px;display:none;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--danger);color:#fff;font-size:.68rem;font-weight:800;line-height:1}
+  .request-count-badge.show{display:inline-flex}
+  .employee-section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:20px 2px 10px}
+  .employee-section-head .section-t{margin:0}
+  .employee-add-small{min-height:32px;padding:5px 10px;font-size:.78rem}
   .modal,.modal *{min-width:0;box-sizing:border-box}.modal .field input,.modal .field select,.modal .field textarea{width:100%;max-width:100%;min-width:0;}
   @media(max-width:430px){.admin-quick-grid{gap:6px}.admin-quick-grid button{min-height:60px}.modal{max-width:calc(100vw - 24px)!important;margin-left:auto;margin-right:auto}.modal .field input[type=datetime-local],.modal .field input[type=date],.modal .field input[type=time]{width:100%;max-width:100%;min-width:0;-webkit-appearance:none;appearance:none;}}
   /* ---------- ADMIN ---------- */
@@ -416,7 +423,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.91</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.92</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -452,7 +459,7 @@
   </div>
 </div>
 
-<!-- personal settings modal -->\n<div class="modal-veil" id="settingsVeil"><div class="modal"><button type="button" class="btn-icon modal-x" id="settingsClose" aria-label="닫기"></button><h3>설정</h3><div id="personalSettings"></div></div></div>\n\n<!-- add employee modal -->
+<!-- pending requests modal -->\n<div class="modal-veil" id="requestsVeil"><div class="modal account-modal"><button type="button" class="btn-icon modal-x" id="requestsClose" aria-label="닫기"></button><h3>직원 정정 요청</h3><div id="requestsModalList"></div></div></div>\n\n<!-- personal settings modal -->\n<div class="modal-veil" id="settingsVeil"><div class="modal"><button type="button" class="btn-icon modal-x" id="settingsClose" aria-label="닫기"></button><h3>설정</h3><div id="personalSettings"></div></div></div>\n\n<!-- add employee modal -->
 <div class="modal-veil" id="addVeil">
   <div class="modal">
     <div id="employeeOnboarding"></div>
@@ -488,7 +495,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.91";
+const APP_VERSION="v0.92";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1453,24 +1460,22 @@ async function renderAdmin(){
   const adminEmail=String(adminUser?.email||"관리자").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
   view.innerHTML=`
     <section class="admin-quick" aria-label="빠른 메뉴">
-      <div class="admin-quick-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-        <b>빠른 메뉴</b>
-        <div style="display:flex;align-items:center;gap:8px;min-width:0">
-          <span title="${adminEmail}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.76rem;color:var(--text-muted)">${adminEmail}</span>
-          <button type="button" class="btn btn-secondary" id="adminSettingsBtn" style="min-height:36px;padding:7px 10px;flex:0 0 auto" aria-label="설정" title="설정">⚙</button>\n          <button type="button" class="btn btn-secondary" style="min-height:36px;padding:7px 12px;flex:0 0 auto" onclick="Auth.clear();location.reload()">로그아웃</button>
+      <div class="admin-quick-title">
+        <span class="admin-login-email" title="${adminEmail}">${adminEmail}</span>
+        <div class="admin-top-actions">
+          <button type="button" class="btn btn-secondary" id="adminSettingsBtn" aria-label="설정" title="설정">⚙</button>
+          <button type="button" class="btn btn-secondary" onclick="Auth.clear();location.reload()">로그아웃</button>
         </div>
       </div>
       <div class="admin-quick-grid">
         <button type="button" id="quickSchedule"><span>📊</span><b>근무현황</b></button>
-        <button type="button" id="quickEmployees"><span>👤</span><b>직원</b></button>
-        <button type="button" id="quickContracts"><span>💼</span><b>계약</b></button>
+        <button type="button" id="quickRequests"><span>📨</span><b>직원 요청</b><i class="request-count-badge" id="requestCountBadge">0</i></button>
+        <button type="button" id="accountManageBtn"><span>👥</span><b>계정 관리</b></button>
       </div>
-      <div class="admin-pending-head" id="attendanceAlert"><span>직원 정정요청</span><span class="pending-badge" id="attendanceAlertText">0건</span></div>
     </section>
-    <div id="adReqSection"></div>
     <div class="section-t">오늘 근태 · <span id="adToday"></span></div>
     <div id="adList"></div>
-    <div class="section-t" style="margin-top:20px">직원 관리</div>
+    <div class="employee-section-head"><div class="section-t">직원 관리</div><button class="btn btn-primary employee-add-small" id="adAdd">+ 직원 등록</button></div>
     <div class="employee-panel">
       <div class="employee-tabs" role="tablist" aria-label="직원 상태">
         <button type="button" id="empTabActive" class="on" role="tab" aria-selected="true">재직중</button>
