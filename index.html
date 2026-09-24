@@ -62,7 +62,12 @@
     font-size:.82rem; color:var(--sub); text-decoration:none;
     padding:6px 12px;border-radius:7px;border:1px solid var(--line);flex:0 0 auto;white-space:nowrap;
   }
-  .tabs a.on{color:var(--ink);background:var(--chip);border-color:var(--accent);}\n  .store-tabs{gap:4px}.store-tabs a{border-radius:7px;font-weight:700}\n  .admin-subtabs{gap:0;margin:-18px -18px 12px!important;padding:6px 18px;background:var(--surface-muted);border:0}\n  .admin-subtabs a{border-radius:0;border:0;border-right:1px solid var(--line);padding:6px 13px;background:transparent}\n  .admin-subtabs a:first-child{border-left:1px solid var(--line)}\n  .admin-subtabs a.on{background:var(--surface);box-shadow:inset 0 -2px 0 var(--accent);color:var(--accent)}
+  .tabs a.on{color:var(--ink);background:var(--chip);border-color:var(--accent);}
+  .store-tabs{gap:4px}.store-tabs a{border-radius:7px;font-weight:700}
+  .admin-subtabs{gap:0;margin:-18px -18px 12px!important;padding:6px 18px;background:var(--surface-muted);border:0}
+  .admin-subtabs a{border-radius:0;border:0;border-right:1px solid var(--line);padding:6px 13px;background:transparent}
+  .admin-subtabs a:first-child{border-left:1px solid var(--line)}
+  .admin-subtabs a.on{background:var(--surface);box-shadow:inset 0 -2px 0 var(--accent);color:var(--accent)}
   main{flex:1; width:100%; min-width:0; max-width:100%; padding:18px; display:flex; flex-direction:column; overflow-x:hidden;}
 
   /* connection banner */
@@ -438,8 +443,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <img src="logo_combine.jpg" alt="백억커피">
-        <button type="button" id="hqHome" style="border:0;background:transparent;color:#fff;font:inherit;font-weight:700;padding:0;cursor:pointer" title="본사 대시보드">본사</button><span aria-hidden="true">›</span><select id="storeSelect" aria-label="지점 선택" style="border:1px solid rgba(255,255,255,.35);background:#fff;color:#174f35;font:inherit;font-weight:700;width:112px;max-width:112px;border-radius:9px;padding:5px 4px 5px 8px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.10</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span aria-hidden="true">›</span><select id="storeSelect" aria-label="지점 선택" style="border:1px solid rgba(255,255,255,.35);background:#fff;color:#174f35;font:inherit;font-weight:700;width:112px;max-width:112px;border-radius:9px;padding:5px 4px 5px 8px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.10</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
