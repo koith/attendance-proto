@@ -450,7 +450,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span aria-hidden="true">›</span><select id="storeSelect" aria-label="지점 선택" style="border:1px solid rgba(255,255,255,.35);background:#fff;color:#174f35;font:inherit;font-weight:700;width:112px;max-width:112px;border-radius:9px;padding:5px 4px 5px 8px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.15</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span aria-hidden="true">›</span><select id="storeSelect" aria-label="지점 선택" style="border:1px solid rgba(255,255,255,.35);background:#fff;color:#174f35;font:inherit;font-weight:700;width:112px;max-width:112px;border-radius:9px;padding:5px 4px 5px 8px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.16</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -530,7 +530,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.15";
+const APP_VERSION="v1.16";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -865,13 +865,20 @@ const SupaBE = (()=>{
   };
 })();
 
+const publicRpc=async(fn,args={})=>{
+  const headers={apikey:CONFIG.SUPABASE_ANON_KEY,"Content-Type":"application/json","Authorization":`Bearer ${CONFIG.SUPABASE_ANON_KEY}`};
+  const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:"POST",headers,body:JSON.stringify(args)});
+  if(!r.ok) throw new Error(await r.text());
+  const t=await r.text();return t?JSON.parse(t):null;
+};
+
 const BE = LIVE ? SupaBE : LocalBE;
 let CURRENT_STORE_ID=1;
 function openHqDashboard(){
   if(location.hash==="#dashboard"){ route(); return; }
   location.hash="#dashboard";
 }
-async function loadStores(){ if(!LIVE)return; try{const rows=await rpc("list_stores",{},true);const sel=document.getElementById("storeSelect");sel.innerHTML=rows.map(x=>`<option value="${x.id}">${safeHtml(x.name)}</option>`).join("");CURRENT_STORE_ID=Number(sel.value)||1;sel.onchange=()=>{CURRENT_STORE_ID=Number(sel.value)||1;sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));if(location.hash==="#dashboard")location.hash="#pos";else route();}; const saved=Number(sessionStorage.getItem("baekeok_store_id"));if(saved&&rows.some(x=>Number(x.id)===saved)){sel.value=String(saved);CURRENT_STORE_ID=saved;}}catch(_){}}
+async function loadStores(){ if(!LIVE)return; try{const rows=await publicRpc("list_stores",{});const sel=document.getElementById("storeSelect");sel.innerHTML=rows.map(x=>`<option value="${x.id}">${safeHtml(x.name)}</option>`).join("");CURRENT_STORE_ID=Number(sel.value)||1;sel.onchange=()=>{CURRENT_STORE_ID=Number(sel.value)||1;sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));if(location.hash==="#dashboard")location.hash="#pos";else route();}; const saved=Number(sessionStorage.getItem("baekeok_store_id"));if(saved&&rows.some(x=>Number(x.id)===saved)){sel.value=String(saved);CURRENT_STORE_ID=saved;}}catch(_){}}
 
 // Any database/user-controlled text inserted through innerHTML must pass this boundary.
 function safeHtml(value){
@@ -1008,7 +1015,7 @@ function attachNoDoubleTapZoom(el){
   }, {passive:false});
 }
 async function renderDashboard(){
-  let rows=[];try{rows=LIVE?await rpc("hq_store_dashboard",{},true):[];}catch(e){view.innerHTML='<div class="empty">대시보드 데이터를 불러오지 못했습니다.</div>';return;}
+  let rows=[];try{rows=LIVE?await publicRpc("hq_store_dashboard",{}):[];}catch(e){view.innerHTML='<div class="empty">대시보드 데이터를 불러오지 못했습니다.</div>';return;}
   const money=n=>Number(n||0).toLocaleString("ko-KR")+"원";
   const total7=rows.reduce((a,r)=>a+Number(r.sales_7d||0),0),totalTx=rows.reduce((a,r)=>a+Number(r.tx_count||0),0);
   const avg=rows.length?Math.round(total7/rows.length):0;
