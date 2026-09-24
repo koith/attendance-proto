@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const h=fs.readFileSync('index.html','utf8');
+assert(h.includes('const APP_VERSION="v0.69.16";'));
+assert(h.includes('border-radius:var(--r); padding:0 16px 10px; display:flex; flex-direction:column; gap:4px;'));
+assert(h.includes('justify-content:flex-start; cursor:pointer;'));
+assert(h.includes('#empGrid .employee-card-primary{margin:0 -16px 4px'));
+assert(h.includes('#empGrid .employee-card-primary{margin:0 -10px 4px'));
+assert(h.includes('#empGrid .employee-card-secondary{padding-top:4px}'));
+console.log('POS header flush v0.69.16: PASS');
