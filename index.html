@@ -889,7 +889,7 @@ function requireAuth(then){
     <div class="field"><label>비밀번호</label><input id="loginPw" type="password" autocomplete="current-password" placeholder="비밀번호"></div>
     <button class="btn btn-primary btn-block btn-lg" id="loginBtn">로그인</button>
     <div id="loginErr" style="color:var(--warn);font-size:.85rem;margin-top:10px"></div>`;
-  document.getElementById("loginBtn").onclick=async()=>{
+  const submitAdminLogin=async()=>{
     const email=document.getElementById("loginEmail").value.trim();
     const pw=document.getElementById("loginPw").value;
     const errEl=document.getElementById("loginErr");
@@ -909,6 +909,10 @@ function requireAuth(then){
     }
     catch(e){ errEl.textContent="로그인 실패: 이메일/비밀번호를 확인하세요."; document.getElementById("loginBtn").textContent="로그인"; }
   };
+  document.getElementById("loginBtn").onclick=submitAdminLogin;
+  ["loginEmail","loginPw"].forEach(id=>document.getElementById(id).addEventListener("keydown",e=>{
+    if(e.key==="Enter"&&!e.isComposing){ e.preventDefault(); submitAdminLogin(); }
+  }));
 }
 window.addEventListener("hashchange",route);
 
