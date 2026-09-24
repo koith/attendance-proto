@@ -96,8 +96,8 @@
   .employee-card-id{color:var(--muted);white-space:nowrap}
   .employee-card-pay{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap;flex:0 0 auto}
   .employee-card-pay small{font-size:.62rem;color:var(--muted);font-weight:500}
-  @media(max-width:430px){.employee-card-primary .employee-card-name{font-size:1rem}.employee-card-secondary{font-size:.72rem}#empGrid .employee-card-primary{margin:0 -10px 4px}.payroll-employee-card .employee-card-primary{margin:-10px -10px 4px}}
-  @media(min-width:431px){#empGrid .employee-card-primary{margin:0 -16px 4px;padding-left:16px;padding-right:16px}.payroll-employee-card .employee-card-primary{margin:-12px -14px 4px;padding-left:14px;padding-right:14px}}
+  @media(max-width:430px){.employee-card-primary .employee-card-name{font-size:1rem}.employee-card-secondary{font-size:.72rem}#empGrid .employee-card-primary{margin:0 -10px 4px}.payroll-employee-card .employee-card-primary{margin:0 -10px 4px}}
+  @media(min-width:431px){#empGrid .employee-card-primary{margin:0 -16px 4px;padding-left:16px;padding-right:16px}.payroll-employee-card .employee-card-primary{margin:0 -14px 4px;padding-left:14px;padding-right:14px}}
   #empGrid .employee-card-secondary{padding-top:4px}
   .emp .badge-off,.badge-off{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--text-muted);background:var(--surface);white-space:nowrap;cursor:default;user-select:none}
   /* 오늘 근태 카드: column 정렬(이름 고정폭 / 정보 신축 / 상태·버튼 고정). 문구 길이에 카드 안 흔들림.
@@ -305,11 +305,11 @@
   .payroll-list-title{margin:0 0 8px 2px;font-size:.86rem;font-weight:700;color:var(--text)}
   .payroll-month-field{margin-bottom:12px}
   .payroll-employee-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;align-content:start;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y;max-width:100%}
-  .payroll-employee-card{height:108px;min-height:108px;max-height:108px;box-sizing:border-box;min-width:0;border-radius:var(--r);padding:12px 14px!important;justify-content:center}
+  .payroll-employee-card{height:108px;min-height:108px;max-height:108px;box-sizing:border-box;min-width:0;border-radius:var(--r);padding:0 14px 10px!important;justify-content:flex-start;overflow:hidden}
   .payroll-employee-card .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .payroll-employee-card>div:first-child{min-width:0}
   .payroll-employee-card .payroll-gross-value{white-space:nowrap}
-  @media(max-width:430px){.payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.payroll-employee-card{padding:10px!important}}
+  @media(max-width:430px){.payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.payroll-employee-card{padding:0 10px 8px!important}}
   .payroll-employee-payline{min-height:1.56rem;display:flex;align-items:baseline;gap:5px;justify-content:flex-start}
   .payroll-sheet-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:10px}
   .payroll-sheet-actions .btn{width:100%;margin:0}
@@ -395,7 +395,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.76</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.77</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -457,7 +457,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.76";
+const APP_VERSION="v0.77";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
