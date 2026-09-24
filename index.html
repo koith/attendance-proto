@@ -1444,7 +1444,7 @@ async function renderAdmin(){
         <b>빠른 메뉴</b>
         <div style="display:flex;align-items:center;gap:8px;min-width:0">
           <span title="${adminEmail}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.76rem;color:var(--text-muted)">${adminEmail}</span>
-          <button type="button" class="btn btn-secondary" style="min-height:36px;padding:7px 12px;flex:0 0 auto" onclick="Auth.clear();location.reload()">로그아웃</button>
+          <button type="button" class="btn btn-secondary" id="adminSettingsBtn" style="min-height:36px;padding:7px 10px;flex:0 0 auto" aria-label="설정" title="설정">⚙</button>\n          <button type="button" class="btn btn-secondary" style="min-height:36px;padding:7px 12px;flex:0 0 auto" onclick="Auth.clear();location.reload()">로그아웃</button>
         </div>
       </div>
       <div class="admin-quick-grid">
@@ -1470,7 +1470,7 @@ async function renderAdmin(){
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
   const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
   document.getElementById("adToday").textContent=day;
-  document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };
+  document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };\n  if(LIVE) document.getElementById("adminSettingsBtn").onclick=openPersonalSettings;
   document.getElementById("quickSchedule").onclick=()=>{ location.href="actual_attendance.html"; };
   document.getElementById("quickEmployees").onclick=()=>document.getElementById("adEmps")?.scrollIntoView({behavior:"smooth",block:"start"});
   document.getElementById("quickContracts").onclick=()=>{ location.href="employment_contracts.html?from=admin"; };
