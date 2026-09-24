@@ -340,6 +340,7 @@
 <div class="modal-veil" id="addVeil">
   <div class="modal">
     <h3>직원 등록</h3>
+    <div class="field"><label>예정 사번</label><div id="newEmpNo" style="min-height:44px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-muted);font-weight:800;color:var(--brand-700)">계산 중…</div></div>
     <div class="field"><label>이름</label><input id="newName" autocomplete="off" placeholder="예: 이현진"></div>
     <div class="field"><label>비밀번호 (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="숫자 4자리"></div>
     <button class="btn btn-primary btn-block btn-lg" id="newSave">등록</button>
@@ -801,6 +802,19 @@ function openAddVeil(){
   }
   attachNoDoubleTapZoom(v);   // 모달 영역 한정 double-tap zoom 차단 (helper, 1회 부착)
   v.classList.add("show");
+  refreshNextEmployeeNumber();
+}
+async function refreshNextEmployeeNumber(){
+  const el=document.getElementById("newEmpNo");
+  if(!el) return;
+  el.textContent="계산 중…";
+  try{
+    const emps=await BE.allEmployees();
+    const maxId=(emps||[]).reduce((m,e)=>Math.max(m,Number(e.id)||0),0);
+    el.textContent=String(maxId+1);
+  }catch(_){
+    el.textContent="등록 시 자동 발급";
+  }
 }
 // iOS Safari double-tap zoom 국소 차단.
 //  - 대상: 전달된 요소(모달 오버레이) 내부에서만. document/body 전역 아님.
@@ -1630,9 +1644,11 @@ function bindAddModal(){
     const pin=document.getElementById("newPin").value.trim();
     if(!name){ alert("이름을 입력하세요."); return; }
     if(!/^\d{4}$/.test(pin)){ alert("비밀번호는 숫자 4자리입니다."); return; }
-    try{ await BE.createEmployee(name,pin); }catch(e){ alert(e.message); return; }
+    let newId=null;
+    try{ newId=await BE.createEmployee(name,pin); }catch(e){ alert(e.message); return; }
     document.getElementById("newName").value=""; document.getElementById("newPin").value="";
     document.getElementById("addVeil").classList.remove("show");
+    if(newId!=null) toast("in","직원 등록 완료","사번 "+newId+" · "+name);
     renderAdmin();
   };
 }
@@ -2284,6 +2300,7 @@ function restoreAddModal(){
   modal.classList.remove("has-back");
   modal.innerHTML=`
     <h3>직원 등록</h3>
+    <div class="field"><label>예정 사번</label><div id="newEmpNo" style="min-height:44px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-muted);font-weight:800;color:var(--brand-700)">계산 중…</div></div>
     <div class="field"><label>이름</label><input id="newName" autocomplete="off" placeholder="예: 이현진"></div>
     <div class="field"><label>비밀번호 (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="숫자 4자리"></div>
     <button class="btn btn-primary btn-block btn-lg" id="newSave">등록</button>`;
