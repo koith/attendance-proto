@@ -1508,17 +1508,13 @@ async function renderAdmin(){
         <button type="button" id="empTabRetired" role="tab" aria-selected="false">퇴직</button>
       </div>
       <div id="adEmps" class="employee-list-mask"></div>
-    </div>
-    <button class="addbtn" id="adAdd">+ 직원 등록</button>
-    ${LIVE?`<button class="btn btn-secondary btn-block" id="accountManageBtn" style="margin-top:10px">계정 관리</button>`:""}`;
+    </div>`;
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
   const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
   document.getElementById("adToday").textContent=day;
   document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };
   if(LIVE) document.getElementById("adminSettingsBtn").onclick=openPersonalSettings;
   document.getElementById("quickSchedule").onclick=()=>{ location.href="actual_attendance.html"; };
-  document.getElementById("quickEmployees").onclick=()=>document.getElementById("adEmps")?.scrollIntoView({behavior:"smooth",block:"start"});
-  document.getElementById("quickContracts").onclick=()=>{ location.href="employment_contracts.html?from=admin"; };
   if(LIVE){ document.getElementById("accountManageBtn").onclick=openAccountMgmt; }
 
   // 정정요청 대기 큐 (LIVE 전용)
