@@ -286,6 +286,9 @@
   }
   .field textarea::placeholder{color:var(--muted);}
   .field textarea:focus{outline:none; border-color:var(--brand-700); background:var(--surface);}
+  .employee-scroll-surface{max-height:360px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable}
+  .employee-scroll-surface.compact{max-height:300px}
+  @media(max-width:430px){.employee-scroll-surface{max-height:320px}.employee-scroll-surface.compact{max-height:280px}}
   .employee-panel{border:1px solid var(--border);border-radius:14px;background:var(--surface);overflow:hidden}
   .employee-tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);background:var(--surface-muted)}
   .employee-tabs button{min-height:42px;border:0;background:transparent;color:var(--text-muted);font-weight:700;font-size:.86rem}
@@ -928,7 +931,7 @@ function fmtElapsed(sinceIso){
   if(h&&mm) return `${h}시간 ${mm}분`; if(h) return `${h}시간`; return `${mm}분`;
 }
 async function renderPos(){
-  view.innerHTML=`<div class="grid" id="empGrid"></div>
+  view.innerHTML=`<div class="grid employee-scroll-surface" id="empGrid"></div>
     <button class="addbtn" id="myRecBtn" style="margin-top:18px">내 근태 기록 · 정정요청</button>`;
   document.getElementById("myRecBtn").onclick=openMyRecord;
   const grid=document.getElementById("empGrid");
@@ -1901,7 +1904,7 @@ async function drawPay(ym){
   try{ R=await computeMonthPayroll(ym); }
   catch(e){ el.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
   const active=R.active, weeks=R.weeks, overrides=R.overrides;
-  if(!active.length){ el.innerHTML=`<div class="empty">직원이 없습니다.</div>`; return; }
+  if(!active.length){ el.innerHTML=`<div class="empty">등록된 급여 대상 직원이 없습니다.</div>`; return; }
   const wi=document.getElementById("payWeeks"); if(wi && R.weeks) wi.value=R.weeks;
   el.innerHTML="";
   const payrollRows=[];   // 마감/엑셀용 결과 수집
@@ -1912,6 +1915,9 @@ async function drawPay(ym){
   sum.style.cssText="padding:20px 22px;margin-bottom:18px";
   sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">세전 합계</div><div class="kpi-value" style="font-size:.78rem;font-weight:800;color:var(--ink)">${R.totalGross.toLocaleString()}원</div>`;
   el.appendChild(sum);
+  const payEmployees=document.createElement("div");
+  payEmployees.className="employee-scroll-surface compact";
+  el.appendChild(payEmployees);
 
   for(const rec of R.rows){
     const e=rec.emp;
@@ -1940,7 +1946,7 @@ async function drawPay(ym){
       card.style.cursor="pointer";
       card.onclick=()=>openMonthAdjust(e, ym, ov);
     }
-    el.appendChild(card);
+    payEmployees.appendChild(card);
   }
   // ---- M8: 마감/엑셀/변경감지 ----
   // 현재 근태 지문 (이벤트 개수 + 최신 이벤트/보정 시각)
