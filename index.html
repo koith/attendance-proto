@@ -383,6 +383,13 @@
   .modal-veil.show{display:flex;}
   .modal{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; width:100%; max-width:380px; max-height:88vh; overflow-y:auto; touch-action:pan-y;}
   .modal h3{margin:0 0 16px; font-size:1.1rem;}
+  .account-modal{max-width:560px}
+  .account-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0 0 14px}
+  .account-tabs button{min-height:40px;border:1px solid var(--border);border-radius:10px;background:var(--surface-muted);color:var(--text-muted);font-weight:650;cursor:pointer}
+  .account-tabs button.on{background:var(--brand-050);border-color:#bfe3cb;color:var(--brand-700)}
+  .account-pane{display:none}.account-pane.on{display:block}
+  .account-pane .row{margin-bottom:0}
+  @media(max-width:430px){.account-tabs button{font-size:.78rem;padding:6px 4px}}
   /* modal 내 select들도 form-control 표면으로 통일 (정정 날짜/시간 등) */
   .modal select{background:var(--surface-muted); border:1px solid var(--border); color:var(--text); border-radius:10px;}
   /* V73 employee onboarding: controls share one geometry and brand language. */
@@ -409,7 +416,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.86</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.87</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -432,6 +439,20 @@
     <div class="dots" id="padDots"></div>
     <div class="keys" id="padKeys"></div>
     <button class="cancel" id="padCancel">취소</button>
+  </div>
+</div>
+
+<!-- account management modal -->
+<div class="modal-veil" id="accountVeil">
+  <div class="modal account-modal">
+    <button type="button" class="btn-icon modal-x" id="accountClose" aria-label="닫기"></button>
+    <h3>계정 관리</h3>
+    <div class="account-tabs" role="tablist">
+      <button type="button" class="on" data-account-tab="admins">관리자 계정</button>
+      <button type="button" data-account-tab="grant">권한 부여</button>
+      <button type="button" data-account-tab="email">내 이메일 변경</button>
+    </div>
+    <div id="adAccount"></div>
   </div>
 </div>
 
@@ -471,7 +492,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.86";
+const APP_VERSION="v0.87";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1366,6 +1387,19 @@ function toast(kind,big,sub){
   toastTimer=setTimeout(()=>t.classList.remove("show"),2200);
 }
 
+function setAccountTab(tab){
+  document.querySelectorAll("[data-account-tab]").forEach(b=>b.classList.toggle("on",b.dataset.accountTab===tab));
+  document.querySelectorAll("[data-account-pane]").forEach(p=>p.classList.toggle("on",p.dataset.accountPane===tab));
+}
+async function openAccountMgmt(){
+  const v=document.getElementById("accountVeil");
+  document.getElementById("accountClose").innerHTML=ICON.close;
+  document.getElementById("accountClose").onclick=()=>v.classList.remove("show");
+  document.querySelectorAll("[data-account-tab]").forEach(b=>b.onclick=()=>setAccountTab(b.dataset.accountTab));
+  attachNoDoubleTapZoom(v); v.classList.add("show"); setAccountTab("admins");
+  await renderAccountMgmt(); setAccountTab("admins");
+}
+
 /* ---------------------- 계정 관리 (V0 global admin) ---------------------- */
 async function renderAccountMgmt(){
   const box=document.getElementById("adAccount"); if(!box) return;
@@ -1378,8 +1412,8 @@ async function renderAccountMgmt(){
     box.innerHTML=`<div class="empty">계정 정보 불러오기 실패: ${e.message}</div>`; return;
   }
   const myId = me && me.id;
-  // 관리자 목록 (자기 계정엔 (나) 표시, 자기 자신엔 해제 버튼 없음)
-  let html=`<div class="row" style="flex-direction:column;align-items:stretch;gap:10px">`;
+  // 세 기능은 탭별 pane으로 분리
+  let html=`<div class="account-pane on" data-account-pane="admins"><div class="row" style="flex-direction:column;align-items:stretch;gap:10px">`;
   html+=`<div style="font-size:.85rem;color:var(--text-muted)">관리자 계정</div>`;
   html+=`<div style="display:flex;flex-direction:column;gap:8px">`;
   for(const a of admins){
@@ -1389,21 +1423,21 @@ async function renderAccountMgmt(){
       ${isMe?'':`<button class="btn btn-danger btn-sm" data-revoke="${a.user_id}" data-email="${a.email}">권한 해제</button>`}
     </div>`;
   }
-  html+=`</div></div>`;
+  html+=`</div></div></div>`;
   // 관리자 권한 부여 (기존 Auth 사용자 승격)
-  html+=`<div class="row" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:10px">
+  html+=`<div class="account-pane" data-account-pane="grant"><div class="row" style="flex-direction:column;align-items:stretch;gap:8px">
     <div style="font-size:.85rem;color:var(--text-muted)">기존 사용자에게 관리자 권한 부여</div>
     <div style="font-size:.75rem;color:var(--muted)">이미 로그인 계정이 있는 사용자만 승격됩니다(신규 초대 아님)</div>
     <input class="form-control" id="grantEmail" placeholder="사용자 이메일" inputmode="email">
-    <button class="btn btn-secondary" id="grantBtn">관리자 권한 부여</button>
-  </div>`;
+    <button class="btn btn-primary" id="grantBtn">관리자 권한 부여</button>
+  </div></div>`;
   // 내 이메일 변경
-  html+=`<div class="row" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:10px">
+  html+=`<div class="account-pane" data-account-pane="email"><div class="row" style="flex-direction:column;align-items:stretch;gap:8px">
     <div style="font-size:.85rem;color:var(--text-muted)">내 로그인 이메일 변경</div>
     <input class="form-control" id="newEmail" placeholder="새 이메일" inputmode="email">
-    <button class="btn btn-secondary" id="emailBtn">이메일 변경 요청</button>
+    <button class="btn btn-primary" id="emailBtn">이메일 변경 요청</button>
     <div id="emailMsg" style="font-size:.8rem;color:var(--text-muted)"></div>
-  </div>`;
+  </div></div>`;
   box.innerHTML=html;
 
   // 해제
@@ -1484,8 +1518,7 @@ async function renderAdmin(){
       <div id="adEmps" class="employee-list-mask"></div>
     </div>
     <button class="addbtn" id="adAdd">+ 직원 등록</button>
-    <div class="section-t" style="margin-top:20px">계정 관리</div>
-    <div id="adAccount"></div>`;
+    ${LIVE?`<button class="btn btn-secondary btn-block" id="accountManageBtn" style="margin-top:10px">계정 관리</button>`:""}`;
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
   const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
   document.getElementById("adToday").textContent=day;
@@ -1493,7 +1526,7 @@ async function renderAdmin(){
   document.getElementById("quickSchedule").onclick=()=>{ location.href="actual_attendance.html"; };
   document.getElementById("quickEmployees").onclick=()=>document.getElementById("adEmps")?.scrollIntoView({behavior:"smooth",block:"start"});
   document.getElementById("quickContracts").onclick=()=>{ location.href="employment_contracts.html?from=admin"; };
-  if(LIVE){ renderAccountMgmt(); }
+  if(LIVE){ document.getElementById("accountManageBtn").onclick=openAccountMgmt; }
 
   // 정정요청 대기 큐 (LIVE 전용)
   if(LIVE){ renderPendingRequests(); }
