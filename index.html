@@ -1910,7 +1910,7 @@ async function drawPay(ym){
   const sum=document.createElement("div");
   sum.className="kpi-row";
   sum.style.cssText="padding:20px 22px;margin-bottom:18px";
-  sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">세전 합계</div><div class="kpi-value" style="font-size:.98rem;font-weight:800;color:var(--ink)">${R.totalGross.toLocaleString()}원</div>`;
+  sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">세전 합계</div><div class="kpi-value" style="font-size:.78rem;font-weight:800;color:var(--ink)">${R.totalGross.toLocaleString()}원</div>`;
   el.appendChild(sum);
 
   for(const rec of R.rows){
