@@ -808,7 +808,7 @@ async function refreshNextEmployeeNumber(){
   try{
     const emps=await BE.allEmployees();
     const maxId=(emps||[]).reduce((m,e)=>Math.max(m,Number(e.id)||0),0);
-    el.textContent=String(maxId+1);
+    el.textContent="No."+String(maxId+1);
   }catch(_){
     el.textContent="등록 시 자동 발급";
   }
@@ -1700,7 +1700,7 @@ function renderEmployeeOnboardingStep(){
   let body="";
   if(s.step===1) body=`
     <h3>직원 등록 · 기본정보</h3>${prog}
-    <div class="field"><label>예정 사번</label><div id="newEmpNo" style="min-height:44px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-muted);font-weight:800;color:var(--brand-700)">계산 중…</div></div>
+    <div style="display:flex;align-items:center;gap:8px;margin:-4px 0 14px;font-size:.82rem;color:var(--text-muted)"><span>예정 사번</span><b id="newEmpNo" style="font-size:.9rem;color:var(--brand-700);font-variant-numeric:tabular-nums">계산 중…</b></div>
     <div class="field"><label>이름</label><input id="newName" autocomplete="off" value="${escapeHtml(s.name)}" placeholder="예: 이현진"></div>
     <div class="field"><label>비밀번호 (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" value="${escapeHtml(s.pin)}" placeholder="숫자 4자리"></div>
     <div class="field"><label>입사일</label><input id="newStart" type="date" value="${s.startedOn}"></div>`;
