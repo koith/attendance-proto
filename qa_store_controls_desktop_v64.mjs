@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const html=fs.readFileSync('index.html','utf8');
+const store=fs.readFileSync('store_controls_v1.js','utf8');
+assert(html.includes('const APP_VERSION="v64";'),'app version must be v64');
+assert(html.includes('id="appVersion">v64</div>'),'visible version must be v64');
+const inlineEnd=html.lastIndexOf('</script>');
+const storePos=html.indexOf('<script src="store_controls_v1.js');
+assert(storePos>0,'store controls script must be included');
+const mainRoutePos=html.indexOf('route();');
+assert(mainRoutePos>0 && storePos>mainRoutePos,'store controls must load after main app definitions/boot');
+assert(store.includes("document.getElementById('storeSettingsCard')"),'store settings mount guard expected');
+assert(store.includes("BE.storeSettingsGet()"),'store settings read path expected');
+assert(store.includes("BE.storeSettingsSet("),'store settings write path expected');
+console.log('store controls desktop v64 QA: PASS');
