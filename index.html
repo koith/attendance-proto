@@ -416,7 +416,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.89</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.90</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -447,10 +447,7 @@
   <div class="modal account-modal">
     <button type="button" class="btn-icon modal-x" id="accountClose" aria-label="닫기"></button>
     <h3>계정 관리</h3>
-    <div class="account-tabs" role="tablist">
-      <button type="button" class="on" data-account-tab="admins">관리자 권한</button>
-      <button type="button" data-account-tab="email">내 이메일 변경</button>
-    </div>
+    <div style="font-size:.78rem;color:var(--text-muted);margin:-6px 0 12px">가입된 로그인 계정의 관리자 권한을 관리합니다.</div>
     <div id="adAccount"></div>
   </div>
 </div>
@@ -491,7 +488,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.89";
+const APP_VERSION="v0.90";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -762,6 +759,7 @@ const SupaBE = (()=>{
     async storeSettingsSet(openMin,closeMin,grace){ return rpc("admin_store_settings_set",{p_open_minute:openMin,p_close_minute:closeMin,p_close_grace_minutes:grace},true); },
     async enforceStoreClose(){ return rpc("system_enforce_store_close"); },
     async listAdmins(){ return rpc("admin_list_admins",{},true); },
+    async listAuthUsers(){ return rpc("admin_list_auth_users",{},true); },
     async grantAdmin(email){ return rpc("admin_grant",{p_email:email},true); },
     async revokeAdmin(userId){ return rpc("admin_revoke",{p_user_id:userId},true); },
     async punch(id,pin){ return rpc("punch",{p_employee_id:id,p_pin:pin,p_device:CONFIG.DEVICE_ID}); },
@@ -1394,9 +1392,8 @@ async function openAccountMgmt(){
   const v=document.getElementById("accountVeil");
   document.getElementById("accountClose").innerHTML=ICON.close;
   document.getElementById("accountClose").onclick=()=>v.classList.remove("show");
-  document.querySelectorAll("[data-account-tab]").forEach(b=>b.onclick=()=>setAccountTab(b.dataset.accountTab));
-  attachNoDoubleTapZoom(v); v.classList.add("show"); setAccountTab("admins");
-  await renderAccountMgmt(); setAccountTab("admins");
+  attachNoDoubleTapZoom(v); v.classList.add("show");
+  await renderAccountMgmt();
 }
 
 /* ---------------------- 계정 관리 (V0 global admin) ---------------------- */
@@ -1406,37 +1403,17 @@ async function renderAccountMgmt(){
   let me=null, admins=[];
   try{
     me=await Auth.getUser();
-    admins=await BE.listAdmins();
+    admins=await BE.listAuthUsers();
   }catch(e){
     box.innerHTML=`<div class="empty">계정 정보 불러오기 실패: ${e.message}</div>`; return;
   }
   const myId = me && me.id;
-  // 세 기능은 탭별 pane으로 분리
-  let html=`<div class="account-pane on" data-account-pane="admins"><div class="row" style="flex-direction:column;align-items:stretch;gap:10px">`;
-  html+=`<div style="font-size:.85rem;color:var(--text-muted)">관리자 계정</div>`;
-  html+=`<div style="display:flex;flex-direction:column;gap:8px">`;
+  let html='<div style="display:flex;flex-direction:column;gap:8px">';
   for(const a of admins){
-    const isMe = a.user_id===myId;
-    html+=`<div style="display:flex;align-items:center;gap:8px">
-      <div style="flex:1;font-size:.9rem">${a.email}${isMe?' <span style="color:var(--brand-700);font-size:.75rem">(나)</span>':''}</div>
-      ${isMe?'':`<button class="btn btn-danger btn-sm" data-revoke="${a.user_id}" data-email="${a.email}">권한 해제</button>`}
-    </div>`;
+    const isMe=a.user_id===myId, role=a.is_admin?"관리자":"일반", em=safeHtml(a.email||"");
+    html+='<div class="row" style="margin:0;padding:10px 12px"><div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">'+em+'</div><span class="badge '+(a.is_admin?"success":"")+'">'+role+(isMe?" · 나":"")+'</span>'+(isMe?"":a.is_admin?'<button class="btn btn-danger btn-sm" data-revoke="'+a.user_id+'" data-email="'+em+'">관리자 해제</button>':'<button class="btn btn-secondary btn-sm" data-promote="'+em+'">관리자 지정</button>')+'</div>';
   }
-  html+=`</div></div>`;
-  // 관리자 권한 부여 (목록/해제와 같은 탭)
-  html+=`<div class="row" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:12px">
-    <div style="font-size:.85rem;color:var(--text-muted)">기존 사용자에게 관리자 권한 부여</div>
-    <div style="font-size:.75rem;color:var(--muted)">이미 로그인 계정이 있는 사용자만 승격됩니다(신규 초대 아님)</div>
-    <input class="form-control" id="grantEmail" placeholder="사용자 이메일" inputmode="email">
-    <button class="btn btn-primary" id="grantBtn">관리자 권한 부여</button>
-  </div></div>`;
-  // 내 이메일 변경
-  html+=`<div class="account-pane" data-account-pane="email"><div class="row" style="flex-direction:column;align-items:stretch;gap:8px">
-    <div style="font-size:.85rem;color:var(--text-muted)">내 로그인 이메일 변경</div>
-    <input class="form-control" id="newEmail" placeholder="새 이메일" inputmode="email">
-    <button class="btn btn-primary" id="emailBtn">이메일 변경 요청</button>
-    <div id="emailMsg" style="font-size:.8rem;color:var(--text-muted)"></div>
-  </div></div>`;
+  html+='</div>';
   box.innerHTML=html;
 
   // 해제
@@ -1449,39 +1426,11 @@ async function renderAccountMgmt(){
       else{ toast("err","해제 실패", r&&r.error==="CANNOT_REMOVE_LAST_ADMIN"?"마지막 관리자는 해제 불가":r&&r.error==="CANNOT_REVOKE_SELF"?"자기 자신은 해제 불가":r&&r.error==="ADMIN_NOT_FOUND"?"이미 관리자가 아님":(r&&r.error||"")); }
     }catch(e){ toast("err","해제 실패",e.message); }
   });
-  // 권한 부여
-  document.getElementById("grantBtn").onclick=async()=>{
-    const em=document.getElementById("grantEmail").value.trim();
-    if(!em){ toast("err","입력 필요","이메일을 입력하세요"); return; }
-    try{
-      const r=await BE.grantAdmin(em);
-      if(r&&r.ok){ toast("in","권한 부여됨",em); renderAccountMgmt(); }
-      else{ toast("err","부여 실패", r&&r.error==="AUTH_USER_NOT_FOUND"?"해당 이메일의 로그인 계정이 없습니다":r&&r.error==="ALREADY_ADMIN"?"이미 관리자입니다":r&&r.error==="AUTH_USER_AMBIGUOUS"?"이메일 중복":(r&&r.error||"")); }
-    }catch(e){ toast("err","부여 실패",e.message); }
-  };
-  // 이메일 변경 (요청 ≠ 완료 구분)
-  document.getElementById("emailBtn").onclick=async()=>{
-    const ne=document.getElementById("newEmail").value.trim();
-    const msg=document.getElementById("emailMsg");
-    if(!ne){ msg.textContent="새 이메일을 입력하세요."; return; }
-    try{
-      await Auth.requestEmailChange(ne);
-      const u=await Auth.getUser();
-      if(u && u.email && u.email.toLowerCase()===ne.toLowerCase()){
-        msg.textContent="이메일이 변경 완료되었습니다.";
-      } else {
-        msg.textContent="변경 요청됨. 새 이메일(또는 기존 이메일)로 온 확인 링크를 눌러야 최종 반영됩니다. 반영 후 재로그인하세요.";
-      }
-    }catch(e){
-      // Supabase 원문 대신 사용자용 한국어. code/raw 소문자 매칭.
-      const raw=((e.authRaw||e.message||"")+"").toLowerCase();
-      const code=((e.authCode||"")+"").toLowerCase();
-      let m="이메일 변경 요청에 실패했습니다.";
-      if(code.includes("rate")||raw.includes("rate limit")) m="이메일 변경 요청을 너무 자주 시도했습니다. 잠시 후 다시 시도해주세요.";
-      else if(code.includes("email")&&code.includes("invalid")||raw.includes("invalid")&&raw.includes("email")||raw.includes("is invalid")) m="올바른 이메일 주소를 입력해주세요.";
-      msg.textContent=m;
-    }
-  };
+  box.querySelectorAll("[data-promote]").forEach(b=>b.onclick=async()=>{
+    const em=b.getAttribute("data-promote"); if(!confirm(em+" 계정을 관리자로 지정할까요?")) return;
+    try{const r=await BE.grantAdmin(em);if(r&&r.ok){toast("in","관리자 지정됨",em);renderAccountMgmt();}else toast("err","지정 실패",r&&r.error||"");}catch(e){toast("err","지정 실패",e.message);}
+  });
+
 }
 
 /* ---------------------- 관리자 화면 ---------------------- */
