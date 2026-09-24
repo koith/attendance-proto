@@ -152,7 +152,8 @@
   .employee-card-primary .employee-card-name,.employee-card-secondary-main,.employee-card-attendance-main,.att-name,.att-info .line1-main,.att-info .line2,.sch-line,.sch-prog-sub{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap}
   .employee-card-primary .employee-card-name,.att-name{flex:1 1 auto}
   .employee-card-primary>.badge-on,.employee-card-primary>.badge-off,.employee-card-primary>.badge,.att-card-head-actions,.employee-card-attendance-duration,.att-info .line1-duration{flex:0 0 auto}
-\n  /* 전체화면 성공 오버레이 */
+
+  /* 전체화면 성공 오버레이 */
   #success{
     position:fixed; inset:0; z-index:60; display:none;
     flex-direction:column; align-items:center; justify-content:center; gap:6px;
@@ -434,7 +435,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.97</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.98</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -454,7 +455,8 @@
   <div class="pad">
     <h3 id="padTitle">비밀번호 입력</h3>
     <div class="who" id="padWho"></div>
-    <div class="dots" id="padDots"></div>\n    <div id="substituteOption" style="display:none;margin:0 0 12px;text-align:left"></div>
+    <div class="dots" id="padDots"></div>
+    <div id="substituteOption" style="display:none;margin:0 0 12px;text-align:left"></div>
     <div class="keys" id="padKeys"></div>
     <button class="cancel" id="padCancel">취소</button>
   </div>
@@ -470,7 +472,8 @@
   </div>
 </div>
 
-<!-- pending requests modal -->\n<div class="modal-veil" id="requestsVeil"><div class="modal account-modal"><button type="button" class="btn-icon modal-x" id="requestsClose" aria-label="닫기"></button><h3>직원 정정 요청</h3><div id="requestsModalList"></div></div></div>
+<!-- pending requests modal -->
+<div class="modal-veil" id="requestsVeil"><div class="modal account-modal"><button type="button" class="btn-icon modal-x" id="requestsClose" aria-label="닫기"></button><h3>직원 정정 요청</h3><div id="requestsModalList"></div></div></div>
 
 <!-- personal settings modal -->
 <div class="modal-veil" id="settingsVeil"><div class="modal"><button type="button" class="btn-icon modal-x" id="settingsClose" aria-label="닫기"></button><h3>설정</h3><div id="personalSettings"></div></div></div>
@@ -511,7 +514,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.97";
+const APP_VERSION="v0.98";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1077,7 +1080,8 @@ async function renderPos(){
         <div class="employee-card-secondary"><span class="employee-card-secondary-main" aria-hidden="true">&nbsp;</span></div>`;
     }
     card.onclick=()=>openPad(e, e.working?"WORKING":"OFF");
-    grid.appendChild(card);\n    applyEmployeeCardFlows(card);
+    grid.appendChild(card);
+    applyEmployeeCardFlows(card);
   }
   // 경과시간 1분마다 갱신 (초 단위 렌더링 안 함)
   clearInterval(_posTimer);
@@ -1138,7 +1142,9 @@ async function submitPad(){
   if(okBtn){ okBtn.disabled=true; okBtn.style.opacity="0.4"; okBtn.textContent="처리 중…"; }
   const pin=padBuf;
   try{
-    let subForId=null;\n    if(padState!=="WORKING"){ const chk=document.getElementById("substituteCheck"); if(chk&&chk.checked){ const sel=document.getElementById("substituteFor"); subForId=Number(sel&&sel.value)||null; if(!subForId){ padBusy=false; if(okBtn){okBtn.disabled=false;okBtn.style.opacity="";okBtn.textContent="출근하기";} toast("err","대타 대상 선택","누구의 대타인지 선택해주세요."); return; } } }\n    const res=await BE.punch(padEmp.id,pin,subForId);
+    let subForId=null;
+    if(padState!=="WORKING"){ const chk=document.getElementById("substituteCheck"); if(chk&&chk.checked){ const sel=document.getElementById("substituteFor"); subForId=Number(sel&&sel.value)||null; if(!subForId){ padBusy=false; if(okBtn){okBtn.disabled=false;okBtn.style.opacity="";okBtn.textContent="출근하기";} toast("err","대타 대상 선택","누구의 대타인지 선택해주세요."); return; } } }
+    const res=await BE.punch(padEmp.id,pin,subForId);
     if(!res||!res.ok){
       const msg={NO_EMPLOYEE:"직원을 찾을 수 없습니다.",BAD_PIN:"비밀번호가 올바르지 않습니다.",TOO_SOON:"방금 처리되었습니다. 잠시 후 다시.",SUBSTITUTE_SELF:"본인은 대타 대상으로 선택할 수 없습니다.",SUBSTITUTE_NOT_ACTIVE:"현재 재직 중인 직원만 대타 대상으로 선택할 수 있습니다."}[res&&res.error]||"처리 실패";
       closePad(); toast("err",(res&&res.error==="BAD_PIN")?"비밀번호 오류":"오류",msg); return;
@@ -1669,7 +1675,8 @@ async function renderAdmin(){
           ${line2?`<div class="line2">${line2}</div>`:''}
           ${progressHtml}
         </div>`;
-      applyEmployeeCardFlows(div);\n      if(LIVE){ const fb=div.querySelector("[data-fix]"); if(fb) fb.onclick=()=>openAdminFix(e, rows); }
+      applyEmployeeCardFlows(div);
+      if(LIVE){ const fb=div.querySelector("[data-fix]"); if(fb) fb.onclick=()=>openAdminFix(e, rows); }
       listEl.appendChild(div);
     }
   }
