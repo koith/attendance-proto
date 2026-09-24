@@ -102,7 +102,9 @@
   .emp .badge-off,.badge-off{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--text-muted);background:var(--surface);white-space:nowrap;cursor:default;user-select:none}
   /* 오늘 근태 카드: column 정렬(이름 고정폭 / 정보 신축 / 상태·버튼 고정). 문구 길이에 카드 안 흔들림.
      향후 WorkSchedule/progress는 .att-info 안(2줄 구조)에 progress bar 행을 추가하는 방향으로 확장. */
-  .att-card{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:0 14px 12px;margin-bottom:10px;overflow:hidden}
+  #adList{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;align-content:start}
+  #adList>.empty{grid-column:1/-1}
+  .att-card{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:0 14px 12px;margin:0;overflow:hidden;min-width:0}
   .att-card.working{border-color:#bfe3cb}
   .att-card-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;background:#e7f1eb;border-bottom:1px solid #d3e4da;margin:0 -14px 8px;padding:9px 8px 8px 14px}
   .att-card-title{min-width:0;display:flex;align-items:baseline;gap:3px}
@@ -116,7 +118,7 @@
   .att-info .line1{font-size:.88rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .att-info .line2{font-size:.82rem;color:var(--text-muted);margin-top:2px}
   .att-info .line1 b{font-weight:700}
-  @media(max-width:430px){.att-card{padding-left:10px;padding-right:10px}.att-card-head{margin-left:-10px;margin-right:-10px;padding-left:10px}.att-name{font-size:1rem}.att-card-head-actions{gap:4px}.att-edit-icon{width:28px;height:28px;flex-basis:28px}}
+  @media(max-width:430px){#adList{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.att-card{padding-left:10px;padding-right:10px}.att-card-head{margin-left:-10px;margin-right:-10px;padding-left:10px}.att-name{font-size:1rem}.att-card-head-actions{gap:4px}.att-edit-icon{width:28px;height:28px;flex-basis:28px}}
   /* WorkSchedule 층 */
   .sch-line{font-size:.8rem; color:var(--brand-700); margin-bottom:2px;}
   .sch-line.sch-none{color:var(--muted);}
