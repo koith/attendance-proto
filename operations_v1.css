@@ -50,3 +50,9 @@
 .ops-menu-chart .ops-legend i.s0{background:#2f7d50}.ops-menu-chart .ops-legend i.s1{background:#278c87}.ops-menu-chart .ops-legend i.s2{background:#4f78a8}.ops-menu-chart .ops-legend i.s3{background:#7669a8}.ops-menu-chart .ops-legend i.s4{background:#c17a43}.ops-menu-chart .ops-legend i.s5{background:#a38a38}.ops-menu-chart .ops-legend i.s6{background:#b8667b}.ops-menu-chart .ops-legend i.s7{background:#647b86}
 .ops-menu-chart:has([data-series]:hover) [data-series],.ops-menu-chart:has([data-series]:focus) [data-series]{opacity:.2}
 .ops-menu-chart:has(circle.s0:hover) .s0,.ops-menu-chart:has(circle.s0:focus) .s0,.ops-menu-chart:has(circle.s1:hover) .s1,.ops-menu-chart:has(circle.s1:focus) .s1,.ops-menu-chart:has(circle.s2:hover) .s2,.ops-menu-chart:has(circle.s2:focus) .s2,.ops-menu-chart:has(circle.s3:hover) .s3,.ops-menu-chart:has(circle.s3:focus) .s3,.ops-menu-chart:has(circle.s4:hover) .s4,.ops-menu-chart:has(circle.s4:focus) .s4,.ops-menu-chart:has(circle.s5:hover) .s5,.ops-menu-chart:has(circle.s5:focus) .s5,.ops-menu-chart:has(circle.s6:hover) .s6,.ops-menu-chart:has(circle.s6:focus) .s6,.ops-menu-chart:has(circle.s7:hover) .s7,.ops-menu-chart:has(circle.s7:focus) .s7{opacity:1}
+
+/* V75 chart refinement: lighter menu series + date/time alignment guides. */
+.ops-chart svg .ops-chart-vguide{stroke:var(--border);stroke-width:.75;opacity:.55;stroke-dasharray:2 3;vector-effect:non-scaling-stroke}
+.ops-menu-chart svg polyline{stroke-width:1.6;vector-effect:non-scaling-stroke}
+.ops-menu-chart svg circle{stroke-width:1.35;vector-effect:non-scaling-stroke}
+@media(max-width:430px){.ops-menu-chart svg polyline{stroke-width:1.45}.ops-menu-chart svg circle{stroke-width:1.2}}
