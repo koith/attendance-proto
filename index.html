@@ -57,7 +57,7 @@
   .clock{font-variant-numeric:tabular-nums; font-size:1rem; color:rgba(255,255,255,.9); letter-spacing:.01em;}
   .tabwrap{ background:var(--bg); border-bottom:1px solid var(--line); }
   .tabs{display:flex; gap:6px; width:100%; min-width:0; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch;} .tabs::-webkit-scrollbar{display:none;}
-  #substitutionEntryV1{margin-left:auto; flex:0 0 auto;}
+
   .tabs a{
     font-size:.82rem; color:var(--sub); text-decoration:none;
     padding:7px 12px; border-radius:999px; border:1px solid var(--line); flex:0 0 auto; white-space:nowrap;
@@ -424,7 +424,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.94</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.95</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -444,7 +444,7 @@
   <div class="pad">
     <h3 id="padTitle">비밀번호 입력</h3>
     <div class="who" id="padWho"></div>
-    <div class="dots" id="padDots"></div>
+    <div class="dots" id="padDots"></div>\n    <div id="substituteOption" style="display:none;margin:0 0 12px;text-align:left"></div>
     <div class="keys" id="padKeys"></div>
     <button class="cancel" id="padCancel">취소</button>
   </div>
@@ -501,7 +501,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.94";
+const APP_VERSION="v0.95";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -666,7 +666,7 @@ const LocalBE = (()=>{
       // 근무중 먼저, 그다음 이름순
       return list.sort((a,b)=> (b.working?1:0)-(a.working?1:0) || a.name.localeCompare(b.name,"ko"));
     },
-    async punch(id,pin){ const s=load(); const e=s.emps.find(x=>x.id===id&&x.active);
+    async punch(id,pin,subForId=null){ const s=load(); const e=s.emps.find(x=>x.id===id&&x.active);
       if(!e) return {ok:false,error:"NO_EMPLOYEE"};
       if(!await pinMatches(pin,e.pin_hash)) return {ok:false,error:"BAD_PIN"};
       const last=s.events.filter(x=>x.employee_id===id).sort((a,b)=>a.event_at<b.event_at?1:-1)[0];
@@ -675,7 +675,7 @@ const LocalBE = (()=>{
       const type=(last&&last.event_type==="IN")?"OUT":"IN";
       const iso_now=iso(now);
       s.events.push({id:s.seq++,employee_id:id,event_type:type,event_at:iso_now,server_received_at:iso_now,device_id:CONFIG.DEVICE_ID}); save(s);
-      return {ok:true,type,at:iso_now,name:e.name}; },
+      return {ok:true,type,at:iso_now,name:e.name,substitute_for_employee_id:type==="IN"?subForId:null}; },
     async rangeEvents(fromStr,toStr){ const s=load();
       return s.events.filter(x=>x.event_at>=fromStr && x.event_at<toStr); },
   };
@@ -775,7 +775,7 @@ const SupaBE = (()=>{
     async listAuthUsers(){ return rpc("admin_list_auth_users",{},true); },
     async grantAdmin(email){ return rpc("admin_grant",{p_email:email},true); },
     async revokeAdmin(userId){ return rpc("admin_revoke",{p_user_id:userId},true); },
-    async punch(id,pin){ return rpc("punch",{p_employee_id:id,p_pin:pin,p_device:CONFIG.DEVICE_ID}); },
+    async punch(id,pin,subForId=null){ return rpc("punch",{p_employee_id:id,p_pin:pin,p_device:CONFIG.DEVICE_ID,p_substitute_for_employee_id:subForId||null}); },
     // --- 관리자 (authenticated) ---
     async allEmployees(){ return rpc("admin_list_all_employees",{},true); },
     async createEmployee(name,pin){ return rpc("admin_create_employee",{p_name:name.trim(),p_pin:pin},true); },
@@ -1081,7 +1081,7 @@ async function renderPos(){
 
 /* ---------------------- PIN 패드 ---------------------- */
 const padVeil=document.getElementById("padVeil");
-let padBuf="", padEmp=null, padState=null, padBusy=false;
+let padBuf="", padEmp=null, padState=null, padBusy=false, padRoster=[];
 function openPad(emp,state){
   padEmp=emp; padState=state; padBuf="";
   const isOut = state==="WORKING";
@@ -1116,9 +1116,9 @@ async function submitPad(){
   if(okBtn){ okBtn.disabled=true; okBtn.style.opacity="0.4"; okBtn.textContent="처리 중…"; }
   const pin=padBuf;
   try{
-    const res=await BE.punch(padEmp.id,pin);
+    let subForId=null;\n    if(padState!=="WORKING"){ const chk=document.getElementById("substituteCheck"); if(chk&&chk.checked){ const sel=document.getElementById("substituteFor"); subForId=Number(sel&&sel.value)||null; if(!subForId){ padBusy=false; if(okBtn){okBtn.disabled=false;okBtn.style.opacity="";okBtn.textContent="출근하기";} toast("err","대타 대상 선택","누구의 대타인지 선택해주세요."); return; } } }\n    const res=await BE.punch(padEmp.id,pin,subForId);
     if(!res||!res.ok){
-      const msg={NO_EMPLOYEE:"직원을 찾을 수 없습니다.",BAD_PIN:"비밀번호가 올바르지 않습니다.",TOO_SOON:"방금 처리되었습니다. 잠시 후 다시."}[res&&res.error]||"처리 실패";
+      const msg={NO_EMPLOYEE:"직원을 찾을 수 없습니다.",BAD_PIN:"비밀번호가 올바르지 않습니다.",TOO_SOON:"방금 처리되었습니다. 잠시 후 다시.",SUBSTITUTE_SELF:"본인은 대타 대상으로 선택할 수 없습니다.",SUBSTITUTE_NOT_ACTIVE:"현재 재직 중인 직원만 대타 대상으로 선택할 수 있습니다."}[res&&res.error]||"처리 실패";
       closePad(); toast("err",(res&&res.error==="BAD_PIN")?"비밀번호 오류":"오류",msg); return;
     }
     closePad();
@@ -1141,7 +1141,7 @@ function showSuccess(type, name, now, res){
   document.getElementById("successName").textContent = name;
   document.getElementById("successTime").textContent = hhmm(now);
   const msgEl=document.getElementById("successMsg");
-  msgEl.textContent = isIn ? "오늘도 좋은 하루 되세요" : "수고하셨습니다";
+  msgEl.textContent = isIn ? (res&&res.substitute_for_name?`${res.substitute_for_name}님 대타 근무로 기록되었습니다`:"오늘도 좋은 하루 되세요") : "수고하셨습니다";
   el.classList.add("show");
   clearTimeout(_successTimer);
   _successTimer=setTimeout(()=>el.classList.remove("show"), 2000);
