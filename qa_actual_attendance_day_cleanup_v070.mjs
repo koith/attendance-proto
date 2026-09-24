@@ -5,3 +5,4 @@ assert(main.includes('class="att-edit-icon" data-fix="${e.id}"'),'admin attendan
 assert(main.includes('aria-label="${safeHtml(e.name)} 근태 수정"'),'edit icon must retain accessible label');
 assert(!main.includes('data-fix="${e.id}">수정</button>'),'text edit button must be removed from today attendance cards');
 assert(main.includes('att-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small>'),'admin attendance card must match name/No hierarchy');
+assert(main.includes('class="payroll-total-value" style="width:100%;text-align:center;'),'payroll total amount must be centered');
