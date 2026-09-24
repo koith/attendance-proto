@@ -285,11 +285,11 @@
   .payroll-list-title{margin:0 0 8px 2px;font-size:.86rem;font-weight:700;color:var(--text)}
   .payroll-month-field{margin-bottom:12px}
   .payroll-employee-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-content:start}
-  .payroll-employee-card{height:74px;min-height:74px;max-height:74px;box-sizing:border-box;min-width:0}
+  .payroll-employee-card{height:88px;min-height:88px;max-height:88px;box-sizing:border-box;min-width:0;border-radius:var(--r);padding:14px 16px!important;justify-content:center}
   .payroll-employee-card .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .payroll-employee-card>div:first-child{min-width:0}
   .payroll-employee-card .payroll-gross-value{white-space:nowrap}
-  @media(max-width:430px){.payroll-employee-grid{gap:7px}.payroll-employee-card{padding-left:10px!important;padding-right:10px!important}}
+  @media(max-width:430px){.payroll-employee-grid{gap:8px}.payroll-employee-card{padding:12px 10px!important}}
   .payroll-employee-payline{min-height:1.56rem;display:flex;align-items:baseline;gap:5px}
   .payroll-sheet-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:10px}
   .payroll-sheet-actions .btn{width:100%;margin:0}
@@ -355,7 +355,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.8</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.9</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -417,7 +417,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.69.8";
+const APP_VERSION="v0.69.9";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1966,7 +1966,7 @@ async function drawPay(ym){
     const eName=rec.employee_name;
     const card=document.createElement("div");
     card.className="row payroll-employee-card";
-    card.style.cssText="flex-direction:column;align-items:stretch;gap:6px;padding:10px 14px";
+    card.style.cssText="flex-direction:column;align-items:stretch;gap:4px";
     card.innerHTML=`
       <div style="display:flex;align-items:center;gap:7px;min-width:0">
         <div class="nm" style="flex:0 1 auto;font-size:.98rem;font-weight:700;color:var(--ink)">${safeHtml(eName)}</div>
