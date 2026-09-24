@@ -5,5 +5,6 @@ const m=html.match(/const APP_VERSION="(v\d+)";/);
 assert(m,'APP_VERSION constant required');
 assert(html.includes('id="appVersion"'),'visible app version badge required');
 assert(html.includes('document.getElementById("appVersion").textContent=APP_VERSION'),'badge must bind to APP_VERSION');
-assert(html.includes('>'+m[1]+'</div>'),'static badge must match APP_VERSION for pre-script visibility');
+assert(new RegExp('id="appVersion">'+m[1]+'<\\/span>').test(html),'static badge must match APP_VERSION beside store location');
+assert(html.includes('.app-version-badge{display:inline-block;margin-left:10px'),'version badge spacing contract required');
 console.log('app version badge QA: PASS',m[1]);
