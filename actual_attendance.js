@@ -19,7 +19,7 @@ const S={ym:'',employees:[],sessions:[],selectedDay:null};
 function sessionAnchor(s){return s.in||s.out}
 function sessionsForDay(day){return S.sessions.filter(s=>{const a=sessionAnchor(s);return a&&dayKey(a)===day})}
 function isIssue(s,day){if(s.status==='INCOMPLETE'||s.status==='ORPHAN_OUT')return true;if(s.status==='WORKING'&&day!==dayKey(kstToday()))return true;if(s.status==='COMPLETE'&&s.sec>16*3600)return true;return false}
-async function loadMonth(){const app=el('app');app.innerHTML='<div class="loading">실근무 기록 불러오는 중…</div>';const {first,next}=monthBounds(S.ym);el('monthLabel').textContent=S.ym.replace('-','년 ')+'월';try{const employees=await rpc('admin_list_employees');const data=await rpc('admin_events_with_corrections',{p_from:addDays(first,-7)+'T00:00:00',p_to:addDays(next,7)+'T00:00:00'});S.employees=(employees||[]).filter(e=>e.is_active!==false&&e.active!==false).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko-KR'));S.sessions=pairEvents(applyCorrections(data?.events||[],data?.corrections||[]));renderMonth()}catch(e){console.error('[actual-attendance]',e);const msg=String(e?.message||e);if(/401|JWT|NOT_AUTHORIZED/i.test(msg)){app.innerHTML='<div class="empty">관리자 세션을 다시 확인해주세요.<br><button id="retry">다시 시도</button></div>'}else{app.innerHTML=`<div class="empty">실근무 현황을 불러오지 못했습니다.<br><span style="font-size:.72rem;color:var(--text-muted)">${escapeHtml(msg.slice(0,160))}</span><br><button id="retry">다시 시도</button></div>`}el('retry').onclick=loadMonth}}
+async function loadMonth(){const app=el('app');app.innerHTML='<div class="loading">실근무 기록 불러오는 중…</div>';const {first,next}=monthBounds(S.ym);el('monthLabel').textContent=S.ym.replace('-','년 ')+'월';try{let employees=[];try{employees=await rpc('admin_list_all_employees')}catch(_){employees=await rpc('admin_list_employees')}const data=await rpc('admin_events_with_corrections',{p_from:addDays(first,-7)+'T00:00:00',p_to:addDays(next,7)+'T00:00:00'});S.employees=(employees||[]).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko-KR'));S.sessions=pairEvents(applyCorrections(data?.events||[],data?.corrections||[]));renderMonth()}catch(e){console.error('[actual-attendance]',e);const msg=String(e?.message||e);if(/401|JWT|NOT_AUTHORIZED/i.test(msg)){app.innerHTML='<div class="empty">관리자 세션을 다시 확인해주세요.<br><button id="retry">다시 시도</button></div>'}else{app.innerHTML=`<div class="empty">실근무 현황을 불러오지 못했습니다.<br><span style="font-size:.72rem;color:var(--text-muted)">${escapeHtml(msg.slice(0,160))}</span><br><button id="retry">다시 시도</button></div>`}el('retry').onclick=loadMonth}}
 function renderMonth(){
   S.selectedDay=null;
   const [y,m]=S.ym.split('-').map(Number),days=new Date(y,m,0).getDate(),offset=new Date(y,m-1,1).getDay(),today=dayKey(kstToday());
@@ -30,7 +30,7 @@ function renderMonth(){
     const hasComplete=ss.some(x=>x.status==='COMPLETE'&&!isIssue(x,day));
     const hasWorking=ss.some(x=>x.status==='WORKING'&&!isIssue(x,day));
     const employeeIds=[...new Set(ss.map(x=>Number(x.employee_id)))];
-    const names=employeeIds.map(id=>S.employees.find(e=>Number(e.id)===id)?.name||`#${id}`);
+    const names=employeeIds.map(id=>S.employees.find(e=>Number(e.id)===id)?.name||'직원 정보 없음');
     const shown=names.slice(0,2),more=Math.max(0,names.length-shown.length);
     const lines=shown.map(n=>`<div class="line"><b>${escapeHtml(n)}</b></div>`).join('')+(more?`<div class="more">+${more}명</div>`:'');
     html+=`<button class="day${day===today?' today':''}${issues.length?' issue':''}" data-day="${day}"><span class="num">${d}</span>${lines?`<div class="lines">${lines}</div>`:''}<span class="day-dots">${hasComplete?'<i class="status-dot calendar-normal" aria-label="근무 완료"></i>':''}${hasWorking?'<i class="status-dot calendar-working" aria-label="현재 근무 중"></i>':''}${issues.length?'<i class="status-dot calendar-issue" aria-label="확인 필요"></i>':''}</span></button>`;
@@ -40,7 +40,37 @@ function renderMonth(){
   document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>renderDay(b.dataset.day));
 }
 function toAxisHour(d,day){const [y,m,da]=day.split('-').map(Number),base=new Date(y,m-1,da,0,0,0);return (d-base)/3600000}
-function renderDay(day){S.selectedDay=day;const ss=sessionsForDay(day),byEmp=new Map();for(const s of ss){if(!byEmp.has(s.employee_id))byEmp.set(s.employee_id,[]);byEmp.get(s.employee_id).push(s)}const entries=[...byEmp.entries()].sort((a,b)=>{const ea=S.employees.find(x=>Number(x.id)===Number(a[0])),eb=S.employees.find(x=>Number(x.id)===Number(b[0]));return String(ea?.name||'').localeCompare(String(eb?.name||''),'ko-KR')});const labels=[7,10,13,16,19,22,25].map(h=>`<span>${h}:00</span>`).join('');let rows='';for(const [empId,list] of entries){const emp=S.employees.find(x=>Number(x.id)===Number(empId));let bars='';for(const s of list){const start=s.in||s.out,end=s.out||(day===dayKey(kstToday())?kstToday():new Date(...day.split('-').map((v,i)=>i===1?+v-1:+v),1,0,0));let a=toAxisHour(start,day),b=s.out?toAxisHour(end,day):(day===dayKey(kstToday())?toAxisHour(end,day):25);if(s.status==='ORPHAN_OUT')a=Math.max(7,b-.25);const left=Math.max(0,Math.min(100,(a-7)/18*100)),right=Math.max(left+.5,Math.min(100,(b-7)/18*100)),width=Math.max(.6,right-left),issue=isIssue(s,day);bars+=`<div class="bar${s.status==='WORKING'?' open':''}${issue?' issue':''}${s.corrected?' corrected':''}" style="left:${left}%;width:${width}%"><span class="bar-label">${s.status==='WORKING'?hm(s.in)+'–진행':s.status==='ORPHAN_OUT'?'퇴근 '+hm(s.out):hm(s.in)+'–'+hm(s.out)}</span></div>`}rows+=`<div class="person-row"><div class="person">${escapeHtml(emp?.name||`#${empId}`)}</div><div class="track">${bars}</div></div>`}let detail='';for(const s of ss){const emp=S.employees.find(x=>Number(x.id)===Number(s.employee_id)),issue=isIssue(s,day),label=s.status==='COMPLETE'?`${hm(s.in)}–${hm(s.out)} · ${dur(s.sec)}`:s.status==='WORKING'?`${hm(s.in)}–진행 중`:s.status==='INCOMPLETE'?`${hm(s.in)}–퇴근 누락`:`출근 누락–${hm(s.out)}`;detail+=`<div class="session"><div><b>${escapeHtml(emp?.name||'')}</b><div class="meta">${label}</div></div><div>${s.corrected?'<span class="pill">정정</span> ':''}${issue?'<span class="pill warn">확인 필요</span>':''}</div></div>`}el('app').innerHTML=`<section class="dayview"><div class="dayhead"><button id="backMonth">‹ 월간</button><div class="date">${day}</div><button id="todayBtn">오늘</button></div><div class="axis-wrap"><div class="axis"><div class="axis-labels">${labels}</div>${rows||'<div class="empty">이 날의 실제 출퇴근 기록이 없습니다.</div>'}</div></div><div class="sessions">${detail}</div></section>`;el('backMonth').onclick=renderMonth;el('todayBtn').onclick=()=>{const t=dayKey(kstToday()),ym=t.slice(0,7);if(ym!==S.ym){S.ym=ym;loadMonth().then(()=>renderDay(t))}else renderDay(t)}}
+function renderDay(day){
+  S.selectedDay=day;
+  const ss=sessionsForDay(day),byEmp=new Map();
+  for(const s of ss){if(!byEmp.has(s.employee_id))byEmp.set(s.employee_id,[]);byEmp.get(s.employee_id).push(s)}
+  const entries=[...byEmp.entries()].sort((a,b)=>{
+    const ea=S.employees.find(x=>Number(x.id)===Number(a[0])),eb=S.employees.find(x=>Number(x.id)===Number(b[0]));
+    return String(ea?.name||'').localeCompare(String(eb?.name||''),'ko-KR')
+  });
+  const labels=[0,4,8,12,16,20,24].map(h=>`<span>${p2(h)}:00</span>`).join('');
+  let rows='';
+  for(const [empId,list] of entries){
+    const emp=S.employees.find(x=>Number(x.id)===Number(empId));let bars='';
+    for(const s of list){
+      const start=s.in||s.out,end=s.out||(day===dayKey(kstToday())?kstToday():new Date(...day.split('-').map((v,i)=>i===1?+v-1:+v),1,0,0));
+      let a=toAxisHour(start,day),b=s.out?toAxisHour(end,day):(day===dayKey(kstToday())?toAxisHour(end,day):24);
+      if(s.status==='ORPHAN_OUT')a=Math.max(0,b-.25);
+      const left=Math.max(0,Math.min(100,a/24*100)),right=Math.max(left+.5,Math.min(100,b/24*100)),width=Math.max(.6,right-left),issue=isIssue(s,day);
+      bars+=`<div class="bar${s.status==='WORKING'?' open':''}${issue?' issue':''}${s.corrected?' corrected':''}" style="left:${left}%;width:${width}%"><span class="bar-label">${s.status==='WORKING'?hm(s.in)+'–진행':s.status==='ORPHAN_OUT'?'퇴근 '+hm(s.out):hm(s.in)+'–'+hm(s.out)}</span></div>`
+    }
+    rows+=`<div class="person-row"><div class="person">${escapeHtml(emp?.name||'직원 정보 없음')}</div><div class="track">${bars}</div></div>`
+  }
+  let detail='';
+  for(const s of ss){
+    const emp=S.employees.find(x=>Number(x.id)===Number(s.employee_id)),issue=isIssue(s,day),
+      label=s.status==='COMPLETE'?`${hm(s.in)}–${hm(s.out)} · ${dur(s.sec)}`:s.status==='WORKING'?`${hm(s.in)}–진행 중`:s.status==='INCOMPLETE'?`${hm(s.in)}–퇴근 누락`:`출근 누락–${hm(s.out)}`;
+    detail+=`<div class="session"><div><b>${escapeHtml(emp?.name||'직원 정보 없음')}</b><div class="meta">${label}</div></div><div>${s.corrected?'<span class="pill">정정</span> ':''}${issue?'<span class="pill warn">확인 필요</span>':''}</div></div>`
+  }
+  el('app').innerHTML=`<section class="dayview"><div class="dayhead"><button id="backMonth">‹ 월간</button><div class="date">${day}</div><button id="todayBtn">오늘</button></div><div class="axis-wrap"><div class="axis"><div class="axis-labels">${labels}</div>${rows||'<div class="empty">이 날의 실제 출퇴근 기록이 없습니다.</div>'}</div></div><section class="records-group"><h3>근무 기록 및 정정</h3><div class="sessions">${detail}</div><p class="records-note">정정은 원본 출퇴근 기록을 변경하지 않고 정정 이력을 추가합니다.</p></section></section>`;
+  el('backMonth').onclick=renderMonth;
+  el('todayBtn').onclick=()=>{const t=dayKey(kstToday()),ym=t.slice(0,7);if(ym!==S.ym){S.ym=ym;loadMonth().then(()=>renderDay(t))}else renderDay(t)}
+}
 function init(){Auth.load();if(!Auth.token&&!Auth.session?.refresh_token){location.href='index.html#admin';return}const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;el('back').onclick=()=>location.href='index.html#admin';el('prevMonth').onclick=()=>{S.ym=monthShift(S.ym,-1);loadMonth()};el('nextMonth').onclick=()=>{S.ym=monthShift(S.ym,1);loadMonth()};el('monthLabel').onclick=()=>{const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;loadMonth()};loadMonth()}
 init();
 
@@ -133,11 +163,6 @@ init();
       row.querySelectorAll('.bar-label').forEach((label,i)=>{if(list[i])label.textContent=sliceTimeLabel(list[i]).replace(' 중','')});
     });
 
-    if(ss.some(s=>s.sliceDerived)){
-      const note=document.createElement('div');note.className='day-slice-note';
-      note.textContent='자정을 넘긴 근무는 날짜별로 나누어 표시합니다. 정정 시 원본 출퇴근 시각을 수정합니다.';
-      document.querySelector('.sessions')?.prepend(note);
-    }
   };
 
   window.actualAttendanceSourceSession=s=>s?({...s,in:s.sourceIn??s.in,out:s.sourceOut??s.out,sec:s.sourceSec??s.sec}):s;

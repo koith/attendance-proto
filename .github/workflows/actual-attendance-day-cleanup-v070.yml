@@ -1,0 +1,17 @@
+name: actual-attendance-day-cleanup-v070
+on:
+  pull_request:
+    paths:
+      - 'actual_attendance.js'
+      - 'actual_attendance.css'
+      - 'actual_attendance.html'
+      - 'index.html'
+      - 'qa_actual_attendance_day_cleanup_v070.mjs'
+  push:
+    branches: [main]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node qa_actual_attendance_day_cleanup_v070.mjs
