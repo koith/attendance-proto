@@ -9,4 +9,5 @@ assert(html.includes('<span class="employee-card-id">No. ${safeHtml(e.id)}</span
 assert(html.includes('<span class="employee-card-name">${safeHtml(eName)}</span>'),'payroll primary row must use shared hierarchy');
 assert(html.includes('<span class="employee-card-pay">'),'payroll amount must occupy POS-badge-equivalent position');
 assert(html.includes('<span class="employee-card-id">No. ${safeHtml(e.id)}</span> · ${fmtHM(sec)} 근무'),'payroll secondary row must mirror POS metadata order');
+assert(html.includes('.payroll-sync-time,.payroll-invite-wrap{min-height:24px;display:flex;align-items:center;justify-content:center}'),'sheet helper rows must share identical vertical alignment');
 console.log('employee card layout unify v0.69.11: PASS');
