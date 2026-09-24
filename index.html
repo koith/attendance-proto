@@ -400,7 +400,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.78</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.79</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -462,7 +462,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.78";
+const APP_VERSION="v0.79";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1984,12 +1984,15 @@ async function computeMonthPayroll(ym){
   return {active:payrollEmployees, events, weeks, overrides, rows, totalNet, totalGross};
 }
 
+let PAYROLL_DRAW_SEQ=0;
 async function drawPay(ym){
+  const drawSeq=++PAYROLL_DRAW_SEQ;
   const el=document.getElementById("payList");
   el.innerHTML=`<div class="empty">계산 중…</div>`;
   let R;
   try{ R=await computeMonthPayroll(ym); }
-  catch(e){ el.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
+  catch(e){ if(drawSeq===PAYROLL_DRAW_SEQ) el.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
+  if(drawSeq!==PAYROLL_DRAW_SEQ || !el.isConnected) return;
   const active=R.active, weeks=R.weeks, overrides=R.overrides;
   if(!active.length){ el.innerHTML=`<div class="empty">등록된 급여 대상 직원이 없습니다.</div>`; return; }
   const wi=document.getElementById("payWeeks"); if(wi && R.weeks) wi.value=R.weeks;
@@ -2046,8 +2049,11 @@ async function drawPay(ym){
   let snapStatus="OPEN", snapFp=null;
   if(LIVE){
     try{ const snap=await BE.snapshot(ym); snapStatus=snap.status; snapFp=snap.fingerprint; }catch(e){}
+    if(drawSeq!==PAYROLL_DRAW_SEQ || !el.isConnected) return;
   }
+  el.querySelectorAll(".payroll-action-block").forEach(n=>n.remove());
   const box=document.createElement("div");
+  box.className="payroll-action-block";
   box.style.marginTop="16px";
   if(!LIVE){
     box.innerHTML=`<div style="font-size:.8rem;color:var(--muted);text-align:center">마감·엑셀 출력은 클라우드 연결 시 사용 가능합니다.</div>`;
@@ -2089,6 +2095,7 @@ async function drawPay(ym){
       veil.addEventListener("click",e=>{if(e.target===veil)close()});
     };
     const gbox=document.createElement("div");
+    gbox.className="payroll-action-block";
     gbox.innerHTML=`<div class="payroll-sheet-actions"><button class="btn btn-secondary" id="btnSyncSheet">지금 갱신</button><button class="btn btn-secondary" id="btnOpenSheet">구글시트 열기</button></div>
       <div class="payroll-sheet-meta"><div id="syncMsg" class="payroll-sync-time">갱신 시각 확인 중</div><div class="payroll-invite-wrap"><button type="button" class="payroll-invite-help" id="btnOwnerInviteHelp">점주 초대 방법</button></div></div>`;
     el.appendChild(gbox);
