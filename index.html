@@ -346,8 +346,8 @@
   .employee-tabs button{min-height:42px;border:0;background:transparent;color:var(--text-muted);font-weight:700;font-size:.86rem}
   .employee-tabs button.on{background:var(--brand-050);color:var(--brand-700);box-shadow:inset 0 -2px 0 var(--brand-700)}
   .employee-list-mask{height:300px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-  .employee-list-mask{padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;align-content:start}
-  .employee-list-mask .employee-manage-card{position:relative;min-width:0;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);overflow:hidden}
+  .employee-list-mask{padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));grid-auto-rows:max-content;gap:8px;align-content:start}
+  .employee-list-mask .employee-manage-card{position:relative;min-width:0;height:auto;min-height:0;align-self:start;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);overflow:hidden}
   .employee-manage-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;background:#e7f1eb;border-bottom:1px solid #d3e4da;padding:9px 10px}
   .employee-manage-name{min-width:0;font-size:1rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .employee-manage-name small{font-size:.68rem;font-weight:600;color:var(--muted);margin-left:3px}
@@ -356,7 +356,7 @@
   .employee-manage-body .btn{min-width:0}
   .employee-manage-card .contract-btn{height:30px;padding:0 9px;font-size:.78rem}
   .employee-manage-card .retire-mini{height:30px;padding:0 9px;font-size:.78rem}
-  @media(max-width:430px){.employee-list-mask{grid-template-columns:repeat(2,minmax(0,1fr));padding:8px;gap:8px}.employee-manage-head{padding:8px}.employee-manage-name{font-size:.92rem}.employee-manage-body{padding:8px;gap:6px}.employee-manage-card .contract-btn,.employee-manage-card .retire-mini{height:28px;padding:0 7px;font-size:.72rem}}
+  @media(max-width:430px){.employee-list-mask{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:max-content;padding:8px;gap:8px}.employee-list-mask .employee-manage-card{height:auto!important;min-height:68px!important;max-height:none!important}.employee-manage-head{padding:8px}.employee-manage-name{font-size:.92rem}.employee-manage-body{padding:8px;gap:6px}.employee-manage-card .contract-btn,.employee-manage-card .retire-mini{height:28px;padding:0 7px;font-size:.72rem}}
   .employee-empty{min-height:160px;display:flex;align-items:center;justify-content:center;padding:24px;color:var(--text-muted);font-size:.88rem;text-align:center}
   @media(max-width:430px){.employee-list-mask{height:270px}}
   .app-version-badge{display:inline-block;margin-left:10px;font-size:.68rem;font-weight:700;letter-spacing:.02em;color:rgba(255,255,255,.56);pointer-events:none;user-select:none;vertical-align:baseline}
@@ -395,7 +395,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.73</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.74</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -457,7 +457,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.73";
+const APP_VERSION="v0.74";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
