@@ -280,6 +280,18 @@
   .payroll-month-field{margin-bottom:12px}
   .payroll-employee-card{height:74px;min-height:74px;max-height:74px;box-sizing:border-box}
   .payroll-employee-payline{min-height:1.56rem;display:flex;align-items:baseline;gap:5px}
+  .payroll-sheet-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:10px}
+  .payroll-sheet-actions .btn{width:100%;margin:0}
+  .payroll-sheet-meta{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:6px;align-items:start}
+  .payroll-sync-time{font-size:.78rem;color:var(--muted);text-align:center;min-height:20px}
+  .payroll-invite-wrap{text-align:center;min-height:20px}
+  .payroll-invite-help{border:0;background:transparent;color:var(--text-muted);font-size:.72rem;padding:2px 6px;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+  .payroll-info-veil{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:18px}
+  .payroll-info-card{width:min(420px,100%);background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 18px 60px rgba(0,0,0,.18)}
+  .payroll-info-card h3{margin:0 0 10px;font-size:1rem}
+  .payroll-info-card p{margin:0;color:var(--text-muted);font-size:.84rem;line-height:1.65}
+  .payroll-info-card .btn{width:100%;margin-top:14px}
+  @media(max-width:430px){.payroll-sheet-actions,.payroll-sheet-meta{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
   .month-wrap input[type=month]{
     flex:1; width:auto; min-width:0; height:100%;
     border:none; background:transparent; padding:0; font-size:1rem; color:var(--text);
@@ -332,7 +344,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.6</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.7</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -394,7 +406,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.69.6";
+const APP_VERSION="v0.69.7";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1995,15 +2007,24 @@ async function drawPay(ym){
   }
   el.appendChild(box);
 
-  // M8.7: 구글시트 갱신 버튼 (LIVE 전용)
+  // M8.7: 구글시트 갱신 / 열기 (LIVE 전용)
   if(LIVE){
-    const gbox=document.createElement("div"); gbox.style.marginTop="10px";
-    gbox.innerHTML=`<button class="btn btn-secondary btn-block" id="btnSyncSheet">지금 갱신</button>
-      <div id="syncMsg" style="font-size:.78rem;color:var(--muted);text-align:center;margin-top:6px">자동 갱신 사용 중 · 마지막 갱신 확인 중</div>
-      <button class="btn btn-secondary btn-block" id="btnOpenSheet" style="margin-top:8px">구글시트 열기</button>
-      <div style="font-size:.72rem;color:var(--muted);text-align:center;margin-top:6px">점주 초대: 시트 열기 → 우측 상단 '공유' → 이메일을 '뷰어'로 추가</div>`;
+    const formatSyncStamp=d=>d.toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:true}).replace(/\. /g,".").replace(",","");
+    const showOwnerInviteHelp=()=>{
+      const veil=document.createElement("div");
+      veil.className="payroll-info-veil";
+      veil.innerHTML=`<div class="payroll-info-card" role="dialog" aria-modal="true" aria-labelledby="ownerInviteHelpTitle"><h3 id="ownerInviteHelpTitle">점주 초대 방법</h3><p>구글시트를 연 뒤 우측 상단 <b>공유</b>를 누르고, 점주 이메일 주소를 입력한 다음 권한을 <b>뷰어</b>로 선택해 초대하면 됩니다.</p><button class="btn btn-primary" id="ownerInviteHelpClose">확인</button></div>`;
+      document.body.appendChild(veil);
+      const close=()=>veil.remove();
+      veil.querySelector("#ownerInviteHelpClose").onclick=close;
+      veil.addEventListener("click",e=>{if(e.target===veil)close()});
+    };
+    const gbox=document.createElement("div");
+    gbox.innerHTML=`<div class="payroll-sheet-actions"><button class="btn btn-secondary" id="btnSyncSheet">지금 갱신</button><button class="btn btn-secondary" id="btnOpenSheet">구글시트 열기</button></div>
+      <div class="payroll-sheet-meta"><div id="syncMsg" class="payroll-sync-time">갱신 시각 확인 중</div><div class="payroll-invite-wrap"><button type="button" class="payroll-invite-help" id="btnOwnerInviteHelp">점주 초대 방법</button></div></div>`;
     el.appendChild(gbox);
-    try{const st=JSON.parse(localStorage.getItem("baekeok_sheet_sync_v1")||"null");if(st?.ok&&st?.at){const d=new Date(st.at);document.getElementById("syncMsg").textContent=`자동 갱신 사용 중 · 마지막 갱신 ${d.toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})}`;}}catch(_){}
+    try{const st=JSON.parse(localStorage.getItem("baekeok_sheet_sync_v1")||"null");if(st?.ok&&st?.at){const d=new Date(st.at);document.getElementById("syncMsg").textContent=`${formatSyncStamp(d)} 갱신됨`;}}catch(_){}
+    document.getElementById("btnOwnerInviteHelp").onclick=showOwnerInviteHelp;
     document.getElementById("btnOpenSheet").onclick=()=>{
       window.open(`https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/edit`,"_blank");
     };
@@ -2011,12 +2032,14 @@ async function drawPay(ym){
       const btn=document.getElementById("btnSyncSheet"); const msg=document.getElementById("syncMsg");
       btn.disabled=true; btn.textContent="갱신 중…";
       try{
-        const payload=await buildSheetSyncPayload(ym);  // DOM 아닌 DB조회+기존계산 재사용
+        const payload=await buildSheetSyncPayload(ym);
         const res=await BE.syncSheet(ym, payload);
-        const syncAt=new Date(); localStorage.setItem("baekeok_sheet_sync_v1",JSON.stringify({ok:true,ym,at:syncAt.toISOString()})); msg.textContent=`자동 갱신 사용 중 · 마지막 갱신 ${syncAt.toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})}`;
+        const syncAt=new Date();
+        localStorage.setItem("baekeok_sheet_sync_v1",JSON.stringify({ok:true,ym,at:syncAt.toISOString()}));
+        msg.textContent=`${formatSyncStamp(syncAt)} 갱신됨`;
         toast("in","구글시트 갱신 완료", res.closed?"마감 확정본":"예상(미마감)");
       }catch(e){
-        msg.textContent="갱신 실패: "+e.message;
+        msg.textContent="갱신 실패";
         toast("err","구글시트 갱신 실패", e.message.slice(0,40));
       }finally{ btn.disabled=false; btn.textContent="지금 갱신"; }
     };
@@ -2103,11 +2126,11 @@ const SheetAutoSync=(()=>{
       await BE.syncSheet(ym,payload);
       lastFingerprint=fp;retryMs=0;
       localStorage.setItem("baekeok_sheet_sync_v1",JSON.stringify({ok:true,ym,at:new Date().toISOString()}));
-      const msg=document.getElementById("syncMsg");if(msg)msg.textContent=`자동 갱신 사용 중 · 마지막 갱신 ${new Date().toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})}`;
+      const msg=document.getElementById("syncMsg");if(msg){const d=new Date();msg.textContent=`${d.toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:true}).replace(/\\. /g,".").replace(",","")} 갱신됨`;}
     }catch(e){
       retryMs=retryMs?Math.min(retryMs*2,300000):15000;
       localStorage.setItem("baekeok_sheet_sync_v1",JSON.stringify({ok:false,at:new Date().toISOString(),error:String(e?.message||e)}));
-      const msg=document.getElementById("syncMsg");if(msg)msg.textContent="자동 갱신 재시도 예정";
+      const msg=document.getElementById("syncMsg");if(msg)msg.textContent="갱신 재시도 예정";
       clearTimeout(timer);timer=setTimeout(()=>run("retry"),retryMs);
       console.warn("[sheet auto sync]",e);
     }finally{busy=false}

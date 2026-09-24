@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const html=fs.readFileSync('index.html','utf8');
+assert(html.includes('const APP_VERSION="v0.69.7";'));
+assert(html.includes('class="payroll-sheet-actions"'));
+assert(html.includes('id="btnSyncSheet">지금 갱신</button><button class="btn btn-secondary" id="btnOpenSheet">구글시트 열기</button>'));
+assert(!html.includes('자동 갱신 사용 중 · 마지막 갱신'));
+assert(!html.includes("점주 초대: 시트 열기"));
+assert(html.includes('id="btnOwnerInviteHelp">점주 초대 방법</button>'));
+assert(html.includes('class="payroll-info-veil"'));
+assert(html.includes('갱신됨'));
+console.log('payroll sheet controls v0.69.7: PASS');
