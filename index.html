@@ -90,6 +90,7 @@
   .emp .since{font-size:.78rem; color:var(--sub); font-variant-numeric:tabular-nums;}
   .employee-card-primary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
   .employee-card-primary .employee-card-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:1.05rem;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+  .employee-card-name small{font-size:.68rem;font-weight:600;color:var(--muted);margin-left:3px;vertical-align:baseline}
   .employee-card-secondary{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;font-size:.78rem;color:var(--sub);font-variant-numeric:tabular-nums}
   .employee-card-secondary-main{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .employee-card-id{color:var(--muted);white-space:nowrap}
@@ -293,12 +294,12 @@
   .payroll-list-title{margin:0 0 8px 2px;font-size:.86rem;font-weight:700;color:var(--text)}
   .payroll-month-field{margin-bottom:12px}
   .payroll-employee-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-content:start;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y;max-width:100%}
-  .payroll-employee-card{height:88px;min-height:88px;max-height:88px;box-sizing:border-box;min-width:0;border-radius:var(--r);padding:14px 16px!important;justify-content:center}
+  .payroll-employee-card{height:108px;min-height:108px;max-height:108px;box-sizing:border-box;min-width:0;border-radius:var(--r);padding:12px 14px!important;justify-content:center}
   .payroll-employee-card .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .payroll-employee-card>div:first-child{min-width:0}
   .payroll-employee-card .payroll-gross-value{white-space:nowrap}
-  @media(max-width:430px){.payroll-employee-grid{gap:8px}.payroll-employee-card{padding:12px 10px!important}}
-  .payroll-employee-payline{min-height:1.56rem;display:flex;align-items:baseline;gap:5px}
+  @media(max-width:430px){.payroll-employee-grid{gap:8px}.payroll-employee-card{padding:10px!important}}
+  .payroll-employee-payline{min-height:1.56rem;display:flex;align-items:baseline;gap:5px;justify-content:flex-start}
   .payroll-sheet-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:10px}
   .payroll-sheet-actions .btn{width:100%;margin:0}
   .payroll-sheet-meta{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:6px;align-items:stretch}
@@ -364,7 +365,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.11</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.12</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -426,7 +427,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.69.11";
+const APP_VERSION="v0.69.12";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -983,12 +984,12 @@ async function renderPos(){
     card.className="emp"+(e.working?" working":"");
     if(e.working){
       card.innerHTML=`
-        <div class="employee-card-primary"><span class="employee-card-name">${safeHtml(e.name)}</span><span class="badge-on">근무 중</span></div>
-        <div class="employee-card-secondary"><span class="employee-card-secondary-main"><span class="employee-card-id">No. ${safeHtml(e.id)}</span> · <span class="since" data-since="${e.working_since||''}">${e.working_since?`${hhmm(fromIso(e.working_since))} 출근 · ${fmtElapsed(e.working_since)}`:'근무 중'}</span></span></div>`;
+        <div class="employee-card-primary"><span class="employee-card-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></span><span class="badge-on">근무중</span></div>
+        <div class="employee-card-secondary"><span class="employee-card-secondary-main since" data-since="${e.working_since||''}">${e.working_since?`${hhmm(fromIso(e.working_since))} 출근 · (${fmtElapsed(e.working_since)}째)`:'근무 중'}</span></div>`;
     }else{
       card.innerHTML=`
-        <div class="employee-card-primary"><span class="employee-card-name">${safeHtml(e.name)}</span><span class="badge-off">출근 전</span></div>
-        <div class="employee-card-secondary"><span class="employee-card-secondary-main"><span class="employee-card-id">No. ${safeHtml(e.id)}</span></span></div>`;
+        <div class="employee-card-primary"><span class="employee-card-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></span><span class="badge-off">출근 전</span></div>
+        <div class="employee-card-secondary"><span class="employee-card-secondary-main" aria-hidden="true">&nbsp;</span></div>`;
     }
     card.onclick=()=>openPad(e, e.working?"WORKING":"OFF");
     grid.appendChild(card);
@@ -998,7 +999,7 @@ async function renderPos(){
   _posTimer=setInterval(()=>{
     document.querySelectorAll(".since[data-since]").forEach(el=>{
       const since=el.getAttribute("data-since"); if(!since) return;
-      el.textContent=`${hhmm(fromIso(since))} 출근 · ${fmtElapsed(since)}`;
+      el.textContent=`${hhmm(fromIso(since))} 출근 · (${fmtElapsed(since)}째)`;
     });
   }, 60000);
 }
@@ -1976,15 +1977,15 @@ async function drawPay(ym){
     const card=document.createElement("div");
     card.className="row payroll-employee-card";
     card.style.cssText="flex-direction:column;align-items:stretch;gap:4px";
+    const workingSession=[...rec.sessions].reverse().find(s=>s.status==="WORKING"&&s.in);
+    const workInfo=workingSession?`${hhmm(workingSession.in)} 출근 · (${fmtElapsed(workingSession.in.toISOString())}째)`:`${fmtHM(sec)} 근무`;
     card.innerHTML=`
       <div class="employee-card-primary">
-        <span class="employee-card-name">${safeHtml(eName)}</span>
-        <span class="employee-card-pay">${pay?`<strong class="payroll-gross-value">${pay.gross.toLocaleString()}원</strong><small>세전</small>`:'<span aria-hidden="true">&nbsp;</span>'}</span>
+        <span class="employee-card-name">${safeHtml(eName)}<small>(No.${safeHtml(e.id)})</small></span>
+        ${issues?`<span class="badge issue">근태확인 ${issues}</span>`:'<span></span>'}
       </div>
-      <div class="employee-card-secondary">
-        <span class="employee-card-secondary-main"><span class="employee-card-id">No. ${safeHtml(e.id)}</span> · ${fmtHM(sec)} 근무</span>
-        ${issues?`<span class="badge issue">근태 확인 ${issues}</span>`:''}
-      </div>
+      <div class="employee-card-secondary"><span class="employee-card-secondary-main">${workInfo}</span></div>
+      <div class="payroll-employee-payline">${pay?`<strong class="payroll-gross-value">${pay.gross.toLocaleString()}원</strong><span style="font-size:.62rem;color:var(--muted)">(세전)</span>`:'<span aria-hidden="true">&nbsp;</span>'}</div>
     `;
     if(LIVE){
       card.style.cursor="pointer";
