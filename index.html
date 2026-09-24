@@ -371,6 +371,16 @@
   .modal h3{margin:0 0 16px; font-size:1.1rem;}
   /* modal 내 select들도 form-control 표면으로 통일 (정정 날짜/시간 등) */
   .modal select{background:var(--surface-muted); border:1px solid var(--border); color:var(--text); border-radius:10px;}
+  /* V73 employee onboarding: controls share one geometry and brand language. */
+  #employeeOnboarding .field select{height:var(--control-lg);padding:0 14px;border-radius:12px;font-size:1rem;width:100%;}
+  #employeeOnboarding .ob-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
+  #employeeOnboarding .ob-actions.ob-actions--single{grid-template-columns:1fr}
+  #employeeOnboarding .ob-check{appearance:none;-webkit-appearance:none;width:20px!important;height:20px!important;min-width:20px!important;max-width:20px!important;margin:0;border:1.5px solid var(--border);border-radius:5px;background:var(--surface);display:inline-grid;place-content:center;cursor:pointer}
+  #employeeOnboarding .ob-check::before{content:"";width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) scale(0);transform-origin:center;transition:transform .08s}
+  #employeeOnboarding .ob-check:checked{background:var(--brand-700);border-color:var(--brand-700)}
+  #employeeOnboarding .ob-check:checked::before{transform:rotate(-45deg) scale(1)}
+  #employeeOnboarding .ob-night-label{display:flex;align-items:center;justify-content:space-between;gap:12px;white-space:nowrap}
+  #employeeOnboarding .ob-weekday{display:flex;min-width:0;flex-direction:column;align-items:center;gap:7px;padding:8px 2px;border:1px solid var(--border);border-radius:9px;background:var(--surface-muted);font-size:.8rem}
 </style>
 <link rel="stylesheet" href="operations_v1.css?v=20260922d">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -385,7 +395,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.71</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.73</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -447,7 +457,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.72";
+const APP_VERSION="v0.73";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1837,9 +1847,9 @@ function renderEmployeeOnboardingStep(){
     <div class="field" id="newTaxRateWrap" ${s.taxTreatment==="BUSINESS_INCOME"?"":"style='display:none'"}><label>공제율 (%)</label><input id="newTaxRate" inputmode="decimal" value="${safeHtml(s.rate)}" placeholder="예: 3.3"></div>`;
   if(s.step===3) body=`
     <h3>직원 등록 · 근무조건</h3>${prog}
-    ${s.payrollType==="HOURLY"?`<div class="field"><label>계약 근무요일</label><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">${WD.map((x,i)=>`<label style="display:flex;min-width:0;flex-direction:column;align-items:center;gap:4px;padding:8px 2px;border:1px solid var(--border);border-radius:9px;background:var(--surface-muted);font-size:.8rem"><input data-ob-day type="checkbox" value="${i}" ${s.weekdays.has(i)?"checked":""}>${x}</label>`).join("")}</div></div>
+    ${s.payrollType==="HOURLY"?`<div class="field"><label>계약 근무요일</label><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">${WD.map((x,i)=>`<label class="ob-weekday"><input class="ob-check" data-ob-day type="checkbox" value="${i}" ${s.weekdays.has(i)?"checked":""}>${x}</label>`).join("")}</div></div>
     <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px"><div class="field"><label>시작</label><input id="newWorkStart" type="time" value="${s.start}"></div><div class="field"><label>종료</label><input id="newWorkEnd" type="time" value="${s.end}"></div></div>`:`<div class="empty" style="margin-bottom:12px">월급제 계약은 상세 근무요일을 계약관리에서 별도로 관리합니다.</div>`}
-    <div class="field"><label style="display:flex;align-items:center;justify-content:space-between">야간수당 <input id="newNightEnabled" type="checkbox" ${s.night?"checked":""}></label></div>
+    <div class="field"><label class="ob-night-label"><span>야간수당</span><input class="ob-check" id="newNightEnabled" type="checkbox" ${s.night?"checked":""}></label></div>
     <div id="newNightFields" ${s.night?"":"style='display:none'"}>
       <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px"><div class="field"><label>방식</label><select id="newNightMode"><option value="RATE" ${s.nightMode==="RATE"?"selected":""}>정률 (%)</option><option value="FLAT" ${s.nightMode==="FLAT"?"selected":""}>정액 (원)</option></select></div><div class="field"><label>값</label><input id="newNightValue" inputmode="decimal" value="${safeHtml(s.nightValue)}"></div></div>
       <div class="field"><label>야간 시작</label><input id="newNightStart" type="time" value="${s.nightStart}"></div>
@@ -1860,7 +1870,7 @@ function renderEmployeeOnboardingStep(){
       </div>
       <div class="empty" style="text-align:left">등록을 누르면 직원·고용기간·계약조건이 함께 생성됩니다.</div>`;
   }
-  host.innerHTML=body+`<div style="display:grid;grid-template-columns:${s.step>1?"1fr 1.4fr":"1fr"};gap:8px;margin-top:14px">${s.step>1?'<button class="btn btn-secondary btn-lg" id="obPrev">이전</button>':""}<button class="btn btn-primary btn-lg" id="obNext">${s.step===4?"등록 완료":"다음"}</button></div>`;
+  host.innerHTML=body+`<div class="ob-actions ${s.step>1?"":"ob-actions--single"}">${s.step>1?'<button class="btn btn-secondary btn-lg" id="obPrev">이전</button>':""}<button class="btn btn-primary btn-lg" id="obNext">${s.step===4?"등록 완료":"다음"}</button></div>`;
   refreshNextEmployeeNumber();
   document.getElementById("newPayrollType")?.addEventListener("change",e=>{empOnboardSaveVisible();s.payrollType=e.target.value;renderEmployeeOnboardingStep()});
   document.getElementById("newTaxTreatment")?.addEventListener("change",e=>{empOnboardSaveVisible();s.taxTreatment=e.target.value;renderEmployeeOnboardingStep()});
