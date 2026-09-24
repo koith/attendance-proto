@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const html=fs.readFileSync('index.html','utf8');
+assert(html.includes('const APP_VERSION="v0.69.15";'));
+assert(html.includes('#empGrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));'),'POS desktop must auto-fill columns');
+assert(html.includes('@media(max-width:430px){#empGrid{grid-template-columns:repeat(2,minmax(0,1fr));'),'POS mobile must stay two columns');
+assert(html.includes('.payroll-employee-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));'),'payroll desktop must auto-fill columns');
+assert(html.includes('@media(max-width:430px){.payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr));'),'payroll mobile must stay two columns');
+assert(html.includes('#empGrid .employee-card-primary{margin:-14px -16px 4px'),'POS header must touch card top');
+assert(html.includes('.payroll-employee-card .employee-card-primary{margin:-12px -14px 4px'),'payroll header must touch card top');
+console.log('employee card polish v0.69.15: PASS');
