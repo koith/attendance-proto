@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const h=fs.readFileSync('index.html','utf8');
+assert(h.includes('const APP_VERSION="v0.71";'));
+assert(h.includes('.employee-list-mask .employee-manage-card{position:relative;'),'employee management must use cards');
+assert(h.includes('.employee-manage-head{display:grid;grid-template-columns:minmax(0,1fr) auto'),'employee management card header required');
+assert(h.includes('background:#e7f1eb;border-bottom:1px solid #d3e4da'),'shared green header tone required');
+assert(h.includes('employee-manage-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small>'),'name/No hierarchy required');
+assert(h.includes("<span class=\"badge success\">재직중</span>"),'active status badge required');
+assert(h.includes('class="btn btn-danger retire-mini"'),'retire action must remain available');
+assert(h.includes('@media(max-width:430px){.employee-list-mask{grid-template-columns:repeat(2,minmax(0,1fr));'),'mobile employee management must use two columns');
+console.log('admin employee list common-card design v0.71: PASS');
