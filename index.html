@@ -431,11 +431,12 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <button type="button" id="hqHome" style="border:0;background:transparent;color:inherit;font:inherit;padding:0;cursor:pointer" title="본사 대시보드">본사</button><span aria-hidden="true">›</span><select id="storeSelect" aria-label="지점 선택" style="border:1px solid rgba(255,255,255,.35);background:#fff;color:#174f35;font:inherit;font-weight:700;max-width:150px;border-radius:9px;padding:5px 28px 5px 9px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.06</span>
+        <button type="button" id="hqHome" style="border:0;background:transparent;color:inherit;font:inherit;padding:0;cursor:pointer" title="본사 대시보드">본사</button><span aria-hidden="true">›</span><select id="storeSelect" aria-label="지점 선택" style="border:1px solid rgba(255,255,255,.35);background:#fff;color:#174f35;font:inherit;font-weight:700;max-width:150px;border-radius:9px;padding:5px 28px 5px 9px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.07</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
-    <div id="storeBackRow" style="display:none;padding:8px 18px 0"><button type="button" id="storeBackBtn" class="btn btn-secondary" style="min-height:32px;padding:5px 10px">← 본사 대시보드</button></div>\n    <div style="padding:10px 18px" class="tabwrap"><div class="tabs">
+    <div id="storeBackRow" style="display:none;padding:8px 18px 0"><button type="button" id="storeBackBtn" class="btn btn-secondary" style="min-height:32px;padding:5px 10px">← 본사 대시보드</button></div>
+    <div style="padding:10px 18px" class="tabwrap"><div class="tabs">
       <a id="tabPos" href="#pos" class="on">출퇴근</a>
       <a id="tabAdmin" href="#admin">관리</a>
       <a id="tabPay" href="#pay">급여</a>
@@ -509,7 +510,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.06";
+const APP_VERSION="v1.07";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -997,7 +998,8 @@ function setTab(t){
 }
 function route(){
   const h=(location.hash||"#pos").replace("#","");
-  const back=document.getElementById("storeBackRow");if(back)back.style.display=h==="dashboard"?"none":"block"; const backBtn=document.getElementById("storeBackBtn");if(backBtn)backBtn.onclick=()=>{location.hash="#dashboard";};\n  if(h!=="pos"){ clearInterval(_posTimer); }
+  const back=document.getElementById("storeBackRow");if(back)back.style.display=h==="dashboard"?"none":"block"; const backBtn=document.getElementById("storeBackBtn");if(backBtn)backBtn.onclick=()=>{location.hash="#dashboard";};
+  if(h!=="pos"){ clearInterval(_posTimer); }
   if(h==="dashboard"){setTab("dashboard");requireAuth(renderDashboard);}
   else if(h==="admin"){
     const q=new URLSearchParams(location.search);
