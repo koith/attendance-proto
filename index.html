@@ -452,7 +452,7 @@
   </div>
 </div>
 
-<!-- add employee modal -->
+<!-- personal settings modal -->\n<div class="modal-veil" id="settingsVeil"><div class="modal"><button type="button" class="btn-icon modal-x" id="settingsClose" aria-label="닫기"></button><h3>설정</h3><div id="personalSettings"></div></div></div>\n\n<!-- add employee modal -->
 <div class="modal-veil" id="addVeil">
   <div class="modal">
     <div id="employeeOnboarding"></div>
@@ -1431,6 +1431,19 @@ async function renderAccountMgmt(){
     try{const r=await BE.grantAdmin(em);if(r&&r.ok){toast("in","관리자 지정됨",em);renderAccountMgmt();}else toast("err","지정 실패",r&&r.error||"");}catch(e){toast("err","지정 실패",e.message);}
   });
 
+}
+
+function openPersonalSettings(){
+  const v=document.getElementById("settingsVeil"),box=document.getElementById("personalSettings");
+  document.getElementById("settingsClose").innerHTML=ICON.close;
+  document.getElementById("settingsClose").onclick=()=>v.classList.remove("show");
+  box.innerHTML='<div class="row" style="flex-direction:column;align-items:stretch;gap:8px;margin:0"><div style="font-size:.85rem;color:var(--text-muted)">내 로그인 이메일 변경</div><input class="form-control" id="settingsEmail" placeholder="새 이메일" inputmode="email"><button class="btn btn-primary" id="settingsEmailBtn">이메일 변경 요청</button><div id="settingsEmailMsg" style="font-size:.8rem;color:var(--text-muted)"></div></div>';
+  document.getElementById("settingsEmailBtn").onclick=async()=>{
+    const input=document.getElementById("settingsEmail"),msg=document.getElementById("settingsEmailMsg"),ne=input.value.trim();
+    if(!ne){msg.textContent="새 이메일을 입력하세요.";return;}
+    try{await Auth.requestEmailChange(ne);const u=await Auth.getUser();msg.textContent=(u&&u.email&&u.email.toLowerCase()===ne.toLowerCase())?"이메일이 변경 완료되었습니다.":"변경 요청됨. 이메일로 온 확인 링크를 완료한 뒤 재로그인하세요.";}catch(e){msg.textContent="이메일 변경 요청에 실패했습니다.";}
+  };
+  attachNoDoubleTapZoom(v);v.classList.add("show");
 }
 
 /* ---------------------- 관리자 화면 ---------------------- */
