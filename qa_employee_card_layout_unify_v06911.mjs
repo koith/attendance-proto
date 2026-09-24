@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const html=fs.readFileSync('index.html','utf8');
+assert(html.includes('const APP_VERSION="v0.69.11";'));
+assert(html.includes('.employee-card-primary{display:flex;align-items:center;justify-content:space-between'),'shared primary employee-card row required');
+assert(html.includes('.employee-card-secondary{display:flex;align-items:center;justify-content:space-between'),'shared secondary employee-card row required');
+assert(html.includes('<span class="employee-card-name">${safeHtml(e.name)}</span><span class="badge-on">근무 중</span>'),'POS primary row must use shared hierarchy');
+assert(html.includes('<span class="employee-card-id">No. ${safeHtml(e.id)}</span> · <span class="since"'),'POS secondary row must include No. and attendance info');
+assert(html.includes('<span class="employee-card-name">${safeHtml(eName)}</span>'),'payroll primary row must use shared hierarchy');
+assert(html.includes('<span class="employee-card-pay">'),'payroll amount must occupy POS-badge-equivalent position');
+assert(html.includes('<span class="employee-card-id">No. ${safeHtml(e.id)}</span> · ${fmtHM(sec)} 근무'),'payroll secondary row must mirror POS metadata order');
+console.log('employee card layout unify v0.69.11: PASS');
