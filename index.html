@@ -218,6 +218,8 @@
   .kpi-row{display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--brand-050); border:1px solid #bfe3cb; border-radius:var(--radius-md); padding:16px 18px; margin:6px 0 10px;}
   .kpi-row .kpi-label{font-weight:600; font-size:1rem; color:var(--text);}
   .kpi-row .kpi-value{font-weight:700; font-size:1.15rem; color:var(--brand-700); font-variant-numeric:tabular-nums;}
+  .payroll-total-summary .kpi-label{display:block;margin-bottom:6px}
+  .payroll-total-summary .payroll-total-value{display:block;width:100%;text-align:center}
   /* Payroll number scale source of truth */
   #payList .employee-scroll-surface .row .payroll-gross-value{font-size:1.36rem!important;line-height:1.15!important;font-weight:800!important;letter-spacing:-.015em}
   .row .times{font-size:.85rem; color:var(--sub); font-variant-numeric:tabular-nums; text-align:right;}
@@ -1961,8 +1963,8 @@ async function drawPay(ym){
 
   // 급여 화면은 의사결정에 필요한 요약만 먼저 보여준다.
   const sum=document.createElement("div");
-  sum.className="kpi-row";
-  sum.style.cssText="padding:20px 22px;margin-bottom:18px";
+  sum.className="kpi-row payroll-total-summary";
+  sum.style.cssText="padding:16px 22px 18px;margin-bottom:18px;display:block";
   sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">세전 합계</div><div class="payroll-total-value" style="width:100%;text-align:center;font-size:1.50rem!important;line-height:1.12!important;font-weight:850!important;letter-spacing:-.02em;color:var(--ink)!important">${R.totalGross.toLocaleString()}원</div>`;
   el.appendChild(sum);
   const payTitle=document.createElement("div");
