@@ -284,7 +284,12 @@
   .pay-month-nav input[type=month]::-webkit-date-and-time-value{text-align:center;width:100%}
   .payroll-list-title{margin:0 0 8px 2px;font-size:.86rem;font-weight:700;color:var(--text)}
   .payroll-month-field{margin-bottom:12px}
-  .payroll-employee-card{height:74px;min-height:74px;max-height:74px;box-sizing:border-box}
+  .payroll-employee-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-content:start}
+  .payroll-employee-card{height:74px;min-height:74px;max-height:74px;box-sizing:border-box;min-width:0}
+  .payroll-employee-card .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .payroll-employee-card>div:first-child{min-width:0}
+  .payroll-employee-card .payroll-gross-value{white-space:nowrap}
+  @media(max-width:430px){.payroll-employee-grid{gap:7px}.payroll-employee-card{padding-left:10px!important;padding-right:10px!important}}
   .payroll-employee-payline{min-height:1.56rem;display:flex;align-items:baseline;gap:5px}
   .payroll-sheet-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:10px}
   .payroll-sheet-actions .btn{width:100%;margin:0}
@@ -1945,7 +1950,7 @@ async function drawPay(ym){
   payTitle.textContent="직원별 급여";
   el.appendChild(payTitle);
   const payEmployees=document.createElement("div");
-  payEmployees.className="employee-scroll-surface compact";
+  payEmployees.className="employee-scroll-surface compact payroll-employee-grid";
   el.appendChild(payEmployees);
 
   for(const rec of R.rows){
