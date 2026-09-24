@@ -384,7 +384,7 @@
   .modal{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; width:100%; max-width:380px; max-height:88vh; overflow-y:auto; touch-action:pan-y;}
   .modal h3{margin:0 0 16px; font-size:1.1rem;}
   .account-modal{max-width:560px}
-  .account-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0 0 14px}
+  .account-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0 0 14px}
   .account-tabs button{min-height:40px;border:1px solid var(--border);border-radius:10px;background:var(--surface-muted);color:var(--text-muted);font-weight:650;cursor:pointer}
   .account-tabs button.on{background:var(--brand-050);border-color:#bfe3cb;color:var(--brand-700)}
   .account-pane{display:none}.account-pane.on{display:block}
@@ -416,7 +416,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.87</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.88</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -448,8 +448,7 @@
     <button type="button" class="btn-icon modal-x" id="accountClose" aria-label="닫기"></button>
     <h3>계정 관리</h3>
     <div class="account-tabs" role="tablist">
-      <button type="button" class="on" data-account-tab="admins">관리자 계정</button>
-      <button type="button" data-account-tab="grant">권한 부여</button>
+      <button type="button" class="on" data-account-tab="admins">관리자 권한</button>
       <button type="button" data-account-tab="email">내 이메일 변경</button>
     </div>
     <div id="adAccount"></div>
@@ -492,7 +491,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.87";
+const APP_VERSION="v0.88";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1423,9 +1422,9 @@ async function renderAccountMgmt(){
       ${isMe?'':`<button class="btn btn-danger btn-sm" data-revoke="${a.user_id}" data-email="${a.email}">권한 해제</button>`}
     </div>`;
   }
-  html+=`</div></div></div>`;
-  // 관리자 권한 부여 (기존 Auth 사용자 승격)
-  html+=`<div class="account-pane" data-account-pane="grant"><div class="row" style="flex-direction:column;align-items:stretch;gap:8px">
+  html+=`</div></div>`;
+  // 관리자 권한 부여 (목록/해제와 같은 탭)
+  html+=`<div class="row" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:12px">
     <div style="font-size:.85rem;color:var(--text-muted)">기존 사용자에게 관리자 권한 부여</div>
     <div style="font-size:.75rem;color:var(--muted)">이미 로그인 계정이 있는 사용자만 승격됩니다(신규 초대 아님)</div>
     <input class="form-control" id="grantEmail" placeholder="사용자 이메일" inputmode="email">
