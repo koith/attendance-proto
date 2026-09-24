@@ -1,0 +1,17 @@
+name: pos-count-version-v66
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'test_mode_ui_v1.js'
+      - 'qa_pos_count_version_v66.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node qa_pos_count_version_v66.mjs
