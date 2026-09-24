@@ -1,0 +1,19 @@
+name: status-badge-unify-v0693
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'actual_attendance.css'
+      - 'actual_attendance.html'
+      - 'substitution.html'
+      - 'substitution_v2.js'
+      - 'operations_v1.css'
+      - 'qa_status_badge_unify_v0693.mjs'
+  push:
+    branches: [main]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node qa_status_badge_unify_v0693.mjs
