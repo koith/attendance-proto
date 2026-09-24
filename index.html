@@ -88,7 +88,7 @@
   .emp .row1{display:flex; align-items:center; justify-content:space-between; gap:8px;}
   .emp .nm{font-size:1.1rem; font-weight:650; color:var(--ink); letter-spacing:-.01em;}
   .emp .since{font-size:.78rem; color:var(--sub); font-variant-numeric:tabular-nums;}
-  .employee-card-primary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+  .employee-card-primary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;background:#f3f8f5;border-bottom:1px solid #e3eee7;border-radius:var(--r) var(--r) 0 0;padding:9px 12px 8px;margin:-12px -10px 4px}
   .employee-card-primary .employee-card-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:1.05rem;font-weight:700;color:var(--ink);letter-spacing:-.01em}
   .employee-card-name small{font-size:.68rem;font-weight:600;color:var(--muted);margin-left:3px;vertical-align:baseline}
   .employee-card-secondary{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;font-size:.78rem;color:var(--sub);font-variant-numeric:tabular-nums}
@@ -97,6 +97,7 @@
   .employee-card-pay{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap;flex:0 0 auto}
   .employee-card-pay small{font-size:.62rem;color:var(--muted);font-weight:500}
   @media(max-width:430px){.employee-card-primary .employee-card-name{font-size:1rem}.employee-card-secondary{font-size:.72rem}}
+  @media(min-width:431px){#empGrid .employee-card-primary,.payroll-employee-card .employee-card-primary{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}}
   .emp .badge-off,.badge-off{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--text-muted);background:var(--surface);white-space:nowrap;cursor:default;user-select:none}
   /* 오늘 근태 카드: column 정렬(이름 고정폭 / 정보 신축 / 상태·버튼 고정). 문구 길이에 카드 안 흔들림.
      향후 WorkSchedule/progress는 .att-info 안(2줄 구조)에 progress bar 행을 추가하는 방향으로 확장. */
@@ -365,7 +366,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.12</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.13</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -427,7 +428,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.69.12";
+const APP_VERSION="v0.69.13";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
