@@ -4,3 +4,5 @@
 
 /* V33 monthly overview: calendar is navigation, not a dense report. */
 .day{position:relative}.worked-dot,.issue-dot{position:absolute;bottom:8px;width:5px;height:5px;border-radius:50%;background:var(--brand,#2d6543)}.worked-dot{left:calc(50% - 7px)}.issue-dot{left:calc(50% + 3px);background:var(--warning,#9a6700)}.day-overview,.day-summary,.day-warning{display:none!important}@media(max-width:520px){.day{min-height:54px!important;padding:7px 4px!important}.weekhead{font-size:.72rem}.legend{gap:10px!important;font-size:.68rem!important}}
+
+.axis-wrap{max-height:520px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.sessions{max-height:360px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable}@media(max-width:520px){.axis-wrap{max-height:420px}.sessions{max-height:300px}}

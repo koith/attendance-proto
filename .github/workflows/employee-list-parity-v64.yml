@@ -1,0 +1,26 @@
+name: employee-list-parity-v64
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'substitution_v2.js'
+      - 'substitution.html'
+      - 'daily_schedule.css'
+      - 'monthly_schedule.js'
+      - 'actual_attendance.css'
+      - 'qa_employee_list_parity_v64.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'substitution_v2.js'
+      - 'substitution.html'
+      - 'daily_schedule.css'
+      - 'monthly_schedule.js'
+      - 'actual_attendance.css'
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node qa_employee_list_parity_v64.mjs
