@@ -31,7 +31,7 @@ assert(html.includes('class="close" id="back"'),'monthly actual-attendance must 
 assert(js.includes('id="monthTodayBtn"'),'monthly calendar must own the Today action');
 assert(js.includes("document.querySelector('.day.today')?.focus()"),'Today action must highlight/focus today without opening detail');
 assert(js.includes('‹ 뒤로가기'),'day detail must return to monthly view');
-assert(!js.includes('id="todayBtn"'),'day detail must not expose Today button');
+assert(!js.includes('todayBtn'),'day detail must not retain Today control or handler');
 assert(js.includes('id="dayClose"'),'day detail must close from top-right X');
 assert(js.includes('<section class="timeline-group"><h3>직원별 실근무 시간</h3>'),'timeline group title required');
 assert(css.includes('.today-fab{position:fixed'),'Today action must sit at lower-right');
