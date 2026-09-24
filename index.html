@@ -1963,7 +1963,7 @@ async function drawPay(ym){
   const sum=document.createElement("div");
   sum.className="kpi-row";
   sum.style.cssText="padding:20px 22px;margin-bottom:18px";
-  sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">세전 합계</div><div class="payroll-total-value" style="font-size:1.50rem!important;line-height:1.12!important;font-weight:850!important;letter-spacing:-.02em;color:var(--ink)!important">${R.totalGross.toLocaleString()}원</div>`;
+  sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">세전 합계</div><div class="payroll-total-value" style="width:100%;text-align:center;font-size:1.50rem!important;line-height:1.12!important;font-weight:850!important;letter-spacing:-.02em;color:var(--ink)!important">${R.totalGross.toLocaleString()}원</div>`;
   el.appendChild(sum);
   const payTitle=document.createElement("div");
   payTitle.className="payroll-list-title";
