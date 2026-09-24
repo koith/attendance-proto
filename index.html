@@ -1422,9 +1422,9 @@ async function renderAccountMgmt(){
       ${isMe?'':`<button class="btn btn-danger btn-sm" data-revoke="${a.user_id}" data-email="${a.email}">권한 해제</button>`}
     </div>`;
   }
-  html+=`</div></div></div>`;
-  // 관리자 권한 부여 (기존 Auth 사용자 승격)
-  html+=`<div class="account-pane" data-account-pane="grant"><div class="row" style="flex-direction:column;align-items:stretch;gap:8px">
+  html+=`</div></div>`;
+  // 관리자 권한 부여 (목록/해제와 같은 탭)
+  html+=`<div class="row" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:12px">
     <div style="font-size:.85rem;color:var(--text-muted)">기존 사용자에게 관리자 권한 부여</div>
     <div style="font-size:.75rem;color:var(--muted)">이미 로그인 계정이 있는 사용자만 승격됩니다(신규 초대 아님)</div>
     <input class="form-control" id="grantEmail" placeholder="사용자 이메일" inputmode="email">
