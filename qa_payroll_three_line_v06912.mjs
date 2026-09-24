@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const html=fs.readFileSync('index.html','utf8');
+assert(html.includes('const APP_VERSION="v0.69.12";'));
+assert(html.includes('.payroll-employee-card{height:108px;min-height:108px;max-height:108px'),'payroll card must reserve three lines');
+assert(html.includes('<span class="employee-card-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></span><span class="badge-on">근무중</span>'),'POS row1 layout must match requested');
+assert(html.includes('출근 · (${fmtElapsed(e.working_since)}째)'),'POS row2 elapsed format required');
+assert(html.includes('const workingSession=[...rec.sessions].reverse().find(s=>s.status==="WORKING"&&s.in);'),'payroll row2 must support live work info');
+assert(html.includes('<span class="employee-card-name">${safeHtml(eName)}<small>(No.${safeHtml(e.id)})</small></span>'),'payroll row1 name/No required');
+assert(html.includes('<span class="badge issue">근태확인 ${issues}</span>'),'payroll row1 issue badge required');
+assert(html.includes('<div class="payroll-employee-payline">'),'payroll third line required');
+console.log('payroll three-line layout v0.69.12: PASS');
