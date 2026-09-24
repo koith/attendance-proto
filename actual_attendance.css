@@ -24,3 +24,22 @@
   .day .line{font-size:.56rem}
   .day .more{font-size:.54rem}
 }
+
+/* V70 day detail: full 24h timeline without horizontal scrolling on mobile. */
+.axis-wrap{overflow-x:hidden!important;padding:12px 10px 14px}
+.axis{width:100%;min-width:0!important}
+.axis-labels{margin-left:96px}
+.records-group{border-top:1px solid var(--line);background:var(--panel)}
+.records-group>h3{margin:0;padding:13px 12px 7px;font-size:.82rem;color:var(--ink)}
+.records-group .sessions{padding-top:0}
+.records-note{margin:0;padding:0 12px 14px;color:var(--muted);font-size:.7rem;line-height:1.45}
+@media(max-width:520px){
+  .axis-wrap{max-height:420px;overflow-x:hidden!important;padding:10px 6px 12px}
+  .axis{width:100%;min-width:0!important}
+  .axis-labels{margin-left:68px;font-size:.56rem}
+  .person-row{grid-template-columns:60px minmax(0,1fr);gap:6px;min-height:50px}
+  .person{font-size:.7rem}
+  .track{height:30px}
+  .bar{top:4px;height:22px}
+  .bar-label{font-size:.55rem;left:5px;max-width:calc(100% - 8px)}
+}
