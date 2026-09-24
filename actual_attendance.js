@@ -68,8 +68,7 @@ function renderDay(day){
     detail+=`<div class="session"><div><b>${escapeHtml(emp?.name||'직원 정보 없음')}</b><div class="meta">${label}</div></div><div>${s.corrected?'<span class="pill">정정</span> ':''}${issue?'<span class="pill warn">확인 필요</span>':''}</div></div>`
   }
   el('app').innerHTML=`<section class="dayview"><div class="dayhead"><button id="backMonth">‹ 뒤로가기</button><div class="date">${day}</div><button class="day-close" id="dayClose" aria-label="실근무 현황 닫기">×</button></div><section class="timeline-group"><h3>직원별 실근무 시간</h3><div class="axis-wrap"><div class="axis"><div class="axis-labels">${labels}</div>${rows||'<div class="empty">이 날의 실제 출퇴근 기록이 없습니다.</div>'}</div></div></section><section class="records-group"><h3>근무 기록 및 정정</h3><div class="sessions">${detail}</div><p class="records-note">정정은 원본 출퇴근 기록을 변경하지 않고 정정 이력을 추가합니다.</p></section></section>`;
-  el('backMonth').onclick=renderMonth;
-  el('todayBtn').onclick=()=>{const t=dayKey(kstToday()),ym=t.slice(0,7);if(ym!==S.ym){S.ym=ym;loadMonth().then(()=>renderDay(t))}else renderDay(t)}
+  el('backMonth').onclick=renderMonth;\n  el('dayClose').onclick=()=>location.href='index.html#admin';
 }
 function init(){Auth.load();if(!Auth.token&&!Auth.session?.refresh_token){location.href='index.html#admin';return}const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;el('back').onclick=()=>location.href='index.html#admin';el('prevMonth').onclick=()=>{S.ym=monthShift(S.ym,-1);loadMonth()};el('nextMonth').onclick=()=>{S.ym=monthShift(S.ym,1);loadMonth()};el('monthLabel').onclick=()=>{const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;loadMonth()};loadMonth()}
 init();
