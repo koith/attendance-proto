@@ -1,0 +1,16 @@
+name: two-column-employee-lists-v0698
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'qa_pos_two_column_v0698.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node qa_pos_two_column_v0698.mjs
