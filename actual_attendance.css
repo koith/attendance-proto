@@ -6,3 +6,21 @@
 .day{position:relative}.worked-dot,.issue-dot{position:absolute;bottom:8px;width:5px;height:5px;border-radius:50%;background:var(--brand,#2d6543)}.worked-dot{left:calc(50% - 7px)}.issue-dot{left:calc(50% + 3px);background:var(--warning,#9a6700)}.day-overview,.day-summary,.day-warning{display:none!important}@media(max-width:520px){.day{min-height:54px!important;padding:7px 4px!important}.weekhead{font-size:.72rem}.legend{gap:10px!important;font-size:.68rem!important}}
 
 .axis-wrap{max-height:520px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.sessions{max-height:360px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable}@media(max-width:520px){.axis-wrap{max-height:420px}.sessions{max-height:300px}}
+
+/* V68 monthly calendar: show who worked and keep status colors explicit. */
+.day{min-height:92px!important;padding-bottom:20px!important}
+.day .lines{display:flex!important;flex-direction:column;gap:2px;margin-top:5px;min-width:0}
+.day .line{font-size:.62rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--sub)}
+.day .line b{color:var(--ink);font-weight:700}
+.day .more{font-size:.59rem;color:var(--brand);font-weight:700}
+.day-dots{position:absolute;left:6px;right:6px;bottom:7px;display:flex;justify-content:center;gap:4px;height:6px}
+.status-dot,.legend .dot{display:inline-block;width:7px;height:7px;border-radius:50%}
+.normal-dot,.legend .dot.normal{background:var(--ok)}
+.working-dot,.legend .dot.working{background:var(--brand)}
+.issue-dot,.legend .dot.issue{background:var(--warn)}
+.legend .dot{margin-right:4px}
+@media(max-width:520px){
+  .day{min-height:78px!important;padding:6px 3px 18px!important}
+  .day .line{font-size:.56rem}
+  .day .more{font-size:.54rem}
+}
