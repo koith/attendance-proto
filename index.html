@@ -431,12 +431,13 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <select id="storeSelect" aria-label="지점 선택" style="border:0;background:transparent;color:inherit;font:inherit;max-width:130px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.03</span>
+        <select id="storeSelect" aria-label="지점 선택" style="border:0;background:transparent;color:inherit;font:inherit;max-width:130px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.04</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
     <div style="padding:10px 18px" class="tabwrap"><div class="tabs">
-      <a id="tabDashboard" href="#dashboard">본사 대시보드</a>\n      <a id="tabPos" href="#pos" class="on">출퇴근</a>
+      <a id="tabDashboard" href="#dashboard">본사 대시보드</a>
+      <a id="tabPos" href="#pos" class="on">출퇴근</a>
       <a id="tabAdmin" href="#admin">관리</a>
       <a id="tabPay" href="#pay">급여</a>
       <a id="tabOps" href="#ops">매장운영</a>
@@ -467,7 +468,8 @@
   </div>
 </div>
 
-<!-- pending requests modal -->\n<div class="modal-veil" id="requestsVeil"><div class="modal account-modal"><button type="button" class="btn-icon modal-x" id="requestsClose" aria-label="닫기"></button><h3>직원 정정 요청</h3><div id="requestsModalList"></div></div></div>
+<!-- pending requests modal -->
+<div class="modal-veil" id="requestsVeil"><div class="modal account-modal"><button type="button" class="btn-icon modal-x" id="requestsClose" aria-label="닫기"></button><h3>직원 정정 요청</h3><div id="requestsModalList"></div></div></div>
 
 <!-- personal settings modal -->
 <div class="modal-veil" id="settingsVeil"><div class="modal"><button type="button" class="btn-icon modal-x" id="settingsClose" aria-label="닫기"></button><h3>설정</h3><div id="personalSettings"></div></div></div>
@@ -508,7 +510,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.03";
+const APP_VERSION="v1.04";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -843,7 +845,9 @@ const SupaBE = (()=>{
   };
 })();
 
-const BE = LIVE ? SupaBE : LocalBE;\nlet CURRENT_STORE_ID=1;\nasync function loadStores(){ if(!LIVE)return; try{const rows=await rpc("list_stores",{},true);const sel=document.getElementById("storeSelect");sel.innerHTML=rows.map(x=>`<option value="${x.id}">${safeHtml(x.name)}</option>`).join("");CURRENT_STORE_ID=Number(sel.value)||1;sel.onchange=()=>{CURRENT_STORE_ID=Number(sel.value)||1;route();};}catch(_){}}
+const BE = LIVE ? SupaBE : LocalBE;
+let CURRENT_STORE_ID=1;
+async function loadStores(){ if(!LIVE)return; try{const rows=await rpc("list_stores",{},true);const sel=document.getElementById("storeSelect");sel.innerHTML=rows.map(x=>`<option value="${x.id}">${safeHtml(x.name)}</option>`).join("");CURRENT_STORE_ID=Number(sel.value)||1;sel.onchange=()=>{CURRENT_STORE_ID=Number(sel.value)||1;route();};}catch(_){}}
 
 // Any database/user-controlled text inserted through innerHTML must pass this boundary.
 function safeHtml(value){
@@ -979,7 +983,9 @@ function attachNoDoubleTapZoom(el){
     }
   }, {passive:false});
 }
-function renderDashboard(){ view.innerHTML=`<div class="section-t">전 지점 대시보드</div><div class="row" style="display:block"><b>전체 매장 현황</b><div style="font-size:.8rem;color:var(--text-muted);margin-top:6px">지점을 선택하면 해당 매장의 출퇴근·관리 화면으로 전환됩니다.</div></div><div class="section-t">지점별 매출 추이</div><div id="hqSales" class="row">매출 데이터 연결 준비중</div><div class="section-t">지점별 메뉴별 매출 추이</div><div id="hqMenuSales" class="row">메뉴별 매출 데이터 연결 준비중</div>`;}\nfunction setTab(t){\n  const d=document.getElementById("tabDashboard");if(d)d.classList.toggle("on",t==="dashboard");
+function renderDashboard(){ view.innerHTML=`<div class="section-t">전 지점 대시보드</div><div class="row" style="display:block"><b>전체 매장 현황</b><div style="font-size:.8rem;color:var(--text-muted);margin-top:6px">지점을 선택하면 해당 매장의 출퇴근·관리 화면으로 전환됩니다.</div></div><div class="section-t">지점별 매출 추이</div><div id="hqSales" class="row">매출 데이터 연결 준비중</div><div class="section-t">지점별 메뉴별 매출 추이</div><div id="hqMenuSales" class="row">메뉴별 매출 데이터 연결 준비중</div>`;}
+function setTab(t){
+  const d=document.getElementById("tabDashboard");if(d)d.classList.toggle("on",t==="dashboard");
   document.getElementById("tabPos").classList.toggle("on",t==="pos");
   document.getElementById("tabAdmin").classList.toggle("on",t==="admin");
   document.getElementById("tabPay").classList.toggle("on",t==="pay");
@@ -988,7 +994,8 @@ function renderDashboard(){ view.innerHTML=`<div class="section-t">전 지점 �
 function route(){
   const h=(location.hash||"#pos").replace("#","");
   if(h!=="pos"){ clearInterval(_posTimer); }
-  if(h==="dashboard"){setTab("dashboard");requireAuth(renderDashboard);}\n  else if(h==="admin"){
+  if(h==="dashboard"){setTab("dashboard");requireAuth(renderDashboard);}
+  else if(h==="admin"){
     const q=new URLSearchParams(location.search);
     setTab("admin");
     requireAuth(async()=>{
