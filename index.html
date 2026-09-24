@@ -431,12 +431,11 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <select id="storeSelect" aria-label="지점 선택" style="border:0;background:transparent;color:inherit;font:inherit;max-width:130px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.04</span>
+        <button type="button" id="hqHome" style="border:0;background:transparent;color:inherit;font:inherit;padding:0;cursor:pointer" title="본사 대시보드">본사</button><span aria-hidden="true">›</span><select id="storeSelect" aria-label="지점 선택" style="border:0;background:transparent;color:inherit;font:inherit;max-width:130px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.05</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
     <div style="padding:10px 18px" class="tabwrap"><div class="tabs">
-      <a id="tabDashboard" href="#dashboard">본사 대시보드</a>
       <a id="tabPos" href="#pos" class="on">출퇴근</a>
       <a id="tabAdmin" href="#admin">관리</a>
       <a id="tabPay" href="#pay">급여</a>
@@ -510,7 +509,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.04";
+const APP_VERSION="v1.05";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -847,7 +846,7 @@ const SupaBE = (()=>{
 
 const BE = LIVE ? SupaBE : LocalBE;
 let CURRENT_STORE_ID=1;
-async function loadStores(){ if(!LIVE)return; try{const rows=await rpc("list_stores",{},true);const sel=document.getElementById("storeSelect");sel.innerHTML=rows.map(x=>`<option value="${x.id}">${safeHtml(x.name)}</option>`).join("");CURRENT_STORE_ID=Number(sel.value)||1;sel.onchange=()=>{CURRENT_STORE_ID=Number(sel.value)||1;route();};}catch(_){}}
+async function loadStores(){ const home=document.getElementById("hqHome");if(home)home.onclick=()=>{location.hash="#dashboard";}; if(!LIVE)return; try{const rows=await rpc("list_stores",{},true);const sel=document.getElementById("storeSelect");sel.innerHTML=rows.map(x=>`<option value="${x.id}">${safeHtml(x.name)}</option>`).join("");CURRENT_STORE_ID=Number(sel.value)||1;sel.onchange=()=>{CURRENT_STORE_ID=Number(sel.value)||1;if(location.hash==="#dashboard")location.hash="#pos";else route();};}catch(_){}}
 
 // Any database/user-controlled text inserted through innerHTML must pass this boundary.
 function safeHtml(value){
@@ -985,11 +984,10 @@ function attachNoDoubleTapZoom(el){
 }
 function renderDashboard(){ view.innerHTML=`<div class="section-t">전 지점 대시보드</div><div class="row" style="display:block"><b>전체 매장 현황</b><div style="font-size:.8rem;color:var(--text-muted);margin-top:6px">지점을 선택하면 해당 매장의 출퇴근·관리 화면으로 전환됩니다.</div></div><div class="section-t">지점별 매출 추이</div><div id="hqSales" class="row">매출 데이터 연결 준비중</div><div class="section-t">지점별 메뉴별 매출 추이</div><div id="hqMenuSales" class="row">메뉴별 매출 데이터 연결 준비중</div>`;}
 function setTab(t){
-  const d=document.getElementById("tabDashboard");if(d)d.classList.toggle("on",t==="dashboard");
   document.getElementById("tabPos").classList.toggle("on",t==="pos");
-  document.getElementById("tabAdmin").classList.toggle("on",t==="admin");
-  document.getElementById("tabPay").classList.toggle("on",t==="pay");
-  document.getElementById("tabOps").classList.toggle("on",t==="ops");
+  document.getElementById("tabAdmin").classList.toggle("on",t==="admin"||t==="pay"||t==="ops");
+  const pay=document.getElementById("tabPay");if(pay)pay.classList.toggle("on",t==="pay");
+  const ops=document.getElementById("tabOps");if(ops)ops.classList.toggle("on",t==="ops");
 }
 function route(){
   const h=(location.hash||"#pos").replace("#","");
