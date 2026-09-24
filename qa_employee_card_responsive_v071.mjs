@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const h=fs.readFileSync('index.html','utf8');
+assert(h.includes('const APP_VERSION="v0.71";'));
+assert(h.includes('#empGrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));'));
+assert(h.includes('@media(max-width:430px){#empGrid{grid-template-columns:repeat(2,minmax(0,1fr));'));
+assert(h.includes('.payroll-employee-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));'));
+assert(h.includes('@media(max-width:430px){.payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr));'));
+assert(h.includes('#adList{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));'));
+assert(h.includes('@media(max-width:430px){#adList{grid-template-columns:repeat(2,minmax(0,1fr));'));
+assert(h.includes('.employee-list-mask{padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));'));
+assert(h.includes('@media(max-width:430px){.employee-list-mask{grid-template-columns:repeat(2,minmax(0,1fr));'));
+assert(h.includes('div.className="employee-manage-card"'));
+assert(h.includes('class="att-edit-icon" data-fix="${e.id}"'));
+console.log('employee card responsive v0.71: PASS');
