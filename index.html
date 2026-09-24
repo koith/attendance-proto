@@ -284,7 +284,7 @@
   .pay-month-nav input[type=month]::-webkit-date-and-time-value{text-align:center;width:100%}
   .payroll-list-title{margin:0 0 8px 2px;font-size:.86rem;font-weight:700;color:var(--text)}
   .payroll-month-field{margin-bottom:12px}
-  .payroll-employee-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-content:start}
+  .payroll-employee-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-content:start;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y;max-width:100%}
   .payroll-employee-card{height:88px;min-height:88px;max-height:88px;box-sizing:border-box;min-width:0;border-radius:var(--r);padding:14px 16px!important;justify-content:center}
   .payroll-employee-card .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .payroll-employee-card>div:first-child{min-width:0}
@@ -355,7 +355,7 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.9</span>
+        <span id="storeName">인하대점</span><span class="app-version-badge" id="appVersion">v0.69.10</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -417,7 +417,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v0.69.9";
+const APP_VERSION="v0.69.10";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
