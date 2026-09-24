@@ -1671,7 +1671,7 @@ function empOnboardValidate(step){
   const s=EMP_ONBOARD;
   if(step===1){
     if(!s.name) return "이름을 입력하세요.";
-    if(!/^\\d{4}$/.test(s.pin)) return "비밀번호는 숫자 4자리입니다.";
+    if(!/^\d{4}$/.test(s.pin)) return "비밀번호는 숫자 4자리입니다.";
     if(!s.startedOn) return "입사일을 입력하세요.";
   }
   if(step===2){
@@ -1757,7 +1757,7 @@ function renderEmployeeOnboardingStep(){
         p_memo:s.memo||null,p_workdays:workdays
       });
       document.getElementById("addVeil").classList.remove("show");
-      toast("in","직원 등록 완료","사번 "+r.employee_id+" · 계약정보까지 저장됨");
+      toast("in","직원 등록 완료","No."+r.employee_id+" · 계약정보까지 저장됨");
       EMP_ONBOARD=null;restoreAddModal();renderAdmin();
     }catch(e){alert("등록 실패: "+e.message);btn.disabled=false;btn.textContent="등록 완료"}
   };
