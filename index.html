@@ -1744,34 +1744,34 @@ function renderEmployeeOnboardingStep(){
   if(s.step===1) body=`
     <h3>직원 등록 · 기본정보</h3>${prog}
     <div style="display:flex;align-items:center;gap:8px;margin:-4px 0 14px;font-size:.82rem;color:var(--text-muted)"><span>예정 사번</span><b id="newEmpNo" style="font-size:.9rem;color:var(--brand-700);font-variant-numeric:tabular-nums">계산 중…</b></div>
-    <div class="field"><label>이름</label><input id="newName" autocomplete="off" value="${escapeHtml(s.name)}" placeholder="예: 이현진"></div>
-    <div class="field"><label>비밀번호 (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" value="${escapeHtml(s.pin)}" placeholder="숫자 4자리"></div>
+    <div class="field"><label>이름</label><input id="newName" autocomplete="off" value="${safeHtml(s.name)}" placeholder="예: 이현진"></div>
+    <div class="field"><label>비밀번호 (4자리)</label><input id="newPin" inputmode="numeric" maxlength="4" autocomplete="off" value="${safeHtml(s.pin)}" placeholder="숫자 4자리"></div>
     <div class="field"><label>입사일</label><input id="newStart" type="date" value="${s.startedOn}"></div>`;
   if(s.step===2) body=`
     <h3>직원 등록 · 급여조건</h3>${prog}
     <div class="field"><label>급여 방식</label><select id="newPayrollType"><option value="HOURLY" ${s.payrollType==="HOURLY"?"selected":""}>시급제</option><option value="MONTHLY" ${s.payrollType==="MONTHLY"?"selected":""}>월급제</option></select></div>
-    <div class="field"><label id="newPayAmountLabel">${s.payrollType==="HOURLY"?"시급 (원)":"월급액 (원)"}</label><input id="newPayAmount" inputmode="numeric" value="${escapeHtml(s.amount)}" placeholder="${s.payrollType==="HOURLY"?"예: 12500":"예: 2500000"}"></div>
+    <div class="field"><label id="newPayAmountLabel">${s.payrollType==="HOURLY"?"시급 (원)":"월급액 (원)"}</label><input id="newPayAmount" inputmode="numeric" value="${safeHtml(s.amount)}" placeholder="${s.payrollType==="HOURLY"?"예: 12500":"예: 2500000"}"></div>
     <div class="field"><label>세금·보험</label><select id="newTaxTreatment"><option value="BUSINESS_INCOME" ${s.taxTreatment==="BUSINESS_INCOME"?"selected":""}>사업소득</option><option value="FOUR_INSURANCE" ${s.taxTreatment==="FOUR_INSURANCE"?"selected":""}>4대보험</option></select></div>
-    <div class="field" id="newTaxRateWrap" ${s.taxTreatment==="BUSINESS_INCOME"?"":"style='display:none'"}><label>공제율 (%)</label><input id="newTaxRate" inputmode="decimal" value="${escapeHtml(s.rate)}" placeholder="예: 3.3"></div>`;
+    <div class="field" id="newTaxRateWrap" ${s.taxTreatment==="BUSINESS_INCOME"?"":"style='display:none'"}><label>공제율 (%)</label><input id="newTaxRate" inputmode="decimal" value="${safeHtml(s.rate)}" placeholder="예: 3.3"></div>`;
   if(s.step===3) body=`
     <h3>직원 등록 · 근무조건</h3>${prog}
     ${s.payrollType==="HOURLY"?`<div class="field"><label>계약 근무요일</label><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">${WD.map((x,i)=>`<label style="display:flex;min-width:0;flex-direction:column;align-items:center;gap:4px;padding:8px 2px;border:1px solid var(--border);border-radius:9px;background:var(--surface-muted);font-size:.8rem"><input data-ob-day type="checkbox" value="${i}" ${s.weekdays.has(i)?"checked":""}>${x}</label>`).join("")}</div></div>
     <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px"><div class="field"><label>시작</label><input id="newWorkStart" type="time" value="${s.start}"></div><div class="field"><label>종료</label><input id="newWorkEnd" type="time" value="${s.end}"></div></div>`:`<div class="empty" style="margin-bottom:12px">월급제 계약은 상세 근무요일을 계약관리에서 별도로 관리합니다.</div>`}
     <div class="field"><label style="display:flex;align-items:center;justify-content:space-between">야간수당 <input id="newNightEnabled" type="checkbox" ${s.night?"checked":""}></label></div>
     <div id="newNightFields" ${s.night?"":"style='display:none'"}>
-      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px"><div class="field"><label>방식</label><select id="newNightMode"><option value="RATE" ${s.nightMode==="RATE"?"selected":""}>정률 (%)</option><option value="FLAT" ${s.nightMode==="FLAT"?"selected":""}>정액 (원)</option></select></div><div class="field"><label>값</label><input id="newNightValue" inputmode="decimal" value="${escapeHtml(s.nightValue)}"></div></div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px"><div class="field"><label>방식</label><select id="newNightMode"><option value="RATE" ${s.nightMode==="RATE"?"selected":""}>정률 (%)</option><option value="FLAT" ${s.nightMode==="FLAT"?"selected":""}>정액 (원)</option></select></div><div class="field"><label>값</label><input id="newNightValue" inputmode="decimal" value="${safeHtml(s.nightValue)}"></div></div>
       <div class="field"><label>야간 시작</label><input id="newNightStart" type="time" value="${s.nightStart}"></div>
     </div>
-    <div class="field"><label>계약 메모</label><textarea id="newContractMemo" rows="3" placeholder="필요한 내용만 기록">${escapeHtml(s.memo)}</textarea></div>`;
+    <div class="field"><label>계약 메모</label><textarea id="newContractMemo" rows="3" placeholder="필요한 내용만 기록">${safeHtml(s.memo)}</textarea></div>`;
   if(s.step===4){
     const pay=Number(s.amount||0).toLocaleString(),days=[...s.weekdays].sort().map(i=>WD[i]).join("·");
     body=`<h3>직원 등록 · 최종확인</h3>${prog}
       <div class="card" style="padding:14px;margin:0 0 12px">
         <div style="display:grid;grid-template-columns:84px 1fr;gap:8px 10px;font-size:.9rem">
-          <span style="color:var(--muted)">이름</span><b>${escapeHtml(s.name)}</b>
+          <span style="color:var(--muted)">이름</span><b>${safeHtml(s.name)}</b>
           <span style="color:var(--muted)">입사일</span><b>${s.startedOn}</b>
           <span style="color:var(--muted)">급여</span><b>${s.payrollType==="HOURLY"?"시급":"월급"} ${pay}원</b>
-          <span style="color:var(--muted)">세금·보험</span><b>${s.taxTreatment==="BUSINESS_INCOME"?"사업소득 "+escapeHtml(s.rate)+"%":"4대보험"}</b>
+          <span style="color:var(--muted)">세금·보험</span><b>${s.taxTreatment==="BUSINESS_INCOME"?"사업소득 "+safeHtml(s.rate)+"%":"4대보험"}</b>
           ${s.payrollType==="HOURLY"?`<span style="color:var(--muted)">근무조건</span><b>${days} · ${s.start}~${s.end}</b>`:""}
           <span style="color:var(--muted)">야간수당</span><b>${s.night?"사용":"사용 안 함"}</b>
         </div>
