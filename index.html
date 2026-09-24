@@ -431,11 +431,11 @@
     <header>
       <div class="brand">
         <img src="logo_combine.jpg" alt="백억커피">
-        <button type="button" id="hqHome" style="border:0;background:transparent;color:inherit;font:inherit;padding:0;cursor:pointer" title="본사 대시보드">본사</button><span aria-hidden="true">›</span><select id="storeSelect" aria-label="지점 선택" style="border:0;background:transparent;color:inherit;font:inherit;max-width:130px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.05</span>
+        <button type="button" id="hqHome" style="border:0;background:transparent;color:inherit;font:inherit;padding:0;cursor:pointer" title="본사 대시보드">본사</button><span aria-hidden="true">›</span><select id="storeSelect" aria-label="지점 선택" style="border:1px solid rgba(255,255,255,.35);background:#fff;color:#174f35;font:inherit;font-weight:700;max-width:150px;border-radius:9px;padding:5px 28px 5px 9px"><option>인하대점</option></select><span class="app-version-badge" id="appVersion">v1.06</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
-    <div style="padding:10px 18px" class="tabwrap"><div class="tabs">
+    <div id="storeBackRow" style="display:none;padding:8px 18px 0"><button type="button" id="storeBackBtn" class="btn btn-secondary" style="min-height:32px;padding:5px 10px">← 본사 대시보드</button></div>\n    <div style="padding:10px 18px" class="tabwrap"><div class="tabs">
       <a id="tabPos" href="#pos" class="on">출퇴근</a>
       <a id="tabAdmin" href="#admin">관리</a>
       <a id="tabPay" href="#pay">급여</a>
@@ -509,7 +509,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.05";
+const APP_VERSION="v1.06";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -982,7 +982,13 @@ function attachNoDoubleTapZoom(el){
     }
   }, {passive:false});
 }
-function renderDashboard(){ view.innerHTML=`<div class="section-t">전 지점 대시보드</div><div class="row" style="display:block"><b>전체 매장 현황</b><div style="font-size:.8rem;color:var(--text-muted);margin-top:6px">지점을 선택하면 해당 매장의 출퇴근·관리 화면으로 전환됩니다.</div></div><div class="section-t">지점별 매출 추이</div><div id="hqSales" class="row">매출 데이터 연결 준비중</div><div class="section-t">지점별 메뉴별 매출 추이</div><div id="hqMenuSales" class="row">메뉴별 매출 데이터 연결 준비중</div>`;}
+async function renderDashboard(){
+  let rows=[];try{rows=LIVE?await rpc("hq_store_dashboard",{},true):[];}catch(_){}
+  const money=n=>Number(n||0).toLocaleString("ko-KR")+"원";
+  const cards=rows.map(r=>{const pts=Array.isArray(r.trend)?r.trend:[];const max=Math.max(1,...pts.map(x=>Number(x.sales||0)));const bars=pts.slice(-14).map(x=>'<i title="'+x.date+' '+money(x.sales)+'" style="display:block;flex:1;min-width:3px;height:'+Math.max(6,Math.round(Number(x.sales||0)/max*58))+'px;background:#2d7a55;border-radius:3px 3px 0 0"></i>').join("");return '<button class="hq-store-card" data-store="'+r.store_id+'" style="text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:14px;padding:14px;min-width:0;cursor:pointer"><div style="display:flex;justify-content:space-between;gap:8px"><b>'+safeHtml(r.store_name)+'</b><span style="font-size:.72rem;color:var(--text-muted)">상세 ›</span></div><div style="font-size:1.05rem;font-weight:800;margin-top:8px">'+money(r.sales_7d)+'</div><div style="font-size:.7rem;color:var(--text-muted)">최근 7일 매출 · '+Number(r.tx_count||0).toLocaleString()+'건</div><div style="height:62px;display:flex;align-items:end;gap:2px;margin-top:10px">'+bars+'</div></button>';}).join("");
+  view.innerHTML='<div class="section-t">전 지점 대시보드</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">'+cards+'</div><div class="section-t">지점별 메뉴별 매출 추이</div><div class="row" style="display:block"><b>메뉴 매출 비교</b><div style="font-size:.78rem;color:var(--text-muted);margin-top:5px">현재 원천 매출 데이터에 메뉴 품목 필드가 없어 지점별 메뉴 그래프는 원천 데이터 연결 후 표시됩니다.</div></div>';
+  view.querySelectorAll(".hq-store-card").forEach(c=>c.onclick=()=>{const sel=document.getElementById("storeSelect");sel.value=c.dataset.store;CURRENT_STORE_ID=Number(c.dataset.store);location.hash="#pos";});
+}
 function setTab(t){
   document.getElementById("tabPos").classList.toggle("on",t==="pos");
   document.getElementById("tabAdmin").classList.toggle("on",t==="admin"||t==="pay"||t==="ops");
@@ -991,7 +997,7 @@ function setTab(t){
 }
 function route(){
   const h=(location.hash||"#pos").replace("#","");
-  if(h!=="pos"){ clearInterval(_posTimer); }
+  const back=document.getElementById("storeBackRow");if(back)back.style.display=h==="dashboard"?"none":"block"; const backBtn=document.getElementById("storeBackBtn");if(backBtn)backBtn.onclick=()=>{location.hash="#dashboard";};\n  if(h!=="pos"){ clearInterval(_posTimer); }
   if(h==="dashboard"){setTab("dashboard");requireAuth(renderDashboard);}
   else if(h==="admin"){
     const q=new URLSearchParams(location.search);
