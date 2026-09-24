@@ -1,0 +1,16 @@
+name: payroll-size-v67
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'qa_payroll_size_v67.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node qa_payroll_size_v67.mjs

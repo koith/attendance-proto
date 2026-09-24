@@ -199,6 +199,9 @@
   .kpi-row{display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--brand-050); border:1px solid #bfe3cb; border-radius:var(--radius-md); padding:16px 18px; margin:6px 0 10px;}
   .kpi-row .kpi-label{font-weight:600; font-size:1rem; color:var(--text);}
   .kpi-row .kpi-value{font-weight:700; font-size:1.15rem; color:var(--brand-700); font-variant-numeric:tabular-nums;}
+  /* Payroll number scale source of truth */
+  #payList .kpi-row .kpi-value{font-size:1.55rem!important;line-height:1.12!important;font-weight:850!important;letter-spacing:-.025em}
+  #payList .employee-scroll-surface .row .payroll-gross-value{font-size:1.36rem!important;line-height:1.15!important;font-weight:800!important;letter-spacing:-.015em}
   .row .times{font-size:.85rem; color:var(--sub); font-variant-numeric:tabular-nums; text-align:right;}
   .row .times b{color:var(--ink); font-weight:600;}
   /* ===== V1 Status badge (pill, 클릭 불가) ===== */
@@ -321,7 +324,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="app-version-badge" id="appVersion">v66</div>
+    <div class="app-version-badge" id="appVersion">v67</div>
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
@@ -388,7 +391,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v66";
+const APP_VERSION="v67";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1915,7 +1918,7 @@ async function drawPay(ym){
   const sum=document.createElement("div");
   sum.className="kpi-row";
   sum.style.cssText="padding:20px 22px;margin-bottom:18px";
-  sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">세전 합계</div><div class="kpi-value" style="font-size:.78rem;font-weight:800;color:var(--ink)">${R.totalGross.toLocaleString()}원</div>`;
+  sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">세전 합계</div><div class="kpi-value" style="color:var(--ink)">${R.totalGross.toLocaleString()}원</div>`;
   el.appendChild(sum);
   const payEmployees=document.createElement("div");
   payEmployees.className="employee-scroll-surface compact";
@@ -1942,7 +1945,7 @@ async function drawPay(ym){
         <span style="font-size:.76rem;color:var(--muted);white-space:nowrap">${fmtHM(sec)} 근무</span>
         ${issues?`<span class="badge issue" style="margin-left:auto;white-space:nowrap">근태 확인 ${issues}</span>`:''}
       </div>
-      ${pay?`<div style="display:flex;align-items:baseline;gap:5px"><strong style="font-size:.68rem;line-height:1.15">${pay.gross.toLocaleString()}원</strong><span style="font-size:.62rem;color:var(--muted)">(세전)</span></div>`:''}
+      ${pay?`<div style="display:flex;align-items:baseline;gap:5px"><strong class="payroll-gross-value">${pay.gross.toLocaleString()}원</strong><span style="font-size:.62rem;color:var(--muted)">(세전)</span></div>`:''}
     `;
     if(LIVE){
       card.style.cursor="pointer";
