@@ -1141,11 +1141,11 @@ async function renderPos(){
     card.className="emp"+(e.working?" working":"");
     if(e.working){
       card.innerHTML=`
-        <div class="employee-card-primary"><span class="employee-card-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></span><span class="badge-on">근무중</span></div>
+        <div class="employee-card-primary"><span class="employee-card-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></span><span class="att-card-head-actions"><span class="badge-on">근무중</span>${adminMode?`<button type="button" class="att-edit-icon pos-att-edit" data-fix="${e.id}" aria-label="${safeHtml(e.name)} 근태 수정" title="근태 수정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`:""}</span></div>
         <div class="employee-card-secondary"><div class="employee-card-attendance since" data-since="${e.working_since||''}">${e.working_since?`<span class="employee-card-attendance-main">출근 ${hhmm(fromIso(e.working_since))}</span><span class="employee-card-attendance-duration">${fmtElapsed(e.working_since)}째</span>`:'<span class="employee-card-attendance-main">근무 중</span>'}</div></div>`;
     }else{
       card.innerHTML=`
-        <div class="employee-card-primary"><span class="employee-card-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></span><span class="badge-off">출근 전</span></div>
+        <div class="employee-card-primary"><span class="employee-card-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></span><span class="att-card-head-actions"><span class="badge-off">출근 전</span>${adminMode?`<button type="button" class="att-edit-icon pos-att-edit" data-fix="${e.id}" aria-label="${safeHtml(e.name)} 근태 수정" title="근태 수정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`:""}</span></div>
         <div class="employee-card-secondary"><span class="employee-card-secondary-main">출근 기록 없음</span></div>`;
     }
     card.onclick=()=>openPad(e, e.working?"WORKING":"OFF");
