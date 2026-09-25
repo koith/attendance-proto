@@ -1131,8 +1131,7 @@ async function renderPos(){
   view.innerHTML=`<div class="pos-screen"><div class="pos-roster-meta" id="empCount">총 0명</div><div class="grid employee-scroll-surface" id="empGrid"></div>
     <button class="btn btn-primary pos-bottom-action" id="myRecBtn">내 근태 기록 · 정정요청</button></div>`;
   document.getElementById("myRecBtn").onclick=openMyRecord;
-  const grid=document.getElementById("empGrid");
-  let emps=[];
+  const grid=document.getElementById("empGrid");\n  let adminMode=false; if(LIVE&&Auth.isLoggedIn()){try{adminMode=!!(await BE.isAdmin())}catch(_){adminMode=false}}\n  let emps=[];
   try{ emps=await BE.listEmployeesState(); }catch(e){ grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
   document.getElementById("empCount").textContent=`총 ${emps.length}명`;
   if(!emps.length){ grid.innerHTML=`<div class="empty">등록된 직원이 없습니다.<br>관리자 탭에서 먼저 직원을 등록하세요.</div>`; return; }
@@ -1590,8 +1589,7 @@ async function renderAdmin(){
         <button type="button" id="accountManageBtn"><span>👥</span><b>계정 관리</b></button>
       </div>
     </section>
-    <div class="section-t">오늘 근태 · <span id="adToday"></span></div>
-    <div id="adList"></div>
+    <div id="adToday" hidden></div><div id="adList" hidden></div>
     <div class="employee-section-head"><div class="section-t">직원 관리</div><button class="btn btn-primary employee-add-small" id="adAdd">+ 직원 등록</button></div>
     <div class="employee-panel">
       <div class="employee-tabs" role="tablist" aria-label="직원 상태">
