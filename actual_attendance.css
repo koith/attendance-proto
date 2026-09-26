@@ -51,3 +51,10 @@
 
 /* V1.29: operating-hours timeline uses positioned labels across the configured window. */
 .axis-labels{position:relative;display:block;height:18px;padding-bottom:0}.axis-labels span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}.axis-labels span:first-child{transform:none}.axis-labels span:last-child{transform:translateX(-100%);text-align:right}
+
+/* V1.49: use available portrait viewport height for the five-row month calendar. */
+@media(max-width:520px) and (orientation:portrait){
+  .calendar{grid-auto-rows:minmax(94px,calc((100dvh - 410px)/5))}
+  .day{min-height:94px!important;padding:8px 4px 10px!important}
+  .day .lines{margin-top:7px!important;gap:4px!important}
+}
