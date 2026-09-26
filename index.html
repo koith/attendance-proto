@@ -485,12 +485,7 @@
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 
   /* V1.93 store selector: one-way overflow flow, never ping-pong */
-  .store-select-shell{position:relative!important;overflow:hidden!important}
-  .store-select-shell #storeSelect{color:transparent!important;text-shadow:none!important;position:relative!important;z-index:2!important;background:transparent!important}
-  .store-select-marquee{display:block!important;position:absolute!important;z-index:1!important;left:8px!important;right:26px!important;top:0!important;height:32px!important;overflow:hidden!important;pointer-events:none!important;color:#174f35!important;font-weight:700!important;line-height:32px!important;white-space:nowrap!important}
-  .store-select-marquee>span{display:inline-block!important;min-width:max-content!important;transform:translateX(0)}
-  .store-select-marquee.is-overflowing>span{animation:storeFlow var(--store-flow-duration,8s) linear infinite!important}
-  @keyframes storeFlow{0%,15%{transform:translateX(0)}85%,99.9%{transform:translateX(var(--store-flow-distance,0px))}100%{transform:translateX(0)}}
+  85%,99.9%{transform:translateX(var(--store-flow-distance,0px))}100%{transform:translateX(0)}}
   @media(prefers-reduced-motion:reduce){.store-select-marquee.is-overflowing>span{animation:none!important}}
 
   /* V1.93 payroll card isolated from legacy .row/flex overrides */
@@ -505,6 +500,11 @@
   /* V1.93 payroll card: restore pre-regression layout; only protect bottom payline */
   #adminPanel:has(#payList) .payroll-employee-card{padding-bottom:14px!important;overflow:hidden!important}
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+  /* V1.93 store selector: restore stable native select */
+  .store-select-shell{display:flex!important;align-items:center!important;overflow:visible!important}
+  .store-select-shell #storeSelect{display:block!important;position:static!important;width:100%!important;height:32px!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;box-sizing:border-box!important;border:1px solid rgba(255,255,255,.35)!important;border-radius:9px!important;background:#fff!important;color:#174f35!important;text-shadow:none!important;font:inherit!important;font-weight:700!important;padding:4px 26px 4px 8px!important;cursor:pointer!important;white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important}
+  .store-select-marquee{display:none!important}
 </style>
 <link rel="stylesheet" href="operations_v1.css?v=20260926v193">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
