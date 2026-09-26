@@ -123,5 +123,5 @@
 /* V1.78 inventory state badge owns status; footer only shows reorder quantity */
 .ops-stock-info-btn{width:auto!important;min-width:0!important;height:26px!important;padding:0 8px!important;border-radius:999px!important;font-size:.68rem!important;font-weight:800!important;line-height:24px!important;white-space:nowrap!important}.state-critical .ops-stock-info-btn{background:#fff0ef!important;color:#b82e25!important;border-color:#efb8b4!important}.state-low .ops-stock-info-btn{background:#fff7e8!important;color:#a86100!important;border-color:#e8c98f!important}.state-ok .ops-stock-info-btn{background:#f1f5f3!important;color:#52635a!important;border-color:#ccd7d1!important}.state-ample .ops-stock-info-btn,.state-over .ops-stock-info-btn{background:#eaf7ef!important;color:#147442!important;border-color:#afd7bf!important}.ops-stock-order:empty{display:none}.ops-stock-order{flex:0 0 auto;white-space:nowrap;font-size:.72rem;font-weight:800}.ops-stock-order.low{color:#b66b00}.ops-stock-order.critical{color:#bd3027}
 
-/* V1.81 mobile inventory cards: one column for readable stock/status data */
-@media(max-width:520px){.ops-stock-grid{grid-template-columns:minmax(0,1fr)!important;gap:8px}}
+/* V1.83 mobile inventory cards: hard one-column rule */
+@media(max-width:520px){#opsBody .ops-stock-chart.ops-stock-grid{display:grid!important;grid-template-columns:1fr!important;grid-auto-flow:row!important;gap:8px!important}#opsBody .ops-stock-chart.ops-stock-grid>.ops-stock-bar{width:100%!important;max-width:none!important}}
