@@ -29,7 +29,7 @@
   /* iOS Safari: font-size<16px input/select에 focus 시 자동 줌 발생 → 전역 16px 최소 보장으로 차단.
      (user-scalable=no가 iOS16.4+에서 무시되어 줌 후 원복 안 되는 문제의 근본 해결) */
   input, select, textarea{ font-size:16px; }
-  html,body{margin:0; width:100%; max-width:100%; height:100%; touch-action:manipulation; overflow-x:hidden;}
+  html,body{margin:0; width:100%; max-width:100%; height:100%; touch-action:pan-y; overflow-x:hidden; overscroll-behavior-x:none;}
   body{
     background:var(--bg); color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
@@ -98,7 +98,7 @@
   .emp .nm{font-size:1.1rem; font-weight:650; color:var(--ink); letter-spacing:-.01em;}
   .emp .since{font-size:.78rem; color:var(--sub); font-variant-numeric:tabular-nums;}
   .employee-card-primary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;background:#e7f1eb;border-bottom:1px solid #d3e4da;border-radius:var(--r) var(--r) 0 0;padding:9px 12px 8px;margin:-14px -16px 4px}
-  .employee-card-primary .employee-card-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:1.05rem;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+  .employee-card-primary .employee-card-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:1.05rem;font-weight:700;color:var(--ink);letter-spacing:-.01em}.employee-card-identity{min-width:0;display:flex;flex-direction:column;align-items:flex-start;line-height:1.08}.employee-card-identity .employee-card-id{font-size:.66rem;font-weight:600;color:var(--muted);margin-top:3px}
   .employee-card-name small{font-size:.68rem;font-weight:600;color:var(--muted);margin-left:3px;vertical-align:baseline}
   .employee-card-secondary{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;font-size:.78rem;color:var(--sub);font-variant-numeric:tabular-nums}
   .employee-card-secondary-main{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -109,6 +109,7 @@
   .employee-card-pay{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap;flex:0 0 auto}
   .employee-card-pay small{font-size:.62rem;color:var(--muted);font-weight:500}
   @media(max-width:430px){.employee-card-primary .employee-card-name{font-size:1rem}.employee-card-secondary{font-size:.72rem}#empGrid .employee-card-primary{margin:0 -10px 4px}.payroll-employee-card .employee-card-primary{margin:0 -10px 4px}}
+  @media(min-width:769px){.store-select-marquee{width:220px;max-width:220px}.store-select-shell{min-width:220px}}
   @media(min-width:431px){#empGrid .employee-card-primary{margin:0 -16px 4px;padding-left:16px;padding-right:16px}.payroll-employee-card .employee-card-primary{margin:0 -14px 4px;padding-left:14px;padding-right:14px}}
   #empGrid .employee-card-secondary{padding-top:4px}
   .emp .badge-off,.badge-off{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--text-muted);background:var(--surface);white-space:nowrap;cursor:default;user-select:none}
@@ -163,13 +164,13 @@
     header .clock{font-size:.76rem;min-width:0;white-space:nowrap}
   }
 
-  .store-select-shell{position:relative;display:flex;align-items:center;min-width:0}.store-select-shell #storeSelect{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;display:block!important;opacity:0!important;z-index:4!important;cursor:pointer!important}.store-select-marquee{display:block!important;position:relative;overflow:hidden;white-space:nowrap;border:1px solid rgba(255,255,255,.35);background:#fff;color:#174f35;font-weight:700;width:118px;max-width:118px;border-radius:9px;padding:5px 22px 5px 8px;box-sizing:border-box;cursor:pointer;pointer-events:none}.store-select-marquee:after{content:"▾";position:absolute;right:7px;top:50%;transform:translateY(-50%);background:#fff}.store-select-marquee-text{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.store-select-marquee.flow-over .store-select-marquee-text{display:inline-block;min-width:max-content;text-overflow:clip;animation:storeNameFlow var(--store-flow-duration,8s) ease-in-out 1s infinite alternate}@keyframes storeNameFlow{0%,12%{transform:translateX(0)}88%,100%{transform:translateX(calc(-1 * var(--store-flow-distance,0px)))}}
+  .store-select-shell{position:relative;display:flex;align-items:center;min-width:0}.store-select-shell #storeSelect{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;display:block!important;opacity:0!important;z-index:4!important;cursor:pointer!important}.store-select-marquee{display:block!important;position:relative;overflow:hidden;white-space:nowrap;border:1px solid rgba(255,255,255,.35);background:#fff;color:#174f35;font-weight:700;width:118px;max-width:118px;border-radius:9px;padding:5px 22px 5px 8px;box-sizing:border-box;cursor:pointer;pointer-events:none}.store-select-marquee:after{content:"▾";position:absolute;right:7px;top:50%;transform:translateY(-50%);background:#fff}.store-select-marquee-text{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.store-select-marquee.flow-over .store-select-marquee-text{display:inline-block;min-width:max-content;text-overflow:clip;animation:storeNameFlow var(--store-flow-duration,8s) linear 1s infinite}@keyframes storeNameFlow{0%{transform:translateX(calc(-1 * var(--store-flow-distance,0px)))}85%,100%{transform:translateX(0)}}
 
   /* 직원 카드 공통 overflow 보호: 넘칠 때만 천천히 흐름 */
   .employee-card-primary .employee-card-name,.employee-card-secondary-main,.employee-card-attendance-main,.att-name,.att-info .line1-main,.att-info .line2,.sch-line,.sch-prog-sub{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap}
   .flow-text{display:inline-block;min-width:max-content;white-space:nowrap}
-  .flow-over .flow-text{animation:cardFlow var(--flow-duration,8s) ease-in-out 1s infinite alternate}
-  @keyframes cardFlow{0%,12%{transform:translateX(0)}88%,100%{transform:translateX(calc(-1 * var(--flow-distance,0px)))}}
+  .flow-over .flow-text{animation:cardFlow var(--flow-duration,8s) linear 1s infinite}
+  @keyframes cardFlow{0%{transform:translateX(calc(-1 * var(--flow-distance,0px)))}85%,100%{transform:translateX(0)}}
 
   /* 전체화면 성공 오버레이 */
   #success{
@@ -441,9 +442,9 @@
   #employeeOnboarding .ob-night-label{display:flex;align-items:center;justify-content:space-between;gap:12px;white-space:nowrap}
   #employeeOnboarding .ob-weekday{display:flex;min-width:0;flex-direction:column;align-items:center;gap:7px;padding:8px 2px;border:1px solid var(--border);border-radius:9px;background:var(--surface-muted);font-size:.8rem}
 </style>
-<link rel="stylesheet" href="operations_v1.css?v=20260926n">
+<link rel="stylesheet" href="operations_v1.css?v=20260926p">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="no_double_tap_zoom.js" defer></script>
+<script src="no_double_tap_zoom.js?v=20260926p" defer></script>
 <script src="supabase_session_resilience_v1.js?v=20260918a"></script>
 <script src="payroll_elapsed_weeks_v1.js?v=20260918b"></script>
 </head>
@@ -453,7 +454,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option>인하대점</option></select><button type="button" id="storeSelectDisplay" class="store-select-marquee" aria-label="지점 선택"><span class="store-select-marquee-text">인하대점</span></button></span><span class="app-version-badge" id="appVersion">v1.58</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option>인하대점</option></select><button type="button" id="storeSelectDisplay" class="store-select-marquee" aria-label="지점 선택"><span class="store-select-marquee-text">인하대점</span></button></span><span class="app-version-badge" id="appVersion">v1.59</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -515,7 +516,7 @@
   <div class="msg" id="successMsg">오늘도 좋은 하루 되세요</div>
 </div>
 
-<script src="operations_v1.js?v=20260926n"></script>
+<script src="operations_v1.js?v=20260926p"></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
@@ -533,7 +534,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.58";
+const APP_VERSION="v1.59";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -850,7 +851,8 @@ const SupaBE = (()=>{
     async operationsTrend(windowKey){ return rpc("admin_operations_trend",{p_window:windowKey},true); },
     async inventoryOverview(){ return rpc("admin_inventory_overview",{},true); },
     async inventoryMovements(itemId,from,to){ return rpc("admin_inventory_movements",{p_item_id:itemId||null,p_from:from||null,p_to:to||null},true); },
-    async recipeList(){ return rpc("admin_recipe_list",{},true); },
+    async recipeList(){ return rpc("admin_recipe_list_v2",{},true); },
+    async recipeSave(id,name,category,components){ return rpc("admin_recipe_save",{p_recipe_id:id||null,p_menu_name:name,p_category:category||null,p_components:components||[]},true); },
     async reconciliationIssues(from,to){ return rpc("admin_reconciliation_issues",{p_from:from,p_to:to},true); },
     async seedOperationsDemo(){ return rpc("admin_seed_operations_demo",{},true); },
     async clearOperationsDemo(){ return rpc("admin_clear_operations_demo",{},true); },
@@ -1146,11 +1148,11 @@ async function renderPos(){
     card.className="emp"+(e.working?" working":"");
     if(e.working){
       card.innerHTML=`
-        <div class="employee-card-primary"><span class="employee-card-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></span><span class="att-card-head-actions"><span class="badge-on">근무중</span>${adminMode?`<button type="button" class="att-edit-icon pos-att-edit" data-fix="${e.id}" aria-label="${safeHtml(e.name)} 근태 수정" title="근태 수정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`:""}</span></div>
+        <div class="employee-card-primary"><span class="employee-card-identity"><span class="employee-card-name">${safeHtml(e.name)}</span><small class="employee-card-id">(No.${safeHtml(e.id)})</small></span><span class="att-card-head-actions"><span class="badge-on">근무중</span>${adminMode?`<button type="button" class="att-edit-icon pos-att-edit" data-fix="${e.id}" aria-label="${safeHtml(e.name)} 근태 수정" title="근태 수정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`:""}</span></div>
         <div class="employee-card-secondary"><div class="employee-card-attendance since" data-since="${e.working_since||''}">${e.working_since?`<span class="employee-card-attendance-main">출근 ${hhmm(fromIso(e.working_since))}</span><span class="employee-card-attendance-duration">${fmtElapsed(e.working_since)}째</span>`:'<span class="employee-card-attendance-main">근무 중</span>'}</div></div>`;
     }else{
       card.innerHTML=`
-        <div class="employee-card-primary"><span class="employee-card-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></span><span class="att-card-head-actions"><span class="badge-off">출근 전</span>${adminMode?`<button type="button" class="att-edit-icon pos-att-edit" data-fix="${e.id}" aria-label="${safeHtml(e.name)} 근태 수정" title="근태 수정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`:""}</span></div>
+        <div class="employee-card-primary"><span class="employee-card-identity"><span class="employee-card-name">${safeHtml(e.name)}</span><small class="employee-card-id">(No.${safeHtml(e.id)})</small></span><span class="att-card-head-actions"><span class="badge-off">출근 전</span>${adminMode?`<button type="button" class="att-edit-icon pos-att-edit" data-fix="${e.id}" aria-label="${safeHtml(e.name)} 근태 수정" title="근태 수정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`:""}</span></div>
         <div class="employee-card-secondary"><span class="employee-card-secondary-main">출근 기록 없음</span></div>`;
     }
     card.onclick=()=>openPad(e, e.working?"WORKING":"OFF");
@@ -1793,7 +1795,7 @@ async function renderAdmin(){
       const contractNeedsAttention=employeeStatusTab==="active"&&(!cs?.contract_registered||!cs?.contract_effective||!cs?.document_attached);
       div.innerHTML=`
         <div class="employee-manage-head">
-          <div class="employee-manage-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></div>
+          <div class="employee-manage-name employee-card-identity"><span>${safeHtml(e.name)}</span><small class="employee-card-id">(No.${safeHtml(e.id)})</small></div>
           <div class="employee-manage-actions">${employeeStatusTab==="active"?'<span class="badge success">재직중</span>':'<span class="badge-off">퇴직</span>'}</div>
         </div>
         <div class="employee-manage-body">
@@ -2168,7 +2170,7 @@ async function drawPay(ym){
     const workInfo=workingSession?`${hhmm(workingSession.in)} 출근 · (${fmtElapsed(workingSession.in.toISOString())}째)`:`${fmtHM(sec)} 근무`;
     card.innerHTML=`
       <div class="employee-card-primary">
-        <span class="employee-card-name">${safeHtml(eName)}<small>(No.${safeHtml(e.id)})</small></span>
+        <span class="employee-card-identity"><span class="employee-card-name">${safeHtml(eName)}</span><small class="employee-card-id">(No.${safeHtml(e.id)})</small></span>
         ${issues?`<span class="badge issue">근태확인 ${issues}</span>`:'<span></span>'}
       </div>
       <div class="employee-card-secondary"><span class="employee-card-secondary-main">${workInfo}</span></div>
