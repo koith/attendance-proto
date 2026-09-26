@@ -73,3 +73,6 @@
   .day:not(.blank){padding-top:38px!important}
   .day:not(.blank)>.num{height:34px;padding-left:7px}
 }
+
+.dayhead-spacer{width:88px;flex:0 0 88px}
+@media(max-width:520px){.dayhead-spacer{width:82px;flex-basis:82px}}
