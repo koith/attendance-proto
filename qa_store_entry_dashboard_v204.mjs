@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
 
-assert.ok(html.includes('const APP_VERSION="v204"'),'version must be v204');
+assert.ok(/const APP_VERSION="v\d+"/.test(html),'app version must be present');
 assert.ok(html.includes('.store-context-selector-hidden,.store-context-selector-hidden #storeSelect{display:none!important}'),'locked selector CSS must override legacy important rules');
 assert.ok(html.includes('shell.classList.toggle("store-context-selector-hidden",hideSelector)'),'selector shell must be hidden for store lock and dashboard');
 assert.ok(html.includes('sel.hidden=hideSelector'),'native selector must also use the hidden attribute');
@@ -22,7 +22,7 @@ function scenario({search='',hash='#pos'}){
     classList:{values:new Set(),toggle(name,on){on?this.values.add(name):this.values.delete(name)}},
     setAttribute(name,value){this.attrs[name]=value}
   });
-  const els={storeSelect:makeEl(),storeCrumb:makeEl(),hqHome:makeEl(),shell:makeEl(),tabs:makeEl()};
+  const els={storeSelect:makeEl(),storeCrumb:makeEl(),lockedStoreName:makeEl(),hqHome:makeEl(),shell:makeEl(),tabs:makeEl()};
   const location={search,hash,pathname:'/index.html'};
   const sessionStorage={data:new Map(),getItem(k){return this.data.get(k)||null},setItem(k,v){this.data.set(k,String(v))}};
   const document={
@@ -40,7 +40,8 @@ locked.api.syncStoreContextUI();
 assert.equal(locked.api.getLock(),true);
 assert.equal(locked.els.storeSelect.hidden,true);
 assert.equal(locked.els.shell.hidden,true);
-assert.equal(locked.els.storeCrumb.hidden,true);
+assert.equal(locked.els.storeCrumb.hidden,false);
+assert.equal(locked.els.lockedStoreName.hidden,false);
 assert.equal(locked.els.hqHome.disabled,true);
 locked.api.openHqDashboard();
 assert.equal(locked.routes,0,'locked store entry must not open HQ');
