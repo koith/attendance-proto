@@ -30,10 +30,14 @@ function renderMonth(){
     const hasComplete=ss.some(x=>x.status==='COMPLETE'&&!isIssue(x,day));
     const hasWorking=ss.some(x=>x.status==='WORKING'&&!isIssue(x,day));
     const employeeIds=[...new Set(ss.map(x=>Number(x.employee_id)))];
-    const names=employeeIds.map(id=>S.employees.find(e=>Number(e.id)===id)?.name||'직원 정보 없음');
-    const shown=names.slice(0,2),more=Math.max(0,names.length-shown.length);
-    const lines=shown.map(n=>`<div class="line"><b>${escapeHtml(n)}</b></div>`).join('')+(more?`<div class="more">+${more}명</div>`:'');
-    html+=`<button class="day${day===today?' today':''}${issues.length?' issue':''}" data-day="${day}"><span class="num">${d}</span>${lines?`<div class="lines">${lines}</div>`:''}<span class="day-dots">${hasComplete?'<i class="status-dot calendar-normal" aria-label="근무 완료"></i>':''}${hasWorking?'<i class="status-dot calendar-working" aria-label="현재 근무 중"></i>':''}${issues.length?'<i class="status-dot calendar-issue" aria-label="확인 필요"></i>':''}</span></button>`;
+    const people=employeeIds.map(id=>{
+      const emp=S.employees.find(e=>Number(e.id)===id),es=ss.filter(x=>Number(x.employee_id)===id);
+      const status=es.some(x=>isIssue(x,day))?'issue':es.some(x=>x.status==='WORKING')?'working':'normal';
+      return {name:emp?.name||'직원 정보 없음',status};
+    });
+    const shown=people.slice(0,2),more=Math.max(0,people.length-shown.length);
+    const lines=shown.map(x=>`<div class="line employee-status-line"><i class="status-dot calendar-${x.status}" aria-hidden="true"></i><b>${escapeHtml(x.name)}</b></div>`).join('')+(more?`<div class="more">+${more}명</div>`:'');
+    html+=`<button class="day${day===today?' today':''}" data-day="${day}"><span class="num">${d}</span>${lines?`<div class="lines">${lines}</div>`:''}</button>`;
   }
   html+='</div><div class="legend"><span><i class="dot normal"></i>근무 완료</span><span><i class="dot working"></i>근무 중</span><span><i class="dot issue"></i>확인 필요</span><span>날짜를 누르면 상세</span></div><button class="today-fab" id="monthTodayBtn" aria-label="오늘 날짜 강조">오늘</button>';
   el('app').innerHTML=html;
