@@ -10,4 +10,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: node qa_operations_v1.mjs
+      - run: node qa_boot_syntax.mjs\n      - run: node qa_operations_v1.mjs
