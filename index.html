@@ -2256,7 +2256,8 @@ async function drawPay(ym){
     }
     const eName=rec.employee_name;
     const card=document.createElement("div");
-    card.className="row payroll-employee-card";\n    card.style.cssText="flex-direction:column;align-items:stretch;gap:4px";
+    card.className="row payroll-employee-card";
+    card.style.cssText="flex-direction:column;align-items:stretch;gap:4px";
     
     const workingSession=[...rec.sessions].reverse().find(s=>s.status==="WORKING"&&s.in);
     const workInfo=workingSession?`${hhmm(workingSession.in)} 출근 · (${fmtElapsed(workingSession.in.toISOString())}째)`:`${fmtHM(sec)} 근무`;
