@@ -69,3 +69,14 @@
 /* V1.60 inventory + import modal */
 .ops-stock-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ops-stock-grid .ops-stock-bar{display:block;min-width:0;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}.ops-stock-info{display:block;min-width:0}.ops-stock-info b,.ops-stock-info span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ops-stock-info span{margin-top:4px;font-size:.72rem;color:var(--text-muted)}.ops-stock-level{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9px;margin-top:10px}.ops-stock-level i{width:100%;margin:0}.ops-stock-level strong{min-width:34px;text-align:right;font-size:.72rem;white-space:nowrap}.ops-source-action{appearance:none;width:100%;text-align:left;color:inherit;font:inherit;cursor:pointer}.ops-source-action:disabled{opacity:.72}.ops-import-sheet{width:min(620px,calc(100vw - 24px));max-height:min(760px,calc(100dvh - 24px))}.ops-import-form{display:grid;gap:12px}.ops-import-form label{display:grid;gap:6px}.ops-import-form select,.ops-import-form input[type=file]{box-sizing:border-box;width:100%;min-width:0}.ops-import-preview{display:flex;flex-direction:column;gap:3px;min-height:48px;padding:10px;border:1px dashed var(--border);border-radius:10px;color:var(--text-muted);font-size:.75rem}.ops-import-preview b{color:var(--text)}.ops-upload-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 @media(max-width:520px){.ops-stock-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.ops-stock-grid .ops-stock-bar{padding:9px}.ops-stock-level{grid-template-columns:minmax(0,1fr);gap:5px}.ops-stock-level strong{text-align:left}.ops-import-sheet{width:calc(100vw - 16px)}}
+
+/* V1.62 operations modal alignment */
+.ops-kpis-inventory{grid-template-columns:minmax(0,220px);justify-content:start}
+.ops-source-action{position:relative;padding-right:108px;min-height:88px}
+.ops-source-action .ops-status{position:absolute;right:12px;top:12px;margin:0}
+.ops-source-action small{display:block;margin-top:18px}
+.ops-source-grid + .ops-card{margin-top:16px}
+.ops-import-form input[type=file]{min-height:44px;display:flex;align-items:center;padding:6px 10px;line-height:30px}
+.ops-import-form input[type=file]::file-selector-button{height:32px;margin:0 10px 0 0;vertical-align:middle}
+.ops-import-preview{box-sizing:border-box;min-height:48px;justify-content:center}
+@media(max-width:520px){.ops-source-action{padding-right:98px}.ops-source-action .ops-status{right:9px;top:9px}.ops-kpis-inventory{grid-template-columns:1fr}}
