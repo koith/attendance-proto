@@ -1,6 +1,6 @@
 import fs from 'node:fs';import assert from 'node:assert/strict';
 const html=fs.readFileSync('index.html','utf8'),ops=fs.readFileSync('operations_v1.js','utf8');
-assert.ok(html.includes('STORE_NAME_BY_ID.get(id)||opt?.text||CONFIG.STORE_NAME||"지점 선택"'));
+assert.ok(html.includes('opt?.text||STORE_NAME_BY_ID.get(id)||CONFIG.STORE_NAME||"지점 선택"'));\nassert.ok(!html.includes('id="storeSelectDisplay"'));\nassert.ok(html.includes('opacity:1!important'));\nassert.ok(!html.includes('.store-select-shell #storeSelect{position:absolute'));
 assert.ok(html.includes('sel.value=String(CURRENT_STORE_ID)'));
 assert.ok(html.includes('syncStoreSelectDisplay()'));
 assert.ok(!ops.includes('레시피 미등록'));
