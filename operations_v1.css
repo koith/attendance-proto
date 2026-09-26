@@ -52,7 +52,7 @@
 .ops-menu-chart:has(circle.s0:hover) .s0,.ops-menu-chart:has(circle.s0:focus) .s0,.ops-menu-chart:has(circle.s1:hover) .s1,.ops-menu-chart:has(circle.s1:focus) .s1,.ops-menu-chart:has(circle.s2:hover) .s2,.ops-menu-chart:has(circle.s2:focus) .s2,.ops-menu-chart:has(circle.s3:hover) .s3,.ops-menu-chart:has(circle.s3:focus) .s3,.ops-menu-chart:has(circle.s4:hover) .s4,.ops-menu-chart:has(circle.s4:focus) .s4,.ops-menu-chart:has(circle.s5:hover) .s5,.ops-menu-chart:has(circle.s5:focus) .s5,.ops-menu-chart:has(circle.s6:hover) .s6,.ops-menu-chart:has(circle.s6:focus) .s6,.ops-menu-chart:has(circle.s7:hover) .s7,.ops-menu-chart:has(circle.s7:focus) .s7{opacity:1}
 
 /* V75 chart refinement: lighter menu series + date/time alignment guides. */
-.ops-chart svg .ops-chart-vguide{stroke:var(--border);stroke-width:.75;opacity:.55;stroke-dasharray:2 3;vector-effect:non-scaling-stroke}
+.ops-chart svg .ops-chart-vguide{stroke:#b9c5be;stroke-width:.9;opacity:.9;stroke-dasharray:3 3;vector-effect:non-scaling-stroke;pointer-events:none;shape-rendering:crispEdges}
 .ops-menu-chart svg polyline{stroke-width:1.6;vector-effect:non-scaling-stroke}
 .ops-menu-chart svg circle{stroke-width:1.35;vector-effect:non-scaling-stroke}
 @media(max-width:430px){.ops-menu-chart svg polyline{stroke-width:1.45}.ops-menu-chart svg circle{stroke-width:1.2}}
