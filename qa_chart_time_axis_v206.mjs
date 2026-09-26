@@ -12,8 +12,9 @@ assert.ok(js.includes('const gx=axisAt(i).toFixed(1)'),'vertical guides must use
 assert.ok(js.includes('plotLayers=mode==="line"?grid+vGuides+marks:grid+marks+vGuides'),'bar axes must remain visible while line points remain above their axes');
 assert.ok(js.includes("'<text x=\"'+axisAt(i).toFixed(1)"),'date labels must share the canonical center');
 assert.ok(css.includes('.ops-chart svg .ops-chart-vguide{stroke:#b9c5be;stroke-width:.9;opacity:.9'),'time axes must be visibly distinct from horizontal grid lines');
-assert.ok(html.includes('operations_v1.js?v=20260926v207'));
-assert.ok(html.includes('operations_v1.css?v=20260926v207'));
-assert.ok(html.includes('const APP_VERSION="v207"'));
+const version=html.match(/const APP_VERSION="(v\d+)"/)?.[1];
+assert.ok(version,'app version must exist');
+assert.ok(html.includes(`operations_v1.js?v=20260926${version}`));
+assert.ok(html.includes(`operations_v1.css?v=20260926${version}`));
 
 console.log('chart time axis QA PASS');
