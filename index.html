@@ -1083,7 +1083,7 @@ function route(){
     });
   }
   else if(h==="pay"){ setTab("pay"); requireAuth(async()=>{await renderPay();view.insertAdjacentHTML("afterbegin",adminSubnav("pay"));}); }
-  else if(h==="ops"){ setTab("ops"); requireAuth(async()=>{await renderOperations();view.insertAdjacentHTML("afterbegin",adminSubnav("ops"));}); }
+  else if(h==="report"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");view.insertAdjacentHTML("afterbegin",adminSubnav("report"));}); } else if(h==="sales"){ setTab("sales"); requireAuth(async()=>{await renderOperations("inquiry");view.insertAdjacentHTML("afterbegin",adminSubnav("sales"));}); } else if(h==="inventory"){ setTab("inventory"); requireAuth(async()=>{await renderOperations("inventory");view.insertAdjacentHTML("afterbegin",adminSubnav("inventory"));}); } else if(h==="recipe"){ setTab("recipe"); requireAuth(async()=>{await renderOperations("recipe");view.insertAdjacentHTML("afterbegin",adminSubnav("recipe"));}); } else if(h==="ops"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");view.insertAdjacentHTML("afterbegin",adminSubnav("report"));}); }
   else if(h==="hours"){ setTab("hours"); requireAuth(async()=>{await renderStoreHours();view.insertAdjacentHTML("afterbegin",adminSubnav("hours"));}); }
   else{ setTab("pos"); renderPos(); }
 }
