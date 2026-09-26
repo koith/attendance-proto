@@ -367,7 +367,7 @@
   .payroll-employee-card .payroll-gross-value{white-space:nowrap;font-size:1.08rem!important;line-height:1.05!important}.payroll-employee-card .payroll-employee-payline{min-height:1.32rem;margin-top:0;margin-bottom:4px}
   @media(max-width:430px){#adminPanel:has(#payList){min-height:calc(100dvh - 300px);display:flex;flex-direction:column}#adminPanel:has(#payList) #payList{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}#adminPanel:has(#payList) .payroll-employee-grid{flex:1 1 auto;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-flow:row;gap:8px;height:auto;min-height:224px;max-height:none!important;overflow-y:auto;align-content:start}#adminPanel:has(#payList) .payroll-employee-card{width:auto!important;max-width:none!important;min-width:0!important}#adminPanel:has(#payList) .payroll-action-block{margin-top:8px!important}#adminPanel:has(#payList) .payroll-sheet-actions{margin-top:auto!important;padding-top:8px}.payroll-employee-card{padding:0 10px 8px!important}.payroll-action-block{margin-top:8px!important}.payroll-sheet-actions{margin-top:4px!important}.payroll-sheet-meta{margin-top:3px!important}}
   .payroll-employee-payline{min-height:1.56rem;display:flex;align-items:baseline;gap:5px;justify-content:flex-start}
-  /* V2.00 payroll card vertical rhythm: reserve real breathing room below pay */
+  /* V2.01 payroll card vertical rhythm: reserve real breathing room below pay */
   .payroll-employee-card{padding-bottom:14px!important}
   .payroll-employee-card .employee-card-secondary{margin-top:4px;margin-bottom:5px}
   .payroll-employee-card .payroll-employee-payline{min-height:18px!important;margin:0!important;line-height:1!important;align-items:center!important}
@@ -422,7 +422,7 @@
   .employee-empty{min-height:160px;display:flex;align-items:center;justify-content:center;padding:24px;color:var(--text-muted);font-size:.88rem;text-align:center}
   @media(max-width:430px){.employee-list-mask{height:270px}}
   .app-version-badge{display:inline-block;margin-left:10px;font-size:.68rem;font-weight:700;letter-spacing:.02em;color:rgba(255,255,255,.56);pointer-events:none;user-select:none;vertical-align:baseline}
-  /* V2.00 desktop parity: keep recent payroll/card behavior consistent above mobile width */
+  /* V2.01 desktop parity: keep recent payroll/card behavior consistent above mobile width */
   @media(min-width:431px){#adminPanel:has(#payList){min-height:calc(100dvh - 300px);display:flex;flex-direction:column}#adminPanel:has(#payList) #payList{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}#adminPanel:has(#payList) .payroll-employee-grid{flex:1 1 auto;height:auto;min-height:224px;max-height:none!important;overflow-y:auto}#adminPanel:has(#payList) .payroll-sheet-actions{margin-top:auto;padding-top:8px}.payroll-employee-card .payroll-gross-value{font-size:1.08rem!important;line-height:1.05!important}.payroll-employee-card .payroll-employee-payline{min-height:1.32rem;margin-bottom:4px}}
 
   .topbar{position:relative}
@@ -454,7 +454,7 @@
   #employeeOnboarding .ob-night-label{display:flex;align-items:center;justify-content:space-between;gap:12px;white-space:nowrap}
   #employeeOnboarding .ob-weekday{display:flex;min-width:0;flex-direction:column;align-items:center;gap:7px;padding:8px 2px;border:1px solid var(--border);border-radius:9px;background:var(--surface-muted);font-size:.8rem}
 
-  /* V2.00 payroll viewport: employee area consumes the real space above actions */
+  /* V2.01 payroll viewport: employee area consumes the real space above actions */
   #adminPanel:has(#payList){display:flex;flex-direction:column;min-height:calc(100dvh - 330px)}
   #adminPanel:has(#payList) #payList{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
   #adminPanel:has(#payList) .payroll-employee-grid{flex:1 1 auto;height:auto!important;max-height:none!important;min-height:180px;align-content:stretch;overflow-y:auto}
@@ -462,7 +462,7 @@
   #adminPanel:has(#payList) .payroll-action-block{flex:0 0 auto;margin-top:8px!important}
   @media(max-width:430px){#adminPanel:has(#payList){min-height:calc(100dvh - 300px)}#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;min-height:224px}}
 
-  /* V2.00 payroll card content must never clip the pay line */
+  /* V2.01 payroll card content must never clip the pay line */
   #adminPanel:has(#payList) .payroll-employee-card{overflow:visible!important;padding-bottom:14px!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;gap:0!important}
   #adminPanel:has(#payList) .payroll-employee-card .employee-card-primary{flex:0 0 auto}
   #adminPanel:has(#payList) .payroll-employee-card .employee-card-secondary{flex:0 0 auto;margin:10px 0 6px!important;line-height:1.2!important}
@@ -472,7 +472,7 @@
 
   
 
-  /* V2.00 payroll employee card uses common compact employee-card proportions */
+  /* V2.01 payroll employee card uses common compact employee-card proportions */
   #adminPanel:has(#payList) .payroll-employee-grid{grid-auto-rows:max-content!important;align-content:start!important}
   #adminPanel:has(#payList) .payroll-employee-card{box-sizing:border-box!important;display:grid!important;grid-template-rows:40px 24px 28px!important;height:auto!important;min-height:108px!important;max-height:none!important;padding:0 10px 8px!important;gap:2px!important;overflow:hidden!important;align-content:start!important}
   #adminPanel:has(#payList) .payroll-employee-card .employee-card-primary{height:40px!important;min-height:40px!important;margin:0 -10px!important;padding:0 10px!important}
@@ -481,12 +481,12 @@
   #adminPanel:has(#payList) .payroll-employee-card .payroll-gross-value{font-size:1rem!important;line-height:24px!important;padding:0!important}
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:max-content!important}}
 
-  /* V2.00 payroll employee cards: mobile portrait is always two columns */
+  /* V2.01 payroll employee cards: mobile portrait is always two columns */
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 
   
 
-  /* V2.00 payroll card isolated from legacy .row/flex overrides */
+  /* V2.01 payroll card isolated from legacy .row/flex overrides */
   #adminPanel:has(#payList) .payroll-card-v191{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:40px 26px 30px!important;width:100%!important;height:106px!important;min-height:106px!important;max-height:106px!important;box-sizing:border-box!important;margin:0!important;padding:0 10px 8px!important;gap:1px!important;align-items:stretch!important;align-content:start!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;background:var(--surface)!important;overflow:hidden!important}
   #adminPanel:has(#payList) .payroll-card-v191>.employee-card-primary{grid-row:1!important;display:flex!important;width:auto!important;height:40px!important;min-height:40px!important;margin:0 -10px!important;padding:0 10px!important;box-sizing:border-box!important;min-width:0!important;overflow:hidden!important}
   #adminPanel:has(#payList) .payroll-card-v191>.employee-card-secondary{grid-row:2!important;display:flex!important;width:100%!important;height:26px!important;min-height:26px!important;margin:0!important;padding:5px 0 1px!important;box-sizing:border-box!important;min-width:0!important;overflow:hidden!important}
@@ -495,16 +495,16 @@
   #adminPanel:has(#payList) .payroll-card-v191 .payroll-gross-value{font-size:1rem!important;line-height:24px!important;white-space:nowrap!important}
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:106px!important}#adminPanel:has(#payList) .payroll-card-v191{height:106px!important;min-height:106px!important;max-height:106px!important}}
 
-  /* V2.00 payroll card: restore pre-regression layout; only protect bottom payline */
+  /* V2.01 payroll card: restore pre-regression layout; only protect bottom payline */
   #adminPanel:has(#payList) .payroll-employee-card{padding-bottom:14px!important;overflow:hidden!important}
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 
-  /* V2.00 store selector: restore stable native select */
+  /* V2.01 store selector: restore stable native select */
   .store-select-shell{display:flex!important;align-items:center!important;overflow:visible!important}
   .store-select-shell #storeSelect{display:block!important;position:static!important;width:100%!important;height:32px!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;box-sizing:border-box!important;border:1px solid rgba(255,255,255,.35)!important;border-radius:9px!important;background:#fff!important;color:#174f35!important;text-shadow:none!important;font:inherit!important;font-weight:700!important;padding:4px 26px 4px 8px!important;cursor:pointer!important;white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important}
   .store-select-marquee{display:none!important}
 
-  /* V2.00 payroll card exact geometry restored from pre-regression v1.79 */
+  /* V2.01 payroll card exact geometry restored from pre-regression v1.79 */
   #adminPanel:has(#payList) .payroll-employee-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-flow:row!important;grid-auto-rows:108px!important;gap:8px!important;align-content:start!important;height:auto!important;min-height:224px!important;max-height:none!important;overflow-y:auto!important}
   #adminPanel:has(#payList) .payroll-employee-card{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;box-sizing:border-box!important;width:auto!important;min-width:0!important;max-width:none!important;height:108px!important;min-height:108px!important;max-height:108px!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;background:var(--surface)!important;padding:0 14px 14px!important;gap:0!important;overflow:hidden!important}
   #adminPanel:has(#payList) .payroll-employee-card>.employee-card-primary{flex:0 0 auto!important;width:auto!important;min-width:0!important;margin:0 -14px 4px!important;padding-left:14px!important;padding-right:14px!important}
@@ -513,7 +513,7 @@
   #adminPanel:has(#payList) .payroll-employee-card .payroll-gross-value{font-size:1rem!important;line-height:1!important;white-space:nowrap!important;padding:0!important}
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:108px!important}#adminPanel:has(#payList) .payroll-employee-card{padding:0 10px 12px!important}#adminPanel:has(#payList) .payroll-employee-card>.employee-card-primary{margin:0 -10px 4px!important;padding-left:10px!important;padding-right:10px!important}#adminPanel:has(#payList) .payroll-employee-card>.employee-card-secondary{margin:3px 0 4px!important}#adminPanel:has(#payList) .payroll-employee-card .payroll-gross-value{font-size:.98rem!important}}
 
-  /* V2.00 PAYROLL ONLY: fixed common header + flexible body/rows */
+  /* V2.01 PAYROLL ONLY: fixed common header + flexible body/rows */
   #adminPanel:has(#payList){display:flex!important;flex-direction:column!important;min-height:calc(100dvh - 178px)!important}
   #adminPanel:has(#payList) .payroll-employee-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(var(--payroll-row-count,1),minmax(108px,1fr))!important;grid-auto-rows:minmax(108px,1fr)!important;gap:8px!important;flex:1 1 auto!important;min-height:224px!important;max-height:none!important;height:auto!important;align-content:stretch!important;overflow-y:auto!important}
   #adminPanel:has(#payList) .payroll-employee-card{display:grid!important;grid-template-rows:40px minmax(0,1fr)!important;width:100%!important;height:100%!important;min-height:108px!important;max-height:none!important;box-sizing:border-box!important;margin:0!important;padding:0!important;gap:0!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;background:var(--surface)!important;overflow:hidden!important}
@@ -524,7 +524,7 @@
   #adminPanel:has(#payList) .payroll-employee-card .payroll-gross-value{font-size:1rem!important;line-height:24px!important;padding:0!important;white-space:nowrap!important}
   #adminPanel:has(#payList) .payroll-action-block{flex:0 0 auto!important}
 
-  /* V2.00 PAYROLL ONLY: target the real DOM (#view > #payList), not nonexistent #adminPanel */
+  /* V2.01 PAYROLL ONLY: target the real DOM (#view > #payList), not nonexistent #adminPanel */
   #view:has(#payList){display:flex!important;flex-direction:column!important;min-height:calc(100dvh - 152px)!important}
   #view:has(#payList)>.payroll-summary-shell{flex:0 0 auto!important}
   #view:has(#payList)>#payList{display:flex!important;flex-direction:column!important;flex:1 1 auto!important;min-height:0!important}
@@ -537,16 +537,16 @@
   #view:has(#payList) .payroll-card-body>.employee-card-secondary{height:auto!important;min-height:18px!important;margin:0!important;padding:0!important;line-height:18px!important;flex:0 0 auto!important;overflow:hidden!important}
   #view:has(#payList) .payroll-card-body>.payroll-employee-payline{display:flex!important;height:auto!important;min-height:24px!important;margin:0!important;padding:0!important;line-height:24px!important;align-items:baseline!important;gap:5px!important;flex:0 0 auto!important;overflow:visible!important;white-space:nowrap!important}
 
-  /* V2.00 PAYROLL ONLY: employee area fills viewport; cards do not stretch with it */
+  /* V2.01 PAYROLL ONLY: employee area fills viewport; cards do not stretch with it */
   #view:has(#payList) #payList>.payroll-employee-grid{grid-template-rows:none!important;grid-auto-rows:minmax(108px,max-content)!important;align-content:start!important}
   #view:has(#payList) .payroll-employee-card{height:auto!important;min-height:108px!important;max-height:none!important;align-self:start!important}
   #view:has(#payList) .payroll-employee-card>.payroll-card-body{min-height:68px!important;height:auto!important;justify-content:flex-start!important;gap:8px!important}
 
-  /* V2.00 PAYROLL ONLY: desktop follows the existing employee-card responsive grid */
+  /* V2.01 PAYROLL ONLY: desktop follows the existing employee-card responsive grid */
   #view:has(#payList) #payList>.payroll-employee-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))!important}
   @media(max-width:520px){#view:has(#payList) #payList>.payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 </style>
-<link rel="stylesheet" href="operations_v1.css?v=20260926v200">
+<link rel="stylesheet" href="operations_v1.css?v=20260926v201">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js?v=20260926p" defer></script>
 <script src="supabase_session_resilience_v1.js?v=20260918a"></script>
@@ -558,7 +558,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대점</option></select></span><span class="app-version-badge" id="appVersion">v2.00</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대점</option></select></span><span class="app-version-badge" id="appVersion">v2.01</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -620,7 +620,7 @@
   <div class="msg" id="successMsg">오늘도 좋은 하루 되세요</div>
 </div>
 
-<script src="operations_v1.js?v=20260926v200"></script>
+<script src="operations_v1.js?v=20260926v201"></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
@@ -638,7 +638,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v2.00";
+const APP_VERSION="v2.01";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1731,7 +1731,6 @@ async function renderAdmin(){
         <button type="button" id="accountManageBtn"><span>👥</span><b>계정 관리</b></button>
       </div>
     </section>
-    <div id="adToday" hidden></div><div id="adList" hidden></div>
     <div class="employee-section-head"><div class="section-t">직원 관리</div><button class="btn btn-primary employee-add-small" id="adAdd">+ 직원 등록</button></div>
     <div class="employee-panel">
       <div class="employee-tabs" role="tablist" aria-label="직원 상태">
@@ -1742,7 +1741,6 @@ async function renderAdmin(){
     </div>`;
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
   const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
-  document.getElementById("adToday").textContent=day;
   document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };
   if(LIVE) document.getElementById("adminSettingsBtn").onclick=openPersonalSettings;
   document.getElementById("quickSchedule").onclick=()=>{ location.href="actual_attendance.html"; };
@@ -1753,154 +1751,18 @@ async function renderAdmin(){
   // 정정요청 대기 큐 (LIVE 전용)
   if(LIVE){ renderPendingRequests(); }
 
-  // 오늘 근태 (원본+보정 반영)
-  let emps=[], eff=[], historyEff=[], opState=[], todaySched=[], contractStatuses=[];
+  // 직원 관리 데이터만 조회. 오늘 근태/근무 기록은 출퇴근 및 근무현황 화면에서 담당한다.
+  let emps=[], contractStatuses=[];
   try{
     emps=await BE.allEmployees();
-    try{ opState=await BE.listEmployeesState(); }catch(_){ opState=[]; }
-    try{ todaySched=await BE.scheduleList(day,day); }catch(_){ todaySched=[]; }  // 오늘 스케줄(계획)
     try{ contractStatuses=LIVE?await BE.employeeContractStatuses():[]; }catch(_){ contractStatuses=[]; }
-    if(LIVE){
-      // Pairing needs boundary events too: a shift can start yesterday and end today (or cross midnight tonight).
-      const dkey=d=>`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
-      const prev=new Date(t);prev.setDate(prev.getDate()-1);
-      const next=new Date(t);next.setDate(next.getDate()+2);
-      const data=await BE.eventsWithCorrections(`${dkey(prev)}T00:00:00`,`${dkey(next)}T00:00:00`);
-      eff=applyCorrections(data.events, data.corrections);
-      // Fetch correction-aware history once for all employee cards. Never issue one full-history request per employee.
-      const history=await BE.eventsWithCorrections("2000-01-01T00:00:00",`${dkey(next)}T00:00:00`);
-      historyEff=applyCorrections(history.events, history.corrections);
-    } else {
-      eff=await BE.todayEvents();
-    }
-  }
-  catch(e){
+  }catch(e){
     if(String(e.message).includes("JWT")||String(e.message).includes("401")){ Auth.clear(); requireAuth(renderAdmin); return; }
-    if(String(e.message).includes("NOT_AUTHORIZED")){ document.getElementById("adList").innerHTML=`<div class="empty">관리자 권한이 없습니다.</div>`; return; }
-    document.getElementById("adList").innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return;
+    if(String(e.message).includes("NOT_AUTHORIZED")){ toast("err","직원 관리","관리자 권한이 없습니다."); return; }
+    toast("err","직원 관리",`불러오기 실패: ${e.message}`); return;
   }
-  const listEl=document.getElementById("adList");
   const active=emps.filter(e=>e.is_active!==false && e.active!==false).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ko-KR"));
-  if(!active.length){ listEl.innerHTML=`<div class="empty">등록된 재직중 직원이 없습니다.</div>`; }
-  else{
-    listEl.innerHTML="";
-    for(const e of active){
-      const rows=eff.filter(x=>x.employee_id===e.id);
-      // Pairing must include the employee's preceding effective event. The visible fetch window
-      // alone can turn a legitimate OUT into ORPHAN_OUT when its matching IN is older than yesterday.
-      // Operational state already resolves the full history; for Today cards, fetch a bounded history
-      // only when the window starts with OUT so the real IN/OUT session can be reconstructed.
-      // Use the single correction-aware history snapshot loaded above. This fixes the previous
-      // undefined nextKey path and avoids N full-history network requests for N employees.
-      const pairingRows=(LIVE&&historyEff.length)
-        ? historyEff.filter(x=>x.employee_id===e.id)
-        : rows;
-      const todaySess=pairEvents(pairingRows);   // effective sessions; display below is still filtered to today
-      // Current Operational State (날짜 무관): 현재 열린 punch 상태 + 열린 IN 시각
-      const op=opState.find(o=>o.id===e.id);
-      const isWorking = !!(op && op.working);
-      const openInAt = isWorking && op.working_since ? fromIso(op.working_since) : null;
-
-      // 오늘 완료 세션 summary (Today Attendance) — 완료 카드용. 기존 pairEvents 의미 보존.
-      const isToday=(d)=> d && `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`===day;
-      // A session belongs to Today when either endpoint is today. For overnight work,
-      // the IN can be yesterday while OUT is today; derive display endpoints from the session,
-      // not from endpoint dates independently (which previously produced "출근 - · 퇴근 09:38").
-      const todayComplete=todaySess.filter(s=>s.status==="COMPLETE" && (isToday(s.in)||isToday(s.out)));
-      const todaySec=todayComplete.reduce((a,s)=>a+(s.sec||0),0);
-      const firstTodaySession=todayComplete[0]||null;
-      const lastTodaySession=todayComplete.length?todayComplete[todayComplete.length-1]:null;
-      const firstIn=firstTodaySession?.in ? {in:firstTodaySession.in} : null;
-      const lastOut=lastTodaySession?.out ? {out:lastTodaySession.out} : null;
-      const issue=todaySess.some(s=>(s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT") && (isToday(s.in)||isToday(s.out)));
-      // Never render a meaningless "출근 - · 퇴근 -" row. If no effective endpoint overlaps
-      // today, it is not a Today attendance record; stale anomaly belongs in correction/history UI.
-      const hasTodayAttendance=!!(firstIn||lastOut);
-
-      // 상태별 표시
-      let line1="", line2="", line1Duration="";
-      if(isWorking){
-        // A/D: 현재 열린 세션 기준. 출근=열린 IN시각(operational), 경과=현재 세션 경과(now-openIn).
-        //  전날/오래된 IN이어도 누락 안 됨(operational state가 소스, horizon 없음).
-        const openMs = openInAt ? (kstNow()-openInAt) : null;
-        line1 = openInAt ? `출근 <b>${hhmm(openInAt)}</b>` : `근무 중`;
-        line1Duration = openMs!=null ? `${fmtDur(openMs/1000)}째` : ``;
-      } else if(hasTodayAttendance){
-        // B(완료): 오늘 attendance summary. 실제 OUT 있을 때만 퇴근 label. 기존 세션 의미 보존.
-        line1 = `출근 <b>${firstIn?hhmm(firstIn.in):"-"}</b> · 퇴근 <b>${lastOut?hhmm(lastOut.out):"-"}</b>`;
-        line1Duration = `근무 ${todaySec?fmtDur(todaySec):"-"}`;
-      } else {
-        // C: 현재 working도 아니고 오늘 기록도 없음
-        line1 = `<span style="color:var(--text-muted)">출근 기록 없음</span>`;
-        line2 = "";
-      }
-
-      // ── WorkSchedule 층 (계획 데이터. 급여/판정 안 함) ──
-      const sch=todaySched.find(w=>w.employee_id===e.id);
-      let schLine="", progressHtml="";
-      if(!sch){
-        schLine=`<div class="sch-line sch-none">근무 스케줄 미등록</div>`;   // C: row 없음
-      } else if(sch.status==="OFF"){
-        schLine=`<div class="sch-line sch-off">오늘 근무 예정 없음</div>`;     // B: 명시적 OFF
-      } else {
-        // A: WORK. 예정 표시 + progress(예정 근무량 있을 때만)
-        const isOv = !!(sch.planned_start && sch.planned_end && sch.planned_end < sch.planned_start);  // 파생: end<start=익일
-        schLine=`<div class="sch-line">예정 ${sch.planned_start?sch.planned_start.slice(0,5):"-"} ~ ${sch.planned_end?sch.planned_end.slice(0,5):"-"}${isOv?' <span style="color:var(--muted)">(익일)</span>':''}</div>`;
-        // 예정 근무시간(분) = end - start (overnight면 +24h)
-        if(sch.planned_start && sch.planned_end){
-          const toMin=t=>{const[h,m]=t.split(":");return +h*60+ +m;};
-          let planMin=toMin(sch.planned_end)-toMin(sch.planned_start);
-          if(isOv) planMin+=24*60;
-          // v62: 오늘 progress는 완료된 오늘 세션 + 열린 세션의 오늘 00:00 이후 구간만 합산.
-          let openTodaySec=0;
-          if(isWorking&&openInAt&&!isNaN(openInAt)){
-            const now=kstNow();
-            const todayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-            const openFrom=Math.max(openInAt.getTime(),todayStart.getTime());
-            openTodaySec=Math.max(0,(now.getTime()-openFrom)/1000);
-          }
-          const actualSec=Math.max(0,todaySec+openTodaySec);
-          const actualMin=actualSec/60;
-          if(planMin>0){
-            const pct=Math.min(100,Math.max(0,Math.round(actualMin/planMin*100)));
-            const over=actualMin-planMin;
-            const remain=planMin-actualMin;
-            const overClass = over>0 ? " over" : "";
-            const sub = over>0
-              ? `예정시간 초과 +${fmtDur(over*60)}`
-              : actualSec>0
-                ? `남은 예정시간 ${fmtDur(Math.max(0,remain)*60)}`
-                : `예정 근무 ${fmtDur(planMin*60)}`;
-            progressHtml=`<div class="sch-prog"><div class="sch-prog-bar${overClass}" style="width:${pct}%"></div></div><div class="sch-prog-sub${overClass}">${sub}</div>`;
-          }
-        }
-      }
-
-      const badges =
-        (isWorking?'<span class="badge work">근무중</span>':'') +
-        (issue && hasTodayAttendance?'<span class="badge issue">확인필요</span>':'');
-
-      const div=document.createElement("div"); div.className="att-card"+(isWorking?" working":"");
-      div.innerHTML=`
-        <div class="att-card-head">
-          <div class="att-card-title"><span class="att-name">${safeHtml(e.name)}<small>(No.${safeHtml(e.id)})</small></span></div>
-          <div class="att-card-head-actions">
-            ${badges}
-            ${LIVE?`<button type="button" class="att-edit-icon" data-fix="${e.id}" aria-label="${safeHtml(e.name)} 근태 수정" title="근태 수정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`:''}
-          </div>
-        </div>
-        <div class="att-info">
-          ${schLine}
-          <div class="line1"><span class="line1-main">${line1}</span>${line1Duration?`<span class="line1-duration">${line1Duration}</span>`:""}</div>
-          ${line2?`<div class="line2">${line2}</div>`:''}
-          ${progressHtml}
-        </div>`;
-      applyCardFlow(div);
-      if(LIVE){ const fb=div.querySelector("[data-fix]"); if(fb) fb.onclick=()=>openAdminFix(e, rows); }
-      listEl.appendChild(div);
-    }
-  }
-  // 직원 관리: 재직중 / 퇴직 탭 + 고정 높이 내부 스크롤
+    // 직원 관리: 재직중 / 퇴직 탭 + 고정 높이 내부 스크롤
   const empsEl=document.getElementById("adEmps");
   const retired=emps.filter(e=>e.is_active===false||e.active===false).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ko-KR"));
   let employeeStatusTab="active";
