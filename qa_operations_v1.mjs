@@ -7,7 +7,7 @@ for(const tab of ['renderOperations("dashboard")','renderOperations("inquiry")',
 for(const text of ['데이터 수집','파일 업로드','메뉴 카테고리','일괄 등록','수동 등록','레시피 조회 · 수정','현재 잔고는 팝업을 연 시점 기준','CSV 파일을 선택하면','수집 요청 대기']) assert.ok(js.includes(text));
 assert.ok(!js.includes('권장 발주량은 현재 단계에서'));assert.ok(!js.includes('현재 재고가치'));assert.ok(!js.includes('CSV는 원본 행을 먼저'));
 assert.ok(js.includes('openOpsModal("collect")'));assert.ok(js.includes('openOpsModal("upload")'));
-assert.ok(css.includes('.ops-stock-chart'));assert.ok(css.includes('.ops-modal'));assert.ok(css.includes('.admin-subtabs-wide'));assert.ok(css.includes('.ops-ingredient-row'));assert.ok(css.includes('.ops-stock-grid'));assert.ok(css.includes('.ops-import-sheet'));assert.ok(css.includes('.ops-source-action .ops-status'));assert.ok(css.includes('justify-content:center'));assert.ok(html.includes('admin_recipe_list_v2'));assert.ok(html.includes('admin_recipe_save'));
+assert.ok(css.includes('.ops-stock-chart'));assert.ok(css.includes('.ops-modal'));assert.ok(css.includes('.admin-subtabs-wide'));assert.ok(css.includes('.ops-ingredient-row'));assert.ok(css.includes('.ops-stock-grid'));assert.ok(css.includes('.ops-import-sheet'));assert.ok(css.includes('.ops-source-action .ops-status'));assert.ok(css.includes('.ops-recipe-thumb'));assert.ok(js.includes('recipeThumbnail'));assert.ok(js.includes('thumbnail_url'));assert.ok(html.includes('p_thumbnail_url'));assert.ok(css.includes('justify-content:center'));assert.ok(html.includes('admin_recipe_list_v2'));assert.ok(html.includes('admin_recipe_save'));
 new Function(js);
 for(const m of html.matchAll(/<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)<\\/script>/gi)) new Function(m[1]);
 console.log('operations v1.56 navigation/inventory/recipe: PASS');
