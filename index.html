@@ -546,7 +546,7 @@
   #view:has(#payList) #payList>.payroll-employee-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))!important}
   @media(max-width:520px){#view:has(#payList) #payList>.payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 
-  /* V2.03 employee management empty-state: center within the list panel */
+  /* V203 employee management empty-state: center within the list panel */
   .employee-list-mask:has(>.employee-empty){display:flex!important;align-items:center!important;justify-content:center!important}
   .employee-list-mask>.employee-empty{width:100%!important;height:100%!important;min-height:0!important;box-sizing:border-box!important;display:flex!important;align-items:center!important;justify-content:center!important;margin:0!important;padding:24px!important;text-align:center!important}
 </style>
@@ -562,7 +562,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대점</option></select></span><span class="app-version-badge" id="appVersion">v2.03</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대점</option></select></span><span class="app-version-badge" id="appVersion">v203</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -642,7 +642,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v2.03";
+const APP_VERSION="v203";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
