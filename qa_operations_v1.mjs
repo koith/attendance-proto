@@ -1,8 +1,12 @@
 import fs from 'node:fs';import assert from 'node:assert/strict';
 const html=fs.readFileSync('index.html','utf8'),js=fs.readFileSync('operations_v1.js','utf8'),css=fs.readFileSync('operations_v1.css','utf8');
-assert.match(html,/id="tabOps"/);assert.match(html,/operations_v1\.css\?v=20260922n/);assert.match(html,/operations_v1\.js\?v=20260922n/);assert.match(html,/h==="ops"/);
-for(const n of ['operationsSummary','operationsTransactions','operationsImports','operationsAnalytics','inventoryOverview','inventoryMovements','recipeList','reconciliationIssues','seedOperationsDemo','clearOperationsDemo','operationsInquiry','operationsChannels','operationsTrend']) assert.match(html,new RegExp(n));
-for(const t of ['리포트','데이터 조회','데이터 수집','파일 업로드','재고','레시피','대사','예시 데이터']) assert.ok(js.includes(t));
-for(const s of ['RAW','거래원장','재고','대사']) assert.ok(js.includes(s));
-assert.ok(css.includes('var(--brand-700)'));assert.ok(!css.includes('#2563eb'));assert.ok(css.includes('max-width:100%'));assert.ok(css.includes('min-width:0'));assert.ok(css.includes('@media(max-width:430px)'));assert.ok(css.includes('@media(max-width:360px)'));assert.ok(html.includes('overflow-x:hidden'));
-assert.ok(css.includes('.ops-table-wrap'));assert.ok(css.includes('overflow-x:auto'));assert.ok(js.includes('공급가액'));assert.ok(js.includes('부가세'));assert.ok(js.includes('업로드 대기열'));for(const t of ['1시간','24시간','1주일','1달','6달','1년','매출 · 매입 추이','메뉴별 매출 추이']) assert.ok(js.includes(t));assert.ok(css.includes('.ops-chart'));assert.ok(css.includes('.ops-range'));assert.ok(js.includes('trend:"1m"'));assert.ok(js.includes('let trendData=null'));assert.ok(js.includes('trendData=tr'));assert.ok(js.includes('renderTrendCharts(trendData)'));assert.ok(js.includes('예시 데이터는 최근 30일 기준입니다.'));assert.ok(js.includes('<rect class='));assert.ok(!js.includes('<polyline class='));assert.ok(css.includes('input[type=date]'));assert.ok(css.includes('font-size:15px'));assert.ok(css.includes('grid-column:1/-1'));assert.ok(js.includes('data-series='));assert.ok(js.includes("addEventListener('pointerenter'"));assert.ok(js.includes("addEventListener('click'"));assert.ok(css.includes('.ops-chart-tip'));assert.ok(css.includes('@media(hover:hover)'));assert.ok(js.includes('const marks=mode===\"line\"'));assert.ok(js.includes('<circle tabindex='));assert.ok(!js.includes('const rects=series.map'));console.log('operations v8 mixed charts runtime: PASS');
+for(const route of ['report','admin','pay','hours','sales','inventory','recipe']) assert.ok(html.includes('"'+route+'"'));
+for(const label of ['리포트','직원','급여','운영시간','매출·매입','재고','레시피']) assert.ok(html.includes(label));
+assert.ok(!html.includes('>매장운영</a>'));
+for(const tab of ['renderOperations("dashboard")','renderOperations("inquiry")','renderOperations("inventory")','renderOperations("recipe")']) assert.ok(html.includes(tab));
+for(const text of ['데이터 수집','파일 업로드','권장 발주','메뉴 카테고리','일괄 등록','수동 등록']) assert.ok(js.includes(text));
+assert.ok(js.includes('openOpsModal("collect")'));assert.ok(js.includes('openOpsModal("upload")'));
+assert.ok(css.includes('.ops-stock-chart'));assert.ok(css.includes('.ops-modal'));assert.ok(css.includes('.admin-subtabs-wide'));
+new Function(js);
+for(const m of html.matchAll(/<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)<\\/script>/gi)) new Function(m[1]);
+console.log('operations v1.56 navigation/inventory/recipe: PASS');
