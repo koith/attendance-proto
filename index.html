@@ -445,7 +445,7 @@
   #employeeOnboarding .ob-night-label{display:flex;align-items:center;justify-content:space-between;gap:12px;white-space:nowrap}
   #employeeOnboarding .ob-weekday{display:flex;min-width:0;flex-direction:column;align-items:center;gap:7px;padding:8px 2px;border:1px solid var(--border);border-radius:9px;background:var(--surface-muted);font-size:.8rem}
 </style>
-<link rel="stylesheet" href="operations_v1.css?v=20260926s">
+<link rel="stylesheet" href="operations_v1.css?v=20260926t">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js?v=20260926p" defer></script>
 <script src="supabase_session_resilience_v1.js?v=20260918a"></script>
@@ -519,7 +519,7 @@
   <div class="msg" id="successMsg">오늘도 좋은 하루 되세요</div>
 </div>
 
-<script src="operations_v1.js?v=20260926s"></script>
+<script src="operations_v1.js?v=20260926t"></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
@@ -855,7 +855,7 @@ const SupaBE = (()=>{
     async inventoryOverview(){ return rpc("admin_inventory_overview",{},true); },
     async inventoryMovements(itemId,from,to){ return rpc("admin_inventory_movements",{p_item_id:itemId||null,p_from:from||null,p_to:to||null},true); },
     async recipeList(){ return rpc("admin_recipe_list_v2",{},true); },
-    async recipeSave(id,name,category,components){ return rpc("admin_recipe_save",{p_recipe_id:id||null,p_menu_name:name,p_category:category||null,p_components:components||[]},true); },
+    async recipeSave(id,name,category,components,thumbnailUrl){ return rpc("admin_recipe_save",{p_recipe_id:id||null,p_menu_name:name,p_category:category||null,p_components:components||[],p_thumbnail_url:thumbnailUrl||null},true); },
     async reconciliationIssues(from,to){ return rpc("admin_reconciliation_issues",{p_from:from,p_to:to},true); },
     async seedOperationsDemo(){ return rpc("admin_seed_operations_demo",{},true); },
     async clearOperationsDemo(){ return rpc("admin_clear_operations_demo",{},true); },
