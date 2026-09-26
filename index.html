@@ -501,8 +501,16 @@
   #adminPanel:has(#payList) .payroll-card-v191 .employee-card-identity,#adminPanel:has(#payList) .payroll-card-v191 .employee-card-name,#adminPanel:has(#payList) .payroll-card-v191 .employee-card-secondary-main{min-width:0!important;max-width:100%!important;overflow:hidden!important;white-space:nowrap!important}
   #adminPanel:has(#payList) .payroll-card-v191 .payroll-gross-value{font-size:1rem!important;line-height:24px!important;white-space:nowrap!important}
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:106px!important}#adminPanel:has(#payList) .payroll-card-v191{height:106px!important;min-height:106px!important;max-height:106px!important}}
+
+  /* V1.91 payroll card regression fix: vertical 3-row employee card, never .row flex */
+  #adminPanel:has(#payList) .payroll-employee-card{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:40px 24px 28px!important;width:100%!important;height:108px!important;min-height:108px!important;max-height:108px!important;box-sizing:border-box!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;background:var(--surface)!important;padding:0 10px 8px!important;gap:2px!important;overflow:hidden!important;align-items:stretch!important}
+  #adminPanel:has(#payList) .payroll-employee-card>.employee-card-primary{grid-row:1!important;min-width:0!important;width:auto!important;height:40px!important;margin:0 -10px!important;padding:0 10px!important}
+  #adminPanel:has(#payList) .payroll-employee-card>.employee-card-secondary{grid-row:2!important;min-width:0!important;width:100%!important;height:24px!important;margin:0!important;padding:4px 0 0!important;overflow:hidden!important}
+  #adminPanel:has(#payList) .payroll-employee-card>.payroll-employee-payline{grid-row:3!important;display:flex!important;align-items:baseline!important;min-width:0!important;width:100%!important;height:28px!important;margin:0!important;padding:0 0 4px!important;overflow:hidden!important;white-space:nowrap!important}
+  #adminPanel:has(#payList) .payroll-employee-card .payroll-gross-value{min-width:0!important;white-space:nowrap!important}
+  @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:108px!important}}
 </style>
-<link rel="stylesheet" href="operations_v1.css?v=20260926v189">
+<link rel="stylesheet" href="operations_v1.css?v=20260926v191">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js?v=20260926p" defer></script>
 <script src="supabase_session_resilience_v1.js?v=20260918a"></script>
@@ -576,7 +584,7 @@
   <div class="msg" id="successMsg">오늘도 좋은 하루 되세요</div>
 </div>
 
-<script src="operations_v1.js?v=20260926v189"></script>
+<script src="operations_v1.js?v=20260926v191"></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
