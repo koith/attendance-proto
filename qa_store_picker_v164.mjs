@@ -1,0 +1,12 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const html=fs.readFileSync('index.html','utf8');
+assert.ok(html.includes('id="storePickerButton"'));
+assert.ok(html.includes('id="storePickerLabel"'));
+assert.ok(html.includes('id="storePickerMenu"'));
+assert.ok(html.includes('STORE_NAME_BY_ID.get(id)||opt?.text||sessionStorage.getItem("baekeok_store_name")||CONFIG.STORE_NAME'));
+assert.ok(html.includes('renderStorePicker(rows);updateStorePickerLabel()'));
+assert.ok(html.includes('.store-select-shell #storeSelect{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}'));
+assert.ok(html.includes('@media(min-width:769px){.store-select-shell{width:220px!important'));
+assert.ok(!html.includes('const choose=()=>'));
+for(const m of html.matchAll(/<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)<\\/script>/gi))new Function(m[1]);
+console.log('store picker architecture QA PASS');
