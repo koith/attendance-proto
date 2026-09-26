@@ -915,8 +915,8 @@ const SupaBE = (()=>{
     async punch(id,pin,subForId=null){ return rpc("punch",{p_employee_id:id,p_pin:pin,p_device:CONFIG.DEVICE_ID,p_substitute_for_employee_id:subForId}); },
     // --- 관리자 (authenticated) ---
     async allEmployees(){ return CURRENT_STORE_ID?rpc("list_store_employees",{p_store_id:CURRENT_STORE_ID},true):rpc("admin_list_all_employees",{},true); },
-    async createEmployee(name,pin){ return rpc("admin_create_employee",{p_name:name.trim(),p_pin:pin},true); },
-    async createEmployeeOnboarding(x){ return rpc("admin_create_employee_onboarding",x,true); },
+    async createEmployee(name,pin){ return CURRENT_STORE_ID?rpc("admin_create_employee_for_store",{p_name:name.trim(),p_pin:pin,p_store_id:CURRENT_STORE_ID},true):rpc("admin_create_employee",{p_name:name.trim(),p_pin:pin},true); },
+    async createEmployeeOnboarding(x){ return CURRENT_STORE_ID?rpc("admin_create_employee_onboarding_for_store",{...x,p_store_id:CURRENT_STORE_ID},true):rpc("admin_create_employee_onboarding",x,true); },
     async deactivateEmployee(id){ return rpc("admin_deactivate_employee",{p_id:id},true); },
     async retireEmployee(id,endedOn){ return rpc("admin_retire_employee",{p_id:id,p_ended_on:endedOn},true); },
     async updateEmployee(id,fields){ return rpc("admin_update_employee",{p_id:id,p_fields:fields},true); },
