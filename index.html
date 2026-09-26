@@ -29,7 +29,7 @@
   /* iOS Safari: font-size<16px input/select에 focus 시 자동 줌 발생 → 전역 16px 최소 보장으로 차단.
      (user-scalable=no가 iOS16.4+에서 무시되어 줌 후 원복 안 되는 문제의 근본 해결) */
   input, select, textarea{ font-size:16px; }
-  html,body{margin:0; width:100%; max-width:100%; height:100%; touch-action:manipulation; overflow-x:hidden;}
+  html,body{margin:0; width:100%; max-width:100%; height:100%; touch-action:pan-y; overflow-x:hidden; overscroll-behavior-x:none;}
   body{
     background:var(--bg); color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
@@ -441,9 +441,9 @@
   #employeeOnboarding .ob-night-label{display:flex;align-items:center;justify-content:space-between;gap:12px;white-space:nowrap}
   #employeeOnboarding .ob-weekday{display:flex;min-width:0;flex-direction:column;align-items:center;gap:7px;padding:8px 2px;border:1px solid var(--border);border-radius:9px;background:var(--surface-muted);font-size:.8rem}
 </style>
-<link rel="stylesheet" href="operations_v1.css?v=20260926n">
+<link rel="stylesheet" href="operations_v1.css?v=20260926p">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="no_double_tap_zoom.js" defer></script>
+<script src="no_double_tap_zoom.js?v=20260926p" defer></script>
 <script src="supabase_session_resilience_v1.js?v=20260918a"></script>
 <script src="payroll_elapsed_weeks_v1.js?v=20260918b"></script>
 </head>
@@ -515,7 +515,7 @@
   <div class="msg" id="successMsg">오늘도 좋은 하루 되세요</div>
 </div>
 
-<script src="operations_v1.js?v=20260926n"></script>
+<script src="operations_v1.js?v=20260926p"></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
