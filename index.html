@@ -367,7 +367,7 @@
   .payroll-employee-card .payroll-gross-value{white-space:nowrap;font-size:1.08rem!important;line-height:1.05!important}.payroll-employee-card .payroll-employee-payline{min-height:1.32rem;margin-top:0;margin-bottom:4px}
   @media(max-width:430px){#adminPanel:has(#payList){min-height:calc(100dvh - 300px);display:flex;flex-direction:column}#adminPanel:has(#payList) #payList{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}#adminPanel:has(#payList) .payroll-employee-grid{flex:1 1 auto;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-flow:row;gap:8px;height:auto;min-height:224px;max-height:none!important;overflow-y:auto;align-content:start}#adminPanel:has(#payList) .payroll-employee-card{width:auto!important;max-width:none!important;min-width:0!important}#adminPanel:has(#payList) .payroll-action-block{margin-top:8px!important}#adminPanel:has(#payList) .payroll-sheet-actions{margin-top:auto!important;padding-top:8px}.payroll-employee-card{padding:0 10px 8px!important}.payroll-action-block{margin-top:8px!important}.payroll-sheet-actions{margin-top:4px!important}.payroll-sheet-meta{margin-top:3px!important}}
   .payroll-employee-payline{min-height:1.56rem;display:flex;align-items:baseline;gap:5px;justify-content:flex-start}
-  /* V1.88 payroll card vertical rhythm: reserve real breathing room below pay */
+  /* V1.89 payroll card vertical rhythm: reserve real breathing room below pay */
   .payroll-employee-card{padding-bottom:14px!important}
   .payroll-employee-card .employee-card-secondary{margin-top:4px;margin-bottom:5px}
   .payroll-employee-card .payroll-employee-payline{min-height:18px!important;margin:0!important;line-height:1!important;align-items:center!important}
@@ -422,7 +422,7 @@
   .employee-empty{min-height:160px;display:flex;align-items:center;justify-content:center;padding:24px;color:var(--text-muted);font-size:.88rem;text-align:center}
   @media(max-width:430px){.employee-list-mask{height:270px}}
   .app-version-badge{display:inline-block;margin-left:10px;font-size:.68rem;font-weight:700;letter-spacing:.02em;color:rgba(255,255,255,.56);pointer-events:none;user-select:none;vertical-align:baseline}
-  /* V1.88 desktop parity: keep recent payroll/card behavior consistent above mobile width */
+  /* V1.89 desktop parity: keep recent payroll/card behavior consistent above mobile width */
   @media(min-width:431px){#adminPanel:has(#payList){min-height:calc(100dvh - 300px);display:flex;flex-direction:column}#adminPanel:has(#payList) #payList{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}#adminPanel:has(#payList) .payroll-employee-grid{flex:1 1 auto;height:auto;min-height:224px;max-height:none!important;overflow-y:auto}#adminPanel:has(#payList) .payroll-sheet-actions{margin-top:auto;padding-top:8px}.payroll-employee-card .payroll-gross-value{font-size:1.08rem!important;line-height:1.05!important}.payroll-employee-card .payroll-employee-payline{min-height:1.32rem;margin-bottom:4px}}
 
   .topbar{position:relative}
@@ -454,7 +454,7 @@
   #employeeOnboarding .ob-night-label{display:flex;align-items:center;justify-content:space-between;gap:12px;white-space:nowrap}
   #employeeOnboarding .ob-weekday{display:flex;min-width:0;flex-direction:column;align-items:center;gap:7px;padding:8px 2px;border:1px solid var(--border);border-radius:9px;background:var(--surface-muted);font-size:.8rem}
 
-  /* V1.88 payroll viewport: employee area consumes the real space above actions */
+  /* V1.89 payroll viewport: employee area consumes the real space above actions */
   #adminPanel:has(#payList){display:flex;flex-direction:column;min-height:calc(100dvh - 330px)}
   #adminPanel:has(#payList) #payList{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
   #adminPanel:has(#payList) .payroll-employee-grid{flex:1 1 auto;height:auto!important;max-height:none!important;min-height:180px;align-content:stretch;overflow-y:auto}
@@ -462,7 +462,7 @@
   #adminPanel:has(#payList) .payroll-action-block{flex:0 0 auto;margin-top:8px!important}
   @media(max-width:430px){#adminPanel:has(#payList){min-height:calc(100dvh - 300px)}#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;min-height:224px}}
 
-  /* V1.88 payroll card content must never clip the pay line */
+  /* V1.89 payroll card content must never clip the pay line */
   #adminPanel:has(#payList) .payroll-employee-card{overflow:visible!important;padding-bottom:14px!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;gap:0!important}
   #adminPanel:has(#payList) .payroll-employee-card .employee-card-primary{flex:0 0 auto}
   #adminPanel:has(#payList) .payroll-employee-card .employee-card-secondary{flex:0 0 auto;margin:10px 0 6px!important;line-height:1.2!important}
@@ -472,7 +472,7 @@
 
   
 
-  /* V1.88 payroll employee card uses common compact employee-card proportions */
+  /* V1.89 payroll employee card uses common compact employee-card proportions */
   #adminPanel:has(#payList) .payroll-employee-grid{grid-auto-rows:max-content!important;align-content:start!important}
   #adminPanel:has(#payList) .payroll-employee-card{box-sizing:border-box!important;display:grid!important;grid-template-rows:40px 24px 28px!important;height:auto!important;min-height:108px!important;max-height:none!important;padding:0 10px 8px!important;gap:2px!important;overflow:hidden!important;align-content:start!important}
   #adminPanel:has(#payList) .payroll-employee-card .employee-card-primary{height:40px!important;min-height:40px!important;margin:0 -10px!important;padding:0 10px!important}
@@ -481,10 +481,19 @@
   #adminPanel:has(#payList) .payroll-employee-card .payroll-gross-value{font-size:1rem!important;line-height:24px!important;padding:0!important}
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:max-content!important}}
 
-  /* V1.88 payroll employee cards: mobile portrait is always two columns */
+  /* V1.89 payroll employee cards: mobile portrait is always two columns */
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+  /* V1.89 store selector: one-way overflow flow, never ping-pong */
+  .store-select-shell{position:relative!important;overflow:hidden!important}
+  .store-select-shell #storeSelect{color:transparent!important;text-shadow:none!important;position:relative!important;z-index:2!important;background:transparent!important}
+  .store-select-marquee{display:block!important;position:absolute!important;z-index:1!important;left:8px!important;right:26px!important;top:0!important;height:32px!important;overflow:hidden!important;pointer-events:none!important;color:#174f35!important;font-weight:700!important;line-height:32px!important;white-space:nowrap!important}
+  .store-select-marquee>span{display:inline-block!important;min-width:max-content!important;transform:translateX(0)}
+  .store-select-marquee.is-overflowing>span{animation:storeFlow var(--store-flow-duration,8s) linear infinite!important}
+  @keyframes storeFlow{0%,15%{transform:translateX(0)}85%,99.9%{transform:translateX(var(--store-flow-distance,0px))}100%{transform:translateX(0)}}
+  @media(prefers-reduced-motion:reduce){.store-select-marquee.is-overflowing>span{animation:none!important}}
 </style>
-<link rel="stylesheet" href="operations_v1.css?v=20260926v187">
+<link rel="stylesheet" href="operations_v1.css?v=20260926v189">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js?v=20260926p" defer></script>
 <script src="supabase_session_resilience_v1.js?v=20260918a"></script>
@@ -496,7 +505,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대점</option></select></span><span class="app-version-badge" id="appVersion">v1.88</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><span class="store-select-marquee" aria-hidden="true"><span id="storeSelectFlow">인하대점</span></span><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대점</option></select></span><span class="app-version-badge" id="appVersion">v1.89</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -558,7 +567,7 @@
   <div class="msg" id="successMsg">오늘도 좋은 하루 되세요</div>
 </div>
 
-<script src="operations_v1.js?v=20260926v187"></script>
+<script src="operations_v1.js?v=20260926v189"></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
@@ -576,7 +585,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.88";
+const APP_VERSION="v1.89";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -938,6 +947,7 @@ function openHqDashboard(){
   if(location.hash==="#dashboard"){ syncStoreContextUI();route();return; }
   location.hash="#dashboard";
 }
+function syncStoreSelectFlow(){const sel=document.getElementById("storeSelect"),box=document.querySelector(".store-select-marquee"),flow=document.getElementById("storeSelectFlow");if(!sel||!box||!flow)return;flow.textContent=sel.selectedOptions?.[0]?.text||"";box.classList.remove("is-overflowing");box.style.removeProperty("--store-flow-distance");box.style.removeProperty("--store-flow-duration");requestAnimationFrame(()=>{const overflow=Math.ceil(flow.scrollWidth-box.clientWidth);if(overflow>2){box.style.setProperty("--store-flow-distance",(-overflow)+"px");box.style.setProperty("--store-flow-duration",Math.max(7,overflow/12+5)+"s");box.classList.add("is-overflowing")}})}
 function syncStoreSelectDisplay(){
  const sel=document.getElementById("storeSelect");if(!sel)return;
  const id=Number(CURRENT_STORE_ID)||Number(sessionStorage.getItem("baekeok_store_id"))||1;
@@ -946,7 +956,7 @@ function syncStoreSelectDisplay(){
 async function loadStores(){
  const sel=document.getElementById("storeSelect");if(!sel)return;
  const applyStore=id=>{id=Number(id);if(!id||id===Number(CURRENT_STORE_ID))return;CURRENT_STORE_ID=id;sessionStorage.setItem("baekeok_store_id",String(id));const name=STORE_NAME_BY_ID.get(id)||sel.selectedOptions?.[0]?.text||"";if(name)sessionStorage.setItem("baekeok_store_name",name);if(location.hash==="#dashboard")location.hash="#pos";else route()};
- sel.onchange=()=>applyStore(sel.value);
+ sel.onchange=()=>{syncStoreSelectFlow();applyStore(sel.value)};
  if(!LIVE){syncStoreSelectDisplay();return}
  try{
   const rows=await publicRpc("list_stores",{});if(!Array.isArray(rows)||!rows.length)throw new Error("EMPTY_STORES");
@@ -955,7 +965,7 @@ async function loadStores(){
   const persisted=Number(sessionStorage.getItem("baekeok_store_id"));
   CURRENT_STORE_ID=(persisted&&rows.some(x=>Number(x.id)===persisted))?persisted:Number(rows[0].id);
   sel.value=String(CURRENT_STORE_ID);sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));
-  const name=STORE_NAME_BY_ID.get(CURRENT_STORE_ID);if(name)sessionStorage.setItem("baekeok_store_name",name);
+  const name=STORE_NAME_BY_ID.get(CURRENT_STORE_ID);if(name)sessionStorage.setItem("baekeok_store_name",name);syncStoreSelectFlow();
  }catch(e){console.warn("store list load failed",e);syncStoreSelectDisplay()}
 }
 // Any database/user-controlled text inserted through innerHTML must pass this boundary.
