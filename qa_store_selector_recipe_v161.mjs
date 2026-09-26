@@ -1,0 +1,12 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const html=fs.readFileSync('index.html','utf8'),ops=fs.readFileSync('operations_v1.js','utf8');
+assert.ok(html.includes('STORE_NAME_BY_ID.get(id)||opt?.text||CONFIG.STORE_NAME||"지점 선택"'));
+assert.ok(html.includes('sel.value=String(CURRENT_STORE_ID)'));
+assert.ok(html.includes('syncStoreSelectDisplay()'));
+assert.ok(!ops.includes('레시피 미등록'));
+assert.ok(ops.includes('estimatedRecipe'));
+assert.ok(ops.includes('백억 스페셜티 블렌드 원두'));
+assert.ok(ops.includes('withCatalog(await BE.inventoryOverview())'));
+for(const m of html.matchAll(/<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)<\\/script>/gi))new Function(m[1]);
+new Function(ops);
+console.log('store selector + recipe completeness QA PASS');
