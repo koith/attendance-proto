@@ -164,18 +164,10 @@
     header .clock{font-size:.76rem;min-width:0;white-space:nowrap}
   }
 
-  .store-select-shell{position:relative;display:flex;align-items:center;min-width:0;width:118px;max-width:118px}.store-select-shell #storeSelect{position:relative!important;inset:auto!important;display:block!important;visibility:visible!important;opacity:1!important;width:100%!important;max-width:100%!important;height:32px!important;z-index:auto!important;box-sizing:border-box!important;border:1px solid rgba(255,255,255,.35)!important;border-radius:9px!important;background:#fff!important;color:#174f35!important;font:inherit!important;font-weight:700!important;padding:4px 26px 4px 8px!important;cursor:pointer!important;white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important}
-  /* V1.65: visible store picker is no longer a native select. The select is state-only. */
-  .store-select-shell #storeSelect{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
-  .store-picker-button{width:100%;height:32px;display:grid;grid-template-columns:minmax(0,1fr) 18px;align-items:center;border:1px solid rgba(255,255,255,.35);border-radius:9px;background:#fff;color:#174f35;padding:0 7px 0 9px;font:inherit;font-weight:700;cursor:pointer;overflow:hidden}
-  .store-picker-label{display:block;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
-  .store-picker-label.flow{width:max-content;max-width:none;text-overflow:clip;animation:storePickerFlow var(--store-picker-duration,8s) linear 1s infinite}
-  @keyframes storePickerFlow{0%{transform:translateX(0)}85%{transform:translateX(calc(-1 * var(--store-picker-distance,0px)))}85.01%,100%{transform:translateX(0)}}
-  .store-picker-caret{font-size:.72rem;text-align:center}
-  .store-picker-menu{position:absolute;top:36px;left:0;z-index:300;width:max(100%,220px);max-height:280px;overflow:auto;background:#fff;border:1px solid #cddbd2;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:5px}
-  .store-picker-option{display:block;width:100%;border:0;background:transparent;border-radius:7px;padding:8px 9px;text-align:left;color:#173b2c;font:inherit;white-space:nowrap;cursor:pointer}.store-picker-option:hover,.store-picker-option[aria-selected="true"]{background:#eaf5ee}
+  .store-select-shell{display:flex;align-items:center;min-width:0;width:118px;max-width:118px}
+  .store-select-shell #storeSelect{display:block!important;position:static!important;width:100%!important;height:32px!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;box-sizing:border-box!important;border:1px solid rgba(255,255,255,.35)!important;border-radius:9px!important;background:#fff!important;color:#174f35!important;font:inherit!important;font-weight:700!important;padding:4px 26px 4px 8px!important;cursor:pointer!important;white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important}
   @media(min-width:769px){.store-select-shell{width:220px!important;max-width:220px!important;min-width:220px!important}}
-.store-select-marquee{display:none!important}@media(min-width:769px){.store-select-shell{width:220px;max-width:220px;min-width:220px}}
+.store-select-marquee{display:none!important}
 
   /* 직원 카드 공통 overflow 보호: 넘칠 때만 천천히 흐름 */
   .employee-card-primary .employee-card-name,.employee-card-secondary-main,.employee-card-attendance-main,.att-name,.att-info .line1-main,.att-info .line2,.sch-line,.sch-prog-sub{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap}
@@ -465,7 +457,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-hidden="true" tabindex="-1"><option value="1">인하대점</option></select><button type="button" id="storePickerButton" class="store-picker-button" aria-haspopup="listbox" aria-expanded="false"><span id="storePickerLabel" class="store-picker-label">인하대점</span><span class="store-picker-caret">▾</span></button><div id="storePickerMenu" class="store-picker-menu" role="listbox" hidden></div></span><span class="app-version-badge" id="appVersion">v1.65</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대점</option></select></span><span class="app-version-badge" id="appVersion">v1.66</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -545,7 +537,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.65";
+const APP_VERSION="v1.66";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -905,31 +897,26 @@ function openHqDashboard(){
   if(location.hash==="#dashboard"){ syncStoreContextUI();route();return; }
   location.hash="#dashboard";
 }
-function updateStorePickerLabel(){
-  const sel=document.getElementById("storeSelect"),label=document.getElementById("storePickerLabel");if(!sel||!label)return;
-  const id=Number(CURRENT_STORE_ID)||Number(sessionStorage.getItem("baekeok_store_id"))||1;
-  const opt=[...sel.options].find(o=>Number(o.value)===id);if(opt)sel.value=String(id);
-  const name=STORE_NAME_BY_ID.get(id)||opt?.text||sessionStorage.getItem("baekeok_store_name")||CONFIG.STORE_NAME||"지점 선택";
-  label.textContent=name;sessionStorage.setItem("baekeok_store_name",name);
-  requestAnimationFrame(()=>{label.classList.remove("flow");label.style.removeProperty("--store-picker-distance");const btn=document.getElementById("storePickerButton");if(!btn)return;const room=Math.max(0,btn.clientWidth-34),dist=Math.max(0,label.scrollWidth-room);if(dist>4){label.style.setProperty("--store-picker-distance",dist+"px");label.style.setProperty("--store-picker-duration",Math.max(7,dist/16+5)+"s");label.classList.add("flow")}});
+function syncStoreSelectDisplay(){
+ const sel=document.getElementById("storeSelect");if(!sel)return;
+ const id=Number(CURRENT_STORE_ID)||Number(sessionStorage.getItem("baekeok_store_id"))||1;
+ if([...sel.options].some(o=>Number(o.value)===id))sel.value=String(id);
 }
-function syncStoreSelectDisplay(){updateStorePickerLabel()}
-function closeStorePicker(){const menu=document.getElementById("storePickerMenu"),btn=document.getElementById("storePickerButton");if(menu)menu.hidden=true;if(btn)btn.setAttribute("aria-expanded","false")}
-function renderStorePicker(rows){
- const menu=document.getElementById("storePickerMenu"),btn=document.getElementById("storePickerButton");if(!menu||!btn)return;
- menu.innerHTML=rows.map(x=>'<button type="button" class="store-picker-option" role="option" data-store-id="'+Number(x.id)+'" aria-selected="'+(Number(x.id)===Number(CURRENT_STORE_ID))+'">'+safeHtml(x.name)+'</button>').join("");
- menu.querySelectorAll("[data-store-id]").forEach(o=>o.onclick=()=>{const id=Number(o.dataset.storeId);CURRENT_STORE_ID=id;sessionStorage.setItem("baekeok_store_id",String(id));const sel=document.getElementById("storeSelect");if(sel)sel.value=String(id);updateStorePickerLabel();closeStorePicker();if(location.hash==="#dashboard")location.hash="#pos";else route()});
- btn.onclick=e=>{e.stopPropagation();const opening=menu.hidden;menu.hidden=!opening;btn.setAttribute("aria-expanded",String(opening));if(opening){menu.querySelector('[aria-selected="true"]')?.scrollIntoView({block:"nearest"})}};
- if(!window.__storePickerOutside){window.__storePickerOutside=true;document.addEventListener("click",e=>{if(!e.target.closest(".store-select-shell"))closeStorePicker()})}
+async function loadStores(){
+ const sel=document.getElementById("storeSelect");if(!sel)return;
+ const applyStore=id=>{id=Number(id);if(!id||id===Number(CURRENT_STORE_ID))return;CURRENT_STORE_ID=id;sessionStorage.setItem("baekeok_store_id",String(id));const name=STORE_NAME_BY_ID.get(id)||sel.selectedOptions?.[0]?.text||"";if(name)sessionStorage.setItem("baekeok_store_name",name);if(location.hash==="#dashboard")location.hash="#pos";else route()};
+ sel.onchange=()=>applyStore(sel.value);
+ if(!LIVE){syncStoreSelectDisplay();return}
+ try{
+  const rows=await publicRpc("list_stores",{});if(!Array.isArray(rows)||!rows.length)throw new Error("EMPTY_STORES");
+  STORE_NAME_BY_ID=new Map(rows.map(x=>[Number(x.id),String(x.name||"")]));
+  sel.innerHTML=rows.map(x=>'<option value="'+Number(x.id)+'">'+safeHtml(x.name)+'</option>').join("");
+  const persisted=Number(sessionStorage.getItem("baekeok_store_id"));
+  CURRENT_STORE_ID=(persisted&&rows.some(x=>Number(x.id)===persisted))?persisted:Number(rows[0].id);
+  sel.value=String(CURRENT_STORE_ID);sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));
+  const name=STORE_NAME_BY_ID.get(CURRENT_STORE_ID);if(name)sessionStorage.setItem("baekeok_store_name",name);
+ }catch(e){console.warn("store list load failed",e);syncStoreSelectDisplay()}
 }
-async function loadStores(){if(!LIVE){updateStorePickerLabel();return}try{
- const rows=await publicRpc("list_stores",{});if(!Array.isArray(rows)||!rows.length)throw new Error("EMPTY_STORES");
- STORE_NAME_BY_ID=new Map(rows.map(x=>[Number(x.id),String(x.name||"")]));
- const sel=document.getElementById("storeSelect");sel.innerHTML=rows.map(x=>'<option value="'+Number(x.id)+'">'+safeHtml(x.name)+'</option>').join("");
- const persisted=Number(sessionStorage.getItem("baekeok_store_id"));CURRENT_STORE_ID=(persisted&&rows.some(x=>Number(x.id)===persisted))?persisted:Number(rows[0].id);
- sel.value=String(CURRENT_STORE_ID);renderStorePicker(rows);updateStorePickerLabel();
- window.addEventListener("resize",updateStorePickerLabel,{passive:true});
-}catch(e){console.warn("store list load failed",e);updateStorePickerLabel()}}
 // Any database/user-controlled text inserted through innerHTML must pass this boundary.
 function safeHtml(value){
   return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
