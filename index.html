@@ -638,7 +638,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v2.01";
+const APP_VERSION="v2.02";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -986,15 +986,21 @@ const publicRpc=async(fn,args={})=>{
 };
 
 const BE = LIVE ? SupaBE : LocalBE;
-let CURRENT_STORE_ID=Number(sessionStorage.getItem("baekeok_store_id"))||1;
+const STORE_ENTRY_PARAMS=new URLSearchParams(location.search);
+const STORE_ENTRY_ID=Number(STORE_ENTRY_PARAMS.get("store"))||0;
+const STORE_ENTRY_LOCK=STORE_ENTRY_PARAMS.get("mode")==="store"&&STORE_ENTRY_ID>0;
+let CURRENT_STORE_ID=STORE_ENTRY_ID||Number(sessionStorage.getItem("baekeok_store_id"))||1;
+if(STORE_ENTRY_ID)sessionStorage.setItem("baekeok_store_id",String(STORE_ENTRY_ID));
 let STORE_NAME_BY_ID=new Map();
 function syncStoreContextUI(){
   const dashboard=(location.hash||"")==="#dashboard";
-  const sel=document.getElementById("storeSelect"),shell=document.querySelector(".store-select-shell"),crumb=document.getElementById("storeCrumb"),tabs=document.querySelector(".tabwrap");
-  if(sel)sel.style.display=dashboard?"none":"";
-  if(shell)shell.style.display=dashboard?"none":"";
-  if(crumb)crumb.style.display=dashboard?"none":"";
+  const sel=document.getElementById("storeSelect"),shell=document.querySelector(".store-select-shell"),crumb=document.getElementById("storeCrumb"),tabs=document.querySelector(".tabwrap"),home=document.getElementById("hqHome");
+  if(sel)sel.style.display=(dashboard||STORE_ENTRY_LOCK)?"none":"";
+  if(shell)shell.style.display=(dashboard||STORE_ENTRY_LOCK)?"none":"";
+  if(crumb)crumb.style.display=(dashboard||STORE_ENTRY_LOCK)?"none":"";
   if(tabs)tabs.style.display=dashboard?"none":"";
+  if(home){home.disabled=STORE_ENTRY_LOCK;home.style.cursor=STORE_ENTRY_LOCK?"default":"pointer";home.setAttribute("aria-label",STORE_ENTRY_LOCK?"백억커피":"본사 대시보드");home.title=STORE_ENTRY_LOCK?"":"본사 대시보드";}
+  if(STORE_ENTRY_LOCK&&dashboard)location.hash="#pos";
 }
 function openHqDashboard(){
   if(location.hash==="#dashboard"){ syncStoreContextUI();route();return; }
@@ -1015,7 +1021,8 @@ async function loadStores(){
   STORE_NAME_BY_ID=new Map(rows.map(x=>[Number(x.id),String(x.name||"")]));
   sel.innerHTML=rows.map(x=>'<option value="'+Number(x.id)+'">'+safeHtml(x.name)+'</option>').join("");
   const persisted=Number(sessionStorage.getItem("baekeok_store_id"));
-  CURRENT_STORE_ID=(persisted&&rows.some(x=>Number(x.id)===persisted))?persisted:Number(rows[0].id);
+  const requested=STORE_ENTRY_ID&&rows.some(x=>Number(x.id)===STORE_ENTRY_ID)?STORE_ENTRY_ID:0;
+  CURRENT_STORE_ID=requested||(persisted&&rows.some(x=>Number(x.id)===persisted)?persisted:Number(rows[0].id));
   sel.value=String(CURRENT_STORE_ID);sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));
   const name=STORE_NAME_BY_ID.get(CURRENT_STORE_ID);if(name)sessionStorage.setItem("baekeok_store_name",name);
  }catch(e){console.warn("store list load failed",e);syncStoreSelectDisplay()}
@@ -1190,7 +1197,7 @@ function route(){
   const h=(location.hash||"#pos").replace("#","");
   syncStoreContextUI();
   if(h!=="pos"){ clearInterval(_posTimer); }
-  if(h==="dashboard"){setTab("dashboard");requireAuth(renderDashboard);}
+  if(h==="dashboard"){if(STORE_ENTRY_LOCK){location.hash="#pos";return}setTab("dashboard");requireAuth(renderDashboard);}
   else if(h==="admin"){
     const q=new URLSearchParams(location.search);
     setTab("admin");
@@ -2746,7 +2753,7 @@ function removeLegacySubstituteEntry(){
 removeLegacySubstituteEntry();
 new MutationObserver(removeLegacySubstituteEntry).observe(document.body,{childList:true,subtree:true});
 
-document.getElementById("hqHome")?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();openHqDashboard();});
+document.getElementById("hqHome")?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();if(!STORE_ENTRY_LOCK)openHqDashboard();});
 if(LIVE) Auth.load();
 loadStores().finally(()=>route());
 </script>
