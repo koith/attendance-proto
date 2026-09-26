@@ -355,7 +355,8 @@
   .payroll-summary-shell .month-wrap{border:0;background:transparent;border-radius:10px;height:40px}
   .payroll-summary-shell .payroll-total-summary{border:0;border-radius:0;margin:0!important;background:var(--brand-050)}
   @media(max-width:430px){.payroll-summary-shell{margin-bottom:5px}.payroll-summary-shell .payroll-month-field{padding:4px 7px}.payroll-summary-shell .month-wrap{height:36px}.payroll-summary-shell .payroll-total-summary{padding:8px 14px 9px!important}.payroll-summary-shell .payroll-total-summary .kpi-label{margin-bottom:2px;font-size:.72rem!important}.payroll-summary-shell .payroll-total-value{font-size:1.32rem!important}.payroll-list-title{margin-bottom:6px}}
-  .payroll-employee-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;align-content:start;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y;max-width:100%}\n  #payList{display:flex;flex-direction:column;min-height:0}.payroll-action-block{flex:0 0 auto}.payroll-employee-grid{height:230px;max-height:230px!important;min-height:180px}.payroll-action-block>.row{padding:10px!important}.payroll-action-block .btn{min-height:38px}
+  .payroll-employee-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;align-content:start;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y;max-width:100%}
+  #payList{display:flex;flex-direction:column;min-height:0}.payroll-action-block{flex:0 0 auto}.payroll-employee-grid{height:230px;max-height:230px!important;min-height:180px}.payroll-action-block>.row{padding:10px!important}.payroll-action-block .btn{min-height:38px}
   .payroll-employee-card{height:108px;min-height:108px;max-height:108px;box-sizing:border-box;min-width:0;border-radius:var(--r);padding:0 14px 10px!important;justify-content:flex-start;overflow:hidden}
   .payroll-employee-card .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .payroll-employee-card>div:first-child{min-width:0}
@@ -452,7 +453,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option>인하대점</option></select><button type="button" id="storeSelectDisplay" class="store-select-marquee" aria-label="지점 선택"><span class="store-select-marquee-text">인하대점</span></button></span><span class="app-version-badge" id="appVersion">v1.43</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option>인하대점</option></select><button type="button" id="storeSelectDisplay" class="store-select-marquee" aria-label="지점 선택"><span class="store-select-marquee-text">인하대점</span></button></span><span class="app-version-badge" id="appVersion">v1.44</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -532,7 +533,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.43";
+const APP_VERSION="v1.44";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1131,7 +1132,10 @@ async function renderPos(){
   view.innerHTML=`<div class="pos-screen"><div class="pos-roster-meta" id="empCount">총 0명</div><div class="grid employee-scroll-surface" id="empGrid"></div>
     <button class="btn btn-primary pos-bottom-action" id="myRecBtn">내 근태 기록 · 정정요청</button></div>`;
   document.getElementById("myRecBtn").onclick=openMyRecord;
-  const grid=document.getElementById("empGrid");\n  let adminMode=false; if(LIVE&&Auth.isLoggedIn()){try{adminMode=!!(await BE.isAdmin())}catch(_){adminMode=false}}\n  let emps=[];
+  const grid=document.getElementById("empGrid");
+  let adminMode=false;
+  if(LIVE&&Auth.isLoggedIn()){try{adminMode=!!(await BE.isAdmin())}catch(_){adminMode=false}}
+  let emps=[];
   try{ emps=await BE.listEmployeesState(); }catch(e){ grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
   document.getElementById("empCount").textContent=`총 ${emps.length}명`;
   if(!emps.length){ grid.innerHTML=`<div class="empty">등록된 직원이 없습니다.<br>관리자 탭에서 먼저 직원을 등록하세요.</div>`; return; }
@@ -1148,6 +1152,15 @@ async function renderPos(){
         <div class="employee-card-secondary"><span class="employee-card-secondary-main">출근 기록 없음</span></div>`;
     }
     card.onclick=()=>openPad(e, e.working?"WORKING":"OFF");
+    const editBtn=card.querySelector(".pos-att-edit");
+    if(editBtn) editBtn.onclick=async ev=>{
+      ev.stopPropagation();
+      try{
+        const t=kstNow(),p=n=>String(n).padStart(2,"0"),day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
+        const d=await BE.eventsWithCorrections(`${day}T00:00:00`,`${day}T23:59:59`);
+        openAdminFix(e,applyCorrections(d.events,d.corrections).filter(x=>Number(x.employee_id)===Number(e.id)));
+      }catch(err){toast("err","근태 수정","기록을 불러오지 못했습니다.")}
+    };
     grid.appendChild(card);
     applyCardFlow(card);
   }
