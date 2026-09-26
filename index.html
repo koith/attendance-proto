@@ -165,7 +165,7 @@
   }
 
   .store-select-shell{position:relative;display:flex;align-items:center;min-width:0;width:118px;max-width:118px}.store-select-shell #storeSelect{position:relative!important;inset:auto!important;display:block!important;visibility:visible!important;opacity:1!important;width:100%!important;max-width:100%!important;height:32px!important;z-index:auto!important;box-sizing:border-box!important;border:1px solid rgba(255,255,255,.35)!important;border-radius:9px!important;background:#fff!important;color:#174f35!important;font:inherit!important;font-weight:700!important;padding:4px 26px 4px 8px!important;cursor:pointer!important;white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important}
-  /* V1.64: visible store picker is no longer a native select. The select is state-only. */
+  /* V1.65: visible store picker is no longer a native select. The select is state-only. */
   .store-select-shell #storeSelect{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
   .store-picker-button{width:100%;height:32px;display:grid;grid-template-columns:minmax(0,1fr) 18px;align-items:center;border:1px solid rgba(255,255,255,.35);border-radius:9px;background:#fff;color:#174f35;padding:0 7px 0 9px;font:inherit;font-weight:700;cursor:pointer;overflow:hidden}
   .store-picker-label{display:block;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
@@ -465,7 +465,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-hidden="true" tabindex="-1"><option value="1">인하대점</option></select><button type="button" id="storePickerButton" class="store-picker-button" aria-haspopup="listbox" aria-expanded="false"><span id="storePickerLabel" class="store-picker-label">인하대점</span><span class="store-picker-caret">▾</span></button><div id="storePickerMenu" class="store-picker-menu" role="listbox" hidden></div></span><span class="app-version-badge" id="appVersion">v1.64</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-hidden="true" tabindex="-1"><option value="1">인하대점</option></select><button type="button" id="storePickerButton" class="store-picker-button" aria-haspopup="listbox" aria-expanded="false"><span id="storePickerLabel" class="store-picker-label">인하대점</span><span class="store-picker-caret">▾</span></button><div id="storePickerMenu" class="store-picker-menu" role="listbox" hidden></div></span><span class="app-version-badge" id="appVersion">v1.65</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -545,7 +545,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.64";
+const APP_VERSION="v1.65";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
