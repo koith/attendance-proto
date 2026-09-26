@@ -453,7 +453,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option>인하대점</option></select><button type="button" id="storeSelectDisplay" class="store-select-marquee" aria-label="지점 선택"><span class="store-select-marquee-text">인하대점</span></button></span><span class="app-version-badge" id="appVersion">v1.53</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option>인하대점</option></select><button type="button" id="storeSelectDisplay" class="store-select-marquee" aria-label="지점 선택"><span class="store-select-marquee-text">인하대점</span></button></span><span class="app-version-badge" id="appVersion">v1.54</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -533,7 +533,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.53";
+const APP_VERSION="v1.54";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1055,7 +1055,7 @@ function setTab(t){
   document.getElementById("tabAdmin").classList.toggle("on",t==="admin"||t==="pay"||t==="ops"||t==="hours");
 }
 function adminSubnav(active){
-  return '<div class="tabs admin-subtabs"><a href="#admin" class="'+(active==="admin"?"on":"")+'">관리</a><a href="#pay" class="'+(active==="pay"?"on":"")+'">급여</a><a href="#ops" class="'+(active==="ops"?"on":"")+'">매장운영</a><a href="#hours" class="'+(active==="hours"?"on":"")+'">운영시간</a></div>';
+  return '<div class="tabs admin-subtabs"><a href="#admin" class="'+(active==="admin"?"on":"")+'">직원관리</a><a href="#pay" class="'+(active==="pay"?"on":"")+'">급여</a><a href="#ops" class="'+(active==="ops"?"on":"")+'">매장운영</a><a href="#hours" class="'+(active==="hours"?"on":"")+'">운영시간</a></div>';
 }
 function route(){
   const h=(location.hash||"#pos").replace("#","");
