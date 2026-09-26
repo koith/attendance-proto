@@ -300,7 +300,7 @@ init();
       const legend=document.createElement('div');
       legend.className='timeline-legend';
       legend.style.cssText='display:flex;gap:12px;flex-wrap:wrap;padding:10px 12px 0;font-size:.7rem;color:#66717e';
-      legend.innerHTML='<span>🟢 정상 완료</span><span>🔵 근무 중</span><span>🟤 확인 필요</span>';
+      legend.innerHTML='<span><i class="dot normal"></i>정상 완료</span><span><i class="dot working"></i>근무 중</span><span><i class="dot issue"></i>확인 필요</span>';
       axis.before(legend);
     }
     document.querySelectorAll('.sessions .session').forEach((row,i)=>{
@@ -338,7 +338,7 @@ init();
   async function patchDay(day){installStyle();const map=await employeeMap();const ss=sessionsForDay(day);
     document.querySelectorAll('.person-row').forEach(row=>{const p=row.querySelector('.person');if(!p)return;let id=null;const raw=(p.textContent||'').trim();const m=raw.match(/^#(\d+)$/);if(m)id=Number(m[1]);if(id==null){const e=[...map.values()].find(x=>String(x.name||'')===raw);if(e)id=Number(e.id)}const e=map.get(id);if(!e)return;p.innerHTML=`<span>${e.name}</span><small class="employee-no-sub">${no(e.id)}</small>`});
     document.querySelectorAll('.sessions .session').forEach((row,i)=>{const e=map.get(Number(ss[i]?.employee_id));const b=row.querySelector('b');if(!e||!b)return;b.innerHTML=`<span>${e.name}</span><small class="employee-no-sub">${no(e.id)}</small>`});
-    const dayview=document.querySelector('.dayview');if(dayview&&!dayview.querySelector('.timeline-legend')){const l=document.createElement('div');l.className='timeline-legend';l.innerHTML='<span><i class="bar-key normal"></i>정상 완료</span><span><i class="bar-key working"></i>근무 중</span><span><i class="bar-key issue"></i>확인 필요</span>';dayview.querySelector('.axis-wrap')?.before(l)}
+    const dayview=document.querySelector('.dayview');if(dayview&&!dayview.querySelector('.timeline-legend')){const l=document.createElement('div');l.className='timeline-legend';l.innerHTML='<span><i class="dot normal"></i>정상 완료</span><span><i class="dot working"></i>근무 중</span><span><i class="dot issue"></i>확인 필요</span>';dayview.querySelector('.axis-wrap')?.before(l)}
   }
   const m=renderMonth;renderMonth=function(){m();patchMonth()};
   const d=renderDay;renderDay=function(day){d(day);patchDay(day)};
