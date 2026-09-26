@@ -109,7 +109,8 @@
   .employee-card-pay{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap;flex:0 0 auto}
   .employee-card-pay small{font-size:.62rem;color:var(--muted);font-weight:500}
   @media(max-width:430px){.employee-card-primary .employee-card-name{font-size:1rem}.employee-card-secondary{font-size:.72rem}#empGrid .employee-card-primary{margin:0 -10px 4px}.payroll-employee-card .employee-card-primary{margin:0 -10px 4px}}
-  @media(min-width:769px){.store-select-marquee{width:220px;max-width:220px}.store-select-shell{min-width:220px}}\n  @media(min-width:431px){#empGrid .employee-card-primary{margin:0 -16px 4px;padding-left:16px;padding-right:16px}.payroll-employee-card .employee-card-primary{margin:0 -14px 4px;padding-left:14px;padding-right:14px}}
+  @media(min-width:769px){.store-select-marquee{width:220px;max-width:220px}.store-select-shell{min-width:220px}}
+  @media(min-width:431px){#empGrid .employee-card-primary{margin:0 -16px 4px;padding-left:16px;padding-right:16px}.payroll-employee-card .employee-card-primary{margin:0 -14px 4px;padding-left:14px;padding-right:14px}}
   #empGrid .employee-card-secondary{padding-top:4px}
   .emp .badge-off,.badge-off{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--text-muted);background:var(--surface);white-space:nowrap;cursor:default;user-select:none}
   /* 오늘 근태 카드: column 정렬(이름 고정폭 / 정보 신축 / 상태·버튼 고정). 문구 길이에 카드 안 흔들림.
@@ -850,7 +851,8 @@ const SupaBE = (()=>{
     async operationsTrend(windowKey){ return rpc("admin_operations_trend",{p_window:windowKey},true); },
     async inventoryOverview(){ return rpc("admin_inventory_overview",{},true); },
     async inventoryMovements(itemId,from,to){ return rpc("admin_inventory_movements",{p_item_id:itemId||null,p_from:from||null,p_to:to||null},true); },
-    async recipeList(){ return rpc("admin_recipe_list_v2",{},true); },\n    async recipeSave(id,name,category,components){ return rpc("admin_recipe_save",{p_recipe_id:id||null,p_menu_name:name,p_category:category||null,p_components:components||[]},true); },
+    async recipeList(){ return rpc("admin_recipe_list_v2",{},true); },
+    async recipeSave(id,name,category,components){ return rpc("admin_recipe_save",{p_recipe_id:id||null,p_menu_name:name,p_category:category||null,p_components:components||[]},true); },
     async reconciliationIssues(from,to){ return rpc("admin_reconciliation_issues",{p_from:from,p_to:to},true); },
     async seedOperationsDemo(){ return rpc("admin_seed_operations_demo",{},true); },
     async clearOperationsDemo(){ return rpc("admin_clear_operations_demo",{},true); },
@@ -1040,7 +1042,8 @@ async function renderDashboard(){
     const trendRange=recent.length?(md(recent[0].date)+" ~ "+md(recent[recent.length-1].date)):"기간 없음";
     const bars=recent.map(x=>'<i class="hq-tip-target" tabindex="0" data-tip="'+safeHtml(md(x.date)+' · '+money(x.sales))+'" aria-label="'+safeHtml(md(x.date)+' '+money(x.sales))+'" style="height:'+Math.max(16,Math.round(Number(x.sales||0)/max*74))+'px"><span class="hq-bar-date">'+safeHtml(md(x.date))+'</span></i>').join("");
     const menus=Array.isArray(r.menu_trend)?r.menu_trend:[],menuMax=Math.max(1,...menus.map(x=>Number(x.sales||0)));
-    const menuRows=menus.slice(0,5).map(m=>{const ch=m.channels||{};const parts=Object.entries(ch).map(([k,v])=>k+' '+Number(v||0).toLocaleString("ko-KR")+'건');const tip=m.name+' · 총 '+Number(m.orders||0).toLocaleString("ko-KR")+'건'+(parts.length?'\n'+parts.join(' · '):'');return '<div class="hq-menu-row"><span class="hq-flow"><span class="hq-flow-inner">'+safeHtml(m.name)+'</span></span><i class="hq-tip-target" tabindex="0" data-tip="'+safeHtml(tip)+'" aria-label="'+safeHtml(tip)+'"><em style="width:'+Math.round(Number(m.sales||0)/menuMax*100)+'%"></em></i><b class="hq-flow"><span class="hq-flow-inner">'+money(m.sales)+'</span></b></div>'}).join("");
+    const menuRows=menus.slice(0,5).map(m=>{const ch=m.channels||{};const parts=Object.entries(ch).map(([k,v])=>k+' '+Number(v||0).toLocaleString("ko-KR")+'건');const tip=m.name+' · 총 '+Number(m.orders||0).toLocaleString("ko-KR")+'건'+(parts.length?'
+'+parts.join(' · '):'');return '<div class="hq-menu-row"><span class="hq-flow"><span class="hq-flow-inner">'+safeHtml(m.name)+'</span></span><i class="hq-tip-target" tabindex="0" data-tip="'+safeHtml(tip)+'" aria-label="'+safeHtml(tip)+'"><em style="width:'+Math.round(Number(m.sales||0)/menuMax*100)+'%"></em></i><b class="hq-flow"><span class="hq-flow-inner">'+money(m.sales)+'</span></b></div>'}).join("");
     return '<article class="hq-store-panel" data-store="'+r.store_id+'" data-store-name="'+safeHtml(r.store_name)+'"><div class="hq-store-head"><div class="hq-flow"><span class="hq-flow-inner"><small>#'+(idx+1)+'</small><b>'+safeHtml(r.store_name)+'</b></span></div><button type="button">상세 ›</button></div><div class="hq-store-kpi hq-flow"><span class="hq-flow-inner"><b>'+money(r.sales_7d)+'</b><span>최근 7일 매출</span><span class="hq-total-sales">(누적: '+money(r.sales_total)+')</span></span></div><div class="hq-chart-title">매출 추이 · 최근 14일 <span class="hq-chart-range">('+trendRange+')</span></div><div class="hq-bars">'+bars+'</div><div class="hq-chart-title">메뉴별 매출 · 최근 7일</div><div class="hq-menu-list">'+menuRows+'</div></article>';
   }).join("");
   const regions=["전체 지역",...new Set(rows.map(r=>r.region_group||"기타"))];
@@ -1803,10 +1806,12 @@ async function renderAdmin(){
       div.querySelector("[data-contract]").onclick=()=>{ location.href=`employment_contracts.html?employee=${e.id}&from=employees`; };
       const rb=div.querySelector("[data-retire]");
       if(rb) rb.onclick=async()=>{
-        const ended=prompt(`${e.name}님의 퇴직일을 입력하세요.\n고용·계약 이력의 종료일로 기록됩니다.`,day);
+        const ended=prompt(`${e.name}님의 퇴직일을 입력하세요.
+고용·계약 이력의 종료일로 기록됩니다.`,day);
         if(ended===null)return;
         if(!/^\d{4}-\d{2}-\d{2}$/.test(ended)){alert("퇴직일은 YYYY-MM-DD 형식으로 입력하세요.");return}
-        if(!confirm(`${e.name}님을 ${ended} 기준으로 퇴직 처리할까요?\n기존 근태·급여·계약 기록은 보존됩니다.`))return;
+        if(!confirm(`${e.name}님을 ${ended} 기준으로 퇴직 처리할까요?
+기존 근태·급여·계약 기록은 보존됩니다.`))return;
         try{
           const res=await BE.retireEmployee(e.id,ended);
           if(!res?.ok) throw new Error(res?.error||"RETIRE_FAILED");
@@ -1854,7 +1859,8 @@ async function renderPendingRequests(){
         <button class="btn btn-danger" data-rj="${r.id}">반려</button>
       </div>`;
     div.querySelector("[data-ap]").onclick=async()=>{
-      if(!confirm(`${r.employee_name}님의 ${target?target+' ':''}${kindLabel[r.kind]} 요청을 승인할까요?\n${beforeVal} → ${afterVal}`)) return;
+      if(!confirm(`${r.employee_name}님의 ${target?target+' ':''}${kindLabel[r.kind]} 요청을 승인할까요?
+${beforeVal} → ${afterVal}`)) return;
       const res=await BE.resolveRequest(r.id,true,null);
       if(res&&res.ok){ toast("in","승인됨","정정이 반영되었습니다."); renderAdmin(); }
       else toast("err","실패",(res&&res.error)||"오류");
@@ -2262,7 +2268,8 @@ async function drawPay(ym){
   if(expBtn) expBtn.onclick=()=>exportPayrollXlsx(ym, payrollRows, totalNet, weeks);
   const closeBtn=document.getElementById("btnClose");
   if(closeBtn) closeBtn.onclick=async()=>{
-    if(!confirm(`${ym} 급여를 마감할까요?\n마감 시점의 계산근거가 고정됩니다.`)) return;
+    if(!confirm(`${ym} 급여를 마감할까요?
+마감 시점의 계산근거가 고정됩니다.`)) return;
     const res=await BE.closePayroll(ym, payrollRows.map(({issues,...r})=>r), curFp);
     if(res&&res.ok){ toast("in","마감 완료",`${res.count}명 · 근거 고정됨`); drawPay(ym); }
     else toast("err","마감 실패",(res&&res.error)||"");
@@ -2365,7 +2372,8 @@ function fingerprintOf(events){
   // Stable 64-bit FNV-1a over every effective event. Any corrected time/type/id change must invalidate a closed snapshot.
   const canonical=[...(events||[])].map(e=>[
     e.id??"",e.employee_id??"",e.event_type??"",e.event_at??"",e.corrected?1:0
-  ].join("|")).sort().join("\n");
+  ].join("|")).sort().join("
+");
   let h=0xcbf29ce484222325n;
   for(let i=0;i<canonical.length;i++){
     h^=BigInt(canonical.charCodeAt(i));
@@ -2472,7 +2480,8 @@ async function openScheduleModal(){
       };
       const del=row.querySelector(".sch-del");
       if(del) del.onclick=async()=>{
-        if(!confirm(`${e.name}의 ${date} 스케줄 등록을 취소할까요?\n(미등록 상태로 돌아갑니다)`)) return;
+        if(!confirm(`${e.name}의 ${date} 스케줄 등록을 취소할까요?
+(미등록 상태로 돌아갑니다)`)) return;
         try{ await BE.scheduleDelete(e.id,date); toast("out","등록취소",e.name); refresh(); }
         catch(err){ toast("err","취소 실패",err.message); }
       };
@@ -2580,12 +2589,18 @@ async function openDocsModal(emp){
           delBtn.onclick=async()=>{
             if(delBtn.dataset.expired==="1"){
               // 만료: 실제 삭제 호출 안 함. 안내만.
-              alert("삭제할 수 없는 계약서입니다\n\n오첨부 정정을 위한 삭제 가능시간인 업로드 후 24시간이 만료되었습니다. 계약 기록 보존을 위해 24시간이 지난 파일은 삭제할 수 없습니다.");
+              alert("삭제할 수 없는 계약서입니다
+
+오첨부 정정을 위한 삭제 가능시간인 업로드 후 24시간이 만료되었습니다. 계약 기록 보존을 위해 24시간이 지난 파일은 삭제할 수 없습니다.");
               return;
             }
             const remainNow = expireAt - Date.now();
             const remainStr = fmtRemain(remainNow) || "곧 만료";
-            if(!confirm(`계약서를 삭제할까요?\n\n오첨부 정정을 위해 업로드 후 24시간 동안만 삭제할 수 있습니다. 24시간이 지나면 계약 기록 보존을 위해 삭제할 수 없습니다.\n\n현재 삭제 가능 시간: ${remainStr}`)) return;
+            if(!confirm(`계약서를 삭제할까요?
+
+오첨부 정정을 위해 업로드 후 24시간 동안만 삭제할 수 있습니다. 24시간이 지나면 계약 기록 보존을 위해 삭제할 수 없습니다.
+
+현재 삭제 가능 시간: ${remainStr}`)) return;
             try{
               // Storage → metadata 순서 (실패 시 재시도 가능)
               let storageOk=false;
