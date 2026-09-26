@@ -367,7 +367,7 @@
   .payroll-employee-card .payroll-gross-value{white-space:nowrap;font-size:1.08rem!important;line-height:1.05!important}.payroll-employee-card .payroll-employee-payline{min-height:1.32rem;margin-top:0;margin-bottom:4px}
   @media(max-width:430px){#adminPanel:has(#payList){min-height:calc(100dvh - 300px);display:flex;flex-direction:column}#adminPanel:has(#payList) #payList{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}#adminPanel:has(#payList) .payroll-employee-grid{flex:1 1 auto;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-flow:row;gap:8px;height:auto;min-height:224px;max-height:none!important;overflow-y:auto;align-content:start}#adminPanel:has(#payList) .payroll-employee-card{width:auto!important;max-width:none!important;min-width:0!important}#adminPanel:has(#payList) .payroll-action-block{margin-top:8px!important}#adminPanel:has(#payList) .payroll-sheet-actions{margin-top:auto!important;padding-top:8px}.payroll-employee-card{padding:0 10px 8px!important}.payroll-action-block{margin-top:8px!important}.payroll-sheet-actions{margin-top:4px!important}.payroll-sheet-meta{margin-top:3px!important}}
   .payroll-employee-payline{min-height:1.56rem;display:flex;align-items:baseline;gap:5px;justify-content:flex-start}
-  /* V1.96 payroll card vertical rhythm: reserve real breathing room below pay */
+  /* V1.97 payroll card vertical rhythm: reserve real breathing room below pay */
   .payroll-employee-card{padding-bottom:14px!important}
   .payroll-employee-card .employee-card-secondary{margin-top:4px;margin-bottom:5px}
   .payroll-employee-card .payroll-employee-payline{min-height:18px!important;margin:0!important;line-height:1!important;align-items:center!important}
@@ -422,7 +422,7 @@
   .employee-empty{min-height:160px;display:flex;align-items:center;justify-content:center;padding:24px;color:var(--text-muted);font-size:.88rem;text-align:center}
   @media(max-width:430px){.employee-list-mask{height:270px}}
   .app-version-badge{display:inline-block;margin-left:10px;font-size:.68rem;font-weight:700;letter-spacing:.02em;color:rgba(255,255,255,.56);pointer-events:none;user-select:none;vertical-align:baseline}
-  /* V1.96 desktop parity: keep recent payroll/card behavior consistent above mobile width */
+  /* V1.97 desktop parity: keep recent payroll/card behavior consistent above mobile width */
   @media(min-width:431px){#adminPanel:has(#payList){min-height:calc(100dvh - 300px);display:flex;flex-direction:column}#adminPanel:has(#payList) #payList{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}#adminPanel:has(#payList) .payroll-employee-grid{flex:1 1 auto;height:auto;min-height:224px;max-height:none!important;overflow-y:auto}#adminPanel:has(#payList) .payroll-sheet-actions{margin-top:auto;padding-top:8px}.payroll-employee-card .payroll-gross-value{font-size:1.08rem!important;line-height:1.05!important}.payroll-employee-card .payroll-employee-payline{min-height:1.32rem;margin-bottom:4px}}
 
   .topbar{position:relative}
@@ -454,7 +454,7 @@
   #employeeOnboarding .ob-night-label{display:flex;align-items:center;justify-content:space-between;gap:12px;white-space:nowrap}
   #employeeOnboarding .ob-weekday{display:flex;min-width:0;flex-direction:column;align-items:center;gap:7px;padding:8px 2px;border:1px solid var(--border);border-radius:9px;background:var(--surface-muted);font-size:.8rem}
 
-  /* V1.96 payroll viewport: employee area consumes the real space above actions */
+  /* V1.97 payroll viewport: employee area consumes the real space above actions */
   #adminPanel:has(#payList){display:flex;flex-direction:column;min-height:calc(100dvh - 330px)}
   #adminPanel:has(#payList) #payList{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
   #adminPanel:has(#payList) .payroll-employee-grid{flex:1 1 auto;height:auto!important;max-height:none!important;min-height:180px;align-content:stretch;overflow-y:auto}
@@ -462,7 +462,7 @@
   #adminPanel:has(#payList) .payroll-action-block{flex:0 0 auto;margin-top:8px!important}
   @media(max-width:430px){#adminPanel:has(#payList){min-height:calc(100dvh - 300px)}#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;min-height:224px}}
 
-  /* V1.96 payroll card content must never clip the pay line */
+  /* V1.97 payroll card content must never clip the pay line */
   #adminPanel:has(#payList) .payroll-employee-card{overflow:visible!important;padding-bottom:14px!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;gap:0!important}
   #adminPanel:has(#payList) .payroll-employee-card .employee-card-primary{flex:0 0 auto}
   #adminPanel:has(#payList) .payroll-employee-card .employee-card-secondary{flex:0 0 auto;margin:10px 0 6px!important;line-height:1.2!important}
@@ -472,7 +472,7 @@
 
   
 
-  /* V1.96 payroll employee card uses common compact employee-card proportions */
+  /* V1.97 payroll employee card uses common compact employee-card proportions */
   #adminPanel:has(#payList) .payroll-employee-grid{grid-auto-rows:max-content!important;align-content:start!important}
   #adminPanel:has(#payList) .payroll-employee-card{box-sizing:border-box!important;display:grid!important;grid-template-rows:40px 24px 28px!important;height:auto!important;min-height:108px!important;max-height:none!important;padding:0 10px 8px!important;gap:2px!important;overflow:hidden!important;align-content:start!important}
   #adminPanel:has(#payList) .payroll-employee-card .employee-card-primary{height:40px!important;min-height:40px!important;margin:0 -10px!important;padding:0 10px!important}
@@ -481,12 +481,12 @@
   #adminPanel:has(#payList) .payroll-employee-card .payroll-gross-value{font-size:1rem!important;line-height:24px!important;padding:0!important}
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:max-content!important}}
 
-  /* V1.96 payroll employee cards: mobile portrait is always two columns */
+  /* V1.97 payroll employee cards: mobile portrait is always two columns */
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 
   
 
-  /* V1.96 payroll card isolated from legacy .row/flex overrides */
+  /* V1.97 payroll card isolated from legacy .row/flex overrides */
   #adminPanel:has(#payList) .payroll-card-v191{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:40px 26px 30px!important;width:100%!important;height:106px!important;min-height:106px!important;max-height:106px!important;box-sizing:border-box!important;margin:0!important;padding:0 10px 8px!important;gap:1px!important;align-items:stretch!important;align-content:start!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;background:var(--surface)!important;overflow:hidden!important}
   #adminPanel:has(#payList) .payroll-card-v191>.employee-card-primary{grid-row:1!important;display:flex!important;width:auto!important;height:40px!important;min-height:40px!important;margin:0 -10px!important;padding:0 10px!important;box-sizing:border-box!important;min-width:0!important;overflow:hidden!important}
   #adminPanel:has(#payList) .payroll-card-v191>.employee-card-secondary{grid-row:2!important;display:flex!important;width:100%!important;height:26px!important;min-height:26px!important;margin:0!important;padding:5px 0 1px!important;box-sizing:border-box!important;min-width:0!important;overflow:hidden!important}
@@ -495,16 +495,16 @@
   #adminPanel:has(#payList) .payroll-card-v191 .payroll-gross-value{font-size:1rem!important;line-height:24px!important;white-space:nowrap!important}
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:106px!important}#adminPanel:has(#payList) .payroll-card-v191{height:106px!important;min-height:106px!important;max-height:106px!important}}
 
-  /* V1.96 payroll card: restore pre-regression layout; only protect bottom payline */
+  /* V1.97 payroll card: restore pre-regression layout; only protect bottom payline */
   #adminPanel:has(#payList) .payroll-employee-card{padding-bottom:14px!important;overflow:hidden!important}
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 
-  /* V1.96 store selector: restore stable native select */
+  /* V1.97 store selector: restore stable native select */
   .store-select-shell{display:flex!important;align-items:center!important;overflow:visible!important}
   .store-select-shell #storeSelect{display:block!important;position:static!important;width:100%!important;height:32px!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;box-sizing:border-box!important;border:1px solid rgba(255,255,255,.35)!important;border-radius:9px!important;background:#fff!important;color:#174f35!important;text-shadow:none!important;font:inherit!important;font-weight:700!important;padding:4px 26px 4px 8px!important;cursor:pointer!important;white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important}
   .store-select-marquee{display:none!important}
 
-  /* V1.96 payroll card exact geometry restored from pre-regression v1.79 */
+  /* V1.97 payroll card exact geometry restored from pre-regression v1.79 */
   #adminPanel:has(#payList) .payroll-employee-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-flow:row!important;grid-auto-rows:108px!important;gap:8px!important;align-content:start!important;height:auto!important;min-height:224px!important;max-height:none!important;overflow-y:auto!important}
   #adminPanel:has(#payList) .payroll-employee-card{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;box-sizing:border-box!important;width:auto!important;min-width:0!important;max-width:none!important;height:108px!important;min-height:108px!important;max-height:108px!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;background:var(--surface)!important;padding:0 14px 14px!important;gap:0!important;overflow:hidden!important}
   #adminPanel:has(#payList) .payroll-employee-card>.employee-card-primary{flex:0 0 auto!important;width:auto!important;min-width:0!important;margin:0 -14px 4px!important;padding-left:14px!important;padding-right:14px!important}
@@ -512,8 +512,19 @@
   #adminPanel:has(#payList) .payroll-employee-card>.payroll-employee-payline{flex:0 0 auto!important;display:flex!important;width:100%!important;height:auto!important;min-height:18px!important;margin:0!important;padding:0!important;line-height:1!important;align-items:center!important;gap:5px!important;overflow:visible!important;white-space:nowrap!important}
   #adminPanel:has(#payList) .payroll-employee-card .payroll-gross-value{font-size:1rem!important;line-height:1!important;white-space:nowrap!important;padding:0!important}
   @media(max-width:520px){#adminPanel:has(#payList) .payroll-employee-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:108px!important}#adminPanel:has(#payList) .payroll-employee-card{padding:0 10px 12px!important}#adminPanel:has(#payList) .payroll-employee-card>.employee-card-primary{margin:0 -10px 4px!important;padding-left:10px!important;padding-right:10px!important}#adminPanel:has(#payList) .payroll-employee-card>.employee-card-secondary{margin:3px 0 4px!important}#adminPanel:has(#payList) .payroll-employee-card .payroll-gross-value{font-size:.98rem!important}}
+
+  /* V1.97 PAYROLL ONLY: fixed common header + flexible body/rows */
+  #adminPanel:has(#payList){display:flex!important;flex-direction:column!important;min-height:calc(100dvh - 178px)!important}
+  #adminPanel:has(#payList) .payroll-employee-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(var(--payroll-row-count,1),minmax(108px,1fr))!important;grid-auto-rows:minmax(108px,1fr)!important;gap:8px!important;flex:1 1 auto!important;min-height:224px!important;max-height:none!important;height:auto!important;align-content:stretch!important;overflow-y:auto!important}
+  #adminPanel:has(#payList) .payroll-employee-card{display:grid!important;grid-template-rows:40px minmax(0,1fr)!important;width:100%!important;height:100%!important;min-height:108px!important;max-height:none!important;box-sizing:border-box!important;margin:0!important;padding:0!important;gap:0!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;background:var(--surface)!important;overflow:hidden!important}
+  #adminPanel:has(#payList) .payroll-employee-card>.employee-card-primary{grid-row:1!important;height:40px!important;min-height:40px!important;max-height:40px!important;width:100%!important;margin:0!important;padding:0 10px!important;box-sizing:border-box!important;flex:none!important}
+  #adminPanel:has(#payList) .payroll-employee-card>.payroll-card-body{grid-row:2!important;display:flex!important;flex-direction:column!important;justify-content:space-between!important;min-height:0!important;padding:8px 10px 10px!important;box-sizing:border-box!important;overflow:hidden!important}
+  #adminPanel:has(#payList) .payroll-employee-card .payroll-card-body>.employee-card-secondary{height:auto!important;min-height:18px!important;margin:0!important;padding:0!important;line-height:18px!important;flex:0 0 auto!important;overflow:hidden!important}
+  #adminPanel:has(#payList) .payroll-employee-card .payroll-card-body>.payroll-employee-payline{display:flex!important;height:auto!important;min-height:24px!important;margin:0!important;padding:0!important;line-height:24px!important;align-items:baseline!important;gap:5px!important;flex:0 0 auto!important;overflow:visible!important;white-space:nowrap!important}
+  #adminPanel:has(#payList) .payroll-employee-card .payroll-gross-value{font-size:1rem!important;line-height:24px!important;padding:0!important;white-space:nowrap!important}
+  #adminPanel:has(#payList) .payroll-action-block{flex:0 0 auto!important}
 </style>
-<link rel="stylesheet" href="operations_v1.css?v=20260926v196">
+<link rel="stylesheet" href="operations_v1.css?v=20260926v197">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js?v=20260926p" defer></script>
 <script src="supabase_session_resilience_v1.js?v=20260918a"></script>
@@ -525,7 +536,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대점</option></select></span><span class="app-version-badge" id="appVersion">v1.96</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대점</option></select></span><span class="app-version-badge" id="appVersion">v1.97</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -587,7 +598,7 @@
   <div class="msg" id="successMsg">오늘도 좋은 하루 되세요</div>
 </div>
 
-<script src="operations_v1.js?v=20260926v196"></script>
+<script src="operations_v1.js?v=20260926v197"></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
@@ -605,7 +616,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v1.96";
+const APP_VERSION="v1.97";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -2273,8 +2284,17 @@ async function drawPay(ym){
       card.style.cursor="pointer";
       card.onclick=()=>openMonthAdjust(e, ym, ov);
     }
+    const secondary=card.querySelector(":scope > .employee-card-secondary");
+    const payline=card.querySelector(":scope > .payroll-employee-payline");
+    if(secondary&&payline){
+      const body=document.createElement("div");
+      body.className="payroll-card-body";
+      secondary.before(body);
+      body.append(secondary,payline);
+    }
     payEmployees.appendChild(card);
   }
+  payEmployees.style.setProperty("--payroll-row-count",String(Math.max(1,Math.ceil(R.rows.length/2))));
   // ---- M8: 마감/엑셀/변경감지 ----
   // 현재 근태 지문 (이벤트 개수 + 최신 이벤트/보정 시각)
   const curFp = fingerprintOf(R.events);
