@@ -14,7 +14,7 @@ assert.ok(js.includes("'<text x=\"'+axisAt(i).toFixed(1)"),'date labels must sha
 assert.ok(css.includes('.ops-chart svg .ops-chart-vguide{stroke:#b9c5be;stroke-width:.9;opacity:.9'),'time axes must be visibly distinct from horizontal grid lines');
 const version=html.match(/const APP_VERSION="(v\d+)"/)?.[1];
 assert.ok(version,'app version must exist');
-assert.ok(html.includes(`operations_v1.js?v=20260926${version}`));
-assert.ok(html.includes(`operations_v1.css?v=20260926${version}`));
+assert.match(html,new RegExp(`operations_v1\\.js\\?v=\\d{8}${version}`));
+assert.match(html,new RegExp(`operations_v1\\.css\\?v=\\d{8}${version}`));
 
 console.log('chart time axis QA PASS');

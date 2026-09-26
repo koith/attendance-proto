@@ -16,5 +16,5 @@ assert.equal((two[0]+10+two[1]+10)/2,100,'two visible bars must straddle the tim
 
 const version=html.match(/const APP_VERSION="(v\d+)"/)?.[1];
 assert.ok(version,'app version must exist');
-assert.ok(html.includes(`operations_v1.js?v=20260926${version}`));
+assert.match(html,new RegExp(`operations_v1\\.js\\?v=\\d{8}${version}`));
 console.log('visible bar center v207 QA PASS');
