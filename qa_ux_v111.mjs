@@ -6,9 +6,9 @@ t('monthly time-range separator grammar',()=>{assert(mc.includes('.time-row>.tim
 t('planned daily/monthly period navigator shared grammar',()=>{assert(dh.includes('class="period-nav"'));assert(mh.includes('class="period-nav"'));assert(dc.includes('.period-nav{'));assert(mc.includes('.period-nav{'))});
 t('mobile navigator overflow guards',()=>{assert(dc.includes('minmax(0,1fr)'));assert(mc.includes('minmax(0,1fr)'));assert(dc.includes('overflow:hidden'));assert(mc.includes('overflow:hidden'))});
 t('employment period memo only is compact textarea',()=>{assert(ec.includes('<textarea id="periodNote" rows="2"'));assert(ecs.includes('#periodNote{'));assert(ec.includes('<textarea id="contractMemo" rows="4"'))});
-t('standalone attendance shortcut removed',()=>{assert(!idx.includes('class="admin-review-link"'));assert(idx.includes('id="attendanceAlert"'))});
-t('attendance pending status is integrated, not a navigation action',()=>{assert(idx.includes('class="admin-pending-head" id="attendanceAlert"'));assert(!idx.includes('id="attendanceAlert" href='));assert(!idx.includes('sec.scrollIntoView({behavior:"smooth"'))});
-t('pending count reuses pendingRequests source',()=>{assert(idx.includes('reqs=await BE.pendingRequests()'));assert(idx.includes('attendanceAlertText'));assert(idx.includes('alertText.textContent=`${reqs.length}건`'));assert(idx.includes('for(const r of reqs)'))});
+t('standalone attendance shortcut removed',()=>{assert(!idx.includes('class="admin-review-link"'));assert(idx.includes('id="quickRequests"'))});
+t('attendance pending requests use modal action',()=>{assert(idx.includes('id="quickRequests"'));assert(idx.includes('requestsVeil'));assert(!idx.includes('id="attendanceAlert" href='))});
+t('pending count reuses pendingRequests source',()=>{assert(idx.includes('reqs=await BE.pendingRequests()'));assert(idx.includes('requestCountBadge'));assert(idx.includes('for(const r of reqs)'))});
 t('shared iOS time guard loaded by planned daily and monthly',()=>{assert(dh.includes('schedule_time_ios_v112.css'));assert(mh.includes('schedule_time_ios_v112.css'));assert(ios.includes('flex:1 1 0%'));assert(ios.includes('width:0!important'));assert(ios.includes('min-width:0!important'))});
 t('monthly payload projection unchanged',()=>{assert(mj.includes('function wizardProjectedPayload()'));assert(mj.includes('function wizardPayload(){return wizardProjectedPayload()}'))});
 t('daily save/delete RPC path unchanged',()=>{assert(dj.includes("rpc('admin_schedule_set'"));assert(dj.includes("rpc('admin_schedule_delete'"))});
