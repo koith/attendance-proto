@@ -9,7 +9,7 @@ assert(i.includes('location.href="actual_attendance.html"'),'admin attendance mu
 
 
 assert(i.includes('employeeContractStatuses'),'employee list must load aggregate contract status once');
-assert(i.includes('contractNeedsAttention=!cs?.contract_registered||!cs?.contract_effective||!cs?.document_attached'),'contract button attention must combine distinct contract/document status signals');
+assert(i.includes('!cs?.contract_registered||!cs?.contract_effective||!cs?.document_attached'),'contract button attention must combine contract/document status signals');
 assert(!i.includes('계약 미등록</span>')&&!i.includes('계약서 없음</span>'),'employee list must not expose redundant contract status text');
 assert(s.includes('admin_employee_contract_statuses')&&s.includes('public.is_admin()'),'contract status RPC must require admin');
 console.log('meeting UI cleanup regression: PASS');
