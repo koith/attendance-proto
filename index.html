@@ -68,6 +68,17 @@
   .admin-subtabs a{border-radius:0;border:0;border-right:1px solid var(--line);padding:6px 13px;background:transparent}
   .admin-subtabs a:first-child{border-left:1px solid var(--line)}
   .admin-subtabs a.on{background:var(--surface);box-shadow:inset 0 -2px 0 var(--accent);color:var(--accent)}
+  .admin-subnav-shell{position:relative;display:flex;align-items:stretch;min-width:0;margin:-18px -18px 12px;background:var(--surface-muted);border-bottom:1px solid var(--line)}
+  .admin-subnav-shell .admin-subtabs{flex:1;min-width:0;margin:0!important;padding:6px 0 6px 18px;background:transparent}
+  .admin-account-trigger{flex:0 0 42px;width:42px;margin:6px 10px 6px 6px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .admin-account-trigger svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .admin-account-trigger[aria-expanded="true"]{background:var(--chip);border-color:var(--accent)}
+  .admin-account-popover{position:absolute;z-index:35;right:10px;top:calc(100% - 2px);width:min(286px,calc(100vw - 24px));padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:0 12px 30px rgba(20,45,32,.18)}
+  .admin-account-popover[hidden]{display:none}
+  .admin-account-label{font-size:.68rem;font-weight:700;color:var(--text-muted);margin-bottom:3px}
+  .admin-account-email{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.82rem;color:var(--text);padding:0 2px 9px;border-bottom:1px solid var(--line)}
+  .admin-account-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding-top:9px}
+  .admin-account-actions .btn{min-height:38px;padding:7px 9px;font-size:.78rem}
   main{flex:1; width:100%; min-width:0; max-width:100%; padding:18px; display:flex; flex-direction:column; overflow-x:hidden;}
 
   /* connection banner */
@@ -247,10 +258,6 @@
   /* V1.1 admin landing / mobile Safari guards */
   button,a,.btn,.emp,.att-card,.tabs a{touch-action:manipulation;}
   .admin-quick{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:16px}
-  .admin-quick-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
-  .admin-login-email{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.76rem;color:var(--text-muted)}
-  .admin-top-actions{display:flex;align-items:center;gap:6px;flex:0 0 auto}
-  .admin-top-actions .btn{min-height:34px;padding:6px 9px;font-size:.76rem}
   .admin-quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
   .admin-quick-grid button{position:relative;min-width:0;min-height:64px;border:1px solid var(--border);border-radius:12px;background:var(--surface-muted);color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:7px 3px}
   .admin-quick-grid button span{font-size:1.15rem}.admin-quick-grid button b{font-size:.73rem;font-weight:650}
@@ -570,7 +577,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v221</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v222</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -654,7 +661,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v221";
+const APP_VERSION="v222";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1225,10 +1232,34 @@ function setTab(t){
 }
 function adminSubnav(active){
   const tabs=[["report","리포트"],["admin","직원"],["pay","급여"],["hours","운영시간"],["sales","매출·매입"],["inventory","재고"]];
-  return '<div class="tabs admin-subtabs admin-subtabs-wide">'+tabs.map(([k,n])=>'<a href="#'+k+'" class="'+(active===k?"on":"")+'">'+n+'</a>').join("")+'</div>';
+  const accountIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>';
+  return '<div class="admin-subnav-shell"><div class="tabs admin-subtabs admin-subtabs-wide">'+tabs.map(([k,n])=>'<a href="#'+k+'" class="'+(active===k?"on":"")+'">'+n+'</a>').join("")+'</div><button type="button" class="admin-account-trigger" id="adminAccountTrigger" aria-label="관리자 계정 메뉴" aria-haspopup="true" aria-expanded="false">'+accountIcon+'</button><div class="admin-account-popover" id="adminAccountPopover" role="menu" hidden><div class="admin-account-label">로그인 계정</div><div class="admin-account-email" id="adminAccountEmail">불러오는 중…</div><div class="admin-account-actions"><button type="button" class="btn btn-secondary" id="adminAccountSettings">설정</button><button type="button" class="btn btn-secondary" id="adminAccountLogout">로그아웃</button></div></div></div>';
+}
+async function mountAdminSubnav(active){
+  view.insertAdjacentHTML("afterbegin",adminSubnav(active));
+  const trigger=document.getElementById("adminAccountTrigger"),popover=document.getElementById("adminAccountPopover");
+  if(!trigger||!popover)return;
+  const close=()=>{popover.hidden=true;trigger.setAttribute("aria-expanded","false")};
+  trigger.onclick=async e=>{
+    e.stopPropagation();
+    const opening=popover.hidden;
+    if(!opening){close();return}
+    popover.hidden=false;trigger.setAttribute("aria-expanded","true");
+    const email=document.getElementById("adminAccountEmail");
+    try{const user=LIVE?await Auth.getUser():null;email.textContent=user?.email||"관리자";email.title=user?.email||"관리자"}catch(_){email.textContent="관리자"}
+  };
+  popover.onclick=e=>e.stopPropagation();
+  document.getElementById("adminAccountSettings").onclick=()=>{close();if(LIVE)openPersonalSettings();else toast("out","로컬 모드","설정은 클라우드 연결 후 사용할 수 있습니다.")};
+  document.getElementById("adminAccountLogout").onclick=()=>{Auth.clear();location.reload()};
+  const outside=e=>{if(!e.target.closest(".admin-subnav-shell"))close()};
+  const escape=e=>{if(e.key==="Escape")close()};
+  document.addEventListener("click",outside);
+  document.addEventListener("keydown",escape);
+  window._adminAccountMenuCleanup=()=>{document.removeEventListener("click",outside);document.removeEventListener("keydown",escape)};
 }
 function route(){
   const h=(location.hash||"#pos").replace("#","");
+  if(window._adminAccountMenuCleanup){window._adminAccountMenuCleanup();window._adminAccountMenuCleanup=null}
   syncStoreContextUI();
   if(h!=="pos"){ clearInterval(_posTimer); }
   if(h==="dashboard"){if(STORE_ENTRY_LOCK){location.hash="#pos";return}setTab("dashboard");requireAuth(renderDashboard);}
@@ -1237,7 +1268,7 @@ function route(){
     setTab("admin");
     requireAuth(async()=>{
       await renderAdmin();
-      view.insertAdjacentHTML("afterbegin",adminSubnav("admin"));
+      await mountAdminSubnav("admin");
       const task=q.get("task"),focus=q.get("focus");
       if(task==="employees"||task==="docs"||focus==="employees") document.getElementById("adEmps")?.scrollIntoView({block:"start"});
       else if(task==="today") document.getElementById("adList")?.scrollIntoView({block:"start"});
@@ -1250,9 +1281,9 @@ function route(){
       }
     });
   }
-  else if(h==="pay"){ setTab("pay"); requireAuth(async()=>{await renderPay();view.insertAdjacentHTML("afterbegin",adminSubnav("pay"));}); }
-  else if(h==="report"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");view.insertAdjacentHTML("afterbegin",adminSubnav("report"));}); } else if(h==="sales"){ setTab("sales"); requireAuth(async()=>{await renderOperations("inquiry");view.insertAdjacentHTML("afterbegin",adminSubnav("sales"));}); } else if(h==="inventory"){ setTab("inventory"); requireAuth(async()=>{await renderOperations("inventory");view.insertAdjacentHTML("afterbegin",adminSubnav("inventory"));}); } else if(h==="recipe"){ setTab("recipe"); renderRecipeHub(); } else if(h==="products"){location.hash="#dashboard";return;} else if(h==="ops"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");view.insertAdjacentHTML("afterbegin",adminSubnav("report"));}); }
-  else if(h==="hours"){ setTab("hours"); requireAuth(async()=>{await renderStoreHours();view.insertAdjacentHTML("afterbegin",adminSubnav("hours"));}); }
+  else if(h==="pay"){ setTab("pay"); requireAuth(async()=>{await renderPay();await mountAdminSubnav("pay");}); }
+  else if(h==="report"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");await mountAdminSubnav("report");}); } else if(h==="sales"){ setTab("sales"); requireAuth(async()=>{await renderOperations("inquiry");await mountAdminSubnav("sales");}); } else if(h==="inventory"){ setTab("inventory"); requireAuth(async()=>{await renderOperations("inventory");await mountAdminSubnav("inventory");}); } else if(h==="recipe"){ setTab("recipe"); renderRecipeHub(); } else if(h==="products"){location.hash="#dashboard";return;} else if(h==="ops"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");await mountAdminSubnav("report");}); }
+  else if(h==="hours"){ setTab("hours"); requireAuth(async()=>{await renderStoreHours();await mountAdminSubnav("hours");}); }
   else{ setTab("pos"); renderPos(); }
 }
 // 관리자 탭 로그인 게이트
@@ -1756,18 +1787,8 @@ function openPersonalSettings(){
 
 /* ---------------------- 관리자 화면 ---------------------- */
 async function renderAdmin(){
-  let adminUser=null;
-  try{ adminUser=LIVE?await Auth.getUser():null; }catch(_){ adminUser=null; }
-  const adminEmail=String(adminUser?.email||"관리자").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
   view.innerHTML=`
     <section class="admin-quick" aria-label="빠른 메뉴">
-      <div class="admin-quick-title">
-        <span class="admin-login-email" title="${adminEmail}">${adminEmail}</span>
-        <div class="admin-top-actions">
-          <button type="button" class="btn btn-secondary" id="adminSettingsBtn" aria-label="설정" title="설정">⚙</button>
-          <button type="button" class="btn btn-secondary" onclick="Auth.clear();location.reload()">로그아웃</button>
-        </div>
-      </div>
       <div class="admin-quick-grid">
         <button type="button" id="quickSchedule"><span>📊</span><b>근무현황</b></button>
         <button type="button" id="quickRequests"><span>📨</span><b>직원 요청</b><i class="request-count-badge" id="requestCountBadge">0</i></button>
@@ -1785,7 +1806,6 @@ async function renderAdmin(){
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
   const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
   document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };
-  if(LIVE) document.getElementById("adminSettingsBtn").onclick=openPersonalSettings;
   document.getElementById("quickSchedule").onclick=()=>{ location.href="actual_attendance.html"; };
   if(LIVE){ document.getElementById("accountManageBtn").onclick=openAccountMgmt; }
   document.getElementById("quickRequests").onclick=async()=>{if(!LIVE){toast("out","직원 요청","받은 요청이 없습니다.");return}try{const reqs=await BE.pendingRequests();if(!reqs?.length){toast("out","직원 요청","받은 요청이 없습니다.");return}await renderPendingRequests();document.getElementById("requestsVeil").classList.add("show");}catch(e){toast("err","직원 요청","요청을 불러오지 못했습니다.");}};
