@@ -10,6 +10,7 @@ const html=fs.readFileSync('index.html','utf8');
 const ui=fs.readFileSync('operations_reference_ui_v208.js','utf8');
 const css=fs.readFileSync('operations_v1.css','utf8');
 const testMode=fs.readFileSync('test_mode_ui_v1.js','utf8');
+const payrollLoader=fs.readFileSync('payroll_elapsed_weeks_v1.js','utf8');
 const removalMigration=fs.readFileSync('supabase/migrations/20260927142500_hq_product_removal_scheduling.sql','utf8');
 
 assert.equal(ref.version,'v208');
@@ -62,6 +63,8 @@ assert.ok(ui.includes('dragstart')&&ui.includes('preventDefault'),'product edito
 assert.ok(html.includes('hq-title-row')&&html.includes('hq-product-button'),'product rollout button must share the dashboard title row');
 assert.ok(css.includes('.ops-hq-removal-controls')&&css.includes('.ops-hq-card-check'),'removal selection controls must be styled');
 assert.ok(testMode.includes('#testModeControls{position:fixed;z-index:10020;left:50%'),'test controls must be centered at the top');
+assert.ok(html.includes('payroll_elapsed_weeks_v1.js?v=20260927v214'),'test-mode loader must be cache-busted');
+assert.ok(payrollLoader.includes('test_mode_ui_v1.js?v=20260927v214'),'centered test controls must bypass stale browser cache');
 assert.ok(removalMigration.includes('admin_hq_product_removal_schedule')&&removalMigration.includes("'DISCONTINUE'::text"),'database must schedule and execute due removals');
 assert.ok(ui.includes('cleanExample'),'legacy example prefixes must be stripped from displayed data');
 assert.ok(!ui.includes('tab==="products"'),'HQ rollout must not render as an admin tab');
