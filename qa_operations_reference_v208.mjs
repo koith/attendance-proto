@@ -32,11 +32,11 @@ assert.match(hotdog.variants[0].content,/눈꽃 치즈 50g/);
 const milkLife=ref.shelf_life.find(x=>x.name==='우유');
 assert.equal(milkLife.expiry_after,'3일');
 
-const dataAt=html.indexOf('operations_reference_v208.js?v=20260927v217');
-const appAt=html.indexOf('operations_v1.js?v=20260927v217');
-const uiAt=html.indexOf('operations_reference_ui_v208.js?v=20260927v217');
+const dataAt=html.indexOf('operations_reference_v208.js?v=20260927v218');
+const appAt=html.indexOf('operations_v1.js?v=20260927v218');
+const uiAt=html.indexOf('operations_reference_ui_v208.js?v=20260927v218');
 assert.ok(dataAt>=0&&dataAt<appAt&&appAt<uiAt,'reference data, legacy operations, then reference UI must load in order');
-assert.ok(html.includes('const APP_VERSION="v217"'));
+assert.ok(html.includes('const APP_VERSION="v218"'));
 assert.ok(ui.includes('HOT(13oz)')===false,'variant labels must come from source data, not hardcoded UI');
 assert.ok(ui.includes('발주 필요 품목과 인하대점 재고 기준'));
 assert.ok(ui.includes('공식 제조 기준과 직접 등록한 레시피'));
@@ -80,4 +80,4 @@ assert.ok(pendingMigration.includes('has_pending_changes')&&pendingMigration.inc
 assert.ok(updateScheduleMigration.includes("status='ACTIVE' and has_pending_changes")&&updateScheduleMigration.includes("'schedule_type','UPDATE'"),'database cron must apply scheduled active-product edits');
 assert.ok(ui.includes('cleanExample'),'legacy example prefixes must be stripped from displayed data');
 assert.ok(!ui.includes('tab==="products"'),'HQ rollout must not render as an admin tab');
-console.log('operations reference v217 QA PASS');
+console.log('operations reference v218 QA PASS');
