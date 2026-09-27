@@ -1,12 +1,1 @@
-import fs from 'node:fs';import assert from 'node:assert/strict';
-const s=fs.readFileSync('index.html','utf8');
-assert(s.includes('const SheetAutoSync=(()=>{'));
-assert(s.includes('if(!LIVE||!Auth.token||busy||document.visibilityState==="hidden")return;'));
-assert(s.includes('fp===lastFingerprint'));
-assert(s.includes('Math.min(retryMs*2,300000)'));
-assert(s.includes('setInterval(()=>run("timer"),60000)'));
-assert(s.includes('window.addEventListener("online"'));
-assert(s.includes('SheetAutoSync.start();'));
-assert(s.includes('자동 갱신 사용 중 · 마지막 갱신'));
-assert(s.includes('id="btnSyncSheet">지금 갱신</button>'));
-console.log('sheet auto sync v1: PASS');
+import fs from 'node:fs';import assert from 'node:assert/strict';const s=fs.readFileSync('index.html','utf8');for(const x of ['const SheetAutoSync=(()=>{','if(!LIVE||!Auth.token||busy||document.visibilityState==="hidden")return;','fp===lastFingerprint','Math.min(retryMs*2,300000)','setInterval(()=>run("timer"),60000)','window.addEventListener("online"','SheetAutoSync.start();','id="btnSyncSheet">지금 갱신</button>','자동 갱신됨'])assert(s.includes(x),x);console.log('sheet auto PASS');
