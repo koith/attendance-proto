@@ -5,9 +5,9 @@ assert(!i.includes('id="adSched"'),'duplicate planned daily shortcut must stay o
 assert(!i.includes('id="payWeeks"'),'payroll summary must not expose manual week-count clutter');
 assert(i.includes('>세전 합계</div>'),'payroll must lead with gross total');
 assert(i.includes('payMonthPrev')&&i.includes('payMonthNext'),'month arrows must remain canonical');
-assert(i.includes('historyEff=applyCorrections'),'admin Today must build one correction-aware history snapshot');
-assert(!i.includes('${nextKey}T00:00:00'),'undefined nextKey path must not return');
-assert.equal((i.match(/BE\.eventsWithCorrections\("2000-01-01T00:00:00"/g)||[]).length,1,'full history must be fetched once, not per employee');
+assert(i.includes('location.href="actual_attendance.html"'),'admin attendance must use canonical dashboard');
+
+
 assert(i.includes('employeeContractStatuses'),'employee list must load aggregate contract status once');
 assert(i.includes('contractNeedsAttention=!cs?.contract_registered||!cs?.contract_effective||!cs?.document_attached'),'contract button attention must combine distinct contract/document status signals');
 assert(!i.includes('계약 미등록</span>')&&!i.includes('계약서 없음</span>'),'employee list must not expose redundant contract status text');
