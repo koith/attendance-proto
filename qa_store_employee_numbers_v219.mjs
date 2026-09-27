@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 const read=file=>fs.readFileSync(file,'utf8');
 const html=read('index.html');
 const migration=read('supabase/migrations/20260927085725_store_scoped_employee_numbers.sql');
+const compactMigration=read('supabase/migrations/20260927191500_compact_active_employee_numbers.sql');
 const substitution=read('substitution_v2.js');
 const attendance=read('actual_attendance.js');
 const contracts=read('employment_contract_employee_number_v1.js');
@@ -19,6 +20,10 @@ assert.match(migration,/returns table\(id bigint,name text,employee_no integer,s
 assert.match(migration,/returns table\(id bigint,name text,employee_no integer,working boolean/i);
 assert.match(migration,/returns table\(id bigint,name text,employee_no integer,is_active boolean/i);
 assert.match(migration,/jsonb_build_object\('ok',true,'employee_id',v_emp,'employee_no',v_employee_no/i);
+assert.match(compactMigration,/where is_active/);
+assert.match(compactMigration,/employees_store_active_employee_no_uidx/);
+assert.match(compactMigration,/after insert or update of store_id,is_active/);
+assert.match(compactMigration,/set employee_no=null/);
 assert.ok(substitution.includes('e?.employee_no'));
 assert.ok(attendance.includes('e?.employee_no'));
 assert.ok(contracts.includes('e?.employee_no'));
