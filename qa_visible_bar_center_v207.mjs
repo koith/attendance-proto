@@ -14,7 +14,7 @@ assert.equal(one[0]+10,100,'one visible bar must be centered on the time axis');
 const two=positions(100,20,2);
 assert.equal((two[0]+10+two[1]+10)/2,100,'two visible bars must straddle the time axis equally');
 
-const version=html.match(/const APP_VERSION="(v\d+)"/)?.[1];
+const version=html.match(/const APP_VERSION="(v\d+(?:\.\d+)*)"/)?.[1];
 assert.ok(version,'app version must exist');
 assert.match(html,new RegExp(`operations_v1\\.js\\?v=\\d{8}${version}`));
 console.log('visible bar center v207 QA PASS');

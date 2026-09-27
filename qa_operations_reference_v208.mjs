@@ -36,7 +36,7 @@ const dataAt=html.indexOf('operations_reference_v208.js?v=20260927v220');
 const appAt=html.indexOf('operations_v1.js?v=20260927v223');
 const uiAt=html.indexOf('operations_reference_ui_v208.js?v=20260927v223');
 assert.ok(dataAt>=0&&dataAt<appAt&&appAt<uiAt,'reference data, legacy operations, then reference UI must load in order');
-assert.ok(html.includes('const APP_VERSION="v223"'));
+assert.ok(html.includes('const APP_VERSION="v0.01"'));
 assert.ok(ui.includes('HOT(13oz)')===false,'variant labels must come from source data, not hardcoded UI');
 assert.ok(ui.includes('발주 필요 품목과 인하대점 재고 기준'));
 assert.ok(ui.includes('공식 제조 기준과 직접 등록한 레시피'));

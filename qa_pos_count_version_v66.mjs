@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const html=fs.readFileSync('index.html','utf8');
-const v=html.match(/const APP_VERSION="(v\d+)";/)?.[1];
+const v=html.match(/const APP_VERSION="(v\d+(?:\.\d+)*)";/)?.[1];
 assert(v,'APP_VERSION required');
 assert(html.includes(`id="appVersion">${v}</span>`),'visible version must match APP_VERSION');
 assert(html.includes('.app-version-badge{display:inline-block;margin-left:10px'),'version badge must sit beside store location with spacing');
