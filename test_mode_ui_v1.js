@@ -8,8 +8,8 @@
     let s=document.getElementById('testModeStyle');if(s)return;
     s=document.createElement('style');s.id='testModeStyle';s.textContent=`
 body.test-mode::before{content:"";position:fixed;inset:0;z-index:9990;pointer-events:none;background:rgba(120,70,255,.09);box-shadow:inset 0 0 0 3px rgba(120,70,255,.45)}
-#testModeBanner{position:fixed;z-index:9997;left:50%;top:calc(env(safe-area-inset-top) + 7px);transform:translateX(-50%);background:#5b35d5;color:#fff;border-radius:999px;padding:5px 10px;font-size:.68rem;font-weight:800;pointer-events:none;white-space:nowrap}
-#testModeControls{position:fixed;z-index:10020;right:max(8px,env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 6px);display:flex;align-items:center;gap:5px}
+#testModeBanner{position:fixed;z-index:9997;left:50%;top:calc(env(safe-area-inset-top) + 43px);transform:translateX(-50%);background:#5b35d5;color:#fff;border-radius:999px;padding:5px 10px;font-size:.68rem;font-weight:800;pointer-events:none;white-space:nowrap}
+#testModeControls{position:fixed;z-index:10020;left:50%;top:calc(env(safe-area-inset-top) + 6px);transform:translateX(-50%);display:flex;align-items:center;gap:5px}
 #testModeCorner,#testClockButton{height:30px;border-radius:999px;background:rgba(255,255,255,.94);border:1px solid #cfd8d2;box-shadow:0 2px 10px rgba(0,0,0,.12);font-size:10px;font-weight:800;color:#59645d;user-select:none;-webkit-user-select:none}
 #testModeCorner{display:flex;align-items:center;gap:5px;padding:3px 7px}
 #testModeCorner.on{color:#5b35d5;border-color:rgba(91,53,213,.45);background:#f5f1ff}
