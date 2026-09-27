@@ -670,7 +670,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.15";
+const APP_VERSION="v0.16";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -904,6 +904,7 @@ const SupaBE = (()=>{
   return {
     // --- POS (anon) ---
     async listEmployeesState(){ return rpc("list_employees_state",{p_store_id:CURRENT_STORE_ID||null}); },
+    async dashboard(){ return rpc("hq_store_dashboard",{},true); },
     async isAdmin(){ return rpc("is_admin",{},true); },
     async scheduleList(fromDate,toDate){ return rpc("admin_schedule_list",{p_from:fromDate,p_to:toDate},true); },
     async scheduleSet(empId,date,status,start,end,memo){ return rpc("admin_schedule_set",{p_employee_id:empId,p_work_date:date,p_status:status,p_start:start||null,p_end:end||null,p_memo:memo||null},true); },
@@ -1210,7 +1211,7 @@ function attachNoDoubleTapZoom(el){
   }, {passive:false});
 }
 async function renderDashboard(){
-  let rows=[];try{rows=LIVE?await publicRpc("hq_store_dashboard",{}):[];}catch(e){view.innerHTML='<div class="empty">대시보드 데이터를 불러오지 못했습니다.</div>';return;}
+  let rows=[];try{rows=LIVE?await BE.dashboard():[];}catch(e){view.innerHTML='<div class="empty">대시보드 데이터를 불러오지 못했습니다.</div>';return;}
   const money=n=>Number(n||0).toLocaleString("ko-KR")+"원";
   const total7=rows.reduce((a,r)=>a+Number(r.sales_7d||0),0),totalTx=rows.reduce((a,r)=>a+Number(r.tx_count||0),0);
   const avg=rows.length?Math.round(total7/rows.length):0;
