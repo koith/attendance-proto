@@ -30,11 +30,11 @@ assert.match(hotdog.variants[0].content,/눈꽃 치즈 50g/);
 const milkLife=ref.shelf_life.find(x=>x.name==='우유');
 assert.equal(milkLife.expiry_after,'3일');
 
-const dataAt=html.indexOf('operations_reference_v208.js?v=20260927v214');
-const appAt=html.indexOf('operations_v1.js?v=20260927v214');
-const uiAt=html.indexOf('operations_reference_ui_v208.js?v=20260927v214');
+const dataAt=html.indexOf('operations_reference_v208.js?v=20260927v215');
+const appAt=html.indexOf('operations_v1.js?v=20260927v215');
+const uiAt=html.indexOf('operations_reference_ui_v208.js?v=20260927v215');
 assert.ok(dataAt>=0&&dataAt<appAt&&appAt<uiAt,'reference data, legacy operations, then reference UI must load in order');
-assert.ok(html.includes('const APP_VERSION="v214"'));
+assert.ok(html.includes('const APP_VERSION="v215"'));
 assert.ok(ui.includes('HOT(13oz)')===false,'variant labels must come from source data, not hardcoded UI');
 assert.ok(ui.includes('발주 필요 품목과 인하대점 재고 기준'));
 assert.ok(ui.includes('공식 제조 기준과 직접 등록한 레시피'));
@@ -58,6 +58,8 @@ assert.ok(ui.includes('기존 카테고리')&&ui.includes('새 카테고리 생�
 assert.ok(ui.includes('hqLaunchDate')&&ui.includes('BE.hqProductSchedule'),'product editor must support scheduled rollout dates');
 assert.ok(ui.includes('BE.hqProductRemovalSchedule')&&ui.includes('삭제 예약'),'selected products must support scheduled removal');
 assert.ok(ui.includes('hqSelectAll')&&ui.includes('hqRemovalCategory')&&ui.includes('hqRemovalSort'),'product removal must support bulk selection, category filtering, and sorting');
+assert.ok(ui.includes('전체 선택')&&ui.includes('hqSelectionStatus')&&ui.includes('개 선택 중'),'bulk selection count must appear beside the select-all label');
+assert.ok(!ui.includes('ops-hq-link-stats')&&!ui.includes('30일 매출')&&!ui.includes('30일 매입'),'product cards must omit rollout and 30-day transaction stats');
 assert.ok(ui.includes('thumbnail_url')&&ui.includes('ops-hq-thumb'),'product cards must display thumbnails');
 assert.ok(ui.includes('dragstart')&&ui.includes('preventDefault'),'product editor content dragging must be blocked');
 assert.ok(html.includes('hq-title-row')&&html.includes('hq-product-button'),'product rollout button must share the dashboard title row');
@@ -68,4 +70,4 @@ assert.ok(payrollLoader.includes('test_mode_ui_v1.js?v=20260927v214'),'centered 
 assert.ok(removalMigration.includes('admin_hq_product_removal_schedule')&&removalMigration.includes("'DISCONTINUE'::text"),'database must schedule and execute due removals');
 assert.ok(ui.includes('cleanExample'),'legacy example prefixes must be stripped from displayed data');
 assert.ok(!ui.includes('tab==="products"'),'HQ rollout must not render as an admin tab');
-console.log('operations reference v214 QA PASS');
+console.log('operations reference v215 QA PASS');
