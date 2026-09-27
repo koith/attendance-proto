@@ -68,7 +68,7 @@
   .admin-subtabs a{border-radius:0;border:0;border-right:1px solid var(--line);padding:6px 13px;background:transparent}
   .admin-subtabs a:first-child{border-left:1px solid var(--line)}
   .admin-subtabs a.on{background:var(--surface);box-shadow:inset 0 -2px 0 var(--accent);color:var(--accent)}
-  .admin-subnav-shell{position:relative;display:flex;align-items:stretch;min-width:0;margin:-18px -18px 12px;background:var(--surface-muted);border-bottom:1px solid var(--line)}
+  .admin-subnav-shell{position:sticky;top:var(--app-sticky-top,0px);z-index:24;display:flex;align-items:stretch;min-width:0;margin:-18px -18px 12px;background:var(--surface-muted);border-bottom:1px solid var(--line);box-shadow:0 2px 7px rgba(20,45,32,.06)}
   .admin-subnav-shell .admin-subtabs{flex:1;min-width:0;margin:0!important;padding:6px 0 6px 18px;background:transparent}
   .admin-account-trigger{flex:0 0 42px;width:42px;margin:6px 10px 6px 6px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.04)}
   .admin-account-trigger svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -586,7 +586,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.01</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.02</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -671,7 +671,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.01";
+const APP_VERSION="v0.02";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1240,6 +1240,17 @@ function setTab(t){
   document.getElementById("tabRecipe").classList.toggle("on",t==="recipe");
   document.getElementById("tabAdmin").classList.toggle("on",["admin","pay","hours","report","sales","inventory"].includes(t));
 }
+function syncContentStickyTop(){
+  const topbar=document.querySelector(".topbar");
+  const h=topbar?Math.max(0,Math.ceil(topbar.getBoundingClientRect().height)):0;
+  document.documentElement.style.setProperty("--app-sticky-top",h+"px");
+}
+function isHiddenInhaTestEmployee(e){
+  if(Number(CURRENT_STORE_ID)!==1||!e)return false;
+  const memo=String(e.memo||"").trim();
+  const name=String(e.name||"").trim().toLowerCase();
+  return memo==="데모 지점 직원"||memo.includes("테스트")||name.startsWith("test")||name.startsWith("테스트");
+}
 function adminSubnav(active){
   const tabs=[["report","리포트"],["admin","직원"],["pay","급여"],["hours","운영시간"],["sales","매출·매입"],["inventory","재고"]];
   const accountIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>';
@@ -1247,6 +1258,7 @@ function adminSubnav(active){
 }
 async function mountAdminSubnav(active){
   view.insertAdjacentHTML("afterbegin",adminSubnav(active));
+  syncContentStickyTop();
   const trigger=document.getElementById("adminAccountTrigger"),popover=document.getElementById("adminAccountPopover");
   if(!trigger||!popover)return;
   const close=()=>{popover.hidden=true;trigger.setAttribute("aria-expanded","false")};
@@ -1842,7 +1854,7 @@ async function renderAdmin(){
   const active=emps.filter(e=>e.is_active!==false && e.active!==false).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ko-KR"));
     // 직원 관리: 재직중 / 퇴직 탭 + 고정 높이 내부 스크롤
   const empsEl=document.getElementById("adEmps");
-  const retired=emps.filter(e=>e.is_active===false||e.active===false).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ko-KR"));
+  const retired=emps.filter(e=>(e.is_active===false||e.active===false)&&!isHiddenInhaTestEmployee(e)).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ko-KR"));
   let employeeStatusTab="active";
   const renderEmployeeList=()=>{
     const rows=employeeStatusTab==="active"?active:retired;
@@ -2155,7 +2167,7 @@ async function computeMonthPayroll(ym){
   const isActive=e=>e.is_active!==false && e.active!==false;
   const active=emps.filter(isActive);
   const eventEmployeeIds=new Set(events.map(x=>Number(x.employee_id)));
-  const payrollCandidates=emps.filter(e=>isActive(e)||eventEmployeeIds.has(Number(e.id)));
+  const payrollCandidates=emps.filter(e=>!isHiddenInhaTestEmployee(e)&&(isActive(e)||eventEmployeeIds.has(Number(e.id))));
   let periodWeeks=null, overrides={};
   if(LIVE){
     try{
