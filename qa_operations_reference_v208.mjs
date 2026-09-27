@@ -26,11 +26,11 @@ assert.match(hotdog.variants[0].content,/눈꽃 치즈 50g/);
 const milkLife=ref.shelf_life.find(x=>x.name==='우유');
 assert.equal(milkLife.expiry_after,'3일');
 
-const dataAt=html.indexOf('operations_reference_v208.js?v=20260927v212');
-const appAt=html.indexOf('operations_v1.js?v=20260927v212');
-const uiAt=html.indexOf('operations_reference_ui_v208.js?v=20260927v212');
+const dataAt=html.indexOf('operations_reference_v208.js?v=20260927v213');
+const appAt=html.indexOf('operations_v1.js?v=20260927v213');
+const uiAt=html.indexOf('operations_reference_ui_v208.js?v=20260927v213');
 assert.ok(dataAt>=0&&dataAt<appAt&&appAt<uiAt,'reference data, legacy operations, then reference UI must load in order');
-assert.ok(html.includes('const APP_VERSION="v212"'));
+assert.ok(html.includes('const APP_VERSION="v213"'));
 assert.ok(ui.includes('HOT(13oz)')===false,'variant labels must come from source data, not hardcoded UI');
 assert.ok(ui.includes('발주 필요 품목과 인하대점 재고 기준'));
 assert.ok(ui.includes('공식 제조 기준과 직접 등록한 레시피'));
@@ -50,6 +50,8 @@ assert.ok(ui.includes('ops-recipe-static'),'registered recipe cards must have a 
 assert.ok(ui.includes('window.openHqProductModal'),'HQ product rollout must open as a modal');
 assert.ok(ui.includes('+ 신제품 등록')&&ui.includes('− 제품 제거'),'HQ modal must expose product add and remove actions');
 assert.ok(ui.includes('ops-hq-inventory-picker'),'new products must select recipe ingredients from inventory');
+assert.ok(ui.includes('기존 카테고리')&&ui.includes('새 카테고리 생성'),'product editor must support existing and new categories');
+assert.ok(ui.includes('hqLaunchDate')&&ui.includes('BE.hqProductSchedule'),'product editor must support scheduled rollout dates');
 assert.ok(ui.includes('cleanExample'),'legacy example prefixes must be stripped from displayed data');
 assert.ok(!ui.includes('tab==="products"'),'HQ rollout must not render as an admin tab');
-console.log('operations reference v212 QA PASS');
+console.log('operations reference v213 QA PASS');
