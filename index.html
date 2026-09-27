@@ -555,7 +555,7 @@
   .employee-list-mask:has(>.employee-empty){display:flex!important;align-items:center!important;justify-content:center!important}
   .employee-list-mask>.employee-empty{width:100%!important;height:100%!important;min-height:0!important;box-sizing:border-box!important;display:flex!important;align-items:center!important;justify-content:center!important;margin:0!important;padding:24px!important;text-align:center!important}
 </style>
-<link rel="stylesheet" href="operations_v1.css?v=20260927v211">
+<link rel="stylesheet" href="operations_v1.css?v=20260927v212">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js?v=20260926p" defer></script>
 <script src="supabase_session_resilience_v1.js?v=20260918a"></script>
@@ -567,7 +567,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v211</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v212</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -629,9 +629,9 @@
   <div class="msg" id="successMsg">오늘도 좋은 하루 되세요</div>
 </div>
 
-<script src="operations_reference_v208.js?v=20260927v211"></script>
-<script src="operations_v1.js?v=20260927v211"></script>
-<script src="operations_reference_ui_v208.js?v=20260927v211"></script>
+<script src="operations_reference_v208.js?v=20260927v212"></script>
+<script src="operations_v1.js?v=20260927v212"></script>
+<script src="operations_reference_ui_v208.js?v=20260927v212"></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
@@ -649,7 +649,7 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v211";
+const APP_VERSION="v212";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1196,8 +1196,8 @@ async function renderDashboard(){
     return '<article class="hq-store-panel" data-store="'+r.store_id+'" data-store-name="'+safeHtml(r.store_name)+'"><div class="hq-store-head"><div class="hq-flow"><span class="hq-flow-inner"><small>#'+(idx+1)+'</small><b>'+safeHtml(r.store_name)+'</b></span></div><button type="button">상세 ›</button></div><div class="hq-store-kpi hq-flow"><span class="hq-flow-inner"><b>'+money(r.sales_7d)+'</b><span>최근 7일 매출</span><span class="hq-total-sales">(누적: '+money(r.sales_total)+')</span></span></div><div class="hq-chart-title">매출 추이 · 최근 14일 <span class="hq-chart-range">('+trendRange+')</span></div><div class="hq-bars">'+bars+'</div><div class="hq-chart-title">메뉴별 매출 · 최근 7일</div><div class="hq-menu-list">'+menuRows+'</div></article>';
   }).join("");
   const regions=["전체 지역",...new Set(rows.map(r=>r.region_group||"기타"))];
-  view.innerHTML='<div class="hq-dashboard"><div class="hq-title"><div><h2>지점 현황</h2></div><div class="hq-filterbar"><label class="hq-store-search" aria-label="지점명 검색"><input id="hqStoreSearch" type="search" placeholder="지점명 검색" autocomplete="off"></label><label class="hq-region-filter" aria-label="지역 선택"><select id="hqRegionSelect">'+regions.map(x=>'<option value="'+safeHtml(x)+'">'+safeHtml(x)+'</option>').join("")+'</select></label><label class="hq-region-filter" aria-label="정렬 기준 선택"><select id="hqSortSelect"><option value="sales7">최근 7일 매출</option><option value="total">누적 매출</option><option value="tx">거래 건수</option><option value="name">지점명</option></select></label></div></div><div class="hq-product-entry"><div><b>상품 중앙통제</b><span>신제품·단종을 레시피, 재고, 매출·매입 연결과 함께 전 지점에 적용합니다.</span></div><button type="button" class="btn btn-primary" id="hqProductControl">상품 배포 관리</button></div>'+summary+'<div class="hq-grid">'+cards+'</div><div class="empty" id="hqRegionEmpty" style="display:none">이 지역에 운영 중인 지점이 없습니다.</div></div>';
-  document.getElementById("hqProductControl").onclick=()=>location.hash="#products";
+  view.innerHTML='<div class="hq-dashboard"><div class="hq-title"><div><h2>지점 현황</h2></div><div class="hq-filterbar"><button type="button" class="btn btn-secondary btn-sm hq-product-button" id="hqProductControl">상품 배포</button><label class="hq-store-search" aria-label="지점명 검색"><input id="hqStoreSearch" type="search" placeholder="지점명 검색" autocomplete="off"></label><label class="hq-region-filter" aria-label="지역 선택"><select id="hqRegionSelect">'+regions.map(x=>'<option value="'+safeHtml(x)+'">'+safeHtml(x)+'</option>').join("")+'</select></label><label class="hq-region-filter" aria-label="정렬 기준 선택"><select id="hqSortSelect"><option value="sales7">최근 7일 매출</option><option value="total">누적 매출</option><option value="tx">거래 건수</option><option value="name">지점명</option></select></label></div></div>'+summary+'<div class="hq-grid">'+cards+'</div><div class="empty" id="hqRegionEmpty" style="display:none">이 지역에 운영 중인 지점이 없습니다.</div></div>';
+  document.getElementById("hqProductControl").onclick=()=>window.openHqProductModal?.();
   const bindStoreButtons=()=>view.querySelectorAll(".hq-store-panel button").forEach(btn=>btn.onclick=()=>{const c=btn.closest(".hq-store-panel"),sel=document.getElementById("storeSelect");sel.value=c.dataset.store;CURRENT_STORE_ID=Number(c.dataset.store);sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));if(c.dataset.storeName)STORE_NAME_BY_ID.set(CURRENT_STORE_ID,c.dataset.storeName);sel.value=String(CURRENT_STORE_ID);syncStoreSelectDisplay();location.hash="#pos";});
   bindStoreButtons();
   const regionSel=document.getElementById("hqRegionSelect"),sortSel=document.getElementById("hqSortSelect"),searchEl=document.getElementById("hqStoreSearch"),empty=document.getElementById("hqRegionEmpty"),grid=view.querySelector(".hq-grid");
@@ -1206,10 +1206,10 @@ async function renderDashboard(){
 }
 function setTab(t){
   document.getElementById("tabPos").classList.toggle("on",t==="pos");
-  document.getElementById("tabAdmin").classList.toggle("on",["admin","pay","hours","report","sales","inventory","recipe","products"].includes(t));
+  document.getElementById("tabAdmin").classList.toggle("on",["admin","pay","hours","report","sales","inventory","recipe"].includes(t));
 }
 function adminSubnav(active){
-  const tabs=[["report","리포트"],["admin","직원"],["pay","급여"],["hours","운영시간"],["sales","매출·매입"],["inventory","재고"],["recipe","레시피"],...(!STORE_ENTRY_LOCK?[["products","상품배포"]]:[])];
+  const tabs=[["report","리포트"],["admin","직원"],["pay","급여"],["hours","운영시간"],["sales","매출·매입"],["inventory","재고"],["recipe","레시피"]];
   return '<div class="tabs admin-subtabs admin-subtabs-wide">'+tabs.map(([k,n])=>'<a href="#'+k+'" class="'+(active===k?"on":"")+'">'+n+'</a>').join("")+'</div>';
 }
 function route(){
@@ -1236,7 +1236,7 @@ function route(){
     });
   }
   else if(h==="pay"){ setTab("pay"); requireAuth(async()=>{await renderPay();view.insertAdjacentHTML("afterbegin",adminSubnav("pay"));}); }
-  else if(h==="report"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");view.insertAdjacentHTML("afterbegin",adminSubnav("report"));}); } else if(h==="sales"){ setTab("sales"); requireAuth(async()=>{await renderOperations("inquiry");view.insertAdjacentHTML("afterbegin",adminSubnav("sales"));}); } else if(h==="inventory"){ setTab("inventory"); requireAuth(async()=>{await renderOperations("inventory");view.insertAdjacentHTML("afterbegin",adminSubnav("inventory"));}); } else if(h==="recipe"){ setTab("recipe"); requireAuth(async()=>{await renderOperations("recipe");view.insertAdjacentHTML("afterbegin",adminSubnav("recipe"));}); } else if(h==="products"){if(STORE_ENTRY_LOCK){location.hash="#pos";return}setTab("products");requireAuth(async()=>{await renderOperations("products");view.insertAdjacentHTML("afterbegin",adminSubnav("products"));});} else if(h==="ops"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");view.insertAdjacentHTML("afterbegin",adminSubnav("report"));}); }
+  else if(h==="report"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");view.insertAdjacentHTML("afterbegin",adminSubnav("report"));}); } else if(h==="sales"){ setTab("sales"); requireAuth(async()=>{await renderOperations("inquiry");view.insertAdjacentHTML("afterbegin",adminSubnav("sales"));}); } else if(h==="inventory"){ setTab("inventory"); requireAuth(async()=>{await renderOperations("inventory");view.insertAdjacentHTML("afterbegin",adminSubnav("inventory"));}); } else if(h==="recipe"){ setTab("recipe"); requireAuth(async()=>{await renderOperations("recipe");view.insertAdjacentHTML("afterbegin",adminSubnav("recipe"));}); } else if(h==="products"){location.hash="#dashboard";return;} else if(h==="ops"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");view.insertAdjacentHTML("afterbegin",adminSubnav("report"));}); }
   else if(h==="hours"){ setTab("hours"); requireAuth(async()=>{await renderStoreHours();view.insertAdjacentHTML("afterbegin",adminSubnav("hours"));}); }
   else{ setTab("pos"); renderPos(); }
 }
