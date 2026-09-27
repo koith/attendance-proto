@@ -10,7 +10,7 @@ const hqRemovalSelection=new Set();
 
 function shell(title,subtitle){
   const root=document.getElementById("view");
-  root.innerHTML='<div class="ops-head"><div><h2>'+esc(title)+'</h2><p>'+esc(subtitle)+'</p></div></div><div id="opsBody"></div>';
+  root.innerHTML='<div class="ops-head page-title-row"><div><h2 class="page-title">'+esc(title)+'</h2><p>'+esc(subtitle)+'</p></div></div><div id="opsBody"></div>';
   return document.getElementById("opsBody");
 }
 function modal(title,content){

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 const html = fs.readFileSync(new URL('./index.html', import.meta.url), 'utf8');
 
 const checks = [
-  ['앱 버전 v222', html.includes('const APP_VERSION="v222"')],
+  ['앱 버전 v223', html.includes('const APP_VERSION="v223"')],
   ['세로 오버스크롤 허용', html.includes('overscroll-behavior-x:none; overscroll-behavior-y:auto;')],
   ['모바일 POS 본문 높이 자동', html.includes('body:has(.pos-screen){height:auto;min-height:100%;overflow-y:visible;overscroll-behavior-y:auto}')],
   ['모바일 POS 래퍼가 문서 흐름 유지', html.includes('body:has(.pos-screen) .wrap{height:auto;min-height:100dvh;overflow:visible}')],
