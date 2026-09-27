@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const html=fs.readFileSync('index.html','utf8');
+assert.ok(html.includes('id="appVersion">v0.02</span>'));
+assert.ok(html.includes('const APP_VERSION="v0.02";'));
+assert.ok(html.includes('.admin-subnav-shell{position:sticky;top:var(--app-sticky-top,0px);z-index:24'));
+assert.ok(html.includes('function syncContentStickyTop()'));
+assert.ok(html.includes('function isHiddenInhaTestEmployee(e)'));
+assert.ok(html.includes('const retired=emps.filter(e=>(e.is_active===false||e.active===false)&&!isHiddenInhaTestEmployee(e))'));
+assert.ok(html.includes('const payrollCandidates=emps.filter(e=>!isHiddenInhaTestEmployee(e)&&(isActive(e)||eventEmployeeIds.has(Number(e.id))))'));
+console.log('v0.02 sticky admin tabs + Inha test exclusion: PASS');
