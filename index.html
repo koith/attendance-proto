@@ -904,6 +904,7 @@ const SupaBE = (()=>{
   return {
     // --- POS (anon) ---
     async listEmployeesState(){ return rpc("list_employees_state",{p_store_id:CURRENT_STORE_ID||null}); },
+    async dashboard(){ return rpc("hq_store_dashboard",{},true); },
     async isAdmin(){ return rpc("is_admin",{},true); },
     async scheduleList(fromDate,toDate){ return rpc("admin_schedule_list",{p_from:fromDate,p_to:toDate},true); },
     async scheduleSet(empId,date,status,start,end,memo){ return rpc("admin_schedule_set",{p_employee_id:empId,p_work_date:date,p_status:status,p_start:start||null,p_end:end||null,p_memo:memo||null},true); },
@@ -1210,7 +1211,7 @@ function attachNoDoubleTapZoom(el){
   }, {passive:false});
 }
 async function renderDashboard(){
-  let rows=[];try{rows=LIVE?await rpc("hq_store_dashboard",{},true):[];}catch(e){view.innerHTML='<div class="empty">대시보드 데이터를 불러오지 못했습니다.</div>';return;}
+  let rows=[];try{rows=LIVE?await BE.dashboard():[];}catch(e){view.innerHTML='<div class="empty">대시보드 데이터를 불러오지 못했습니다.</div>';return;}
   const money=n=>Number(n||0).toLocaleString("ko-KR")+"원";
   const total7=rows.reduce((a,r)=>a+Number(r.sales_7d||0),0),totalTx=rows.reduce((a,r)=>a+Number(r.tx_count||0),0);
   const avg=rows.length?Math.round(total7/rows.length):0;
