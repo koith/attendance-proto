@@ -51,7 +51,7 @@ t('history heading uses the same card inset as its body',()=>{
 });
 
 t('pending UX is one static section status plus the real cards',()=>{
-  assert(idx.includes('id="attendanceAlert"'));assert(idx.includes('id="attendanceAlertText"'));
+  assert(idx.includes('document.getElementById("attendanceAlert")'));assert(idx.includes('document.getElementById("attendanceAlertText")'));
   assert(idx.includes('reqs=await BE.pendingRequests()'));
   assert(idx.includes('alertText.textContent=`${reqs.length}건`'));
   assert(idx.includes('for(const r of reqs)'));
