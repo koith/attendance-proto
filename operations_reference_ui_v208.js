@@ -41,9 +41,22 @@ function orderPanel(){
   const bars=low.length?low.map((row,index)=>{const target=Number(row.target_level||row.reorder_level||0),on=Number(row.on_hand||0),need=Math.max(0,target-on),pct=target?Math.min(100,on/target*100):0,st=stockState(row);return '<button type="button" class="ops-order-row '+st.key+'" data-managed-stock="'+managedInventory.indexOf(row)+'"><span><b>'+esc(row.name)+'</b><small>'+st.label+' · 현재 '+num(on)+' / 목표 '+num(target)+' '+esc(row.unit||"")+'</small></span><i><em style="width:'+pct+'%"></em></i><strong>발주 '+num(need)+' '+esc(row.unit||"")+'</strong></button>'}).join(""):'<div class="ops-order-empty">현재 발주점에 도달한 등록 품목이 없습니다.</div>';
   return '<section class="ops-order-panel"><div class="ops-unified-section-head"><div><b>발주 필요</b><span>'+low.length+'개 품목</span></div><div><button type="button" class="btn btn-secondary btn-sm" id="opsInventoryBulk">일괄 등록</button><button type="button" class="btn btn-primary btn-sm" id="opsInventoryAdd">+ 재고 등록</button></div></div><div class="ops-order-bars">'+bars+'</div></section>';
 }
+function inventoryState(row){
+  const target=Number(row.target_level||row.reorder_level||0),point=Number(row.reorder_point||target*.65),on=Number(row.on_hand||0),ratio=target>0?on/target:1;
+  if(point>0&&on<point*.5)return {key:"critical",label:"긴급 부족",rank:0};
+  if(point>0&&on<=point)return {key:"low",label:"발주 필요",rank:1};
+  if(ratio<=1.25)return {key:"ok",label:"적정",rank:2};
+  if(ratio<=1.6)return {key:"ample",label:"여유",rank:3};
+  return {key:"over",label:"과다",rank:4};
+}
 function inventoryCard(row){
   const life=row.shelf_life||{},expiry=[life.storage_after&&"개봉 후 "+life.storage_after,life.expiry_after&&"상미 "+life.expiry_after,life.after_portion&&"소분·해동 "+life.after_portion].filter(Boolean).join(" · ");
-  return '<article class="ops-stock-bar ops-stock-reference"><div class="ops-stock-title"><span class="ops-inventory-thumb" aria-hidden="true">'+icon(row.name)+'</span><b>'+esc(row.name)+'</b></div><dl><div><dt>현재</dt><dd>'+esc(row.current_text||"-")+'</dd></div><div><dt>최소</dt><dd>'+esc(row.minimum_text||"-")+'</dd></div><div><dt>주문</dt><dd>'+esc(row.order_text||"-")+'</dd></div></dl>'+(row.note?'<p>'+esc(row.note)+'</p>':"")+(expiry?'<small class="ops-stock-expiry">'+esc(expiry)+'</small>':"")+'</article>';
+  const live=managedInventory.find(x=>String(x.name||"").trim()===String(row.name||"").trim());
+  if(live){
+    const target=Number(live.target_level||live.reorder_level||0),on=Number(live.on_hand||0),pct=target?Math.min(100,Math.max(0,on/target*100)):0,need=Math.max(0,target-on),st=inventoryState(live),unit=live.unit||"";
+    return '<article class="ops-stock-bar ops-stock-reference state-'+st.key+'"><div class="ops-stock-title"><span class="ops-inventory-thumb" aria-hidden="true">'+(live.thumbnail_url?'<img src="'+esc(live.thumbnail_url)+'" alt="">':icon(row.name))+'</span><b>'+esc(row.name)+'</b></div><span class="ops-stock-info-btn">'+st.label+'</span><div class="ops-stock-level"><i><em style="width:'+pct+'%"></em></i></div><div class="ops-stock-footer"><span class="ops-stock-count"><b class="stock-now '+st.key+'">'+num(on)+'</b><span> / '+num(target)+' '+esc(unit)+'</span></span><strong class="ops-stock-order '+st.key+'">'+(st.rank<2&&need>0?'발주 필요: '+num(need)+' '+esc(unit):"")+'</strong></div>'+(row.note?'<p>'+esc(row.note)+'</p>':"")+(expiry?'<small class="ops-stock-expiry">'+esc(expiry)+'</small>':"")+'</article>';
+  }
+  return '<article class="ops-stock-bar ops-stock-reference"><div class="ops-stock-title"><span class="ops-inventory-thumb" aria-hidden="true">'+icon(row.name)+'</span><b>'+esc(row.name)+'</b></div><span class="ops-reference-badge">기준 정보</span><dl><div><dt>현재</dt><dd>'+esc(row.current_text||"-")+'</dd></div><div><dt>최소</dt><dd>'+esc(row.minimum_text||"-")+'</dd></div><div><dt>주문</dt><dd>'+esc(row.order_text||"-")+'</dd></div></dl>'+(row.note?'<p>'+esc(row.note)+'</p>':"")+(expiry?'<small class="ops-stock-expiry">'+esc(expiry)+'</small>':"")+'</article>';
 }
 async function openInventoryEditor(row=null){
   let catalog=[];
