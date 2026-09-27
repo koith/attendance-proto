@@ -8,8 +8,8 @@
  *
  * 원칙:
  *  - DB→Sheet 단방향. 이 스크립트는 받은 payload를 그대로 기록만 함(계산 안 함).
- *  - 월별 3탭(근태/세션/급여) replace. write 실패 시 빈 시트 방지: 먼저 새 데이터를
- *    임시 시트에 쓰고 검증 성공 후 기존 데이터 영역과 교체.
+ *  - 연도별 파일("2026 근태") + 1월~12월 탭. 한 달의 근태/세션/급여를 한 탭에 기록.
+ *  - 기존 근태-YYYY-MM/세션-YYYY-MM/급여-YYYY-MM 탭은 연간 구조 초기화 시 제거.
  *  - payload 검증 실패 시 기존 시트를 건드리지 않고 에러 반환.
  */
 
@@ -28,14 +28,17 @@ function doPost(e){
       return _json({ok:false, error:'BAD_ROWS'});
     }
 
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var parts = body.ym.split('-');
+    var year = Number(parts[0]);
+    var month = Number(parts[1]);
+    var storeKey = String(body.store_key || 'INHA').replace(/[^A-Za-z0-9_-]/g,'_');
+    var ss = _annualBook(storeKey, year);
     var meta = '마지막 동기화: ' + body.synced_at + '   |   상태: ' + body.status_label;
 
-    _writeTab(ss, '근태-'+body.ym, meta, body.attendance.header, body.attendance.rows);
-    _writeTab(ss, '세션-'+body.ym, meta, body.sessions.header, body.sessions.rows);
-    _writeTab(ss, '급여-'+body.ym, meta, body.payroll.header, body.payroll.rows);
+    _writeMonth(ss, month + '월', meta, body.attendance, body.sessions, body.payroll);
 
     return _json({ok:true, ym:body.ym,
+      spreadsheet_id:ss.getId(), spreadsheet_url:ss.getUrl(), spreadsheet_name:ss.getName(),
       counts:{attendance:body.attendance.rows.length, sessions:body.sessions.rows.length, payroll:body.payroll.rows.length}});
   }catch(err){
     return _json({ok:false, error:String(err)});
@@ -48,19 +51,72 @@ function doPost(e){
  *  2) 새 값 2차원 배열 구성 (metadata행 + 헤더 + 데이터)
  *  3) 배열이 유효할 때만 clearContents 후 setValues (부분 실패 최소화)
  */
-function _writeTab(ss, name, meta, header, rows){
+function _annualBook(storeKey, year){
+  var props = PropertiesService.getScriptProperties();
+  var propKey = 'ATTENDANCE_BOOK_' + storeKey + '_' + year;
+  var known = props.getProperty(propKey);
+  var ss = null;
+  if(known){
+    try{ ss = SpreadsheetApp.openById(known); }catch(openErr){ props.deleteProperty(propKey); }
+  }
+  if(!ss){
+    var active = SpreadsheetApp.getActiveSpreadsheet();
+    var all = props.getProperties();
+    var activeAlreadyUsed = Object.keys(all).some(function(k){ return k.indexOf('ATTENDANCE_BOOK_')===0 && all[k]===active.getId(); });
+    if(!activeAlreadyUsed){
+      ss = active;
+    }else{
+      ss = SpreadsheetApp.create(year + ' 근태');
+      try{
+        var activeFile = DriveApp.getFileById(active.getId());
+        var parents = activeFile.getParents();
+        if(parents.hasNext()) DriveApp.getFileById(ss.getId()).moveTo(parents.next());
+      }catch(moveErr){ /* 폴더 이동 실패 시 생성 위치 유지 */ }
+    }
+    props.setProperty(propKey, ss.getId());
+  }
+  if(ss.getName() !== year + ' 근태') DriveApp.getFileById(ss.getId()).setName(year + ' 근태');
+  _ensureMonthTabs(ss);
+  return ss;
+}
+
+function _ensureMonthTabs(ss){
+  var keep = {};
+  for(var m=1;m<=12;m++){
+    var name=m+'월'; keep[name]=true;
+    if(!ss.getSheetByName(name)) ss.insertSheet(name);
+  }
+  ss.getSheets().forEach(function(sh){
+    if(!keep[sh.getName()]) ss.deleteSheet(sh);
+  });
+  for(var i=1;i<=12;i++){
+    var target=ss.getSheetByName(i+'월');
+    ss.setActiveSheet(target);
+    ss.moveActiveSheet(i);
+  }
+}
+
+function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   var sh = ss.getSheetByName(name);
   if(!sh) sh = ss.insertSheet(name);
 
-  // 최종 출력 배열 미리 완성 (여기서 실패하면 기존 시트 손 안 댐)
+  var sections = [
+    {title:'근태',data:attendance},
+    {title:'세션 상세',data:sessions},
+    {title:'급여',data:payroll}
+  ];
+  var width = 1;
+  sections.forEach(function(s){ width=Math.max(width,s.data.header.length); });
   var out = [];
-  out.push([meta]);           // 1행: metadata
-  out.push([]);               // 2행: 공백
-  out.push(header);           // 3행: 헤더
-  for(var i=0;i<rows.length;i++){ out.push(rows[i]); }
-
-  // 폭 맞추기 (setValues는 직사각형 필요)
-  var width = header.length;
+  var headerRows=[];
+  out.push([meta]); out.push([]);
+  sections.forEach(function(section){
+    out.push([section.title]);
+    headerRows.push(out.length+1);
+    out.push(section.data.header);
+    for(var i=0;i<section.data.rows.length;i++) out.push(section.data.rows[i]);
+    out.push([]);
+  });
   for(var r=0;r<out.length;r++){
     while(out[r].length < width) out[r].push('');
     if(out[r].length > width) out[r] = out[r].slice(0, width);
@@ -70,11 +126,15 @@ function _writeTab(ss, name, meta, header, rows){
   sh.clearContents();
   sh.getRange(1, 1, out.length, width).setValues(out);
 
-  // 서식 (metadata·헤더 강조) — 데이터와 무관, 실패해도 값은 이미 기록됨
   try{
     sh.getRange(1,1,1,width).setFontColor('#666').setFontSize(10);
-    sh.getRange(3,1,1,width).setFontWeight('bold').setBackground('#f1f3f5');
-    sh.setFrozenRows(3);
+    sections.forEach(function(section,idx){
+      var titleRow=headerRows[idx]-1;
+      sh.getRange(titleRow,1,1,width).setFontWeight('bold').setBackground('#dfeee4');
+      sh.getRange(headerRows[idx],1,1,width).setFontWeight('bold').setBackground('#f1f3f5');
+    });
+    sh.setFrozenRows(1);
+    sh.autoResizeColumns(1,width);
   }catch(fmtErr){ /* 서식 실패는 무시 */ }
 }
 

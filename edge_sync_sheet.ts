@@ -84,6 +84,8 @@ Deno.serve(async (req) => {
     const secret = Deno.env.get("SHEET_SHARED_SECRET")!;
     const gsBody = {
       secret, ym, synced_at: syncedAt, status_label: statusLabel,
+      store_key: String(payload?.store_key ?? "INHA"),
+      store_name: String(payload?.store_name ?? "인하대학교점"),
       attendance, sessions, payroll,
     };
     const gsRes = await fetch(webappUrl, {
