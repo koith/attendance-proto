@@ -7,7 +7,7 @@ const ios=fs.readFileSync('ios_navigation_resilience.js','utf8');
 
 assert(!index.includes('meeting_ui_20260919_v1.js'), 'main startup must not load runtime UI enhancer');
 assert(!index.includes('substitution_entry_v1.js'), 'main navigation must be rendered directly, not injected after startup');
-assert(index.includes('id="substitutionEntryV1" href="substitution.html"'), 'substitute entry must exist in canonical markup');
+assert(!index.includes('id="substitutionEntryV1"'), 'legacy top-level substitute entry must stay removed');
 assert(index.includes('id="payMonthPrev"') && index.includes('id="payMonthNext"'), 'payroll month navigation must be canonical markup');
 assert(index.includes('movePayMonth'), 'payroll month navigation must be handled by renderPay');
 assert(!index.includes('\\n  #substitutionEntryV1'), 'literal backslash-n must not remain in tab CSS');
