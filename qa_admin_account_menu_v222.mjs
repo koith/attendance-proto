@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 const html = fs.readFileSync(new URL('./index.html', import.meta.url), 'utf8');
 
-assert.ok(html.includes('const APP_VERSION="v222"'), 'APP_VERSION must be v222');
+assert.ok(html.includes('const APP_VERSION="v223"'), 'APP_VERSION must be v223');
 assert.ok(html.includes('class="admin-account-trigger"'), 'compact account trigger must exist in admin subnav');
 assert.ok(html.includes('class="admin-account-popover"'), 'account popover must exist');
 assert.ok(html.includes('id="adminAccountEmail"'), 'signed-in email must be shown inside popover');

@@ -9,7 +9,7 @@ const substitution=read('substitution_v2.js');
 const attendance=read('actual_attendance.js');
 const contracts=read('employment_contract_employee_number_v1.js');
 
-assert.ok(html.includes('const APP_VERSION="v222"'));
+assert.ok(html.includes('const APP_VERSION="v223"'));
 assert.ok(html.includes('function employeeNumber(employee){ return Number(employee?.employee_no)||Number(employee?.id)||0; }'));
 assert.ok(!html.includes('No.${safeHtml(e.id)}'));
 assert.match(migration,/row_number\(\) over\(partition by store_id order by created_at,id\)/i);
