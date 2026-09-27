@@ -585,7 +585,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.09</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.10</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -670,7 +670,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.09";
+const APP_VERSION="v0.10";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -2317,9 +2317,9 @@ async function drawPay(ym){
     const gbox=document.createElement("div");
     gbox.className="payroll-action-block";
     gbox.innerHTML=`<div class="payroll-sheet-actions"><button class="btn btn-secondary" id="btnSyncSheet">지금 갱신</button><button class="btn btn-secondary" id="btnOpenSheet">구글시트 열기</button></div>
-      <div class="payroll-sheet-meta"><div id="syncMsg" class="payroll-sync-time">갱신 시각 확인 중</div><div class="payroll-invite-wrap"><button type="button" class="payroll-invite-help" id="btnOwnerInviteHelp">점주 초대 방법</button></div></div>`;
+      <div class="payroll-sheet-meta"><div id="syncMsg" class="payroll-sync-time">자동 갱신 대기</div><div class="payroll-invite-wrap"><button type="button" class="payroll-invite-help" id="btnOwnerInviteHelp">점주 초대 방법</button></div></div>`;
     el.appendChild(gbox);
-    try{const st=JSON.parse(localStorage.getItem("baekeok_sheet_sync_v1")||"null");if(st?.ok&&st?.at){const d=new Date(st.at);document.getElementById("syncMsg").textContent=`${formatSyncStamp(d)} 갱신됨`;}}catch(_){}
+    try{const st=JSON.parse(localStorage.getItem("baekeok_sheet_sync_v1")||"null"),msg=document.getElementById("syncMsg");if(st?.ok&&st?.at){msg.textContent=`${formatSyncStamp(new Date(st.at))} 자동 갱신됨`;}else if(st?.ok===false){msg.textContent="자동 갱신 재시도 예정";}else{msg.textContent="자동 갱신 중…";setTimeout(()=>SheetAutoSync.run("view"),0);}}catch(_){const msg=document.getElementById("syncMsg");if(msg)msg.textContent="자동 갱신 중…";setTimeout(()=>SheetAutoSync.run("view"),0);}
     document.getElementById("btnOwnerInviteHelp").onclick=showOwnerInviteHelp;
     document.getElementById("btnOpenSheet").onclick=()=>{
       let url=`https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/edit`;
@@ -2334,7 +2334,7 @@ async function drawPay(ym){
         const res=await BE.syncSheet(ym, payload);
         const syncAt=new Date();
         localStorage.setItem("baekeok_sheet_sync_v1",JSON.stringify({ok:true,ym,at:syncAt.toISOString(),sheet_url:res?.result?.spreadsheet_url||res?.spreadsheet_url||null}));
-        msg.textContent=`${formatSyncStamp(syncAt)} 갱신됨`;
+        msg.textContent=`${formatSyncStamp(syncAt)} 수동 갱신됨`;
         toast("in","구글시트 갱신 완료", res.closed?"마감 확정본":"예상(미마감)");
       }catch(e){
         msg.textContent="갱신 실패";
@@ -2435,11 +2435,11 @@ const SheetAutoSync=(()=>{
       const syncResult=await BE.syncSheet(ym,payload);
       lastFingerprint=fp;retryMs=0;
       localStorage.setItem("baekeok_sheet_sync_v1",JSON.stringify({ok:true,ym,at:new Date().toISOString(),sheet_url:syncResult?.result?.spreadsheet_url||syncResult?.spreadsheet_url||null}));
-      const msg=document.getElementById("syncMsg");if(msg){const d=new Date();msg.textContent=`${d.toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:true}).replace(/\\. /g,".").replace(",","")} 갱신됨`;}
+      const msg=document.getElementById("syncMsg");if(msg){const d=new Date();msg.textContent=`${formatSyncStamp(d)} 자동 갱신됨`;}
     }catch(e){
       retryMs=retryMs?Math.min(retryMs*2,300000):15000;
       localStorage.setItem("baekeok_sheet_sync_v1",JSON.stringify({ok:false,at:new Date().toISOString(),error:String(e?.message||e)}));
-      const msg=document.getElementById("syncMsg");if(msg)msg.textContent="갱신 재시도 예정";
+      const msg=document.getElementById("syncMsg");if(msg)msg.textContent="자동 갱신 재시도 예정";
       clearTimeout(timer);timer=setTimeout(()=>run("retry"),retryMs);
       console.warn("[sheet auto sync]",e);
     }finally{busy=false}
