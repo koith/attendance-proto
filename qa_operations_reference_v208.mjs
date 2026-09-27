@@ -26,11 +26,11 @@ assert.match(hotdog.variants[0].content,/눈꽃 치즈 50g/);
 const milkLife=ref.shelf_life.find(x=>x.name==='우유');
 assert.equal(milkLife.expiry_after,'3일');
 
-const dataAt=html.indexOf('operations_reference_v208.js?v=20260927v210');
-const appAt=html.indexOf('operations_v1.js?v=20260927v210');
-const uiAt=html.indexOf('operations_reference_ui_v208.js?v=20260927v210');
+const dataAt=html.indexOf('operations_reference_v208.js?v=20260927v211');
+const appAt=html.indexOf('operations_v1.js?v=20260927v211');
+const uiAt=html.indexOf('operations_reference_ui_v208.js?v=20260927v211');
 assert.ok(dataAt>=0&&dataAt<appAt&&appAt<uiAt,'reference data, legacy operations, then reference UI must load in order');
-assert.ok(html.includes('const APP_VERSION="v210"'));
+assert.ok(html.includes('const APP_VERSION="v211"'));
 assert.ok(ui.includes('HOT(13oz)')===false,'variant labels must come from source data, not hardcoded UI');
 assert.ok(ui.includes('발주 필요 품목과 인하대점 재고 기준'));
 assert.ok(ui.includes('공식 제조 기준과 직접 등록한 레시피'));
@@ -46,4 +46,7 @@ assert.ok(!ui.includes('originalRender("inventory")'),'inventory management must
 assert.ok(!ui.includes('originalRender("recipe")'),'recipe management must not switch to a second screen');
 assert.ok(!ui.includes('9레시피 패널'),'source labels must not appear on recipe cards');
 assert.ok(!ui.includes('10레시피 패널'),'source labels must not appear in recipe details');
-console.log('operations reference v210 QA PASS');
+assert.ok(ui.includes('ops-recipe-static'),'registered recipe cards must have a single edit entry point');
+assert.ok(ui.includes('renderHqProducts'),'HQ product rollout management must be available');
+assert.ok(ui.includes('cleanExample'),'legacy example prefixes must be stripped from displayed data');
+console.log('operations reference v211 QA PASS');
