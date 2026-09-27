@@ -13,6 +13,7 @@ const testMode=fs.readFileSync('test_mode_ui_v1.js','utf8');
 const payrollLoader=fs.readFileSync('payroll_elapsed_weeks_v1.js','utf8');
 const removalMigration=fs.readFileSync('supabase/migrations/20260927142500_hq_product_removal_scheduling.sql','utf8');
 const pendingMigration=fs.readFileSync('supabase/migrations/20260927145530_hq_product_pending_changes.sql','utf8');
+const updateScheduleMigration=fs.readFileSync('supabase/migrations/20260927155000_hq_product_update_scheduling.sql','utf8');
 
 assert.equal(ref.version,'v208');
 assert.equal(ref.inventory.length,172,'all non-heading inventory rows must be retained');
@@ -31,11 +32,11 @@ assert.match(hotdog.variants[0].content,/눈꽃 치즈 50g/);
 const milkLife=ref.shelf_life.find(x=>x.name==='우유');
 assert.equal(milkLife.expiry_after,'3일');
 
-const dataAt=html.indexOf('operations_reference_v208.js?v=20260927v216');
-const appAt=html.indexOf('operations_v1.js?v=20260927v216');
-const uiAt=html.indexOf('operations_reference_ui_v208.js?v=20260927v216');
+const dataAt=html.indexOf('operations_reference_v208.js?v=20260927v217');
+const appAt=html.indexOf('operations_v1.js?v=20260927v217');
+const uiAt=html.indexOf('operations_reference_ui_v208.js?v=20260927v217');
 assert.ok(dataAt>=0&&dataAt<appAt&&appAt<uiAt,'reference data, legacy operations, then reference UI must load in order');
-assert.ok(html.includes('const APP_VERSION="v216"'));
+assert.ok(html.includes('const APP_VERSION="v217"'));
 assert.ok(ui.includes('HOT(13oz)')===false,'variant labels must come from source data, not hardcoded UI');
 assert.ok(ui.includes('발주 필요 품목과 인하대점 재고 기준'));
 assert.ok(ui.includes('공식 제조 기준과 직접 등록한 레시피'));
@@ -64,7 +65,10 @@ assert.ok(!ui.includes('ops-hq-link-stats')&&!ui.includes('30일 매출')&&!ui.i
 assert.ok(ui.includes('thumbnail_url')&&ui.includes('ops-hq-thumb'),'product cards must display thumbnails');
 assert.ok(ui.includes('originalQuantity')&&ui.includes('ops-hq-current-qty')&&ui.includes('수정값'),'product editor must show current ingredient quantity beside an editable value');
 assert.ok(ui.includes('has_pending_changes')&&ui.includes('아직 배포하지 않은 변경사항이 없습니다.'),'all-store apply must only enable for unapplied edits');
+assert.ok(ui.includes("pending?' is-pending':'')")&&css.includes('.ops-hq-apply.is-pending')&&css.includes('color:#fff!important'),'pending all-store apply must be a green button with white text');
 assert.ok(ui.includes('recipeThumbnail')&&ui.includes('ops-reference-recipe-content'),'branch recipe cards must render thumbnails');
+assert.ok(ui.includes('수정 적용 예약일')&&ui.includes('수정 예약')&&ui.includes('updateScheduled'),'active product edits must support scheduled all-store application');
+assert.ok(ui.includes('기존 재고품목 선택')&&ui.includes('신규 품목 등록')&&ui.includes('unifiedInventoryCatalog'),'branch inventory registration must select existing catalog items or create a new item');
 assert.ok(ui.includes('dragstart')&&ui.includes('preventDefault'),'product editor content dragging must be blocked');
 assert.ok(html.includes('hq-title-row')&&html.includes('hq-product-button'),'product rollout button must share the dashboard title row');
 assert.ok(css.includes('.ops-hq-removal-controls')&&css.includes('.ops-hq-card-check'),'removal selection controls must be styled');
@@ -73,6 +77,7 @@ assert.ok(html.includes('payroll_elapsed_weeks_v1.js?v=20260927v214'),'test-mode
 assert.ok(payrollLoader.includes('test_mode_ui_v1.js?v=20260927v214'),'centered test controls must bypass stale browser cache');
 assert.ok(removalMigration.includes('admin_hq_product_removal_schedule')&&removalMigration.includes("'DISCONTINUE'::text"),'database must schedule and execute due removals');
 assert.ok(pendingMigration.includes('has_pending_changes')&&pendingMigration.includes('track_hq_product_pending_changes'),'database must persist and clear unapplied product edits');
+assert.ok(updateScheduleMigration.includes("status='ACTIVE' and has_pending_changes")&&updateScheduleMigration.includes("'schedule_type','UPDATE'"),'database cron must apply scheduled active-product edits');
 assert.ok(ui.includes('cleanExample'),'legacy example prefixes must be stripped from displayed data');
 assert.ok(!ui.includes('tab==="products"'),'HQ rollout must not render as an admin tab');
-console.log('operations reference v216 QA PASS');
+console.log('operations reference v217 QA PASS');
