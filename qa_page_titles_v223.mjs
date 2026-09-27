@@ -6,7 +6,7 @@ const ops=fs.readFileSync('operations_v1.js','utf8');
 const opsRef=fs.readFileSync('operations_reference_ui_v208.js','utf8');
 const recipe=fs.readFileSync('recipe_access_v220.js','utf8');
 
-assert.ok(html.includes('const APP_VERSION="v223"'));
+assert.ok(html.includes('const APP_VERSION="v0.01"'));
 assert.ok(html.includes('.page-title,.hq-title-row h2{')&&html.includes('font-size:1.25rem!important')&&html.includes('font-weight:750'),'common title typography must be defined');
 assert.ok(html.includes('<h2 class="page-title">출퇴근</h2>'),'POS title must exist');
 assert.ok(html.includes('<h2 class="page-title">직원 관리</h2>'),'employee management title must exist');

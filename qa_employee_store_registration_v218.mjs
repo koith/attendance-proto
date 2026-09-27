@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 const html=fs.readFileSync('index.html','utf8');
 const migration=fs.readFileSync('supabase/migrations/20260927084350_fix_employee_store_registration.sql','utf8');
 
-assert.ok(html.includes('const APP_VERSION="v223"'));
+assert.ok(html.includes('const APP_VERSION="v0.01"'));
 assert.ok(html.includes('admin_create_employee_onboarding_for_store'));
 assert.ok(html.includes('Number(sessionStorage.getItem("baekeok_store_id"))||1'));
 assert.ok(!html.includes('CURRENT_STORE_ID?rpc("admin_create_employee_for_store"'));

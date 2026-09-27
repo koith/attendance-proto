@@ -558,10 +558,12 @@
   #view:has(#payList) .payroll-card-body>.employee-card-secondary{height:auto!important;min-height:18px!important;margin:0!important;padding:0!important;line-height:18px!important;flex:0 0 auto!important;overflow:hidden!important}
   #view:has(#payList) .payroll-card-body>.payroll-employee-payline{display:flex!important;height:auto!important;min-height:24px!important;margin:0!important;padding:0!important;line-height:24px!important;align-items:baseline!important;gap:5px!important;flex:0 0 auto!important;overflow:visible!important;white-space:nowrap!important}
 
-  /* V2.01 PAYROLL ONLY: employee area fills viewport; cards do not stretch with it */
-  #view:has(#payList) #payList>.payroll-employee-grid{grid-template-rows:none!important;grid-auto-rows:minmax(108px,max-content)!important;align-content:start!important}
-  #view:has(#payList) .payroll-employee-card{height:auto!important;min-height:108px!important;max-height:none!important;align-self:start!important}
-  #view:has(#payList) .payroll-employee-card>.payroll-card-body{min-height:68px!important;height:auto!important;justify-content:flex-start!important;gap:8px!important}
+  /* PAYROLL: every employee card keeps the same footprint regardless of wage data. */
+  #view:has(#payList) #payList>.payroll-employee-grid{grid-template-rows:none!important;grid-auto-rows:108px!important;align-content:start!important;align-items:stretch!important}
+  #view:has(#payList) .payroll-employee-card{height:108px!important;min-height:108px!important;max-height:108px!important;align-self:stretch!important}
+  #view:has(#payList) .payroll-employee-card>.payroll-card-body{height:68px!important;min-height:68px!important;max-height:68px!important;justify-content:flex-start!important;gap:4px!important;overflow:hidden!important}
+  #view:has(#payList) #payList .employee-scroll-surface .payroll-employee-card .payroll-gross-value{font-size:.8rem!important;line-height:20px!important}
+  #view:has(#payList) .payroll-card-body>.payroll-night-note{margin-top:0!important;font-size:.62rem!important;line-height:14px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
 
   /* V2.01 PAYROLL ONLY: desktop follows the existing employee-card responsive grid */
   #view:has(#payList) #payList>.payroll-employee-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))!important}
@@ -584,7 +586,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v223</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.01</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -668,7 +670,8 @@ const ICON = {
   upload:`<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>`,
 };
 
-const APP_VERSION="v223";
+// Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
+const APP_VERSION="v0.01";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1257,7 +1260,7 @@ async function mountAdminSubnav(active){
   };
   popover.onclick=e=>e.stopPropagation();
   document.getElementById("adminAccountSettings").onclick=()=>{close();if(LIVE)openPersonalSettings();else toast("out","로컬 모드","설정은 클라우드 연결 후 사용할 수 있습니다.")};
-  document.getElementById("adminAccountLogout").onclick=()=>{Auth.clear();location.reload()};
+  document.getElementById("adminAccountLogout").onclick=()=>{if(!confirm("로그아웃하시겠습니까?"))return;Auth.clear();location.reload()};
   const outside=e=>{if(!e.target.closest(".admin-subnav-shell"))close()};
   const escape=e=>{if(e.key==="Escape")close()};
   document.addEventListener("click",outside);

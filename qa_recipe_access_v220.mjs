@@ -8,7 +8,7 @@ const sheet=fs.readFileSync('apps_script.gs','utf8');
 const migration=fs.readFileSync('supabase/migrations/20260927183000_recipe_access_store_overrides_and_safe_retirement.sql','utf8');
 const roleMigration=fs.readFileSync('supabase/migrations/20260927184500_hq_role_enforcement.sql','utf8');
 
-assert.ok(html.includes('const APP_VERSION="v223"'));
+assert.ok(html.includes('const APP_VERSION="v0.01"'));
 assert.ok(html.includes('id="tabRecipe"')&&html.includes('href="#recipe"'),'recipe must be a top-level tab');
 assert.ok(!html.includes('data-admin-tab="recipe"'),'recipe must not remain in management subtabs');
 assert.ok(html.includes('recipe_access_v220.js?v=20260927v223'));
