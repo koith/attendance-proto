@@ -4,7 +4,8 @@ const originalRender=window.renderOperations,REF=window.OPERATIONS_REFERENCE_V20
 const esc=value=>window.safeHtml?window.safeHtml(value):String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const icon=name=>/원두|커피/.test(name)?"☕":/우유|밀크|크림/.test(name)?"🥛":/시럽|소스|청|베이스/.test(name)?"🧴":/과일|딸기|망고|자몽|멜론|레몬|라임/.test(name)?"🍓":/컵|뚜껑|빨대|봉투|포장|용기/.test(name)?"🥤":/팝콘/.test(name)?"🍿":/빵|베이글|케이크|떡|슈/.test(name)?"🥐":"📦";
 const num=value=>Number(value||0).toLocaleString("ko-KR");
-let inventoryCategory="전체",inventoryQuery="",recipeCategory="전체",recipeQuery="",managedInventory=[],registeredRecipes=[];
+const cleanExample=value=>String(value||"").replace(/^\s*\[예시\]\s*/,"");
+let inventoryCategory="전체",inventoryQuery="",recipeCategory="전체",recipeQuery="",managedInventory=[],registeredRecipes=[],hqProducts=[],hqInventory=[];
 
 function shell(title,subtitle){
   const root=document.getElementById("view");
@@ -64,14 +65,14 @@ async function renderInventory(refresh=false){
   document.getElementById("opsReferenceInventoryCat").onchange=e=>{inventoryCategory=e.target.value;renderInventory(true)};
 }
 
-async function loadRegisteredRecipes(){registeredRecipes=await BE.recipeList().catch(()=>[])}
+async function loadRegisteredRecipes(){registeredRecipes=(await BE.recipeList().catch(()=>[])).map(row=>({...row,menu_name:cleanExample(row.menu_name)}))}
 function recipeCard(row,index,registered){
   const first=row.variants[0],preview=String(first?.content||"").split("\n").filter(Boolean).slice(0,3);
   return '<article class="ops-card ops-reference-recipe"><button type="button" class="ops-recipe-open" data-reference-recipe="'+index+'"><div class="ops-card-head"><div><small class="ops-recipe-cat">'+esc(row.category)+'</small><b>'+esc(row.menu_name)+'</b></div><span class="ops-reference-badge">'+row.variants.length+'종</span></div><div class="ops-recipe-variant-chips">'+row.variants.map(x=>'<span>'+esc(x.label)+'</span>').join("")+'</div><div class="ops-reference-preview">'+preview.map(x=>'<span>'+esc(x)+'</span>').join("")+'</div></button>'+(registered?'<button type="button" class="ops-recipe-edit" data-edit-recipe="'+registeredRecipes.indexOf(registered)+'" aria-label="'+esc(row.menu_name)+' 수정">✎</button>':"")+'</article>';
 }
 function customRecipeCard(row){
   const preview=(row.components||[]).slice(0,3).map(x=>esc(x.item_name||"재료")+' '+num(x.quantity)+' '+esc(x.unit||""));
-  return '<article class="ops-card ops-reference-recipe ops-custom-recipe"><button type="button" class="ops-recipe-open" data-edit-recipe="'+registeredRecipes.indexOf(row)+'"><div class="ops-card-head"><div><small class="ops-recipe-cat">'+esc(row.category||"직접 등록")+'</small><b>'+esc(row.menu_name)+'</b></div><span class="ops-reference-badge">등록</span></div><div class="ops-reference-preview">'+preview.map(x=>'<span>'+x+'</span>').join("")+'</div></button><button type="button" class="ops-recipe-edit" data-edit-recipe="'+registeredRecipes.indexOf(row)+'" aria-label="'+esc(row.menu_name)+' 수정">✎</button></article>';
+  return '<article class="ops-card ops-reference-recipe ops-custom-recipe"><div class="ops-recipe-open ops-recipe-static"><div class="ops-card-head"><div><small class="ops-recipe-cat">'+esc(row.category||"직접 등록")+'</small><b>'+esc(row.menu_name)+'</b></div><span class="ops-reference-badge">등록</span></div><div class="ops-reference-preview">'+preview.map(x=>'<span>'+x+'</span>').join("")+'</div></div><button type="button" class="ops-recipe-edit" data-edit-recipe="'+registeredRecipes.indexOf(row)+'" aria-label="'+esc(row.menu_name)+' 수정">✎</button></article>';
 }
 function openRecipeDetail(row){
   const m=modal(row.menu_name,'<div class="ops-recipe-variant-grid">'+row.variants.map(v=>'<section><h3>'+esc(v.label)+'</h3><div>'+esc(v.content).replace(/\n/g,"<br>")+'</div></section>').join("")+'</div>');m.wrap.querySelector(".ops-modal-sheet").classList.add("ops-reference-recipe-sheet");
@@ -99,5 +100,46 @@ async function renderRecipes(refresh=false){
   const search=document.getElementById("opsReferenceRecipeSearch");search.oninput=e=>{recipeQuery=e.target.value.trim().toLowerCase();renderRecipes(true);const next=document.getElementById("opsReferenceRecipeSearch");next.focus();next.setSelectionRange(next.value.length,next.value.length)};document.getElementById("opsReferenceRecipeCat").onchange=e=>{recipeCategory=e.target.value;renderRecipes(true)};
 }
 
-window.renderOperations=async tab=>tab==="inventory"?renderInventory():tab==="recipe"?renderRecipes():originalRender(tab);
+function hqStatus(status){return status==="ACTIVE"?"출시 중":status==="DISCONTINUED"?"단종":"초안"}
+function hqProductCard(row,index){
+  const components=Array.isArray(row.component_blueprint)?row.component_blueprint:[],active=row.status==="ACTIVE",stopped=row.status==="DISCONTINUED";
+  const actions=active?'<div class="ops-hq-actions"><button type="button" class="btn btn-secondary ops-hq-apply" data-hq-apply="'+index+'" data-action="LAUNCH">변경사항 전 지점 적용</button><button type="button" class="btn btn-danger ops-hq-apply" data-hq-apply="'+index+'" data-action="DISCONTINUE">전 지점 단종</button></div>':'<button type="button" class="btn btn-primary ops-hq-apply" data-hq-apply="'+index+'" data-action="LAUNCH">전 지점 '+(stopped?'재출시':'출시')+'</button>';
+  return '<article class="ops-hq-product-card status-'+String(row.status||"draft").toLowerCase()+'"><div class="ops-hq-product-main"><div><span class="ops-hq-status">'+hqStatus(row.status)+'</span><small>'+esc(row.product_key)+'</small><h3>'+esc(row.name)+'</h3><p>'+esc(row.category||"미분류")+' · 재료 '+components.length+'개</p></div><button type="button" class="ops-recipe-edit ops-hq-edit" data-hq-edit="'+index+'" aria-label="'+esc(row.name)+' 수정">✎</button></div><div class="ops-hq-link-stats"><span>배포 <b>'+num(row.active_store_count)+' / '+num(row.total_store_count)+'개 지점</b></span><span>30일 매출 <b>'+num(row.sales_30d)+'원</b></span><span>30일 매입 <b>'+num(row.purchases_30d)+'원</b></span></div><div class="ops-hq-alias"><small>매출 연결</small><span>'+esc((row.sale_aliases||[]).join(", ")||"미설정")+'</span><small>매입 연결</small><span>'+esc((row.purchase_aliases||[]).join(", ")||"미설정")+'</span></div>'+actions+'</article>';
+}
+function hqComponentRow(component={}){
+  const isNew=!component.item_id,options=hqInventory.map(x=>'<option value="'+x.id+'" '+(Number(component.item_id)===Number(x.id)?'selected':'')+'>'+esc(cleanExample(x.name))+' ('+esc(x.unit)+')</option>').join("");
+  return '<div class="ops-hq-component '+(isNew?'is-new':'')+'"><select class="ops-hq-item"><option value="__new__" '+(isNew?'selected':'')+'>+ 신규 재고 품목</option>'+options+'</select><input class="ops-hq-qty" type="number" min="0.01" step="0.01" value="'+esc(component.quantity||"")+'" placeholder="레시피 사용량"><div class="ops-hq-new-fields"><input class="ops-hq-sku" value="'+esc(component.sku||"")+'" placeholder="신규 SKU"><input class="ops-hq-item-name" value="'+esc(component.name||"")+'" placeholder="신규 품목명"><input class="ops-hq-unit" value="'+esc(component.unit||"")+'" placeholder="단위 (g, ml, 개)"><input class="ops-hq-reorder" type="number" min="0" step="0.01" value="'+esc(component.reorder_level||"")+'" placeholder="발주 기준"></div><button type="button" class="ops-hq-remove" aria-label="재료 삭제">×</button></div>';
+}
+function bindHqComponent(row){
+  const select=row.querySelector(".ops-hq-item");select.onchange=()=>row.classList.toggle("is-new",select.value==="__new__");
+  row.querySelector(".ops-hq-remove").onclick=()=>row.remove();
+}
+async function openHqProductEditor(product=null){
+  if(!hqInventory.length)hqInventory=(await BE.inventoryOverview().catch(()=>[])).filter(x=>!x.is_demo).map(x=>({...x,name:cleanExample(x.name)}));
+  const components=Array.isArray(product?.component_blueprint)&&product.component_blueprint.length?product.component_blueprint:[{}];
+  const m=modal(product?"본사 상품 수정":"본사 상품 등록",'<div class="ops-hq-editor"><div class="ops-hq-fields"><label>상품 코드<input id="hqProductKey" value="'+esc(product?.product_key||"")+'" placeholder="예: SUMMER-MELON-2026"></label><label>상품명<input id="hqProductName" value="'+esc(product?.name||"")+'" placeholder="전 지점에 표시할 메뉴명"></label><label>카테고리<input id="hqProductCategory" value="'+esc(product?.category||"")+'" placeholder="커피, 음료, 푸드"></label><label>매출 연결명<input id="hqSaleAliases" value="'+esc((product?.sale_aliases||[]).join(", "))+'" placeholder="POS 메뉴명, 쉼표로 구분"></label><label>매입 연결명<input id="hqPurchaseAliases" value="'+esc((product?.purchase_aliases||[]).join(", "))+'" placeholder="거래처·매입 품목명, 쉼표로 구분"></label></div><div class="ops-hq-component-head"><div><b>레시피·필요 재고</b><small>기존 재고를 선택하거나 출시와 함께 신규 품목을 만듭니다.</small></div><button type="button" class="btn btn-secondary btn-sm" id="hqAddComponent">+ 재료 추가</button></div><div id="hqComponents">'+components.map(hqComponentRow).join("")+'</div><div class="ops-hq-save-note">저장하면 초안이 갱신됩니다. ‘전 지점 출시’를 눌러야 활성 지점에 실제 배포됩니다.</div><button type="button" class="btn btn-primary btn-block" id="hqProductSave">초안 저장</button></div>');
+  m.body.querySelectorAll(".ops-hq-component").forEach(bindHqComponent);
+  m.body.querySelector("#hqAddComponent").onclick=()=>{const box=m.body.querySelector("#hqComponents");box.insertAdjacentHTML("beforeend",hqComponentRow());bindHqComponent(box.lastElementChild)};
+  m.body.querySelector("#hqProductSave").onclick=async()=>{
+    const split=id=>m.body.querySelector(id).value.split(",").map(x=>x.trim()).filter(Boolean),rows=[...m.body.querySelectorAll(".ops-hq-component")];
+    const components=rows.map(row=>{const item=row.querySelector(".ops-hq-item").value,quantity=Number(row.querySelector(".ops-hq-qty").value||0);return item==="__new__"?{sku:row.querySelector(".ops-hq-sku").value.trim(),name:row.querySelector(".ops-hq-item-name").value.trim(),unit:row.querySelector(".ops-hq-unit").value.trim(),reorder_level:Number(row.querySelector(".ops-hq-reorder").value||0),quantity}:{item_id:Number(item),quantity}});
+    const payload={product_key:m.body.querySelector("#hqProductKey").value.trim(),name:m.body.querySelector("#hqProductName").value.trim(),category:m.body.querySelector("#hqProductCategory").value.trim(),sale_aliases:split("#hqSaleAliases"),purchase_aliases:split("#hqPurchaseAliases"),components};
+    if(!payload.product_key||!payload.name)return alert("상품 코드와 상품명을 입력하세요.");if(!components.length||components.some(x=>!x.quantity))return alert("모든 재료의 사용량을 입력하세요.");if(components.some(x=>!x.item_id&&(!x.sku||!x.name||!x.unit)))return alert("신규 재고의 SKU, 품목명, 단위를 입력하세요.");
+    const button=m.body.querySelector("#hqProductSave");button.disabled=true;try{await BE.hqProductSave(product?.id||null,payload);m.close();await renderHqProducts(true)}catch(error){button.disabled=false;alert("상품 저장 실패: "+error.message)};
+  };
+}
+async function applyHqProduct(product,action){
+  const launch=action==="LAUNCH",label=launch?"출시":"단종",message=launch?product.name+"을(를) 모든 활성 지점에 출시할까요?\n레시피·재고·매출/매입 연결이 함께 적용됩니다.":product.name+"을(를) 모든 지점에서 단종할까요?\n과거 거래 이력은 보존됩니다.";
+  if(!confirm(message))return;try{const result=await BE.hqProductApply(product.id,action);alert(label+" 완료 · "+num(result?.affected_store_count)+"개 지점 반영");await renderHqProducts(true)}catch(error){alert(label+" 실패: "+error.message)}
+}
+async function renderHqProducts(refresh=false){
+  const body=refresh?document.getElementById("opsBody"):shell("상품 중앙통제","신제품 출시와 단종을 레시피·재고·매출·매입 연결까지 묶어 전 지점에 적용합니다.");
+  hqProducts=await BE.hqProductList().catch(error=>{body.innerHTML='<div class="ops-empty"><b>상품 정보를 불러오지 못했습니다.</b><span>'+esc(error.message)+'</span></div>';return null});if(!hqProducts)return;
+  const active=hqProducts.filter(x=>x.status==="ACTIVE").length,draft=hqProducts.filter(x=>x.status==="DRAFT").length;
+  const storeCount=hqProducts.length?num(hqProducts[0].total_store_count)+"개":"상품 출시 시 자동 계산";
+  body.innerHTML='<div class="ops-hq-summary"><div><span>출시 중</span><b>'+active+'개</b></div><div><span>배포 대기</span><b>'+draft+'개</b></div><div><span>활성 지점</span><b>'+storeCount+'</b></div></div><div class="ops-unified-section-head ops-hq-head"><div><b>상품 마스터</b><span>출시·단종 이력은 보존됩니다.</span></div><button type="button" class="btn btn-primary" id="hqProductAdd">+ 신제품 등록</button></div><div class="ops-hq-product-list">'+(hqProducts.length?hqProducts.map(hqProductCard).join(""):'<div class="ops-empty"><b>등록된 본사 상품이 없습니다.</b><span>신제품을 등록해 전 지점 배포를 시작하세요.</span></div>')+'</div>';
+  document.getElementById("hqProductAdd").onclick=()=>openHqProductEditor();body.querySelectorAll("[data-hq-edit]").forEach(button=>button.onclick=()=>openHqProductEditor(hqProducts[Number(button.dataset.hqEdit)]));body.querySelectorAll("[data-hq-apply]").forEach(button=>button.onclick=()=>applyHqProduct(hqProducts[Number(button.dataset.hqApply)],button.dataset.action));
+}
+
+window.renderOperations=async tab=>tab==="inventory"?renderInventory():tab==="recipe"?renderRecipes():tab==="products"?renderHqProducts():originalRender(tab);
 })();
