@@ -93,3 +93,17 @@
  .records-group .session{grid-template-columns:minmax(0,1fr) 70px!important;column-gap:5px}
  .records-group .session>div:first-child{gap:5px;flex-wrap:wrap}
 }
+
+/* v0.52 high-contrast attendance states + calendar vertical hierarchy */
+:root{--attendance-complete:#596575;--attendance-working:#1677ff;--attendance-issue:#f04438}
+.calendar-normal,.legend .dot.normal{background:var(--attendance-complete)!important}
+.calendar-working,.legend .dot.working{background:var(--attendance-working)!important}
+.calendar-issue,.legend .dot.issue{background:var(--attendance-issue)!important}
+.bar:not(.open):not(.issue){background:var(--attendance-complete)!important}
+.bar.open{background:var(--attendance-working)!important}
+.bar.issue{background:var(--attendance-issue)!important}
+.day{padding-top:7px!important;padding-bottom:20px!important}
+.day .num{position:relative;z-index:2}
+.calendar-day-total{left:5px!important;right:5px!important;top:auto!important;bottom:4px!important;text-align:right;font-size:.54rem!important;font-weight:800!important;color:var(--sub)!important;line-height:1;pointer-events:none}
+.day.today .calendar-day-total{color:var(--sub)!important}
+@media(max-width:520px){.day{padding-top:6px!important;padding-bottom:18px!important}.calendar-day-total{bottom:4px!important;font-size:.49rem!important}}
