@@ -77,10 +77,19 @@ function recipeThumbnail(row){
   const label=({"백억 시네마":"CINEMA","백억휴게소":"SNACK","디저트&베이커리":"DESSERT","커피&콜드브루":"COFFEE","라떼&버블티":"LATTE","스무디&에이드":"DRINK","티&주스":"TEA"}[row?.category]||"MENU"),url=String(row?.thumbnail_url||"").trim();
   return '<div class="ops-recipe-thumb">'+(url?'<img src="'+esc(url)+'" alt="'+esc(row?.menu_name||"")+'" loading="lazy" data-thumb-fallback="'+esc(label)+'">':'<span>'+esc(label)+'</span>')+'</div>';
 }
+function recipeMeta(row){
+  const map={"커피&콜드브루":"커피","라떼&버블티":"라떼","스무디&에이드":"스무디 & 에이드","티&주스":"티 & 스윗티","디저트&베이커리":"푸드류(베이커리)","백억휴게소":"푸드류(백억 휴게소)","백억 시네마":"푸드류(백억 시네마)"};
+  let category=map[row.category]||row.category||"레시피",name=String(row.menu_name||""),badges=[category];
+  const batch=name.match(/\((\d+)잔(?:\s*분량)?\)/);
+  if(row.category==="대용량 베이스"){badges=["대용량 베이스"+(batch?"("+batch[1]+"잔)":"")];name=name.replace(/\s*\(\d+잔(?:\s*분량)?\)\s*/," ").trim();}
+  if(name==="추가 옵션"){badges=["푸드 조리","추가 옵션"];name=String(row.variants?.[0]?.label||"소시지 · 계란 후라이");}
+  const ea=name.match(/\s*\((\d+EA(?:\s*\/\s*\d+EA)?)\)\s*$/i);let eaText="";if(ea){eaText=ea[1];name=name.slice(0,ea.index).trim();}
+  return {badges,name,eaText};
+}
 function recipeCard(row,index,registered){
-  const first=row.variants[0],preview=String(first?.content||"").split("\n").filter(Boolean).slice(0,3);
-  const thumbRow=registered?.thumbnail_url?registered:row;
-  return '<article class="ops-card ops-reference-recipe"><button type="button" class="ops-recipe-open" data-reference-recipe="'+index+'">'+recipeThumbnail(thumbRow)+'<div class="ops-reference-recipe-content"><div class="ops-card-head"><div><small class="ops-recipe-cat">'+esc(row.category)+'</small><b>'+esc(row.menu_name)+'</b></div><span class="ops-reference-badge">'+row.variants.length+'종</span></div><div class="ops-recipe-variant-chips">'+row.variants.map(x=>'<span>'+esc(x.label)+'</span>').join("")+'</div><div class="ops-reference-preview">'+preview.map(x=>'<span>'+esc(x)+'</span>').join("")+'</div></div></button>'+(registered?'<button type="button" class="ops-recipe-edit" data-edit-recipe="'+registeredRecipes.indexOf(registered)+'" aria-label="'+esc(row.menu_name)+' 수정">✎</button>':"")+'</article>';
+  const first=row.variants[0],preview=String(first?.content||"").split("\n").filter(Boolean).slice(0,3),meta=recipeMeta(row),thumbRow=registered?.thumbnail_url?registered:row;
+  const badges=meta.badges.map((x,i)=>'<small class="ops-recipe-cat '+(i?"ops-recipe-cat-secondary":"")+'">'+esc(x)+'</small>').join("");
+  return '<article class="ops-card ops-reference-recipe"><button type="button" class="ops-recipe-open" data-reference-recipe="'+index+'">'+recipeThumbnail(thumbRow)+'<div class="ops-reference-recipe-content"><div class="ops-card-head"><div><div class="ops-recipe-cats">'+badges+'</div><b>'+esc(meta.name)+(meta.eaText?'<small class="ops-recipe-ea">('+esc(meta.eaText)+')</small>':'')+'</b></div><span class="ops-reference-badge">'+row.variants.length+'종</span></div><div class="ops-recipe-variant-chips">'+row.variants.map(x=>'<span>'+esc(x.label)+'</span>').join("")+'</div><div class="ops-reference-preview">'+preview.map(x=>'<span>'+esc(x)+'</span>').join("")+'</div></div></button>'+(registered?'<button type="button" class="ops-recipe-edit" data-edit-recipe="'+registeredRecipes.indexOf(registered)+'" aria-label="'+esc(row.menu_name)+' 수정">✎</button>':"")+'</article>';
 }
 function customRecipeCard(row){
   const preview=(row.components||[]).slice(0,3).map(x=>esc(x.item_name||"재료")+' '+num(x.quantity)+' '+esc(x.unit||""));
