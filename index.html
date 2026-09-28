@@ -670,7 +670,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.24";
+const APP_VERSION="v0.25";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -963,6 +963,7 @@ const SupaBE = (()=>{
     async eventsWithCorrections(fromIso,toIso){ return rpc("admin_events_with_corrections",{p_from:fromIso,p_to:toIso},true); },
     // --- M5: 급여기간 ---
     async payrollPeriod(ym){ return rpc("admin_payroll_period",{p_ym:ym},true); },
+    async payrollContracts(ym){ return rpc("admin_store_payroll_contracts",{p_store_id:CURRENT_STORE_ID||1,p_month:ym+"-01"},true); },
     async setPeriodWeeks(ym,weeks){ return rpc("admin_set_period_weeks",{p_ym:ym,p_weeks:weeks},true); },
     async setPeriodEmployee(ym,empId,fields){ return rpc("admin_set_period_employee",{p_ym:ym,p_employee_id:empId,p_fields:fields},true); },
     // --- M8: 마감/스냅샷 ---
@@ -2162,13 +2163,15 @@ async function computeMonthPayroll(ym){
   const active=emps.filter(isActive);
   const eventEmployeeIds=new Set(events.map(x=>Number(x.employee_id)));
   const payrollCandidates=emps.filter(e=>!isHiddenInhaTestEmployee(e)&&(isActive(e)||eventEmployeeIds.has(Number(e.id))));
-  let periodWeeks=null, overrides={};
+  let periodWeeks=null, overrides={}, contracts={};
   if(LIVE){
     try{
       const pd=await BE.payrollPeriod(ym);
       periodWeeks = pd.period && pd.period.weeks;
       (pd.overrides||[]).forEach(o=>{ overrides[o.employee_id]=o; });
-    }catch(e){}
+      const cs=await BE.payrollContracts(ym);
+      (cs||[]).forEach(c=>{ contracts[Number(c.employee_id)]=c; });
+    }catch(e){ console.warn("payroll contract load failed",e); }
   }
   const weeks = periodWeeks || weeksInMonth(ym);
   const p2=n=>String(n).padStart(2,"0");
@@ -2184,12 +2187,22 @@ async function computeMonthPayroll(ym){
     const hours=secToHours(sec);
     const issues=sess.filter(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
     const ov=overrides[e.id]||null;
-    const effWage=(ov&&ov.wage_override!=null)?ov.wage_override:e.wage;
-    const hasWage=effWage!=null&&effWage>0;
-    const pay=hasWage?calcPayroll(e,hours,weeks,ov):null;
+    const contract=contracts[Number(e.id)]||null;
+    const payrollType=contract?.payroll_type||((e.wage||0)>0?"HOURLY":null);
+    const contractWage=payrollType==="HOURLY"?Number(contract?.hourly_wage||0):0;
+    const effWage=(ov&&ov.wage_override!=null)?Number(ov.wage_override):(contractWage||Number(e.wage||0));
+    let pay=null;
+    if(payrollType==="MONTHLY"&&Number(contract?.monthly_salary||0)>0){
+      const gross=Math.round(Number(contract.monthly_salary)+(ov?.adjust_amount||0));
+      const rate=(ov?.tax_rate_override!=null)?Number(ov.tax_rate_override):(contract.tax_treatment==="BUSINESS_INCOME"?Number(contract.business_deduction_rate||0.033):0);
+      pay={base:Number(contract.monthly_salary),weekly:0,juhyu:0,adjust:ov?.adjust_amount||0,gross,net:xrounddown(gross*(1-rate),-1),rate,wage:0,jweeks:weeks,usedOverride:!!ov,payrollType:"MONTHLY"};
+    }else if(effWage>0){
+      pay=calcPayroll({...e,wage:effWage},hours,weeks,ov); pay.payrollType="HOURLY";
+    }
+    const hasWage=!!pay;
     if(pay){ totalNet+=pay.net; totalGross+=pay.gross; }
     rows.push({employee_id:e.id, employee_name:e.name, emp:e, hours, sec, sessions:sess, issues, ov,
-      hasWage, pay, memo:(ov&&ov.memo)||e.memo||""});
+      hasWage, pay, contract, payrollType, memo:(ov&&ov.memo)||e.memo||""});
   }
   const payrollEmployees=rows.map(r=>r.emp);
   return {active:payrollEmployees, events, weeks, overrides, rows, totalNet, totalGross};
@@ -2241,12 +2254,13 @@ async function drawPay(ym){
     
     const workingSession=[...rec.sessions].reverse().find(s=>s.status==="WORKING"&&s.in);
     const workInfo=workingSession?`${hhmm(workingSession.in)} 출근 · (${fmtElapsed(workingSession.in.toISOString())}째)`:`${fmtHM(sec)} 근무`;
+    const payBasis=rec.payrollType==="MONTHLY"&&rec.contract?`월급 ${Number(rec.contract.monthly_salary||0).toLocaleString()}원`:rec.payrollType==="HOURLY"&&pay?`시급 ${Number(pay.wage||0).toLocaleString()}원`:"";
     card.innerHTML=`
       <div class="employee-card-primary">
         <span class="employee-card-identity"><span class="employee-card-name">${safeHtml(eName)}</span><small class="employee-card-id">(No.${safeHtml(employeeNumber(e))})</small></span>
         ${issues?`<span class="badge issue">근태확인 ${issues}</span>`:'<span></span>'}
       </div>
-      <div class="employee-card-secondary"><span class="employee-card-secondary-main">${workInfo}</span></div>
+      <div class="employee-card-secondary"><span class="employee-card-secondary-main">${workInfo}${payBasis?` · ${payBasis}`:""}</span></div>
       <div class="payroll-employee-payline">${pay?`<strong class="payroll-gross-value">${pay.gross.toLocaleString()}원</strong><span style="font-size:.62rem;color:var(--muted)">(세전)</span>`:'<span aria-hidden="true">&nbsp;</span>'}</div>
     `;
     if(LIVE){
