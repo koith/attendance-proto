@@ -651,7 +651,7 @@
 <script src="operations_reference_v208.js?v=20260928v022"></script>
 <script src="operations_v1.js?v=20260927v006"></script>
 <script src="operations_reference_ui_v208.js?v=20260928v023"></script>
-<script src="recipe_access_v220.js?v=20260928v031"></script>
+<script src="recipe_access_v220.js?v=20260928v032"></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
@@ -670,7 +670,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.31";
+const APP_VERSION="v0.32";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1035,8 +1035,11 @@ const publicRpc=async(fn,args={})=>{
 const BE = LIVE ? SupaBE : LocalBE;
 const STORE_ENTRY_PARAMS=new URLSearchParams(location.search);
 const STORE_ENTRY_MODE=String(STORE_ENTRY_PARAMS.get("mode")||"").toLowerCase();
-const STORE_ENTRY_ID=Number(STORE_ENTRY_PARAMS.get("store"))||(STORE_ENTRY_MODE==="store"?1:0);
-const STORE_ENTRY_LOCK=STORE_ENTRY_MODE==="store"||STORE_ENTRY_ID>0;
+const STORE_ENTRY_PATH=/\/inha(?:\/|$)/i.test(location.pathname)||/\/store\/1(?:\/|$)/i.test(location.pathname);
+const STORE_ENTRY_SAVED=sessionStorage.getItem("baekeok_dedicated_store")==="1";
+const STORE_ENTRY_ID=Number(STORE_ENTRY_PARAMS.get("store"))||(STORE_ENTRY_MODE==="store"||STORE_ENTRY_PATH||STORE_ENTRY_SAVED?1:0);
+const STORE_ENTRY_LOCK=STORE_ENTRY_MODE==="store"||STORE_ENTRY_ID>0||STORE_ENTRY_PATH||STORE_ENTRY_SAVED;
+if(STORE_ENTRY_MODE==="store"||Number(STORE_ENTRY_PARAMS.get("store"))===1||STORE_ENTRY_PATH)sessionStorage.setItem("baekeok_dedicated_store","1");
 let CURRENT_STORE_ID=STORE_ENTRY_ID||1;
 if(STORE_ENTRY_ID)sessionStorage.setItem("baekeok_store_id",String(STORE_ENTRY_ID));
 // Dedicated store entry: remove the selector node entirely so later CSS/header changes cannot revive it.
