@@ -90,7 +90,7 @@
       <div class="recipe-v220-section-head"><b>필요 재료와 1회 사용량</b><span>현재 본사 재고품목에서 선택</span></div>
       <input id="rvStockSearch" type="search" placeholder="재료 검색">
       <div id="rvStock" class="recipe-v220-stock">${stock.map(s=>stockRow(s,selected)).join("")}</div>
-      <div class="recipe-v220-editor-actions"><button class="btn btn-secondary" id="rvCancel">취소</button><button class="btn btn-primary" id="rvSave">이 지점에 저장</button></div>
+      <div class="recipe-v220-editor-actions"><button class="btn btn-secondary" id="rvCancel">취소</button><button class="btn btn-primary" id="rvSave">저장</button></div>
     </div>`;
     function variantEditor(v,i){return `<div class="recipe-v220-variant-edit" data-variant><input aria-label="규격" placeholder="예: ICED(16oz)" value="${esc(v.label||"")}"><textarea aria-label="제조 방법" rows="4" placeholder="제조 순서와 용량을 입력하세요">${esc(v.content||"")}</textarea><button type="button" aria-label="단계 삭제" data-remove>×</button></div>`}
     function stockRow(s,map){const on=map.has(Number(s.id)),qty=map.get(Number(s.id))||"";return `<label class="recipe-v220-stock-row" data-name="${esc(String(s.name).toLocaleLowerCase("ko-KR"))}"><input type="checkbox" data-item="${s.id}" ${on?"checked":""}><span><b>${esc(s.name)}</b><small>${esc(s.sku||"")} · ${esc(s.unit)}</small></span><input type="number" min="0.01" step="0.01" data-qty="${s.id}" value="${qty}" ${on?"":"disabled"} placeholder="사용량"><em>${esc(s.unit)}</em></label>`}
