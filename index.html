@@ -627,14 +627,14 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.60</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.61</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
     
     <div style="padding:10px 18px" class="tabwrap"><div class="tabs store-tabs">
       <a id="tabPos" href="#pos" class="on">출퇴근</a>
-      <a href="actual_attendance.html">근무현황</a>
+      <a id="tabAttendance" href="#attendance">근무현황</a>
       <a id="tabRecipe" href="#recipe">레시피</a>
       <a id="tabAdmin" href="#admin">관리</a>
     </div></div>
@@ -694,7 +694,7 @@
 <script src="operations_reference_v208.js?v=20260928v022"></script>
 <script src="operations_v1.js?v=20260927v006"></script>
 <script src="operations_reference_ui_v208.js?v=20260928v023"></script>
-<script src="recipe_access_v220.js?v=20260929v060"></script>
+<script src="recipe_access_v220.js?v=20260929v061"></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
@@ -713,7 +713,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.60";
+const APP_VERSION="v0.61";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1307,6 +1307,7 @@ async function renderDashboard(){
 }
 function setTab(t){
   document.getElementById("tabPos").classList.toggle("on",t==="pos");
+  document.getElementById("tabAttendance").classList.toggle("on",t==="attendance");
   document.getElementById("tabRecipe").classList.toggle("on",t==="recipe");
   document.getElementById("tabAdmin").classList.toggle("on",["admin","pay","hours","report","sales","inventory"].includes(t));
 }
@@ -1372,6 +1373,7 @@ function route(){
       }
     });
   }
+  else if(h==="attendance"){ setTab("attendance"); if(!LIVE||Auth.isLoggedIn()){ location.href="actual_attendance.html"; return; } openMyRecord(); }
   else if(h==="pay"){ setTab("pay"); requireAuth(async()=>{await renderPay();await mountAdminSubnav("pay");}); }
   else if(h==="report"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");await mountAdminSubnav("report");}); } else if(h==="sales"){ setTab("sales"); requireAuth(async()=>{await renderOperations("inquiry");await mountAdminSubnav("sales");}); } else if(h==="inventory"){ setTab("inventory"); requireAuth(async()=>{await renderOperations("inventory");await mountAdminSubnav("inventory");}); } else if(h==="recipe"){ setTab("recipe"); renderRecipeHub(); } else if(h==="products"){location.hash="#dashboard";return;} else if(h==="ops"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");await mountAdminSubnav("report");}); }
   else if(h==="hours"){ setTab("hours"); requireAuth(async()=>{await renderStoreHours();upgradeLegacyPageTitle(".store-hours-page>.section-t","운영시간");await mountAdminSubnav("hours");}); }
@@ -1578,7 +1580,7 @@ function mrShowAuth(emps, preselId){
   const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
   modal.classList.remove("has-back");
   modal.innerHTML=`
-    <h3>내 근태 기록</h3>
+    <h3>근무현황</h3>
     <div class="field"><label>본인 선택</label>
       <select id="mrEmp" style="height:50px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 12px">
         ${emps.map(e=>`<option value="${e.id}" ${preselId===e.id?'selected':''}>${safeHtml(e.name)}</option>`).join("")}</select></div>
@@ -1609,7 +1611,7 @@ function mrShowRecord(empId,pin,events,requests,emps){
   const v=document.getElementById("addVeil"); const modal=v.querySelector(".modal");
   const empName=(emps.find(e=>e.id===empId)||{}).name||"";
   modal.innerHTML=`
-    <h3>${empName} · 내 근태</h3>
+    <h3>${empName} · 근무현황</h3>
     <div id="mrResult"></div>`;
   openAddVeil();
   // 좌상단 뒤로(‹) 주입: 본인 선택으로 = 인증 폐기 (pin 버려짐 → 재인증 강제)
@@ -2415,7 +2417,6 @@ async function drawPay(ym){
     const workingSession=[...rec.sessions].reverse().find(s=>s.status==="WORKING"&&s.in);
     const isMonthly=rec.payrollType==="MONTHLY"&&rec.contract;
     const completedDayKeys=new Set(rec.sessions.filter(s=>s.status==="COMPLETE"&&s.in).map(s=>{const d=s.in;return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}));
-    if(workingSession?.in){ const d=workingSession.in; completedDayKeys.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`); }
     const completedDays=completedDayKeys.size;
     const workInfo=isMonthly?`<span class="payroll-card-metric"><span>이번 달 근무</span><strong>${completedDays}일 · ${fmtHM(sec)}</strong></span>`:`<span class="payroll-card-metric"><span>이번 달 근무</span><strong>${fmtHM(sec)}</strong></span>`;
     const representativePay=Number(pay?.gross||0);
