@@ -7,6 +7,31 @@
   const instructionsFor=row=>Array.isArray(row.instructions)&&row.instructions.length?row.instructions:(referenceFor(row)?.variants||[]);
   const sourceMaterials=row=>instructionsFor(row).map(v=>({label:v.label||"기본",lines:String(v.content||"").split("\n").map(x=>x.trim()).filter(Boolean).filter(x=>/\d+(?:\.\d+)?\s*(?:g|ml|샷|P|펌프|개|봉|장|스쿱|oz|L)\b|얼음\s*가득/i.test(x))})).filter(v=>v.lines.length);
   const stockReference=item=>(window.OPERATIONS_REFERENCE_V208?.inventory||[]).find(x=>String(x.name).trim()===String(item?.name).trim());
+  const eaTitle=name=>{const m=String(name||"").match(/\(\s*\d+\s*EA(?:\s*\/\s*\d+\s*EA)?\s*\)/i);return {name:m?String(name).replace(m[0],"").replace(/\s+,/g,",").replace(/\s{2,}/g," ").trim():String(name||""),ea:m?m[0].replace(/\s+/g,""):""}};
+  const recipeBadges=row=>{
+    const name=String(row?.menu_name||""),cat=String(row?.category||""),badges=[];
+    if(cat==="대용량 베이스"){
+      const n=name.match(/\((\d+)\s*잔(?:\s*분량)?\)/);
+      badges.push("대용량 베이스"+(n?"("+n[1]+"잔)":""));
+      return badges;
+    }
+    if(cat==="백억휴게소") badges.push("푸드류(백억 휴게소)");
+    else if(cat==="백억 시네마") badges.push("푸드류(백억 시네마)");
+    else if(cat==="디저트&베이커리") badges.push("푸드류(베이커리)");
+    else if(cat==="커피&콜드브루") badges.push("커피");
+    else if(cat==="라떼&버블티") badges.push(/버블|펄/.test(name)?"버블티":"라떼");
+    else if(cat==="스무디&에이드") badges.push(/스무디/.test(name)?"스무디":/주스/.test(name)?"주스":"에이드");
+    else if(cat==="티&주스") badges.push(/주스/.test(name)?"주스":"티 & 스윗티");
+    else if(/라떼/.test(name)) badges.push("라떼");
+    else if(/스무디|쉐이크/.test(name)) badges.push("스무디");
+    else if(/주스/.test(name)) badges.push("주스");
+    else if(/에이드|소다/.test(name)) badges.push("에이드");
+    else if(/티/.test(name)) badges.push("티 & 스윗티");
+    else if(cat) badges.push(cat);
+    if(name==="추가 옵션"||/추가\s*옵션/.test(name)) badges.push("추가 옵션");
+    return badges;
+  };
+  const badgeHtml=row=>recipeBadges(row).map(x=>'<span class="recipe-v220-kind '+(x==="추가 옵션"?"option":"")+'">'+esc(x)+'</span>').join("");
 
   function modal(title,content,wide=false){
     const wrap=document.createElement("div");
@@ -71,7 +96,7 @@
   function renderList(rows,manager){
     const cats=["전체",...new Set(rows.map(r=>r.category||"미분류"))];
     view.innerHTML=`<div class="recipe-v220"><div class="recipe-v220-head page-title-row"><div><h2 class="page-title">레시피</h2><p>${manager?"이 지점에서 사용하는 레시피입니다. 연필 버튼으로 지점 전용 변경사항을 저장할 수 있습니다.":"출근이 확인된 직원에게 제공되는 보기 전용 레시피입니다."}</p></div><span>${rows.length}개</span></div><div class="recipe-v220-toolbar"><label>카테고리<select id="rvCat">${cats.map(x=>`<option>${esc(x)}</option>`).join("")}</select></label><label>검색<input id="rvSearch" type="search" placeholder="메뉴명 검색"></label></div><div id="rvList" class="recipe-v220-list"></div></div>`;
-    const draw=()=>{const cat=document.getElementById("rvCat").value,q=document.getElementById("rvSearch").value.trim().toLocaleLowerCase("ko-KR"),list=rows.filter(r=>(cat==="전체"||(r.category||"미분류")===cat)&&(!q||String(r.menu_name).toLocaleLowerCase("ko-KR").includes(q)));document.getElementById("rvList").innerHTML=list.length?list.map(r=>`<article class="recipe-v220-card" data-key="${esc(r.menu_key)}"><button type="button" class="recipe-v220-open" aria-label="${esc(r.menu_name)} 레시피 보기"><span class="recipe-v220-thumb">${r.thumbnail_url?`<img src="${esc(r.thumbnail_url)}" alt="" loading="lazy">`:"<span>MENU</span>"}</span><span class="recipe-v220-copy"><small>${esc(r.category||"미분류")}</small><b>${esc(r.menu_name)}</b><em>${(r.components||[]).length||sourceMaterials(r).reduce((n,v)=>n+v.lines.length,0)}개 재료</em></span>${r.is_overridden?'<span class="recipe-v220-local">지점 수정</span>':""}${r.assignment_status==="RETIRING"?'<span class="recipe-v220-retiring">판매 종료 대기</span>':""}</button>${manager?'<button type="button" class="recipe-v220-edit" aria-label="이 지점 레시피 수정">✎</button>':""}</article>`).join(""):'<p class="recipe-v220-empty">조건에 맞는 레시피가 없습니다.</p>';document.querySelectorAll(".recipe-v220-card").forEach(card=>{const row=rows.find(x=>x.menu_key===card.dataset.key);card.querySelector(".recipe-v220-open").onclick=()=>recipeDetail(row,manager,refresh);const edit=card.querySelector(".recipe-v220-edit");if(edit)edit.onclick=()=>recipeEditor(row,refresh)})};
+    const draw=()=>{const cat=document.getElementById("rvCat").value,q=document.getElementById("rvSearch").value.trim().toLocaleLowerCase("ko-KR"),list=rows.filter(r=>(cat==="전체"||(r.category||"미분류")===cat)&&(!q||String(r.menu_name).toLocaleLowerCase("ko-KR").includes(q)));document.getElementById("rvList").innerHTML=list.length?list.map(r=>`<article class="recipe-v220-card" data-key="${esc(r.menu_key)}"><button type="button" class="recipe-v220-open" aria-label="${esc(r.menu_name)} 레시피 보기"><span class="recipe-v220-thumb">${r.thumbnail_url?`<img src="${esc(r.thumbnail_url)}" alt="" loading="lazy">`:"<span>MENU</span>"}</span><span class="recipe-v220-copy"><small>${badgeHtml(r)}</small><b>${esc(eaTitle(r.menu_name).name)}${eaTitle(r.menu_name).ea?`<span class="recipe-v220-ea">${esc(eaTitle(r.menu_name).ea)}</span>`:""}</b><em>${(r.components||[]).length||sourceMaterials(r).reduce((n,v)=>n+v.lines.length,0)}개 재료</em></span>${r.is_overridden?'<span class="recipe-v220-local">지점 수정</span>':""}${r.assignment_status==="RETIRING"?'<span class="recipe-v220-retiring">판매 종료 대기</span>':""}</button>${manager?'<button type="button" class="recipe-v220-edit" aria-label="이 지점 레시피 수정">✎</button>':""}</article>`).join(""):'<p class="recipe-v220-empty">조건에 맞는 레시피가 없습니다.</p>';document.querySelectorAll(".recipe-v220-card").forEach(card=>{const row=rows.find(x=>x.menu_key===card.dataset.key);card.querySelector(".recipe-v220-open").onclick=()=>recipeDetail(row,manager,refresh);const edit=card.querySelector(".recipe-v220-edit");if(edit)edit.onclick=()=>recipeEditor(row,refresh)})};
     const refresh=async()=>{const next=await BE.storeRecipeList(CURRENT_STORE_ID);renderList(next,true)};
     document.getElementById("rvCat").onchange=draw;document.getElementById("rvSearch").oninput=draw;draw();
   }
