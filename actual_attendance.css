@@ -145,3 +145,11 @@
  .day:not(.blank)>.calendar-day-total{bottom:5px!important;font-size:.48rem!important}
  .calendar-work-duration{font-size:.48rem!important}
 }
+
+/* v0.59 senior feedback: unmistakable attendance states. */
+.status-dot.calendar-normal,.legend .dot.normal,.timeline-legend .dot.normal{background:#168a4a!important}
+.status-dot.calendar-working,.legend .dot.working,.timeline-legend .dot.working{background:#1769e0!important}
+.status-dot.calendar-issue,.legend .dot.issue,.timeline-legend .dot.issue{background:#e53935!important}
+.bar:not(.open):not(.issue){background:#168a4a!important;border-color:#0f6d39!important;color:#fff!important}
+.bar.open{background:#1769e0!important;border-color:#0f55b9!important;color:#fff!important}
+.bar.issue{background:#e53935!important;border-color:#b71c1c!important;color:#fff!important}
