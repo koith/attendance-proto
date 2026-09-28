@@ -1,0 +1,12 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const html=fs.readFileSync('index.html','utf8');
+const ui=fs.readFileSync('operations_reference_ui_v208.js','utf8');
+const src=fs.readFileSync('operations_reference_v208.js','utf8');
+assert.ok(html.includes('const STORE_ENTRY_LOCK=STORE_ENTRY_ID>0;'),'any ?store=<id> URL must be store-locked');
+assert.ok(html.includes('if(STORE_ENTRY_LOCK&&dashboard)location.hash="#pos"'),'store URL must reject HQ dashboard');
+assert.ok(ui.includes('!/^SRC-/i.test(x.sku||"")'),'reference seed rows must not replace supplied textual stock with numeric zero');
+let raw=src.trim();raw=raw.slice(raw.indexOf('=')+1,-1);const ref=JSON.parse(raw);
+assert.equal(ref.inventory.length,172);
+assert.ok(ref.inventory.every(x=>x.unit&&x.unit!=='기준'),'all supplied inventory rows need item-specific units');
+assert.ok(ref.inventory.every(x=>x.current_text),'all supplied inventory rows need source current-stock text');
+console.log('store-entry + source inventory units QA PASS');
