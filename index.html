@@ -590,7 +590,7 @@
   #view:has(#payList) .payroll-card-metric>span{font-size:.58rem;color:var(--muted);white-space:nowrap}
   #view:has(#payList) .payroll-card-metric>strong{font-size:.76rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #view:has(#payList) .payroll-pay-detail{position:relative;width:100%;border:0;background:transparent;padding:0;display:flex;align-items:center;gap:4px;color:inherit;font:inherit;cursor:pointer;text-align:left}
-  #view:has(#payList) .payroll-info-dot{font-size:.64rem;color:var(--muted);flex:0 0 auto}
+  #view:has(#payList) .payroll-info-dot{font-size:.92rem;line-height:1;color:var(--muted);flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:22px;min-height:22px}
   #view:has(#payList) .payroll-detail-popover{position:absolute;z-index:80;left:8px;right:8px;top:calc(100% - 8px);padding:9px 10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);font-size:.68rem;line-height:1.55;color:var(--ink)}
   #view:has(#payList) .payroll-detail-popover[hidden]{display:none!important}
   #view:has(#payList) .payroll-detail-total{margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-weight:800}
@@ -609,7 +609,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.49</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.50</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -694,7 +694,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.49";
+const APP_VERSION="v0.50";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -2333,6 +2333,23 @@ async function computeMonthPayroll(ym){
 }
 
 let PAYROLL_DRAW_SEQ=0;
+function closePayrollDetailPopovers(except=null){
+  document.querySelectorAll(".payroll-detail-popover").forEach(x=>{ if(x!==except) x.hidden=true; });
+  document.querySelectorAll(".payroll-pay-detail").forEach(x=>{
+    const detail=x.parentElement?.querySelector(".payroll-detail-popover");
+    if(detail!==except) x.setAttribute("aria-expanded","false");
+  });
+}
+if(!window.__payrollPopoverDismissBound){
+  window.__payrollPopoverDismissBound=true;
+  document.addEventListener("pointerdown",e=>{
+    if(!e.target.closest?.(".payroll-pay-detail")&&!e.target.closest?.(".payroll-detail-popover")) closePayrollDetailPopovers();
+  },true);
+  document.addEventListener("scroll",()=>closePayrollDetailPopovers(),true);
+  document.addEventListener("pointerover",e=>{
+    if(matchMedia("(hover:hover)").matches&&!e.target.closest?.(".payroll-employee-card")) closePayrollDetailPopovers();
+  },true);
+}
 async function drawPay(ym){
   const drawSeq=++PAYROLL_DRAW_SEQ;
   const el=document.getElementById("payList");
@@ -2405,7 +2422,10 @@ async function drawPay(ym){
     `;
     if(LIVE){
       const detailBtn=card.querySelector(".payroll-pay-detail"), detail=card.querySelector(".payroll-detail-popover");
-      if(detailBtn&&detail){ detailBtn.onclick=ev=>{ev.stopPropagation();const open=detail.hidden;document.querySelectorAll(".payroll-detail-popover").forEach(x=>x.hidden=true);document.querySelectorAll(".payroll-pay-detail").forEach(x=>x.setAttribute("aria-expanded","false"));detail.hidden=!open;detailBtn.setAttribute("aria-expanded",String(open));}; }
+      if(detailBtn&&detail){
+        detailBtn.onclick=ev=>{ev.stopPropagation();const open=detail.hidden;closePayrollDetailPopovers(detail);detail.hidden=!open;detailBtn.setAttribute("aria-expanded",String(open));};
+        detailBtn.addEventListener("pointerenter",()=>{if(matchMedia("(hover:hover)").matches){closePayrollDetailPopovers(detail);detail.hidden=false;detailBtn.setAttribute("aria-expanded","true");}});
+      }
     }
     card.addEventListener("mouseleave",()=>{const d=card.querySelector(".payroll-detail-popover"),b=card.querySelector(".payroll-pay-detail");if(d&&!d.hidden&&matchMedia("(hover:hover)").matches){d.hidden=true;b?.setAttribute("aria-expanded","false");}});
     const secondary=card.querySelector(":scope > .employee-card-secondary");
