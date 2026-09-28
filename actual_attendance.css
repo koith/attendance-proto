@@ -76,3 +76,20 @@
 
 .dayhead-spacer{width:88px;flex:0 0 88px}
 @media(max-width:520px){.dayhead-spacer{width:82px;flex-basis:82px}}
+
+/* v0.51 requested attendance visual hierarchy */
+:root{--attendance-complete:#66717e}
+.calendar-normal,.legend .dot.normal{background:var(--attendance-complete)!important}
+.bar:not(.open):not(.issue){background:var(--attendance-complete)!important}
+.calendar-work-duration{margin-left:auto;font-size:.56rem;color:var(--sub);font-weight:700;white-space:nowrap}
+.calendar-day-total{position:absolute;right:5px;top:5px;font-size:.54rem;font-weight:800;color:var(--sub);white-space:nowrap}
+.day.today .calendar-day-total{color:#fff}
+.records-group .session{grid-template-columns:minmax(0,1fr) 92px!important}
+.records-group .session>div:first-child{display:flex;align-items:center;gap:8px;min-width:0}
+.records-group .session>.session-actions,.records-group .session>div:first-child>.session-actions{width:auto!important;justify-self:auto!important;text-align:left!important;display:inline-flex;align-items:center;gap:5px}
+.records-group .session .session-fix{min-height:30px;padding:0 9px;font-size:.72rem}
+@media(max-width:520px){
+ .calendar-work-duration{font-size:.5rem}.calendar-day-total{font-size:.49rem}
+ .records-group .session{grid-template-columns:minmax(0,1fr) 70px!important;column-gap:5px}
+ .records-group .session>div:first-child{gap:5px;flex-wrap:wrap}
+}
