@@ -626,7 +626,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.54</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.55</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -711,7 +711,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.54";
+const APP_VERSION="v0.55";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -2410,6 +2410,7 @@ async function drawPay(ym){
     const eName=rec.employee_name;
     const card=document.createElement("div");
     card.className="row payroll-employee-card";
+    if(rec.payrollType==="MONTHLY"&&rec.contract) card.classList.add("monthly-payroll-card");
     card.style.cssText="flex-direction:column;align-items:stretch;gap:4px";
     
     const workingSession=[...rec.sessions].reverse().find(s=>s.status==="WORKING"&&s.in);
@@ -2418,6 +2419,8 @@ async function drawPay(ym){
     if(workingSession?.in){ const d=workingSession.in; completedDayKeys.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`); }
     const completedDays=completedDayKeys.size;
     const workInfo=`<span class="payroll-card-metric"><span>이번 달 근무</span><strong>${fmtHM(sec)}</strong></span>`;
+    const representativePay=isMonthly&&pay?Number(pay.monthlySalary||pay.gross||0):Number(pay?.gross||0);
+    const payLabel=isMonthly?"월 급여":"현재 급여";
     const detailLines=isMonthly
       ? [`출근일 ${completedDays}/${pay?.daysInMonth||0}일`,`월 기본급 ${Number(pay?.monthlySalary||0).toLocaleString()}원`,...(rec.substituteMinutes>0?[`대타근무 ${fmtHM(rec.substituteMinutes*60)} · +${Number(rec.substitutePay||0).toLocaleString()}원`]:[]),...(Number(pay?.adjust||0)!==0?[`조정액 ${Number(pay.adjust).toLocaleString()}원`]:[])]
       : [`시급 ${Number(pay?.wage||0).toLocaleString()}원`,`기본 근무급 ${Number(pay?.base||0).toLocaleString()}원`,...(Number(pay?.juhyu||0)>0?[`주휴수당 ${Number(pay.juhyu).toLocaleString()}원`]:[]),...(rec.substituteMinutes>0?[`대타근무 ${fmtHM(rec.substituteMinutes*60)} · +${Number(rec.substitutePay||0).toLocaleString()}원`]:[]),...(Number(pay?.adjust||0)!==0?[`조정액 ${Number(pay.adjust).toLocaleString()}원`]:[])];
@@ -2427,7 +2430,7 @@ async function drawPay(ym){
         ${issues?`<span class="badge issue">근태확인 ${issues}</span>`:(isMonthly?`<span class="badge">월급제</span>`:'<span></span>')}
       </div>
       <div class="employee-card-secondary"><span class="employee-card-secondary-main">${workInfo}</span></div>
-      <div class="payroll-employee-payline">${pay?`<button type="button" class="payroll-pay-detail" aria-expanded="false"><span class="payroll-card-metric"><span>현재 급여</span><strong class="payroll-gross-value">${pay.gross.toLocaleString()}원</strong></span><span class="payroll-info-dot" aria-hidden="true">ⓘ</span></button><div class="payroll-detail-popover" hidden>${detailLines.map(x=>`<div>${x}</div>`).join("")}<div class="payroll-detail-total">현재 급여 ${pay.gross.toLocaleString()}원</div></div>`:'<span aria-hidden="true">&nbsp;</span>'}</div>
+      <div class="payroll-employee-payline">${pay?`<button type="button" class="payroll-pay-detail" aria-expanded="false"><span class="payroll-card-metric"><span>${payLabel}</span><strong class="payroll-gross-value">${representativePay.toLocaleString()}원</strong></span><span class="payroll-info-dot" aria-hidden="true">ⓘ</span></button><div class="payroll-detail-popover" hidden>${detailLines.map(x=>`<div>${x}</div>`).join("")}<div class="payroll-detail-total">현재 급여 ${pay.gross.toLocaleString()}원</div></div>`:'<span aria-hidden="true">&nbsp;</span>'}</div>
     `;
     if(LIVE){
       const detailBtn=card.querySelector(".payroll-pay-detail"), detail=card.querySelector(".payroll-detail-popover");
