@@ -2238,17 +2238,12 @@ async function computeMonthPayroll(ym){
     const effWage=(ov&&ov.wage_override!=null)?Number(ov.wage_override):(contractWage||Number(e.wage||0));
     let pay=null;
     if(payrollType==="MONTHLY"&&Number(contract?.monthly_salary||0)>0){
-      // Monthly salary accrues by calendar day. Today is posted after clock-out;
-      // otherwise it becomes earned automatically at the following midnight.
+      // Monthly salary estimate follows the manager's rule: monthly salary / calendar days.
+      // For the current month, include today immediately (not only after clock-out).
       const [yy,mm]=ym.split("-").map(Number);
       const daysInMonth=new Date(yy,mm,0).getDate();
       const now=kstNow(), todayYm=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
-      let accruedDays=ym<todayYm?daysInMonth:(ym>todayYm?0:Math.max(0,Math.min(daysInMonth,now.getDate()-1)));
-      if(ym===todayYm){
-        const todayKey=`${yy}-${String(mm).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-        const clockedOutToday=sess.some(x=>x.status==="COMPLETE"&&x.in&&`${x.in.getFullYear()}-${String(x.in.getMonth()+1).padStart(2,"0")}-${String(x.in.getDate()).padStart(2,"0")}`===todayKey);
-        if(clockedOutToday) accruedDays=Math.min(daysInMonth,accruedDays+1);
-      }
+      const accruedDays=ym<todayYm?daysInMonth:(ym>todayYm?0:Math.max(0,Math.min(daysInMonth,now.getDate())));
       const monthlySalary=Number(contract.monthly_salary);
       const accruedBase=Math.round(monthlySalary/daysInMonth*accruedDays);
       const gross=Math.round(accruedBase+(ov?.adjust_amount||0));
@@ -2279,11 +2274,11 @@ async function computeMonthPayroll(ym){
           }
           const weeklyHolidayHours=Math.min(8,weeklyContractMin/300);
           for(const mins of Object.values(weekMap)){
-            const progress=Math.min(1,Math.max(0,mins/weeklyContractMin));
-            if(progress>=1) qualifiedWeeks++;
-            // Live estimate: accrue this week's holiday allowance in proportion
-            // to actual worked minutes, capped at the full weekly entitlement.
-            juhyuHours+=weeklyHolidayHours*progress;
+            // Earn holiday allowance only after the contracted weekly minutes are satisfied.
+            if(mins>=weeklyContractMin){
+              qualifiedWeeks++;
+              juhyuHours+=weeklyHolidayHours;
+            }
           }
         }
         pay.jweeks=qualifiedWeeks;
