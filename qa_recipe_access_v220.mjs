@@ -33,8 +33,8 @@ assert.ok(html.includes('function hhmmBusiness')&&html.includes('d.getHours()+da
 
 console.log('recipe access v220 QA PASS');
 
-assert(js.includes('recipeBadges'), 'recipe cards must derive operational category badges');
-assert(js.includes('대용량 베이스') && js.includes('잔'), 'batch recipes must show batch serving badge');
-assert(js.includes('recipe-v220-ea'), 'EA package count must be visually separated from product title');
-assert(js.includes('추가 옵션'), 'extra option badge must be supported');
+assert(ui.includes('recipeBadges'), 'recipe cards must derive operational category badges');
+assert(ui.includes('대용량 베이스') && ui.includes('잔'), 'batch recipes must show batch serving badge');
+assert(ui.includes('recipe-v220-ea'), 'EA package count must be visually separated from product title');
+assert(ui.includes('추가 옵션'), 'extra option badge must be supported');
 assert(css.includes('.recipe-v220-kind') && css.includes('.recipe-v220-ea'), 'recipe badge and EA styles must exist');
