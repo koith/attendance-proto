@@ -599,6 +599,13 @@
   /* v0.51 employee management IA */
   #view .employee-attendance-entry{width:100%;min-height:48px;margin:0 0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--ink);display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:7px;padding:8px 12px;text-align:left;cursor:pointer}
   #view .employee-attendance-entry>span{font-size:1rem}#view .employee-attendance-entry>b{font-size:.82rem}#view .employee-attendance-entry>small{font-size:.68rem;color:var(--muted);text-align:right}
+
+  /* v0.53 employee management: use the remaining viewport instead of a short fixed list. */
+  #view:has(.employee-panel) .employee-panel{display:flex;flex-direction:column;min-height:0}
+  #view:has(.employee-panel) .employee-list-mask{height:clamp(300px,calc(100dvh - 430px),620px);max-height:none!important;min-height:300px}
+  @media(max-width:430px){
+    #view:has(.employee-panel) .employee-list-mask{height:clamp(360px,calc(100dvh - 430px),560px)!important;min-height:360px!important;max-height:none!important}
+  }
 </style>
 <link rel="stylesheet" href="operations_v1.css?v=20260927v006">
 <link rel="stylesheet" href="recipe_access_v220.css?v=20260928v031">
@@ -613,7 +620,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.52</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.53</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -698,7 +705,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.52";
+const APP_VERSION="v0.53";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
