@@ -107,3 +107,15 @@
 .calendar-day-total{left:5px!important;right:5px!important;top:auto!important;bottom:4px!important;text-align:right;font-size:.54rem!important;font-weight:800!important;color:var(--sub)!important;line-height:1;pointer-events:none}
 .day.today .calendar-day-total{color:var(--sub)!important}
 @media(max-width:520px){.day{padding-top:6px!important;padding-bottom:18px!important}.calendar-day-total{bottom:4px!important;font-size:.49rem!important}}
+
+/* v0.54: day total belongs in the date header, not under the employee rows. */
+.day:not(.blank)>.calendar-day-total{
+  left:auto!important;right:7px!important;top:0!important;bottom:auto!important;
+  height:30px;display:flex;align-items:center;text-align:right;
+  font-size:.54rem!important;font-weight:800!important;line-height:1;
+  color:var(--sub)!important;z-index:3;pointer-events:none;
+}
+.day.today>.calendar-day-total{color:#fff!important}
+@media(max-width:520px) and (orientation:portrait){
+  .day:not(.blank)>.calendar-day-total{height:34px;right:7px!important;font-size:.49rem!important}
+}
