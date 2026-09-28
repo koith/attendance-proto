@@ -5,6 +5,8 @@
   const reference=()=>Array.isArray(window.OPERATIONS_REFERENCE_V208?.recipes)?window.OPERATIONS_REFERENCE_V208.recipes:[];
   const referenceFor=row=>reference().find(x=>String(x.menu_name).trim()===String(row.menu_name).trim());
   const instructionsFor=row=>Array.isArray(row.instructions)&&row.instructions.length?row.instructions:(referenceFor(row)?.variants||[]);
+  const sourceMaterials=row=>instructionsFor(row).map(v=>({label:v.label||"기본",lines:String(v.content||"").split("\n").map(x=>x.trim()).filter(Boolean).filter(x=>/\d+(?:\.\d+)?\s*(?:g|ml|샷|P|펌프|개|봉|장|스쿱|oz|L)\b|얼음\s*가득/i.test(x))})).filter(v=>v.lines.length);
+  const stockReference=item=>(window.OPERATIONS_REFERENCE_V208?.inventory||[]).find(x=>String(x.name).trim()===String(item?.name).trim());
 
   function modal(title,content,wide=false){
     const wrap=document.createElement("div");
@@ -18,11 +20,11 @@
   }
 
   function recipeDetail(row,manager,refresh){
-    const variants=instructionsFor(row),components=Array.isArray(row.components)?row.components:[];
+    const variants=instructionsFor(row),components=Array.isArray(row.components)?row.components:[],source=sourceMaterials(row);
     const m=modal(row.menu_name,`<div class="recipe-v220-detail">
       <div class="recipe-v220-detail-head"><div class="recipe-v220-thumb">${row.thumbnail_url?`<img src="${esc(row.thumbnail_url)}" alt="">`:"<span>RECIPE</span>"}</div><div><small>${esc(row.category||"미분류")}</small><h2>${esc(row.menu_name)}</h2>${row.assignment_status==="RETIRING"?'<span class="recipe-v220-retiring">판매 종료 대기 · 재고 소진 중</span>':""}</div></div>
       <section><h3>제조 방법</h3>${variants.length?variants.map(v=>`<article class="recipe-v220-variant"><b>${esc(v.label||"기본")}</b><p>${esc(v.content||"").replace(/\n/g,"<br>")}</p></article>`).join(""):'<p class="recipe-v220-empty">등록된 제조 방법이 없습니다.</p>'}</section>
-      <section><h3>필요 재료</h3>${components.length?components.map(c=>`<div class="recipe-v220-component"><span>${esc(c.item_name)}</span><b>${number(c.quantity)} ${esc(c.unit)}</b></div>`).join(""):'<p class="recipe-v220-empty">등록된 재료 수량이 없습니다.</p>'}</section>
+      <section><h3>필요 재료</h3>${components.length?components.map(c=>`<div class="recipe-v220-component"><span>${esc(c.variant_label?`[${c.variant_label}] ${c.item_name}`:c.item_name)}</span><b>${c.quantity_text?esc(c.quantity_text):`${number(c.quantity)} ${esc(c.unit)}`}</b></div>`).join(""):source.length?source.map(v=>`<article class="recipe-v220-variant"><b>${esc(v.label)}</b><p>${v.lines.map(esc).join("<br>")}</p></article>`).join(""):'<p class="recipe-v220-empty">등록된 재료 수량이 없습니다.</p>'}</section>
       ${manager?`<div class="recipe-v220-detail-actions"><button class="btn btn-primary" data-edit>이 지점 레시피 수정</button>${row.is_overridden?'<button class="btn btn-secondary" data-reset>본사 레시피로 복원</button>':""}${row.assignment_status==="RETIRING"?'<button class="btn btn-secondary recipe-v220-finish" data-finish>재고 소진 확인 · 판매 종료</button>':""}</div>`:""}
     </div>`,true);
     if(!manager)return;

@@ -1,0 +1,10 @@
+import fs from "node:fs";import vm from "node:vm";import assert from "node:assert/strict";
+const code=fs.readFileSync("operations_reference_v208.js","utf8");const sandbox={window:{}};vm.createContext(sandbox);vm.runInContext(code,sandbox);
+const ref=sandbox.window.OPERATIONS_REFERENCE_V208;assert.equal(ref.inventory.length,172,"inventory source must remain 172 rows");
+assert.equal(ref.recipes.length,125,"official recipe source must remain 125 menus");
+assert.equal(ref.recipes.reduce((n,r)=>n+r.variants.length,0),235,"official recipe variants must remain 235");
+assert(ref.inventory.every(x=>x.name&&x.unit&&x.current_text),"every inventory row needs name/unit/current source text");
+assert(ref.recipes.every(r=>r.variants.length&&r.variants.every(v=>v.label&&v.content.trim())),"every recipe needs non-empty official variants");
+const access=fs.readFileSync("recipe_access_v220.js","utf8");assert(access.includes("sourceMaterials"),"recipe detail must have official-material fallback");
+assert(access.includes("source.length?source.map"),"empty DB components must render official source materials");
+console.log("source-data-v021: PASS");
