@@ -363,3 +363,25 @@ init();
     };
   }
 })();
+
+/* v0.51 requested attendance UX: durations in calendar and compact correction actions. */
+(()=>{
+  if(window.__actualAttendanceV051)return;window.__actualAttendanceV051=true;
+  const secFor=(x,day)=>{if(x.sec!=null&&isFinite(x.sec))return Math.max(0,x.sec);if(x.status==='WORKING'&&x.in&&day===dayKey(kstToday()))return Math.max(0,(kstToday()-x.in)/1000);return 0};
+  const shortDur=sec=>{const m=Math.max(0,Math.floor(sec/60)),h=Math.floor(m/60),mm=m%60;return h?(mm?(h+'시간 '+mm+'분'):(h+'시간')):(mm+'분')};
+  const baseMonth=renderMonth;
+  renderMonth=function(){
+    baseMonth();
+    document.querySelectorAll('.calendar [data-day]').forEach(btn=>{
+      const day=btn.dataset.day,ss=sessionsForDay(day),total=ss.reduce((a,x)=>a+secFor(x,day),0);
+      const by=new Map();for(const x of ss)by.set(Number(x.employee_id),(by.get(Number(x.employee_id))||0)+secFor(x,day));
+      btn.querySelectorAll('.employee-status-line').forEach(line=>{const b=line.querySelector('b');if(!b)return;const emp=S.employees.find(e=>String(e.name||'')===b.textContent.trim());const sec=emp?by.get(Number(emp.id)):0;if(sec>0&&!line.querySelector('.calendar-work-duration')){const t=document.createElement('span');t.className='calendar-work-duration';t.textContent=shortDur(sec);line.appendChild(t)}});
+      if(total>0&&!btn.querySelector('.calendar-day-total')){const t=document.createElement('span');t.className='calendar-day-total';t.textContent='총 '+shortDur(total);btn.appendChild(t)}
+    });
+  };
+  const baseDay=renderDay;
+  renderDay=function(day){
+    baseDay(day);
+    document.querySelectorAll('.sessions .session').forEach(row=>{const actions=row.querySelector('.session-actions');if(actions)row.querySelector(':scope > div:first-child')?.appendChild(actions)});
+  };
+})();
