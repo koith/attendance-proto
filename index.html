@@ -585,7 +585,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.37</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.38</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -670,7 +670,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.37";
+const APP_VERSION="v0.38";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1039,7 +1039,7 @@ const STORE_ENTRY_PATH=/\/inha(?:\/|$)/i.test(location.pathname)||/\/store\/1(?:
 let STORE_ENTRY_SAVED=false;
 try{ STORE_ENTRY_SAVED=sessionStorage.getItem("baekeok_dedicated_store")==="1"; }catch(_){ STORE_ENTRY_SAVED=false; }
 const STORE_ENTRY_ID=Number(STORE_ENTRY_PARAMS.get("store"))||(STORE_ENTRY_MODE==="store"||STORE_ENTRY_PATH||STORE_ENTRY_SAVED?1:0);
-const STORE_ENTRY_LOCK=STORE_ENTRY_MODE==="store"||STORE_ENTRY_ID>0||STORE_ENTRY_PATH||STORE_ENTRY_SAVED;
+const STORE_ENTRY_LOCK=STORE_ENTRY_MODE==="store"||STORE_ENTRY_ID>0||STORE_ENTRY_PATH||STORE_ENTRY_SAVED||(!STORE_ENTRY_PARAMS.has("hq")&&Number(STORE_ENTRY_ID||1)===1);
 if(STORE_ENTRY_MODE==="store"||Number(STORE_ENTRY_PARAMS.get("store"))===1||STORE_ENTRY_PATH){ try{sessionStorage.setItem("baekeok_dedicated_store","1")}catch(_){} }
 let CURRENT_STORE_ID=STORE_ENTRY_ID||1;
 if(STORE_ENTRY_ID){ try{sessionStorage.setItem("baekeok_store_id",String(STORE_ENTRY_ID))}catch(_){} }
@@ -2259,7 +2259,7 @@ async function computeMonthPayroll(ym){
         else {pay.gross=Math.round(pay.base+pay.juhyu+pay.adjust);pay.net=xrounddown(pay.gross*(1-pay.rate),-1);}
       }
     }
-    if(pay && payrollType==="HOURLY" && sec<=0){ pay.base=0; pay.weekly=0; pay.juhyu=0; pay.adjust=0; pay.gross=0; pay.net=0; pay.jweeks=0; }
+    if(pay && sec<=0 && payrollType!=="MONTHLY"){ pay.base=0; pay.weekly=0; pay.juhyu=0; pay.adjust=0; pay.gross=0; pay.net=0; pay.jweeks=0; }
     const hasWage=!!pay;
     if(pay){ totalNet+=pay.net; totalGross+=pay.gross; }
     rows.push({employee_id:e.id, employee_name:e.name, emp:e, hours, sec, sessions:sess, issues, ov,
