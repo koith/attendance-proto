@@ -49,10 +49,9 @@ function renderDay(day){
   S.selectedDay=day;
   const ss=sessionsForDay(day),byEmp=new Map();
   for(const s of ss){if(!byEmp.has(s.employee_id))byEmp.set(s.employee_id,[]);byEmp.get(s.employee_id).push(s)}
-  const entries=[...byEmp.entries()].sort((a,b)=>{
-    const ea=S.employees.find(x=>Number(x.id)===Number(a[0])),eb=S.employees.find(x=>Number(x.id)===Number(b[0]));
-    return String(ea?.name||'').localeCompare(String(eb?.name||''),'ko-KR')
-  });
+  // 현장에서는 이름순보다 실제 출근 흐름이 중요하다. 가장 이른 출근시각 순으로 고정.
+  const firstAt=list=>Math.min(...list.map(x=>(x.in||x.out)?.getTime?.()??Infinity));
+  const entries=[...byEmp.entries()].sort((a,b)=>firstAt(a[1])-firstAt(b[1])||Number(a[0])-Number(b[0]));
   const axisStart=(Number(S.storeHours?.open_minute??420)-60)/60,axisEnd=(Number(S.storeHours?.close_minute??1500)+60)/60,axisSpan=Math.max(1,axisEnd-axisStart),tickStep=axisSpan<=12?2:4;const ticks=[];for(let h=Math.ceil(axisStart/tickStep)*tickStep;h<axisEnd;h+=tickStep)ticks.push(h);if(!ticks.length||Math.abs(ticks[0]-axisStart)>.01)ticks.unshift(axisStart);if(Math.abs(ticks[ticks.length-1]-axisEnd)>.01)ticks.push(axisEnd);const labels=ticks.map(h=>`<span style="left:${Math.max(0,Math.min(100,(h-axisStart)/axisSpan*100))}%">${p2(Math.floor(h)%24)}:${p2(Math.round((h%1)*60))}</span>`).join('');
   let rows='';
   for(const [empId,list] of entries){
