@@ -2238,13 +2238,13 @@ async function computeMonthPayroll(ym){
     const effWage=(ov&&ov.wage_override!=null)?Number(ov.wage_override):(contractWage||Number(e.wage||0));
     let pay=null;
     if(payrollType==="MONTHLY"&&Number(contract?.monthly_salary||0)>0){
-      // Monthly salary estimate: monthly salary / calendar days, including today.
+      // Monthly salary is a fixed monthly amount. Attendance is shown separately;
+      // deductions/adjustments are reflected only when explicitly entered at settlement.
       const [yy,mm]=ym.split("-").map(Number);
       const daysInMonth=new Date(yy,mm,0).getDate();
-      const now=kstNow(), todayYm=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
-      const accruedDays=ym<todayYm?daysInMonth:(ym>todayYm?0:Math.max(0,Math.min(daysInMonth,now.getDate())));
       const monthlySalary=Number(contract.monthly_salary);
-      const accruedBase=Math.round(monthlySalary/daysInMonth*accruedDays);
+      const accruedDays=daysInMonth;
+      const accruedBase=monthlySalary;
       const gross=Math.round(accruedBase+(ov?.adjust_amount||0));
       const rate=(ov?.tax_rate_override!=null)?Number(ov.tax_rate_override):(contract.tax_treatment==="BUSINESS_INCOME"?Number(contract.business_deduction_rate||0.033):0);
       pay={base:accruedBase,weekly:0,juhyu:0,adjust:ov?.adjust_amount||0,gross,net:xrounddown(gross*(1-rate),-1),rate,wage:0,jweeks:0,usedOverride:!!ov,payrollType:"MONTHLY",monthlySalary,accruedDays,daysInMonth};
@@ -2272,9 +2272,17 @@ async function computeMonthPayroll(ym){
             weekMap[key]=(weekMap[key]||0)+mins;
           }
           const weeklyHolidayHours=Math.min(8,weeklyContractMin/300);
-          for(const mins of Object.values(weekMap)){
-            // No partial-week holiday allowance: earn it only after the weekly threshold is met.
-            if(mins>=weeklyContractMin){ qualifiedWeeks++; juhyuHours+=weeklyHolidayHours; }
+          const [py,pm]=ym.split("-").map(Number);
+          const monthStart=new Date(py,pm-1,1); monthStart.setHours(0,0,0,0);
+          const monthEnd=new Date(py,pm,0); monthEnd.setHours(23,59,59,999);
+          const nowLimit=kstNow();
+          for(const [weekKey,mins] of Object.entries(weekMap)){
+            const monday=new Date(weekKey+"T00:00:00");
+            const sunday=new Date(monday); sunday.setDate(monday.getDate()+6); sunday.setHours(23,59,59,999);
+            // Settle holiday allowance only after the workweek has ended (or for a fully past month).
+            // This prevents an in-progress week from earning holiday pay early.
+            const weekClosed=(ym<`${nowLimit.getFullYear()}-${p2(nowLimit.getMonth()+1)}`) || sunday<nowLimit;
+            if(weekClosed && mins>=weeklyContractMin){ qualifiedWeeks++; juhyuHours+=weeklyHolidayHours; }
           }
         }
         pay.jweeks=qualifiedWeeks;
