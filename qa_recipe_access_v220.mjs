@@ -11,7 +11,7 @@ const roleMigration=fs.readFileSync('supabase/migrations/20260927184500_hq_role_
 assert.ok(html.includes('const APP_VERSION="v0.01"'));
 assert.ok(html.includes('id="tabRecipe"')&&html.includes('href="#recipe"'),'recipe must be a top-level tab');
 assert.ok(!html.includes('data-admin-tab="recipe"'),'recipe must not remain in management subtabs');
-assert.ok(html.includes('recipe_access_v220.js?v=20260927v223'));
+assert.ok(html.includes('recipe_access_v220.js?v=20260928v022'));
 assert.ok(ui.includes('BE.staffRecipeList'),'staff access must be server-verified');
 assert.ok(ui.includes('현재 출근 중인 직원만 레시피를 볼 수 있습니다.'),'staff gate must explain clock-in requirement');
 assert.ok(ui.includes('보기 전용'),'staff recipes must be read-only');
@@ -32,3 +32,9 @@ assert.ok(sheet.includes("'세션 상세'"),'monthly tab must include attendance
 assert.ok(html.includes('function hhmmBusiness')&&html.includes('d.getHours()+dayOffset*24'),'overnight sheet times must support 25/26 hour notation');
 
 console.log('recipe access v220 QA PASS');
+
+assert(ui.includes('recipeBadges'), 'recipe cards must derive operational category badges');
+assert(ui.includes('대용량 베이스') && ui.includes('잔'), 'batch recipes must show batch serving badge');
+assert(ui.includes('recipe-v220-ea'), 'EA package count must be visually separated from product title');
+assert(ui.includes('추가 옵션'), 'extra option badge must be supported');
+assert(css.includes('.recipe-v220-kind') && css.includes('.recipe-v220-ea'), 'recipe badge and EA styles must exist');
