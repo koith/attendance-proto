@@ -670,7 +670,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.25";
+const APP_VERSION="v0.26";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1032,8 +1032,9 @@ const publicRpc=async(fn,args={})=>{
 
 const BE = LIVE ? SupaBE : LocalBE;
 const STORE_ENTRY_PARAMS=new URLSearchParams(location.search);
-const STORE_ENTRY_ID=Number(STORE_ENTRY_PARAMS.get("store"))||0;
-const STORE_ENTRY_LOCK=STORE_ENTRY_ID>0;
+const STORE_ENTRY_MODE=String(STORE_ENTRY_PARAMS.get("mode")||"").toLowerCase();
+const STORE_ENTRY_ID=Number(STORE_ENTRY_PARAMS.get("store"))||(STORE_ENTRY_MODE==="store"?1:0);
+const STORE_ENTRY_LOCK=STORE_ENTRY_MODE==="store"||STORE_ENTRY_ID>0;
 let CURRENT_STORE_ID=STORE_ENTRY_ID||1;
 if(STORE_ENTRY_ID)sessionStorage.setItem("baekeok_store_id",String(STORE_ENTRY_ID));
 let STORE_NAME_BY_ID=new Map();
@@ -2169,6 +2170,8 @@ async function computeMonthPayroll(ym){
       const pd=await BE.payrollPeriod(ym);
       periodWeeks = pd.period && pd.period.weeks;
       (pd.overrides||[]).forEach(o=>{ overrides[o.employee_id]=o; });
+    }catch(e){ console.warn("payroll period load failed",e); }
+    try{
       const cs=await BE.payrollContracts(ym);
       (cs||[]).forEach(c=>{ contracts[Number(c.employee_id)]=c; });
     }catch(e){ console.warn("payroll contract load failed",e); }
@@ -2197,7 +2200,8 @@ async function computeMonthPayroll(ym){
       const rate=(ov?.tax_rate_override!=null)?Number(ov.tax_rate_override):(contract.tax_treatment==="BUSINESS_INCOME"?Number(contract.business_deduction_rate||0.033):0);
       pay={base:Number(contract.monthly_salary),weekly:0,juhyu:0,adjust:ov?.adjust_amount||0,gross,net:xrounddown(gross*(1-rate),-1),rate,wage:0,jweeks:weeks,usedOverride:!!ov,payrollType:"MONTHLY"};
     }else if(effWage>0){
-      pay=calcPayroll({...e,wage:effWage},hours,weeks,ov); pay.payrollType="HOURLY";
+      const payrollEmp=contract?{...e,wage:effWage,juhyu_hours:0}:{...e,wage:effWage};
+      pay=calcPayroll(payrollEmp,hours,weeks,ov); pay.payrollType="HOURLY";
     }
     const hasWage=!!pay;
     if(pay){ totalNet+=pay.net; totalGross+=pay.gross; }
