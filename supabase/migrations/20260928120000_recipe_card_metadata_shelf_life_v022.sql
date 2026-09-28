@@ -58,3 +58,18 @@ insert into public.recipe_source_components(menu_name,variant_label,line_order,i
 select '추가 옵션','소시지 · 계란 후라이',1,'소시지',null,'옵션','추가 옵션: 소시지' where not exists(select 1 from public.recipe_source_components where menu_name='추가 옵션' and ingredient_name='소시지');
 insert into public.recipe_source_components(menu_name,variant_label,line_order,ingredient_name,quantity,unit,source_line)
 select '추가 옵션','소시지 · 계란 후라이',2,'계란 후라이',null,'옵션','추가 옵션: 계란 후라이' where not exists(select 1 from public.recipe_source_components where menu_name='추가 옵션' and ingredient_name='계란 후라이');
+
+-- Operational topping reference cards from the supplied 26.09.11 panel.
+insert into public.recipe_source_variants(menu_name,category,source_version,sort_order,variant_label,content)
+select * from (values
+('카페시럽','토핑','26.09.11',1000,'1회 제공량','포모나시럽펌프 · 1P · 10g'),
+('바닐라시럽','토핑','26.09.11',1001,'1회 제공량','포모나시럽펌프 · 3P · 30g'),
+('헤이즐넛시럽','토핑','26.09.11',1002,'1회 제공량','포모나시럽펌프 · 3P · 30g'),
+('제로바닐라시럽','토핑','26.09.11',1003,'1회 제공량','포모나시럽펌프 · 3P · 30g'),
+('제로헤이즐넛시럽','토핑','26.09.11',1004,'1회 제공량','포모나시럽펌프 · 3P · 30g'),
+('꿀베이스','토핑','26.09.11',1005,'1회 제공량','코리안 블렌딩 펌프 · 4P · 52g'),
+('카라멜소스','토핑','26.09.11',1006,'1회 제공량','까로망소스 펌프 · 3P · 90g'),
+('타피오카펄','토핑','26.09.11',1007,'1회 제공량','제조 후 사용 · 1EA · 60g'),
+('코코넛젤리','토핑','26.09.11',1008,'1회 제공량','큰 바스푼 사용 · 50g · 1스푼=15g')
+) v(menu_name,category,source_version,sort_order,variant_label,content)
+where not exists(select 1 from public.recipe_source_variants x where x.menu_name=v.menu_name and x.category='토핑');
