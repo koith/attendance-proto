@@ -606,6 +606,12 @@
   @media(max-width:430px){
     #view:has(.employee-panel) .employee-list-mask{height:clamp(360px,calc(100dvh - 430px),560px)!important;min-height:360px!important;max-height:none!important}
   }
+
+  /* v0.54 employee management: use substantially more of the viewport for the card list. */
+  #view:has(#adEmps) .employee-list-mask{height:clamp(420px,58dvh,720px)!important;max-height:none!important}
+  @media(max-width:520px){#view:has(#adEmps) .employee-list-mask{height:calc(100dvh - 475px)!important;min-height:410px!important;max-height:none!important}}
+  @media(min-width:900px){#view:has(#adEmps) .employee-list-mask{height:clamp(520px,64dvh,900px)!important}}
+
 </style>
 <link rel="stylesheet" href="operations_v1.css?v=20260927v006">
 <link rel="stylesheet" href="recipe_access_v220.css?v=20260928v031">
