@@ -596,7 +596,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.44</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.45</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -681,7 +681,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.44";
+const APP_VERSION="v0.45";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -2238,17 +2238,11 @@ async function computeMonthPayroll(ym){
     const effWage=(ov&&ov.wage_override!=null)?Number(ov.wage_override):(contractWage||Number(e.wage||0));
     let pay=null;
     if(payrollType==="MONTHLY"&&Number(contract?.monthly_salary||0)>0){
-      // Monthly salary accrues by calendar day. Today is posted after clock-out;
-      // otherwise it becomes earned automatically at the following midnight.
+      // Monthly salary estimate: monthly salary / calendar days, including today.
       const [yy,mm]=ym.split("-").map(Number);
       const daysInMonth=new Date(yy,mm,0).getDate();
       const now=kstNow(), todayYm=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
-      let accruedDays=ym<todayYm?daysInMonth:(ym>todayYm?0:Math.max(0,Math.min(daysInMonth,now.getDate()-1)));
-      if(ym===todayYm){
-        const todayKey=`${yy}-${String(mm).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-        const clockedOutToday=sess.some(x=>x.status==="COMPLETE"&&x.in&&`${x.in.getFullYear()}-${String(x.in.getMonth()+1).padStart(2,"0")}-${String(x.in.getDate()).padStart(2,"0")}`===todayKey);
-        if(clockedOutToday) accruedDays=Math.min(daysInMonth,accruedDays+1);
-      }
+      const accruedDays=ym<todayYm?daysInMonth:(ym>todayYm?0:Math.max(0,Math.min(daysInMonth,now.getDate())));
       const monthlySalary=Number(contract.monthly_salary);
       const accruedBase=Math.round(monthlySalary/daysInMonth*accruedDays);
       const gross=Math.round(accruedBase+(ov?.adjust_amount||0));
@@ -2279,11 +2273,8 @@ async function computeMonthPayroll(ym){
           }
           const weeklyHolidayHours=Math.min(8,weeklyContractMin/300);
           for(const mins of Object.values(weekMap)){
-            const progress=Math.min(1,Math.max(0,mins/weeklyContractMin));
-            if(progress>=1) qualifiedWeeks++;
-            // Live estimate: accrue this week's holiday allowance in proportion
-            // to actual worked minutes, capped at the full weekly entitlement.
-            juhyuHours+=weeklyHolidayHours*progress;
+            // No partial-week holiday allowance: earn it only after the weekly threshold is met.
+            if(mins>=weeklyContractMin){ qualifiedWeeks++; juhyuHours+=weeklyHolidayHours; }
           }
         }
         pay.jweeks=qualifiedWeeks;
