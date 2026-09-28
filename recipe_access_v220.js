@@ -105,7 +105,7 @@
       const instructions=[...m.body.querySelectorAll("[data-variant]")].map(x=>({label:x.querySelector("input").value.trim(),content:x.querySelector("textarea").value.trim()})).filter(x=>x.label||x.content);
       if(!components.length)return alert("필요 재료를 하나 이상 선택하고 사용량을 입력하세요.");
       btn.disabled=true;btn.textContent="저장 중…";
-      try{await BE.storeRecipeOverrideSave(CURRENT_STORE_ID,row.menu_key,m.body.querySelector("#rvName").value.trim(),m.body.querySelector("#rvCategory").value.trim(),components,m.body.querySelector("#rvThumb").value.trim(),instructions);m.close();await refresh()}catch(e){alert("저장 실패: "+e.message);btn.disabled=false;btn.textContent="이 지점에 저장"}
+      try{await BE.storeRecipeOverrideSave(CURRENT_STORE_ID,row.menu_key,m.body.querySelector("#rvName").value.trim(),m.body.querySelector("#rvCategory").value.trim(),components,m.body.querySelector("#rvThumb").value.trim(),instructions);m.close();await refresh()}catch(e){alert("저장 실패: "+e.message);btn.disabled=false;btn.textContent="저장"}
     };
   }
 
