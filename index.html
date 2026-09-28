@@ -670,7 +670,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.28";
+const APP_VERSION="v0.29";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1039,6 +1039,11 @@ const STORE_ENTRY_ID=Number(STORE_ENTRY_PARAMS.get("store"))||(STORE_ENTRY_MODE=
 const STORE_ENTRY_LOCK=STORE_ENTRY_MODE==="store"||STORE_ENTRY_ID>0;
 let CURRENT_STORE_ID=STORE_ENTRY_ID||1;
 if(STORE_ENTRY_ID)sessionStorage.setItem("baekeok_store_id",String(STORE_ENTRY_ID));
+// Dedicated store entry: remove the selector node entirely so later CSS/header changes cannot revive it.
+if(STORE_ENTRY_LOCK){
+  const shell=document.querySelector(".store-select-shell");
+  if(shell) shell.remove();
+}
 let STORE_NAME_BY_ID=new Map();
 function syncStoreContextUI(){
   const dashboard=(location.hash||"")==="#dashboard";
@@ -1063,7 +1068,20 @@ function syncStoreSelectDisplay(){
  if([...sel.options].some(o=>Number(o.value)===id))sel.value=String(id);
 }
 async function loadStores(){
- const sel=document.getElementById("storeSelect");if(!sel)return;
+ const sel=document.getElementById("storeSelect");
+ if(!sel){
+   if(STORE_ENTRY_LOCK){
+     CURRENT_STORE_ID=STORE_ENTRY_ID||1;
+     sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));
+     try{
+       const rows=await publicRpc("list_stores",{});
+       STORE_NAME_BY_ID=new Map((rows||[]).map(x=>[Number(x.id),String(x.name||"")]));
+       const name=STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID));if(name)sessionStorage.setItem("baekeok_store_name",name);
+     }catch(e){}
+     syncStoreContextUI();
+   }
+   return;
+ }
  const applyStore=id=>{id=Number(id);if(!id||id===Number(CURRENT_STORE_ID))return;CURRENT_STORE_ID=id;sessionStorage.setItem("baekeok_store_id",String(id));const name=STORE_NAME_BY_ID.get(id)||sel.selectedOptions?.[0]?.text||"";if(name)sessionStorage.setItem("baekeok_store_name",name);if(location.hash==="#dashboard")location.hash="#pos";else route()};
  sel.onchange=()=>applyStore(sel.value);
  if(!LIVE){syncStoreSelectDisplay();return}
