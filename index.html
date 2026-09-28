@@ -597,7 +597,7 @@
   #view:has(#payList) .payroll-employee-card{position:relative;overflow:visible!important}
 
   /* v0.51 employee management IA */
-  #view .employee-attendance-entry{width:100%;min-height:48px;margin:0 0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--ink);display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:7px;padding:8px 12px;text-align:left;cursor:pointer}
+  #view .employee-attendance-entry{width:auto;min-height:40px;margin:0 0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--ink);display:inline-flex;align-items:center;align-self:flex-start;gap:7px;padding:7px 12px;text-align:left;cursor:pointer}
   #view .employee-attendance-entry>span{font-size:1rem}#view .employee-attendance-entry>b{font-size:.82rem}#view .employee-attendance-entry>small{font-size:.68rem;color:var(--muted);text-align:right}
 
   /* v0.53 employee management: use the remaining viewport instead of a short fixed list. */
@@ -626,7 +626,7 @@
     <div id="conn" class="conn local">로컬 모드 · 이 기기에만 저장됩니다 (Supabase 미연결)</div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.56</span>
+        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span><span class="app-version-badge" id="appVersion">v0.57</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -711,7 +711,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.56";
+const APP_VERSION="v0.57";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1879,7 +1879,7 @@ async function renderAdmin(){
   view.innerHTML=`
     <div class="page-title-row employee-page-title"><h2 class="page-title">직원 관리</h2><button class="btn btn-primary employee-add-small" id="adAdd">+ 직원 등록</button></div>
     <div class="employee-panel">
-      <button type="button" id="quickSchedule" class="employee-attendance-entry"><span>📊</span><b>근무현황</b><small>직원별 실제 근무시간과 기록 확인</small></button>
+      <button type="button" id="quickSchedule" class="employee-attendance-entry"><span aria-hidden="true">📅</span><b>근무현황</b></button>
       <div class="employee-tabs" role="tablist" aria-label="직원 상태">
         <button type="button" id="empTabActive" class="on" role="tab" aria-selected="true">재직중</button>
         <button type="button" id="empTabRetired" role="tab" aria-selected="false">퇴직</button>
