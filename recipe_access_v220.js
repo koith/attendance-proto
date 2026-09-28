@@ -19,7 +19,7 @@
     else if(cat==="백억 시네마") badges.push("푸드류(백억 시네마)");
     else if(cat==="디저트&베이커리") badges.push("푸드류(베이커리)");
     else if(cat==="커피&콜드브루") badges.push("커피");
-    else if(cat==="라떼&버블티") badges.push(/버블|펄/.test(name)?"버블티":"라떼");
+    else if(cat==="라떼&버블티") badges.push(/^찐\s*/.test(name)?"찐 우유":/버블|펄/.test(name)?"버블티":"라떼");
     else if(cat==="스무디&에이드") badges.push(/스무디/.test(name)?"스무디":/주스/.test(name)?"주스":"에이드");
     else if(cat==="티&주스") badges.push(/주스/.test(name)?"주스":"티 & 스윗티");
     else if(/라떼/.test(name)) badges.push("라떼");
