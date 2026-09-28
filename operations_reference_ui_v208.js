@@ -27,7 +27,7 @@ function modal(title,content){
 async function loadInventoryManagement(){
   const [overview,manual]=await Promise.all([BE.inventoryOverview().catch(()=>[]),BE.inventoryManualList().catch(()=>[])]);
   const manualNames=new Set(manual.map(x=>x.name));
-  const live=overview.filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.name||"")&&!/^SRC-/i.test(x.sku||"")&&!manualNames.has(x.name));
+  const live=overview.filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.name||"")&&!manualNames.has(x.name));
   managedInventory=[...manual.map(x=>({...x,on_hand:Number(x.on_hand||0),target_level:Number(x.target_level||0),reorder_point:Number(x.reorder_point||0),manual:true})),...live.map(x=>({...x,target_level:Number(x.reorder_level||0),reorder_point:Number(x.reorder_point||Number(x.reorder_level||0)*.65)}))];
 }
 function stockState(row){
@@ -55,6 +55,11 @@ function inventoryCard(row){
   const live=managedInventory.find(x=>norm(x.name)===norm(row.name));
   const title='<div class="ops-stock-title"><span class="ops-inventory-thumb" aria-hidden="true">'+(live?.thumbnail_url?'<img src="'+esc(live.thumbnail_url)+'" alt="">':icon(row.name))+'</span><b>'+esc(row.name)+'</b></div>';
   if(live){
+    const isSource=/^SRC-/i.test(live.sku||"");
+    if(isSource){
+      const current=live.source_current_text||row.current_text||"-",minimum=live.source_minimum_text||row.minimum_text||"-",order=live.source_order_text||row.order_text||"-",unit=live.source_unit_system||live.unit||row.unit||"";
+      return '<article class="ops-stock-bar ops-stock-reference state-reference">'+title+'<span class="ops-stock-info-btn reference">현재고</span><div class="ops-stock-footer ops-stock-reference-footer"><span><b>'+esc(current)+'</b><small>현재고 · '+esc(unit)+'</small></span><span><b>'+esc(minimum)+'</b><small>최소재고</small></span></div><div class="ops-stock-reference-order"><span>주문 기준</span><b>'+esc(order)+'</b></div>'+(live.source_note||row.note?'<p>'+esc(live.source_note||row.note)+'</p>':"")+(expiry?'<small class="ops-stock-expiry">'+esc(expiry)+'</small>':"")+'</article>';
+    }
     const target=Number(live.target_level||live.reorder_level||0),on=Number(live.on_hand||0),pct=target?Math.min(100,Math.max(0,on/target*100)):0,need=Math.max(0,target-on),st=inventoryState(live),unit=live.unit||"";
     return '<article class="ops-stock-bar ops-stock-reference state-'+st.key+'">'+title+'<span class="ops-stock-info-btn">'+st.label+'</span><div class="ops-stock-level"><i><em style="width:'+pct+'%"></em></i></div><div class="ops-stock-footer"><span class="ops-stock-count"><b class="stock-now '+st.key+'">'+num(on)+'</b><span> / '+num(target)+' '+esc(unit)+'</span></span><strong class="ops-stock-order '+st.key+'">'+(st.rank<2&&need>0?'발주 필요: '+num(need)+' '+esc(unit):"")+'</strong></div>'+(row.note?'<p>'+esc(row.note)+'</p>':"")+(expiry?'<small class="ops-stock-expiry">'+esc(expiry)+'</small>':"")+'</article>';
   }
