@@ -986,7 +986,7 @@ const SupaBE = (()=>{
     async operationsSummary(from,to){ return rpc("admin_operations_summary",{p_from:from,p_to:to},true); },
     async operationsAnalytics(from,to){ return rpc("admin_operations_analytics",{p_from:from,p_to:to},true); },
     async operationsTrend(windowKey){ return rpc("admin_operations_trend",{p_window:windowKey},true); },
-    async inventoryOverview(){ return rpc("admin_inventory_overview",{},true); },
+    async inventoryOverview(){ return rpc("admin_inventory_overview_v2",{},true); },
     async inventoryManualList(){ return rpc("admin_inventory_manual_list",{p_store_id:CURRENT_STORE_ID||1},true); },
     async inventoryManualSave(id,name,sku,category,unit,onHand,targetLevel,reorderPoint,thumbnailUrl,sourceItemId=null){ return rpc("admin_inventory_manual_save_v2",{p_id:id||null,p_store_id:CURRENT_STORE_ID||1,p_name:name,p_sku:sku||null,p_category:category||null,p_unit:unit||"ea",p_on_hand:Number(onHand||0),p_target_level:Number(targetLevel||0),p_reorder_point:Number(reorderPoint||0),p_thumbnail_url:thumbnailUrl||null,p_source_item_id:sourceItemId||null},true); },
     async inventoryMovements(itemId,from,to){ return rpc("admin_inventory_movements",{p_item_id:itemId||null,p_from:from||null,p_to:to||null},true); },
