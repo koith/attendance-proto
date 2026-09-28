@@ -119,3 +119,29 @@
 @media(max-width:520px) and (orientation:portrait){
   .day:not(.blank)>.calendar-day-total{height:34px;right:7px!important;font-size:.49rem!important}
 }
+
+
+/* v0.58 final attendance hierarchy: date top, daily total bottom, unmistakable states. */
+:root{--attendance-complete:#4b5563;--attendance-working:#1267e8;--attendance-issue:#e53935}
+.calendar-normal,.legend .dot.normal,.timeline-legend .dot.normal{background:var(--attendance-complete)!important}
+.calendar-working,.legend .dot.working,.timeline-legend .dot.working{background:var(--attendance-working)!important}
+.calendar-issue,.legend .dot.issue,.timeline-legend .dot.issue{background:var(--attendance-issue)!important}
+.bar:not(.open):not(.issue){background:var(--attendance-complete)!important}
+.bar.open{background:var(--attendance-working)!important}
+.bar.issue{background:var(--attendance-issue)!important}
+.day:not(.blank){padding-top:38px!important;padding-bottom:28px!important}
+.day:not(.blank)>.num{position:absolute!important;top:0!important;left:0!important;right:0!important;height:34px!important;padding:0 7px!important;border-radius:0!important}
+.day:not(.blank)>.calendar-day-total{
+ left:5px!important;right:5px!important;top:auto!important;bottom:5px!important;height:auto!important;
+ display:block!important;text-align:right!important;color:var(--sub)!important;font-size:.54rem!important;line-height:1.05!important
+}
+.day.today>.calendar-day-total{color:var(--sub)!important}
+.employee-status-line{min-width:0}
+.calendar-work-duration{margin-left:auto!important;padding-left:3px;color:var(--sub)!important;font-size:.54rem!important;font-weight:800!important}
+.timeline-legend .dot{width:9px;height:9px}
+.records-group .session>div:first-child>.session-actions{order:3}
+@media(max-width:520px){
+ .day:not(.blank){padding-top:38px!important;padding-bottom:27px!important}
+ .day:not(.blank)>.calendar-day-total{bottom:5px!important;font-size:.48rem!important}
+ .calendar-work-duration{font-size:.48rem!important}
+}
