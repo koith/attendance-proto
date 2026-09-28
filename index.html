@@ -650,7 +650,7 @@
 
 <script src="operations_reference_v208.js?v=20260928v022"></script>
 <script src="operations_v1.js?v=20260927v006"></script>
-<script src="operations_reference_ui_v208.js?v=20260927v015"></script>
+<script src="operations_reference_ui_v208.js?v=20260928v023"></script>
 <script src="recipe_access_v220.js?v=20260928v022"></script>
 <script>
 /* =========================================================================
@@ -670,7 +670,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.22";
+const APP_VERSION="v0.23";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1033,7 +1033,7 @@ const BE = LIVE ? SupaBE : LocalBE;
 const STORE_ENTRY_PARAMS=new URLSearchParams(location.search);
 const STORE_ENTRY_ID=Number(STORE_ENTRY_PARAMS.get("store"))||0;
 const STORE_ENTRY_LOCK=STORE_ENTRY_ID>0;
-let CURRENT_STORE_ID=STORE_ENTRY_ID||Number(sessionStorage.getItem("baekeok_store_id"))||1;
+let CURRENT_STORE_ID=STORE_ENTRY_ID||1;
 if(STORE_ENTRY_ID)sessionStorage.setItem("baekeok_store_id",String(STORE_ENTRY_ID));
 let STORE_NAME_BY_ID=new Map();
 function syncStoreContextUI(){
@@ -1067,9 +1067,9 @@ async function loadStores(){
   const rows=await publicRpc("list_stores",{});if(!Array.isArray(rows)||!rows.length)throw new Error("EMPTY_STORES");
   STORE_NAME_BY_ID=new Map(rows.map(x=>[Number(x.id),String(x.name||"")]));
   sel.innerHTML=rows.map(x=>'<option value="'+Number(x.id)+'">'+safeHtml(x.name)+'</option>').join("");
-  const persisted=Number(sessionStorage.getItem("baekeok_store_id"));
   const requested=STORE_ENTRY_ID&&rows.some(x=>Number(x.id)===STORE_ENTRY_ID)?STORE_ENTRY_ID:0;
-  CURRENT_STORE_ID=requested||(persisted&&rows.some(x=>Number(x.id)===persisted)?persisted:Number(rows[0].id));
+  const inha=rows.find(x=>Number(x.id)===1);
+  CURRENT_STORE_ID=requested||(inha?1:Number(rows[0].id));
   sel.value=String(CURRENT_STORE_ID);sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));
   const name=STORE_NAME_BY_ID.get(CURRENT_STORE_ID);if(name)sessionStorage.setItem("baekeok_store_name",name);
   syncStoreContextUI();
