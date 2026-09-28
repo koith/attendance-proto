@@ -385,3 +385,28 @@ init();
     document.querySelectorAll('.sessions .session').forEach(row=>{const actions=row.querySelector('.session-actions');if(actions)row.querySelector(':scope > div:first-child')?.appendChild(actions)});
   };
 })();
+
+
+/* v0.58 final attendance request pass: keep calendar summaries readable after identity patching. */
+(()=>{
+  if(window.__actualAttendanceV058)return;window.__actualAttendanceV058=true;
+  const secondsFor=(x,day)=>{if(x.sec!=null&&isFinite(x.sec))return Math.max(0,x.sec);if(x.status==='WORKING'&&x.in&&day===dayKey(kstToday()))return Math.max(0,(kstToday()-x.in)/1000);return 0};
+  const compact=sec=>{const m=Math.max(0,Math.floor(sec/60)),h=Math.floor(m/60),mm=m%60;return h?(mm?`${h}시간 ${mm}분`:`${h}시간`):`${mm}분`};
+  const baseMonth=renderMonth;
+  renderMonth=function(){
+    baseMonth();
+    document.querySelectorAll('.calendar [data-day]').forEach(btn=>{
+      const day=btn.dataset.day,ss=sessionsForDay(day),totals=new Map();
+      for(const s of ss)totals.set(Number(s.employee_id),(totals.get(Number(s.employee_id))||0)+secondsFor(s,day));
+      btn.querySelectorAll('.employee-status-line').forEach(line=>{
+        const name=line.querySelector('b')?.textContent?.trim();if(!name)return;
+        const emp=S.employees.find(e=>String(e.name||'')===name);const sec=emp?totals.get(Number(emp.id))||0:0;
+        let t=line.querySelector('.calendar-work-duration');
+        if(sec>0){if(!t){t=document.createElement('span');t.className='calendar-work-duration';line.appendChild(t)}t.textContent=compact(sec)}
+      });
+      const total=[...totals.values()].reduce((a,b)=>a+b,0);
+      let t=btn.querySelector('.calendar-day-total');
+      if(total>0){if(!t){t=document.createElement('span');t.className='calendar-day-total';btn.appendChild(t)}t.textContent='총 '+compact(total)}
+    });
+  };
+})();
