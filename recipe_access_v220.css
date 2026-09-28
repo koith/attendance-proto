@@ -6,3 +6,10 @@
 
 /* v0.56: make the recipe edit pencil itself twice as large while keeping the button footprint compact. */
 .recipe-v220-edit{font-size:2rem!important;line-height:1!important;display:grid;place-items:center;padding:0!important}
+
+/* v0.59: field staff can inspect a recipe without navigating into a modal. */
+.recipe-v220-card.is-open{grid-column:1/-1;border-color:var(--brand-700);box-shadow:0 4px 14px rgba(29,93,58,.10)}
+.recipe-v220-inline-detail{padding:0 12px 12px;border-top:1px solid var(--border);background:var(--surface)}
+.recipe-v220-inline-detail section{margin-top:12px}.recipe-v220-inline-detail h3{margin:0 0 7px;font-size:.84rem}
+.recipe-v220-card.is-open .recipe-v220-open{background:var(--brand-050)}
+@media(max-width:520px){.recipe-v220-inline-detail{padding:0 10px 10px}.recipe-v220-inline-detail .recipe-v220-empty{min-height:72px}}
