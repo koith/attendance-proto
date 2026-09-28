@@ -2226,7 +2226,9 @@ async function computeMonthPayroll(ym){
       return `${a.getFullYear()}-${p2(a.getMonth()+1)}`===ym; });
     // Deactivation is a current roster state, not a reason to erase historical payroll.
     if(!isActive(e)&&!sess.length) continue;
-    const sec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
+    const completedSec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
+    const liveSec=sess.filter(s=>s.status==="WORKING"&&s.in).reduce((a,x)=>a+Math.max(0,(kstNow()-x.in)/1000),0);
+    const sec=completedSec+liveSec;
     const hours=secToHours(sec);
     const issues=sess.filter(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
     const ov=overrides[e.id]||null;
@@ -2267,20 +2269,25 @@ async function computeMonthPayroll(ym){
         let qualifiedWeeks=0, juhyuHours=0;
         if(weeklyContractMin>=900 && cw){
           const weekMap={};
-          for(const ss of sess.filter(x=>x.status==="COMPLETE")){
+          for(const ss of sess.filter(x=>x.status==="COMPLETE"||x.status==="WORKING")){
+            if(!ss.in) continue;
             const d=new Date(ss.in); const day=(d.getDay()+6)%7;
             const monday=new Date(d); monday.setHours(0,0,0,0); monday.setDate(d.getDate()-day);
-            const key=monday.toISOString().slice(0,10);
-            weekMap[key]=(weekMap[key]||0)+(ss.sec||0)/60;
+            const key=`${monday.getFullYear()}-${p2(monday.getMonth()+1)}-${p2(monday.getDate())}`;
+            const mins=ss.status==="WORKING"?Math.max(0,(kstNow()-ss.in)/60000):Math.max(0,(ss.sec||0)/60);
+            weekMap[key]=(weekMap[key]||0)+mins;
           }
+          const weeklyHolidayHours=Math.min(8,weeklyContractMin/300);
           for(const mins of Object.values(weekMap)){
-            if(mins>=weeklyContractMin){
-              qualifiedWeeks++;
-              juhyuHours+=Math.min(8,weeklyContractMin/300);
-            }
+            const progress=Math.min(1,Math.max(0,mins/weeklyContractMin));
+            if(progress>=1) qualifiedWeeks++;
+            // Live estimate: accrue this week's holiday allowance in proportion
+            // to actual worked minutes, capped at the full weekly entitlement.
+            juhyuHours+=weeklyHolidayHours*progress;
           }
         }
-        pay.jweeks=qualifiedWeeks; pay.weekly=qualifiedWeeks?Math.round(effWage*Math.min(8,weeklyContractMin/300)):0;
+        pay.jweeks=qualifiedWeeks;
+        pay.weekly=Math.round(effWage*Math.min(8,weeklyContractMin/300));
         pay.juhyu=Math.round(effWage*juhyuHours);
         if(hours<=0){pay.base=0;pay.weekly=0;pay.juhyu=0;pay.adjust=0;pay.gross=0;pay.net=0;pay.jweeks=0;}
         else {pay.gross=Math.round(pay.base+pay.juhyu+pay.adjust);pay.net=xrounddown(pay.gross*(1-pay.rate),-1);}
