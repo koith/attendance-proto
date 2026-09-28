@@ -3,3 +3,6 @@
 
 .recipe-v220-copy small{display:flex;flex-wrap:wrap;gap:4px;align-items:center}.recipe-v220-kind{display:inline-flex;align-items:center;min-height:18px;padding:2px 6px;border-radius:999px;background:var(--surface-muted);border:1px solid var(--border);color:var(--text-muted);font-size:.6rem;font-weight:800;line-height:1.1}.recipe-v220-kind.option{background:#fff6df;border-color:#ead39b;color:#7a5a12}.recipe-v220-ea{margin-left:5px;color:var(--text-muted);font-size:.68em;font-weight:650;opacity:.72;vertical-align:baseline}.recipe-v220-card b .recipe-v220-ea{white-space:nowrap}
 @media(max-width:620px){.recipe-v220-kind{min-height:16px;padding:2px 5px;font-size:.52rem}.recipe-v220-ea{margin-left:3px;font-size:.7em}}
+
+/* v0.56: make the recipe edit pencil itself twice as large while keeping the button footprint compact. */
+.recipe-v220-edit{font-size:2rem!important;line-height:1!important;display:grid;place-items:center;padding:0!important}
