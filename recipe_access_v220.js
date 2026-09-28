@@ -61,13 +61,12 @@
   };
   const stepsHtml=content=>instructionSteps(content).map((step,i)=>`<div class="recipe-v220-step"><span class="recipe-v220-step-no">${i+1}</span><div>${step.lines.map((line,j)=>`<p class="${j?"sub":""}">${esc(line)}</p>`).join("")}</div></div>`).join("");
   function recipeDetail(row,manager,refresh){
-    manager=false; // Employee recipe surface is view-only; editing belongs in Admin.
     const variants=instructionsFor(row),components=Array.isArray(row.components)?row.components:[],source=sourceMaterials(row);
     const m=modal(row.menu_name,`<div class="recipe-v220-detail">
       <div class="recipe-v220-detail-head"><div class="recipe-v220-thumb">${row.thumbnail_url?`<img src="${esc(row.thumbnail_url)}" alt="">`:"<span>RECIPE</span>"}</div><div><small>${esc(row.category||"미분류")}</small><h2>${esc(row.menu_name)}</h2>${row.assignment_status==="RETIRING"?'<span class="recipe-v220-retiring">판매 종료 대기 · 재고 소진 중</span>':""}</div></div>
       <section><h3>제조 방법</h3>${variants.length?variants.map(v=>`<article class="recipe-v220-variant"><b>${esc(v.label||"기본")}</b><div class="recipe-v220-steps">${stepsHtml(v.content||"")}</div></article>`).join(""):'<p class="recipe-v220-empty">등록된 제조 방법이 없습니다.</p>'}</section>
       <section><h3>필요 재료</h3>${components.length?components.map(c=>`<div class="recipe-v220-component"><span>${esc(c.variant_label?`[${c.variant_label}] ${c.item_name}`:c.item_name)}</span><b>${c.quantity_text?esc(c.quantity_text):`${number(c.quantity)} ${esc(c.unit)}`}</b></div>`).join(""):source.length?source.map(v=>`<article class="recipe-v220-variant"><b>${esc(v.label)}</b><p>${v.lines.map(esc).join("<br>")}</p></article>`).join(""):'<p class="recipe-v220-empty">등록된 재료 수량이 없습니다.</p>'}</section>
-      ${manager?`<div class="recipe-v220-detail-actions"><button class="btn btn-primary" data-edit>이 지점 레시피 수정</button>${row.is_overridden?'<button class="btn btn-secondary" data-reset>본사 레시피로 복원</button>':""}${row.assignment_status==="RETIRING"?'<button class="btn btn-secondary recipe-v220-finish" data-finish>재고 소진 확인 · 판매 종료</button>':""}</div>`:""}
+      ${manager?`<div class="recipe-v220-detail-actions"><button class="btn btn-primary" data-edit>레시피 수정</button>${row.is_overridden?'<button class="btn btn-secondary" data-reset>본사 레시피로 복원</button>':""}${row.assignment_status==="RETIRING"?'<button class="btn btn-secondary recipe-v220-finish" data-finish>재고 소진 확인 · 판매 종료</button>':""}</div>`:""}
     </div>`,true);
     if(!manager)return;
     m.body.querySelector("[data-edit]").onclick=()=>{m.close();recipeEditor(row,refresh)};
@@ -78,7 +77,7 @@
   }
 
   async function recipeEditor(row,refresh){
-    const m=modal("이 지점 레시피 수정",'<div class="recipe-v220-loading">재고 목록을 불러오는 중…</div>',true);
+    const m=modal("레시피 수정",'<div class="recipe-v220-loading">재고 목록을 불러오는 중…</div>',true);
     let stock=[];
     try{stock=await BE.inventoryItems()}catch(e){m.body.innerHTML=`<p class="recipe-v220-empty">재고 목록을 불러오지 못했습니다.<br>${esc(e.message)}</p>`;return}
     const selected=new Map((row.components||[]).map(x=>[Number(x.item_id),Number(x.quantity||0)]));
@@ -111,10 +110,9 @@
   }
 
   function renderList(rows,manager){
-    manager=false; // Never expose branch-edit controls in the employee recipe tab.
     const cats=["전체",...new Set(rows.map(r=>r.category||"미분류"))];
     view.innerHTML=`<div class="recipe-v220"><div class="recipe-v220-head page-title-row"><div><h2 class="page-title">레시피</h2><p>${manager?"이 지점에서 사용하는 레시피입니다. 연필 버튼으로 지점 전용 변경사항을 저장할 수 있습니다.":"직원이 언제든 확인할 수 있는 보기 전용 레시피입니다."}</p></div><span>${rows.length}개</span></div><div class="recipe-v220-toolbar"><label>카테고리<select id="rvCat">${cats.map(x=>`<option>${esc(x)}</option>`).join("")}</select></label><label>검색<input id="rvSearch" type="search" placeholder="메뉴명 검색"></label></div><div id="rvList" class="recipe-v220-list"></div></div>`;
-    const draw=()=>{const cat=document.getElementById("rvCat").value,q=document.getElementById("rvSearch").value.trim().toLocaleLowerCase("ko-KR"),list=rows.filter(r=>(cat==="전체"||(r.category||"미분류")===cat)&&(!q||String(r.menu_name).toLocaleLowerCase("ko-KR").includes(q)));document.getElementById("rvList").innerHTML=list.length?list.map(r=>`<article class="recipe-v220-card" data-key="${esc(r.menu_key)}"><button type="button" class="recipe-v220-open" aria-label="${esc(r.menu_name)} 레시피 보기"><span class="recipe-v220-thumb">${r.thumbnail_url?`<img src="${esc(r.thumbnail_url)}" alt="" loading="lazy">`:"<span>MENU</span>"}</span><span class="recipe-v220-copy"><small>${badgeHtml(r)}</small><b>${esc(eaTitle(displayMenuName(r)).name)}${eaTitle(displayMenuName(r)).ea?`<span class="recipe-v220-ea">${esc(eaTitle(displayMenuName(r)).ea)}</span>`:""}</b><em>${(r.components||[]).length||sourceMaterials(r).reduce((n,v)=>n+v.lines.length,0)}개 재료</em></span>${r.is_overridden?'<span class="recipe-v220-local">지점 수정</span>':""}${r.assignment_status==="RETIRING"?'<span class="recipe-v220-retiring">판매 종료 대기</span>':""}</button>${manager?'<button type="button" class="recipe-v220-edit" aria-label="이 지점 레시피 수정">✎</button>':""}</article>`).join(""):'<p class="recipe-v220-empty">조건에 맞는 레시피가 없습니다.</p>';document.querySelectorAll(".recipe-v220-card").forEach(card=>{const row=rows.find(x=>x.menu_key===card.dataset.key);card.querySelector(".recipe-v220-open").onclick=()=>recipeDetail(row,manager,refresh);const edit=card.querySelector(".recipe-v220-edit");if(edit)edit.onclick=()=>recipeEditor(row,refresh)})};
+    const draw=()=>{const cat=document.getElementById("rvCat").value,q=document.getElementById("rvSearch").value.trim().toLocaleLowerCase("ko-KR"),list=rows.filter(r=>(cat==="전체"||(r.category||"미분류")===cat)&&(!q||String(r.menu_name).toLocaleLowerCase("ko-KR").includes(q)));document.getElementById("rvList").innerHTML=list.length?list.map(r=>`<article class="recipe-v220-card" data-key="${esc(r.menu_key)}"><button type="button" class="recipe-v220-open" aria-label="${esc(r.menu_name)} 레시피 보기"><span class="recipe-v220-thumb">${r.thumbnail_url?`<img src="${esc(r.thumbnail_url)}" alt="" loading="lazy">`:"<span>MENU</span>"}</span><span class="recipe-v220-copy"><small>${badgeHtml(r)}</small><b>${esc(eaTitle(displayMenuName(r)).name)}${eaTitle(displayMenuName(r)).ea?`<span class="recipe-v220-ea">${esc(eaTitle(displayMenuName(r)).ea)}</span>`:""}</b><em>${(r.components||[]).length||sourceMaterials(r).reduce((n,v)=>n+v.lines.length,0)}개 재료</em></span>${r.is_overridden?'<span class="recipe-v220-local">지점 수정</span>':""}${r.assignment_status==="RETIRING"?'<span class="recipe-v220-retiring">판매 종료 대기</span>':""}</button>${manager?'<button type="button" class="recipe-v220-edit" aria-label="레시피 수정">✎</button>':""}</article>`).join(""):'<p class="recipe-v220-empty">조건에 맞는 레시피가 없습니다.</p>';document.querySelectorAll(".recipe-v220-card").forEach(card=>{const row=rows.find(x=>x.menu_key===card.dataset.key);card.querySelector(".recipe-v220-open").onclick=()=>recipeDetail(row,manager,refresh);const edit=card.querySelector(".recipe-v220-edit");if(edit)edit.onclick=()=>recipeEditor(row,refresh)})};
     const refresh=async()=>{const next=await BE.storeRecipeList(CURRENT_STORE_ID);renderList(next,true)};
     document.getElementById("rvCat").onchange=draw;document.getElementById("rvSearch").oninput=draw;draw();
   }
@@ -122,9 +120,12 @@
   async function renderRecipeHub(){
     view.innerHTML='<div class="recipe-v220-loading">레시피를 불러오는 중…</div>';
     try{
-      const manager=false;
-      rows=await BE.publicStoreRecipeList(CURRENT_STORE_ID);
-      renderList(rows,false);
+      let manager=false;
+      if(LIVE&&Auth.isLoggedIn()){
+        try{manager=!!(await BE.isAdmin())}catch(_){manager=false}
+      }
+      rows=manager?await BE.storeRecipeList(CURRENT_STORE_ID):await BE.publicStoreRecipeList(CURRENT_STORE_ID);
+      renderList(rows,manager);
     }catch(e){view.innerHTML=`<p class="recipe-v220-empty">레시피를 불러오지 못했습니다.<br>${esc(e.message)}</p>`}
   }
   window.renderRecipeHub=renderRecipeHub;
