@@ -1,0 +1,13 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const r=p=>fs.readFileSync(p,'utf8');
+const i=r('index.html'),live=r('payroll_live_accrual_v1.js'),auth=r('payroll_contract_authority_v1.js'),loader=r('payroll_elapsed_weeks_v1.js');
+assert(i.includes('const APP_VERSION="v0.64"'));
+assert(i.includes('s.status==="WORKING"&&s.in')&&i.includes('(kstNow()-x.in)/1000'),'base must accrue open sessions');
+assert(!live.includes('(now-s.in)/1000')&&!live.includes('row.sec='),'live wrapper must not double-accrue');
+assert(auth.includes("mode:'MONTHLY'"),'monthly contracts must remain calculable');
+assert(auth.indexOf("tax_treatment==='FOUR_INSURANCE'")<auth.indexOf("payroll_type==='MONTHLY'"),'unsupported insurance deduction must block before monthly acceptance');
+assert(!auth.includes('row.pay=calcPayroll(emp,row.hours,R.weeks,ov)'),'contract wrapper must not overwrite qualified weekly holiday calculation');
+assert(auth.includes("['CONTRACT','MONTHLY'].includes(r.contractMode)"),'valid hourly/monthly contracts must not block close');
+assert(i.includes('settleAt.setHours(2,0,0,0)'),'weekly holiday closes at Monday 02:00');
+assert(loader.includes('payroll_live_accrual_v1.js?v=20260929v064')&&loader.includes('payroll_contract_authority_v1.js?v=20260929v064'),'fixed overlays must be cache-busted');
+console.log('v0.64 deep payroll audit PASS');
