@@ -1,0 +1,1 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';const css=fs.readFileSync('recipe_access_v220.css','utf8'),idx=fs.readFileSync('index.html','utf8');assert(idx.includes('APP_VERSION="v0.80"'));assert(css.includes('translateY(5px) scale(1.22)'));assert(css.includes('translateY(8px) scale(1.12)'));console.log('v0.80 food position QA PASS');
