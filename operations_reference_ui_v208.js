@@ -28,7 +28,8 @@ async function loadInventoryManagement(){
   const [overview,manual]=await Promise.all([BE.inventoryOverview().catch(()=>[]),BE.inventoryManualList().catch(()=>[])]);
   const manualNames=new Set(manual.map(x=>x.name));
   const live=overview.filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.name||"")&&!manualNames.has(x.name));
-  purchaseOrders=await BE.inventoryPurchaseOrders().catch(()=>[]);\n  managedInventory=[...manual.map(x=>({...x,on_hand:Number(x.on_hand||0),target_level:Number(x.target_level||0),reorder_point:Number(x.reorder_point||0),manual:true})),...live.map(x=>({...x,target_level:Number(x.reorder_level||0),reorder_point:Number(x.reorder_point||Number(x.reorder_level||0)*.65)}))];
+  purchaseOrders=await BE.inventoryPurchaseOrders().catch(()=>[]);
+  managedInventory=[...manual.map(x=>({...x,on_hand:Number(x.on_hand||0),target_level:Number(x.target_level||0),reorder_point:Number(x.reorder_point||0),manual:true})),...live.map(x=>({...x,target_level:Number(x.reorder_level||0),reorder_point:Number(x.reorder_point||Number(x.reorder_level||0)*.65)}))];
 }
 function stockState(row){
   const on=Number(row.on_hand||0),target=Number(row.target_level||row.reorder_level||0),point=Number(row.reorder_point||0);
