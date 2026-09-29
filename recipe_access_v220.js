@@ -115,7 +115,7 @@
     const variants=instructionsFor(row),components=Array.isArray(row.components)?row.components:[],source=sourceMaterials(row);
     const methods=variants.length?variants.map(v=>`<article class="recipe-v220-variant"><b>${esc(v.label||"기본")}</b><div class="recipe-v220-steps">${stepsHtml(v.content||"")}</div></article>`).join(""):'<p class="recipe-v220-empty">등록된 제조 방법이 없습니다.</p>';
     const materials=components.length?components.map(c=>`<div class="recipe-v220-component"><span>${esc(c.variant_label?`[${c.variant_label}] ${c.item_name}`:c.item_name)}</span><b>${c.quantity_text?esc(c.quantity_text):`${number(c.quantity)} ${esc(c.unit)}`}</b></div>`).join(""):source.length?source.map(v=>`<article class="recipe-v220-variant"><b>${esc(v.label)}</b><p>${v.lines.map(esc).join("<br>")}</p></article>`).join(""):'<p class="recipe-v220-empty">등록된 재료 수량이 없습니다.</p>';
-    return `<div class="recipe-v220-inline-detail">${row.thumbnail_url?`<div class="recipe-v220-inline-hero"><img src="${esc(row.thumbnail_url)}" alt="${esc(row.menu_name)}" loading="eager"></div>`:`<div class="recipe-v220-inline-hero is-placeholder">등록된 상품 이미지 없음</div>`}<section><h3>제조 방법</h3>${methods}</section><section><h3>필요 재료</h3>${materials}</section></div>`;
+    return `<div class="recipe-v220-inline-detail"><section><h3>제조 방법</h3>${methods}</section><section><h3>필요 재료</h3>${materials}</section></div>`;
   }
 
   function renderList(rows,manager){
