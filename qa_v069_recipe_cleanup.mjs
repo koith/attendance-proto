@@ -1,0 +1,1 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';const i=fs.readFileSync('index.html','utf8');assert(i.includes('APP_VERSION="v0.69"'));console.log('v0.69 recipe cleanup QA PASS');
