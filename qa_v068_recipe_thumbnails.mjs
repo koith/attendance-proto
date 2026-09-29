@@ -1,0 +1,1 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';const i=fs.readFileSync('index.html','utf8'),r=fs.readFileSync('recipe_access_v220.js','utf8');assert(i.includes('APP_VERSION="v0.68"'));assert(i.includes('recipe_access_v220.js?v=20260929v068'));assert(r.includes('r.thumbnail_url?'));console.log('v0.68 recipe thumbnail UI QA PASS');
