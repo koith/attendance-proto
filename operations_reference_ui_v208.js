@@ -66,7 +66,7 @@ function inventoryCard(row){
   return '<article class="ops-stock-bar ops-stock-reference state-reference">'+title+'<span class="ops-stock-info-btn reference">기준 재고</span><div class="ops-stock-level reference"><i><em style="width:65%"></em></i></div><div class="ops-stock-footer ops-stock-reference-footer"><span><b>'+esc(row.current_text||"-")+'</b><small>현재 기준</small></span><span><b>'+esc(row.minimum_text||"-")+'</b><small>발주 기준</small></span></div><div class="ops-stock-reference-order"><span>주문</span><b>'+esc(row.order_text||"-")+'</b></div>'+(row.note?'<p>'+esc(row.note)+'</p>':"")+(expiry?'<small class="ops-stock-expiry">'+esc(expiry)+'</small>':"")+'</article>';
 }
 async function renderInventory(refresh=false){
-  const body=refresh?document.getElementById("opsBody"):shell("재고","발주 필요 품목과 인하대점 재고 기준을 한 화면에서 관리합니다.");
+  const body=refresh?document.getElementById("opsBody"):shell("재고","발주 필요 품목과 인하대점 재고 기준을 한 화면에서 관리합니다.");\n  if(typeof window.mountAdminSubnav==="function") await window.mountAdminSubnav("inventory");
   if(!refresh)await loadInventoryManagement();
   const all=REF.inventory||[],categories=["전체",...new Set(all.map(x=>x.category))];let rows=inventoryCategory==="전체"?all:all.filter(x=>x.category===inventoryCategory);
   if(inventoryQuery)rows=rows.filter(x=>[x.name,x.current_text,x.minimum_text,x.order_text,x.note].some(v=>String(v||"").toLowerCase().includes(inventoryQuery)));
