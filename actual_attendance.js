@@ -105,39 +105,24 @@ init();
     sliceDerived:!!(startBoundary||endBoundary)
   });
 
-  sessionsForDay=function(day){
-    const ds=startOfDay(day),de=nextDayStart(day),now=kstToday();
-    const out=[];
-    for(const s of S.sessions||[]){
-      if(s.status==='ORPHAN_OUT'){
-        if(s.out&&dayKey(s.out)===day)out.push(cloneSlice(s,day,null,s.out,false,false));
-        continue;
-      }
-      if(!s.in)continue;
-      if(s.status==='INCOMPLETE'){
-        if(dayKey(s.in)===day)out.push(cloneSlice(s,day,s.in,null,false,false));
-        continue;
-      }
-      const sourceEnd=s.out||(s.status==='WORKING'?now:null);
-      if(!sourceEnd)continue;
-      if(s.in>=de||sourceEnd<=ds)continue;
-      const startsBefore=s.in<ds,endsAfter=sourceEnd>=de;
-      const sliceStart=startsBefore?ds:s.in;
-      // Use 23:59:59 for legacy renderers so a full-day slice does not display 00:00 as its end.
-      // The detail wrapper below presents the exact semantic boundary as 24:00.
-      const sliceEnd=endsAfter?previousMoment(de):sourceEnd;
-      out.push(cloneSlice(s,day,sliceStart,sliceEnd,startsBefore,endsAfter));
-    }
-    return out.sort((a,b)=>(a.in||a.out)-(b.in||b.out));
-  };
+  // A store workday is anchored by the clock-in date. Do not split a late-night
+  // session at midnight: 2026-09-28 19:55 -> 2026-09-29 01:10 belongs to 09-28
+  // and is displayed as 19:55-25:10 on the 06:00-26:00 business timeline.
+  sessionsForDay=function(day){ return sourceSessionsForDay(day); };
 
+  function businessHm(value,anchor){
+    if(!value)return '—';const d=value instanceof Date?value:parseWall(value),a=anchor instanceof Date?anchor:parseWall(anchor||value);
+    const dm=new Date(d.getFullYear(),d.getMonth(),d.getDate()),am=new Date(a.getFullYear(),a.getMonth(),a.getDate());
+    const off=Math.max(0,Math.round((dm-am)/86400000));
+    return `${p2(d.getHours()+off*24)}:${p2(d.getMinutes())}`;
+  }
   function sliceTimeLabel(s){
-    if(s.status==='ORPHAN_OUT')return `출근 누락–${hm(s.out)}`;
-    const a=s.sliceStartBoundary?'00:00':hm(s.in);
-    if(s.status==='WORKING'&&!s.sliceEndBoundary&&s.sliceDay===dayKey(kstToday()))return `${a}–진행 중`;
+    const anchor=s.sourceIn||s.in||s.out;
+    if(s.status==='ORPHAN_OUT')return `출근 누락–${businessHm(s.out,anchor)}`;
+    const a=businessHm(s.in,anchor);
+    if(s.status==='WORKING')return `${a}–진행 중`;
     if(!s.out)return `${a}–퇴근 누락`;
-    const b=s.sliceEndBoundary?'24:00':hm(s.out);
-    return `${a}–${b}`;
+    return `${a}–${businessHm(s.out,anchor)}`;
   }
   function sliceDuration(s){
     if(!s.in||!s.out)return '';
