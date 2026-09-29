@@ -723,7 +723,7 @@
 </div>
 
 <script src="operations_reference_v208.js?v=20260928v022"></script>
-<script src="operations_v1.js?v=20260927v006"></script>
+<script src="operations_v1.js?v=20260929v070"></script>
 <script src="operations_reference_ui_v208.js?v=20260928v023"></script>
 <script src="recipe_access_v220.js?v=20260929v068"></script>
 <script>
@@ -744,7 +744,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.69";
+const APP_VERSION="v0.70";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1354,6 +1354,8 @@ function adminSubnav(active){
   return '<div class="admin-subnav-shell"><div class="tabs admin-subtabs admin-subtabs-wide">'+tabs.map(([k,n])=>'<a href="#'+k+'" class="'+(active===k?"on":"")+'">'+n+'</a>').join("")+'</div><button type="button" class="admin-account-trigger" id="adminAccountTrigger" aria-label="관리자 계정 메뉴" aria-haspopup="true" aria-expanded="false">'+accountIcon+'</button><div class="admin-account-popover" id="adminAccountPopover" role="menu" hidden><div class="admin-account-label">로그인 계정</div><div class="admin-account-email" id="adminAccountEmail">불러오는 중…</div><div class="admin-account-actions"><button type="button" class="btn btn-secondary" id="adminAccountSettings">설정</button><button type="button" class="btn btn-secondary" id="adminAccountLogout">로그아웃</button></div></div></div>';
 }
 async function mountAdminSubnav(active){
+  // Idempotent: operations shell may rebuild #view; always keep exactly one admin subnav.
+  view.querySelectorAll(".admin-subnav-shell").forEach(el=>el.remove());
   view.insertAdjacentHTML("afterbegin",adminSubnav(active));
   const trigger=document.getElementById("adminAccountTrigger"),popover=document.getElementById("adminAccountPopover");
   if(!trigger||!popover)return;

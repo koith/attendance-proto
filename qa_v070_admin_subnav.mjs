@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const index=fs.readFileSync('index.html','utf8');
+const ops=fs.readFileSync('operations_v1.js','utf8');
+assert(index.includes('APP_VERSION="v0.70"'));
+assert(index.includes('operations_v1.js?v=20260929v070'));
+assert(index.includes('view.querySelectorAll(".admin-subnav-shell").forEach(el=>el.remove())'));
+assert(ops.includes('const adminTab={dashboard:"report",inquiry:"sales",inventory:"inventory"}[S.tab]'));
+assert(ops.includes('window.mountAdminSubnav(adminTab)'));
+for (const tab of ['report','admin','pay','hours','sales','inventory']) assert(index.includes('["'+tab+'",'));
+console.log('v0.70 admin subnav regression QA PASS');

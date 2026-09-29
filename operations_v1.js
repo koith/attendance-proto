@@ -21,6 +21,9 @@ function shell(tab){
  const salesActions=S.tab==="inquiry"?'<div class="ops-head-actions"><button class="btn btn-secondary btn-sm" id="opsCollectOpen">데이터 수집</button><button class="btn btn-secondary btn-sm" id="opsUploadOpen">파일 업로드</button></div>':"";
  const filter=(S.tab==="dashboard"||S.tab==="inquiry")?'<div class="ops-filter"><div><label>시작일</label><input id="opsFrom" type="date" value="'+f+'"></div><div><label>종료일</label><input id="opsTo" type="date" value="'+t+'"></div><button class="btn btn-primary" id="opsRefresh">조회</button></div>':"";
  view.innerHTML='<div class="ops-head page-title-row"><div><h2 class="page-title">'+meta[0]+'</h2></div>'+salesActions+'</div>'+filter+'<div id="opsBody"></div>';
+ // Operations owns a full #view render. Restore the shared admin navigation immediately after every shell rebuild.
+ const adminTab={dashboard:"report",inquiry:"sales",inventory:"inventory"}[S.tab];
+ if(adminTab&&typeof window.mountAdminSubnav==="function") window.mountAdminSubnav(adminTab);
  if(document.getElementById("opsRefresh"))opsRefresh.onclick=draw;
  if(document.getElementById("opsCollectOpen"))opsCollectOpen.onclick=()=>openOpsModal("collect");
  if(document.getElementById("opsUploadOpen"))opsUploadOpen.onclick=()=>openOpsModal("upload");
