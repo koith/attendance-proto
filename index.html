@@ -645,7 +645,7 @@
     #view:has(#payList) #payList>.payroll-employee-grid{height:auto!important;min-height:0!important;max-height:none!important;overflow-y:visible!important}
   }
 </style>
-<link rel="stylesheet" href="operations_v1.css?v=20260930v082">
+<link rel="stylesheet" href="operations_v1.css?v=20260930v083">
 <link rel="stylesheet" href="recipe_access_v220.css?v=20260929v081">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js?v=20260926p" defer></script>
@@ -724,7 +724,7 @@
 
 <script src="operations_reference_v208.js?v=20260928v022"></script>
 <script src="operations_v1.js?v=20260929v070"></script>
-<script src="operations_reference_ui_v208.js?v=20260930v082"></script>
+<script src="operations_reference_ui_v208.js?v=20260930v083"></script>
 <script src="recipe_access_v220.js?v=20260929v081"></script>
 <script>
 /* =========================================================================
@@ -744,7 +744,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.82";
+const APP_VERSION="v0.83";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1064,6 +1064,9 @@ const SupaBE = (()=>{
     async operationsAnalytics(from,to){ return rpc("admin_operations_analytics",{p_from:from,p_to:to},true); },
     async operationsTrend(windowKey){ return rpc("admin_operations_trend",{p_window:windowKey},true); },
     async inventoryOverview(){ return rpc("admin_inventory_overview_v2",{},true); },
+    async inventoryPurchaseOrders(){ return rpc("admin_inventory_purchase_order_list",{p_store_id:CURRENT_STORE_ID||1,p_open_only:true},true); },
+    async inventoryPurchaseOrder(row,quantity,note){ return rpc("admin_inventory_purchase_order_create",{p_store_id:CURRENT_STORE_ID||1,p_item_id:row.manual?null:(row.source_item_id||row.id||null),p_manual_item_id:row.manual?row.id:null,p_quantity:Number(quantity),p_note:note||null},true); },
+    async inventoryReceive(orderId,quantity){ return rpc("admin_inventory_purchase_receive",{p_order_id:Number(orderId),p_quantity:Number(quantity)},true); },
     async inventoryManualList(){ return rpc("admin_inventory_manual_list",{p_store_id:CURRENT_STORE_ID||1},true); },
     async inventoryManualSave(id,name,sku,category,unit,onHand,targetLevel,reorderPoint,thumbnailUrl,sourceItemId=null){ return rpc("admin_inventory_manual_save_v2",{p_id:id||null,p_store_id:CURRENT_STORE_ID||1,p_name:name,p_sku:sku||null,p_category:category||null,p_unit:unit||"ea",p_on_hand:Number(onHand||0),p_target_level:Number(targetLevel||0),p_reorder_point:Number(reorderPoint||0),p_thumbnail_url:thumbnailUrl||null,p_source_item_id:sourceItemId||null},true); },
     async inventoryMovements(itemId,from,to){ return rpc("admin_inventory_movements",{p_item_id:itemId||null,p_from:from||null,p_to:to||null},true); },

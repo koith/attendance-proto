@@ -168,3 +168,6 @@
 /* v0.82: inventory fallback emoji is optically centered inside its square thumbnail. */
 .ops-inventory-thumb{display:flex!important;align-items:center!important;justify-content:center!important;line-height:1!important;text-align:center!important;padding:0!important}
 .ops-inventory-thumb>img{display:block;margin:auto}
+
+/* v0.83 purchase receiving */
+.ops-receiving-panel{margin-top:12px}.ops-receiving-panel .ops-order-row strong{white-space:nowrap}.ops-receiving-panel .ops-order-row{cursor:pointer}
