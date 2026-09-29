@@ -5,7 +5,7 @@ const esc=value=>window.safeHtml?window.safeHtml(value):String(value??"").replac
 const icon=name=>/원두|커피/.test(name)?"☕":/우유|밀크|크림/.test(name)?"🥛":/시럽|소스|청|베이스/.test(name)?"🧴":/과일|딸기|망고|자몽|멜론|레몬|라임/.test(name)?"🍓":/컵|뚜껑|빨대|봉투|포장|용기/.test(name)?"🥤":/팝콘/.test(name)?"🍿":/빵|베이글|케이크|떡|슈/.test(name)?"🥐":"📦";
 const num=value=>Number(value||0).toLocaleString("ko-KR");
 const cleanExample=value=>String(value||"").replace(/^\s*\[예시\]\s*/,"");
-let inventoryCategory="전체",inventoryQuery="",recipeCategory="전체",recipeQuery="",managedInventory=[],registeredRecipes=[],hqProducts=[],hqInventory=[],hqRemovalMode=false,hqRemovalCategory="전체",hqRemovalSort="name";
+let inventoryCategory="전체",inventoryQuery="",purchaseOrders=[],recipeCategory="전체",recipeQuery="",managedInventory=[],registeredRecipes=[],hqProducts=[],hqInventory=[],hqRemovalMode=false,hqRemovalCategory="전체",hqRemovalSort="name";
 const hqRemovalSelection=new Set();
 
 function shell(title,subtitle){
@@ -28,13 +28,25 @@ async function loadInventoryManagement(){
   const [overview,manual]=await Promise.all([BE.inventoryOverview().catch(()=>[]),BE.inventoryManualList().catch(()=>[])]);
   const manualNames=new Set(manual.map(x=>x.name));
   const live=overview.filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.name||"")&&!manualNames.has(x.name));
-  managedInventory=[...manual.map(x=>({...x,on_hand:Number(x.on_hand||0),target_level:Number(x.target_level||0),reorder_point:Number(x.reorder_point||0),manual:true})),...live.map(x=>({...x,target_level:Number(x.reorder_level||0),reorder_point:Number(x.reorder_point||Number(x.reorder_level||0)*.65)}))];
+  purchaseOrders=await BE.inventoryPurchaseOrders().catch(()=>[]);\n  managedInventory=[...manual.map(x=>({...x,on_hand:Number(x.on_hand||0),target_level:Number(x.target_level||0),reorder_point:Number(x.reorder_point||0),manual:true})),...live.map(x=>({...x,target_level:Number(x.reorder_level||0),reorder_point:Number(x.reorder_point||Number(x.reorder_level||0)*.65)}))];
 }
 function stockState(row){
   const on=Number(row.on_hand||0),target=Number(row.target_level||row.reorder_level||0),point=Number(row.reorder_point||0);
   if(point>0&&on<point*.5)return {key:"critical",label:"긴급 부족",rank:0};
   if(point>0&&on<=point)return {key:"low",label:"발주 필요",rank:1};
   return {key:"ok",label:"적정",rank:2};
+}
+function receivingPanel(){
+  if(!purchaseOrders.length)return "";
+  return '<section class="ops-order-panel ops-receiving-panel"><div class="ops-unified-section-head"><div><b>입고 대기</b><span>'+purchaseOrders.length+'건</span></div></div><div class="ops-order-bars">'+purchaseOrders.map((o,i)=>'<button type="button" class="ops-order-row" data-receive-order="'+i+'"><span><b>'+esc(o.item_name)+'</b><small>발주 '+num(o.ordered_quantity)+' '+esc(o.unit)+' · 입고 '+num(o.received_quantity)+' · 남음 '+num(Number(o.ordered_quantity)-Number(o.received_quantity))+'</small></span><strong>'+(o.status==="PARTIAL"?"부분 입고":"입고 처리")+'</strong></button>').join("")+'</div></section>';
+}
+async function openReceiveOrder(order){
+ const remain=Number(order.ordered_quantity)-Number(order.received_quantity),m=modal("입고 처리",'<div class="ops-recipe-editor"><p><b>'+esc(order.item_name)+'</b><br>발주 '+num(order.ordered_quantity)+' '+esc(order.unit)+' · 미입고 '+num(remain)+' '+esc(order.unit)+'</p><label>이번 입고 수량<input id="opsReceiveQty" type="number" min="0.01" max="'+remain+'" step="0.01" value="'+remain+'"></label><button type="button" class="btn btn-primary" id="opsReceiveSave">입고 확정</button></div>');
+ m.body.querySelector("#opsReceiveSave").onclick=async()=>{const qty=Number(m.body.querySelector("#opsReceiveQty").value||0);if(qty<=0||qty>remain)return alert("입고 수량을 확인하세요.");try{await BE.inventoryReceive(order.id,qty);m.close();await loadInventoryManagement();renderInventory(true)}catch(e){alert("입고 처리 실패: "+e.message)}};
+}
+async function openPurchaseOrder(row){
+ const target=Number(row.target_level||row.reorder_level||0),on=Number(row.on_hand||0),suggest=Math.max(1,target-on),m=modal("발주 등록",'<div class="ops-recipe-editor"><p><b>'+esc(row.name)+'</b><br>현재 '+num(on)+' '+esc(row.unit||"")+' · 목표 '+num(target)+' '+esc(row.unit||"")+'</p><label>발주 수량<input id="opsOrderQty" type="number" min="0.01" step="0.01" value="'+suggest+'"></label><label>메모<input id="opsOrderNote" placeholder="선택 입력"></label><button type="button" class="btn btn-primary" id="opsOrderSave">발주 등록</button></div>');
+ m.body.querySelector("#opsOrderSave").onclick=async()=>{const qty=Number(m.body.querySelector("#opsOrderQty").value||0);if(qty<=0)return alert("발주 수량을 입력하세요.");try{await BE.inventoryPurchaseOrder(row,qty,m.body.querySelector("#opsOrderNote").value.trim());m.close();await loadInventoryManagement();renderInventory(true)}catch(e){alert("발주 등록 실패: "+e.message)}};
 }
 function orderPanel(){
   const low=managedInventory.filter(x=>stockState(x).rank<2).sort((a,b)=>stockState(a).rank-stockState(b).rank||Number(a.on_hand)-Number(b.on_hand));
@@ -70,9 +82,9 @@ async function renderInventory(refresh=false){
   if(!refresh)await loadInventoryManagement();
   const all=REF.inventory||[],categories=["전체",...new Set(all.map(x=>x.category))];let rows=inventoryCategory==="전체"?all:all.filter(x=>x.category===inventoryCategory);
   if(inventoryQuery)rows=rows.filter(x=>[x.name,x.current_text,x.minimum_text,x.order_text,x.note].some(v=>String(v||"").toLowerCase().includes(inventoryQuery)));
-  body.innerHTML=orderPanel()+'<div class="ops-unified-section-title"><b>재고 기준</b><span>'+rows.length+'개</span></div><div class="ops-inventory-toolbar ops-reference-toolbar"><label>검색<input id="opsReferenceInventorySearch" type="search" value="'+esc(inventoryQuery)+'" placeholder="품목명·현재고·발주기준"></label><label>카테고리<select id="opsReferenceInventoryCat">'+categories.map(x=>'<option '+(x===inventoryCategory?'selected':'')+'>'+esc(x)+'</option>').join("")+'</select></label></div><div class="ops-stock-chart ops-stock-grid">'+(rows.length?rows.map(inventoryCard).join(""):'<div class="ops-empty"><b>검색 결과가 없습니다.</b></div>')+'</div>';
+  body.innerHTML=orderPanel()+receivingPanel()+'<div class="ops-unified-section-title"><b>재고 기준</b><span>'+rows.length+'개</span></div><div class="ops-inventory-toolbar ops-reference-toolbar"><label>검색<input id="opsReferenceInventorySearch" type="search" value="'+esc(inventoryQuery)+'" placeholder="품목명·현재고·발주기준"></label><label>카테고리<select id="opsReferenceInventoryCat">'+categories.map(x=>'<option '+(x===inventoryCategory?'selected':'')+'>'+esc(x)+'</option>').join("")+'</select></label></div><div class="ops-stock-chart ops-stock-grid">'+(rows.length?rows.map(inventoryCard).join(""):'<div class="ops-empty"><b>검색 결과가 없습니다.</b></div>')+'</div>';
   document.getElementById("opsInventoryAdd").onclick=()=>openInventoryEditor();document.getElementById("opsInventoryBulk").onclick=openInventoryBulk;
-  body.querySelectorAll("[data-managed-stock]").forEach(button=>button.onclick=()=>openInventoryEditor(managedInventory[Number(button.dataset.managedStock)]));
+  body.querySelectorAll("[data-managed-stock]").forEach(button=>button.onclick=()=>openPurchaseOrder(managedInventory[Number(button.dataset.managedStock)]));\n  body.querySelectorAll("[data-receive-order]").forEach(button=>button.onclick=()=>openReceiveOrder(purchaseOrders[Number(button.dataset.receiveOrder)]));
   const search=document.getElementById("opsReferenceInventorySearch");search.oninput=e=>{inventoryQuery=e.target.value.trim().toLowerCase();renderInventory(true);const next=document.getElementById("opsReferenceInventorySearch");next.focus();next.setSelectionRange(next.value.length,next.value.length)};
   document.getElementById("opsReferenceInventoryCat").onchange=e=>{inventoryCategory=e.target.value;renderInventory(true)};
 }
