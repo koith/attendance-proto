@@ -14,8 +14,10 @@
 .recipe-v220-card.is-open .recipe-v220-open{background:var(--brand-050)}
 @media(max-width:520px){.recipe-v220-inline-detail{padding:0 10px 10px}.recipe-v220-inline-detail .recipe-v220-empty{min-height:72px}}
 
-/* v0.71: expanded recipe cards show the complete product image instead of cropping tall cups/food. */
-.recipe-v220-inline-hero{display:grid;place-items:center;width:100%;height:clamp(180px,38vw,360px);margin-top:12px;overflow:hidden;border:1px solid var(--border);border-radius:12px;background:var(--surface-muted)}
-.recipe-v220-inline-hero img{display:block;width:100%;height:100%;object-fit:contain;padding:10px;box-sizing:border-box}
-.recipe-v220-inline-hero.is-placeholder{height:120px;color:var(--text-muted);font-size:.72rem;font-weight:800}
-@media(max-width:520px){.recipe-v220-inline-hero{height:min(54vw,260px);margin-top:10px}.recipe-v220-inline-hero img{padding:6px}}
+
+/* v0.72: one image only. The card's original thumbnail expands in place when the recipe opens. */
+.recipe-v220-card.is-open .recipe-v220-open{grid-template-columns:1fr;gap:10px}
+.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb{width:100%;height:clamp(220px,42vw,420px)}
+.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb img{padding:10px;object-fit:contain}
+.recipe-v220-card.is-open .recipe-v220-copy{padding:0 2px}
+@media(max-width:520px){.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb{height:min(62vw,320px)}.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb img{padding:6px}}
