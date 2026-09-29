@@ -1,0 +1,10 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const i=fs.readFileSync('index.html','utf8'),a=fs.readFileSync('actual_attendance.js','utf8'),h=fs.readFileSync('actual_attendance.html','utf8');
+assert(i.includes('const APP_VERSION="v0.65"'));
+assert(i.includes('const periodEnded=ym<currentYm')&&i.includes('월이 종료된 뒤에만 마감'));
+assert(i.includes('.payroll-employee-card{position:relative!important;overflow:visible!important}'));
+assert(i.includes('id="fixDate" type="date"')&&i.includes('id="fixClock" type="time"')&&!i.includes('id="fixTime" type="datetime-local"'));
+assert(a.includes('sessionsForDay=function(day){ return sourceSessionsForDay(day); }'));
+assert(a.includes('d.getHours()+off*24'));
+assert(h.includes('actual_attendance.js?v=20260929v065'));
+console.log('v0.65 senior screenshot regression QA PASS');
