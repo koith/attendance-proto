@@ -3,9 +3,9 @@ let pass=0,fail=0;const ok=(n,c)=>{if(c){pass++;console.log('✓ '+n)}else{fail+
 const index=fs.readFileSync('index.html','utf8');
 const guard=fs.readFileSync('monthly_schedule_contract_guard.js','utf8');
 const css=fs.readFileSync('monthly_schedule_contract_guard.css','utf8');
-ok('admin quick menu uses three equal columns',index.includes('.admin-quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}'));
+ok('admin uses current subnav IA',index.includes('admin-subtabs')&&index.includes('직원 관리')&&index.includes('급여')&&index.includes('운영시간'));
 ok('contract document duplicate quick action removed',!index.includes('id="quickDocs"')&&!index.includes('document.getElementById("quickDocs")'));
-ok('schedule employee contract quick actions remain',index.includes('id="quickSchedule"')&&index.includes('id="quickRequests"')&&index.includes('id="accountManageBtn"'));
+ok('attendance is promoted to the top-level navigation',index.includes('id="tabAttendance" href="#attendance"'));
 ok('hourly contract weekdays have explicit calendar marker predicate',guard.includes('function isContractWorkday')&&guard.includes("b.classList.toggle('contract-day',isContractWorkday"));
 ok('monthly contracts are not mislabeled as weekday contracts',guard.includes("if(!c||c.payroll_type!=='HOURLY')return null"));
 ok('contract-day marker is visually distinct from saved schedule state',css.includes(".calday.contract-day:before{content:'계약'"));

@@ -37,6 +37,8 @@
     return badges;
   };
   const badgeHtml=row=>recipeBadges(row).map(x=>'<span class="recipe-v220-kind '+(x==="추가 옵션"?"option":"")+'">'+esc(x)+'</span>').join("");
+  const EDIT_CATEGORIES=["커피","라떼","찐 우유","스무디","주스","에이드","버블티","티 & 스윗티","푸드 조리","대용량 베이스","푸드류(베이커리)","푸드류(백억 휴게소)","푸드류(백억 시네마)"];
+  const categoryOptions=current=>[...new Set([current,...EDIT_CATEGORIES].filter(Boolean))].map(x=>`<option value="${esc(x)}" ${x===current?"selected":""}>${esc(x)}</option>`).join("");
 
   function modal(title,content,wide=false){
     const wrap=document.createElement("div");
@@ -83,7 +85,7 @@
     const selected=new Map((row.components||[]).map(x=>[Number(x.item_id),Number(x.quantity||0)]));
     const variants=instructionsFor(row);
     m.body.innerHTML=`<div class="recipe-v220-editor">
-      <div class="recipe-v220-editor-grid"><label>메뉴명<input id="rvName" value="${esc(row.menu_name)}"></label><label>카테고리<input id="rvCategory" value="${esc(row.category||"")}"></label></div>
+      <div class="recipe-v220-editor-grid"><label>메뉴명<input id="rvName" value="${esc(row.menu_name)}"></label><label>카테고리<select id="rvCategory">${categoryOptions(row.category||"")}</select></label></div>
       <label>썸네일 URL<input id="rvThumb" value="${esc(row.thumbnail_url||"")}" placeholder="https://..."></label>
       <div class="recipe-v220-section-head"><b>제조 방법</b><button type="button" class="btn btn-secondary btn-sm" id="rvVariantAdd">단계 추가</button></div>
       <div id="rvVariants" class="recipe-v220-variants-edit">${variants.map((v,i)=>variantEditor(v,i)).join("")}</div>

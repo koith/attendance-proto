@@ -24,6 +24,7 @@ jobs:
           grep -q 'BE.storeSettingsGet' store_controls_v1.js
           grep -q 'actual-work-first UX' senior_requirements_v3.js
           grep -q "payroll_type==='MONTHLY'" payroll_contract_authority_v1.js
-          grep -q '월급제 급여 계산정책 미확정' payroll_contract_authority_v1.js
+          grep -q "pick.mode==='MONTHLY'" payroll_contract_authority_v1.js
+          grep -q 'monthly_salary' payroll_contract_authority_v1.js
           grep -q "tax_treatment==='FOUR_INSURANCE'" payroll_contract_authority_v1.js
           grep -q '4대보험 공제 계산정책 미확정' payroll_contract_authority_v1.js
