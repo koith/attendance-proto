@@ -8,10 +8,10 @@ const sheet=fs.readFileSync('apps_script.gs','utf8');
 const migration=fs.readFileSync('supabase/migrations/20260927183000_recipe_access_store_overrides_and_safe_retirement.sql','utf8');
 const roleMigration=fs.readFileSync('supabase/migrations/20260927184500_hq_role_enforcement.sql','utf8');
 
-assert.ok(html.includes('const APP_VERSION="v0.01"'));
+assert.ok(html.includes('const APP_VERSION="v0.64"'));
 assert.ok(html.includes('id="tabRecipe"')&&html.includes('href="#recipe"'),'recipe must be a top-level tab');
 assert.ok(!html.includes('data-admin-tab="recipe"'),'recipe must not remain in management subtabs');
-assert.ok(html.includes('recipe_access_v220.js?v=20260928v022'));
+assert.ok(html.includes('recipe_access_v220.js?v=20260929v061'));
 assert.ok(ui.includes('BE.staffRecipeList'),'staff access must be server-verified');
 assert.ok(ui.includes('현재 출근 중인 직원만 레시피를 볼 수 있습니다.'),'staff gate must explain clock-in requirement');
 assert.ok(ui.includes('보기 전용'),'staff recipes must be read-only');
