@@ -2034,10 +2034,11 @@ function openAdminFix(emp, effRows){
     <div class="field"><label>종류</label>
       <select id="fixType" style="height:50px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 12px">
         <option value="IN">출근</option><option value="OUT">퇴근</option></select></div>
-    <div class="field"><label>시각</label><input id="fixTime" type="datetime-local"></div>
+    <div class="field"><label>시각</label><div style="display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:8px"><input id="fixDate" type="date" aria-label="날짜"><input id="fixClock" type="time" step="60" aria-label="시간"></div></div>
     <div class="field"><label>사유</label><input id="fixReason" placeholder="예: 퇴근 누락 보정"></div>
     <button class="btn btn-primary btn-block btn-lg" id="fixAdd">추가</button>`;
   openAddVeil();
+  { const d=kstNow(); modal.querySelector("#fixDate").value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; modal.querySelector("#fixClock").value=`${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; }
   modal.querySelectorAll("[data-void]").forEach(b=>b.onclick=async()=>{
     if(!confirm("이 기록을 무효화할까요? (원본은 보존됩니다)")) return;
     const reason=prompt("무효화 사유:")||"관리자 무효화";
@@ -2048,10 +2049,10 @@ function openAdminFix(emp, effRows){
   });
   modal.querySelector("#fixAdd").onclick=async()=>{
     const type=document.getElementById("fixType").value;
-    const tv=document.getElementById("fixTime").value; // "YYYY-MM-DDTHH:MM"
+    const dv=document.getElementById("fixDate").value,cv=document.getElementById("fixClock").value;
     const reason=document.getElementById("fixReason").value.trim()||"관리자 추가";
-    if(!tv){ alert("시각을 입력하세요."); return; }
-    const at=tv.length===16?tv+":00":tv;
+    if(!dv||!cv){ alert("날짜와 시간을 입력하세요."); return; }
+    const at=`${dv}T${cv}:00`;
     const res=await BE.correctEvent("ADD",null,emp.id,at,type,reason);
     if(res!=null){ toast("in","추가됨","누락분이 반영되었습니다."); v.classList.remove("show"); restoreAddModal(); if(location.hash==="#pos")renderPos();else renderAdmin(); }
     else toast("err","실패","");
