@@ -190,26 +190,31 @@ init();
     veil.innerHTML=`<div class="correction-modal" role="dialog" aria-modal="true" aria-label="근태 정정">
       <div class="correction-head"><div><b>${escapeHtml(emp?.name||'직원')} · 근태 정정</b><div>${day}</div></div><button id="correctionClose" aria-label="닫기">×</button></div>
       <div class="correction-note">원본 출퇴근 기록은 변경하지 않고 정정 이력을 추가합니다.${s.sliceDerived?' 날짜별 표시는 자정을 기준으로 나눈 보기이며 아래 입력값은 원본 세션 전체의 출퇴근 시각입니다.':''}</div>
-      <label>출근</label><input id="correctionIn" type="datetime-local" value="${dtValue(source.in)}">
-      <label>퇴근</label><input id="correctionOut" type="datetime-local" value="${dtValue(source.out)}">
+      <label>출근</label><div class="correction-datetime-row"><input id="correctionInDate" type="date" aria-label="출근 날짜"><input id="correctionInTime" type="time" step="60" aria-label="출근 시간"></div>
+      <label>퇴근</label><div class="correction-datetime-row"><input id="correctionOutDate" type="date" aria-label="퇴근 날짜"><input id="correctionOutTime" type="time" step="60" aria-label="퇴근 시간"></div>
       <label>정정 사유 <span>(필수)</span></label><input id="correctionReason" type="text" maxlength="120" placeholder="예: 마감 후 퇴근 누락">
       <div id="correctionPreview" class="correction-preview"></div>
       <button id="correctionSave" class="correction-save">정정 저장</button>
     </div>`;
     document.body.appendChild(veil);
-    const inEl=el('correctionIn'),outEl=el('correctionOut'),save=el('correctionSave'),preview=el('correctionPreview');
-    const refresh=()=>{const a=inEl.value?parseWall(wallValue(inEl.value)):null,b=outEl.value?parseWall(wallValue(outEl.value)):null;if(a&&b&&b<=a){preview.textContent='퇴근 시각은 출근 시각보다 늦어야 합니다.';preview.classList.add('bad');save.disabled=true}else{preview.textContent=a&&b?`예상 근무 ${dur((b-a)/1000)}`:'누락된 출근 또는 퇴근을 추가할 수 있습니다.';preview.classList.remove('bad');save.disabled=false}};
-    inEl.oninput=refresh;outEl.oninput=refresh;refresh();
+    const inDate=el('correctionInDate'),inTime=el('correctionInTime'),outDate=el('correctionOutDate'),outTime=el('correctionOutTime'),save=el('correctionSave'),preview=el('correctionPreview');
+    const splitDateTime=d=>{const v=dtValue(d);return v?{date:v.slice(0,10),time:v.slice(11,16)}:{date:'',time:''}};
+    const initialIn=splitDateTime(source.in),initialOut=splitDateTime(source.out);
+    inDate.value=initialIn.date;inTime.value=initialIn.time;outDate.value=initialOut.date;outTime.value=initialOut.time;
+    const combined=(dateEl,timeEl)=>dateEl.value&&timeEl.value?`${dateEl.value}T${timeEl.value}`:'';
+    const refresh=()=>{const av=combined(inDate,inTime),bv=combined(outDate,outTime),a=av?parseWall(av):null,b=bv?parseWall(bv):null;if(a&&b&&b<=a){preview.textContent='퇴근 시각은 출근 시각보다 늦어야 합니다.';preview.classList.add('bad');save.disabled=true}else{preview.textContent=a&&b?`예상 근무 ${dur((b-a)/1000)}`:'날짜와 시간을 각각 선택하세요.';preview.classList.remove('bad');save.disabled=false}};
+    [inDate,inTime,outDate,outTime].forEach(x=>x.oninput=refresh);refresh();
     el('correctionClose').onclick=closeCorrection;veil.onclick=e=>{if(e.target===veil)closeCorrection()};
     save.onclick=async()=>{
       const reason=el('correctionReason').value.trim();if(!reason)return toastCorrection('정정 사유를 입력하세요.',true);
-      const nextIn=inEl.value?wallValue(inEl.value):null,nextOut=outEl.value?wallValue(outEl.value):null;
+      const inLocal=combined(inDate,inTime),outLocal=combined(outDate,outTime);
+      const nextIn=inLocal?wallValue(inLocal):null,nextOut=outLocal?wallValue(outLocal):null;
       if(!nextIn&&!nextOut)return toastCorrection('출근 또는 퇴근 시각을 입력하세요.',true);
       const a=nextIn?parseWall(nextIn):null,b=nextOut?parseWall(nextOut):null;if(a&&b&&b<=a)return toastCorrection('퇴근 시각을 확인하세요.',true);
       const calls=[];
-      if(source.inId&&nextIn&&dtValue(source.in)!==inEl.value)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.inId),p_employee_id:Number(source.employee_id),p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
+      if(source.inId&&nextIn&&dtValue(source.in)!==inLocal)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.inId),p_employee_id:Number(source.employee_id),p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
       if(!source.inId&&nextIn)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:Number(source.employee_id),p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
-      if(source.outId&&nextOut&&dtValue(source.out)!==outEl.value)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.outId),p_employee_id:Number(source.employee_id),p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
+      if(source.outId&&nextOut&&dtValue(source.out)!==outLocal)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.outId),p_employee_id:Number(source.employee_id),p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
       if(!source.outId&&nextOut)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:Number(source.employee_id),p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
       if(!calls.length)return toastCorrection('변경된 시각이 없습니다.',true);
       save.disabled=true;

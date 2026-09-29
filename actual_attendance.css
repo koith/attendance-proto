@@ -153,3 +153,9 @@
 .bar:not(.open):not(.issue){background:#168a4a!important;border-color:#0f6d39!important;color:#fff!important}
 .bar.open{background:#1769e0!important;border-color:#0f55b9!important;color:#fff!important}
 .bar.issue{background:#e53935!important;border-color:#b71c1c!important;color:#fff!important}
+
+/* v0.62 correction editor: separate, touch-friendly date/time fields */
+.correction-datetime-row{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:8px;width:100%}
+.correction-datetime-row input{box-sizing:border-box;width:100%;min-width:0;height:44px;padding:0 10px;border:1px solid #d8e0db;border-radius:10px;background:#fff;color:#17231c;font:inherit}
+.correction-datetime-row input:focus{outline:2px solid rgba(32,105,65,.18);border-color:#4f8b69}
+@media(max-width:430px){.correction-datetime-row{grid-template-columns:minmax(0,1.35fr) minmax(108px,.85fr);gap:7px}.correction-datetime-row input{font-size:16px;padding:0 8px}}
