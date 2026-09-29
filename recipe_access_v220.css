@@ -53,3 +53,6 @@
 /* v0.80: optically lower wide/plate food artwork in both collapsed and expanded cards. */
 .recipe-v220-card.is-food:not(.is-open) .recipe-v220-thumb img{transform:translateY(5px) scale(1.22)!important}
 .recipe-v220-card.is-food.is-open .recipe-v220-open>.recipe-v220-thumb img{transform:translateY(8px) scale(1.12)!important}
+
+/* v0.81: move the pencil glyph upward inside its fixed square button. */
+.recipe-v220-edit{padding:0 0 7px!important}
