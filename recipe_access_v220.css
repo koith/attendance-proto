@@ -26,3 +26,7 @@
 .recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb{height:auto!important;min-height:0;padding:14px;box-sizing:border-box;overflow:visible}
 .recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb img{display:block;width:auto!important;height:auto!important;max-width:100%;max-height:240px;margin:0 auto;padding:0!important;object-fit:contain!important}
 @media(max-width:520px){.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb{height:auto!important;padding:6px 10px}.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb img{max-height:210px}}
+
+/* v0.76: collapsed cards show the whole product with minimal vertical whitespace. */
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb{height:auto;min-height:72px;padding:2px 4px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb img{display:block;width:auto;height:auto;max-width:100%;max-height:92px;margin:0 auto;padding:0;object-fit:contain}
