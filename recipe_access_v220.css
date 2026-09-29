@@ -17,7 +17,7 @@
 
 /* v0.72: one image only. The card's original thumbnail expands in place when the recipe opens. */
 .recipe-v220-card.is-open .recipe-v220-open{grid-template-columns:1fr;gap:10px}
-.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb{width:100%;height:clamp(220px,42vw,420px)}
-.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb img{padding:10px;object-fit:contain}
+.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb{width:100%;height:clamp(180px,32vw,300px)}
+.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb img{padding:16px;object-fit:contain}
 .recipe-v220-card.is-open .recipe-v220-copy{padding:0 2px}
-@media(max-width:520px){.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb{height:min(62vw,320px)}.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb img{padding:6px}}
+@media(max-width:520px){.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb{height:min(48vw,240px)}.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb img{padding:12px}}
