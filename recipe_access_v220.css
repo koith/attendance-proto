@@ -41,3 +41,11 @@
 .recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb{padding:4px 8px 1px!important}
 .recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb img{max-height:235px}
 @media(max-width:520px){.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb{padding:3px 6px 1px!important}.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb img{max-height:206px}}
+
+/* v0.79: optical pencil centering + wider food thumbnails use more of the shared slot. */
+.recipe-v220-edit{line-height:1!important}
+.recipe-v220-edit{transform:none}
+.recipe-v220-edit::first-line{vertical-align:baseline}
+.recipe-v220-edit{padding-bottom:3px!important}
+.recipe-v220-card.is-food:not(.is-open) .recipe-v220-thumb img{transform:scale(1.22);transform-origin:center center}
+.recipe-v220-card.is-food.is-open .recipe-v220-open>.recipe-v220-thumb img{transform:scale(1.12);transform-origin:center center}
