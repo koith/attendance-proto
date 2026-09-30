@@ -91,3 +91,6 @@
 
 /* v0.94: focused search result is the only recipe content shown. */
 .recipe-v220-list.has-focused-recipe>.recipe-v220-card.is-search-hidden,.recipe-v220-list.has-focused-recipe>.recipe-v220-empty{display:none!important}
+
+/* v0.96 searchable text fields: one-tap clear control */
+.recipe-v220-searchbox{position:relative;display:block}.recipe-v220-searchbox input{padding-right:52px!important}.recipe-v220-search-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;border-radius:50%;background:#e6ebe8;color:#52605a;font-size:26px;line-height:32px;font-weight:400;padding:0;display:none;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}.recipe-v220-search-clear.is-visible{display:flex}.recipe-v220-search-clear:active{background:#d8e0dc}
