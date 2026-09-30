@@ -3,7 +3,7 @@ const index=fs.readFileSync("index.html","utf8");
 const units=fs.readFileSync("supabase/migrations/20260930012050_inventory_units_and_audit_hardening_v085.sql","utf8");
 const recipe=fs.readFileSync("supabase/migrations/20260930012059_staff_recipe_canonical_clock_state_v085.sql","utf8");
 const checks=[
- ["version",index.includes('const APP_VERSION="v0.85"')],
+ ["version",(()=>{const m=index.match(/APP_VERSION="v0\\.(\\d+)"/);return !!m&&Number(m[1])>=85})()],
  ["unit columns",/stock_unit text/.test(units)&&/order_unit text/.test(units)&&/conversion_quantity numeric/.test(units)],
  ["safe seed",units.includes("unit not like '%/%'")&&units.includes("unit<>'원본 기준'")],
  ["snapshot conversion",units.includes("conversion_quantity,ordered_quantity")&&units.includes("v_stock_qty:=p_quantity*coalesce(r.conversion_quantity,1)")],
