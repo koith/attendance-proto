@@ -1,0 +1,13 @@
+name: audit-v095
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  recipe-cache-focus-v095:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22}
+      - run: node qa_v095_recipe_cache_focus.mjs
