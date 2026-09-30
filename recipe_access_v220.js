@@ -133,7 +133,6 @@
       if(state.pushed&&!fromPop){state.restoring=true;history.back()}else{state.pushed=false;requestAnimationFrame(()=>window.scrollTo(0,y))}
     };
     const onPop=()=>{if(state.restoring){state.restoring=false;state.pushed=false;requestAnimationFrame(()=>window.scrollTo(0,state.returnY));return}if(state.focusedKey)closeFocused(true)};
-    window.addEventListener("popstate",onPop,{signal:window.recipeFocusAbort?.signal});
     const draw=()=>{
       if(state.focusedKey){state.pushed=false;state.focusedKey=null}
       const cat=catEl.value,sort=sortEl.value,q=searchEl.value.trim().toLocaleLowerCase("ko-KR"),list=rows.filter(r=>(cat==="전체"||(r.category||"미분류")===cat)&&(!q||String(r.menu_name).toLocaleLowerCase("ko-KR").includes(q)));
