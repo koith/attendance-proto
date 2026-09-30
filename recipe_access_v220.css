@@ -56,3 +56,4 @@
 
 /* v0.81: move the pencil glyph upward inside its fixed square button. */
 .recipe-v220-edit{padding:0 0 7px!important}
+\n/* v0.88 explicit fallback thumbnails for recipes without verified official photos */\n.recipe-v220-thumb-placeholder{width:100%;height:100%;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:linear-gradient(145deg,#f2f6f3,#e7efe9);color:#456052;text-align:center}.recipe-v220-thumb-placeholder i{font-style:normal;font-size:1.45rem;line-height:1}.recipe-v220-thumb-placeholder small{font-size:.58rem;font-weight:800;letter-spacing:-.02em;color:#5d7467}.recipe-v220-detail .recipe-v220-thumb-placeholder small{font-size:.65rem}\n
