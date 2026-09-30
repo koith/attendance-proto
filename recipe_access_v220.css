@@ -71,3 +71,7 @@
 
 /* v0.91: optically raise recipe edit pencil by 4px without moving its hit target. */
 .recipe-v220-edit{transform:translateY(-4px)!important}
+
+/* v0.92: keep the edit button fixed; move only the pencil glyph upward. */
+.recipe-v220-edit{transform:none!important;padding:0!important;display:grid!important;place-items:center!important}
+.recipe-v220-edit-glyph{display:block;line-height:1;transform:translateY(-4px);pointer-events:none}
