@@ -4,3 +4,8 @@
 .records-group .session>div:nth-child(2){display:flex;align-items:center;justify-content:center;min-width:92px}
 .records-group .session>.session-actions{width:150px;justify-self:end;text-align:right}
 @media(max-width:520px){.records-group .session{grid-template-columns:minmax(0,1fr) 74px 96px;column-gap:6px}.records-group .session>div:nth-child(2){min-width:74px}.records-group .session>.session-actions{width:96px}.session-fix-hint{max-width:96px}}
+
+/* v0.90: iOS date/time controls keep their value vertically centered. */
+.correction-modal input[type="date"],.correction-modal input[type="time"]{height:44px!important;min-height:44px!important;line-height:44px!important;padding-top:0!important;padding-bottom:0!important;box-sizing:border-box!important;text-align:center!important}
+.correction-modal input[type="date"]::-webkit-date-and-time-value,.correction-modal input[type="time"]::-webkit-date-and-time-value{height:44px;line-height:44px;text-align:center;margin:0}
+.correction-modal input[type="date"]::-webkit-datetime-edit,.correction-modal input[type="time"]::-webkit-datetime-edit{display:flex;align-items:center;justify-content:center;height:44px;line-height:44px;padding:0}

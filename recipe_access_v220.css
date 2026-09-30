@@ -57,3 +57,14 @@
 /* v0.81: move the pencil glyph upward inside its fixed square button. */
 .recipe-v220-edit{padding:0 0 7px!important}
 \n/* v0.88 explicit fallback thumbnails for recipes without verified official photos */\n.recipe-v220-thumb-placeholder{width:100%;height:100%;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:linear-gradient(145deg,#f2f6f3,#e7efe9);color:#456052;text-align:center}.recipe-v220-thumb-placeholder i{font-style:normal;font-size:1.45rem;line-height:1}.recipe-v220-thumb-placeholder small{font-size:.58rem;font-weight:800;letter-spacing:-.02em;color:#5d7467}.recipe-v220-detail .recipe-v220-thumb-placeholder small{font-size:.65rem}\n
+/* v0.90: selecting a search result enters a single-recipe focus state. */
+.recipe-v220-list.has-focused-recipe .recipe-v220-card.is-search-hidden{display:none!important}
+.recipe-v220-list.has-focused-recipe{grid-template-columns:1fr}
+.recipe-v220-list.has-focused-recipe .recipe-v220-card.is-open{grid-column:1/-1}
+/* v0.90: fallback artwork is intentionally large and two-tiered. */
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder{gap:8px!important}
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder i{font-size:2.45rem!important;line-height:1!important}
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.88rem!important;line-height:1.1!important;font-weight:850!important}
+.recipe-v220-card.is-open .recipe-v220-thumb-placeholder{min-height:150px;gap:10px!important}
+.recipe-v220-card.is-open .recipe-v220-thumb-placeholder i{font-size:3.4rem!important;line-height:1!important}
+.recipe-v220-card.is-open .recipe-v220-thumb-placeholder small{font-size:1.05rem!important;line-height:1.15!important;font-weight:850!important}
