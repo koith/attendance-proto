@@ -1,0 +1,14 @@
+name: inventory-units-recipe-thumbs-v088
+on:
+  pull_request:
+    paths: ["index.html","operations_v1.js","operations_v1.css","recipe_access_v220.js","recipe_access_v220.css","qa_v088_inventory_recipe.mjs","supabase/migrations/20260930061424_inventory_unit_config_admin_v088.sql",".github/workflows/inventory-units-recipe-thumbs-v088.yml"]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
+      - run: node --check operations_v1.js
+      - run: node --check recipe_access_v220.js
+      - run: node qa_v088_inventory_recipe.mjs
