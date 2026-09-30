@@ -35,7 +35,7 @@ function renderMonth(){
       const status=es.some(x=>isIssue(x,day))?'issue':es.some(x=>x.status==='WORKING')?'working':'normal';
       return {name:emp?.name||'직원 정보 없음',status};
     });
-    const shown=people.slice(0,2),more=Math.max(0,people.length-shown.length);
+    const shown=people.slice(0,6),more=Math.max(0,people.length-shown.length);
     const lines=shown.map(x=>`<div class="line employee-status-line"><i class="status-dot calendar-${x.status}" aria-hidden="true"></i><b>${escapeHtml(x.name)}</b></div>`).join('')+(more?`<div class="more">+${more}명</div>`:'');
     html+=`<button class="day${day===today?' today':''}" data-day="${day}"><span class="num">${d}</span>${lines?`<div class="lines">${lines}</div>`:''}</button>`;
   }
@@ -71,9 +71,12 @@ function renderDay(day){
       label=s.status==='COMPLETE'?`${hm(s.in)}–${hm(s.out)} · ${dur(s.sec)}`:s.status==='WORKING'?`${hm(s.in)}–진행 중`:s.status==='INCOMPLETE'?`${hm(s.in)}–퇴근 누락`:`출근 누락–${hm(s.out)}`;
     detail+=`<div class="session"><div><b>${escapeHtml(emp?.name||'직원 정보 없음')}</b><div class="meta">${label}</div></div><div>${s.corrected?'<span class="pill correction-status">정정됨</span> ':''}${issue?'<span class="pill warn">확인 필요</span>':''}</div></div>`
   }
-  el('app').innerHTML=`<section class="dayview"><div class="dayhead"><span class="dayhead-spacer" aria-hidden="true"></span><div class="date">${day}</div><button class="day-close" id="dayClose" aria-label="월력으로 돌아가기">×</button></div><section class="timeline-group"><h3>직원별 실근무 시간</h3><div class="axis-wrap"><div class="axis"><div class="axis-labels">${labels}</div>${rows||'<div class="empty">이 날의 실제 출퇴근 기록이 없습니다.</div>'}</div></div></section><section class="records-group"><h3>근무 기록 및 정정</h3><div class="sessions">${detail}</div><p class="records-note">정정은 원본 출퇴근 기록을 변경하지 않고 정정 이력을 추가합니다.</p></section></section>`;
+  el('app').innerHTML=`<section class="dayview"><div class="dayhead"><button class="day-nav" id="prevDay" aria-label="이전 날짜">‹</button><div class="date">${day}</div><div class="dayhead-actions"><button class="day-nav" id="nextDay" aria-label="다음 날짜">›</button><button class="day-close" id="dayClose" aria-label="월력으로 돌아가기">×</button></div></div><section class="timeline-group"><h3>직원별 실근무 시간</h3><div class="axis-wrap"><div class="axis"><div class="axis-labels">${labels}</div>${rows||'<div class="empty">이 날의 실제 출퇴근 기록이 없습니다.</div>'}</div></div></section><section class="records-group"><h3>근무 기록 및 정정</h3><div class="sessions">${detail}</div><p class="records-note">정정은 원본 출퇴근 기록을 변경하지 않고 정정 이력을 추가합니다.</p></section></section>`;
   el('dayClose').onclick=renderMonth;
+  el('prevDay').onclick=()=>navigateDay(day,-1);
+  el('nextDay').onclick=()=>navigateDay(day,1);
 }
+async function navigateDay(day,delta){const target=addDays(day,delta),ym=target.slice(0,7);if(ym!==S.ym){S.ym=ym;await loadMonth()}renderDay(target)}
 function init(){Auth.load();if(!Auth.token&&!Auth.session?.refresh_token){location.href='index.html#admin';return}const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;el('back').onclick=()=>location.href='index.html#admin';el('prevMonth').onclick=()=>{S.ym=monthShift(S.ym,-1);loadMonth()};el('nextMonth').onclick=()=>{S.ym=monthShift(S.ym,1);loadMonth()};el('monthLabel').onclick=()=>{const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;loadMonth()};loadMonth()}
 init();
 
