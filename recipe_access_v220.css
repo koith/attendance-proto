@@ -75,3 +75,16 @@
 /* v0.92: keep the edit button fixed; move only the pencil glyph upward. */
 .recipe-v220-edit{transform:none!important;padding:0!important;display:grid!important;place-items:center!important}
 .recipe-v220-edit-glyph{display:block;line-height:1;transform:translateY(-4px);pointer-events:none}
+
+/* v0.93: fallback artwork is a strict two-row composition, centered in both card sizes. */
+.recipe-v220-thumb-placeholder{display:grid!important;grid-template-rows:auto auto!important;grid-template-columns:1fr!important;place-content:center!important;place-items:center!important;width:100%!important;height:100%!important;gap:10px!important}
+.recipe-v220-thumb-placeholder i,.recipe-v220-thumb-placeholder small{display:block!important;width:100%;text-align:center!important;margin:0!important}
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder i{font-size:2.55rem!important}
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.92rem!important}
+.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb:has(.recipe-v220-thumb-placeholder){height:260px!important;min-height:260px!important;padding:0!important;display:grid!important;place-items:center!important;overflow:hidden!important}
+.recipe-v220-card.is-open .recipe-v220-thumb-placeholder{min-height:260px!important}
+.recipe-v220-card.is-open .recipe-v220-thumb-placeholder i{font-size:3.8rem!important}
+.recipe-v220-card.is-open .recipe-v220-thumb-placeholder small{font-size:1.12rem!important}
+@media(max-width:520px){.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb:has(.recipe-v220-thumb-placeholder),.recipe-v220-card.is-open .recipe-v220-thumb-placeholder{height:240px!important;min-height:240px!important}}
+/* iOS Safari tap-status-bar-to-top needs the document, not a nested/fixed-height root, to own recipe scrolling. */
+@media(max-width:620px){html:has(.recipe-v220),body:has(.recipe-v220){height:auto!important;min-height:100%!important;overflow-x:clip!important;overflow-y:visible!important}.wrap:has(.recipe-v220){height:auto!important;min-height:100dvh!important;overflow-y:visible!important}}
