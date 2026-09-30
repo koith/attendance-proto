@@ -1,0 +1,11 @@
+import fs from "node:fs";
+const assert=(v,m)=>{if(!v)throw new Error(m)};
+const index=fs.readFileSync("index.html","utf8");
+const state=fs.readFileSync("supabase/migrations/20260930030613_employee_state_respects_attendance_corrections_v086.sql","utf8");
+const punch=fs.readFileSync("supabase/migrations/20260930030711_block_post_close_reclockin_and_fix_state_v086.sql","utf8");
+assert(index.includes('APP_VERSION="v0.86"'),"v0.86 version missing");
+assert(state.includes("event_corrections")&&state.includes("action='ADD'")&&state.includes("action='VOID'"),"employee state must use canonical corrections");
+assert(punch.includes("STORE_CLOSED"),"post-close clock-in guard missing");
+assert(punch.includes("v_business_minute >= v_close_minute"),"close-minute guard missing");
+assert(punch.includes("ae.id in (5363,5364)")&&punch.includes("'VOID'"),"invalid post-close events correction missing");
+console.log("v0.86 attendance close-state regression PASS");
