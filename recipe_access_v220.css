@@ -88,3 +88,6 @@
 @media(max-width:520px){.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb:has(.recipe-v220-thumb-placeholder),.recipe-v220-card.is-open .recipe-v220-thumb-placeholder{height:240px!important;min-height:240px!important}}
 /* iOS Safari tap-status-bar-to-top needs the document, not a nested/fixed-height root, to own recipe scrolling. */
 @media(max-width:620px){html:has(.recipe-v220),body:has(.recipe-v220){height:auto!important;min-height:100%!important;overflow-x:clip!important;overflow-y:visible!important}.wrap:has(.recipe-v220){height:auto!important;min-height:100dvh!important;overflow-y:visible!important}}
+
+/* v0.94: focused search result is the only recipe content shown. */
+.recipe-v220-list.has-focused-recipe>.recipe-v220-card.is-search-hidden,.recipe-v220-list.has-focused-recipe>.recipe-v220-empty{display:none!important}
