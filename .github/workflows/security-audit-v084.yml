@@ -1,0 +1,17 @@
+name: security-audit-v084
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'supabase/migrations/20260930002601_revoke_anon_admin_rpc_v084.sql'
+      - 'qa_v084_security_audit.mjs'
+      - '.github/workflows/security-audit-v084.yml'
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node qa_v084_security_audit.mjs
