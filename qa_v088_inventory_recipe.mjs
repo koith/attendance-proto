@@ -1,0 +1,14 @@
+import fs from "node:fs";
+const assert=(v,m)=>{if(!v)throw new Error(m)};
+const index=fs.readFileSync("index.html","utf8");
+const ops=fs.readFileSync("operations_v1.js","utf8");
+const recipe=fs.readFileSync("recipe_access_v220.js","utf8");
+const migration=fs.readFileSync("supabase/migrations/20260930061424_inventory_unit_config_admin_v088.sql","utf8");
+const vm=index.match(/APP_VERSION="v0\.(\d+)"/);assert(vm&&Number(vm[1])>=88,"v0.88+ missing");
+assert(index.includes('admin_inventory_overview_v3'),"inventory v3 RPC missing");
+assert(index.includes('admin_inventory_unit_config_save'),"unit config save RPC missing");
+assert(ops.includes("단위 확인 필요")&&ops.includes("1 '+o+' = '+q+' '+s"),"inventory unit editor missing");
+assert(ops.includes("실제 포장 수량을 확인한 값만 입력하세요"),"no-guess guard missing");
+assert(recipe.includes("recipeThumbPlaceholder")&&recipe.includes("베이스 제조")&&recipe.includes("운영 가이드"),"recipe fallback thumbnails missing");
+assert(migration.includes("if not public.is_admin()")&&migration.includes("revoke all on function public.admin_inventory_unit_config_save"),"RPC auth hardening missing");
+console.log("v0.88 inventory units + recipe thumbnails PASS");
