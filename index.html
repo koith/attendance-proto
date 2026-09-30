@@ -750,7 +750,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.96";
+const APP_VERSION="v0.97";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1575,7 +1575,7 @@ async function submitPad(){
     }
     const res=await BE.punch(padEmp.id,pin,subForId);
     if(!res||!res.ok){
-      const msg={NO_EMPLOYEE:"직원을 찾을 수 없습니다.",BAD_PIN:"비밀번호가 올바르지 않습니다.",TOO_SOON:"방금 처리되었습니다. 잠시 후 다시."}[res&&res.error]||"처리 실패";
+      const msg={NO_EMPLOYEE:"직원을 찾을 수 없습니다.",BAD_PIN:"비밀번호가 올바르지 않습니다.",TOO_SOON:"방금 처리되었습니다. 잠시 후 다시.",STORE_CLOSED:"영업 종료 후 출근 제한 시간입니다."}[res&&res.error]||"처리 실패";
       closePad(); toast("err",(res&&res.error==="BAD_PIN")?"비밀번호 오류":"오류",msg); return;
     }
     closePad();
