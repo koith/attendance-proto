@@ -1,0 +1,17 @@
+name: audit-v086
+on:
+  pull_request:
+    paths:
+      - "index.html"
+      - "supabase/migrations/**"
+      - "qa_v086_attendance_close.mjs"
+      - ".github/workflows/audit-v086.yml"
+jobs:
+  attendance-close-v086:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node qa_v086_attendance_close.mjs
