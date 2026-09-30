@@ -1,0 +1,12 @@
+name: correction-button-badge-v087
+on:
+  pull_request:
+    paths: ["actual_attendance.js","actual_attendance_correction.css","index.html","qa_v087_correction_button_badge.mjs",".github/workflows/correction-button-badge-v087.yml"]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
+      - run: node qa_v087_correction_button_badge.mjs
