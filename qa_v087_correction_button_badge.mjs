@@ -1,0 +1,11 @@
+import fs from "node:fs";
+const assert=(v,m)=>{if(!v)throw new Error(m)};
+const js=fs.readFileSync("actual_attendance.js","utf8");
+const css=fs.readFileSync("actual_attendance_correction.css","utf8");
+const index=fs.readFileSync("index.html","utf8");
+assert(index.includes('APP_VERSION="v0.87"'),"v0.87 missing");
+assert(js.includes('<span class="pill correction-status">정정됨</span>'),"correction status badge missing");
+assert(js.includes('class="session-fix">정정</button>'),"correction action button missing");
+assert(css.includes(".session-fix{appearance:none;border:1px solid var(--brand);background:var(--brand);color:#fff"),"action must look like a button");
+assert(css.includes(".correction-status{border:1px solid #bfe3cb;background:#eef6f1"),"status must look like a badge");
+console.log("v0.87 correction button/badge hierarchy PASS");
