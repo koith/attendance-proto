@@ -1,0 +1,18 @@
+name: audit-v085
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'supabase/migrations/20260930012050_inventory_units_and_audit_hardening_v085.sql'
+      - 'supabase/migrations/20260930012059_staff_recipe_canonical_clock_state_v085.sql'
+      - 'qa_v085_audit.mjs'
+      - '.github/workflows/audit-v085.yml'
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node qa_v085_audit.mjs
