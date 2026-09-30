@@ -68,3 +68,6 @@
 .recipe-v220-card.is-open .recipe-v220-thumb-placeholder{min-height:150px;gap:10px!important}
 .recipe-v220-card.is-open .recipe-v220-thumb-placeholder i{font-size:3.4rem!important;line-height:1!important}
 .recipe-v220-card.is-open .recipe-v220-thumb-placeholder small{font-size:1.05rem!important;line-height:1.15!important;font-weight:850!important}
+
+/* v0.91: optically raise recipe edit pencil by 4px without moving its hit target. */
+.recipe-v220-edit{transform:translateY(-4px)!important}
