@@ -122,8 +122,8 @@
 
   function renderList(rows,manager){
     const cats=["전체",...new Set(rows.map(r=>r.category||"미분류"))],state={focusedKey:null,returnY:0,pushed:false,restoring:false};
-    view.innerHTML=`<div class="recipe-v220"><div class="recipe-v220-head page-title-row"><div><h2 class="page-title">레시피</h2><p>${manager?"이 지점에서 사용하는 레시피입니다. 연필 버튼으로 지점 전용 변경사항을 저장할 수 있습니다.":"직원이 언제든 확인할 수 있는 보기 전용 레시피입니다."}</p></div><span>${rows.length}개</span></div><div class="recipe-v220-toolbar"><label>카테고리<select id="rvCat">${cats.map(x=>`<option>${esc(x)}</option>`).join("")}</select></label><label>정렬<select id="rvSort"><option value="name-asc">메뉴명 ▲</option><option value="name-desc">메뉴명 ▼</option><option value="category-asc">카테고리명 ▲</option><option value="category-desc">카테고리명 ▼</option></select></label><label>검색<input id="rvSearch" type="search" placeholder="메뉴명 검색"></label></div><div id="rvList" class="recipe-v220-list"></div></div>`;
-    const catEl=document.getElementById("rvCat"),sortEl=document.getElementById("rvSort"),searchEl=document.getElementById("rvSearch"),listEl=document.getElementById("rvList");
+    view.innerHTML=`<div class="recipe-v220"><div class="recipe-v220-head page-title-row"><div><h2 class="page-title">레시피</h2><p>${manager?"이 지점에서 사용하는 레시피입니다. 연필 버튼으로 지점 전용 변경사항을 저장할 수 있습니다.":"직원이 언제든 확인할 수 있는 보기 전용 레시피입니다."}</p></div><span>${rows.length}개</span></div><div class="recipe-v220-toolbar"><label>카테고리<select id="rvCat">${cats.map(x=>`<option>${esc(x)}</option>`).join("")}</select></label><label>정렬<select id="rvSort"><option value="name-asc">메뉴명 ▲</option><option value="name-desc">메뉴명 ▼</option><option value="category-asc">카테고리명 ▲</option><option value="category-desc">카테고리명 ▼</option></select></label><label>검색<span class="recipe-v220-searchbox"><input id="rvSearch" type="search" placeholder="메뉴명 검색" autocomplete="off"><button id="rvSearchClear" type="button" class="recipe-v220-search-clear" aria-label="검색어 지우기">×</button></span></label></div><div id="rvList" class="recipe-v220-list"></div></div>`;
+    const catEl=document.getElementById("rvCat"),sortEl=document.getElementById("rvSort"),searchEl=document.getElementById("rvSearch"),searchClearEl=document.getElementById("rvSearchClear"),listEl=document.getElementById("rvList");
     const closeFocused=(fromPop=false)=>{
       if(!state.focusedKey)return;
       const card=listEl.querySelector('.recipe-v220-card[data-key="'+CSS.escape(state.focusedKey)+'"]');
@@ -151,7 +151,7 @@
     const refresh=async()=>{const next=await BE.storeRecipeList(CURRENT_STORE_ID);window.recipeFocusAbort?.abort();renderList(next,true)};
     window.recipeFocusAbort?.abort();window.recipeFocusAbort=new AbortController();
     window.addEventListener("popstate",onPop,{signal:window.recipeFocusAbort.signal});
-    catEl.onchange=draw;sortEl.onchange=draw;searchEl.oninput=draw;draw();
+    const syncSearchClear=()=>searchClearEl.classList.toggle("is-visible",!!searchEl.value);catEl.onchange=draw;sortEl.onchange=draw;searchEl.oninput=()=>{syncSearchClear();draw()};searchClearEl.onclick=()=>{searchEl.value="";syncSearchClear();draw();searchEl.focus()};syncSearchClear();draw();
   }
 
   async function renderRecipeHub(){
