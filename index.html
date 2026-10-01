@@ -750,7 +750,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.99";
+const APP_VERSION="v0.100";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1636,7 +1636,7 @@ function mrShowAuth(emps, preselId){
       else toast("err","오류","");
       return;
     }
-    // 인증 성공 → STEP2. emps를 넘겨 뒤로가기 시 재사용
+    // 인증 성공 → STEP2. 관리자 캘린더와 동일한 월간 UX를 본인 기록만으로 표시
     mrShowRecord(id,pin,res.events||[],res.requests||[],emps);
   };
 }
@@ -1662,41 +1662,34 @@ function fmtDur(sec){ if(sec==null) return "—"; const m=Math.floor(sec/60); co
 const LONG_SESSION_THRESHOLD_HOURS = 16; // heuristic (합의/법률 아님) — 장시간근무 확인필요 표시용
 function renderMyResult(empId,pin,events,requests,emps){
   const el=document.getElementById("mrResult");
-  const sess=pairEvents(events);
-  let html=`<div class="section-t">최근 2주 근무</div>`;
-  if(!sess.length) html+=`<div style="color:var(--muted);font-size:.85rem">기록이 없습니다.</div>`;
-  else{
-    for(let i=0;i<sess.length;i++){
-      const s=sess[i];
-      const crossDay = s.in&&s.out && (s.in.getDate()!==s.out.getDate()||s.in.getMonth()!==s.out.getMonth());
-      let statusBadge="", warnColor="";
-      if(s.status==="COMPLETE"){ if(s.sec>LONG_SESSION_THRESHOLD_HOURS*3600){ statusBadge=`<span class="badge issue">장시간 근무 · 확인필요</span>`; warnColor="color:var(--warn)"; } }
-      else if(s.status==="WORKING") statusBadge=`<span class="badge work">근무중</span>`;
-      else if(s.status==="INCOMPLETE"){ statusBadge=`<span class="badge issue">퇴근누락</span>`; warnColor="color:var(--warn)"; }
-      else if(s.status==="ORPHAN_OUT"){ statusBadge=`<span class="badge issue">출근누락</span>`; warnColor="color:var(--warn)"; }
-      html+=`<div style="padding:10px 0;border-bottom:1px solid var(--line);font-size:.88rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-weight:600;${warnColor}">출근 ${fmtDT(s.in)} → 퇴근 ${fmtDT(s.out)}</span>
-          ${statusBadge}
-        </div>
-        <div style="display:flex;justify-content:space-between;color:var(--sub);font-size:.82rem">
-          <span>${crossDay?'⚠ 날짜 넘김 · ':''}근무 ${fmtDur(s.sec)}</span>
-          <button class="btn btn-secondary btn-sm" data-sess="${i}">정정요청</button>
-        </div>
-      </div>`;
+  const allSess=pairEvents(events).filter(s=>Number(s.employee_id)===Number(empId));
+  const now=kstNow(), p=n=>String(n).padStart(2,"0");
+  let ym=`${now.getFullYear()}-${p(now.getMonth()+1)}`;
+  function shift(delta){const [y,m]=ym.split("-").map(Number),d=new Date(y,m-1+delta,1);ym=`${d.getFullYear()}-${p(d.getMonth()+1)}`;draw();}
+  function key(d){return d?`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`:"";}
+  function issue(s,day){return s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT"||(s.status==="WORKING"&&day!==key(now))||(s.status==="COMPLETE"&&s.sec>LONG_SESSION_THRESHOLD_HOURS*3600);}
+  function draw(){
+    const [y,m]=ym.split("-").map(Number), days=new Date(y,m,0).getDate(), off=new Date(y,m-1,1).getDay();
+    let h=`<div style="display:grid;grid-template-columns:44px 1fr 44px;align-items:center;border:1px solid var(--line);margin-bottom:10px"><button class="btn btn-secondary" id="mrPrev" style="border:0;border-radius:0">‹</button><b style="text-align:center">${y}년 ${m}월</b><button class="btn btn-secondary" id="mrNext" style="border:0;border-radius:0">›</button></div>`;
+    h+=`<div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;color:var(--sub);font-size:.72rem;margin-bottom:4px">${["일","월","화","수","목","금","토"].map(x=>`<div>${x}</div>`).join("")}</div><div style="display:grid;grid-template-columns:repeat(7,1fr);border-left:1px solid var(--line);border-top:1px solid var(--line)">`;
+    for(let i=0;i<off;i++)h+=`<div style="min-height:62px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--panel2)"></div>`;
+    for(let d=1;d<=days;d++){const day=`${ym}-${p(d)}`,ss=allSess.filter(s=>key(s.in||s.out)===day),secs=ss.reduce((a,s)=>a+(s.sec||0),0),bad=ss.some(s=>issue(s,day)),working=ss.some(s=>s.status==="WORKING"&&!issue(s,day));
+      const dot=bad?"#dc3b32":working?"#2474d2":"#159455";
+      h+=`<button type="button" data-mr-day="${day}" style="min-width:0;min-height:62px;padding:5px;border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff;text-align:left;color:var(--ink)"><b style="display:block;color:var(--brand-700)">${d}</b>${ss.length?`<span style="display:block;margin-top:6px;font-size:.66rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dot};margin-right:3px"></i>${working?"근무 중":bad?"확인 필요":fmtDur(secs)}</span>`:""}</button>`;
     }
+    h+=`</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;color:var(--sub);font-size:.7rem"><span>● 근무 완료</span><span>● 근무 중</span><span>● 확인 필요</span><span>날짜를 누르면 상세</span></div><div id="mrDayDetail"></div>`;
+    el.innerHTML=h;
+    el.querySelector("#mrPrev").onclick=()=>shift(-1); el.querySelector("#mrNext").onclick=()=>shift(1);
+    el.querySelectorAll("[data-mr-day]").forEach(b=>b.onclick=()=>showDay(b.dataset.mrDay));
   }
-  if(requests&&requests.length){
-    html+=`<div class="section-t" style="margin-top:14px">내 정정요청</div>`;
-    const st={PENDING:"대기중",APPROVED:"승인됨",REJECTED:"반려됨"};
-    for(const r of requests.slice(0,5)){
-      html+=`<div style="font-size:.82rem;color:var(--sub);padding:4px 0">${r.created_at.slice(5,10)} · ${st[r.status]||r.status} ${r.note?'· '+r.note:''}</div>`;
-    }
+  function showDay(day){
+    const ss=allSess.filter(s=>key(s.in||s.out)===day), box=el.querySelector("#mrDayDetail"); if(!box)return;
+    let h=`<div class="section-t" style="margin-top:14px">${day} 근무 상세</div>`;
+    if(!ss.length)h+=`<div style="color:var(--muted);font-size:.85rem">근무 기록이 없습니다.</div>`;
+    ss.forEach((s,i)=>{h+=`<div style="padding:10px 0;border-bottom:1px solid var(--line);font-size:.84rem"><div><b>출근 ${fmtDT(s.in)} → 퇴근 ${fmtDT(s.out)}</b></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;color:var(--sub)"><span>근무 ${fmtDur(s.sec)}</span><button class="btn btn-secondary btn-sm" data-mr-fix="${i}">정정요청</button></div></div>`;});
+    box.innerHTML=h; box.querySelectorAll("[data-mr-fix]").forEach(b=>b.onclick=()=>openReqForm(empId,pin,ss[Number(b.dataset.mrFix)],events,requests,emps));
   }
-  el.innerHTML=html;
-  el.querySelectorAll("[data-sess]").forEach(b=>b.onclick=()=>{
-    openReqForm(empId,pin,sess[Number(b.getAttribute("data-sess"))],events,requests,emps);
-  });
+  draw();
 }
 // 정정요청 폼: 날짜+시간 분리 입력, 실시간 예상근무시간, 전송전 validation
 function openReqForm(empId,pin,sess,events,requests,emps){
