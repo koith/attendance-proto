@@ -175,6 +175,14 @@ init();
   const wallValue=v=>String(v||'').replace('T',' ').slice(0,16)+':00';
   function closeCorrection(){document.getElementById('actualCorrectionVeil')?.remove()}
   function toastCorrection(msg,err=false){const t=el('toast');t.textContent=msg;t.className='toast show'+(err?' err':'');clearTimeout(toastCorrection.t);toastCorrection.t=setTimeout(()=>t.className='toast',2200)}
+  async function addAttendance(day){
+    if(S.staffMode)return;
+    const emp=S.employees[0]; if(!emp)return toastCorrection('등록할 직원이 없습니다.',true);
+    const employeeId=Number(prompt('직원 ID를 입력하세요.\n'+S.employees.map(e=>e.name+' : '+e.id).join('\n'),emp.id)); if(!employeeId||!S.employees.some(e=>Number(e.id)===employeeId))return;
+    const inTime=prompt('출근 시각 (HH:MM)','09:00'); if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(inTime||''))return;
+    const outTime=prompt('퇴근 시각 (HH:MM, 미퇴근이면 비움)',''); const reason=prompt('생성 사유','관리자 근무기록 생성'); if(!reason)return;
+    try{await rpc('admin_correct_event',{p_action:'ADD',p_event_id:null,p_employee_id:employeeId,p_new_at:day+' '+inTime+':00',p_new_type:'IN',p_reason:reason});if(outTime&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(outTime))await rpc('admin_correct_event',{p_action:'ADD',p_event_id:null,p_employee_id:employeeId,p_new_at:day+' '+outTime+':00',p_new_type:'OUT',p_reason:reason});toastCorrection('근무 기록을 생성했습니다.');await loadMonth();renderDay(day)}catch(e){console.error(e);toastCorrection('근무 기록 생성 실패',true)}
+  }
   function openCorrection(day,s){
     closeCorrection();
     // A multi-day display slice is derived UI only. Corrections always target the authoritative
@@ -220,7 +228,10 @@ init();
     originalRenderDay(day);
     const ss=sessionsForDay(day);
     if(S.staffMode)return;
-    document.querySelectorAll('.sessions .session').forEach((row,i)=>{const s=ss[i];if(!s)return;const actions=document.createElement('div');actions.className='session-actions';actions.innerHTML='<button type="button" class="session-fix">정정</button>';actions.querySelector('button').onclick=()=>openCorrection(day,s);row.appendChild(actions)});
+    if(!S.staffMode){
+      const head=document.querySelector('.records-group h3');if(head&&!document.getElementById('attendanceAddBtn')){const b=document.createElement('button');b.id='attendanceAddBtn';b.className='session-fix';b.textContent='근무 기록 생성';b.style.marginLeft='10px';b.onclick=()=>addAttendance(day);head.appendChild(b)}
+      document.querySelectorAll('.sessions .session').forEach((row,i)=>{const s=ss[i];if(!s)return;const actions=document.createElement('div');actions.className='session-actions';actions.innerHTML='<button type="button" class="session-fix">정정</button><button type="button" class="session-fix session-delete">삭제</button>';actions.querySelector('.session-fix').onclick=()=>openCorrection(day,s);actions.querySelector('.session-delete').onclick=async()=>{if(!confirm('이 근무 기록을 삭제 처리할까요? 원본은 보존되고 삭제 이력이 남습니다.'))return;const src=window.actualAttendanceSourceSession?window.actualAttendanceSourceSession(s):s;const reason=prompt('삭제 사유','관리자 근무기록 삭제');if(!reason)return;try{if(src.inId)await rpc('admin_correct_event',{p_action:'VOID',p_event_id:Number(src.inId),p_employee_id:Number(src.employee_id),p_new_at:null,p_new_type:null,p_reason:reason});if(src.outId)await rpc('admin_correct_event',{p_action:'VOID',p_event_id:Number(src.outId),p_employee_id:Number(src.employee_id),p_new_at:null,p_new_type:null,p_reason:reason});toastCorrection('근무 기록을 삭제 처리했습니다.');await loadMonth();renderDay(day)}catch(e){console.error(e);toastCorrection('삭제 처리 실패',true)}};row.appendChild(actions)});
+    }
   };
 })();
 
