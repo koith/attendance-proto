@@ -15,11 +15,18 @@ function monthShift(ym,delta){const [y,m]=ym.split('-').map(Number),d=new Date(y
 function addDays(iso,n){const [y,m,d]=iso.split('-').map(Number),x=new Date(y,m-1,d+n);return dayKey(x)}
 function monthBounds(ym){const [y,m]=ym.split('-').map(Number);const first=`${y}-${p2(m)}-01`,next=monthShift(ym,1)+'-01';return {first,next}}
 function kstToday(){return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Seoul'}))}
-const S={ym:'',employees:[],sessions:[],selectedDay:null,storeHours:{open_minute:420,close_minute:1500}};
+const S={ym:'',employees:[],sessions:[],selectedDay:null,storeHours:{open_minute:420,close_minute:1500},staffMode:false,staffAuth:null};
 function sessionAnchor(s){return s.in||s.out}
 function sessionsForDay(day){return S.sessions.filter(s=>{const a=sessionAnchor(s);return a&&dayKey(a)===day})}
 function isIssue(s,day){if(s.status==='INCOMPLETE'||s.status==='ORPHAN_OUT')return true;if(s.status==='WORKING'&&day!==dayKey(kstToday()))return true;if(s.status==='COMPLETE'&&s.sec>16*3600)return true;return false}
-async function loadMonth(){const app=el('app');app.innerHTML='<div class="loading">실근무 기록 불러오는 중…</div>';const {first,next}=monthBounds(S.ym);el('monthLabel').textContent=S.ym.replace('-','년 ')+'월';try{let employees=[];try{employees=await rpc('admin_list_all_employees')}catch(_){employees=await rpc('admin_list_employees')}let hours;try{hours=await rpc('admin_store_settings_get',{p_store_id:Number(sessionStorage.getItem('baekeok_store_id'))||1});if(hours)S.storeHours=hours}catch(_){}const data=await rpc('admin_events_with_corrections',{p_from:addDays(first,-7)+'T00:00:00',p_to:addDays(next,7)+'T00:00:00'});const storeId=Number(sessionStorage.getItem('baekeok_store_id'))||1;S.employees=(employees||[]).filter(e=>!e.store_id||Number(e.store_id)===storeId).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko-KR'));const allowedIds=new Set(S.employees.map(e=>Number(e.id)));S.sessions=pairEvents(applyCorrections(data?.events||[],data?.corrections||[])).filter(s=>allowedIds.has(Number(s.employee_id)));renderMonth()}catch(e){console.error('[actual-attendance]',e);const msg=String(e?.message||e);if(/401|JWT|NOT_AUTHORIZED/i.test(msg)){app.innerHTML='<div class="empty">관리자 세션을 다시 확인해주세요.<br><button id="retry">다시 시도</button></div>'}else{app.innerHTML=`<div class="empty">실근무 현황을 불러오지 못했습니다.<br><span style="font-size:.72rem;color:var(--text-muted)">${escapeHtml(msg.slice(0,160))}</span><br><button id="retry">다시 시도</button></div>`}el('retry').onclick=loadMonth}}
+async function loadMonth(){const app=el('app');app.innerHTML='<div class="loading">실근무 기록 불러오는 중…</div>';const {first,next}=monthBounds(S.ym);el('monthLabel').textContent=S.ym.replace('-','년 ')+'월';try{
+  if(S.staffMode){
+    const a=S.staffAuth,data=await rpc('staff_actual_attendance',{p_employee_id:Number(a.employee_id),p_pin:String(a.pin),p_from:addDays(first,-7)+'T00:00:00',p_to:addDays(next,7)+'T00:00:00'});
+    if(!data?.ok)throw new Error(data?.error||'STAFF_AUTH_FAILED');
+    S.employees=[data.employee];S.sessions=pairEvents(applyCorrections(data.events||[],data.corrections||[])).filter(s=>Number(s.employee_id)===Number(a.employee_id));renderMonth();return;
+  }
+  let employees=[];try{employees=await rpc('admin_list_all_employees')}catch(_){employees=await rpc('admin_list_employees')}let hours;try{hours=await rpc('admin_store_settings_get',{p_store_id:Number(sessionStorage.getItem('baekeok_store_id'))||1});if(hours)S.storeHours=hours}catch(_){}const data=await rpc('admin_events_with_corrections',{p_from:addDays(first,-7)+'T00:00:00',p_to:addDays(next,7)+'T00:00:00'});const storeId=Number(sessionStorage.getItem('baekeok_store_id'))||1;S.employees=(employees||[]).filter(e=>!e.store_id||Number(e.store_id)===storeId).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko-KR'));const allowedIds=new Set(S.employees.map(e=>Number(e.id)));S.sessions=pairEvents(applyCorrections(data?.events||[],data?.corrections||[])).filter(s=>allowedIds.has(Number(s.employee_id)));renderMonth()
+}catch(e){console.error('[actual-attendance]',e);const msg=String(e?.message||e);app.innerHTML=`<div class="empty">실근무 현황을 불러오지 못했습니다.<br><span style="font-size:.72rem;color:var(--text-muted)">${escapeHtml(msg.slice(0,160))}</span><br><button id="retry">다시 시도</button></div>`;el('retry').onclick=loadMonth}}
 function renderMonth(){
   S.selectedDay=null;
   const [y,m]=S.ym.split('-').map(Number),days=new Date(y,m,0).getDate(),offset=new Date(y,m-1,1).getDay(),today=dayKey(kstToday());
@@ -77,7 +84,7 @@ function renderDay(day){
   el('nextDay').onclick=()=>navigateDay(day,1);
 }
 async function navigateDay(day,delta){const target=addDays(day,delta),ym=target.slice(0,7);if(ym!==S.ym){S.ym=ym;await loadMonth()}renderDay(target)}
-function init(){Auth.load();if(!Auth.token&&!Auth.session?.refresh_token){location.href='index.html#admin';return}const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;el('back').onclick=()=>location.href='index.html#admin';el('prevMonth').onclick=()=>{S.ym=monthShift(S.ym,-1);loadMonth()};el('nextMonth').onclick=()=>{S.ym=monthShift(S.ym,1);loadMonth()};el('monthLabel').onclick=()=>{const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;loadMonth()};loadMonth()}
+function init(){Auth.load();try{S.staffAuth=JSON.parse(sessionStorage.getItem('staff_attendance_auth')||'null')}catch(_){S.staffAuth=null}S.staffMode=!Auth.token&&!!(S.staffAuth?.employee_id&&/^\\d{4}$/.test(String(S.staffAuth?.pin||'')));if(!Auth.token&&!S.staffMode){location.href='index.html#attendance';return}if(S.staffMode){document.querySelector('.titlebox p').textContent='내 실제 출퇴근 기록';}const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;el('back').onclick=()=>location.href='index.html#pos';el('prevMonth').onclick=()=>{S.ym=monthShift(S.ym,-1);loadMonth()};el('nextMonth').onclick=()=>{S.ym=monthShift(S.ym,1);loadMonth()};el('monthLabel').onclick=()=>{const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;loadMonth()};loadMonth()}
 init();
 
 /* Canonical actual-attendance modules: loaded in one owned runtime, not as HTML patch chain. */
@@ -212,6 +219,7 @@ init();
   renderDay=function(day){
     originalRenderDay(day);
     const ss=sessionsForDay(day);
+    if(S.staffMode)return;
     document.querySelectorAll('.sessions .session').forEach((row,i)=>{const s=ss[i];if(!s)return;const actions=document.createElement('div');actions.className='session-actions';actions.innerHTML='<button type="button" class="session-fix">정정</button>';actions.querySelector('button').onclick=()=>openCorrection(day,s);row.appendChild(actions)});
   };
 })();
