@@ -750,7 +750,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.100";
+const APP_VERSION="v0.101";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1570,6 +1570,9 @@ async function submitPad(){
       closePad(); toast("err",(res&&res.error==="BAD_PIN")?"비밀번호 오류":"오류",msg); return;
     }
     closePad();
+    // 출퇴근 PIN 인증 성공을 현재 브라우저 세션의 직원 인증으로 재사용.
+    // 근무현황에서 같은 직원에게 PIN을 다시 요구하지 않는다.
+    sessionStorage.setItem("staff_attendance_auth",JSON.stringify({employee_id:Number(padEmp.id),pin:String(pin)}));
     if(res.type==="IN") sessionStorage.setItem("recipe_last_employee",String(padEmp.id));
     else if(sessionStorage.getItem("recipe_last_employee")===String(padEmp.id)) sessionStorage.removeItem("recipe_last_employee");
     showSuccess(res.type, res.name||padEmp.name, kstNow(), res);
@@ -1607,6 +1610,20 @@ async function openMyRecord(){
   let emps=[];
   try{ emps=await BE.listEmployeesState(); }catch(e){ toast("err","오류",e.message); return; }
   if(!emps.length){ toast("err","직원 없음",""); return; }
+  // 같은 브라우저 세션에서 출퇴근 PIN 인증을 이미 마쳤으면 즉시 본인 근무현황으로 진입.
+  let staffAuth=null;
+  try{ staffAuth=JSON.parse(sessionStorage.getItem("staff_attendance_auth")||"null"); }catch(_){ staffAuth=null; }
+  if(staffAuth&&staffAuth.employee_id&&/^\d{4}$/.test(String(staffAuth.pin||""))){
+    const emp=emps.find(e=>Number(e.id)===Number(staffAuth.employee_id));
+    if(emp){
+      const r=mrRange();
+      try{
+        const res=await BE.myEvents(Number(emp.id),String(staffAuth.pin),r.fs,r.ts);
+        if(res&&res.ok){ mrShowRecord(Number(emp.id),String(staffAuth.pin),res.events||[],res.requests||[],emps); return; }
+      }catch(_){}
+    }
+    sessionStorage.removeItem("staff_attendance_auth");
+  }
   mrShowAuth(emps, null);
 }
 // STEP 1: 인증 화면 (preselId: 뒤로 왔을 때 직원 선택만 복원, PIN은 항상 재입력)
@@ -1636,7 +1653,8 @@ function mrShowAuth(emps, preselId){
       else toast("err","오류","");
       return;
     }
-    // 인증 성공 → STEP2. 관리자 캘린더와 동일한 월간 UX를 본인 기록만으로 표시
+    // 인증 성공은 현재 브라우저 세션 동안 유지해 탭 이동 시 재로그인을 요구하지 않는다.
+    sessionStorage.setItem("staff_attendance_auth",JSON.stringify({employee_id:id,pin:String(pin)}));
     mrShowRecord(id,pin,res.events||[],res.requests||[],emps);
   };
 }
