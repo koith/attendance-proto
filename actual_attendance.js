@@ -176,7 +176,11 @@ init();
   function closeCorrection(){document.getElementById('actualCorrectionVeil')?.remove()}
   function toastCorrection(msg,err=false){const t=el('toast');t.textContent=msg;t.className='toast show'+(err?' err':'');clearTimeout(toastCorrection.t);toastCorrection.t=setTimeout(()=>t.className='toast',2200)}
   async function addAttendance(day){
-    if(S.staffMode)return;
+    if(S.staffMode){
+      document.querySelector('.records-group h3')?.insertAdjacentHTML('beforeend','<button id="staffCorrectionRequest" class="session-fix" style="margin-left:10px">정정 요청</button>');
+      const b=document.getElementById('staffCorrectionRequest');if(b)b.onclick=()=>{location.href='index.html#attendance-correction'};
+      return;
+    }
     const emp=S.employees[0]; if(!emp)return toastCorrection('등록할 직원이 없습니다.',true);
     const employeeId=Number(prompt('직원 ID를 입력하세요.\n'+S.employees.map(e=>e.name+' : '+e.id).join('\n'),emp.id)); if(!employeeId||!S.employees.some(e=>Number(e.id)===employeeId))return;
     const inTime=prompt('출근 시각 (HH:MM)','09:00'); if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(inTime||''))return;
