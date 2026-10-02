@@ -40,10 +40,11 @@ function renderMonth(){
     const people=employeeIds.map(id=>{
       const emp=S.employees.find(e=>Number(e.id)===id),es=ss.filter(x=>Number(x.employee_id)===id);
       const status=es.some(x=>isIssue(x,day))?'issue':es.some(x=>x.status==='WORKING')?'working':'normal';
-      return {name:emp?.name||'직원 정보 없음',status};
+      const sec=es.reduce((sum,s)=>{if(s.status==='COMPLETE')return sum+Number(s.sec||0);if(s.status==='WORKING'&&s.in&&day===today)return sum+Math.max(0,Math.floor((kstToday()-s.in)/1000));return sum},0);
+      return {name:emp?.name||'직원 정보 없음',status,sec};
     });
     const shown=people.slice(0,6),more=Math.max(0,people.length-shown.length);
-    const lines=shown.map(x=>`<div class="line employee-status-line"><i class="status-dot calendar-${x.status}" aria-hidden="true"></i><b>${escapeHtml(x.name)}</b></div>`).join('')+(more?`<div class="more">+${more}명</div>`:'');
+    const lines=shown.map(x=>`<div class="line employee-status-line"><i class="status-dot calendar-${x.status}" aria-hidden="true"></i><b>${escapeHtml(x.name)}</b>${x.sec>0?`<span class="calendar-duration">${dur(x.sec)}</span>`:''}</div>`).join('')+(more?`<div class="more">+${more}명</div>`:'');
     html+=`<button class="day${day===today?' today':''}" data-day="${day}"><span class="num">${d}</span>${lines?`<div class="lines">${lines}</div>`:''}</button>`;
   }
   html+='</div><div class="legend"><span><i class="dot normal"></i>근무 완료</span><span><i class="dot working"></i>근무 중</span><span><i class="dot issue"></i>확인 필요</span><span>날짜를 누르면 상세</span></div><button class="today-fab" id="monthTodayBtn" aria-label="오늘 날짜 강조">오늘</button>';
