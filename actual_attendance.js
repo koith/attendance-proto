@@ -60,7 +60,13 @@ function renderDay(day){
   // 현장에서는 이름순보다 실제 출근 흐름이 중요하다. 가장 이른 출근시각 순으로 고정.
   const firstAt=list=>Math.min(...list.map(x=>(x.in||x.out)?.getTime?.()??Infinity));
   const entries=[...byEmp.entries()].sort((a,b)=>firstAt(a[1])-firstAt(b[1])||Number(a[0])-Number(b[0]));
-  const axisStart=(Number(S.storeHours?.open_minute??420)-60)/60,axisEnd=(Number(S.storeHours?.close_minute??1500)+60)/60,axisSpan=Math.max(1,axisEnd-axisStart),tickStep=axisSpan<=12?2:4;const ticks=[];for(let h=Math.ceil(axisStart/tickStep)*tickStep;h<axisEnd;h+=tickStep)ticks.push(h);if(!ticks.length||Math.abs(ticks[0]-axisStart)>.01)ticks.unshift(axisStart);if(Math.abs(ticks[ticks.length-1]-axisEnd)>.01)ticks.push(axisEnd);const labels=ticks.map(h=>`<span style="left:${Math.max(0,Math.min(100,(h-axisStart)/axisSpan*100))}%">${p2(Math.floor(h)%24)}:${p2(Math.round((h%1)*60))}</span>`).join('');
+  const daySessions=[...byEmp.values()].flat();
+  // The timeline follows the actual record range, not only the configured store close time.
+  // This prevents overnight/long sessions from being clipped at 25:00.
+  const actualHours=daySessions.flatMap(s=>[s.in,s.out||(s.status==='WORKING'&&day===dayKey(kstToday())?kstToday():null)]).filter(Boolean).map(d=>toAxisHour(d,day)).filter(Number.isFinite);
+  const configuredStart=(Number(S.storeHours?.open_minute??420)-60)/60,configuredEnd=(Number(S.storeHours?.close_minute??1500)+60)/60;
+  const actualMin=actualHours.length?Math.min(...actualHours):configuredStart,actualMax=actualHours.length?Math.max(...actualHours):configuredEnd;
+  const axisStart=Math.min(configuredStart,Math.floor(actualMin)),axisEnd=Math.max(configuredEnd,Math.ceil(actualMax+1)),axisSpan=Math.max(1,axisEnd-axisStart),tickStep=axisSpan<=12?2:4;const ticks=[];for(let h=Math.ceil(axisStart/tickStep)*tickStep;h<axisEnd;h+=tickStep)ticks.push(h);if(!ticks.length||Math.abs(ticks[0]-axisStart)>.01)ticks.unshift(axisStart);if(Math.abs(ticks[ticks.length-1]-axisEnd)>.01)ticks.push(axisEnd);const labels=ticks.map(h=>`<span style="left:${Math.max(0,Math.min(100,(h-axisStart)/axisSpan*100))}%">${p2(Math.floor(h))}:${p2(Math.round((h%1)*60))}</span>`).join('');
   let rows='';
   for(const [empId,list] of entries){
     const emp=S.employees.find(x=>Number(x.id)===Number(empId));let bars='';
