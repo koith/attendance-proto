@@ -36,6 +36,9 @@
 ### 보안 / 런타임
 `qa_boot_syntax.mjs`, `qa_runtime_*.mjs`, `qa_*auth*.mjs`, `qa_*audit*.mjs`, `qa/s1_authz_qa.mjs` 및 대응 CI를 우선한다.
 
+## Proven Examples
+완료 결과의 기준점은 `playbooks/examples/README.md`에 등록한다. 새 구현을 시작할 때 유사한 성공 사례가 있으면 코드와 QA를 함께 비교한다.
+
 ## 자산 승격 기준
 다음 중 하나면 Toolbox 자산으로 취급하고 이 문서에 등록한다.
 - 두 번 이상 재사용될 가능성이 높은 스크립트/템플릿/검증기
