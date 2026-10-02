@@ -750,7 +750,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.104";
+const APP_VERSION="v0.105";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1619,7 +1619,7 @@ async function openMyRecord(){
       const r=mrRange();
       try{
         const res=await BE.myEvents(Number(emp.id),String(staffAuth.pin),r.fs,r.ts);
-        if(res&&res.ok){ mrShowRecord(Number(emp.id),String(staffAuth.pin),res.events||[],res.requests||[],emps); return; }
+        if(res&&res.ok){ location.href="actual_attendance.html?mode=staff"; return; }
       }catch(_){}
     }
     sessionStorage.removeItem("staff_attendance_auth");
@@ -1655,7 +1655,7 @@ function mrShowAuth(emps, preselId){
     }
     // 인증 성공은 현재 브라우저 세션 동안 유지해 탭 이동 시 재로그인을 요구하지 않는다.
     sessionStorage.setItem("staff_attendance_auth",JSON.stringify({employee_id:id,pin:String(pin)}));
-    location.href="actual_attendance.html";
+    location.href="actual_attendance.html?mode=staff";
   };
 }
 // STEP 2: 내 기록 (뒤로 = 인증 폐기하고 STEP1)
