@@ -750,7 +750,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.122";
+const APP_VERSION="v0.123";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -2580,7 +2580,7 @@ async function drawPay(ym){
   }
 
   const expBtn=document.getElementById("btnExport");
-  if(expBtn) expBtn.onclick=()=>exportPayrollXlsx(ym, payrollRows, totalNet, weeks);
+  if(expBtn) expBtn.onclick=async()=>{expBtn.disabled=true;try{const fresh=await computeMonthPayroll(ym);exportPayrollXlsx(ym,fresh.rows.filter(x=>x.pay).map(rec=>({employee_id:rec.employee_id,employee_name:rec.employee_name,hours:Math.round(rec.hours*100)/100,wage:rec.pay.wage,weeks:rec.pay.jweeks,base_pay:rec.pay.base,juhyu_pay:rec.pay.juhyu,adjust:rec.pay.adjust,gross_pay:rec.pay.gross,tax_rate:rec.pay.rate,net_pay:rec.pay.net,memo:rec.memo||""})),fresh.totalNet,weeks,fresh.rows);}catch(e){console.error("[excel effective export]",e);toast("err","Excel 생성 실패","최신 정정 근태를 불러오지 못했습니다.");}finally{expBtn.disabled=false}};
   const closeBtn=document.getElementById("btnClose");
   if(closeBtn) closeBtn.onclick=async()=>{
     if(!confirm(`${ym} 급여를 마감할까요?\n마감 시점의 계산근거가 고정됩니다.`)) return;
@@ -2706,7 +2706,7 @@ function fingerprintOf(events){
   return `${events?.length||0}|${h.toString(16).padStart(16,"0")}`;
 }
 // 세무사용 Excel 출력 (SheetJS, 브라우저에서 바로 다운로드)
-function exportPayrollXlsx(ym, rows, totalNet, weeks){
+function exportPayrollXlsx(ym, rows, totalNet, weeks, effectiveRows=[]){
   if(typeof XLSX==="undefined"){ toast("err","Excel 모듈 로딩중","잠시 후 다시 시도"); return; }
   const header=["성명","실근무시간","시급","주휴주수","기본급","주휴수당","조정","세전급여","원천징수율","세후급여","비고"];
   const data=[header];
@@ -2721,6 +2721,10 @@ function exportPayrollXlsx(ym, rows, totalNet, weeks){
   ws["!cols"]=[{wch:10},{wch:11},{wch:9},{wch:8},{wch:11},{wch:11},{wch:9},{wch:11},{wch:10},{wch:12},{wch:20}];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, ym);
+  const att=[["날짜","성명","출근","퇴근","실근무시간","상태","정정반영"]];
+  const p2=n=>String(n).padStart(2,"0");
+  for(const rec of effectiveRows){for(const s of rec.sessions||[]){const a=s.in||s.out;if(!a)continue;att.push([`${a.getFullYear()}-${p2(a.getMonth()+1)}-${p2(a.getDate())}`,rec.employee_name,s.in?hhmmBusiness(s.in,s.in):"—",s.out?hhmmBusiness(s.out,s.in||s.out):"—",s.status==="COMPLETE"?fmtHM(s.sec):(s.status==="WORKING"?"근무중":"—"),_statusLabel(s.status),s.corrected?"정정 반영":""]);}}
+  const aws=XLSX.utils.aoa_to_sheet(att);aws["!cols"]=[{wch:12},{wch:10},{wch:9},{wch:9},{wch:12},{wch:10},{wch:10}];XLSX.utils.book_append_sheet(wb,aws,"정정반영 근태");
   XLSX.writeFile(wb, `백억커피_인하대점_급여_${ym}.xlsx`);
   toast("in","Excel 생성됨",`${ym} 급여자료`);
 }
