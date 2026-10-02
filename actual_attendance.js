@@ -203,7 +203,7 @@ init();
     const veil=document.createElement('div');veil.id='actualCorrectionVeil';veil.className='correction-veil';
     veil.innerHTML=`<div class="correction-modal" role="dialog" aria-modal="true" aria-label="근태 정정">
       <div class="correction-head"><div><b>${escapeHtml(emp?.name||'직원')} · 근태 정정</b><div>${day}</div></div><button id="correctionClose" aria-label="닫기">×</button></div>
-      <div class="correction-note">원본 출퇴근 기록은 변경하지 않고 정정 이력을 추가합니다.${s.sliceDerived?' 날짜별 표시는 자정을 기준으로 나눈 보기이며 아래 입력값은 원본 세션 전체의 출퇴근 시각입니다.':''}</div>
+      <div class="correction-note">원본 기록은 감사용으로 보존하며, 화면·급여·Excel에는 정정된 결과를 반영합니다.${s.sliceDerived?' 날짜별 표시는 자정을 기준으로 나눈 보기이며 아래 입력값은 원본 세션 전체의 출퇴근 시각입니다.':''}</div>
       <label>출근</label><div class="correction-datetime-row"><input id="correctionInDate" type="date" aria-label="출근 날짜"><input id="correctionInTime" type="time" step="60" aria-label="출근 시간"></div>
       <label>퇴근</label><div class="correction-datetime-row"><input id="correctionOutDate" type="date" aria-label="퇴근 날짜"><input id="correctionOutTime" type="time" step="60" aria-label="퇴근 시간"></div>
       <label>정정 사유 <span>(필수)</span></label><input id="correctionReason" type="text" maxlength="120" placeholder="예: 마감 후 퇴근 누락">
