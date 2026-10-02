@@ -215,8 +215,10 @@ init();
     const splitDateTime=d=>{const v=dtValue(d);return v?{date:v.slice(0,10),time:v.slice(11,16)}:{date:'',time:''}};
     const initialIn=splitDateTime(source.in),initialOut=splitDateTime(source.out);
     inDate.value=initialIn.date;inTime.value=initialIn.time;outDate.value=initialOut.date;outTime.value=initialOut.time;
+    const isWorking=source.status==='WORKING'&&!source.outId;
+    if(isWorking){outDate.disabled=true;outTime.disabled=true;outDate.title='근무 진행 중에는 출근시간만 정정할 수 있습니다.';outTime.title=outDate.title;}
     const combined=(dateEl,timeEl)=>dateEl.value&&timeEl.value?`${dateEl.value}T${timeEl.value}`:'';
-    const refresh=()=>{const av=combined(inDate,inTime),bv=combined(outDate,outTime),a=av?parseWall(av):null,b=bv?parseWall(bv):null;if(a&&b&&b<=a){preview.textContent='퇴근 시각은 출근 시각보다 늦어야 합니다.';preview.classList.add('bad');save.disabled=true}else{preview.textContent=a&&b?`예상 근무 ${dur((b-a)/1000)}`:'날짜와 시간을 각각 선택하세요.';preview.classList.remove('bad');save.disabled=false}};
+    const refresh=()=>{const av=combined(inDate,inTime),bv=combined(outDate,outTime),a=av?parseWall(av):null,b=bv?parseWall(bv):null;if(isWorking){preview.textContent='근무 진행 중 · 출근시간만 정정할 수 있습니다.';preview.classList.remove('bad');save.disabled=!a;return}if(a&&b&&b<=a){preview.textContent='퇴근 시각은 출근 시각보다 늦어야 합니다.';preview.classList.add('bad');save.disabled=true}else{preview.textContent=a&&b?`예상 근무 ${dur((b-a)/1000)}`:'날짜와 시간을 각각 선택하세요.';preview.classList.remove('bad');save.disabled=false}};
     [inDate,inTime,outDate,outTime].forEach(x=>x.oninput=refresh);refresh();
     el('correctionClose').onclick=closeCorrection;veil.onclick=e=>{if(e.target===veil)closeCorrection()};
     save.onclick=async()=>{
@@ -229,7 +231,7 @@ init();
       if(source.inId&&nextIn&&dtValue(source.in)!==inLocal)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.inId),p_employee_id:Number(source.employee_id),p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
       if(!source.inId&&nextIn)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:Number(source.employee_id),p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
       if(source.outId&&nextOut&&dtValue(source.out)!==outLocal)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.outId),p_employee_id:Number(source.employee_id),p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
-      if(!source.outId&&nextOut)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:Number(source.employee_id),p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
+      if(!isWorking&&!source.outId&&nextOut)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:Number(source.employee_id),p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
       if(!calls.length)return toastCorrection('변경된 시각이 없습니다.',true);
       save.disabled=true;
       try{for(const args of calls)await rpc('admin_correct_event',args);closeCorrection();toastCorrection('근태 정정을 반영했습니다.');await loadMonth();renderDay(day)}catch(e){console.error('[actual-correction]',e);toastCorrection('정정을 저장하지 못했습니다.',true);save.disabled=false}
