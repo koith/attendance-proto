@@ -2631,12 +2631,14 @@ async function buildSheetSyncPayload(ym){
         if(s.corrected) hasCorrected=true;
         const sessionAnchor=s.in||s.out;
         sessRows.push([day, rec.employee_name, i+1,
-          s.in?sheetClock(s.in):"—", s.out?sheetClock(s.out):"—",\n          s.status==="COMPLETE"?sheetDuration(s.sec):(s.status==="WORKING"?"근무중":"—"),
+          s.in?sheetClock(s.in):"—", s.out?sheetClock(s.out):"—",
+          s.status==="COMPLETE"?sheetDuration(s.sec):(s.status==="WORKING"?"근무중":"—"),
           _statusLabel(s.status), s.corrected?"정정":""]);
       });
       const firstIn=daySess.find(s=>s.in), lastOut=[...daySess].reverse().find(s=>s.out);
       attRows.push([day, rec.employee_name,
-        firstIn?sheetClock(firstIn.in):"—", lastOut?sheetClock(lastOut.out):"—",\n        daySec?sheetDuration(daySec):"—", daySess.length,
+        firstIn?sheetClock(firstIn.in):"—", lastOut?sheetClock(lastOut.out):"—",
+        daySec?sheetDuration(daySec):"—", daySess.length,
         issue?"확인필요":"정상", hasCorrected?"정정":""]);
     }
   }
