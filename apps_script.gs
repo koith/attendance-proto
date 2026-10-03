@@ -119,7 +119,9 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   });
   out.forEach(function(row){while(row.length<width)row.push(''); if(row.length>width)row.length=width;});
 
-  sh.clear();
+  // Clear the entire grid, not only the current report width. Old report versions styled
+  // columns beyond the current data range; those stale fills must not survive a rewrite.
+  sh.getRange(1,1,sh.getMaxRows(),sh.getMaxColumns()).clear({contentsOnly:false});
   sh.getRange(1,1,out.length,width).setValues(out);
   sh.setHiddenGridlines(true);
   sh.setFrozenRows(headerRows[0]);
@@ -137,13 +139,16 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
 
   sections.forEach(function(s,i){
     var sr=sectionRows[i], hr=headerRows[i], dr=dataRanges[i];
-    sh.getRange(sr,1,1,width).setBackground(pale).setFontColor(green)\n      .setFontSize(11).setFontWeight('bold').setHorizontalAlignment('left');\n    sh.setRowHeight(sr,28);
+    sh.getRange(sr,1,1,width).setBackground(pale).setFontColor(green)
+      .setFontSize(11).setFontWeight('bold').setHorizontalAlignment('left');
+    sh.setRowHeight(sr,28);
     sh.getRange(hr,1,1,width).setBackground('#173f2d').setFontColor('#ffffff')
       .setFontWeight('bold').setHorizontalAlignment('center')
       .setBorder(true,true,true,true,true,true,'#9fb2a6',SpreadsheetApp.BorderStyle.SOLID);
     sh.setRowHeight(hr,28);
     if(dr.count){
-      sh.getRange(dr.first,1,dr.count,width).setBackground(white)\n        .setBorder(false,true,true,true,true,false,line,SpreadsheetApp.BorderStyle.SOLID)
+      sh.getRange(dr.first,1,dr.count,width).setBackground(white)
+        .setBorder(false,true,true,true,true,false,line,SpreadsheetApp.BorderStyle.SOLID)
         .setVerticalAlignment('middle');
       for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,26);
     }else{
@@ -171,9 +176,11 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     .setBackground('#edf7f0').setFontColor('#17663b').setFontWeight('bold').setHorizontalAlignment('center');
   var gross=payroll.header.indexOf('예상 세전급여')+1;
   if(gross<=0) gross=payroll.header.indexOf('확정 세전급여')+1;
-  if(gross>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,gross,dataRanges[2].count,1)\n    .setFontColor('#17663b').setFontWeight('bold').setHorizontalAlignment('right');
+  if(gross>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,gross,dataRanges[2].count,1)
+    .setFontColor('#17663b').setFontWeight('bold').setHorizontalAlignment('right');
   var pStatus=payroll.header.indexOf('상태')+1;
-  if(pStatus>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,pStatus,dataRanges[2].count,1)\n    .setFontColor('#745500').setFontWeight('bold').setHorizontalAlignment('center');
+  if(pStatus>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,pStatus,dataRanges[2].count,1)
+    .setFontColor('#745500').setFontWeight('bold').setHorizontalAlignment('center');
 
   // Final column widths are measured from the actual rendered cell contents on every sync.
   // Do not apply fixed/type-based min/max caps after auto-resize: those caps can clip long
@@ -184,7 +191,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
 
   return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
     width_source:'actual_cell_contents',resized_columns:width,
-    report_design_applied:true,report_design_version:'sheet-report-v4' /* mobile readability proof; v4 deploy */};
+    report_design_applied:true,report_design_version:'sheet-report-v5'};
 }
 
 function _json(obj){
