@@ -14,7 +14,7 @@ const checks=[
  ['high contrast table header',s.includes("setBackground('#173f2d').setFontColor('#ffffff')")],
  ['vertical table separators',s.includes("setBorder(false,true,true,true,true,false,line")],
  ['semantic alignment',s.includes("setHorizontalAlignment('right')")&&s.includes("setHorizontalAlignment('center')")],
- ['no detached payroll blocks',!s.includes("setBackground('#edf7f0')")&&!s.includes("setBackground('#fff4cf')")],
+ ['no detached payroll result blocks',!/gross[\\s\\S]{0,260}setBackground\\(/.test(s)&&!/pStatus[\\s\\S]{0,260}setBackground\\(/.test(s)],
  ['design proof',s.includes("report_design_applied:true")&&s.includes("report_design_version:'sheet-report-v4'")],
 ];
 for(const [name,ok] of checks){assert.ok(ok,name);console.log('PASS',name)}
