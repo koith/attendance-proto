@@ -14,6 +14,7 @@ const checks=[
  ['high contrast table header',s.includes("setBackground('#173f2d').setFontColor('#ffffff')")],
  ['vertical table separators',s.includes("setBorder(false,true,true,true,true,false,line")],
  ['semantic alignment',s.includes("setHorizontalAlignment('right')")&&s.includes("setHorizontalAlignment('center')")],
+ ['human-readable date/time formats',s.includes("h==='날짜'")&&s.includes("setNumberFormat('yyyy-mm-dd')")&&s.includes("setNumberFormat('[h]:mm')")],
  ['no detached payroll result blocks',!s.slice(s.indexOf('if(gross>0'),s.indexOf('var pStatus')).includes('setBackground(')&&!s.slice(s.indexOf('if(pStatus>0'),s.indexOf('// Final column widths')).includes('setBackground(')],
  ['design proof',s.includes("report_design_applied:true")&&s.includes("report_design_version:'sheet-report-v5'")],
  ['full-grid stale-format cleanup',s.includes("sh.getMaxRows(),sh.getMaxColumns()).clear({contentsOnly:false})")],

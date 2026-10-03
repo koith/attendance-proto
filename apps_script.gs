@@ -159,6 +159,17 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     sh.setRowHeight(dr.last+1,18);
   });
 
+  // Apply display formats by semantic header. Sheets stores dates/times as serial numbers;
+  // without number formats mobile clients can expose values such as 46296 / 0.829166....
+  sections.forEach(function(s,i){
+    var dr=dataRanges[i]; if(!dr.count)return;
+    s.data.header.forEach(function(h,idx){
+      var col=idx+1, range=sh.getRange(dr.first,col,dr.count,1);
+      if(h==='날짜') range.setNumberFormat('yyyy-mm-dd');
+      if(['출근','퇴근','실근무','총근무','야간근무'].indexOf(h)>=0) range.setNumberFormat('[h]:mm');
+    });
+  });
+
   // Align by semantic data type while preserving content-authoritative widths.
   var centerHeaders=['날짜','직원명','출근','퇴근','실근무','상태','정정','총근무','야간근무','휴게'];
   sections.forEach(function(s,i){
