@@ -650,6 +650,17 @@
     #view:has(#adEmps) .employee-list-mask,
     #view:has(#payList) #payList>.payroll-employee-grid{height:auto!important;min-height:0!important;max-height:none!important;overflow-y:visible!important}
   }
+
+  /* v0.136 payroll break UX: keep cards compact; break review is a small header action, not body content. */
+  #view:has(#payList) .payroll-break-trigger{width:30px;height:30px;flex:0 0 30px;border:1px solid #c9d9cf;border-radius:8px;background:rgba(255,255,255,.82);color:var(--brand-700);padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;cursor:pointer;position:relative}
+  #view:has(#payList) .payroll-break-trigger.pending::after{content:"";position:absolute;right:3px;top:3px;width:6px;height:6px;border-radius:50%;background:#b43b35}
+  #view:has(#payList) .payroll-break-trigger.done{color:#276341;background:#f4fbf6}
+  #view:has(#payList) .payroll-break-trigger:active{background:#fff}
+  .payroll-break-modal .break-shift{padding:10px 0;border-bottom:1px solid var(--border)}
+  .payroll-break-modal .break-shift:last-of-type{border-bottom:0}
+  .payroll-break-modal .break-shift-title{font-size:.82rem;font-weight:800;margin-bottom:8px}
+  .payroll-break-modal .break-options{display:grid;grid-template-columns:1fr;gap:7px}
+  .payroll-break-modal .break-options .btn{width:100%;min-height:42px;white-space:normal;line-height:1.25}
 </style>
 <link rel="stylesheet" href="operations_v1.css?v=20260930v083">
 <link rel="stylesheet" href="recipe_access_v220.css?v=20261001v096">
@@ -750,7 +761,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.135";
+const APP_VERSION="v0.136";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -2517,7 +2528,7 @@ async function drawPay(ym){
       secondary.before(body);
       body.append(secondary,payline);
     }
-    if(rec.breakEligibleCount>0){const bb=document.createElement("button");bb.type="button";bb.className="btn btn-secondary btn-sm";bb.style.marginTop="6px";bb.textContent=`휴게 확인 ${rec.breakConfirmedCount}/${rec.breakEligibleCount}`;bb.onclick=async()=>{const lines=rec.breakDecisions.map((x,i)=>{const s=x.session,d=x.decision;return `<div class="row" style="display:block;margin-bottom:8px"><b>${s.in.toLocaleDateString("ko-KR")} ${hhmmBusiness(s.in,s.in)}–${hhmmBusiness(s.out,s.in)}</b><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-sm ${d?.break_provided===true?'btn-primary':'btn-secondary'}" data-bi="${i}" data-v="yes">30분 휴게 제공</button><button class="btn btn-sm ${d?.break_provided===false&&!d?.compensate_30m?'btn-primary':'btn-secondary'}" data-bi="${i}" data-v="no">미제공 · 추가지급 안함</button><button class="btn btn-sm ${d?.compensate_30m?'btn-primary':'btn-secondary'}" data-bi="${i}" data-v="pay">미제공 · 30분 추가지급</button></div></div>`}).join("");const v=document.getElementById("addVeil"),m=v.querySelector(".modal");m.innerHTML=`<h3>${safeHtml(rec.employee_name)} · 휴게시간 확인</h3><div style="font-size:.8rem;color:var(--muted);margin-bottom:10px">4시간 이상 완료 근무만 표시합니다.</div>${lines}<button class="btn btn-secondary btn-block" id="breakClose">닫기</button>`;openAddVeil();m.querySelector("#breakClose").onclick=()=>closeAddVeil();m.querySelectorAll("[data-bi]").forEach(b=>b.onclick=async()=>{const x=rec.breakDecisions[Number(b.dataset.bi)],v=b.dataset.v;await BE.payrollBreakDecisionSave(rec.employee_id,x.session.inId,v==="yes",v==="pay");toast("in","저장됨","휴게시간 반영");closeAddVeil();drawPay(ym);});};card.appendChild(bb);}
+    if(rec.breakEligibleCount>0){const bb=document.createElement("button");bb.type="button";bb.className=`payroll-break-trigger ${rec.breakConfirmedCount>=rec.breakEligibleCount?"done":"pending"}`;bb.title=`휴게 확인 ${rec.breakConfirmedCount}/${rec.breakEligibleCount}`;bb.setAttribute("aria-label",bb.title);bb.textContent="휴게";bb.onclick=async()=>{const lines=rec.breakDecisions.map((x,i)=>{const s=x.session,d=x.decision;return `<div class="break-shift"><div class="break-shift-title">${s.in.toLocaleDateString("ko-KR")} · ${hhmmBusiness(s.in,s.in)}–${hhmmBusiness(s.out,s.in)} · ${fmtHM(s.sec)}</div><div class="break-options"><button class="btn ${d?.break_provided===true?'btn-primary':'btn-secondary'}" data-bi="${i}" data-v="yes">30분 휴게 제공</button><button class="btn ${d?.break_provided===false&&!d?.compensate_30m?'btn-primary':'btn-secondary'}" data-bi="${i}" data-v="no">휴게 미제공 · 추가지급 안 함</button><button class="btn ${d?.compensate_30m?'btn-primary':'btn-secondary'}" data-bi="${i}" data-v="pay">휴게 미제공 · 30분 시급 추가지급</button></div></div>`}).join("");const v=document.getElementById("addVeil"),m=v.querySelector(".modal");m.classList.add("payroll-break-modal");m.innerHTML=`<h3>${safeHtml(rec.employee_name)} · 휴게시간 확인</h3><div style="font-size:.8rem;color:var(--muted);margin-bottom:10px">4시간 이상 완료 근무 ${rec.breakEligibleCount}건 · 확인 ${rec.breakConfirmedCount}건</div>${lines}<button class="btn btn-secondary btn-block" id="breakClose">닫기</button>`;openAddVeil();m.querySelector("#breakClose").onclick=()=>closeAddVeil();m.querySelectorAll("[data-bi]").forEach(b=>b.onclick=async()=>{const x=rec.breakDecisions[Number(b.dataset.bi)],v=b.dataset.v;await BE.payrollBreakDecisionSave(rec.employee_id,x.session.inId,v==="yes",v==="pay");toast("in","저장됨","휴게시간 반영");closeAddVeil();drawPay(ym);});};const head=card.querySelector(".employee-card-primary");if(head)head.appendChild(bb);else card.appendChild(bb);}
     payEmployees.appendChild(card);
   }
   payEmployees.style.setProperty("--payroll-row-count",String(Math.max(1,Math.ceil(R.rows.length/2))));
