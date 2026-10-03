@@ -31,7 +31,7 @@ jobs:
           REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
         run: |
           if [ -z "$SCRIPT_ID" ] || [ -z "$DEPLOYMENT_ID" ] || [ -z "$CLIENT_ID" ] || [ -z "$CLIENT_SECRET" ] || [ -z "$REFRESH_TOKEN" ]; then
-            echo "Apps Script deployment credentials are not configured; report QA passed, deployment skipped."
-            exit 0
+            echo "::error::Apps Script deployment credentials are not configured; deployment cannot be claimed."
+            exit 1
           fi
           node tools/deploy_apps_script.mjs
