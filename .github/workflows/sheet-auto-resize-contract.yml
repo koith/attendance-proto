@@ -5,6 +5,8 @@ on:
       - 'apps_script.gs'
       - 'edge_sync_sheet.ts'
       - 'qa_sheet_auto_resize_contract.mjs'
+      - 'qa_sheet_report_design.mjs'
+      - 'qa_sheet_report_design.mjs'
       - '.github/workflows/sheet-auto-resize-contract.yml'
   push:
     branches: [main]
@@ -22,3 +24,4 @@ jobs:
         with:
           node-version: 20
       - run: node qa_sheet_auto_resize_contract.mjs
+      - run: node qa_sheet_report_design.mjs
