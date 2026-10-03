@@ -102,7 +102,11 @@ Deno.serve(async (req) => {
         auto_resize_columns: true,
         resize_scope: "all_used_columns_after_write",
         width_source: "actual_cell_contents",
-        recalculate_on_every_sync: true,\n        human_readable_report: true,\n        hide_empty_sections: true,\n        freeze_header_rows: true,\n        duration_format: "HH:MM",
+        recalculate_on_every_sync: true,
+        human_readable_report: true,
+        hide_empty_sections: true,
+        freeze_header_rows: true,
+        duration_format: "HH:MM",
       },
       attendance, sessions, payroll,
     };
