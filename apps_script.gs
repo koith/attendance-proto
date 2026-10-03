@@ -35,11 +35,12 @@ function doPost(e){
     var ss = _annualBook(storeKey, year);
     var meta = '마지막 동기화: ' + body.synced_at + '   |   상태: ' + body.status_label;
 
-    _writeMonth(ss, month + '월', meta, body.attendance, body.sessions, body.payroll);
+    var writeResult = _writeMonth(ss, month + '월', meta, body.attendance, body.sessions, body.payroll);
 
     return _json({ok:true, ym:body.ym,
       spreadsheet_id:ss.getId(), spreadsheet_url:ss.getUrl(), spreadsheet_name:ss.getName(),
-      counts:{attendance:body.attendance.rows.length, sessions:body.sessions.rows.length, payroll:body.payroll.rows.length}});
+      counts:{attendance:body.attendance.rows.length, sessions:body.sessions.rows.length, payroll:body.payroll.rows.length},
+      sheet_format:writeResult});
   }catch(err){
     return _json({ok:false, error:String(err)});
   }
@@ -126,16 +127,26 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   sh.clearContents();
   sh.getRange(1, 1, out.length, width).setValues(out);
 
-  try{
-    sh.getRange(1,1,1,width).setFontColor('#666').setFontSize(10);
+  sh.getRange(1,1,1,width).setFontColor('#666').setFontSize(10);
     sections.forEach(function(section,idx){
       var titleRow=headerRows[idx]-1;
       sh.getRange(titleRow,1,1,width).setFontWeight('bold').setBackground('#dfeee4');
       sh.getRange(headerRows[idx],1,1,width).setFontWeight('bold').setBackground('#f1f3f5');
     });
-    sh.setFrozenRows(1);
-    sh.autoResizeColumns(1,width);
-  }catch(fmtErr){ /* 서식 실패는 무시 */ }
+  sh.setFrozenRows(1);
+
+  // Commit values/styles before measuring the rendered cell contents.
+  // Re-measure every used column on every sync; never use fixed/type-based widths.
+  SpreadsheetApp.flush();
+  sh.autoResizeColumns(1, width);
+  SpreadsheetApp.flush();
+
+  return {
+    column_resize_applied: true,
+    resize_scope: 'all_used_columns_after_write',
+    width_source: 'actual_cell_contents',
+    resized_columns: width
+  };
 }
 
 function _json(obj){

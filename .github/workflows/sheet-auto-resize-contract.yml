@@ -1,0 +1,24 @@
+name: sheet-auto-resize-contract
+on:
+  pull_request:
+    paths:
+      - 'apps_script.gs'
+      - 'edge_sync_sheet.ts'
+      - 'qa_sheet_auto_resize_contract.mjs'
+      - '.github/workflows/sheet-auto-resize-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps_script.gs'
+      - 'edge_sync_sheet.ts'
+      - 'qa_sheet_auto_resize_contract.mjs'
+      - '.github/workflows/sheet-auto-resize-contract.yml'
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node qa_sheet_auto_resize_contract.mjs
