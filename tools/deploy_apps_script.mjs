@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+const need=(k)=>{const v=process.env[k];if(!v)throw new Error('missing '+k);return v};
+const clientId=need('CLIENT_ID'),clientSecret=need('CLIENT_SECRET'),refreshToken=need('REFRESH_TOKEN');
+const scriptId=need('SCRIPT_ID'),deploymentId=need('DEPLOYMENT_ID');
+const tokenRes=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:clientId,client_secret:clientSecret,refresh_token:refreshToken,grant_type:'refresh_token'})});
+if(!tokenRes.ok)throw new Error('oauth refresh failed '+tokenRes.status);
+const {access_token}=await tokenRes.json(); const auth={Authorization:'Bearer '+access_token,'Content-Type':'application/json'};
+const source=fs.readFileSync('apps_script.gs','utf8');
+const manifest=fs.existsSync('appsscript.json')?fs.readFileSync('appsscript.json','utf8'):JSON.stringify({timeZone:'Asia/Seoul',exceptionLogging:'STACKDRIVER',runtimeVersion:'V8'});
+let res=await fetch('https://script.googleapis.com/v1/projects/'+scriptId+'/content',{method:'PUT',headers:auth,body:JSON.stringify({files:[{name:'Code',type:'SERVER_JS',source},{name:'appsscript',type:'JSON',source:manifest}]})});
+if(!res.ok)throw new Error('updateContent failed '+res.status+' '+await res.text());
+res=await fetch('https://script.googleapis.com/v1/projects/'+scriptId+'/versions',{method:'POST',headers:auth,body:JSON.stringify({description:'GitHub '+process.env.GITHUB_SHA})});
+if(!res.ok)throw new Error('createVersion failed '+res.status+' '+await res.text());
+const version=await res.json();
+res=await fetch('https://script.googleapis.com/v1/projects/'+scriptId+'/deployments/'+deploymentId,{method:'PUT',headers:auth,body:JSON.stringify({deploymentConfig:{scriptId,versionNumber:version.versionNumber,manifestFileName:'appsscript',description:'GitHub automated deployment'}})});
+if(!res.ok)throw new Error('updateDeployment failed '+res.status+' '+await res.text());
+console.log('Apps Script deployment updated to version',version.versionNumber);
