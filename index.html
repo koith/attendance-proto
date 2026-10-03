@@ -750,7 +750,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.128";
+const APP_VERSION="v0.129";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1725,6 +1725,7 @@ function openReqForm(empId,pin,sess,events,requests,emps){
   // 기본값: 세션의 기존 출근/퇴근 (없으면 세션 기준일)
   const baseDay = sess.in||sess.out||kstNow();
   const inInit = sess.in||baseDay, outInit = sess.out||baseDay;
+  const canFixOut = !!sess.out; // 실제 퇴근 기록이 있으면 퇴근시간 정정 허용
   el.innerHTML=`
     <div class="section-t">기존 근태 기록</div>
     <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:.85rem;margin-bottom:12px">
@@ -1739,8 +1740,8 @@ function openReqForm(empId,pin,sess,events,requests,emps){
     <div id="inRow" style="display:flex;gap:6px;margin-bottom:10px">
       ${dateTimeInputs('in', inInit)}</div>
     <label style="display:flex;align-items:center;gap:6px;font-size:.85rem;margin-bottom:4px">
-      <input type="checkbox" id="fixOut" ${sess.status==='INCOMPLETE'?'checked':''} style="width:auto"> 퇴근 수정</label>
-    <div id="outRow" style="display:flex;gap:6px;margin-bottom:10px">
+      <input type="checkbox" id="fixOut" ${sess.status==='INCOMPLETE'?'checked':''} ${canFixOut?'':'disabled'} style="width:auto"> 퇴근 수정</label>
+    <div id="outRow" style="display:flex;gap:6px;margin-bottom:10px;opacity:${canFixOut?'1':'.45'};pointer-events:${canFixOut?'auto':'none'}">
       ${dateTimeInputs('out', outInit)}</div>
     <div id="reqPreview" style="font-size:.85rem;padding:8px;border-radius:8px;background:var(--chip);margin-bottom:10px"></div>
     <div class="field"><label>정정 사유</label><input id="reqNote" placeholder="예: 마감하고 퇴근 못 찍음"></div>
