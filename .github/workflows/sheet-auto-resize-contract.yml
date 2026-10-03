@@ -7,6 +7,7 @@ on:
       - 'qa_sheet_auto_resize_contract.mjs'
       - 'qa_sheet_report_design.mjs'
       - 'qa_sheet_display_values.mjs'
+      - 'qa_sheet_new_month_format_contract.mjs'
       - '.github/workflows/sheet-auto-resize-contract.yml'
   push:
     branches: [main]
@@ -16,6 +17,7 @@ on:
       - 'qa_sheet_auto_resize_contract.mjs'
       - 'qa_sheet_report_design.mjs'
       - 'qa_sheet_display_values.mjs'
+      - 'qa_sheet_new_month_format_contract.mjs'
       - '.github/workflows/sheet-auto-resize-contract.yml'
 jobs:
   qa:
@@ -28,3 +30,4 @@ jobs:
       - run: node qa_sheet_auto_resize_contract.mjs
       - run: node qa_sheet_report_design.mjs
       - run: node qa_sheet_display_values.mjs
+      - run: node qa_sheet_new_month_format_contract.mjs
