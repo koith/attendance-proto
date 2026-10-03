@@ -119,8 +119,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   });
   out.forEach(function(row){while(row.length<width)row.push(''); if(row.length>width)row.length=width;});
 
-  sh.clear();
-  sh.getRange(1,1,out.length,width).setValues(out);
+  // Clear the entire grid, not only the current report width. Old report versions styled\n  // columns beyond the current data range; those stale fills must not survive a rewrite.\n  sh.getRange(1,1,sh.getMaxRows(),sh.getMaxColumns()).clear({contentsOnly:false});\n  sh.getRange(1,1,out.length,width).setValues(out);
   sh.setHiddenGridlines(true);
   sh.setFrozenRows(headerRows[0]);
 
@@ -184,7 +183,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
 
   return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
     width_source:'actual_cell_contents',resized_columns:width,
-    report_design_applied:true,report_design_version:'sheet-report-v4' /* mobile readability proof; v4 deploy */};
+    report_design_applied:true,report_design_version:'sheet-report-v5'};
 }
 
 function _json(obj){
