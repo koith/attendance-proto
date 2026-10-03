@@ -90,6 +90,7 @@ Deno.serve(async (req) => {
       store_key: String(payload?.store_key ?? "INHA"),
       store_name: String(payload?.store_name ?? "인하대학교점"),
       sheet_format: { auto_resize_columns: true, min_column_width: 72, max_column_width: 320 },
+      drive_structure: { root_folder_name: "백억커피", store_folder_name: String(payload?.store_name ?? "인하대학교점"), separate_by_store: true },
       attendance, sessions, payroll,
     };
     const gsRes = await fetch(webappUrl, {
