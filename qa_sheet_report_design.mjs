@@ -16,9 +16,8 @@ const checks=[
  ['semantic alignment',s.includes("setHorizontalAlignment('right')")&&s.includes("setHorizontalAlignment('center')")],
  ['no detached payroll result blocks',!s.slice(s.indexOf('if(gross>0'),s.indexOf('var pStatus')).includes('setBackground(')&&!s.slice(s.indexOf('if(pStatus>0'),s.indexOf('// Final column widths')).includes('setBackground(')],
  ['design proof',s.includes("report_design_applied:true")&&s.includes("report_design_version:'sheet-report-v5'")],
-,
  ['full-grid stale-format cleanup',s.includes("sh.getMaxRows(),sh.getMaxColumns()).clear({contentsOnly:false})")],
- ['no literal escaped newlines',!s.includes('\\\\n')],
+ ['no literal escaped newlines',!s.includes('\\n')],
 ];
 for(const [name,ok] of checks){assert.ok(ok,name);console.log('PASS',name)}
 console.log('Sheet report design QA: '+checks.length+' PASS');
