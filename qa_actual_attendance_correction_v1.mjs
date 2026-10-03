@@ -9,5 +9,7 @@ t('정정 사유 필수 및 역전시간 방지',()=>{assert(j.includes("if(!rea
 t('날짜별 파생 표시에서도 원본 세션을 정정',()=>{assert(j.includes('actualAttendanceSourceSession'));assert(j.includes('const source='))});
 t('저장 후 effective attendance를 재조회하고 같은 날짜로 복귀',()=>{assert(j.includes('await loadMonth();renderDay(day)'))});
 t('관리자 ADD 기록 삭제는 VOID_ADD 마커가 붙은 ADD를 effective attendance에서 제외',()=>{assert(all.includes("/\\[VOID_ADD:\\d+\\]/"));assert(all.includes("if(c.action==='ADD')"));assert(all.includes("action:'VOID_ADD'"))});
+t('완결 세션도 관리자 ADD 출근 correction id를 보존',()=>{assert(all.includes('inId:open.e.id,inCorrectionId:open.e.correctionId||null,outId:e.id,outCorrectionId:e.correctionId||null'))});
+t('DB correction action 제약은 VOID_ADD를 허용',()=>{const sql=r('supabase/migrations/20261003174200_allow_void_add_attendance_corrections.sql');assert(sql.includes("'VOID_ADD'::text"))});
 t('모바일 datetime 입력 폭 방어',()=>{assert(c.includes('input{display:block;width:100%;min-width:0;max-width:100%'));assert(c.includes('-webkit-appearance:none'))});
 console.log(`Actual attendance correction V1 QA: ${pass} PASS`);
