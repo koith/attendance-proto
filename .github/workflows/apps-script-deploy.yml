@@ -21,7 +21,9 @@ jobs:
         with:
           node-version: 22
       - name: Validate report contract
-        run: node qa_sheet_report_design.mjs
+        run: |
+          node qa_sheet_report_design.mjs
+          node qa_sheet_display_values.mjs
       - name: Push source and redeploy existing web app
         env:
           SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
