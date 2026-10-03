@@ -16,7 +16,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -38,11 +38,14 @@ Deno.serve(async (req) => {
     const { data: userData } = await supa.auth.getUser();
     if (!userData?.user) return json({ ok: false, error: "NOT_AUTHORIZED" }, 401);
 
-    // 마감 여부 + snapshot 조회 (service role로 직접 읽기)
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+    const { data: adminUser } = await admin.from("admin_users").select("user_id").eq("user_id", userData.user.id).maybeSingle();
+    if (!adminUser) return json({ ok: false, error: "NOT_ADMIN" }, 403);
+
+    // 마감 여부 + snapshot 조회 (service role로 직접 읽기)
     const { data: snap } = await admin
       .from("payroll_snapshot")
       .select("employee_name,hours,wage,weeks,base_pay,juhyu_pay,adjust,gross_pay,net_pay,closed_at")
@@ -86,8 +89,6 @@ Deno.serve(async (req) => {
       secret, ym, synced_at: syncedAt, status_label: statusLabel,
       store_key: String(payload?.store_key ?? "INHA"),
       store_name: String(payload?.store_name ?? "인하대학교점"),
-      // Apps Script 쪽에서 각 탭을 쓴 뒤 데이터 길이에 맞춰 열 너비를 자동 조정하도록 명시한다.
-      // (헤더/본문 중 긴 값을 기준으로 autoResizeColumns 처리)
       sheet_format: { auto_resize_columns: true, min_column_width: 72, max_column_width: 320 },
       attendance, sessions, payroll,
     };
