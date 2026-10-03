@@ -184,7 +184,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
 
   return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
     width_source:'actual_cell_contents',resized_columns:width,
-    report_design_applied:true,report_design_version:'sheet-report-v4'};
+    report_design_applied:true,report_design_version:'sheet-report-v4' /* mobile readability proof */};
 }
 
 function _json(obj){
