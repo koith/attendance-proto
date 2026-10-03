@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
 
     // ---- 근태/세션: 항상 앱 projection (effective) ----
     const attendance = payload?.attendance ?? { header: [], rows: [] };
-    const sessions = payload?.sessions ?? { header: [], rows: [] };
+    const sessions = payload?.sessions ?? { header: [], rows: [] }; // legacy-compatible; human report may intentionally send this empty
 
     // ---- 급여: 마감이면 snapshot, 아니면 앱 payload ----
     let payroll, statusLabel;
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
         auto_resize_columns: true,
         resize_scope: "all_used_columns_after_write",
         width_source: "actual_cell_contents",
-        recalculate_on_every_sync: true,
+        recalculate_on_every_sync: true,\n        human_readable_report: true,\n        hide_empty_sections: true,\n        freeze_header_rows: true,\n        duration_format: "HH:MM",
       },
       attendance, sessions, payroll,
     };
