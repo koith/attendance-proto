@@ -206,12 +206,12 @@ init();
       <div class="correction-note">원본 기록은 감사용으로 보존하며, 화면·급여·Excel에는 정정된 결과를 반영합니다.${s.sliceDerived?' 날짜별 표시는 자정을 기준으로 나눈 보기이며 아래 입력값은 원본 세션 전체의 출퇴근 시각입니다.':''}</div>
       <label>출근</label><div class="correction-datetime-row"><input id="correctionInDate" type="date" aria-label="출근 날짜"><input id="correctionInTime" type="time" step="60" aria-label="출근 시간"></div>
       <label>퇴근</label><div class="correction-datetime-row"><input id="correctionOutDate" type="date" aria-label="퇴근 날짜"><input id="correctionOutTime" type="time" step="60" aria-label="퇴근 시간"></div>
-      <label>정정 사유 <span>(필수)</span></label><input id="correctionReason" type="text" maxlength="120" placeholder="예: 마감 후 퇴근 누락">
+      <label>정정 사유 <span>(필수)</span></label><input id="correctionReason" type="text" maxlength="120" placeholder="예: 마감 후 퇴근 누락" aria-describedby="correctionReasonError"><div id="correctionReasonError" class="correction-field-error" role="alert"></div>
       <div id="correctionPreview" class="correction-preview"></div>
       <button id="correctionSave" class="correction-save">정정 저장</button>
     </div>`;
     document.body.appendChild(veil);
-    const inDate=el('correctionInDate'),inTime=el('correctionInTime'),outDate=el('correctionOutDate'),outTime=el('correctionOutTime'),save=el('correctionSave'),preview=el('correctionPreview');
+    const inDate=el('correctionInDate'),inTime=el('correctionInTime'),outDate=el('correctionOutDate'),outTime=el('correctionOutTime'),save=el('correctionSave'),preview=el('correctionPreview'),reasonEl=el('correctionReason'),reasonError=el('correctionReasonError');
     const splitDateTime=d=>{const v=dtValue(d);return v?{date:v.slice(0,10),time:v.slice(11,16)}:{date:'',time:''}};
     const initialIn=splitDateTime(source.in),initialOut=splitDateTime(source.out);
     inDate.value=initialIn.date;inTime.value=initialIn.time;outDate.value=initialOut.date;outTime.value=initialOut.time;
@@ -221,8 +221,9 @@ init();
     const refresh=()=>{const av=combined(inDate,inTime),bv=combined(outDate,outTime),a=av?parseWall(av):null,b=bv?parseWall(bv):null;if(isWorking){preview.textContent='근무 진행 중 · 출근시간만 정정할 수 있습니다.';preview.classList.remove('bad');save.disabled=!a;return}if(a&&b&&b<=a){preview.textContent='퇴근 시각은 출근 시각보다 늦어야 합니다.';preview.classList.add('bad');save.disabled=true}else{preview.textContent=a&&b?`예상 근무 ${dur((b-a)/1000)}`:'날짜와 시간을 각각 선택하세요.';preview.classList.remove('bad');save.disabled=false}};
     [inDate,inTime,outDate,outTime].forEach(x=>x.oninput=refresh);refresh();
     el('correctionClose').onclick=closeCorrection;veil.onclick=e=>{if(e.target===veil)closeCorrection()};
+    reasonEl.oninput=()=>{reasonEl.classList.remove('input-error');reasonError.textContent=''};
     save.onclick=async()=>{
-      const reason=el('correctionReason').value.trim();if(!reason)return toastCorrection('정정 사유를 입력하세요.',true);
+      const reason=reasonEl.value.trim();if(!reason){reasonEl.classList.add('input-error');reasonError.textContent='정정 사유를 입력해 주세요.';reasonEl.focus();reasonEl.scrollIntoView({block:'center',behavior:'smooth'});return}
       const inLocal=combined(inDate,inTime),outLocal=combined(outDate,outTime);
       const nextIn=inLocal?wallValue(inLocal):null,nextOut=outLocal?wallValue(outLocal):null;
       if(!nextIn&&!nextOut)return toastCorrection('출근 또는 퇴근 시각을 입력하세요.',true);
