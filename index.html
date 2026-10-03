@@ -2631,23 +2631,21 @@ async function buildSheetSyncPayload(ym){
         if(s.corrected) hasCorrected=true;
         const sessionAnchor=s.in||s.out;
         sessRows.push([day, rec.employee_name, i+1,
-          s.in?hhmmBusiness(s.in,sessionAnchor):"—", s.out?hhmmBusiness(s.out,sessionAnchor):"—",
-          s.status==="COMPLETE"?fmtHM(s.sec):(s.status==="WORKING"?"근무중":"—"),
+          s.in?sheetClock(s.in):"—", s.out?sheetClock(s.out):"—",\n          s.status==="COMPLETE"?sheetDuration(s.sec):(s.status==="WORKING"?"근무중":"—"),
           _statusLabel(s.status), s.corrected?"정정":""]);
       });
       const firstIn=daySess.find(s=>s.in), lastOut=[...daySess].reverse().find(s=>s.out);
       attRows.push([day, rec.employee_name,
-        firstIn?hhmmBusiness(firstIn.in,firstIn.in):"—", lastOut?hhmmBusiness(lastOut.out,firstIn?.in||lastOut.out):"—",
-        daySec?fmtHM(daySec):"—", daySess.length,
+        firstIn?sheetClock(firstIn.in):"—", lastOut?sheetClock(lastOut.out):"—",\n        daySec?sheetDuration(daySec):"—", daySess.length,
         issue?"확인필요":"정상", hasCorrected?"정정":""]);
     }
   }
   // 급여 (마감 전 예상; 마감 후엔 Edge Function이 snapshot으로 대체)
   const payRows=[];
   for(const rec of R.rows){
-    if(!rec.pay){ payRows.push([rec.employee_name, fmtHM(rec.sec), fmtHM(rec.nightMinutes*60), "미설정","—","—",rec.breakTimeProvided?"제공":"미제공",rec.breakNotProvidedCount,rec.breakCompensateCount,"—","—","—","시급 설정 필요"]); continue; }
+    if(!rec.pay){ payRows.push([rec.employee_name, sheetDuration(rec.sec), sheetDuration(rec.nightMinutes*60), "미설정","—","—",rec.breakTimeProvided?"제공":"미제공",rec.breakNotProvidedCount,rec.breakCompensateCount,"—","—","—","시급 설정 필요"]); continue; }
     const p=rec.pay;
-    payRows.push([rec.employee_name, fmtHM(rec.sec), fmtHM(rec.nightMinutes*60), won(p.wage), won(p.base),
+    payRows.push([rec.employee_name, sheetDuration(rec.sec), sheetDuration(rec.nightMinutes*60), won(p.wage), won(p.base),
       won(p.juhyu), rec.breakTimeProvided?"제공":"미제공", rec.breakNotProvidedCount, rec.breakCompensateCount, won(p.breakCompPay||0), won(p.adjust), won(p.gross), "예상"]);
   }
   // Google Sheet is a human-facing report. Avoid duplicating the same one-session day in a second table.
@@ -2669,6 +2667,8 @@ async function buildSheetSyncPayload(ym){
     payroll:{ header:["직원명","총근무","야간근무","시급","기본급","주휴","휴게","휴게수당","조정","예상 세전급여","상태"], rows:humanPayroll },
   };
 }
+function sheetDuration(sec){sec=Math.max(0,Math.round(Number(sec)||0));const mins=Math.floor(sec/60);return `${String(Math.floor(mins/60)).padStart(2,"0")}:${String(mins%60).padStart(2,"0")}`;}
+function sheetClock(value){const d=value instanceof Date?value:fromIso(value);if(!Number.isFinite(d.getTime()))return "—";return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;}
 function hhmmBusiness(value,anchor){
   const d=value instanceof Date?value:fromIso(value),a=anchor instanceof Date?anchor:fromIso(anchor);
   if(!Number.isFinite(d.getTime())||!Number.isFinite(a.getTime()))return "—";
