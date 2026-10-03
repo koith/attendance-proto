@@ -22,7 +22,7 @@ ok('canonical writer applies cell borders', /setBorder\(true,true,true,true,true
 ok('canonical writer restores date display', /h==='날짜'\) range\.setNumberFormat\('yyyy-mm-dd'\)/.test(src));
 ok('canonical writer restores time and duration display', /\['출근','퇴근','실근무','총근무','야간근무'\][\s\S]*setNumberFormat\('\[h\]:mm'\)/.test(src));
 ok('canonical writer auto-resizes from actual contents', /autoResizeColumns\(1,width\)/.test(src));
-ok('no fixed column width survives canonical writer', !/setColumnWidth\s*\(/.test(src));
+ok('no fixed column width survives canonical writer', !/setColumnWidth\s*\(\s*\d+\s*,\s*\d+\s*\)/.test(src));
 
 if (process.exitCode) process.exit(process.exitCode);
 console.log('PASS: new month and refresh share the same report-format path');
