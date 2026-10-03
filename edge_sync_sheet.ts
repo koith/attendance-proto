@@ -94,9 +94,16 @@ Deno.serve(async (req) => {
         store_folder_name: String(payload?.store_name ?? "인하대학교점"),
         create_missing_folders: true,
         one_spreadsheet_per_store: true,
+        separate_by_store: true,
       },
-      sheet_format: { auto_resize_columns: true, min_column_width: 72, max_column_width: 320 },
-      drive_structure: { root_folder_name: "백억커피", store_folder_name: String(payload?.store_name ?? "인하대학교점"), separate_by_store: true },
+      // After every write, size each used column from its actual current cell contents.
+      // Do not assign widths by column type or fixed presets; data changes must be re-measured on every sync.
+      sheet_format: {
+        auto_resize_columns: true,
+        resize_scope: "all_used_columns_after_write",
+        width_source: "actual_cell_contents",
+        recalculate_on_every_sync: true,
+      },
       attendance, sessions, payroll,
     };
     const gsRes = await fetch(webappUrl, {
