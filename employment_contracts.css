@@ -4,3 +4,13 @@
 
 /* V30 canonical iOS geometry: do not squeeze native time controls below their readable intrinsic height. */
 .subcard.compact{min-height:46px!important;padding:4px 7px!important;align-items:center!important;overflow:hidden!important}.subcard.compact strong{align-self:center!important}.subcard.compact .timepair{height:38px!important;min-height:38px!important;align-items:center!important;overflow:hidden!important}.subcard.compact .timebox{height:38px!important;overflow:hidden!important;align-items:center!important}.subcard.compact .timepair input[type="time"]{box-sizing:border-box!important;height:38px!important;min-height:38px!important;max-height:38px!important;padding:4px 6px!important;line-height:normal!important;align-self:center!important;border-radius:9px!important;-webkit-appearance:none!important;appearance:none!important}.subcard.compact .time-sep{height:38px!important;line-height:38px!important;align-self:center!important}@media(max-width:520px){.subcard.compact{min-height:46px!important;padding-top:4px!important;padding-bottom:4px!important}.subcard.compact .timepair input[type="time"]{height:38px!important;min-height:38px!important;max-height:38px!important;font-size:16px!important}}
+
+/* Contract option rows: keep policy controls visually grouped and aligned. */
+.contract-option-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.contract-option-copy{flex:1;min-width:0}
+.contract-option-copy label{display:block;margin:0;color:var(--text);font-size:.88rem;font-weight:700;line-height:1.35;cursor:pointer}
+.contract-option-copy p{margin:4px 0 0;color:var(--muted);font-size:.74rem;line-height:1.4}
+.contract-option-copy .option-sub{margin-top:1px}
+.contract-option-row>input[type="checkbox"]{width:24px;height:24px;flex:0 0 24px;margin:0;accent-color:var(--brand)}
+.break-policy-row+.night-heading-row{margin-top:10px}
+@media(max-width:520px){.contract-option-row{padding:11px 12px;gap:12px}.contract-option-copy p{font-size:.72rem}}
