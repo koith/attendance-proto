@@ -55,3 +55,6 @@ begin
  end loop;
  return json_build_object('ok',true,'closed',v_closed,'checked_at',now_kst,'active_from',active_from_kst,'hard_stop_minute',1560);
 end $$;
+
+
+-- v0.125 note: production cron function is migrated to resolve store settings per employee/store while retaining the fixed 26:00 hard stop.
