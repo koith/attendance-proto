@@ -34,3 +34,13 @@
 - 열 폭은 실제 셀 내용 기준 auto-resize를 최종 권위로 삼는다. auto-resize 뒤 고정 min/max cap이나 타입별 폭 bucket을 적용하지 않는다.
 - 상태/급여처럼 검토 포인트만 제한적으로 강조한다.
 - 디자인 완료 Proof는 서식 속성 read-back이 아니라 실제 시트에서 제목/헤더/값이 잘리지 않고 읽히는 화면 확인이다.
+
+
+## 2026-10-03 재조사 후 선택한 시각 구조
+
+- Vertex42 Monthly Employee Time Sheet: https://www.vertex42.com/ExcelTemplates/free-timesheet-template.html — 인쇄 가능한 월간 표, 진한 단색 헤더, 얇은 본문 그리드, 장식 최소화.
+- Vertex42 Timesheets & Payroll: https://www.vertex42.com/ExcelTemplates/timesheets.html — 근무시간과 급여 레지스터를 단순 표 중심으로 분리.
+- Smartsheet Google Sheets Attendance: https://www.smartsheet.com/content/attendance-templates-google-sheets — 상태를 제한된 색으로 구분하고 월간 근태를 표 중심으로 유지.
+- Clockify Payroll Templates: https://clockify.me/payroll-template — 직원별 시간/시급/급여를 한 행 레지스터로 두고 계산 결과 열만 강조.
+
+현재 시트에는 웹 카드 UI가 아니라 위 사례들의 공통적인 스프레드시트 문법을 적용한다: compact metadata header → section label → dark table header → white rows/thin separators → status/pay result emphasis. 병합 카드와 임의 KPI는 사용하지 않는다. 열 폭은 마지막 단계의 실제 내용 기반 auto-resize가 유일한 권위다.
