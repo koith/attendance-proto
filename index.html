@@ -775,7 +775,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.137";
+const APP_VERSION="v0.138";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1144,7 +1144,9 @@ const publicRpc=async(fn,args={})=>{
   const t=await r.text();return t?JSON.parse(t):null;
 };
 
-const BE = LIVE ? SupaBE : LocalBE;
+// Production safety: deployed app must never silently fall back to LocalStorage. LocalBE is test-only.
+const ALLOW_LOCAL_TEST = new URLSearchParams(location.search).get("localtest")==="1" && location.hostname==="localhost";
+const BE = LIVE ? SupaBE : (ALLOW_LOCAL_TEST ? LocalBE : SupaBE);
 const STORE_ENTRY_PARAMS=new URLSearchParams(location.search);
 const STORE_ENTRY_MODE=String(STORE_ENTRY_PARAMS.get("mode")||"").toLowerCase();
 const STORE_ENTRY_PATH=/\/inha(?:\/|$)/i.test(location.pathname)||/\/store\/1(?:\/|$)/i.test(location.pathname);
@@ -3058,7 +3060,7 @@ function restoreAddModal(){
 
 document.getElementById("appVersion").textContent=APP_VERSION;
 const connEl=document.getElementById("conn");
-if(LIVE){ connEl.className="conn live"; connEl.textContent="클라우드 연결됨 · Supabase"; }else{ connEl.className="conn error"; connEl.textContent="설정 오류 · Supabase 구성 확인 필요"; }
+if(LIVE){ connEl.className="conn live"; connEl.textContent="클라우드 연결됨 · Supabase"; }else if(ALLOW_LOCAL_TEST){ connEl.className="conn local"; connEl.textContent="개발용 로컬 테스트 모드"; }else{ connEl.className="conn error"; connEl.textContent="연결 오류 · 새로고침 후 계속되면 관리자에게 문의"; document.body.classList.add("backend-config-error"); }
 function tick(){ document.getElementById("clock").textContent=hms(kstNow()); }
 tick(); setInterval(tick,1000);
 // iOS Safari zoom 차단 (viewport meta는 16.4+에서 무시되므로 JS로 보강)
