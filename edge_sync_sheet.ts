@@ -86,6 +86,9 @@ Deno.serve(async (req) => {
       secret, ym, synced_at: syncedAt, status_label: statusLabel,
       store_key: String(payload?.store_key ?? "INHA"),
       store_name: String(payload?.store_name ?? "인하대학교점"),
+      // Apps Script 쪽에서 각 탭을 쓴 뒤 데이터 길이에 맞춰 열 너비를 자동 조정하도록 명시한다.
+      // (헤더/본문 중 긴 값을 기준으로 autoResizeColumns 처리)
+      sheet_format: { auto_resize_columns: true, min_column_width: 72, max_column_width: 320 },
       attendance, sessions, payroll,
     };
     const gsRes = await fetch(webappUrl, {
