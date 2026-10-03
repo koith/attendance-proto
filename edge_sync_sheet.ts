@@ -89,6 +89,12 @@ Deno.serve(async (req) => {
       secret, ym, synced_at: syncedAt, status_label: statusLabel,
       store_key: String(payload?.store_key ?? "INHA"),
       store_name: String(payload?.store_name ?? "인하대학교점"),
+      drive_structure: {
+        root_folder_name: "백억커피",
+        store_folder_name: String(payload?.store_name ?? "인하대학교점"),
+        create_missing_folders: true,
+        one_spreadsheet_per_store: true,
+      },
       sheet_format: { auto_resize_columns: true, min_column_width: 72, max_column_width: 320 },
       drive_structure: { root_folder_name: "백억커피", store_folder_name: String(payload?.store_name ?? "인하대학교점"), separate_by_store: true },
       attendance, sessions, payroll,
