@@ -9,9 +9,9 @@ const checks=[
  ['dynamic section rows',s.includes('sectionRows')&&s.includes('dataRanges')],
  ['content auto resize',s.includes('autoResizeColumns(1,width)')&&s.includes("width_source:'actual_cell_contents'")],
  ['no fixed width buckets',!s.includes('mobile-safe cap')&&!/setColumnWidth\s*\(/.test(s)],
- ['full-width merged section cards',s.includes("getRange(sr,1,1,width).merge()")],
+ ['no merged report cards',!s.includes("getRange(sr,1,1,width).merge()")&&!s.includes("getRange(1,1,1,width).merge()")],
  ['no post-autoresize width clamp',!s.includes('setColumnWidth(')&&!s.includes('Math.min(Math.max(w+18')],
- ['design proof',s.includes("report_design_applied:true")&&s.includes("report_design_version:'sheet-report-v2'")],
+ ['design proof',s.includes("report_design_applied:true")&&s.includes("report_design_version:'sheet-report-v3'")],
 ];
 for(const [name,ok] of checks){assert.ok(ok,name);console.log('PASS',name)}
 console.log('Sheet report design QA: '+checks.length+' PASS');

@@ -124,32 +124,29 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   sh.setHiddenGridlines(true);
   sh.setFrozenRows(headerRows[0]);
 
-  var white='#ffffff', ink='#26332b', green='#1d5d3a', pale='#e7f2eb', canvas='#f4f7f5', line='#d9e4dd';
+  var white='#ffffff', ink='#26332b', green='#1b4d35', pale='#e8f1eb', canvas='#f5f7f6', line='#d9e1dc';
   sh.getRange(1,1,out.length,width).setFontFamily('Arial').setFontSize(10).setFontColor(ink)
     .setBackground(white).setVerticalAlignment('middle').setWrap(false);
 
-  // Masthead: full-width report card, not a raw metadata row.
-  sh.getRange(1,1,1,width).merge().setBackground(green).setFontColor(white)
-    .setFontSize(18).setFontWeight('bold').setHorizontalAlignment('left');
-  sh.getRange(2,1,1,width).merge().setBackground('#f0f6f2').setFontColor('#607068')
-    .setFontSize(10).setHorizontalAlignment('left');
+  // Spreadsheet-native report header: compact, printable, and stable in Google Sheets mobile.
+  // Do not merge across the table width; merged regions made narrow mobile views visually drift.
+  sh.getRange(1,1,1,width).setBackground(green).setFontColor(white).setFontSize(11).setFontWeight('bold');
+  sh.getRange(2,1,1,width).setBackground('#f0f4f1').setFontColor('#607068').setFontSize(9);
   sh.getRange(3,1,1,width).setBackground(canvas);
-  sh.setRowHeight(1,52); sh.setRowHeight(2,30); sh.setRowHeight(3,18);
+  sh.setRowHeight(1,32); sh.setRowHeight(2,24); sh.setRowHeight(3,12);
 
   sections.forEach(function(s,i){
     var sr=sectionRows[i], hr=headerRows[i], dr=dataRanges[i];
-    sh.getRange(sr,1,1,width).merge().setBackground(green).setFontColor(white)
-      .setFontSize(12).setFontWeight('bold').setHorizontalAlignment('left');
-    sh.setRowHeight(sr,36);
-    sh.getRange(hr,1,1,width).setBackground(pale).setFontColor('#214b33')
+    sh.getRange(sr,1,1,width).setBackground(pale).setFontColor(green)\n      .setFontSize(11).setFontWeight('bold').setHorizontalAlignment('left');\n    sh.setRowHeight(sr,28);
+    sh.getRange(hr,1,1,width).setBackground(green).setFontColor('#ffffff')
       .setFontWeight('bold').setHorizontalAlignment('center')
       .setBorder(false,false,true,false,false,false,green,SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
-    sh.setRowHeight(hr,32);
+    sh.setRowHeight(hr,28);
     if(dr.count){
       sh.getRange(dr.first,1,dr.count,width).setBackground(white)
         .setBorder(false,false,true,false,false,false,line,SpreadsheetApp.BorderStyle.SOLID)
         .setVerticalAlignment('middle');
-      for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,30);
+      for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,26);
     }else{
       // Preserve an intentionally empty section without inventing content.
       sh.setRowHeight(dr.first,18);
@@ -178,7 +175,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
 
   return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
     width_source:'actual_cell_contents',resized_columns:width,
-    report_design_applied:true,report_design_version:'sheet-report-v2'};
+    report_design_applied:true,report_design_version:'sheet-report-v3'};
 }
 
 function _json(obj){
