@@ -750,7 +750,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.134";
+const APP_VERSION="v0.135";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1139,9 +1139,10 @@ let STORE_NAME_BY_ID=new Map();
 function syncStoreContextUI(){
   const dashboard=(location.hash||"")==="#dashboard";
   const sel=document.getElementById("storeSelect"),shell=document.querySelector(".store-select-shell"),crumb=document.getElementById("storeCrumb"),lockedName=document.getElementById("lockedStoreName"),tabs=document.querySelector(".tabwrap"),home=document.getElementById("hqHome");
-  const hideSelector=dashboard||STORE_ENTRY_LOCK;
-  if(sel){sel.classList.toggle("store-context-selector-hidden",hideSelector);sel.hidden=hideSelector;}
-  if(shell){shell.classList.toggle("store-context-selector-hidden",hideSelector);shell.hidden=hideSelector;}
+  // 지점 선택 콤보는 본사 대시보드에서만 노출한다. 출퇴근/근무현황/레시피/관리/급여 등 모든 지점 화면에서는 숨김.
+  const showSelector=dashboard&&!STORE_ENTRY_LOCK;
+  if(sel){sel.classList.toggle("store-context-selector-hidden",!showSelector);sel.hidden=!showSelector;}
+  if(shell){shell.classList.toggle("store-context-selector-hidden",!showSelector);shell.hidden=!showSelector;}
   if(crumb){crumb.classList.toggle("store-context-selector-hidden",dashboard);crumb.hidden=dashboard;}
   if(lockedName){const name=STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||sessionStorage.getItem("baekeok_store_name")||sel?.selectedOptions?.[0]?.text||"현재 지점";lockedName.textContent=name;lockedName.classList.toggle("show",STORE_ENTRY_LOCK&&!dashboard);lockedName.hidden=!(STORE_ENTRY_LOCK&&!dashboard);}
   if(tabs)tabs.style.display=dashboard?"none":"";
