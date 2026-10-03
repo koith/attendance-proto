@@ -362,3 +362,42 @@ order by ae.id;
 - 완료 보고 직전에 변경한 한 부분만 보지 않고 영향받는 주변 기능까지 다시 회귀 확인한다.
 - 완료 보고에는 실제 반영 앱 버전과 필요한 배포 상태를 반드시 명시한다.
 - **사용자가 앱을 열어 깨진 것을 발견한 뒤 알려주는 과정을 QA로 사용하지 않는다.** 가능한 검증은 배포 전에 수행한다.
+
+
+## ★ 새 대화 인수인계 — 2026-10-03 v0.142
+
+### 현재 정상 기준
+- 앱은 장애 복구 후 **v0.142**에서 마지막 정상 작동 화면으로 복귀했다.
+- 직전 장애는 부팅 JavaScript가 깨진 상태가 Pages에 배포된 사건이었다. `boot-syntax-regression` / `index-startup-smoke-v1` 등 필수 QA FAIL 상태에서는 운영 배포 및 완료 보고 금지 규칙을 위 P0 게이트로 고정했다.
+- 다음 작업 시작 시 반드시 실제 GitHub main, Actions/Pages, Supabase 운영 연결 상태부터 재확인한다.
+
+### Google Sheet 열 너비 — 최우선 후속 작업
+- 대상 스프레드시트: `2026 근태`, ID `1-0on5kKhnIrjrutEDAR9y4nkBGlB1VL6YaLD49eG024`.
+- 월 탭은 1월~12월이며 sheetId는 `220260101` ~ `220260112`.
+- 사용자가 원하는 규칙은 **고정 폭/타입별 프리셋 금지**다.
+- 각 시트의 각 사용 컬럼은 **그 시점의 실제 셀 내용 기준으로 Google Sheets auto-resize** 해야 한다.
+- 데이터 갱신으로 내용 길이가 달라질 수 있으므로 **매 동기화에서 데이터 쓰기가 끝난 직후 사용 컬럼 전체를 다시 auto-resize** 해야 한다.
+- 특정 열을 80/100/125/150px처럼 고정하거나 몇 가지 폭 타입 중 선택하는 방식은 사용하지 않는다.
+- 현재 12개 월 탭에는 Google Sheets API `autoResizeDimensions`를 A:Z 전체에 실행하여 실제 내용 기준 자동맞춤을 적용했다.
+- `edge_sync_sheet.ts`가 Apps Script로 보내는 계약은 현재 다음 의미를 명시한다:
+  - `auto_resize_columns: true`
+  - `resize_scope: "all_used_columns_after_write"`
+  - `width_source: "actual_cell_contents"`
+  - `recalculate_on_every_sync: true`
+- **남은 핵심:** 외부 Apps Script가 위 계약을 실제로 수행하는지 확인하고, 수행하지 않는다면 Apps Script의 데이터 write 마지막 단계에서 `sheet.autoResizeColumns(1, sheet.getLastColumn())`에 해당하는 동작을 넣어야 한다. 다음 동기화 후 실제 columnMetadata가 내용에 맞게 다시 변하는 것까지 검증해야 완료다.
+- 사용자가 열 너비를 신경 쓸 필요가 없어야 한다. 수동 폭 수정은 임시조치일 뿐 완료로 간주하지 않는다.
+
+### Google Sheet 동기화 관련 코드
+- repo `edge_sync_sheet.ts`는 외부 Apps Script Web App(`SHEET_WEBAPP_URL`)을 호출한다.
+- payload의 `sheet_format`은 실제 내용 기준/매 sync 재측정을 요구하도록 이미 변경되어 있다.
+- 외부 Apps Script 소스는 repo에서 아직 확인되지 않았다. 다음 대화에서는 Apps Script 위치/소스를 우선 찾아 실제 자동맞춤 실행 코드를 확인·수정한다.
+- 시트 갱신 성공뿐 아니라 **갱신 직후 열 너비 자동 재측정 성공**까지 동기화 성공 조건으로 취급한다.
+
+### 이번 대화에서 확정한 운영 원칙
+- 사용자에게 테스트를 떠넘기지 않는다. 자동/정적/DB/배포 검증 가능한 것은 먼저 자체 확인한다.
+- commit/main 반영/Pages 성공을 각각 구분하며 Pages 성공만으로 완료라고 하지 않는다.
+- 앱 JS 부팅 → route → 본문 렌더링 → Supabase 운영 연결까지 확인해야 정상 배포다.
+- 운영 LocalBE/localStorage fallback 금지.
+- 지점 선택 콤보는 본사 전체지점 대시보드에서만 표시하고 지점 내부에서는 숨긴다.
+- 모바일/데스크톱, 본사/지점, 기존 핵심 기능을 회귀 QA한다.
+- 완료 보고에는 실제 앱 버전을 반드시 적는다.
