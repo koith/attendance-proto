@@ -169,22 +169,15 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   if(pStatus>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,pStatus,dataRanges[2].count,1)
     .setBackground('#fff4cf').setFontColor('#745500').setFontWeight('bold').setHorizontalAlignment('center');
 
-  // Numeric/time columns stay compact; names/labels remain readable. Final widths still come
-  // from actual rendered contents on every sync, then receive padding and a mobile-safe cap.
+  // Final column widths are measured from the actual rendered cell contents on every sync.
+  // Do not apply fixed/type-based min/max caps after auto-resize: those caps can clip long
+  // payroll headers and silently reintroduce the exact regression this contract prevents.
   SpreadsheetApp.flush();
   sh.autoResizeColumns(1,width);
   SpreadsheetApp.flush();
-  for(var col=1;col<=width;col++){
-    var w=sh.getColumnWidth(col);
-    sh.setColumnWidth(col,Math.min(Math.max(w+18,72),180));
-  }
-  // Employee-name column needs a little more breathing room when present.
-  var nameCol=attendance.header.indexOf('직원명')+1;
-  if(nameCol>0) sh.setColumnWidth(nameCol,Math.max(sh.getColumnWidth(nameCol),96));
-  SpreadsheetApp.flush();
 
   return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
-    width_source:'actual_cell_contents_plus_padding',resized_columns:width,
+    width_source:'actual_cell_contents',resized_columns:width,
     report_design_applied:true,report_design_version:'sheet-report-v2'};
 }
 
