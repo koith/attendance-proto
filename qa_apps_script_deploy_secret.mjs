@@ -19,6 +19,6 @@ assert.throws(
 );
 assert.throws(
   ()=>mergeSharedSecret("var SHARED_SECRET = '';","var SHARED_SECRET = 'live-secret-value';"),
-  /exactly one literal/
+  /empty/
 );
 console.log('PASS Apps Script deployment preserves live SHARED_SECRET and rejects unsafe mismatches');
