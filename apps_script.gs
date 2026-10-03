@@ -166,7 +166,8 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     s.data.header.forEach(function(h,idx){
       var col=idx+1, range=sh.getRange(dr.first,col,dr.count,1);
       if(h==='날짜') range.setNumberFormat('yyyy-mm-dd');
-      if(['출근','퇴근','실근무','총근무','야간근무'].indexOf(h)>=0) range.setNumberFormat('[h]:mm');
+      if(['출근','퇴근'].indexOf(h)>=0) range.setNumberFormat('hh:mm');
+      if(['실근무','총근무','야간근무'].indexOf(h)>=0) range.setNumberFormat('[h]:mm');
     });
   });
 
@@ -184,7 +185,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
 
   var aStatus=attendance.header.indexOf('상태')+1;
   if(aStatus>0&&dataRanges[0].count) sh.getRange(dataRanges[0].first,aStatus,dataRanges[0].count,1)
-    .setBackground('#e2f3e6').setFontColor('#145c34').setFontWeight('bold').setHorizontalAlignment('center');
+    .setFontColor('#145c34').setFontWeight('bold').setHorizontalAlignment('center');
   var gross=payroll.header.indexOf('예상 세전급여')+1;
   if(gross<=0) gross=payroll.header.indexOf('확정 세전급여')+1;
   if(gross>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,gross,dataRanges[2].count,1)
@@ -197,26 +198,12 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   SpreadsheetApp.flush();
   sh.autoResizeColumns(1,width);
   SpreadsheetApp.flush();
-  // Supplement native autofit with displayed-text glyph widths when Korean text clips.
-  // Widths depend on the longest real header/value, never a per-column fixed cap.
-  var shown=sh.getRange(1,1,out.length,width).getDisplayValues();
-  for(var cc=0;cc<width;cc++){
-    var needed=0;
-    sections.forEach(function(s,i){
-      for(var rr=headerRows[i]-1;rr<dataRanges[i].last;rr++){
-        var text=shown[rr][cc], units=0;
-        Array.from(text).forEach(function(ch){units+=ch.charCodeAt(0)>255?1:0.58;});
-        needed=Math.max(needed,Math.ceil(units*14+24));
-      }
-    });
-    sh.setColumnWidth(cc+1,Math.max(sh.getColumnWidth(cc+1),needed));
-  }
-  SpreadsheetApp.flush();
+
 
 
   return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
     width_source:'actual_cell_contents',resized_columns:width,
-    report_design_applied:true,report_design_version:'sheet-report-v6'};
+    report_design_applied:true,report_design_version:'sheet-report-v7'};
 }
 
 function _json(obj){
