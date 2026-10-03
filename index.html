@@ -2546,7 +2546,8 @@ async function drawPay(ym){
     payEmployees.appendChild(card);
   }
   payEmployees.style.setProperty("--payroll-row-count",String(Math.max(1,Math.ceil(R.rows.length/2))));
-  // 급여마감/Excel 미리출력 UI 제거: 최신 effective 근태 기준으로 급여/시트 유지.\n  // M8.7: 구글시트 갱신 / 열기 (LIVE 전용)
+  // 급여마감/Excel 미리출력 UI 제거: 최신 effective 근태 기준으로 급여/시트 유지.
+  // M8.7: 구글시트 갱신 / 열기 (LIVE 전용)
   if(LIVE){
     const formatSyncStamp=d=>d.toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:true}).replace(/\. /g,".").replace(",","");
     const showOwnerInviteHelp=()=>{
