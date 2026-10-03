@@ -771,7 +771,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.143";
+const APP_VERSION="v0.144";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1258,22 +1258,22 @@ function pairEvents(rows){
     // 동일 시각 → id 차선 (raw 생성순서 보존). id는 숫자 또는 "add_N"
     return idOrder(a.id) - idOrder(b.id);
   });
-  const out=[]; let openIn=null, openInId=null, openInRaw=null;
+  const out=[]; let openIn=null, openInId=null, openInRaw=null, openInCorrected=false;
   for(const r of s){
     const when=fromIso(r.event_at);
     if(r.event_type==="IN"){
-      if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"INCOMPLETE",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null});
-      openIn=when; openInId=r.id; openInRaw=r.event_at;
+      if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"INCOMPLETE",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null,corrected:!!openInCorrected});
+      openIn=when; openInId=r.id; openInRaw=r.event_at; openInCorrected=!!r.corrected;
     }else if(r.event_type==="OUT"){
       if(openIn!==null){
         // Invalid Date 방어: 어느 한쪽이라도 파싱 실패면 sec=null(합산 제외), status로 표시
         const sec=(isNaN(openIn)||isNaN(when))?null:(when-openIn)/1000;
-        out.push({in:openIn,out:when,sec,status:sec==null?"INVALID_TIME":"COMPLETE",inId:openInId,outId:r.id,inRaw:openInRaw,outRaw:r.event_at}); openIn=null; openInId=null; openInRaw=null;
+        out.push({in:openIn,out:when,sec,status:sec==null?"INVALID_TIME":"COMPLETE",inId:openInId,outId:r.id,inRaw:openInRaw,outRaw:r.event_at,corrected:!!(openInCorrected||r.corrected)}); openIn=null; openInId=null; openInRaw=null; openInCorrected=false;
       }
-      else out.push({in:null,out:when,sec:null,status:"ORPHAN_OUT",inId:null,outId:r.id,inRaw:null,outRaw:r.event_at});
+      else out.push({in:null,out:when,sec:null,status:"ORPHAN_OUT",inId:null,outId:r.id,inRaw:null,outRaw:r.event_at,corrected:!!r.corrected});
     }
   }
-  if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"WORKING",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null});
+  if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"WORKING",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null,corrected:!!openInCorrected});
   return out;
 }
 // id 정렬 보조: 숫자 id는 그대로, "add_N"(관리자 추가)은 N을 큰 오프셋 뒤에 둬 raw 뒤 안정 배치
@@ -2614,7 +2614,7 @@ async function buildSheetSyncPayload(ym){
         sessRows.push([day, rec.employee_name, i+1,
           s.in?hhmmBusiness(s.in,sessionAnchor):"—", s.out?hhmmBusiness(s.out,sessionAnchor):"—",
           s.status==="COMPLETE"?fmtHM(s.sec):(s.status==="WORKING"?"근무중":"—"),
-          _statusLabel(s.status)]);
+          _statusLabel(s.status), s.corrected?"정정":""]);
       });
       const firstIn=daySess.find(s=>s.in), lastOut=[...daySess].reverse().find(s=>s.out);
       attRows.push([day, rec.employee_name,
@@ -2635,7 +2635,7 @@ async function buildSheetSyncPayload(ym){
     store_key:String(CURRENT_STORE_ID||1),
     store_name:STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||CONFIG.STORE_NAME,
     attendance:{ header:["날짜","직원명","출근","퇴근","실근무시간","세션수","상태","정정여부"], rows:attRows },
-    sessions:{ header:["날짜","직원명","세션#","출근","퇴근","근무시간","상태"], rows:sessRows },
+    sessions:{ header:["날짜","직원명","세션#","출근","퇴근","근무시간","상태","정정여부"], rows:sessRows },
     payroll:{ header:["직원명","총 실근무시간","22시 이후 야간근무","시급","기본급","주휴","휴게시간 제공","휴게미제공","30분 추가지급","휴게수당","조정","예상 세전급여","상태"], rows:payRows },
   };
 }
