@@ -165,3 +165,6 @@
 
 /* v0.126: keep timeline tick labels readable on narrow mobile widths */
 @media(max-width:520px){.axis-labels{height:32px!important}.axis-labels span{top:0}.axis-labels span:nth-child(even){top:14px}}
+
+/* v0.127 correction validation must stay visible inside the modal */
+.correction-modal .input-error{border-color:#d43f3a!important;background:#fff7f7!important;box-shadow:0 0 0 2px rgba(212,63,58,.10)!important}.correction-field-error{min-height:18px;margin:4px 0 2px;color:#c62828;font-size:.72rem;font-weight:700}.correction-field-error:empty{min-height:0;margin:0}
