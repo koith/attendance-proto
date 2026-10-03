@@ -750,7 +750,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.127";
+const APP_VERSION="v0.129";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1416,7 +1416,7 @@ function route(){
       }
     });
   }
-  else if(h==="attendance"){ setTab("attendance"); if(!LIVE){ location.href="actual_attendance.html"; return; } let a=null;try{a=JSON.parse(sessionStorage.getItem("staff_attendance_auth")||"null")}catch(_){} if(a?.employee_id&&/^\\d{4}$/.test(String(a.pin||""))){location.href="actual_attendance.html?mode=staff";return} if(Auth.isLoggedIn()){ BE.isAdmin().then(isAdmin=>{ if(isAdmin) location.href="actual_attendance.html"; else openMyRecord(); }).catch(()=>openMyRecord()); return; } openMyRecord(); }
+  else if(h==="attendance"){ setTab("attendance"); if(!LIVE){ location.href="actual_attendance.html"; return; } sessionStorage.removeItem("staff_attendance_auth"); if(Auth.isLoggedIn()){ BE.isAdmin().then(isAdmin=>{ if(isAdmin) location.href="actual_attendance.html"; else openMyRecord(); }).catch(()=>openMyRecord()); return; } openMyRecord(); }
   else if(h==="pay"){ setTab("pay"); requireAuth(async()=>{await renderPay();await mountAdminSubnav("pay");}); }
   else if(h==="report"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");await mountAdminSubnav("report");}); } else if(h==="sales"){ setTab("sales"); requireAuth(async()=>{await renderOperations("inquiry");await mountAdminSubnav("sales");}); } else if(h==="inventory"){ setTab("inventory"); requireAuth(async()=>{await renderOperations("inventory");await mountAdminSubnav("inventory");}); } else if(h==="recipe"){ setTab("recipe"); renderRecipeHub(); } else if(h==="products"){location.hash="#dashboard";return;} else if(h==="ops"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");await mountAdminSubnav("report");}); }
   else if(h==="hours"){ setTab("hours"); requireAuth(async()=>{await renderStoreHours();upgradeLegacyPageTitle(".store-hours-page>.section-t","운영시간");await mountAdminSubnav("hours");}); }
@@ -1725,6 +1725,7 @@ function openReqForm(empId,pin,sess,events,requests,emps){
   // 기본값: 세션의 기존 출근/퇴근 (없으면 세션 기준일)
   const baseDay = sess.in||sess.out||kstNow();
   const inInit = sess.in||baseDay, outInit = sess.out||baseDay;
+  const canFixOut = !!sess.out; // 실제 퇴근 기록이 있으면 퇴근시간 정정 허용
   el.innerHTML=`
     <div class="section-t">기존 근태 기록</div>
     <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:.85rem;margin-bottom:12px">
@@ -1739,8 +1740,8 @@ function openReqForm(empId,pin,sess,events,requests,emps){
     <div id="inRow" style="display:flex;gap:6px;margin-bottom:10px">
       ${dateTimeInputs('in', inInit)}</div>
     <label style="display:flex;align-items:center;gap:6px;font-size:.85rem;margin-bottom:4px">
-      <input type="checkbox" id="fixOut" ${sess.status==='INCOMPLETE'?'checked':''} style="width:auto"> 퇴근 수정</label>
-    <div id="outRow" style="display:flex;gap:6px;margin-bottom:10px">
+      <input type="checkbox" id="fixOut" ${sess.status==='INCOMPLETE'?'checked':''} ${canFixOut?'':'disabled'} style="width:auto"> 퇴근 수정</label>
+    <div id="outRow" style="display:flex;gap:6px;margin-bottom:10px;opacity:${canFixOut?'1':'.45'};pointer-events:${canFixOut?'auto':'none'}">
       ${dateTimeInputs('out', outInit)}</div>
     <div id="reqPreview" style="font-size:.85rem;padding:8px;border-radius:8px;background:var(--chip);margin-bottom:10px"></div>
     <div class="field"><label>정정 사유</label><input id="reqNote" placeholder="예: 마감하고 퇴근 못 찍음"></div>
@@ -2293,7 +2294,8 @@ async function computeMonthPayroll(ym){
     const evs=events.filter(x=>Number(x.employee_id)===Number(e.id));
     const allSess=pairEvents(evs);
     const sess=allSess.filter(s=>{ const a=s.in||s.out; if(!a)return false;
-      return `${a.getFullYear()}-${p2(a.getMonth()+1)}`===ym; });
+      const payrollAnchor=s.in||s.out; // 말일 심야근무도 출근한 달 급여에 전부 귀속
+      return `${payrollAnchor.getFullYear()}-${p2(payrollAnchor.getMonth()+1)}`===ym; });
     // Deactivation is a current roster state, not a reason to erase historical payroll.
     if(!isActive(e)&&!sess.length) continue;
     const completedSec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
@@ -2497,48 +2499,7 @@ async function drawPay(ym){
     payEmployees.appendChild(card);
   }
   payEmployees.style.setProperty("--payroll-row-count",String(Math.max(1,Math.ceil(R.rows.length/2))));
-  // ---- M8: 마감/엑셀/변경감지 ----
-  // 현재 근태 지문 (이벤트 개수 + 최신 이벤트/보정 시각)
-  const curFp = fingerprintOf(R.events);
-  let snapStatus="OPEN", snapFp=null;
-  if(LIVE){
-    try{ const snap=await BE.snapshot(ym); snapStatus=snap.status; snapFp=snap.fingerprint; }catch(e){}
-    if(drawSeq!==PAYROLL_DRAW_SEQ || !el.isConnected) return;
-  }
-  el.querySelectorAll(".payroll-action-block").forEach(n=>n.remove());
-  const box=document.createElement("div");
-  box.className="payroll-action-block";
-  box.style.marginTop="16px";
-  if(!LIVE){
-    box.innerHTML=`<div style="font-size:.8rem;color:var(--muted);text-align:center">마감·엑셀 출력은 클라우드 연결 시 사용 가능합니다.</div>`;
-  } else if(snapStatus==="CLOSED"){
-    const changed = snapFp && curFp!==snapFp;
-    box.innerHTML=`
-      <div class="row" style="border-color:${changed?'var(--warn)':'var(--in-d)'};flex-direction:column;align-items:stretch;gap:10px">
-        <div style="font-weight:600;color:${changed?'var(--warn)':'var(--in)'}">
-          ${changed?'⚠ 마감 후 근태가 변경됨 — 재계산 필요':'🔒 '+ym+' 마감 완료'}</div>
-        ${changed?'<div style="font-size:.82rem;color:var(--sub)">마감을 해제하고 다시 마감하면 최신 근태로 갱신됩니다.</div>':''}
-        <div class="btn-pair">
-          <button class="btn btn-primary" id="btnExport">세무사용 Excel 다운로드</button>
-          <button class="btn btn-secondary" id="btnReopen">마감 해제</button>
-        </div>
-      </div>`;
-  } else {
-    const hasIssues = payrollRows.some(r=>r.issues>0);
-    const currentYm=`${kstNow().getFullYear()}-${String(kstNow().getMonth()+1).padStart(2,"0")}`;
-    const periodEnded=ym<currentYm;
-    box.innerHTML=`
-      <div class="row" style="flex-direction:column;align-items:stretch;gap:10px">
-        ${!periodEnded?'<div style="font-size:.82rem;color:var(--sub)">이번 달 급여는 계속 변동됩니다. 월이 종료된 뒤에만 마감할 수 있습니다.</div>':(hasIssues?'<div style="font-size:.82rem;color:var(--warn)">⚠ 확인필요 근태가 있습니다. 정정 후 마감을 권장합니다.</div>':'')}
-        <div class="btn-pair">
-          <button class="btn btn-primary" id="btnClose" ${periodEnded?'':'disabled aria-disabled="true" title="월 종료 후 마감할 수 있습니다."'}>${ym} 급여 마감</button>
-          <button class="btn btn-secondary" id="btnExport">Excel 미리 출력</button>
-        </div>
-      </div>`;
-  }
-  el.appendChild(box);
-
-  // M8.7: 구글시트 갱신 / 열기 (LIVE 전용)
+  // 급여마감/Excel 미리출력 UI 제거: 최신 effective 근태 기준으로 급여/시트 유지.\n  // M8.7: 구글시트 갱신 / 열기 (LIVE 전용)
   if(LIVE){
     const formatSyncStamp=d=>d.toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:true}).replace(/\. /g,".").replace(",","");
     const showOwnerInviteHelp=()=>{
@@ -2560,7 +2521,7 @@ async function drawPay(ym){
     document.getElementById("btnOpenSheet").onclick=()=>{
       let url=`https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/edit`;
       try{const st=JSON.parse(localStorage.getItem("baekeok_sheet_sync_v1")||"null");if(st?.sheet_url)url=st.sheet_url;}catch(_){}
-      window.open(url,"_blank");
+      const monthNo=Number(String(ym).slice(5,7));const gid=220260100+monthNo;url=url.split("#")[0]+"#gid="+gid;window.open(url,"_blank");
     };
     document.getElementById("btnSyncSheet").onclick=async()=>{
       const btn=document.getElementById("btnSyncSheet"); const msg=document.getElementById("syncMsg");
@@ -2579,21 +2540,7 @@ async function drawPay(ym){
     };
   }
 
-  const expBtn=document.getElementById("btnExport");
-  if(expBtn) expBtn.onclick=async()=>{expBtn.disabled=true;try{const fresh=await computeMonthPayroll(ym);exportPayrollXlsx(ym,fresh.rows.filter(x=>x.pay).map(rec=>({employee_id:rec.employee_id,employee_name:rec.employee_name,hours:Math.round(rec.hours*100)/100,wage:rec.pay.wage,weeks:rec.pay.jweeks,base_pay:rec.pay.base,juhyu_pay:rec.pay.juhyu,adjust:rec.pay.adjust,gross_pay:rec.pay.gross,tax_rate:rec.pay.rate,net_pay:rec.pay.net,memo:rec.memo||""})),fresh.totalNet,weeks,fresh.rows);}catch(e){console.error("[excel effective export]",e);toast("err","Excel 생성 실패","최신 정정 근태를 불러오지 못했습니다.");}finally{expBtn.disabled=false}};
-  const closeBtn=document.getElementById("btnClose");
-  if(closeBtn) closeBtn.onclick=async()=>{
-    if(!confirm(`${ym} 급여를 마감할까요?\n마감 시점의 계산근거가 고정됩니다.`)) return;
-    const res=await BE.closePayroll(ym, payrollRows.map(({issues,...r})=>r), curFp);
-    if(res&&res.ok){ toast("in","마감 완료",`${res.count}명 · 근거 고정됨`); drawPay(ym); }
-    else toast("err","마감 실패",(res&&res.error)||"");
-  };
-  const reopenBtn=document.getElementById("btnReopen");
-  if(reopenBtn) reopenBtn.onclick=async()=>{
-    if(!confirm(`${ym} 마감을 해제할까요?`)) return;
-    const res=await BE.reopenPayroll(ym);
-    if(res&&res.ok){ toast("out","마감 해제됨",""); drawPay(ym); }
-  };
+
 }
 // M8.7: 시트 동기화 payload 생성 (DOM 아님 — DB조회+기존 계산함수 재사용)
 async function buildSheetSyncPayload(ym){
