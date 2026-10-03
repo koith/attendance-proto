@@ -11,7 +11,11 @@ const checks=[
  ['no fixed width buckets',!s.includes('mobile-safe cap')&&!/setColumnWidth\s*\(/.test(s)],
  ['no merged report cards',!s.includes("getRange(sr,1,1,width).merge()")&&!s.includes("getRange(1,1,1,width).merge()")],
  ['no post-autoresize width clamp',!s.includes('setColumnWidth(')&&!s.includes('Math.min(Math.max(w+18')],
- ['design proof',s.includes("report_design_applied:true")&&s.includes("report_design_version:'sheet-report-v3'")],
+ ['high contrast table header',s.includes("setBackground('#173f2d').setFontColor('#ffffff')")],
+ ['vertical table separators',s.includes("setBorder(false,true,true,true,true,false,line")],
+ ['semantic alignment',s.includes("setHorizontalAlignment('right')")&&s.includes("setHorizontalAlignment('center')")],
+ ['no detached payroll blocks',!s.includes("setBackground('#edf7f0')")&&!s.includes("setBackground('#fff4cf')")],
+ ['design proof',s.includes("report_design_applied:true")&&s.includes("report_design_version:'sheet-report-v4'")],
 ];
 for(const [name,ok] of checks){assert.ok(ok,name);console.log('PASS',name)}
 console.log('Sheet report design QA: '+checks.length+' PASS');
