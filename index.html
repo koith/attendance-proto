@@ -2538,11 +2538,61 @@ async function drawPay(ym){
       secondary.before(body);
       body.append(secondary,payline);
     }
-    if(rec.breakEligibleCount>0){const bb=document.createElement("button");bb.type="button";bb.className=`payroll-break-trigger ${rec.breakConfirmedCount>=rec.breakEligibleCount?"done":"pending"}`;bb.title=`휴게 확인 ${rec.breakConfirmedCount}/${rec.breakEligibleCount}`;bb.setAttribute("aria-label",bb.title);bb.textContent="휴게";bb.onclick=async()=>{const veil=document.getElementById("addVeil"),m=veil.querySelector(".modal");m.classList.add("payroll-break-modal");
-      const [yy,mm]=ym.split("-").map(Number),first=new Date(yy,mm-1,1),last=new Date(yy,mm,0),startDow=first.getDay();
-      const byDay=new Map();rec.breakDecisions.forEach((x,i)=>{const day=x.session.in.getDate();if(!byDay.has(day))byDay.set(day,[]);byDay.get(day).push({x,i})});
-      const renderCalendar=()=>{let cells="";for(let i=0;i<startDow;i++)cells+='<div class="break-cal-cell empty"></div>';for(let d=1;d<=last.getDate();d++){const items=byDay.get(d)||[],done=items.length&&items.every(({x})=>!!x.decision),cls=items.length?(done?"has-break done":"has-break pending"):"";cells+=`<button type="button" class="break-cal-cell ${cls}" data-day="${d}" ${items.length?"":"disabled"}><span>${d}</span>${items.length?`<small>${items.length}건</small>`:""}</button>`};m.innerHTML=`<div class="correction-head"><div><h3 style="margin:0">${safeHtml(rec.employee_name)} · 휴게시간 확인</h3><div style="font-size:.8rem;color:var(--muted);margin-top:4px">${yy}년 ${mm}월 · 4시간 이상 근무 ${rec.breakEligibleCount}건</div></div><button id="breakClose">×</button></div><div class="break-cal-week"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div class="break-calendar">${cells}</div><div class="break-cal-legend"><span><i class="pending"></i>확인 필요</span><span><i class="done"></i>확인 완료</span></div>`;m.querySelector("#breakClose").onclick=()=>closeAddVeil();m.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>renderDay(Number(b.dataset.day)));};
-      const renderDay=day=>{const items=byDay.get(day)||[];const lines=items.map(({x,i})=>{const s=x.session,d=x.decision;return `<div class="break-shift"><div class="break-shift-title">${hhmmBusiness(s.in,s.in)}–${hhmmBusiness(s.out,s.in)} · ${fmtHM(s.sec)}</div><div class="break-options"><button class="btn ${d?.break_provided===true?'btn-primary':'btn-secondary'}" data-bi="${i}" data-v="yes">30분 휴게 제공</button><button class="btn ${d?.break_provided===false&&!d?.compensate_30m?'btn-primary':'btn-secondary'}" data-bi="${i}" data-v="no">휴게 미제공 · 추가지급 안 함</button><button class="btn ${d?.compensate_30m?'btn-primary':'btn-secondary'}" data-bi="${i}" data-v="pay">휴게 미제공 · 30분 시급 추가지급</button></div></div>`}).join("");m.innerHTML=`<div class="correction-head"><div><h3 style="margin:0">${safeHtml(rec.employee_name)} · ${mm}월 ${day}일</h3><div style="font-size:.8rem;color:var(--muted);margin-top:4px">휴게 확인 대상 ${items.length}건</div></div><button id="breakClose">×</button></div>${lines}<button class="btn btn-secondary btn-block" id="breakBack">달력으로</button>`;m.querySelector("#breakClose").onclick=()=>closeAddVeil();m.querySelector("#breakBack").onclick=renderCalendar;m.querySelectorAll("[data-bi]").forEach(b=>b.onclick=async()=>{const x=rec.breakDecisions[Number(b.dataset.bi)],v=b.dataset.v;await BE.payrollBreakDecisionSave(rec.employee_id,x.session.inId,v==="yes",v==="pay");x.decision={break_provided:v==="yes",compensate_30m:v==="pay"};toast("in","저장됨","휴게시간 반영");renderDay(day);});};renderCalendar();openAddVeil();}};const head=card.querySelector(".employee-card-primary");if(head)head.appendChild(bb);else card.appendChild(bb);}
+    if(rec.breakEligibleCount>0){
+      const bb=document.createElement("button");
+      bb.type="button";
+      bb.className="payroll-break-trigger "+(rec.breakConfirmedCount>=rec.breakEligibleCount?"done":"pending");
+      bb.title="휴게 확인 "+rec.breakConfirmedCount+"/"+rec.breakEligibleCount;
+      bb.setAttribute("aria-label",bb.title);
+      bb.textContent="휴게";
+      bb.onclick=async()=>{
+        const veil=document.getElementById("addVeil");
+        const m=veil.querySelector(".modal");
+        m.classList.add("payroll-break-modal");
+        const parts=ym.split("-").map(Number),yy=parts[0],mm=parts[1];
+        const lastDay=new Date(yy,mm,0).getDate(),startDow=new Date(yy,mm-1,1).getDay();
+        const byDay=new Map();
+        rec.breakDecisions.forEach((x,i)=>{
+          const day=x.session.in.getDate();
+          if(!byDay.has(day))byDay.set(day,[]);
+          byDay.get(day).push({x:x,i:i});
+        });
+        function renderCalendar(){
+          let cells="";
+          for(let i=0;i<startDow;i++)cells+='<div class="break-cal-cell empty"></div>';
+          for(let day=1;day<=lastDay;day++){
+            const items=byDay.get(day)||[];
+            const done=items.length>0&&items.every(item=>!!item.x.decision);
+            const cls=items.length?(done?"has-break done":"has-break pending"):"";
+            cells+='<button type="button" class="break-cal-cell '+cls+'" data-day="'+day+'" '+(items.length?"":"disabled")+'><span>'+day+'</span>'+(items.length?'<small>'+items.length+'건</small>':"")+'</button>';
+          }
+          m.innerHTML='<div class="correction-head"><div><h3 style="margin:0">'+safeHtml(rec.employee_name)+' · 휴게시간 확인</h3><div style="font-size:.8rem;color:var(--muted);margin-top:4px">'+yy+'년 '+mm+'월 · 4시간 이상 근무 '+rec.breakEligibleCount+'건</div></div><button id="breakClose">×</button></div><div class="break-cal-week"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div class="break-calendar">'+cells+'</div><div class="break-cal-legend"><span><i class="pending"></i>확인 필요</span><span><i class="done"></i>확인 완료</span></div>';
+          m.querySelector("#breakClose").onclick=()=>closeAddVeil();
+          m.querySelectorAll("[data-day]").forEach(btn=>btn.onclick=()=>renderDay(Number(btn.dataset.day)));
+        }
+        function renderDay(day){
+          const items=byDay.get(day)||[];
+          const lines=items.map(item=>{
+            const x=item.x,i=item.i,s=x.session,d=x.decision;
+            return '<div class="break-shift"><div class="break-shift-title">'+hhmmBusiness(s.in,s.in)+'–'+hhmmBusiness(s.out,s.in)+' · '+fmtHM(s.sec)+'</div><div class="break-options"><button class="btn '+(d?.break_provided===true?"btn-primary":"btn-secondary")+'" data-bi="'+i+'" data-v="yes">30분 휴게 제공</button><button class="btn '+(d?.break_provided===false&&!d?.compensate_30m?"btn-primary":"btn-secondary")+'" data-bi="'+i+'" data-v="no">휴게 미제공 · 추가지급 안 함</button><button class="btn '+(d?.compensate_30m?"btn-primary":"btn-secondary")+'" data-bi="'+i+'" data-v="pay">휴게 미제공 · 30분 시급 추가지급</button></div></div>';
+          }).join("");
+          m.innerHTML='<div class="correction-head"><div><h3 style="margin:0">'+safeHtml(rec.employee_name)+' · '+mm+'월 '+day+'일</h3><div style="font-size:.8rem;color:var(--muted);margin-top:4px">휴게 확인 대상 '+items.length+'건</div></div><button id="breakClose">×</button></div>'+lines+'<button class="btn btn-secondary btn-block" id="breakBack">달력으로</button>';
+          m.querySelector("#breakClose").onclick=()=>closeAddVeil();
+          m.querySelector("#breakBack").onclick=renderCalendar;
+          m.querySelectorAll("[data-bi]").forEach(btn=>btn.onclick=async()=>{
+            const x=rec.breakDecisions[Number(btn.dataset.bi)],v=btn.dataset.v;
+            await BE.payrollBreakDecisionSave(rec.employee_id,x.session.inId,v==="yes",v==="pay");
+            x.decision={break_provided:v==="yes",compensate_30m:v==="pay"};
+            toast("in","저장됨","휴게시간 반영");
+            renderDay(day);
+          });
+        }
+        renderCalendar();
+        openAddVeil();
+      };
+      const head=card.querySelector(".employee-card-primary");
+      if(head)head.appendChild(bb);else card.appendChild(bb);
+    }
     payEmployees.appendChild(card);
   }
   payEmployees.style.setProperty("--payroll-row-count",String(Math.max(1,Math.ceil(R.rows.length/2))));
