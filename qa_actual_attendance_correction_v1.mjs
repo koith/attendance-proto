@@ -8,5 +8,6 @@ t('누락 출퇴근은 ADD correction으로만 보완',()=>{assert(j.includes("i
 t('정정 사유 필수 및 역전시간 방지',()=>{assert(j.includes("if(!reason){reasonEl.classList.add('input-error')")&&j.includes("reasonError.textContent='정정 사유를 입력해 주세요.'"));assert(j.includes('if(a&&b&&b<=a)'));assert(j.includes('퇴근 시각은 출근 시각보다 늦어야 합니다.'))});
 t('날짜별 파생 표시에서도 원본 세션을 정정',()=>{assert(j.includes('actualAttendanceSourceSession'));assert(j.includes('const source='))});
 t('저장 후 effective attendance를 재조회하고 같은 날짜로 복귀',()=>{assert(j.includes('await loadMonth();renderDay(day)'))});
+t('관리자 ADD 기록 삭제는 VOID_ADD 마커가 붙은 ADD를 effective attendance에서 제외',()=>{assert(all.includes("/\\[VOID_ADD:\\d+\\]/"));assert(all.includes("if(c.action==='ADD')"));assert(all.includes("action:'VOID_ADD'"))});
 t('모바일 datetime 입력 폭 방어',()=>{assert(c.includes('input{display:block;width:100%;min-width:0;max-width:100%'));assert(c.includes('-webkit-appearance:none'))});
 console.log(`Actual attendance correction V1 QA: ${pass} PASS`);
