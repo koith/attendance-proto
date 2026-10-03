@@ -7,6 +7,9 @@ on:
     paths:
       - apps_script.gs
       - appsscript.json
+      - tools/deploy_apps_script.mjs
+      - tools/apps_script_secret.mjs
+      - qa_apps_script_deploy_secret.mjs
       - .github/workflows/apps-script-deploy.yml
 
 permissions:
@@ -24,6 +27,7 @@ jobs:
         run: |
           node qa_sheet_report_design.mjs
           node qa_sheet_display_values.mjs
+          node qa_apps_script_deploy_secret.mjs
       - name: Push source and redeploy existing web app
         env:
           SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
