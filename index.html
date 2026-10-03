@@ -2631,12 +2631,23 @@ async function buildSheetSyncPayload(ym){
     payRows.push([rec.employee_name, fmtHM(rec.sec), fmtHM(rec.nightMinutes*60), won(p.wage), won(p.base),
       won(p.juhyu), rec.breakTimeProvided?"제공":"미제공", rec.breakNotProvidedCount, rec.breakCompensateCount, won(p.breakCompPay||0), won(p.adjust), won(p.gross), "예상"]);
   }
+  // Google Sheet is a human-facing report. Avoid duplicating the same one-session day in a second table.
+  // If a day contains multiple sessions, expand only that day into individual session rows.
+  const sessionCount=new Map();
+  for(const r of sessRows){const k=r[0]+"|"+r[1];sessionCount.set(k,(sessionCount.get(k)||0)+1);}
+  const humanAttendance=[];
+  for(const r of attRows){
+    const k=r[0]+"|"+r[1];
+    if((sessionCount.get(k)||0)<=1) humanAttendance.push([r[0],r[1],r[2],r[3],r[4],r[6],r[7]]);
+    else for(const s of sessRows.filter(x=>x[0]===r[0]&&x[1]===r[1])) humanAttendance.push([s[0],s[1],s[3],s[4],s[5],s[6],s[7]]);
+  }
+  const humanPayroll=payRows.map(r=>[r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[9],r[10],r[11],r[12]]);
   return {
     store_key:String(CURRENT_STORE_ID||1),
     store_name:STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||CONFIG.STORE_NAME,
-    attendance:{ header:["날짜","직원명","출근","퇴근","실근무시간","세션수","상태","정정여부"], rows:attRows },
-    sessions:{ header:["날짜","직원명","세션#","출근","퇴근","근무시간","상태","정정여부"], rows:sessRows },
-    payroll:{ header:["직원명","총 실근무시간","22시 이후 야간근무","시급","기본급","주휴","휴게시간 제공","휴게미제공","30분 추가지급","휴게수당","조정","예상 세전급여","상태"], rows:payRows },
+    attendance:{ header:["날짜","직원명","출근","퇴근","실근무","상태","정정"], rows:humanAttendance },
+    sessions:{ header:[], rows:[] },
+    payroll:{ header:["직원명","총근무","야간근무","시급","기본급","주휴","휴게","휴게수당","조정","예상 세전급여","상태"], rows:humanPayroll },
   };
 }
 function hhmmBusiness(value,anchor){
