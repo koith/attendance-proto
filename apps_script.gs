@@ -138,13 +138,12 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   sections.forEach(function(s,i){
     var sr=sectionRows[i], hr=headerRows[i], dr=dataRanges[i];
     sh.getRange(sr,1,1,width).setBackground(pale).setFontColor(green)\n      .setFontSize(11).setFontWeight('bold').setHorizontalAlignment('left');\n    sh.setRowHeight(sr,28);
-    sh.getRange(hr,1,1,width).setBackground(green).setFontColor('#ffffff')
+    sh.getRange(hr,1,1,width).setBackground('#173f2d').setFontColor('#ffffff')
       .setFontWeight('bold').setHorizontalAlignment('center')
-      .setBorder(false,false,true,false,false,false,green,SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+      .setBorder(true,true,true,true,true,true,'#9fb2a6',SpreadsheetApp.BorderStyle.SOLID);
     sh.setRowHeight(hr,28);
     if(dr.count){
-      sh.getRange(dr.first,1,dr.count,width).setBackground(white)
-        .setBorder(false,false,true,false,false,false,line,SpreadsheetApp.BorderStyle.SOLID)
+      sh.getRange(dr.first,1,dr.count,width).setBackground(white)\n        .setBorder(false,true,true,true,true,false,line,SpreadsheetApp.BorderStyle.SOLID)
         .setVerticalAlignment('middle');
       for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,26);
     }else{
@@ -155,16 +154,26 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     sh.setRowHeight(dr.last+1,18);
   });
 
+  // Align by semantic data type while preserving content-authoritative widths.
+  var centerHeaders=['날짜','직원명','출근','퇴근','실근무','상태','정정','총근무','야간근무','휴게'];
+  sections.forEach(function(s,i){
+    var dr=dataRanges[i]; if(!dr.count)return;
+    s.data.header.forEach(function(h,idx){
+      var col=idx+1;
+      if(centerHeaders.indexOf(h)>=0) sh.getRange(dr.first,col,dr.count,1).setHorizontalAlignment('center');
+      if(['시급','기본급','주휴','휴게수당','조정','예상 세전급여','확정 세전급여'].indexOf(h)>=0)
+        sh.getRange(dr.first,col,dr.count,1).setHorizontalAlignment('right');
+    });
+  });
+
   var aStatus=attendance.header.indexOf('상태')+1;
   if(aStatus>0&&dataRanges[0].count) sh.getRange(dataRanges[0].first,aStatus,dataRanges[0].count,1)
     .setBackground('#edf7f0').setFontColor('#17663b').setFontWeight('bold').setHorizontalAlignment('center');
   var gross=payroll.header.indexOf('예상 세전급여')+1;
   if(gross<=0) gross=payroll.header.indexOf('확정 세전급여')+1;
-  if(gross>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,gross,dataRanges[2].count,1)
-    .setBackground('#edf7f0').setFontColor('#17663b').setFontWeight('bold');
+  if(gross>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,gross,dataRanges[2].count,1)\n    .setFontColor('#17663b').setFontWeight('bold').setHorizontalAlignment('right');
   var pStatus=payroll.header.indexOf('상태')+1;
-  if(pStatus>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,pStatus,dataRanges[2].count,1)
-    .setBackground('#fff4cf').setFontColor('#745500').setFontWeight('bold').setHorizontalAlignment('center');
+  if(pStatus>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,pStatus,dataRanges[2].count,1)\n    .setFontColor('#745500').setFontWeight('bold').setHorizontalAlignment('center');
 
   // Final column widths are measured from the actual rendered cell contents on every sync.
   // Do not apply fixed/type-based min/max caps after auto-resize: those caps can clip long
@@ -175,7 +184,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
 
   return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
     width_source:'actual_cell_contents',resized_columns:width,
-    report_design_applied:true,report_design_version:'sheet-report-v3'};
+    report_design_applied:true,report_design_version:'sheet-report-v4'};
 }
 
 function _json(obj){
