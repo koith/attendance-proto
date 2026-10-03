@@ -33,6 +33,9 @@
 ### 본사 / 지점 / 운영
 `qa_store_*.mjs`, `qa_operations_*.mjs`, `qa_chart_time_axis_v206.mjs`, `operations_v1.js`, `operations_reference_v208.js`, `tools/build_reference_data_v208.py`를 우선한다.
 
+### Google Sheets 리포트
+`qa_sheet_report_design.mjs`, `qa_sheet_auto_resize_contract.mjs`, `qa_sheet_auto_sync_v1.mjs`, `.github/workflows/sheet-auto-resize-contract.yml`을 함께 사용한다. 디자인 작업은 `playbooks/examples/sheet-report-references.md`의 실제 조사 출처/구조를 기준점으로 삼고, 실제 화면 검증을 별도 Proof로 남긴다.
+
 ### 보안 / 런타임
 `qa_boot_syntax.mjs`, `qa_runtime_*.mjs`, `qa_*auth*.mjs`, `qa_*audit*.mjs`, `qa/s1_authz_qa.mjs` 및 대응 CI를 우선한다.
 
