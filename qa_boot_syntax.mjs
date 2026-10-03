@@ -9,3 +9,6 @@ for(let i=0;i<scripts.length;i++){
 if(/;\\\\n\s+[A-Za-z_$]/.test(html)){failed=true;console.error("literal \\\\n found in executable-looking source");}
 if(failed)process.exit(1);
 console.log("boot syntax QA passed:",scripts.length,"inline script(s)");
+
+// P0 deployment gate proof: intentional failure on isolated QA branch.
+throw new Error('INTENTIONAL_P0_GATE_PROOF');
