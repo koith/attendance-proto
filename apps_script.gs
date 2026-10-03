@@ -100,7 +100,7 @@ function _ensureMonthTabs(ss){
 function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   var sh=ss.getSheetByName(name); if(!sh) sh=ss.insertSheet(name);
   var monthNum=Number(String(name).replace(/[^0-9]/g,''))||0;
-  var ym=String(ss.getName()).match(/(20\\d{2})/);
+  var ym=String(ss.getName()).match(/(20\d{2})/);
   var reportTitle=(ym?ym[1]+'년 ':'')+monthNum+'월 근태 · 급여 보고서';
   var sections=[
     {title:'근태 현황',data:attendance},
@@ -148,7 +148,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     sh.setRowHeight(hr,30);
     if(dr.count){
       sh.getRange(dr.first,1,dr.count,width).setBackground(white)
-        .setBorder(false,true,true,true,true,false,line,SpreadsheetApp.BorderStyle.SOLID)
+        .setBorder(true,true,true,true,true,true,line,SpreadsheetApp.BorderStyle.SOLID)
         .setVerticalAlignment('middle');
       for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,28);
     }else{
@@ -193,12 +193,26 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   if(pStatus>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,pStatus,dataRanges[2].count,1)
     .setFontColor('#745500').setFontWeight('bold').setHorizontalAlignment('center');
 
-  // Final column widths are measured from the actual rendered cell contents on every sync.
-  // Do not apply fixed/type-based min/max caps after auto-resize: those caps can clip long
-  // payroll headers and silently reintroduce the exact regression this contract prevents.
+  // Native autofit is applied on every sync before checking the displayed text.
   SpreadsheetApp.flush();
   sh.autoResizeColumns(1,width);
   SpreadsheetApp.flush();
+  // Supplement native autofit with displayed-text glyph widths when Korean text clips.
+  // Widths depend on the longest real header/value, never a per-column fixed cap.
+  var shown=sh.getRange(1,1,out.length,width).getDisplayValues();
+  for(var cc=0;cc<width;cc++){
+    var needed=0;
+    sections.forEach(function(s,i){
+      for(var rr=headerRows[i]-1;rr<dataRanges[i].last;rr++){
+        var text=shown[rr][cc], units=0;
+        Array.from(text).forEach(function(ch){units+=ch.charCodeAt(0)>255?1:0.58;});
+        needed=Math.max(needed,Math.ceil(units*14+24));
+      }
+    });
+    sh.setColumnWidth(cc+1,Math.max(sh.getColumnWidth(cc+1),needed));
+  }
+  SpreadsheetApp.flush();
+
 
   return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
     width_source:'actual_cell_contents',resized_columns:width,
