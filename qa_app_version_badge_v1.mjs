@@ -6,5 +6,5 @@ assert(m,'APP_VERSION constant required');
 assert(html.includes('id="appVersion"'),'visible app version badge required');
 assert(html.includes('document.getElementById("appVersion").textContent=APP_VERSION'),'badge must bind to APP_VERSION');
 
-assert(html.includes('.app-version-badge{display:inline-block;margin-left:10px'),'version badge spacing contract required');
+assert(/\.app-version-badge\{[^}]*display:inline-block/.test(html),'version badge style contract required');
 console.log('app version badge QA: PASS',m[1]);

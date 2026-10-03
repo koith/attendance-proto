@@ -661,6 +661,16 @@
   .payroll-break-modal .break-shift-title{font-size:.82rem;font-weight:800;margin-bottom:8px}
   .payroll-break-modal .break-options{display:grid;grid-template-columns:1fr;gap:7px}
   .payroll-break-modal .break-options .btn{width:100%;min-height:42px;white-space:normal;line-height:1.25}
+
+  /* v0.143 payroll break review: month calendar -> day -> one or more eligible shifts. */
+  .payroll-break-modal{width:min(94vw,430px)!important}
+  .break-cal-week,.break-calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+  .break-cal-week{margin:12px 0 5px;text-align:center;font-size:.72rem;color:var(--muted);font-weight:700}
+  .break-cal-cell{aspect-ratio:1/1;min-width:0;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:2px;font-weight:700}
+  .break-cal-cell.empty{border:0;background:transparent}.break-cal-cell:disabled{opacity:.38;cursor:default}.break-cal-cell.has-break{cursor:pointer;opacity:1}
+  .break-cal-cell.pending{border-color:#c8908d;background:#fff7f6}.break-cal-cell.done{border-color:#91b99d;background:#f3faf5}.break-cal-cell small{font-size:.58rem;font-weight:800}
+  .break-cal-legend{display:flex;justify-content:center;gap:16px;margin:12px 0 4px;font-size:.72rem;color:var(--muted)}
+  .break-cal-legend span{display:flex;align-items:center;gap:5px}.break-cal-legend i{width:8px;height:8px;border-radius:50%;display:inline-block}.break-cal-legend i.pending{background:#b43b35}.break-cal-legend i.done{background:#43805a}
 </style>
 <link rel="stylesheet" href="operations_v1.css?v=20260930v083">
 <link rel="stylesheet" href="recipe_access_v220.css?v=20261001v096">
@@ -761,7 +771,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.142";
+const APP_VERSION="v0.143";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1054,7 +1064,7 @@ const SupaBE = (()=>{
     async eventsWithCorrections(fromIso,toIso){ return rpc("admin_events_with_corrections",{p_from:fromIso,p_to:toIso},true); },
     // --- M5: 급여기간 ---
     async payrollPeriod(ym){ return rpc("admin_payroll_period",{p_ym:ym},true); },
-    async payrollContracts(ym){ return rpc("admin_store_payroll_contracts",{p_store_id:CURRENT_STORE_ID||1,p_month:ym+"-01"},true); },
+    async payrollContracts(ym){ return rpc("admin_store_payroll_contracts_v2",{p_store_id:CURRENT_STORE_ID||1,p_month:ym+"-01"},true); },
     async payrollContractWorkdays(ym){ return rpc("admin_store_payroll_contract_workdays",{p_store_id:CURRENT_STORE_ID||1,p_month:ym+"-01"},true); },
     async payrollSubstitutions(ym){ return rpc("admin_payroll_substitutions",{p_store_id:CURRENT_STORE_ID||1,p_ym:ym},true); },
     async payrollBreakDecisions(fromIso,toIso){ return rpc("admin_attendance_break_decisions",{p_store_id:CURRENT_STORE_ID||1,p_from:fromIso,p_to:toIso},true); },
@@ -2289,7 +2299,7 @@ async function computeMonthPayroll(ym){
   const active=emps.filter(isActive);
   const eventEmployeeIds=new Set(events.map(x=>Number(x.employee_id)));
   const payrollCandidates=emps.filter(e=>!isHiddenInhaTestEmployee(e)&&(isActive(e)||eventEmployeeIds.has(Number(e.id))));
-  let periodWeeks=null, overrides={}, contracts={}, contractWorkdays={}, substitutions=[], breakDecisions=[];
+  let periodWeeks=null, overrides={}, contracts={}, contractWorkdays={}, substitutions=[];
   if(LIVE){
     try{
       const pd=await BE.payrollPeriod(ym);
@@ -2306,7 +2316,6 @@ async function computeMonthPayroll(ym){
       });
     }catch(e){ console.warn("payroll contract load failed",e); }
     try{ substitutions=await BE.payrollSubstitutions(ym)||[]; }catch(e){ console.warn("payroll substitution load failed",e); }
-    try{ const [by,bm]=ym.split("-").map(Number),bp=n=>String(n).padStart(2,"0"),bend=new Date(by,bm,2); breakDecisions=await BE.payrollBreakDecisions(`${ym}-01T00:00:00`,`${bend.getFullYear()}-${bp(bend.getMonth()+1)}-${bp(bend.getDate())}T00:00:00`)||[]; }catch(e){ console.warn("break decisions load failed",e); }
   }
   const weeks = periodWeeks || weeksInMonth(ym);
   const p2=n=>String(n).padStart(2,"0");
@@ -2328,15 +2337,17 @@ async function computeMonthPayroll(ym){
       while(cur<end){ const h=cur.getHours(); if(h>=22||h<6) mins++; cur=new Date(cur.getTime()+60000); }
       return sum+mins;
     },0);
-    const eligibleBreakSessions=sess.filter(s=>s.status==="COMPLETE"&&s.inId&&Number(s.sec||0)>=4*3600);
-    const breakByIn=new Map(breakDecisions.map(x=>[Number(x.in_event_id),x]));
+    const eligibleBreakSessions=sess.filter(s=>s.status==="COMPLETE"&&Number(s.sec||0)>4*3600);
     const breakEligibleCount=eligibleBreakSessions.length;
-    const breakConfirmedCount=eligibleBreakSessions.filter(s=>breakByIn.has(Number(s.inId))).length;
-    const breakNotProvidedCount=eligibleBreakSessions.filter(s=>breakByIn.get(Number(s.inId))?.break_provided===false).length;
-    const breakCompensateCount=eligibleBreakSessions.filter(s=>breakByIn.get(Number(s.inId))?.compensate_30m===true).length;
     const issues=sess.filter(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
     const ov=overrides[e.id]||null;
     const contract=contracts[Number(e.id)]||null;
+    // Contract-level rule: over 4h + break provided => no allowance.
+    // Over 4h + break not provided => automatically add 30 minutes (= 50% of hourly wage) per eligible shift.
+    const breakTimeProvided=contract?.break_time_provided!==false;
+    const breakConfirmedCount=breakEligibleCount;
+    const breakNotProvidedCount=breakTimeProvided?0:breakEligibleCount;
+    const breakCompensateCount=breakNotProvidedCount;
     const payrollType=contract?.payroll_type||((e.wage||0)>0?"HOURLY":null);
     const substituteRows=substitutions.filter(x=>Number(x.substitute_employee_id)===Number(e.id));
     const substituteMinutes=substituteRows.reduce((sum,x)=>sum+Math.max(0,Number(x.actual_minutes||0)),0);
@@ -2416,7 +2427,7 @@ async function computeMonthPayroll(ym){
     const hasWage=!!pay;
     if(pay){ totalNet+=Number(pay.net||0); totalGross+=Number(pay.gross||0); }
     rows.push({employee_id:e.id, employee_name:e.name, emp:e, hours, sec, sessions:sess, issues, ov,
-      hasWage, pay, contract, payrollType, substitutePay, substituteMinutes, nightMinutes, breakEligibleCount, breakConfirmedCount, breakNotProvidedCount, breakCompensateCount, breakDecisions:eligibleBreakSessions.map(s=>({session:s,decision:breakByIn.get(Number(s.inId))||null})), memo:(ov&&ov.memo)||e.memo||""});
+      hasWage, pay, contract, payrollType, substitutePay, substituteMinutes, nightMinutes, breakEligibleCount, breakConfirmedCount, breakNotProvidedCount, breakCompensateCount, breakTimeProvided, breakDecisions:[], memo:(ov&&ov.memo)||e.memo||""});
   }
   const payrollEmployees=rows.map(r=>r.emp);
   return {active:payrollEmployees, events, weeks, overrides, rows, totalNet, totalGross};
@@ -2528,11 +2539,11 @@ async function drawPay(ym){
       secondary.before(body);
       body.append(secondary,payline);
     }
-    if(rec.breakEligibleCount>0){const bb=document.createElement("button");bb.type="button";bb.className=`payroll-break-trigger ${rec.breakConfirmedCount>=rec.breakEligibleCount?"done":"pending"}`;bb.title=`휴게 확인 ${rec.breakConfirmedCount}/${rec.breakEligibleCount}`;bb.setAttribute("aria-label",bb.title);bb.textContent="휴게";bb.onclick=async()=>{const lines=rec.breakDecisions.map((x,i)=>{const s=x.session,d=x.decision;return `<div class="break-shift"><div class="break-shift-title">${s.in.toLocaleDateString("ko-KR")} · ${hhmmBusiness(s.in,s.in)}–${hhmmBusiness(s.out,s.in)} · ${fmtHM(s.sec)}</div><div class="break-options"><button class="btn ${d?.break_provided===true?'btn-primary':'btn-secondary'}" data-bi="${i}" data-v="yes">30분 휴게 제공</button><button class="btn ${d?.break_provided===false&&!d?.compensate_30m?'btn-primary':'btn-secondary'}" data-bi="${i}" data-v="no">휴게 미제공 · 추가지급 안 함</button><button class="btn ${d?.compensate_30m?'btn-primary':'btn-secondary'}" data-bi="${i}" data-v="pay">휴게 미제공 · 30분 시급 추가지급</button></div></div>`}).join("");const v=document.getElementById("addVeil"),m=v.querySelector(".modal");m.classList.add("payroll-break-modal");m.innerHTML=`<h3>${safeHtml(rec.employee_name)} · 휴게시간 확인</h3><div style="font-size:.8rem;color:var(--muted);margin-bottom:10px">4시간 이상 완료 근무 ${rec.breakEligibleCount}건 · 확인 ${rec.breakConfirmedCount}건</div>${lines}<button class="btn btn-secondary btn-block" id="breakClose">닫기</button>`;openAddVeil();m.querySelector("#breakClose").onclick=()=>closeAddVeil();m.querySelectorAll("[data-bi]").forEach(b=>b.onclick=async()=>{const x=rec.breakDecisions[Number(b.dataset.bi)],v=b.dataset.v;await BE.payrollBreakDecisionSave(rec.employee_id,x.session.inId,v==="yes",v==="pay");toast("in","저장됨","휴게시간 반영");closeAddVeil();drawPay(ym);});};const head=card.querySelector(".employee-card-primary");if(head)head.appendChild(bb);else card.appendChild(bb);}
     payEmployees.appendChild(card);
   }
   payEmployees.style.setProperty("--payroll-row-count",String(Math.max(1,Math.ceil(R.rows.length/2))));
-  // 급여마감/Excel 미리출력 UI 제거: 최신 effective 근태 기준으로 급여/시트 유지.\n  // M8.7: 구글시트 갱신 / 열기 (LIVE 전용)
+  // 급여마감/Excel 미리출력 UI 제거: 최신 effective 근태 기준으로 급여/시트 유지.
+  // M8.7: 구글시트 갱신 / 열기 (LIVE 전용)
   if(LIVE){
     const formatSyncStamp=d=>d.toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:true}).replace(/\. /g,".").replace(",","");
     const showOwnerInviteHelp=()=>{
@@ -2615,17 +2626,17 @@ async function buildSheetSyncPayload(ym){
   // 급여 (마감 전 예상; 마감 후엔 Edge Function이 snapshot으로 대체)
   const payRows=[];
   for(const rec of R.rows){
-    if(!rec.pay){ payRows.push([rec.employee_name, fmtHM(rec.sec), fmtHM(rec.nightMinutes*60), "미설정","—","—",`${rec.breakConfirmedCount}/${rec.breakEligibleCount}`,rec.breakNotProvidedCount,rec.breakCompensateCount,"—","—","—","시급 설정 필요"]); continue; }
+    if(!rec.pay){ payRows.push([rec.employee_name, fmtHM(rec.sec), fmtHM(rec.nightMinutes*60), "미설정","—","—",rec.breakTimeProvided?"제공":"미제공",rec.breakNotProvidedCount,rec.breakCompensateCount,"—","—","—","시급 설정 필요"]); continue; }
     const p=rec.pay;
     payRows.push([rec.employee_name, fmtHM(rec.sec), fmtHM(rec.nightMinutes*60), won(p.wage), won(p.base),
-      won(p.juhyu), `${rec.breakConfirmedCount}/${rec.breakEligibleCount}`, rec.breakNotProvidedCount, rec.breakCompensateCount, won(p.breakCompPay||0), won(p.adjust), won(p.gross), "예상"]);
+      won(p.juhyu), rec.breakTimeProvided?"제공":"미제공", rec.breakNotProvidedCount, rec.breakCompensateCount, won(p.breakCompPay||0), won(p.adjust), won(p.gross), "예상"]);
   }
   return {
     store_key:String(CURRENT_STORE_ID||1),
     store_name:STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||CONFIG.STORE_NAME,
     attendance:{ header:["날짜","직원명","출근","퇴근","실근무시간","세션수","상태","정정여부"], rows:attRows },
     sessions:{ header:["날짜","직원명","세션#","출근","퇴근","근무시간","상태"], rows:sessRows },
-    payroll:{ header:["직원명","총 실근무시간","22시 이후 야간근무","시급","기본급","주휴","휴게확인","휴게미제공","30분 추가지급","휴게보상액","조정","예상 세전급여","상태"], rows:payRows },
+    payroll:{ header:["직원명","총 실근무시간","22시 이후 야간근무","시급","기본급","주휴","휴게시간 제공","휴게미제공","30분 추가지급","휴게수당","조정","예상 세전급여","상태"], rows:payRows },
   };
 }
 function hhmmBusiness(value,anchor){
