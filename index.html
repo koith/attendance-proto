@@ -750,7 +750,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.130";
+const APP_VERSION="v0.131";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1614,7 +1614,9 @@ async function openMyRecord(){
   let emps=[];
   try{ emps=await BE.listEmployeesState(); }catch(e){ toast("err","오류",e.message); return; }
   if(!emps.length){ toast("err","직원 없음",""); return; }
-  // 같은 브라우저 세션에서 출퇴근 PIN 인증을 이미 마쳤으면 즉시 본인 근무현황으로 진입.
+  // 근무현황 탭은 진입할 때마다 반드시 직원 PIN을 다시 확인한다.
+  // 출퇴근 타각 때 사용한 인증/이전 근무현황 인증을 재사용하지 않는다.
+  sessionStorage.removeItem("staff_attendance_auth");
   let staffAuth=null;
   try{ staffAuth=JSON.parse(sessionStorage.getItem("staff_attendance_auth")||"null"); }catch(_){ staffAuth=null; }
   if(staffAuth&&staffAuth.employee_id&&/^\d{4}$/.test(String(staffAuth.pin||""))){
@@ -1657,7 +1659,7 @@ function mrShowAuth(emps, preselId){
       else toast("err","오류","");
       return;
     }
-    // 인증 성공은 현재 브라우저 세션 동안 유지해 탭 이동 시 재로그인을 요구하지 않는다.
+    // actual_attendance.html로 넘기는 1회성 인증. 다음 근무현황 탭 진입 시 route/openMyRecord가 폐기한다.
     sessionStorage.setItem("staff_attendance_auth",JSON.stringify({employee_id:id,pin:String(pin)}));
     location.href="actual_attendance.html?mode=staff";
   };
@@ -2525,7 +2527,9 @@ async function drawPay(ym){
     document.getElementById("btnOpenSheet").onclick=()=>{
       let url=`https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/edit`;
       try{const st=JSON.parse(localStorage.getItem("baekeok_sheet_sync_v1")||"null");if(st?.sheet_url)url=st.sheet_url;}catch(_){}
-      const monthNo=Number(String(ym).slice(5,7));const gid=220260100+monthNo;url=url.split("#")[0]+"#gid="+gid;window.open(url,"_blank");
+      // 동기화 응답이 월 탭 URL(gid 포함)을 주면 그대로 사용한다. 없을 때만 현재 월의 기존 gid 규칙으로 보정한다.
+      if(!/#gid=\d+/.test(url)){const monthNo=Number(String(ym).slice(5,7));const gid=220260100+monthNo;url=url.split("#")[0]+"#gid="+gid;}
+      window.open(url,"_blank");
     };
     document.getElementById("btnSyncSheet").onclick=async()=>{
       const btn=document.getElementById("btnSyncSheet"); const msg=document.getElementById("syncMsg");
