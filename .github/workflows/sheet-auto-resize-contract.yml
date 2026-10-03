@@ -15,6 +15,7 @@ on:
       - 'edge_sync_sheet.ts'
       - 'qa_sheet_auto_resize_contract.mjs'
       - 'qa_sheet_report_design.mjs'
+      - 'qa_sheet_display_values.mjs'
       - '.github/workflows/sheet-auto-resize-contract.yml'
 jobs:
   qa:
