@@ -162,3 +162,6 @@
 
 /* v0.89 senior attendance feedback: six people per day + adjacent-day navigation. */
 .dayhead{grid-template-columns:44px minmax(0,1fr) auto!important;gap:6px}.dayhead .date{text-align:center}.dayhead-actions{display:flex;align-items:center;gap:4px;justify-self:end}.dayhead .day-nav{font-size:1.35rem;font-weight:800;color:var(--brand);min-width:38px;padding:0 8px}.dayhead .day-close{min-width:38px}.day .lines{gap:2px!important}.day{min-height:126px!important}.day .line{line-height:1.18}.calendar{grid-auto-rows:minmax(126px,auto)!important}@media(max-width:520px){.day{min-height:122px!important;padding-left:3px!important;padding-right:3px!important}.calendar{grid-auto-rows:minmax(122px,auto)!important}.day .lines{gap:2px!important}.day .line{font-size:.51rem!important}.calendar-work-duration{font-size:.45rem!important}.dayhead{grid-template-columns:40px minmax(0,1fr) auto!important}.dayhead .day-nav,.dayhead .day-close{min-width:34px;height:36px;padding:0 6px}}
+
+/* v0.126: keep timeline tick labels readable on narrow mobile widths */
+@media(max-width:520px){.axis-labels{height:32px!important}.axis-labels span{top:0}.axis-labels span:nth-child(even){top:14px}}
