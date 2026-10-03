@@ -126,31 +126,31 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   sh.setHiddenGridlines(true);
   sh.setFrozenRows(headerRows[0]);
 
-  var white='#ffffff', ink='#26332b', green='#1b4d35', pale='#e8f1eb', canvas='#f5f7f6', line='#d9e1dc';
+  var white='#ffffff', ink='#26332b', green='#176b3a', headerGreen='#0f6335', pale='#dff2e3', canvas='#f7f9f8', line='#cfd8d2';
   sh.getRange(1,1,out.length,width).setFontFamily('Arial').setFontSize(10).setFontColor(ink)
     .setBackground(white).setVerticalAlignment('middle').setWrap(false);
 
   // Spreadsheet-native report header: compact, printable, and stable in Google Sheets mobile.
   // Do not merge across the table width; merged regions made narrow mobile views visually drift.
-  sh.getRange(1,1,1,width).setBackground(green).setFontColor(white).setFontSize(11).setFontWeight('bold');
-  sh.getRange(2,1,1,width).setBackground('#f0f4f1').setFontColor('#607068').setFontSize(9);
+  sh.getRange(1,1,1,width).setBackground(green).setFontColor(white).setFontSize(18).setFontWeight('bold').setHorizontalAlignment('left');
+  sh.getRange(2,1,1,width).setBackground(green).setFontColor('#eef8f1').setFontSize(10).setFontWeight('bold').setHorizontalAlignment('left');
   sh.getRange(3,1,1,width).setBackground(canvas);
-  sh.setRowHeight(1,32); sh.setRowHeight(2,24); sh.setRowHeight(3,12);
+  sh.setRowHeight(1,42); sh.setRowHeight(2,28); sh.setRowHeight(3,10);
 
   sections.forEach(function(s,i){
     var sr=sectionRows[i], hr=headerRows[i], dr=dataRanges[i];
-    sh.getRange(sr,1,1,width).setBackground(pale).setFontColor(green)
-      .setFontSize(11).setFontWeight('bold').setHorizontalAlignment('left');
-    sh.setRowHeight(sr,28);
-    sh.getRange(hr,1,1,width).setBackground('#173f2d').setFontColor('#ffffff')
+    sh.getRange(sr,1,1,width).setBackground(pale).setFontColor(headerGreen)
+      .setFontSize(13).setFontWeight('bold').setHorizontalAlignment('left');
+    sh.setRowHeight(sr,30);
+    sh.getRange(hr,1,1,width).setBackground(headerGreen).setFontColor('#ffffff')
       .setFontWeight('bold').setHorizontalAlignment('center')
       .setBorder(true,true,true,true,true,true,'#9fb2a6',SpreadsheetApp.BorderStyle.SOLID);
-    sh.setRowHeight(hr,28);
+    sh.setRowHeight(hr,30);
     if(dr.count){
       sh.getRange(dr.first,1,dr.count,width).setBackground(white)
         .setBorder(false,true,true,true,true,false,line,SpreadsheetApp.BorderStyle.SOLID)
         .setVerticalAlignment('middle');
-      for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,26);
+      for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,28);
     }else{
       // Preserve an intentionally empty section without inventing content.
       sh.setRowHeight(dr.first,18);
@@ -184,7 +184,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
 
   var aStatus=attendance.header.indexOf('상태')+1;
   if(aStatus>0&&dataRanges[0].count) sh.getRange(dataRanges[0].first,aStatus,dataRanges[0].count,1)
-    .setBackground('#edf7f0').setFontColor('#17663b').setFontWeight('bold').setHorizontalAlignment('center');
+    .setBackground('#e2f3e6').setFontColor('#145c34').setFontWeight('bold').setHorizontalAlignment('center');
   var gross=payroll.header.indexOf('예상 세전급여')+1;
   if(gross<=0) gross=payroll.header.indexOf('확정 세전급여')+1;
   if(gross>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,gross,dataRanges[2].count,1)
@@ -202,7 +202,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
 
   return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
     width_source:'actual_cell_contents',resized_columns:width,
-    report_design_applied:true,report_design_version:'sheet-report-v5'};
+    report_design_applied:true,report_design_version:'sheet-report-v6'};
 }
 
 function _json(obj){

@@ -16,8 +16,8 @@ ok('_writeMonth creates missing target tab', /getSheetByName\(name\); if\(!sh\) 
 // Both first-write and later refreshes must fully replace stale formatting before applying one design path.
 ok('every refresh clears full grid including stale formats', /getRange\(1,1,sh\.getMaxRows\(\),sh\.getMaxColumns\(\)\)\.clear\(\{contentsOnly:false\}\)/.test(src));
 ok('canonical writer applies report title style', /getRange\(1,1,1,width\)\.setBackground\(green\)\.setFontColor\(white\)/.test(src));
-ok('canonical writer applies section style', /setBackground\(pale\)\.setFontColor\(green\)/.test(src));
-ok('canonical writer applies dark table headers', /setBackground\('#173f2d'\)\.setFontColor\('#ffffff'\)/.test(src));
+ok('canonical writer applies section style', /setBackground\(pale\)\.setFontColor\(headerGreen\)/.test(src));
+ok('canonical writer applies dark table headers', /setBackground\(headerGreen\)\.setFontColor\('#ffffff'\)/.test(src));
 ok('canonical writer applies cell borders', /setBorder\(true,true,true,true,true,true/.test(src));
 ok('canonical writer restores date display', /h==='날짜'\) range\.setNumberFormat\('yyyy-mm-dd'\)/.test(src));
 ok('canonical writer restores time and duration display', /\['출근','퇴근','실근무','총근무','야간근무'\][\s\S]*setNumberFormat\('\[h\]:mm'\)/.test(src));
