@@ -98,108 +98,94 @@ function _ensureMonthTabs(ss){
 }
 
 function _writeMonth(ss, name, meta, attendance, sessions, payroll){
-  var sh = ss.getSheetByName(name);
-  if(!sh) sh = ss.insertSheet(name);
-
-  var monthNum = Number(String(name).replace(/[^0-9]/g,'')) || 0;
-  var yearMatch = String(ss.getName()).match(/(20\\d{2})/);
-  var yearLabel = yearMatch ? yearMatch[1] : '';
-  var reportTitle = (yearLabel ? yearLabel + '년 ' : '') + monthNum + '월 근태 · 급여 보고서';
-  var sections = [
-    {title:'1. 근태 현황',data:attendance},
-    {title:'2. 세션 상세',data:sessions},
-    {title:'3. 급여 집계',data:payroll}
+  var sh=ss.getSheetByName(name); if(!sh) sh=ss.insertSheet(name);
+  var monthNum=Number(String(name).replace(/[^0-9]/g,''))||0;
+  var ym=String(ss.getName()).match(/(20\\d{2})/);
+  var reportTitle=(ym?ym[1]+'년 ':'')+monthNum+'월 근태 · 급여 보고서';
+  var sections=[
+    {title:'근태 현황',data:attendance},
+    {title:'세션 상세',data:sessions},
+    {title:'급여 집계',data:payroll}
   ];
-  var width = 1;
-  sections.forEach(function(s){ width=Math.max(width,s.data.header.length); });
-
-  var out = [[reportTitle],[meta],[]];
-  var sectionRows=[], headerRows=[], dataRanges=[];
-  sections.forEach(function(section){
-    var titleRow = out.length + 1;
-    sectionRows.push(titleRow);
-    out.push([section.title]);
-    var headerRow = out.length + 1;
-    headerRows.push(headerRow);
-    out.push(section.data.header);
-    var firstDataRow = out.length + 1;
-    for(var i=0;i<section.data.rows.length;i++) out.push(section.data.rows[i]);
-    var lastDataRow = out.length;
-    dataRanges.push({first:firstDataRow,last:lastDataRow,count:section.data.rows.length});
+  var width=1; sections.forEach(function(s){width=Math.max(width,s.data.header.length);});
+  var out=[[reportTitle],[meta],[]], sectionRows=[],headerRows=[],dataRanges=[];
+  sections.forEach(function(s){
+    sectionRows.push(out.length+1); out.push([s.title]);
+    headerRows.push(out.length+1); out.push(s.data.header);
+    var first=out.length+1;
+    s.data.rows.forEach(function(row){out.push(row);});
+    dataRanges.push({first:first,last:out.length,count:s.data.rows.length});
     out.push([]);
   });
-  for(var r=0;r<out.length;r++){
-    while(out[r].length < width) out[r].push('');
-    if(out[r].length > width) out[r] = out[r].slice(0,width);
-  }
+  out.forEach(function(row){while(row.length<width)row.push(''); if(row.length>width)row.length=width;});
 
-  // A sync owns both values and presentation. Rebuild from a clean visual state so
-  // manual/legacy formatting cannot accumulate or shift as row counts change.
   sh.clear();
   sh.getRange(1,1,out.length,width).setValues(out);
   sh.setHiddenGridlines(true);
-
-  var all = sh.getRange(1,1,out.length,width);
-  all.setFontFamily('Arial').setFontSize(10).setFontColor('#202622')
-    .setBackground('#ffffff').setVerticalAlignment('middle');
-
-  // Report masthead: only values already present in the sync payload are shown.
-  sh.getRange(1,1,1,width).merge().setFontSize(18).setFontWeight('bold')
-    .setFontColor('#1f6f43').setBackground('#f7faf8').setHorizontalAlignment('left');
-  sh.getRange(2,1,1,width).merge().setFontSize(10).setFontColor('#68736c')
-    .setBackground('#f7faf8').setHorizontalAlignment('left');
-  sh.setRowHeight(1,44); sh.setRowHeight(2,28); sh.setRowHeight(3,14);
-
-  sections.forEach(function(section,idx){
-    var titleRow=sectionRows[idx], headerRow=headerRows[idx], dr=dataRanges[idx];
-    sh.getRange(titleRow,1,1,width).setBackground('#1f6f43').setFontColor('#ffffff')
-      .setFontSize(12).setFontWeight('bold').setHorizontalAlignment('left');
-    sh.setRowHeight(titleRow,34);
-    sh.getRange(headerRow,1,1,width).setBackground('#dfeee4').setFontColor('#244b34')
-      .setFontWeight('bold').setHorizontalAlignment('center');
-    sh.setRowHeight(headerRow,30);
-    if(dr.count>0){
-      var body=sh.getRange(dr.first,1,dr.count,width);
-      body.setBackground('#ffffff').setBorder(false,false,true,false,false,false,'#e3e9e5',SpreadsheetApp.BorderStyle.SOLID);
-      for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,28);
-    }
-    sh.setRowHeight(dr.last+1,16);
-  });
-
-  // Semantic emphasis uses only values that actually exist; no synthetic role/store/KPI data.
-  var statusCol = attendance.header.indexOf('상태') + 1;
-  if(statusCol>0 && dataRanges[0].count>0){
-    sh.getRange(dataRanges[0].first,statusCol,dataRanges[0].count,1)
-      .setBackground('#edf7f0').setFontColor('#17663b').setFontWeight('bold').setHorizontalAlignment('center');
-  }
-  var grossCol = payroll.header.indexOf('예상 세전급여') + 1;
-  if(grossCol<=0) grossCol = payroll.header.indexOf('확정 세전급여') + 1;
-  if(grossCol>0 && dataRanges[2].count>0){
-    sh.getRange(dataRanges[2].first,grossCol,dataRanges[2].count,1)
-      .setBackground('#edf7f0').setFontColor('#17663b').setFontWeight('bold');
-  }
-  var payStatusCol = payroll.header.indexOf('상태') + 1;
-  if(payStatusCol>0 && dataRanges[2].count>0){
-    sh.getRange(dataRanges[2].first,payStatusCol,dataRanges[2].count,1)
-      .setBackground('#fff6d8').setFontColor('#755500').setFontWeight('bold').setHorizontalAlignment('center');
-  }
-
-  // Keep the report masthead + first section header visible while scrolling.
   sh.setFrozenRows(headerRows[0]);
 
-  // Content-driven sizing is mandatory after all values/styles are committed.
+  var white='#ffffff', ink='#26332b', green='#1d5d3a', pale='#e7f2eb', canvas='#f4f7f5', line='#d9e4dd';
+  sh.getRange(1,1,out.length,width).setFontFamily('Arial').setFontSize(10).setFontColor(ink)
+    .setBackground(white).setVerticalAlignment('middle').setWrap(false);
+
+  // Masthead: full-width report card, not a raw metadata row.
+  sh.getRange(1,1,1,width).merge().setBackground(green).setFontColor(white)
+    .setFontSize(18).setFontWeight('bold').setHorizontalAlignment('left');
+  sh.getRange(2,1,1,width).merge().setBackground('#f0f6f2').setFontColor('#607068')
+    .setFontSize(10).setHorizontalAlignment('left');
+  sh.getRange(3,1,1,width).setBackground(canvas);
+  sh.setRowHeight(1,52); sh.setRowHeight(2,30); sh.setRowHeight(3,18);
+
+  sections.forEach(function(s,i){
+    var sr=sectionRows[i], hr=headerRows[i], dr=dataRanges[i];
+    sh.getRange(sr,1,1,width).merge().setBackground(green).setFontColor(white)
+      .setFontSize(12).setFontWeight('bold').setHorizontalAlignment('left');
+    sh.setRowHeight(sr,36);
+    sh.getRange(hr,1,1,width).setBackground(pale).setFontColor('#214b33')
+      .setFontWeight('bold').setHorizontalAlignment('center')
+      .setBorder(false,false,true,false,false,false,green,SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+    sh.setRowHeight(hr,32);
+    if(dr.count){
+      sh.getRange(dr.first,1,dr.count,width).setBackground(white)
+        .setBorder(false,false,true,false,false,false,line,SpreadsheetApp.BorderStyle.SOLID)
+        .setVerticalAlignment('middle');
+      for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,30);
+    }else{
+      // Preserve an intentionally empty section without inventing content.
+      sh.setRowHeight(dr.first,18);
+    }
+    sh.getRange(dr.last+1,1,1,width).setBackground(canvas);
+    sh.setRowHeight(dr.last+1,18);
+  });
+
+  var aStatus=attendance.header.indexOf('상태')+1;
+  if(aStatus>0&&dataRanges[0].count) sh.getRange(dataRanges[0].first,aStatus,dataRanges[0].count,1)
+    .setBackground('#edf7f0').setFontColor('#17663b').setFontWeight('bold').setHorizontalAlignment('center');
+  var gross=payroll.header.indexOf('예상 세전급여')+1;
+  if(gross<=0) gross=payroll.header.indexOf('확정 세전급여')+1;
+  if(gross>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,gross,dataRanges[2].count,1)
+    .setBackground('#edf7f0').setFontColor('#17663b').setFontWeight('bold');
+  var pStatus=payroll.header.indexOf('상태')+1;
+  if(pStatus>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,pStatus,dataRanges[2].count,1)
+    .setBackground('#fff4cf').setFontColor('#745500').setFontWeight('bold').setHorizontalAlignment('center');
+
+  // Numeric/time columns stay compact; names/labels remain readable. Final widths still come
+  // from actual rendered contents on every sync, then receive padding and a mobile-safe cap.
   SpreadsheetApp.flush();
   sh.autoResizeColumns(1,width);
   SpreadsheetApp.flush();
+  for(var col=1;col<=width;col++){
+    var w=sh.getColumnWidth(col);
+    sh.setColumnWidth(col,Math.min(Math.max(w+18,72),180));
+  }
+  // Employee-name column needs a little more breathing room when present.
+  var nameCol=attendance.header.indexOf('직원명')+1;
+  if(nameCol>0) sh.setColumnWidth(nameCol,Math.max(sh.getColumnWidth(nameCol),96));
+  SpreadsheetApp.flush();
 
-  return {
-    column_resize_applied:true,
-    resize_scope:'all_used_columns_after_write',
-    width_source:'actual_cell_contents',
-    resized_columns:width,
-    report_design_applied:true,
-    report_design_version:'sheet-report-v1'
-  };
+  return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
+    width_source:'actual_cell_contents_plus_padding',resized_columns:width,
+    report_design_applied:true,report_design_version:'sheet-report-v2'};
 }
 
 function _json(obj){
