@@ -1,4 +1,5 @@
 name: Apps Script report deploy
+# OAuth refresh retrigger: 2026-10-04
 
 on:
   workflow_dispatch:
