@@ -96,12 +96,12 @@ Deno.serve(async (req) => {
         one_spreadsheet_per_store: true,
         separate_by_store: true,
       },
-      // After every write, size each used column from its actual current cell contents.
+      // After every write, size each used column from its rendered display text and font metrics.
       // Do not assign widths by column type or fixed presets; data changes must be re-measured on every sync.
       sheet_format: {
         auto_resize_columns: true,
         resize_scope: "all_used_columns_after_write",
-        width_source: "actual_cell_contents",
+        width_source: "measured_display_text",
         recalculate_on_every_sync: true,
         human_readable_report: true,
         hide_empty_sections: true,
@@ -124,9 +124,9 @@ Deno.serve(async (req) => {
     }
 
     // Column sizing is part of a successful sync contract, not best-effort formatting.
-    // The Apps Script must resize all used columns after writing actual cell contents.
+    // The Apps Script must resize all used columns from the rendered values after writing.
     const resize = gsJson?.sheet_format;
-    if (!resize || resize.column_resize_applied !== true || resize.resize_scope !== "all_used_columns_after_write" || resize.width_source !== "actual_cell_contents") {
+    if (!resize || resize.column_resize_applied !== true || resize.resize_scope !== "all_used_columns_after_write" || resize.width_source !== "measured_display_text") {
       return json({ ok: false, error: "SHEET_COLUMN_RESIZE_NOT_CONFIRMED", detail: resize ?? null }, 502);
     }
 
