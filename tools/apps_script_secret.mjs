@@ -1,4 +1,4 @@
-const assignmentPattern=/^([ \t]*var[ \t]+SHARED_SECRET[ \t]*=[ \t]*)(("(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*'))([ \t]*;[ \t]*)$/gm;
+const assignmentPattern=/^([ \t]*(?:var|let|const)[ \t]+SHARED_SECRET[ \t]*=[ \t]*)(("(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*'))([ \t]*;?[ \t]*(?:\/\/[^\r\n]*)?)$/gm;
 const emptyLiterals=new Set(["''",'""']);
 
 function findAssignment(source,label){
