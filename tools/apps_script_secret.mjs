@@ -1,23 +1,27 @@
-const assignmentPattern=/^([ \t]*var[ \t]+SHARED_SECRET[ \t]*=[ \t]*)(("(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*'))([ \t]*;[ \t]*)$/gm;
+const assignmentPattern=/^([ \t]*(?:(?:var|let|const)[ \t]+)?SHARED_SECRET[ \t]*=[ \t]*)([^\r\n;]+?)([ \t]*;?[ \t]*(?:\/\/[^\r\n]*)?)$/gm;
 const emptyLiterals=new Set(["''",'""']);
 
 function findAssignment(source,label){
   const matches=[...source.matchAll(assignmentPattern)];
-  if(matches.length!==1)throw new Error(label+' must contain exactly one literal SHARED_SECRET assignment');
-  return {full:matches[0][0],prefix:matches[0][1],literal:matches[0][2],suffix:matches[0][4]};
+  if(matches.length!==1)throw new Error(label+' must contain exactly one SHARED_SECRET assignment');
+  return {full:matches[0][0],prefix:matches[0][1],rhs:matches[0][2].trim(),suffix:matches[0][3]};
+}
+
+function isUnsafePlaceholder(rhs){
+  return !rhs || rhs.includes('REPLACE_WITH_LONG_RANDOM_SECRET') || emptyLiterals.has(rhs);
 }
 
 export function mergeSharedSecret(localSource,deployedSource){
   const live=findAssignment(deployedSource,'deployed source');
-  if(live.literal.includes('REPLACE_WITH_LONG_RANDOM_SECRET')||emptyLiterals.has(live.literal))
+  if(isUnsafePlaceholder(live.rhs))
     throw new Error('deployed SHARED_SECRET is empty or still a placeholder; refusing deployment');
   const local=findAssignment(localSource,'repository source');
-  if(emptyLiterals.has(local.literal))
+  if(!local.rhs)
     throw new Error('repository SHARED_SECRET is empty; refusing deployment');
-  if(local.literal.includes('REPLACE_WITH_LONG_RANDOM_SECRET')){
-    return localSource.replace(local.full,local.prefix+live.literal+local.suffix);
+  if(local.rhs.includes('REPLACE_WITH_LONG_RANDOM_SECRET')){
+    return localSource.replace(local.full,local.prefix+live.rhs+local.suffix);
   }
-  if(local.literal!==live.literal)
+  if(local.rhs!==live.rhs)
     throw new Error('repository SHARED_SECRET differs from deployed value; refusing deployment');
   return localSource;
 }
