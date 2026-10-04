@@ -194,16 +194,34 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   if(pStatus>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,pStatus,dataRanges[2].count,1)
     .setFontColor('#745500').setFontWeight('bold').setHorizontalAlignment('center');
 
-  // Native autofit is applied on every sync before checking the displayed text.
+  // Size each used column from the widest text that is actually displayed in that column.
+  // Native autoResize can collapse short Korean headers to ~18px on mobile, so measure the
+  // rendered strings themselves instead of assigning type buckets/min/max widths.
   SpreadsheetApp.flush();
-  sh.autoResizeColumns(1,width);
+  var display=sh.getRange(1,1,out.length,width).getDisplayValues();
+  var fontSize=10, paddingPx=16;
+  function textWidthPx(value){
+    var text=String(value==null?'':value);
+    var units=0;
+    for(var ci=0;ci<text.length;ci++){
+      var code=text.charCodeAt(ci);
+      if(code===32) units+=0.34;
+      else if(code>=0x2e80) units+=1.0; // Hangul/CJK/full-width glyphs
+      else if(/[A-Z0-9]/.test(text.charAt(ci))) units+=0.62;
+      else units+=0.54;
+    }
+    return Math.ceil(units*fontSize+paddingPx);
+  }
+  for(var cc=0;cc<width;cc++){
+    var required=0;
+    for(var rr=0;rr<display.length;rr++) required=Math.max(required,textWidthPx(display[rr][cc]));
+    sh.setColumnWidth(cc+1,required);
+  }
   SpreadsheetApp.flush();
-
-
 
   return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
-    width_source:'actual_cell_contents',resized_columns:width,
-    report_design_applied:true,report_design_version:'sheet-report-v7'};
+    width_source:'measured_display_text',resized_columns:width,
+    report_design_applied:true,report_design_version:'sheet-report-v8'};
 }
 
 function _json(obj){
