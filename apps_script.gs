@@ -198,23 +198,27 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   // Native autoResize can collapse short Korean headers to ~18px on mobile, so measure the
   // rendered strings themselves instead of assigning type buckets/min/max widths.
   SpreadsheetApp.flush();
-  var display=sh.getRange(1,1,out.length,width).getDisplayValues();
-  var fontSize=10, paddingPx=16;
-  function textWidthPx(value){
+  var usedRange=sh.getRange(1,1,out.length,width);
+  var display=usedRange.getDisplayValues();
+  var sizes=usedRange.getFontSizes();
+  var weights=usedRange.getFontWeights();
+  var paddingPx=24;
+  function textWidthPx(value,fontSize,isBold){
     var text=String(value==null?'':value);
     var units=0;
     for(var ci=0;ci<text.length;ci++){
       var code=text.charCodeAt(ci);
-      if(code===32) units+=0.34;
-      else if(code>=0x2e80) units+=1.0; // Hangul/CJK/full-width glyphs
-      else if(/[A-Z0-9]/.test(text.charAt(ci))) units+=0.62;
-      else units+=0.54;
+      if(code===32) units+=0.38;
+      else if(code>=0x2e80) units+=1.05; // Hangul/CJK/full-width glyphs
+      else if(/[MW@#%&]/.test(text.charAt(ci))) units+=0.90;
+      else if(/[A-Z0-9]/.test(text.charAt(ci))) units+=0.68;
+      else units+=0.58;
     }
-    return Math.ceil(units*fontSize+paddingPx);
+    return Math.ceil(units*fontSize*(isBold?1.08:1)+paddingPx);
   }
   for(var cc=0;cc<width;cc++){
     var required=0;
-    for(var rr=0;rr<display.length;rr++) required=Math.max(required,textWidthPx(display[rr][cc]));
+    for(var rr=0;rr<display.length;rr++) required=Math.max(required,textWidthPx(display[rr][cc],sizes[rr][cc]||10,weights[rr][cc]==='bold'));
     sh.setColumnWidth(cc+1,required);
   }
   SpreadsheetApp.flush();
