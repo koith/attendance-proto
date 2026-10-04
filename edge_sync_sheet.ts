@@ -53,8 +53,7 @@ Deno.serve(async (req) => {
       .order("employee_name");
 
     const isClosed = Array.isArray(snap) && snap.length > 0;
-    const now = new Date();
-    const syncedAt = now.toISOString().slice(0, 16).replace("T", " ");
+    const syncedAt = formatSeoulMinute(new Date());
 
     // ---- 근태/세션: 항상 앱 projection (effective) ----
     const attendance = payload?.attendance ?? { header: [], rows: [] };
@@ -74,7 +73,7 @@ Deno.serve(async (req) => {
           won(s.juhyu_pay),
           won(s.adjust),
           won(s.gross_pay),
-          (s.closed_at ?? "").toString().slice(0, 16).replace("T", " "),
+          s.closed_at ? formatSeoulMinute(new Date(s.closed_at)) : "",
         ]),
       };
     } else {
@@ -140,6 +139,15 @@ function json(obj: unknown, status = 200) {
   return new Response(JSON.stringify(obj), {
     status, headers: { ...cors, "Content-Type": "application/json" },
   });
+}
+function formatSeoulMinute(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return `${value.year}-${value.month}-${value.day} ${value.hour}:${value.minute}`;
 }
 function won(n: number | null) { return (n ?? 0).toLocaleString("ko-KR") + "원"; }
 function fmtHours(h: number | null) {
