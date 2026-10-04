@@ -27,6 +27,8 @@ jobs:
         run: |
           node qa_sheet_report_design.mjs
           node qa_sheet_display_values.mjs
+          node qa_sheet_auto_resize_contract.mjs
+          node qa_sheet_new_month_format_contract.mjs
           node qa_apps_script_deploy_secret.mjs
       - name: Push source and redeploy existing web app
         env:
