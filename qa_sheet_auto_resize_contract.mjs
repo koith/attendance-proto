@@ -10,3 +10,11 @@ assert.doesNotMatch(gas,/Math\.min\(|Math\.max\(\s*\d+\s*,\s*required|widthBucke
 assert.match(gas,/width_source:'measured_display_text'/,'Apps Script must report measured displayed-text sizing');
 assert.match(edge,/SHEET_COLUMN_RESIZE_NOT_CONFIRMED/,'Edge sync must fail closed without resize proof');
 console.log('sheet measured-width contract: PASS');
+
+// Regression: a short header must never win over a longer body value in the same column.
+function units(text){let u=0;for(const ch of String(text??'')){const code=ch.charCodeAt(0);if(code===32)u+=0.34;else if(code>=0x2e80)u+=1;else if(/[A-Z0-9]/.test(ch))u+=0.62;else u+=0.54;}return u;}
+function width(text){return Math.ceil(units(text)*10+16);}
+const column=['상태','정상','시급 설정 필요'];
+const measured=Math.max(...column.map(width));
+assert.equal(measured,width('시급 설정 필요'),'longest displayed body value must determine column width even when header is short');
+console.log('sheet full-column longest-display regression: PASS');
