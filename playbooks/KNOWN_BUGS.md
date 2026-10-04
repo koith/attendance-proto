@@ -40,6 +40,9 @@
 - 기준 월/시트를 다른 월에 "동일하게" 복제하는 작업에서 유사 디자인을 새로 만들어 적용한 뒤 성공으로 보고하면 안 된다. 기준 실제 화면과 대상 실제 화면의 헤더 대비, 섹션 서식, 셀 경계, 정렬, 열폭을 항목별로 비교한 Proof 없이는 동일성 완료 판정을 금지한다.
 - 사용자가 차이를 발견한 뒤에야 불일치를 인정하는 패턴을 QA로 대체한다. 가능한 도구로 기준/대상을 직접 읽고 비교하며, 실제 렌더를 확인할 수 없으면 미검증/BLOCKED로 남긴다.
 
+
+- Apps Script가 `width_source:'measured_display_text'`를 반환하는데 Supabase `sync-sheet`가 구형 `actual_cell_contents` 토큰만 허용하면 실제 Sheet 쓰기가 성공해도 Edge Function이 `SHEET_COLUMN_RESIZE_NOT_CONFIRMED`로 실패한다. 요청/응답 proof token은 `measured_display_text`로 단일화하고 `qa_sheet_auto_resize_contract.mjs`에서 양쪽 계약을 함께 고정한다.
+
 ## Sheet 날짜·시간 표시값
 - Google Sheets의 날짜/시간은 내부적으로 serial number다. 서식을 잃으면 `46296`, `0.829166...`처럼 노출될 수 있다.
 - 월 리포트 재작성 시 헤더 의미에 따라 날짜는 `yyyy-mm-dd`, 출퇴근/실근무/총근무/야간근무는 사람이 읽는 시간 형식을 다시 적용한다.
