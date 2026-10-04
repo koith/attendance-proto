@@ -5,7 +5,15 @@ const need=(k)=>{const v=process.env[k];if(!v)throw new Error('missing '+k);retu
 const clientId=need('CLIENT_ID'),clientSecret=need('CLIENT_SECRET'),refreshToken=need('REFRESH_TOKEN');
 const scriptId=need('SCRIPT_ID'),deploymentId=need('DEPLOYMENT_ID');
 const tokenRes=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:clientId,client_secret:clientSecret,refresh_token:refreshToken,grant_type:'refresh_token'})});
-if(!tokenRes.ok)throw new Error('oauth refresh failed '+tokenRes.status);
+if(!tokenRes.ok){
+  const raw=await tokenRes.text();
+  let detail=raw;
+  try{
+    const parsed=JSON.parse(raw);
+    detail=JSON.stringify({error:parsed?.error,error_description:parsed?.error_description});
+  }catch{}
+  throw new Error('oauth refresh failed '+tokenRes.status+' '+detail);
+}
 const {access_token}=await tokenRes.json(); const auth={Authorization:'Bearer '+access_token,'Content-Type':'application/json'};
 const localSource=fs.readFileSync('apps_script.gs','utf8');
 const manifest=fs.existsSync('appsscript.json')?fs.readFileSync('appsscript.json','utf8'):JSON.stringify({timeZone:'Asia/Seoul',exceptionLogging:'STACKDRIVER',runtimeVersion:'V8'});
