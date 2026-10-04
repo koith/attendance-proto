@@ -1,16 +1,12 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-
 const gas=fs.readFileSync('apps_script.gs','utf8');
 const edge=fs.readFileSync('edge_sync_sheet.ts','utf8');
-
-assert.match(gas,/setValues\(out\)[\s\S]*SpreadsheetApp\.flush\(\)[\s\S]*autoResizeColumns\(1,\s*width\)[\s\S]*SpreadsheetApp\.flush\(\)/,'Apps Script must flush then auto-resize all used columns after write');
-assert.match(gas,/column_resize_applied:\s*true/,'Apps Script must report resize proof');
-assert.match(gas,/width_source:'actual_cell_contents'/,'Apps Script must report actual-content sizing');
-assert.doesNotMatch(gas,/setColumnWidth\s*\(/,'Native auto-resize must remain the final column-width authority');
-assert.doesNotMatch(gas,/Math\.min\(/,'Long text must not be capped');
-assert.doesNotMatch(gas,/Math\.min\(/,'Long text must not be capped');
+assert.match(gas,/getDisplayValues\(\)/,'width sizing must use displayed cell strings');
+assert.match(gas,/for\(var cc=0;cc<width;cc\+\+\)/,'every used column must be measured');
+assert.match(gas,/for\(var rr=0;rr<display\.length;rr\+\+\).*Math\.max/,'every displayed row participates in widest-text measurement');
+assert.match(gas,/setColumnWidth\(cc\+1,required\)/,'measured width must be applied per column');
+assert.doesNotMatch(gas,/Math\.min\(|Math\.max\(\s*\d+\s*,\s*required|widthBuckets|typeWidth/,'no fixed min/max or type bucket width policy');
+assert.match(gas,/width_source:'measured_display_text'/,'Apps Script must report measured displayed-text sizing');
 assert.match(edge,/SHEET_COLUMN_RESIZE_NOT_CONFIRMED/,'Edge sync must fail closed without resize proof');
-assert.match(edge,/resize_scope !== "all_used_columns_after_write"/,'Edge sync must require all used columns');
-assert.match(edge,/width_source !== "actual_cell_contents"/,'Edge sync must require actual-cell-content sizing');
-console.log('sheet auto-resize contract: PASS');
+console.log('sheet measured-width contract: PASS');
