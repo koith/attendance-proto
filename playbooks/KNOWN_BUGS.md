@@ -43,6 +43,8 @@
 
 - Apps Script가 `width_source:'measured_display_text'`를 반환하는데 Supabase `sync-sheet`가 구형 `actual_cell_contents` 토큰만 허용하면 실제 Sheet 쓰기가 성공해도 Edge Function이 `SHEET_COLUMN_RESIZE_NOT_CONFIRMED`로 실패한다. 요청/응답 proof token은 `measured_display_text`로 단일화하고 `qa_sheet_auto_resize_contract.mjs`에서 양쪽 계약을 함께 고정한다.
 
+- Sheet의 `마지막 동기화`/`마감시각`을 `Date.toISOString().slice(...)`로 만들면 UTC가 그대로 노출되어 한국 운영시각보다 9시간 느리게 보인다. 사람에게 보이는 Sheet 시각은 `Asia/Seoul`로 변환하고 `qa_sheet_edge_contract.mjs`로 고정한다.
+
 ## Sheet 날짜·시간 표시값
 - Google Sheets의 날짜/시간은 내부적으로 serial number다. 서식을 잃으면 `46296`, `0.829166...`처럼 노출될 수 있다.
 - 월 리포트 재작성 시 헤더 의미에 따라 날짜는 `yyyy-mm-dd`, 출퇴근/실근무/총근무/야간근무는 사람이 읽는 시간 형식을 다시 적용한다.
