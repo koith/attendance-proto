@@ -54,3 +54,5 @@
 - 완료했다고 말하기 전에 실제 QA 증거를 만든다.
 - 문서만 고친 내부 작업은 앱 버전을 올리지 않는다.
 - 배포 작업 완료 보고에는 VERSIONING.md에 따른 실제 버전을 포함한다.
+
+- Pages 배포 게이트가 부팅 문법/시작 smoke만 검사하면 다른 workflow의 보안·런타임·핵심 계약 회귀가 실패해도 운영 Pages가 배포될 수 있다. P0 게이트 자체에서 cross-domain adversarial/deep audit, runtime wiring, Sheet 핵심 계약을 직접 실행해 실패 시 build/deploy를 차단한다.
