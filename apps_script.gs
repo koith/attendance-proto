@@ -103,9 +103,9 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   var ym=String(ss.getName()).match(/(20\d{2})/);
   var reportTitle=(ym?ym[1]+'년 ':'')+monthNum+'월 근태 · 급여 보고서';
   var sections=[
+    {title:'급여 집계',data:payroll},
     {title:'근태 현황',data:attendance},
-    {title:'세션 상세',data:sessions},
-    {title:'급여 집계',data:payroll}
+    {title:'세션 상세',data:sessions}
   ];
   var width=1; sections.forEach(function(s){width=Math.max(width,s.data.header.length);});
   var out=[[reportTitle],[meta],[]], sectionRows=[],headerRows=[],dataRanges=[];
@@ -183,15 +183,17 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     });
   });
 
+  var attendanceSectionIndex=sections.findIndex(function(section){return section.title==='근태 현황';});
+  var payrollSectionIndex=sections.findIndex(function(section){return section.title==='급여 집계';});
   var aStatus=attendance.header.indexOf('상태')+1;
-  if(aStatus>0&&dataRanges[0].count) sh.getRange(dataRanges[0].first,aStatus,dataRanges[0].count,1)
+  if(aStatus>0&&dataRanges[attendanceSectionIndex].count) sh.getRange(dataRanges[attendanceSectionIndex].first,aStatus,dataRanges[attendanceSectionIndex].count,1)
     .setFontColor('#145c34').setFontWeight('bold').setHorizontalAlignment('center');
   var gross=payroll.header.indexOf('예상 세전급여')+1;
   if(gross<=0) gross=payroll.header.indexOf('확정 세전급여')+1;
-  if(gross>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,gross,dataRanges[2].count,1)
+  if(gross>0&&dataRanges[payrollSectionIndex].count) sh.getRange(dataRanges[payrollSectionIndex].first,gross,dataRanges[payrollSectionIndex].count,1)
     .setFontColor('#17663b').setFontWeight('bold').setHorizontalAlignment('right');
   var pStatus=payroll.header.indexOf('상태')+1;
-  if(pStatus>0&&dataRanges[2].count) sh.getRange(dataRanges[2].first,pStatus,dataRanges[2].count,1)
+  if(pStatus>0&&dataRanges[payrollSectionIndex].count) sh.getRange(dataRanges[payrollSectionIndex].first,pStatus,dataRanges[payrollSectionIndex].count,1)
     .setFontColor('#745500').setFontWeight('bold').setHorizontalAlignment('center');
 
   // Size each used column from the widest text that is actually displayed in that column.
