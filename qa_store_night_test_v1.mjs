@@ -4,6 +4,7 @@ const loader=r('payroll_elapsed_weeks_v1.js'),store=r('store_controls_v1.js'),in
 assert(index.includes('admin_store_settings_get')&&index.includes('["system","enforce","store","close"].join("_")')&&store.includes('BE.storeSettingsGet')&&store.includes('BE.enforceStoreClose')&&store.includes('server-side by pg_cron')&&!store.includes('setInterval(()=>enforce(false),60000)'));
 assert(nightForm.includes('nightEnd')&&nightForm.includes('admin_contract_night_end_set'));assert(nightForm.includes('nightEndPostSaveError')&&nightForm.includes('계약은 저장됐지만 야간 종료시간 저장에 실패했습니다.'));
 assert(nightPay.includes('night_allowance_end')&&nightPay.includes("night_allowance_mode==='FLAT'")&&nightPay.includes('p.gross+=add'));
+assert(nightPay.includes('([01]\\d|2[0-3]):([0-5]\\d)')&&nightPay.includes('m?Number(m[1])*60+Number(m[2]):null'), 'night time parser must reject malformed hours/minutes');
 assert(core.includes('baekeok_test_mode_v1')&&core.includes('BE.eventsWithCorrections')&&core.includes('kstNow=()=>now()'));
 assert(actual.indexOf('actual_attendance_test_mode_v1.js')<actual.indexOf('actual_attendance.js'));
 assert(bridge.includes('admin_events_with_corrections')&&bridge.includes('admin_correct_event'));
