@@ -1254,7 +1254,7 @@ function applyCorrections(events, corrections){
       eff.push({ id:e.id, employee_id:e.employee_id,
         event_type: c.action==="EDIT_TYPE"&&c.new_event_type ? c.new_event_type : e.event_type,
         event_at: c.action==="EDIT_TIME"&&c.new_event_at ? c.new_event_at : e.event_at,
-        corrected:true });
+        corrected:true, correctionReason:String(c.reason||c.correction_reason||"") });
     } else {
       eff.push({ id:e.id, employee_id:e.employee_id, event_type:e.event_type, event_at:e.event_at });
     }
@@ -1262,7 +1262,7 @@ function applyCorrections(events, corrections){
   // 관리자가 추가(ADD)한 누락분
   for(const c of added){
     eff.push({ id:"add_"+c.id, employee_id:c.employee_id, event_type:c.new_event_type,
-      event_at:c.new_event_at, corrected:true, addedByAdmin:true });
+      event_at:c.new_event_at, corrected:true, correctionReason:String(c.reason||c.correction_reason||""), addedByAdmin:true });
   }
   return eff;
 }
@@ -1277,19 +1277,19 @@ function pairEvents(rows){
     // 동일 시각 → id 차선 (raw 생성순서 보존). id는 숫자 또는 "add_N"
     return idOrder(a.id) - idOrder(b.id);
   });
-  const out=[]; let openIn=null, openInId=null, openInRaw=null, openInCorrected=false;
+  const out=[]; let openIn=null, openInId=null, openInRaw=null, openInCorrected=false, openInReason="";
   for(const r of s){
     const when=fromIso(r.event_at);
     if(r.event_type==="IN"){
-      if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"INCOMPLETE",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null,corrected:!!openInCorrected});
-      openIn=when; openInId=r.id; openInRaw=r.event_at; openInCorrected=!!r.corrected;
+      if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"INCOMPLETE",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null,corrected:!!openInCorrected, correctionReason:openInReason});
+      openIn=when; openInId=r.id; openInRaw=r.event_at; openInCorrected=!!r.corrected; openInReason=r.correctionReason||"";
     }else if(r.event_type==="OUT"){
       if(openIn!==null){
         // Invalid Date 방어: 어느 한쪽이라도 파싱 실패면 sec=null(합산 제외), status로 표시
         const sec=(isNaN(openIn)||isNaN(when))?null:(when-openIn)/1000;
-        out.push({in:openIn,out:when,sec,status:sec==null?"INVALID_TIME":"COMPLETE",inId:openInId,outId:r.id,inRaw:openInRaw,outRaw:r.event_at,corrected:!!(openInCorrected||r.corrected)}); openIn=null; openInId=null; openInRaw=null; openInCorrected=false;
+        out.push({in:openIn,out:when,sec,status:sec==null?"INVALID_TIME":"COMPLETE",inId:openInId,outId:r.id,inRaw:openInRaw,outRaw:r.event_at,corrected:!!(openInCorrected||r.corrected), correctionReason:[openInReason,r.correctionReason].filter(Boolean).join(" / ")}); openIn=null; openInId=null; openInRaw=null; openInCorrected=false; openInReason="";
       }
-      else out.push({in:null,out:when,sec:null,status:"ORPHAN_OUT",inId:null,outId:r.id,inRaw:null,outRaw:r.event_at,corrected:!!r.corrected});
+      else out.push({in:null,out:when,sec:null,status:"ORPHAN_OUT",inId:null,outId:r.id,inRaw:null,outRaw:r.event_at,corrected:!!r.corrected, correctionReason:r.correctionReason||""});
     }
   }
   if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"WORKING",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null,corrected:!!openInCorrected});
@@ -2633,13 +2633,13 @@ async function buildSheetSyncPayload(ym){
         sessRows.push([day, rec.employee_name, i+1,
           s.in?sheetClock(s.in):"—", s.out?sheetClock(s.out):"—",
           s.status==="COMPLETE"?sheetDuration(s.sec):(s.status==="WORKING"?"근무중":"—"),
-          _statusLabel(s.status), s.corrected?"정정":""]);
+          _statusLabel(s.status), s.corrected?"정정":"", s.correctionReason||""]);
       });
       const firstIn=daySess.find(s=>s.in), lastOut=[...daySess].reverse().find(s=>s.out);
       attRows.push([day, rec.employee_name,
         firstIn?sheetClock(firstIn.in):"—", lastOut?sheetClock(lastOut.out):"—",
         daySec?sheetDuration(daySec):"—", daySess.length,
-        issue?"확인필요":"정상", hasCorrected?"정정":""]);
+        issue?"확인필요":"정상", hasCorrected?"정정":"", [...new Set(daySess.map(s=>s.correctionReason).filter(Boolean))].join(" / ")]);
     }
   }
   // 급여 (마감 전 예상; 마감 후엔 Edge Function이 snapshot으로 대체)
@@ -2657,8 +2657,8 @@ async function buildSheetSyncPayload(ym){
   const humanAttendance=[];
   for(const r of attRows){
     const k=r[0]+"|"+r[1];
-    if((sessionCount.get(k)||0)<=1) humanAttendance.push([r[0],r[1],r[2],r[3],r[4],r[6],r[7]]);
-    else for(const s of sessRows.filter(x=>x[0]===r[0]&&x[1]===r[1])) humanAttendance.push([s[0],s[1],s[3],s[4],s[5],s[6],s[7]]);
+    if((sessionCount.get(k)||0)<=1) humanAttendance.push([r[0],r[1],r[2],r[3],r[4],r[6],r[7],r[8]]);
+    else for(const s of sessRows.filter(x=>x[0]===r[0]&&x[1]===r[1])) humanAttendance.push([s[0],s[1],s[3],s[4],s[5],s[6],s[7],s[8]]);
   }
   // Preserve the authoritative calculation: these are reporting columns, not a new pay policy.
   const humanPayroll=payRows.map((r,i)=>{
@@ -2672,7 +2672,7 @@ async function buildSheetSyncPayload(ym){
   return {
     store_key:String(CURRENT_STORE_ID||1),
     store_name:STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||CONFIG.STORE_NAME,
-    attendance:{ header:["날짜","직원명","출근","퇴근","실근무","상태","정정"], rows:humanAttendance },
+    attendance:{ header:["날짜","직원명","출근","퇴근","실근무","상태","정정","정정사유"], rows:humanAttendance },
     sessions:{ header:[], rows:[] },
     payroll:{ header:["직원명","총근무","야간근무","시급","기본급","주휴","휴게","휴게 기준시간(참고)","휴게 제공 여부","휴게수당","조정","예상 세전급여","상태"], rows:humanPayroll },
   };
