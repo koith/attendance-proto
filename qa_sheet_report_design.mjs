@@ -5,6 +5,7 @@ const checks=[
  ['report title',/근태 · 급여 보고서/.test(s)],
  ['senior requested payroll first',s.indexOf("title:'급여 집계'")<s.indexOf("title:'근태 현황'")],
  ['section-aware emphasis',s.includes('attendanceSectionIndex')&&s.includes('payrollSectionIndex')],
+ ['hide redundant payroll status columns',s.includes("h!=='상태'&&h!=='마감'")&&s.includes('payroll=_withoutPayrollStatusColumns(payroll)')],
  ['three sections',s.includes("title:'근태 현황'")&&s.includes("title:'세션 상세'")&&s.includes("title:'급여 집계'")],
  ['clean visual rebuild',s.includes("getRange(1,1,sh.getMaxRows(),sh.getMaxColumns()).clear({contentsOnly:false})")&&s.includes('setHiddenGridlines(true)')],
  ['no fake KPI labels',!/(직책|활성 직원|총 근무일|급여 총액)/.test(s)],

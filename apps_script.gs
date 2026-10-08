@@ -97,7 +97,19 @@ function _ensureMonthTabs(ss){
   }
 }
 
+function _withoutPayrollStatusColumns(section){
+  // Presentation-only: keep the source payroll/snapshot data and closing workflow unchanged.
+  var headers=section.header||[];
+  var kept=[];
+  headers.forEach(function(h,i){if(h!=='상태'&&h!=='마감')kept.push(i);});
+  return {
+    header:kept.map(function(i){return headers[i];}),
+    rows:(section.rows||[]).map(function(row){return kept.map(function(i){return row[i];});})
+  };
+}
+
 function _writeMonth(ss, name, meta, attendance, sessions, payroll){
+  payroll=_withoutPayrollStatusColumns(payroll);
   var sh=ss.getSheetByName(name); if(!sh) sh=ss.insertSheet(name);
   var monthNum=Number(String(name).replace(/[^0-9]/g,''))||0;
   var ym=String(ss.getName()).match(/(20\d{2})/);
