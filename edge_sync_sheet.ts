@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     if (isClosed) {
       statusLabel = "마감완료";
       payroll = {
-        header: ["직원명", "총 실근무시간", "시급", "기본급", "주휴", "조정", "확정 세전급여", "마감시각"],
+        header: ["직원명", "총 실근무시간", "시급", "기본급", "주휴", "조정", "확정 세전급여"],
         rows: snap!.map((s) => [
           s.employee_name,
           fmtHours(s.hours),
@@ -73,7 +73,6 @@ Deno.serve(async (req) => {
           won(s.juhyu_pay),
           won(s.adjust),
           won(s.gross_pay),
-          s.closed_at ? formatSeoulMinute(new Date(s.closed_at)) : "",
         ]),
       };
     } else {
