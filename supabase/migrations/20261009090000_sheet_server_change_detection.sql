@@ -14,17 +14,17 @@ create or replace function public.system_check_sheet_changes()
 returns void language plpgsql security definer set search_path = public, pg_temp as $$
 declare st record; fp text;
 begin
-  for st in select id from public.stores where id in (select distinct store_id from public.employees) loop
+  for st in select id from public.stores where id=1 -- Inha pilot; expand only after server parity QA loop
     select md5(concat_ws('|',
       coalesce((select string_agg(md5(row_to_json(a)::text),',' order by a.id) from public.attendance_events a join public.employees e on e.id=a.employee_id where e.store_id=st.id),''),
       coalesce((select string_agg(md5(row_to_json(c)::text),',' order by c.id) from public.event_corrections c join public.employees e on e.id=c.employee_id where e.store_id=st.id),''),
       coalesce((select string_agg(md5(row_to_json(e)::text),',' order by e.id) from public.employees e where e.store_id=st.id),''),
       coalesce((select string_agg(md5(row_to_json(ep)::text),',' order by ep.id) from public.employment_periods ep join public.employees e on e.id=ep.employee_id where e.store_id=st.id),''),
       coalesce((select string_agg(md5(row_to_json(ec)::text),',' order by ec.id) from public.employment_contracts ec join public.employment_periods ep on ep.id=ec.employment_period_id join public.employees e on e.id=ep.employee_id where e.store_id=st.id),''),
-      coalesce((select string_agg(md5(row_to_json(w)::text),',' order by w.id) from public.employment_contract_workdays w join public.employment_contracts ec on ec.id=w.employment_contract_id join public.employment_periods ep on ep.id=ec.employment_period_id join public.employees e on e.id=ep.employee_id where e.store_id=st.id),''),
-      coalesce((select string_agg(md5(row_to_json(p)::text),',' order by p.id) from public.payroll_period p where p.store_id=st.id),''),
-      coalesce((select string_agg(md5(row_to_json(pe)::text),',' order by pe.id) from public.payroll_period_employee pe join public.payroll_period p on p.id=pe.period_id where p.store_id=st.id),''),
-      coalesce((select string_agg(md5(row_to_json(s)::text),',' order by s.id) from public.payroll_snapshot s where s.store_id=st.id),'')
+      coalesce((select string_agg(md5(row_to_json(w)::text),',' order by w.contract_id,w.weekday) from public.employment_contract_workdays w join public.employment_contracts ec on ec.id=w.contract_id join public.employment_periods ep on ep.id=ec.employment_period_id join public.employees e on e.id=ep.employee_id where e.store_id=st.id),''),
+      coalesce((select string_agg(md5(row_to_json(p)::text),',' order by p.ym) from public.payroll_period p where p.ym >= to_char(current_date - interval '45 days','YYYY-MM')),''),
+      coalesce((select string_agg(md5(row_to_json(pe)::text),',' order by pe.ym,pe.employee_id) from public.payroll_period_employee pe join public.employees e on e.id=pe.employee_id where e.store_id=st.id),''),
+      coalesce((select string_agg(md5(row_to_json(s)::text),',' order by s.id) from public.payroll_snapshot s join public.employees e on e.id=s.employee_id where e.store_id=st.id),'')
     )) into fp;
     insert into public.sheet_sync_change_state(store_id,fingerprint,changed_at,checked_at)
       values(st.id,fp,now(),now())
