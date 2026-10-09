@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {truncateWon,approvedWeeklyAdjustment,assessWeeklyRest} from './supabase/functions/server-sync-sheet/payroll_policy.mjs';
+assert.equal(truncateWon(1234.99),1234);
+assert.equal(truncateWon(-12.9),-12);
+assert.equal(approvedWeeklyAdjustment(1200.9,null).amount,1200);
+assert.equal(approvedWeeklyAdjustment(0,40000,'대타 승인','manager-1','2026-10-09T12:00:00Z').amount,40000);
+assert.equal(approvedWeeklyAdjustment(40000,0,'미충족','manager-1','2026-10-09T12:00:00Z').amount,0);
+assert.throws(()=>approvedWeeklyAdjustment(0,40000,'',null,null),/Approval/);
+const workdays=[{weekday:1,contracted_minutes:480},{weekday:2,contracted_minutes:480}];
+const sessions=[{status:'COMPLETE',in:new Date(2026,9,5,9),sec:480*60},{status:'COMPLETE',in:new Date(2026,9,6,9),sec:480*60}];
+const input={weeklyMinutes:960,workdays,sessions,weekStart:'2026-10-05'};
+assert.equal(assessWeeklyRest(input).automaticEligible,true);
+assert.equal(assessWeeklyRest({...input,sessions:sessions.slice(0,1)}).automaticEligible,false);
+assert.equal(assessWeeklyRest({...input,weeklyMinutes:899}).automaticEligible,false);
+assert.equal(assessWeeklyRest({...input,departureDate:'2026-10-06'}).requiresReview,true);
+assert.equal(assessWeeklyRest({...input,substitutions:[{id:1}]}).automaticEligible,false);
+console.log('PASS weekly rest scheduled-day checks and approved adjustments');

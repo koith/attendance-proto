@@ -51,6 +51,18 @@ class HttpError extends Error{constructor(status,message){super(message);this.st
 async function sourceFor(ym,storeId){
   const {data,error}=await client.rpc("sheet_server_payroll_source",{p_store_id:storeId,p_ym:ym});
   if(error||!data)throw new Error("SERVER_PAYROLL_SOURCE_FAILED: "+(error?.code||"NO_DATA"));
+  const {data:weeklyApprovals,error:weeklyApprovalError}=await client.from("payroll_weekly_approvals")
+    .select("employee_id,week_start,calculated_won,approved_won,reason,approved_by,approved_at,id")
+    .eq("store_id",storeId).gte("week_start",ym+"-01")
+    .lt("week_start",new Date(Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7)),1)).toISOString().slice(0,10))
+    .order("approved_at",{ascending:false}).order("id",{ascending:false});
+  if(weeklyApprovalError)throw new Error("WEEKLY_APPROVALS_READ_FAILED: "+weeklyApprovalError.code);
+  const employeeIds=(data.employees||[]).map(e=>Number(e.id)).filter(Number.isSafeInteger);
+  const {data:employmentPeriods,error:periodError}=employeeIds.length
+    ?await client.from("employment_periods").select("employee_id,started_on,ended_on")
+       .in("employee_id",employeeIds).lte("started_on",new Date(Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7)),0)).toISOString().slice(0,10))
+    :{data:[],error:null};
+  if(periodError)throw new Error("EMPLOYMENT_PERIOD_READ_FAILED: "+periodError.code);
   const BE={
     allEmployees:async()=>data.employees||[],
     eventsWithCorrections:async()=>({events:data.events||[],corrections:data.corrections||[]}),
@@ -58,6 +70,8 @@ async function sourceFor(ym,storeId){
     payrollContracts:async()=>data.contracts||[],
     payrollContractWorkdays:async()=>data.workdays||[],
     payrollSubstitutions:async()=>data.substitutions||[],
+    payrollWeeklyApprovals:async()=>weeklyApprovals||[],
+    payrollEmploymentPeriods:async()=>employmentPeriods||[],
     employmentBundle:async id=>{
       const bundle=data.bundles?.[String(id)];
       if(!bundle)throw new Error("MISSING_EMPLOYEE_CONTRACT_BUNDLE");
@@ -207,7 +221,7 @@ Deno.serve(async req=>{
   if(req.method!=="POST")return reply({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   try{
     const body=await req.json(),mode=String(body?.mode||"sync");
-    if(!["cron","dryrun","deployment","payroll","parity","sync"].includes(mode))throw new HttpError(400,"BAD_MODE");
+    if(!["cron","dryrun","deployment","payroll","parity","sync","weekly_approve"].includes(mode))throw new HttpError(400,"BAD_MODE");
     await authenticate(req,mode);
     if(mode==="deployment"){
       const ym=currentYm();
@@ -232,6 +246,41 @@ Deno.serve(async req=>{
     const ym=String(body.ym||currentYm()),storeId=Number(body.store_id||1);
     if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(ym))throw new HttpError(400,"BAD_YM");
     if(storeId!==1)throw new HttpError(403,"STORE_NOT_ENABLED");
+    if(mode==="weekly_approve"){
+      const employeeId=Number(body.employee_id),weekStart=String(body.week_start||"");
+      const calculatedWon=Number(body.calculated_won),approvedWon=Number(body.approved_won);
+      const reason=String(body.reason||"").trim();
+      if(!Number.isSafeInteger(employeeId)||employeeId<=0||
+         !/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(weekStart)||!weekStart.startsWith(ym)||
+         !Number.isSafeInteger(calculatedWon)||calculatedWon<0||
+         !Number.isSafeInteger(approvedWon)||approvedWon<0||reason.length<3)
+        throw new HttpError(400,"INVALID_WEEKLY_APPROVAL");
+      const weekMonday=new Date(weekStart+"T00:00:00Z");
+      const nowSeoul=seoulParts();
+      const nowWall=new Date(nowSeoul.year+"-"+nowSeoul.month+"-"+nowSeoul.day+"T"+nowSeoul.hour+":"+nowSeoul.minute+":00Z");
+      if(!Number.isFinite(weekMonday.getTime())||weekMonday.getUTCDay()!==1||
+         nowWall.getTime()<weekMonday.getTime()+7*86400000+2*3600000)
+        throw new HttpError(409,"WEEK_NOT_CLOSED");
+      const {engine:approvalEngine}=await sourceFor(ym,storeId);
+      const currentPayroll=await approvalEngine.computeMonthPayroll(ym);
+      const employeeRow=currentPayroll.rows.find(r=>Number(r.employee_id)===employeeId);
+      if(!employeeRow||!employeeRow.pay||employeeRow.payrollType!=="HOURLY")
+        throw new HttpError(404,"WEEKLY_EMPLOYEE_NOT_FOUND");
+      const actualCalculated=Number(employeeRow.pay.weeklyCalculatedAmounts?.[weekStart]||0);
+      if(calculatedWon!==actualCalculated)throw new HttpError(409,"WEEKLY_CALCULATED_AMOUNT_CHANGED");
+      const token=/^Bearer (.+)$/i.exec(req.headers.get("Authorization")||"")?.[1];
+      if(!token)throw new HttpError(401,"NOT_AUTHORIZED");
+      const userClient=createClient(projectUrl,Deno.env.get("SUPABASE_ANON_KEY")||"",{
+        auth:{autoRefreshToken:false,persistSession:false},
+        global:{headers:{Authorization:"Bearer "+token}}
+      });
+      const {data,error}=await userClient.rpc("approve_payroll_weekly_allowance",{
+        p_store_id:storeId,p_employee_id:employeeId,p_week_start:weekStart,
+        p_calculated_won:calculatedWon,p_approved_won:approvedWon,p_reason:reason
+      });
+      if(error)throw new HttpError(409,"WEEKLY_APPROVAL_REJECTED: "+error.message);
+      return reply({ok:true,approval_id:data});
+    }
     if(mode==="payroll"){
       const {engine}=await sourceFor(ym,storeId);
       const report=await engine.computeMonthPayroll(ym);
