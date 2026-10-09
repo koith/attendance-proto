@@ -110,8 +110,32 @@ function _withoutPayrollStatusColumns(section){
   };
 }
 
+function _seniorPayrollLayout(section){
+  var h=section.header||[];
+  var keys=['직원명','급여형태','총근무','야간근무','시급','기본급','야근수당적용여부','야근수당','주휴','휴게','휴게수당','조정','예상 세전급여'];
+  return {header:keys,rows:(section.rows||[]).map(function(row){
+    var get=function(key){var i=h.indexOf(key);return i<0?'':row[i];};
+    return [get('직원명'),get('시급')==='0원'?'월급제':'시급제',get('총근무'),get('야간근무'),get('시급'),get('기본급'),'미설정','0원',get('주휴'),get('휴게 제공 여부'),get('휴게수당'),get('조정'),get('예상 세전급여')];
+  })};
+}
+function _seniorAttendanceLayout(section){
+  var h=section.header||[];
+  var keys=['날짜','직원명','급여형태','출근','퇴근','실근무','야간근무','휴게시간제공여부','법정휴게시간','실제휴게시간','급여산정시간','상태','정정','정정사유'];
+  return {header:keys,rows:(section.rows||[]).map(function(row){
+    var get=function(key){var i=h.indexOf(key);return i<0?'':row[i];};
+    var raw=get('실근무'),provided=get('휴게 제공 여부')!=='미제공';
+    var m=String(raw).match(/^(\\d+):(\\d{2})/),seconds=m?Number(m[1])*3600+Number(m[2])*60:0;
+    var deduct=provided?(seconds<=14400?0:seconds<=16200?seconds-14400:seconds<=30600?1800:seconds<=32400?seconds-28800:3600):0;
+    var bonus=provided?0:(seconds>=28800?3600:seconds>14400?1800:0);
+    var dur=function(n){var v=Math.floor(n/60);return Math.floor(v/60)+':'+String(v%60).padStart(2,'0');};
+    return [get('날짜'),get('직원명'),'—',get('출근'),get('퇴근'),raw,get('야간근무'),get('휴게 제공 여부'),dur(deduct),'—',dur(seconds-deduct+bonus),get('상태'),get('정정'),get('정정사유')];
+  })};
+}
 function _writeMonth(ss, name, meta, attendance, sessions, payroll){
+  // Senior October workbook is the display contract. Transform report columns only.
   payroll=_withoutPayrollStatusColumns(payroll);
+  payroll=_seniorPayrollLayout(payroll);
+  attendance=_seniorAttendanceLayout(attendance);
   var sh=ss.getSheetByName(name); if(!sh) sh=ss.insertSheet(name);
   var monthNum=Number(String(name).replace(/[^0-9]/g,''))||0;
   var ym=String(ss.getName()).match(/(20\d{2})/);
@@ -142,6 +166,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
 
   var white='#ffffff', ink='#26332b', green='#176b3a', headerGreen='#0f6335', pale='#dff2e3', canvas='#f7f9f8', line='#cfd8d2';
   sh.getRange(1,1,out.length,width).setFontFamily('Arial').setFontSize(10).setFontColor(ink)
+    .setFontWeight('normal').setHorizontalAlignment('center')
     .setBackground(white).setVerticalAlignment('middle').setWrap(false);
 
   // Spreadsheet-native report header: compact, printable, and stable in Google Sheets mobile.
@@ -193,7 +218,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     s.data.header.forEach(function(h,idx){
       var col=idx+1;
       if(centerHeaders.indexOf(h)>=0) sh.getRange(dr.first,col,dr.count,1).setHorizontalAlignment('center');
-      if(['시급','기본급','주휴','휴게수당','조정','예상 세전급여','확정 세전급여'].indexOf(h)>=0)
+      if(false && ['시급','기본급','주휴','휴게수당','조정','예상 세전급여','확정 세전급여'].indexOf(h)>=0)
         sh.getRange(dr.first,col,dr.count,1).setHorizontalAlignment('right');
     });
   });
