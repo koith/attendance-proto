@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const html=fs.readFileSync('index.html','utf8');
+assert.match(html,/const STORE_ENTRY_URL=\(id\)=>location\.pathname\+"\?mode=store&store="\+encodeURIComponent\(id\)\+"#pos"/);
+assert.match(html,/const bindStoreButtons=\(\)=>[\s\S]{0,240}location\.assign\(STORE_ENTRY_URL\(Number\(c\.dataset\.store\)\)\)/);
+assert.match(html,/if\(location\.hash==="#dashboard"\)location\.assign\(STORE_ENTRY_URL\(id\)\)/);
+assert.match(html,/if\(STORE_ENTRY_LOCK\)return;/);
+assert.match(html,/if\(h==="dashboard"\)\{if\(STORE_ENTRY_LOCK\)/);
+assert.match(html,/const APP_VERSION="v0\.190"/);
+console.log('PASS HQ store navigation always enters store-locked URL');

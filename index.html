@@ -739,7 +739,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.189</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.190</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -828,7 +828,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.189";
+const APP_VERSION="v0.190";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1216,6 +1216,7 @@ let STORE_ENTRY_SAVED=false;
 try{ sessionStorage.removeItem("baekeok_dedicated_store"); }catch(_){}
 const STORE_ENTRY_ID=Number(STORE_ENTRY_PARAMS.get("store"))||((STORE_ENTRY_MODE==="store"||STORE_ENTRY_PATH)?1:0);
 const STORE_ENTRY_LOCK=STORE_ENTRY_MODE==="store"||STORE_ENTRY_ID>0||STORE_ENTRY_PATH;
+const STORE_ENTRY_URL=(id)=>location.pathname+"?mode=store&store="+encodeURIComponent(id)+"#pos";
 let CURRENT_STORE_ID=STORE_ENTRY_ID||1;
 if(STORE_ENTRY_ID){ try{sessionStorage.setItem("baekeok_store_id",String(STORE_ENTRY_ID))}catch(_){} }
 // Dedicated store entry: remove the selector node entirely so later CSS/header changes cannot revive it.
@@ -1262,7 +1263,7 @@ async function loadStores(){
    }
    return;
  }
- const applyStore=id=>{id=Number(id);if(!id||id===Number(CURRENT_STORE_ID))return;CURRENT_STORE_ID=id;sessionStorage.setItem("baekeok_store_id",String(id));const name=STORE_NAME_BY_ID.get(id)||sel.selectedOptions?.[0]?.text||"";if(name)sessionStorage.setItem("baekeok_store_name",name);if(location.hash==="#dashboard")location.hash="#pos";else route()};
+ const applyStore=id=>{id=Number(id);if(!id||id===Number(CURRENT_STORE_ID))return;CURRENT_STORE_ID=id;sessionStorage.setItem("baekeok_store_id",String(id));const name=STORE_NAME_BY_ID.get(id)||sel.selectedOptions?.[0]?.text||"";if(name)sessionStorage.setItem("baekeok_store_name",name);if(location.hash==="#dashboard")location.assign(STORE_ENTRY_URL(id));else route()};
  sel.onchange=()=>applyStore(sel.value);
  if(!LIVE){syncStoreSelectDisplay();return}
  try{
@@ -1431,7 +1432,7 @@ async function renderDashboard(){
   const regions=["전체 지역",...new Set(rows.map(r=>r.region_group||"기타"))];
   view.innerHTML='<div class="hq-dashboard"><div class="hq-title"><div class="hq-title-row"><h2>지점 현황</h2><button type="button" class="btn btn-secondary btn-sm hq-product-button" id="hqProductControl">상품 배포</button></div><div class="hq-filterbar"><label class="hq-store-search" aria-label="지점명 검색"><input id="hqStoreSearch" type="search" placeholder="지점명 검색" autocomplete="off"></label><label class="hq-region-filter" aria-label="지역 선택"><select id="hqRegionSelect">'+regions.map(x=>'<option value="'+safeHtml(x)+'">'+safeHtml(x)+'</option>').join("")+'</select></label><label class="hq-region-filter" aria-label="정렬 기준 선택"><select id="hqSortSelect"><option value="sales7">최근 7일 매출</option><option value="total">누적 매출</option><option value="tx">거래 건수</option><option value="name">지점명</option></select></label></div></div>'+summary+'<div class="hq-grid">'+cards+'</div><div class="empty" id="hqRegionEmpty" style="display:none">이 지역에 운영 중인 지점이 없습니다.</div></div>';
   document.getElementById("hqProductControl").onclick=()=>window.openHqProductModal?.();
-  const bindStoreButtons=()=>view.querySelectorAll(".hq-store-panel button").forEach(btn=>btn.onclick=()=>{const c=btn.closest(".hq-store-panel"),sel=document.getElementById("storeSelect");sel.value=c.dataset.store;CURRENT_STORE_ID=Number(c.dataset.store);sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));if(c.dataset.storeName)STORE_NAME_BY_ID.set(CURRENT_STORE_ID,c.dataset.storeName);sel.value=String(CURRENT_STORE_ID);syncStoreSelectDisplay();location.hash="#pos";});
+  const bindStoreButtons=()=>view.querySelectorAll(".hq-store-panel button").forEach(btn=>btn.onclick=()=>{const c=btn.closest(".hq-store-panel");location.assign(STORE_ENTRY_URL(Number(c.dataset.store)));});
   bindStoreButtons();
   const regionSel=document.getElementById("hqRegionSelect"),sortSel=document.getElementById("hqSortSelect"),searchEl=document.getElementById("hqStoreSearch"),empty=document.getElementById("hqRegionEmpty"),grid=view.querySelector(".hq-grid");
   const applyDashboardView=()=>{const region=regionSel.value,key=sortSel.value,q=String(searchEl.value||"").trim().toLocaleLowerCase("ko-KR");ranked.sort((a,b)=>key==="total"?Number(b.sales_total)-Number(a.sales_total):key==="tx"?Number(b.tx_count)-Number(a.tx_count):key==="name"?String(a.store_name).localeCompare(String(b.store_name),"ko"):Number(b.sales_7d)-Number(a.sales_7d));let visible=0;ranked.forEach(r=>{const el=view.querySelector('.hq-store-panel[data-store="'+r.store_id+'"]');if(!el)return;grid.appendChild(el);const regionOk=region==="전체 지역"||(r.region_group||"기타")===region,nameOk=!q||String(r.store_name||"").toLocaleLowerCase("ko-KR").includes(q),show=regionOk&&nameOk;el.style.display=show?"":"none";if(show)visible++;});empty.style.display=visible?"none":"block";};
