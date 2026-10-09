@@ -118,3 +118,6 @@
 .recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder i{font-size:1.55rem!important}
 .recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.48rem!important;line-height:1.1!important;letter-spacing:-.045em!important;white-space:nowrap!important;overflow:visible!important;word-break:keep-all!important;width:max-content!important;max-width:100%!important;font-weight:750!important}
 .recipe-v220-card:not(.is-open) .recipe-v220-thumb:has(.recipe-v220-thumb-placeholder){overflow:hidden!important}
+
+/* v0.167: compact, regular-weight single-line placeholder labels. */
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.43rem!important;font-weight:400!important;letter-spacing:-.05em!important;white-space:nowrap!important;word-break:keep-all!important}
