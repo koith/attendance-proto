@@ -225,12 +225,12 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     sh.getRange(sr,1,1,width).setBackground(pale).setFontColor(headerGreen)
       .setFontSize(13).setFontWeight('bold').setHorizontalAlignment('left');
     sh.setRowHeight(sr,30);
-    sh.getRange(hr,1,1,width).setBackground(headerGreen).setFontColor('#ffffff')
+    sh.getRange(hr,1,1,s.data.header.length).setBackground(headerGreen).setFontColor('#ffffff')
       .setFontWeight('bold').setHorizontalAlignment('center')
       .setBorder(true,true,true,true,true,true,'#9fb2a6',SpreadsheetApp.BorderStyle.SOLID);
     sh.setRowHeight(hr,30);
     if(dr.count){
-      sh.getRange(dr.first,1,dr.count,width).setBackground(white)
+      sh.getRange(dr.first,1,dr.count,s.data.header.length).setBackground(white)
         .setBorder(true,true,true,true,true,true,line,SpreadsheetApp.BorderStyle.SOLID)
         .setVerticalAlignment('middle');
       for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,28);
