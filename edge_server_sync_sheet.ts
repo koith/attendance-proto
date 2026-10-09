@@ -150,15 +150,26 @@ async function automaticCycle(){
   if(error||!state)throw new Error("SERVER_CHANGE_DETECTOR_UNAVAILABLE");
   const release=await reportRelease();
   const desiredGlobal=state.fingerprint+"|"+await hash(release);
-  if(state.synced_fingerprint===desiredGlobal)return {ok:true,skipped:true,reason:"UNCHANGED_SOURCE"};
+  if(state.synced_fingerprint===desiredGlobal){
+    const {data:recent,error}=await client.from("sheet_sync_month_state").select("synced_at").eq("store_id",storeId).eq("ym",currentYm()).maybeSingle();
+    if(error)throw new Error("SHEET_RECENCY_READ_FAILED");
+    if(recent?.synced_at&&Date.now()-new Date(recent.synced_at).getTime()<15*60*1000)
+      return {ok:true,skipped:true,reason:"UNCHANGED_SOURCE"};
+  }
   const current=currentYm(),months=monthTargets(current);
-  let pending=false,processed=null,counts={checked:0,eligible:0};
+  let pending=false,processed=[],writes=0,counts={checked:0,eligible:0};
   for(const ym of months){
     const prepared=await buildReport(ym,storeId);counts.checked++;
     if(!shouldWriteMonth(ym,current,prepared.source))continue;
     counts.eligible++;
     const r=await writeClaimed(ym,storeId,prepared,release,false);
-    if(r.written){processed={ym,spreadsheet_id:r.result.spreadsheet_id};pending=true;break;}
+    if(r.written){
+      processed.push({ym,spreadsheet_id:r.result.spreadsheet_id});writes++;
+      // A live shift accrues time continuously. Do not let today's changing
+      // fingerprint starve last month's catch-up.
+      if(writes>=3){pending=true;break;}
+      continue;
+    }
     const {data:monthState,error}=await client.from("sheet_sync_month_state").select("desired_fingerprint,synced_fingerprint").eq("store_id",storeId).eq("ym",ym).maybeSingle();
     if(error||!monthState||monthState.synced_fingerprint!==monthState.desired_fingerprint)pending=true;
   }
