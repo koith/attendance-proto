@@ -248,6 +248,13 @@ Deno.serve(async req=>{
          !Number.isSafeInteger(calculatedWon)||calculatedWon<0||
          !Number.isSafeInteger(approvedWon)||approvedWon<0||reason.length<3)
         throw new HttpError(400,"INVALID_WEEKLY_APPROVAL");
+      const {engine:approvalEngine}=await sourceFor(ym,storeId);
+      const currentPayroll=await approvalEngine.computeMonthPayroll(ym);
+      const employeeRow=currentPayroll.rows.find(r=>Number(r.employee_id)===employeeId);
+      if(!employeeRow||!employeeRow.pay||employeeRow.payrollType!=="HOURLY")
+        throw new HttpError(404,"WEEKLY_EMPLOYEE_NOT_FOUND");
+      const actualCalculated=Number(employeeRow.pay.weeklyCalculatedAmounts?.[weekStart]||0);
+      if(calculatedWon!==actualCalculated)throw new HttpError(409,"WEEKLY_CALCULATED_AMOUNT_CHANGED");
       const token=/^Bearer (.+)$/i.exec(req.headers.get("Authorization")||"")?.[1];
       if(!token)throw new HttpError(401,"NOT_AUTHORIZED");
       const userClient=createClient(projectUrl,Deno.env.get("SUPABASE_ANON_KEY")||"",{
