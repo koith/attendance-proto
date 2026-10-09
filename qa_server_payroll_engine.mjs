@@ -77,3 +77,16 @@ const comparison=(R)=>({
 });
 assert.deepEqual(JSON.parse(JSON.stringify(comparison(baseResult))),JSON.parse(JSON.stringify(comparison(browserResult))));
 console.log('PASS independent VM browser-vs-server payroll replay arithmetic and sessions');
+
+for(const mode of ['PROVIDED','NOT_PROVIDED','IGNORED']){
+  contracts[0].break_provision_mode=mode;
+  const server=await e.browserBasePayroll('2026-10');
+  const browser=await sandbox.browserPayroll('2026-10');
+  assert.deepEqual(JSON.parse(JSON.stringify(comparison(server))),JSON.parse(JSON.stringify(comparison(browser))),mode+' replay');
+  const hourly=server.rows.find(x=>x.employee_id===1);
+  assert.equal(hourly.breakMode,mode);
+  if(mode==='PROVIDED'){assert.equal(hourly.breakBonusMinutes,0);assert.ok(hourly.breakDeductSeconds>=1800);}
+  if(mode==='IGNORED'){assert.equal(hourly.breakBonusMinutes,0);assert.equal(hourly.breakDeductSeconds,0);assert.equal(hourly.breakNotProvidedCount,0);}
+  if(mode==='NOT_PROVIDED'){assert.ok(hourly.breakBonusMinutes>=30);assert.equal(hourly.breakDeductSeconds,0);}
+}
+console.log('PASS real browser/server replay covers PROVIDED, NOT_PROVIDED, and IGNORED contract break modes');
