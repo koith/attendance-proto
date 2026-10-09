@@ -16,8 +16,8 @@ revoke all on function public.admin_contract_break_mode_set(bigint,text) from pu
 grant execute on function public.admin_contract_break_mode_set(bigint,text) to authenticated,service_role;
 create or replace function public.admin_store_payroll_contracts_v4(p_store_id bigint,p_month date)
 returns table(employee_id bigint,contract_id bigint,payroll_type text,hourly_wage integer,monthly_salary integer,tax_treatment text,business_deduction_rate numeric,effective_from date,effective_to date,break_time_provided boolean,night_allowance_enabled boolean,night_allowance_mode text,night_allowance_value numeric,night_allowance_start time without time zone,night_allowance_end time without time zone,break_provision_mode text)
-language sql security invoker set search_path=public,pg_temp as $$
-select v.*,coalesce(c.break_provision_mode,case when v.break_time_provided then 'PROVIDED' else 'NOT_PROVIDED' end) from public.admin_store_payroll_contracts_v3(p_store_id,p_month) v join public.employment_contracts c on c.id=v.contract_id
-$$;
+language sql security definer set search_path=public,pg_temp as $
+select v.*,coalesce(c.break_provision_mode,case when v.break_time_provided then 'PROVIDED' else 'NOT_PROVIDED' end) from public.admin_store_payroll_contracts_v3(p_store_id,p_month) v join public.employment_contracts c on c.id=v.contract_id where public.can_manage_store(p_store_id)
+$;
 revoke all on function public.admin_store_payroll_contracts_v4(bigint,date) from public,anon;
 grant execute on function public.admin_store_payroll_contracts_v4(bigint,date) to authenticated,service_role;
