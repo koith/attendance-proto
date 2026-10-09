@@ -144,7 +144,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   const active=emps.filter(isActive);
   const eventEmployeeIds=new Set(events.map(x=>Number(x.employee_id)));
   const payrollCandidates=emps.filter(e=>isActive(e)||eventEmployeeIds.has(Number(e.id)));
-  let periodWeeks=null, overrides={}, contracts={}, contractWorkdays={}, substitutions=[];
+  let periodWeeks=null, overrides={}, contracts={}, contractWorkdays={}, substitutions=[], weeklyApprovals=[];
   if(LIVE){
     try{
       const pd=await BE.payrollPeriod(ym);
@@ -161,6 +161,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       });
     }catch(e){ console.warn("payroll contract load failed",e); }
     try{ substitutions=await BE.payrollSubstitutions(ym)||[]; }catch(e){ console.warn("payroll substitution load failed",e); }
+    if(typeof BE.payrollWeeklyApprovals==='function')weeklyApprovals=await BE.payrollWeeklyApprovals(ym)||[];
   }
   const weeks = periodWeeks || weeksInMonth(ym);
   const p2=n=>String(n).padStart(2,"0");
@@ -239,6 +240,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
         const weeklyContractMin=Number(cw?.weeklyMinutes||0);
         let qualifiedWeeks=0, juhyuHours=0;
         const weeklyReviewComments=[];
+        const weeklyAmounts=new Map();
         if(weeklyContractMin>=900 && cw){
           const weekMap={};
           for(const ss of sess.filter(x=>x.status==="COMPLETE")){
@@ -270,15 +272,27 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
               const weeklyWorkdays=Object.entries(cw.days).map(([weekday,contracted_minutes])=>({weekday,contracted_minutes}));
               const review=assessWeeklyRest({weeklyMinutes:weeklyContractMin,workdays:weeklyWorkdays,
                 sessions:sess,substitutions:weeklySubstitutions,weekStart:mondayKey});
-              if(review.automaticEligible){qualifiedWeeks++;juhyuHours+=weeklyHolidayHours;}
+              if(review.automaticEligible){qualifiedWeeks++;juhyuHours+=weeklyHolidayHours;weeklyAmounts.set(mondayKey,truncateWon(effWage*weeklyHolidayHours));}
               else {weeklyReviewComments.push(...review.reasons.map(reason=>mondayKey+': '+reason));}
             }
           }
         }
         pay.weeklyReviewComments=weeklyReviewComments;
+        const employeeApprovals=weeklyApprovals.filter(a=>Number(a.employee_id)===Number(e.id));
+        const approvedWeeks=new Set();
+        let approvalDelta=0;
+        for(const a of employeeApprovals){
+          if(approvedWeeks.has(a.week_start))continue;
+          approvedWeeks.add(a.week_start);
+          const original=weeklyAmounts.get(a.week_start)||0;
+          const decision=approvedWeeklyAdjustment(original,a.approved_won,a.reason,a.approved_by,a.approved_at);
+          approvalDelta+=decision.amount-original;
+          weeklyReviewComments.push(a.week_start+': 관리자 승인 '+original+'원 → '+decision.amount+'원 ('+a.reason+')');
+        }
+        pay.weeklyApprovalDelta=approvalDelta;
         pay.jweeks=qualifiedWeeks;
         pay.weekly=Math.round(effWage*Math.min(8,weeklyContractMin/300));
-        pay.juhyu=Math.round(effWage*juhyuHours);
+        pay.juhyu=Math.round(effWage*juhyuHours)+Number(pay.weeklyApprovalDelta||0);
         if(hours<=0){pay.base=0;pay.weekly=0;pay.juhyu=0;pay.adjust=0;pay.gross=0;pay.net=0;pay.jweeks=0;}
         else {const breakCompPay=Math.round((effWage||0)*breakBonusMinutes/60);pay.breakCompPay=breakCompPay;pay.gross=Math.round(pay.base+pay.juhyu+pay.adjust+breakCompPay);pay.net=xrounddown(pay.gross*(1-pay.rate),-1);}
       }
