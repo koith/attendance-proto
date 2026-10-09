@@ -3,6 +3,15 @@ on:
   pull_request:
     paths:
       - 'server_payroll_engine.mjs'
+      - 'edge_server_sync_sheet.ts'
+      - 'server_payroll_bridge_v1.js'
+      - 'qa_server_sheet_pipeline.mjs'
+      - 'payroll_elapsed_weeks_v1.js'
+      - 'index.html'
+      - 'supabase/migrations/*sheet_server*'
+      - '.github/workflows/p0-pages-deploy.yml'
+      - '.github/workflows/apps-script-deploy.yml'
+      - 'tools/trigger_sheet_deploy_sync.mjs'
       - 'qa_server_payroll_engine.mjs'
       - '.github/workflows/server-payroll-parity.yml'
   push:
@@ -21,3 +30,6 @@ jobs:
           node-version: '22'
       - run: node --check server_payroll_engine.mjs
       - run: node qa_server_payroll_engine.mjs
+      - run: node --check server_payroll_bridge_v1.js
+      - run: node --check tools/trigger_sheet_deploy_sync.mjs
+      - run: node qa_server_sheet_pipeline.mjs
