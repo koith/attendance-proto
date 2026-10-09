@@ -165,6 +165,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
 
   var white='#ffffff', ink='#26332b', green='#176b3a', headerGreen='#0f6335', pale='#dff2e3', canvas='#f7f9f8', line='#cfd8d2';
   sh.getRange(1,1,out.length,width).setFontFamily('Arial').setFontSize(10).setFontColor(ink)
+    .setFontWeight('normal').setHorizontalAlignment('center')
     .setBackground(white).setVerticalAlignment('middle').setWrap(false);
 
   // Spreadsheet-native report header: compact, printable, and stable in Google Sheets mobile.
