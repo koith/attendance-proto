@@ -16,6 +16,7 @@ on:
       - 'qa_server_payroll_parity_v1.mjs'
       - 'qa_server_payroll_fixture_parity_v1.mjs'
       - 'qa_live_server_payroll_v1.mjs'
+      - 'qa_hq_dashboard_entry_auth.mjs'
       - 'qa_server_sheet_test_exclusion_v1.mjs'
       - 'supabase/functions/server-sync-sheet/**'
       - '.github/workflows/p0-pages-deploy.yml'
