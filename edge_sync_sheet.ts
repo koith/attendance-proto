@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     const { data: adminUser } = await admin.from("admin_users").select("user_id").eq("user_id", userData.user.id).maybeSingle();
     if (!adminUser) return json({ ok: false, error: "NOT_ADMIN" }, 403);
 
-    // 마감 여부 + snapshot 조회 (service role로 직접 읽기)
+    // Capture the server-observed source version before rendering. Never acknowledge a later edit.\n    const { data: observedSheetState } = await admin.from('sheet_sync_change_state').select('fingerprint').eq('store_id', 1).maybeSingle();\n    const observedFingerprint = observedSheetState?.fingerprint ?? null;\n\n    // 마감 여부 + snapshot 조회 (service role로 직접 읽기)
     const { data: snap } = await admin
       .from("payroll_snapshot")
       .select("employee_name,hours,wage,weeks,base_pay,juhyu_pay,adjust,gross_pay,net_pay,closed_at")
@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: "SHEET_COLUMN_RESIZE_NOT_CONFIRMED", detail: resize ?? null }, 502);
     }
 
-    return json({ ok: true, ym, closed: isClosed, status: statusLabel, result: gsJson });
+    // A successful manual/browser sync may acknowledge only the fingerprint observed\n    // before the write, and only when the server fingerprint is still unchanged.\n    // Do not mark a later mutation as synced; never mask a pending change.\n    if (observedFingerprint) {\n      const { error: ackError } = await admin.from('sheet_sync_change_state')\n        .update({ synced_fingerprint: observedFingerprint, synced_at: new Date().toISOString(), last_error: null })\n        .eq('store_id', 1).eq('fingerprint', observedFingerprint);\n      if (ackError) console.warn('sheet fingerprint acknowledgement failed', ackError.message);\n    }\n    return json({ ok: true, ym, closed: isClosed, status: statusLabel, result: gsJson });
   } catch (err) {
     return json({ ok: false, error: String(err) }, 500);
   }
