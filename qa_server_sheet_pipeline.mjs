@@ -14,7 +14,7 @@ assert.match(cron,/x-sheet-autosync-token/);
 assert.match(source,/security invoker/i);
 assert.match(source,/grant execute on function public.sheet_server_payroll_source\(bigint,text\) to service_role/);
 assert.ok(!source.includes('delete from')&&!source.includes('update public.payroll_snapshot'),'server source should be read only');
-assert.ok(app.includes('APP_VERSION="v0.182"'));
+assert.ok(app.includes('APP_VERSION="v0.183"'));
 assert.ok(app.includes('functions/v1/server-sync-sheet'));
 assert.ok(app.includes('async serverPayroll(ym)'));
 assert.ok(bridge.includes('window.__setServerPayrollResult?.(result)'));
