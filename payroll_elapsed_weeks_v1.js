@@ -20,8 +20,8 @@
       append('test_mode_write_guard_v1.js?v=20260915a','test-mode-write-guard');
       append('store_controls_v1.js?v=20260918a','store-controls');
       append('payroll_live_accrual_v1.js?v=20260929v064','payroll-live-accrual');
-      append('payroll_contract_authority_v1.js?v=20260929v064','payroll-contract-authority');
-      append('payroll_night_allowance_v1.js?v=20260916b','payroll-night-allowance');
+      append('payroll_contract_authority_v1.js?v=20261009v0185','payroll-contract-authority');
+      append('payroll_night_allowance_v1.js?v=20261009v0185','payroll-night-allowance');
       append('payroll_senior_ux_v2.js?v=20260927v220','payroll-senior-ux');
       append('payroll_night_allowance_ui_v1.js?v=20260927v001','payroll-night-ui');
       append('test_mode_ui_v1.js?v=20260927v221','test-mode-ui');
