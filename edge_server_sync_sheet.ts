@@ -186,7 +186,8 @@ Deno.serve(async req=>{
       const ym=String(body.ym||currentYm());
       if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(ym))throw new HttpError(400,"BAD_YM");
       const {source,report}=await (async()=>{const p=await buildReport(ym,1);return {source:p.source,report:p.report}})();
-      return reply({ok:true,mode:"dryrun",ym,employees:(source.employees||[]).length,events:(source.events||[]).length,payroll_rows:report.payroll.rows.length,attendance_rows:report.attendance.rows.length});
+      const release=await reportRelease();
+      return reply({ok:true,mode:"dryrun",release_revision:await hash(release),ym,employees:(source.employees||[]).length,events:(source.events||[]).length,payroll_rows:report.payroll.rows.length,attendance_rows:report.attendance.rows.length});
     }
     if(mode==="cron"){
       if(body.store_id!=null&&Number(body.store_id)!==1)throw new HttpError(403,"STORE_NOT_ALLOWED");
