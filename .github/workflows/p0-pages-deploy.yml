@@ -15,6 +15,7 @@ on:
       - 'qa_server_owned_sheet_v1.mjs'
       - 'qa_server_payroll_parity_v1.mjs'
       - 'qa_server_payroll_fixture_parity_v1.mjs'
+      - 'qa_server_sheet_test_exclusion_v1.mjs'
       - 'supabase/functions/server-sync-sheet/**'
       - '.github/workflows/p0-pages-deploy.yml'
   push:
@@ -63,6 +64,7 @@ jobs:
           node qa_server_owned_sheet_v1.mjs
           node qa_server_payroll_parity_v1.mjs
           node qa_server_payroll_fixture_parity_v1.mjs
+          node qa_server_sheet_test_exclusion_v1.mjs
       - name: Intentional gate failure proof
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.prove_gate_failure }}
         run: |
