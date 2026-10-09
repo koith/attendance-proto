@@ -132,3 +132,8 @@
 /* v0.171: match placeholder thumbnail width to photo thumbnail; readable mobile labels. */
 @media(min-width:621px){.recipe-v220-card:not(.is-open) .recipe-v220-thumb:has(.recipe-v220-thumb-placeholder){width:68px!important;min-width:68px!important;max-width:68px!important}.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.68rem!important;font-weight:700!important;letter-spacing:-.04em!important}}
 @media(max-width:620px){.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.78rem!important;font-weight:700!important;letter-spacing:-.035em!important;line-height:1.15!important;white-space:normal!important;word-break:keep-all!important;width:100%!important;max-width:100%!important}}
+
+/* v0.172: desktop pencil centered in button, glyph 80% of previous 1.6rem. */
+@media(min-width:621px){.recipe-v220-edit{display:grid!important;place-items:center!important;padding:0!important;font-size:1.28rem!important;line-height:1!important}.recipe-v220-edit-glyph{display:block!important;line-height:1!important;transform:none!important;margin:0!important}}
+/* Restore original readable mobile category illustration scale (v0.93 era). */
+@media(max-width:620px){.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder i{font-size:2.45rem!important;line-height:1!important}}
