@@ -126,7 +126,7 @@ function _seniorAttendanceLayout(section,payroll){
   return {header:keys,rows:(section.rows||[]).map(function(row){
     var get=function(key){var i=h.indexOf(key);return i<0?'':row[i];};
     var raw=get('실근무'),provided=get('휴게 제공 여부')!=='미제공';
-    var m=String(raw).match(/^(\\d+):(\\d{2})/),seconds=m?Number(m[1])*3600+Number(m[2])*60:0;
+    var m=String(raw).match(/^([0-9]+):([0-9]{2})/),seconds=m?Number(m[1])*3600+Number(m[2])*60:0;
     var deduct=provided?(seconds<=14400?0:seconds<=16200?seconds-14400:seconds<=30600?1800:seconds<=32400?seconds-28800:3600):0;
     var bonus=provided?0:(seconds>=28800?3600:seconds>14400?1800:0);
     var dur=function(n){var v=Math.floor(n/60);return Math.floor(v/60)+':'+String(v%60).padStart(2,'0');};
