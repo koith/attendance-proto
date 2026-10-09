@@ -35,7 +35,7 @@ begin
     'contracts',coalesce((select jsonb_agg(to_jsonb(c) order by c.employee_id) from
       (select distinct on (e.id) e.id as employee_id,c.id as contract_id,c.payroll_type,c.hourly_wage,
        c.monthly_salary,c.tax_treatment,c.business_deduction_rate,c.effective_from,c.effective_to,
-       c.break_time_provided,c.break_provision_mode,c.night_allowance_enabled,c.night_allowance_mode,c.night_allowance_value,
+       c.break_time_provided,c.night_allowance_enabled,c.night_allowance_mode,c.night_allowance_value,
        c.night_allowance_start,c.night_allowance_end
        from public.employees e
        join public.employment_periods ep on ep.employee_id=e.id
