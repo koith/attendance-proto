@@ -128,3 +128,7 @@
 .recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.88rem!important;font-weight:700!important;letter-spacing:-.025em!important;white-space:nowrap!important;max-width:100%!important}
 .recipe-v220-edit{font-size:1.6rem!important}
 }
+
+/* v0.171: match placeholder thumbnail width to photo thumbnail; readable mobile labels. */
+@media(min-width:621px){.recipe-v220-card:not(.is-open) .recipe-v220-thumb:has(.recipe-v220-thumb-placeholder){width:68px!important;min-width:68px!important;max-width:68px!important}.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.68rem!important;font-weight:700!important;letter-spacing:-.04em!important}}
+@media(max-width:620px){.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.78rem!important;font-weight:700!important;letter-spacing:-.035em!important;line-height:1.15!important;white-space:normal!important;word-break:keep-all!important;width:100%!important;max-width:100%!important}}
