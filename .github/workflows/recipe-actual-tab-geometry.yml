@@ -1,0 +1,20 @@
+name: recipe actual tab geometry
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'recipe_access_v220.css'
+      - 'qa_recipe_actual_tab_geometry.mjs'
+      - '.github/workflows/recipe-actual-tab-geometry.yml'
+  workflow_dispatch:
+jobs:
+  geometry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node qa_recipe_actual_tab_geometry.mjs
