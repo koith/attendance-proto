@@ -19,7 +19,7 @@ function seoulParts(date=new Date()){
 function currentYm(){const v=seoulParts();return `${v.year}-${v.month}`;}
 function seoulStamp(){const v=seoulParts();return `${v.year}-${v.month}-${v.day} ${v.hour}:${v.minute}`;}
 async function authenticate(req,mode){
-  if(mode==="cron"){
+  if(mode==="cron"||mode==="dryrun"){
     const token=req.headers.get("x-sheet-autosync-token")||"";
     if(token.length<64)throw new HttpError(401,"BAD_INTERNAL_TOKEN");
     const {data,error}=await client.rpc("sheet_autosync_token_valid",{p_token:token});
@@ -180,8 +180,14 @@ Deno.serve(async req=>{
   if(req.method!=="POST")return reply({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   try{
     const body=await req.json(),mode=String(body?.mode||"sync");
-    if(!["cron","payroll","parity","sync"].includes(mode))throw new HttpError(400,"BAD_MODE");
+    if(!["cron","dryrun","payroll","parity","sync"].includes(mode))throw new HttpError(400,"BAD_MODE");
     await authenticate(req,mode);
+    if(mode==="dryrun"){
+      const ym=String(body.ym||currentYm());
+      if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(ym))throw new HttpError(400,"BAD_YM");
+      const {source,report}=await (async()=>{const p=await buildReport(ym,1);return {source:p.source,report:p.report}})();
+      return reply({ok:true,mode:"dryrun",ym,employees:(source.employees||[]).length,events:(source.events||[]).length,payroll_rows:report.payroll.rows.length,attendance_rows:report.attendance.rows.length});
+    }
     if(mode==="cron"){
       if(body.store_id!=null&&Number(body.store_id)!==1)throw new HttpError(403,"STORE_NOT_ALLOWED");
       return reply(await automaticCycle());
