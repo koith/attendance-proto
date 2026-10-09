@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const api=fs.readFileSync('supabase/functions/server-sync-sheet/index.ts','utf8');
+const engine=fs.readFileSync('supabase/functions/server-sync-sheet/engine.mjs','utf8');
+const html=fs.readFileSync('index.html','utf8');
+const migration=fs.readFileSync('supabase/migrations/20261009123000_payroll_weekly_approvals.sql','utf8');
+assert.match(api,/mode==="weekly_approve"/);
+assert.match(api,/userClient\.rpc\("approve_payroll_weekly_allowance"/);
+assert.match(api,/WEEKLY_CALCULATED_AMOUNT_CHANGED/);
+assert.match(engine,/assessWeeklyRest\(/);
+assert.match(engine,/weeklyApprovalDelta/);
+assert.match(engine,/weeklyReviewComments/);
+assert.match(html,/주휴수당 정정·승인/);
+assert.match(html,/weeklyApproveSave/);
+assert.match(migration,/enable row level security/);
+assert.match(migration,/approved_by uuid not null/);
+assert.match(migration,/PAYROLL_ALREADY_CLOSED/);
+console.log('PASS weekly allowance UI/server/migration integration static QA');
