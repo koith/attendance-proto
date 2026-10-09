@@ -175,6 +175,20 @@ function _sortAttendanceByDate(section){
   return {header:section.header,rows:rows.map(function(item){return item.row;})};
 }
 function _writeMonth(ss, name, meta, attendance, sessions, payroll){
+  // TEST is an operational test employee, not a payroll/reporting employee.
+  // Filter both sections on every sync, including old cached client payloads.
+  // Never mutate source attendance events, contracts or payroll calculations.
+  function withoutTestEmployee(section){
+    var h=section.header||[];
+    var nameIndex=h.indexOf('직원명');
+    if(nameIndex<0)return section;
+    return {header:h,rows:(section.rows||[]).filter(function(row){
+      return String(row[nameIndex]||'').trim().toUpperCase()!=='TEST';
+    })};
+  }
+  payroll=withoutTestEmployee(payroll);
+  attendance=withoutTestEmployee(attendance);
+  sessions=withoutTestEmployee(sessions);
   // Senior October workbook is the display contract. Transform report columns only.
   payroll=_withoutPayrollStatusColumns(payroll);
   payroll=_seniorPayrollLayout(payroll,attendance);
