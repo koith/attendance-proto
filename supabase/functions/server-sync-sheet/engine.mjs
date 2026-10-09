@@ -156,7 +156,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       (cs||[]).forEach(c=>{ contracts[Number(c.employee_id)]=c; });
       const ws=await BE.payrollContractWorkdays(ym);
       (ws||[]).forEach(w=>{
-        const id=Number(w.employee_id); if(contracts[id]?.contract_id!=null&&Number(w.contract_id)!==Number(contracts[id].contract_id))return;
+        const id=Number(w.employee_id); if(w.contract_id!=null&&contracts[id]?.contract_id!=null&&Number(w.contract_id)!==Number(contracts[id].contract_id))return;
         if(!contractWorkdays[id]) contractWorkdays[id]={weeklyMinutes:Number(w.weekly_contracted_minutes||0),days:{}};
         if(w.weekday!=null) contractWorkdays[id].days[Number(w.weekday)]=Number(w.contracted_minutes||0);
       });
