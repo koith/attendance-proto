@@ -1,6 +1,7 @@
 // Canonical server-owned payroll and Google Sheet writer.
 // Manual admin sync and internal cron share the same report calculation and format contract.
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
+import {createRemoteJWKSet,jwtVerify} from "https://esm.sh/jose@5";
 import {createPayrollEngine} from "./engine.mjs";
 
 const CORS={
@@ -19,6 +20,18 @@ function seoulParts(date=new Date()){
 function currentYm(){const v=seoulParts();return `${v.year}-${v.month}`;}
 function seoulStamp(){const v=seoulParts();return `${v.year}-${v.month}-${v.day} ${v.hour}:${v.minute}`;}
 async function authenticate(req,mode){
+  if(mode==="deployment"){
+    const header=/^Bearer (.+)$/i.exec(req.headers.get("Authorization")||"");
+    if(!header)throw new HttpError(401,"DEPLOYMENT_TOKEN_REQUIRED");
+    try{
+      const jwks=createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"));
+      const {payload}=await jwtVerify(header[1],jwks,{issuer:"https://token.actions.githubusercontent.com",audience:"https://waluhdgqhwjjwmflhrle.supabase.co/functions/v1/server-sync-sheet"});
+      const workflow=String(payload.workflow_ref||"");
+      const accepted=["p0-pages-deploy.yml","apps-script-deploy.yml"].some(file=>workflow===`koith/attendance-proto/.github/workflows/${file}@refs/heads/main`);
+      if(!accepted||payload.repository!=="koith/attendance-proto"||payload.ref!=="refs/heads/main")throw new Error("UNTRUSTED_WORKFLOW");
+      return {internal:true,workflow};
+    }catch{throw new HttpError(403,"DEPLOYMENT_IDENTITY_REJECTED")}
+  }
   if(mode==="cron"||mode==="dryrun"){
     const token=req.headers.get("x-sheet-autosync-token")||"";
     if(token.length<64)throw new HttpError(401,"BAD_INTERNAL_TOKEN");
@@ -191,8 +204,17 @@ Deno.serve(async req=>{
   if(req.method!=="POST")return reply({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   try{
     const body=await req.json(),mode=String(body?.mode||"sync");
-    if(!["cron","dryrun","payroll","parity","sync"].includes(mode))throw new HttpError(400,"BAD_MODE");
+    if(!["cron","dryrun","deployment","payroll","parity","sync"].includes(mode))throw new HttpError(400,"BAD_MODE");
     await authenticate(req,mode);
+    if(mode==="deployment"){
+      const ym=currentYm();
+      const prepared=await buildReport(ym,1);
+      const release=await reportRelease();
+      const result=await writeClaimed(ym,1,prepared,release,true);
+      if(!result.written)throw new HttpError(409,"SHEET_WRITE_IN_PROGRESS");
+      return reply({ok:true,written:true,ym,spreadsheet_id:result.result.spreadsheet_id,
+        column_resize_applied:result.result.sheet_format?.column_resize_applied===true});
+    }
     if(mode==="dryrun"){
       const ym=String(body.ym||currentYm());
       if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(ym))throw new HttpError(400,"BAD_YM");
