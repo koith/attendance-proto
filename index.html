@@ -701,7 +701,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.154</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.155</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -790,7 +790,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.154";
+const APP_VERSION="v0.155";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1102,7 +1102,7 @@ const SupaBE = (()=>{
         body:JSON.stringify({ym,payload})
       });
       const t=await r.text(); let j=null; try{ j=JSON.parse(t); }catch(e){}
-      if(!r.ok || (j&&j.ok===false)) throw new Error((j&&(j.error||j.detail))||t.slice(0,200));
+      if(!r.ok || (j&&j.ok===false)) throw new Error([j?.error,typeof j?.detail==="string"?j.detail:(j?.detail?JSON.stringify(j.detail):"")].filter(Boolean).join(": ")||t.slice(0,200));
       return j;
     },
     async todayEvents(){ const t=kstNow(); const p=n=>String(n).padStart(2,"0");
@@ -2602,7 +2602,7 @@ async function drawPay(ym){
         toast("in","구글시트 갱신 완료", res.closed?"마감 확정본":"예상(미마감)");
       }catch(e){
         msg.textContent="갱신 실패";
-        toast("err","구글시트 갱신 실패", e.message.slice(0,40));
+        toast("err","구글시트 갱신 실패", e.message.slice(0,180));
       }finally{ btn.disabled=false; btn.textContent="지금 갱신"; }
     };
   }
