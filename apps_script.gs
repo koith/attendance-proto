@@ -274,6 +274,12 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     var peerWeights=peerRange.getFontWeights();
     for(var pc=0;pc<width;pc++){
       for(var pr=2;pr<peerDisplay.length;pr++){
+        // Report title/subtitle and full-width section labels are presentation,
+        // not column data. Exclude them even when a peer tab has older layout.
+        var first=String(peerDisplay[pr][0]||'').trim();
+        if(first==='급여 집계'||first==='근태 현황'||first==='세션 상세')continue;
+        if(/^(?:20\d{2}년\s*)?\d{1,2}월\s+근태\s*[·ㆍ]\s*급여\s*보고서$/.test(first))continue;
+        if(/^마지막 동기화\s*:/.test(first))continue;
         sharedWidths[pc]=Math.max(sharedWidths[pc]||0,textWidthPx(peerDisplay[pr][pc],peerSizes[pr][pc]||10,peerWeights[pr][pc]==='bold'));
       }
     }
