@@ -2736,6 +2736,15 @@ async function buildSheetSyncPayload(ym){
     }
     return total;
   }
+  // The sheet must receive payable time from the same completed sessions used by payroll.
+  // Never re-derive it from the rounded human-readable '실근무' column in Apps Script.
+  function payableSeconds(shift,provided){
+    if(shift.status!=="COMPLETE")return 0;
+    const sec=Math.max(0,Number(shift.sec||0));
+    const deduct=provided?Math.min(1800,Math.max(0,sec-14400))+Math.min(1800,Math.max(0,sec-30600)):0;
+    const bonus=provided?0:(sec>=28800?3600:sec>14400?1800:0);
+    return Math.max(0,sec-deduct)+bonus;
+  }
   const detailLookup=new Map();
   for(const rec of R.rows){
     const days=new Map();
@@ -2747,7 +2756,7 @@ async function buildSheetSyncPayload(ym){
       const complete=items.filter(x=>x.status==="COMPLETE");
       const night=complete.reduce((n,x)=>n+nightSeconds(x.in,x.out),0);
       detailLookup.set(day+"|"+rec.employee_name,{night:sheetDuration(night),breakSetting:rec.breakTimeProvided?"제공":"미제공",
-        sessions:items.map(x=>sheetDuration(x.status==="COMPLETE"?nightSeconds(x.in,x.out):0))});
+        payable:sheetDuration(complete.reduce((n,x)=>n+payableSeconds(x,rec.breakTimeProvided),0)),sessions:items.map(x=>sheetDuration(x.status==="COMPLETE"?nightSeconds(x.in,x.out):0)),payableSessions:items.map(x=>sheetDuration(payableSeconds(x,rec.breakTimeProvided)))});
     }
   }
   const detailIndexes=new Map();
@@ -2756,12 +2765,12 @@ async function buildSheetSyncPayload(ym){
     const multi=(sessionCount.get(key)||0)>1;
     const idx=detailIndexes.get(key)||0;detailIndexes.set(key,idx+1);
     const night=multi?detail?.sessions?.[idx]:detail?.night;
-    return [...row,night||"00:00",detail?.breakSetting||"—"];
+    return [...row,night||"00:00",detail?.breakSetting||"—",multi?detail?.payableSessions?.[idx]||"0:00":detail?.payable||"0:00"];
   });
   return {
     store_key:String(CURRENT_STORE_ID||1),
     store_name:STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||CONFIG.STORE_NAME,
-    attendance:{ header:["날짜","직원명","출근","퇴근","실근무","상태","정정","정정사유","야간근무","휴게 제공 여부"], rows:detailedAttendance },
+    attendance:{ header:["날짜","직원명","출근","퇴근","실근무","상태","정정","정정사유","야간근무","휴게 제공 여부","급여산정시간"], rows:detailedAttendance },
     sessions:{ header:[], rows:[] },
     payroll:{ header:["직원명","총근무","야간근무","시급","기본급","주휴","휴게","휴게 기준시간(참고)","휴게 제공 여부","휴게수당","조정","예상 세전급여","상태","휴게 미제공 가산시간","가산 포함 급여산정시간","야근수당적용여부","야근수당"], rows:humanPayroll },
   };
