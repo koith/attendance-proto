@@ -7,7 +7,7 @@ for(const start of ['function fromIso(','function applyCorrections(','function p
   assert(i>=0&&end>i,'source missing '+start);
   assert(engine.includes(html.slice(i,end)),'server engine diverged from browser source: '+start);
 }
-const emp=[{id:1,name:'테스트가 아닌 직원',is_active:true,wage:10000,tax_rate:0.033,store_id:1},{id:2,name:'월급 직원',is_active:true,wage:0,tax_rate:0.033,store_id:1}];
+const emp=[{id:1,name:'김가람',is_active:true,wage:10000,tax_rate:0.033,store_id:1},{id:2,name:'월급 직원',is_active:true,wage:0,tax_rate:0.033,store_id:1}];
 const contracts=[{employee_id:1,payroll_type:'HOURLY',hourly_wage:10000,weekly_contracted_minutes:0,break_time_provided:false,tax_treatment:'BUSINESS_INCOME',business_deduction_rate:0.033,night_allowance_enabled:true,night_allowance_mode:'RATE',night_allowance_value:50,night_allowance_start:'22:00',night_allowance_end:'06:00'},
 {employee_id:2,payroll_type:'MONTHLY',monthly_salary:3100000,weekly_contracted_minutes:0,break_time_provided:true,tax_treatment:'BUSINESS_INCOME',business_deduction_rate:0.033,night_allowance_enabled:false}];
 const events=[{id:1,employee_id:1,event_type:'IN',event_at:'2026-10-01T18:00:00'},{id:2,employee_id:1,event_type:'OUT',event_at:'2026-10-01T23:00:00'},{id:3,employee_id:2,event_type:'IN',event_at:'2026-10-02T09:00:00'},{id:4,employee_id:2,event_type:'OUT',event_at:'2026-10-02T18:00:00'}];
