@@ -68,7 +68,7 @@ async function hash(text){
 async function reportRelease(){
   // Deployment SHA invalidates monthly report hashes after an Edge function deployment.
   // GitHub raw ETags invalidate them after main's app/Sheet code changes as well.
-  const paths=["index.html","apps_script.gs","payroll_contract_authority_v1.js","server_payroll_engine.mjs"];
+  const paths=["index.html","apps_script.gs","payroll_contract_authority_v1.js"];
   const stamps=await Promise.all(paths.map(async path=>{
     const r=await fetch(`https://raw.githubusercontent.com/koith/attendance-proto/main/${path}`,{method:"HEAD"});
     if(!r.ok)throw new Error("REPORT_SOURCE_REVISION_UNAVAILABLE");
