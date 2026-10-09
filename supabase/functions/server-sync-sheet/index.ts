@@ -251,7 +251,7 @@ Deno.serve(async req=>{
       const calculatedWon=Number(body.calculated_won),approvedWon=Number(body.approved_won);
       const reason=String(body.reason||"").trim();
       if(!Number.isSafeInteger(employeeId)||employeeId<=0||
-         !/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(weekStart)||
+         !/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(weekStart)||!weekStart.startsWith(ym)||
          !Number.isSafeInteger(calculatedWon)||calculatedWon<0||
          !Number.isSafeInteger(approvedWon)||approvedWon<0||reason.length<3)
         throw new HttpError(400,"INVALID_WEEKLY_APPROVAL");
