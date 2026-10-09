@@ -531,6 +531,9 @@
   .locked-store-name.show{display:block}
   @media(max-width:430px){.locked-store-name{max-width:118px;font-size:.82rem}}
 
+  /* v0.170: store identity must remain visible beside the brand on all store pages. */
+  header .brand #lockedStoreName:not([hidden]){display:block!important;flex:0 1 auto;min-width:0;color:#fff;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  @media(min-width:431px){header .brand #lockedStoreName:not([hidden]){max-width:240px}}
   /* V2.01 payroll card exact geometry restored from pre-regression v1.79 */
   #adminPanel:has(#payList) .payroll-employee-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-flow:row!important;grid-auto-rows:108px!important;gap:8px!important;align-content:start!important;height:auto!important;min-height:224px!important;max-height:none!important;overflow-y:auto!important}
   #adminPanel:has(#payList) .payroll-employee-card{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;box-sizing:border-box!important;width:auto!important;min-width:0!important;max-width:none!important;height:108px!important;min-height:108px!important;max-height:108px!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;background:var(--surface)!important;padding:0 14px 14px!important;gap:0!important;overflow:hidden!important}
@@ -716,7 +719,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.169</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.170</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -1199,7 +1202,7 @@ function syncStoreContextUI(){
   if(sel){sel.classList.toggle("store-context-selector-hidden",!showSelector);sel.hidden=!showSelector;}
   if(shell){shell.classList.toggle("store-context-selector-hidden",!showSelector);shell.hidden=!showSelector;}
   if(crumb){crumb.classList.toggle("store-context-selector-hidden",dashboard);crumb.hidden=dashboard;}
-  if(lockedName){const name=STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||sessionStorage.getItem("baekeok_store_name")||sel?.selectedOptions?.[0]?.text||"현재 지점";lockedName.textContent=name;lockedName.classList.toggle("show",STORE_ENTRY_LOCK&&!dashboard);lockedName.hidden=!(STORE_ENTRY_LOCK&&!dashboard);}
+  if(lockedName){const name=STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||sessionStorage.getItem("baekeok_store_name")||sel?.selectedOptions?.[0]?.text||(Number(CURRENT_STORE_ID)===1?"인하대학교점":"현재 지점");lockedName.textContent=name;lockedName.classList.toggle("show",!dashboard);lockedName.hidden=dashboard;}
   if(tabs)tabs.style.display=dashboard?"none":"";
   if(home){home.setAttribute("aria-label","백억커피");home.removeAttribute("title");}
   if(STORE_ENTRY_LOCK&&dashboard)location.hash="#pos";
