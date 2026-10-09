@@ -248,7 +248,13 @@ Deno.serve(async req=>{
          !Number.isSafeInteger(calculatedWon)||calculatedWon<0||
          !Number.isSafeInteger(approvedWon)||approvedWon<0||reason.length<3)
         throw new HttpError(400,"INVALID_WEEKLY_APPROVAL");
-      const {data,error}=await client.rpc("approve_payroll_weekly_allowance",{
+      const token=/^Bearer (.+)$/i.exec(req.headers.get("Authorization")||"")?.[1];
+      if(!token)throw new HttpError(401,"NOT_AUTHORIZED");
+      const userClient=createClient(projectUrl,Deno.env.get("SUPABASE_ANON_KEY")||"",{
+        auth:{autoRefreshToken:false,persistSession:false},
+        global:{headers:{Authorization:"Bearer "+token}}
+      });
+      const {data,error}=await userClient.rpc("approve_payroll_weekly_allowance",{
         p_store_id:storeId,p_employee_id:employeeId,p_week_start:weekStart,
         p_calculated_won:calculatedWon,p_approved_won:approvedWon,p_reason:reason
       });
