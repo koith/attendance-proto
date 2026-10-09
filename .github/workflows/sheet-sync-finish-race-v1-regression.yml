@@ -1,0 +1,21 @@
+name: sheet-sync-finish-race-v1-regression
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261010110000_sheet_sync_finish_fingerprint_race.sql'
+      - 'qa_sheet_sync_finish_race_v1.mjs'
+      - '.github/workflows/sheet-sync-finish-race-v1-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20261010110000_sheet_sync_finish_fingerprint_race.sql'
+      - 'qa_sheet_sync_finish_race_v1.mjs'
+jobs:
+  race:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node qa_sheet_sync_finish_race_v1.mjs
