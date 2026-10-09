@@ -57,6 +57,8 @@ jobs:
         run: node qa_deep_audit_v1.mjs
       - name: runtime wiring regression
         run: node qa_runtime_wiring_v1.mjs
+      - name: HQ dashboard authorization regression
+        run: node qa_hq_dashboard_entry_auth.mjs
       - name: Sheet report contracts
         run: |
           node qa_sheet_display_values.mjs
