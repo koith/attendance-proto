@@ -531,7 +531,7 @@
   .locked-store-name.show{display:block}
   @media(max-width:430px){.locked-store-name{max-width:118px;font-size:.82rem}}
 
-  /* v0.170: store identity must remain visible beside the brand on all store pages. */
+  /* v0.171: store identity must remain visible beside the brand on all store pages. */
   header .brand #lockedStoreName:not([hidden]){display:block!important;flex:0 1 auto;min-width:0;color:#fff;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   @media(min-width:431px){header .brand #lockedStoreName:not([hidden]){max-width:240px}}
   /* V2.01 payroll card exact geometry restored from pre-regression v1.79 */
@@ -708,6 +708,9 @@
 .recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.43rem!important;font-weight:400!important;letter-spacing:-.05em!important;white-space:nowrap!important;word-break:keep-all!important}
 
 @media(min-width:621px){.recipe-v220-card:not(.is-open) .recipe-v220-thumb:has(.recipe-v220-thumb-placeholder){width:94px!important;min-width:94px!important}.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.88rem!important;font-weight:700!important;letter-spacing:-.025em!important;white-space:nowrap!important}.recipe-v220-edit{font-size:1.6rem!important}}
+
+@media(min-width:621px){.recipe-v220-card:not(.is-open) .recipe-v220-thumb:has(.recipe-v220-thumb-placeholder){width:68px!important;min-width:68px!important;max-width:68px!important}.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.68rem!important;font-weight:700!important;letter-spacing:-.04em!important}}
+@media(max-width:620px){.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.78rem!important;font-weight:700!important;letter-spacing:-.035em!important;line-height:1.15!important;white-space:normal!important;word-break:keep-all!important;width:100%!important;max-width:100%!important}}
 </style>
 <link rel="stylesheet" href="operations_v1.css?v=20260930v083">
 <link rel="stylesheet" href="recipe_access_v220.css?v=20261001v096">
@@ -719,7 +722,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.170</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.171</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
