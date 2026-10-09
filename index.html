@@ -724,7 +724,7 @@
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js?v=20260926p" defer></script>
 <script src="supabase_session_resilience_v1.js?v=20260918a"></script>
-<script src="payroll_elapsed_weeks_v1.js?v=20260929v064"></script>
+<script src="payroll_elapsed_weeks_v1.js?v=20261009v0183"></script>
 </head>
 <body>
 <div class="wrap">
@@ -818,7 +818,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.183";
+const APP_VERSION="v0.184";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -960,6 +960,16 @@ const LocalBE = (()=>{
     async lastEvent(id){ const ev=load().events.filter(x=>x.employee_id===id).sort((a,b)=>a.event_at<b.event_at?1:-1); return ev[0]||null; },
     async insertEvent(id,type){ const s=load(); const now=iso(kstNow());
       s.events.push({id:s.seq++, employee_id:id, event_type:type, event_at:now, server_received_at:now, device_id:CONFIG.DEVICE_ID}); save(s); },
+    async serverPayroll(ym){
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/server-sync-sheet`,{
+        method:"POST",
+        headers:{"Authorization":`Bearer ${Auth.token}`,"Content-Type":"application/json"},
+        body:JSON.stringify({mode:"payroll",ym,store_id:CURRENT_STORE_ID})
+      });
+      const t=await r.text();let j=null;try{j=JSON.parse(t)}catch{}
+      if(!r.ok||j?.ok!==true||!j.result)throw new Error(j?.error||"SERVER_PAYROLL_UNAVAILABLE");
+      return j.result;
+    },
     async todayEvents(){ const s=load(); const t=kstNow(); const p=n=>String(n).padStart(2,"0");
       const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
       return s.events.filter(x=>x.event_at.slice(0,10)===day); },
@@ -1124,10 +1134,10 @@ const SupaBE = (()=>{
     async snapshot(ym){ return rpc("admin_snapshot",{p_ym:ym},true); },
     // M8.7: 구글시트 동기화 (Edge Function 호출)
     async syncSheet(ym, payload){
-      const r=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/sync-sheet`,{
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/server-sync-sheet`,{
         method:"POST",
         headers:{"Authorization":`Bearer ${Auth.token||CONFIG.SUPABASE_ANON_KEY}`,"Content-Type":"application/json"},
-        body:JSON.stringify({ym,payload})
+        body:JSON.stringify({mode:"sync",ym,store_id:CURRENT_STORE_ID,payload})
       });
       const t=await r.text(); let j=null; try{ j=JSON.parse(t); }catch(e){}
       if(!r.ok || (j&&j.ok===false)) throw new Error([j?.error,typeof j?.detail==="string"?j.detail:(j?.detail?JSON.stringify(j.detail):"")].filter(Boolean).join(": ")||t.slice(0,200));
@@ -2329,6 +2339,18 @@ async function renderPay(){
 // 공통 계산: ym → {active, events, weeks, overrides, rows[], totalNet}
 // drawPay(화면)와 buildSheetSyncPayload(시트)가 동일하게 재사용 (계산 중복 방지)
 async function computeMonthPayroll(ym){
+  // The live pilot's payroll is calculated by the server, not the browser.
+  // Restore the original wall-time Date objects expected by existing UI callers.
+  if(LIVE && Number(CURRENT_STORE_ID)===1){
+    if(!Auth.token)throw new Error("SERVER_PAYROLL_AUTH_REQUIRED");
+    const result=await BE.serverPayroll(ym);
+    for(const row of result.rows||[]){
+      for(const session of row.sessions||[]){
+        for(const field of ["in","out"])if(session[field])session[field]=fromIso(session[field]);
+      }
+    }
+    return result;
+  }
   let emps=[], events=[];
   emps=await BE.allEmployees();
   if(LIVE){
@@ -2807,6 +2829,8 @@ const SheetAutoSync=(()=>{
   let lastSuccessfulAt=0;
   const MAX_REFRESH_AGE_MS=15*60*1000;
   async function run(reason="timer"){
+    // Pilot server cron owns Sheet writes; an open admin tab must not race it.
+    if(LIVE && Number(CURRENT_STORE_ID)===1)return;
     if(!LIVE||!Auth.token||busy||document.visibilityState==="hidden")return;
     busy=true;
     try{

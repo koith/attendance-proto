@@ -27,6 +27,30 @@ try {
     assert.ok(Math.abs(recipes.panel.center-recipes.view.center)<0.5,`${width}px recipe center differs from view`);
     assert.ok(recipes.scroll<=width,`${width}px horizontal document overflow: ${recipes.scroll}`);
     console.log('PASS recipe tab geometry',width,attendance.wrap.x,recipes.wrap.x);
+    // Exercise the real recipe renderer instead of just the representative static panel.
+    await page.evaluate(()=>{
+      window.view=document.querySelector('#view');
+      window.LIVE=false;
+      window.CURRENT_STORE_ID=1;
+      window.Auth={isLoggedIn:()=>false};
+      window.BE={publicStoreRecipeList:async()=>Array.from({length:75},(_,i)=>({
+        menu_key:'regression_'+i,menu_name:'메뉴 '+i,category:'커피',
+        components:[],variants:[],thumbnail_url:null
+      }))};
+    });
+    await page.addScriptTag({content:fs.readFileSync('recipe_access_v220.js','utf8')});
+    await page.evaluate(()=>window.renderRecipeHub());
+    await page.locator('.recipe-v220-card').first().waitFor();
+    const actual=await page.evaluate(()=>{
+      const rect=sel=>{const r=document.querySelector(sel).getBoundingClientRect();return {x:r.x,width:r.width,center:r.x+r.width/2}};
+      return {wrap:rect('.wrap'),view:rect('#view'),recipe:rect('.recipe-v220'),list:rect('.recipe-v220-list'),clientWidth:document.documentElement.clientWidth};
+    });
+    assert.ok(Math.abs(actual.wrap.center-attendance.wrap.center)<0.5,`${width}px actual renderer shifts the root`);
+    assert.ok(Math.abs(actual.recipe.center-actual.view.center)<0.5,`${width}px actual recipe is not centered`);
+    assert.ok(Math.abs(actual.list.center-actual.recipe.center)<0.5,`${width}px recipe grid drifts from its parent`);
+    await page.locator('.recipe-v220-card .recipe-v220-open').first().click();
+    const expanded=await read();
+    assert.ok(Math.abs(expanded.wrap.x-attendance.wrap.x)<0.5,`${width}px expanded recipe shifts root`);
     await page.close();
   }
 } finally { await browser.close(); }

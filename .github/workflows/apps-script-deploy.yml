@@ -8,6 +8,7 @@ on:
     paths:
       - apps_script.gs
       - .github/workflows/apps-script-deploy.yml
+      - tools/verify_sheet_deploy.mjs
   push:
     branches: [main]
     paths:
@@ -20,10 +21,11 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   deploy:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,3 +53,6 @@ jobs:
             exit 1
           fi
           node tools/deploy_apps_script.mjs
+      - name: Verify actual Sheet write after Apps Script deployment
+        run: node tools/verify_sheet_deploy.mjs
+

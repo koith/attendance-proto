@@ -12,6 +12,10 @@ on:
       - 'qa_sheet_auto_resize_contract.mjs'
       - 'qa_sheet_display_values.mjs'
       - 'qa_sheet_new_month_format_contract.mjs'
+      - 'qa_server_payroll_sheet_contract.mjs'
+      - 'qa_server_payroll_parity_fixtures.mjs'
+      - 'supabase/functions/server-sync-sheet/**'
+      - 'tools/verify_sheet_deploy.mjs'
       - '.github/workflows/p0-pages-deploy.yml'
   push:
     branches: [main]
@@ -56,6 +60,8 @@ jobs:
           node qa_sheet_display_values.mjs
           node qa_sheet_auto_resize_contract.mjs
           node qa_sheet_new_month_format_contract.mjs
+          node qa_server_payroll_sheet_contract.mjs
+          node qa_server_payroll_parity_fixtures.mjs
       - name: Intentional gate failure proof
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.prove_gate_failure }}
         run: |
@@ -86,3 +92,5 @@ jobs:
       - name: Deploy only after P0 gate passed
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify actual Sheet write after Pages deployment
+        run: node tools/verify_sheet_deploy.mjs
