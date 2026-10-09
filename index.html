@@ -716,7 +716,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.169</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.170</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -1199,7 +1199,7 @@ function syncStoreContextUI(){
   if(sel){sel.classList.toggle("store-context-selector-hidden",!showSelector);sel.hidden=!showSelector;}
   if(shell){shell.classList.toggle("store-context-selector-hidden",!showSelector);shell.hidden=!showSelector;}
   if(crumb){crumb.classList.toggle("store-context-selector-hidden",dashboard);crumb.hidden=dashboard;}
-  if(lockedName){const name=STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||sessionStorage.getItem("baekeok_store_name")||sel?.selectedOptions?.[0]?.text||"현재 지점";lockedName.textContent=name;lockedName.classList.toggle("show",STORE_ENTRY_LOCK&&!dashboard);lockedName.hidden=!(STORE_ENTRY_LOCK&&!dashboard);}
+  if(lockedName){const name=STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||sessionStorage.getItem("baekeok_store_name")||sel?.selectedOptions?.[0]?.text||(Number(CURRENT_STORE_ID)===1?"인하대학교점":"현재 지점");lockedName.textContent=name;lockedName.classList.toggle("show",!dashboard);lockedName.hidden=dashboard;}
   if(tabs)tabs.style.display=dashboard?"none":"";
   if(home){home.setAttribute("aria-label","백억커피");home.removeAttribute("title");}
   if(STORE_ENTRY_LOCK&&dashboard)location.hash="#pos";
