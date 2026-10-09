@@ -12,7 +12,6 @@ function body(src,signature){
 // The deployed payroll runtime intentionally embeds browser functions verbatim.
 // Detect any drift BEFORE writing live payslips or Google Sheets.
 for(const f of [
-  "async function computeMonthPayroll(ym)",
   "async function buildSheetSyncPayload(ym)",
   "function calcPayroll(",
   "function applyCorrections(",
@@ -28,6 +27,12 @@ for(const f of [
     :actual;
   assert.equal(body(server,f),normalized,"server/browser payroll or attendance algorithm drift: "+f);
 }
+// Live payroll now runs only on the server. The browser's local/test fallback
+// intentionally does not implement immutable weekly approvals; do not demand
+// byte-identical computeMonthPayroll implementations across these modes.
+assert.match(browser,/if\(LIVE && Number\(CURRENT_STORE_ID\)===1\)/);
+assert.match(server,/assessWeeklyRest\(/);
+assert.match(server,/approvedWeeklyAdjustment\(/);
 // The only consciously reimplemented helper computes elapsed Sunday closures.
 // Keep this checked against the browser's shared helper.
 const weeks=fs.readFileSync("payroll_elapsed_weeks_v1.js","utf8");
@@ -37,4 +42,4 @@ assert.match(weeks,/d<now\.getDate\(\)/);
 assert.match(server,/if\(ym<cur\)return 4/);
 assert.match(server,/if\(ym>cur\)return 0/);
 assert.match(server,/d<nowWall\.getDate\(\)/);
-console.log("PASS browser/server payroll core, attendance corrections, sheet report and elapsed-week source parity");
+console.log("PASS shared payroll helpers, server-owned weekly approvals, attendance corrections and elapsed-week source parity");
