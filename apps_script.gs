@@ -128,7 +128,7 @@ function _seniorAttendanceLayout(section,payroll){
     var raw=get('실근무');
     var m=String(raw).match(/^([0-9]+):([0-9]{2})/),seconds=m?Number(m[1])*3600+Number(m[2])*60:0;
     
-    var dur=function(n){var v=Math.floor(n/60);return Math.floor(v/60)+':'+String(v%60).padStart(2,'0');};
+    // Reference-only statutory break duration; never change source payable time.\n    var deduct=seconds>=28800?3600:seconds>=14400?1800:0;\n    var dur=function(n){var v=Math.floor(n/60);return Math.floor(v/60)+':'+String(v%60).padStart(2,'0');};
     return [get('날짜'),get('직원명'),payTypeByName[String(get('직원명'))]||'미설정',get('출근'),get('퇴근'),raw,get('야간근무'),get('휴게 제공 여부'),dur(deduct),'—',get('급여산정시간')||'0:00',get('상태'),get('정정'),get('정정사유')];
   })};
 }
