@@ -112,3 +112,9 @@
 }
 
 @media(min-width:900px){.recipe-v220-card.is-open .recipe-v220-inline-detail>section{width:100%;max-width:780px;margin:12px auto 0}.recipe-v220-card.is-open .recipe-v220-copy{width:min(780px,100%);margin:0 auto}}
+
+/* v0.165: fallback label must fit on one line in 68px recipe thumbnail. */
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder{gap:3px!important;min-width:0!important}
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder i{font-size:1.55rem!important}
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.48rem!important;line-height:1.1!important;letter-spacing:-.045em!important;white-space:nowrap!important;overflow:visible!important;word-break:keep-all!important;width:max-content!important;max-width:100%!important;font-weight:750!important}
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb:has(.recipe-v220-thumb-placeholder){overflow:hidden!important}
