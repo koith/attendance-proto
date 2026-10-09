@@ -97,3 +97,16 @@
 
 /* Desktop recipe hub shares the full available title/content width. */
 @media(min-width:900px){.recipe-v220{max-width:none;width:100%;margin:0}.recipe-v220-list{grid-template-columns:repeat(auto-fill,minmax(275px,1fr))}}
+
+/* Desktop: wide catalog, but compact readable focused recipe content. */
+@media(min-width:900px){
+.recipe-v220-list.has-focused-recipe{display:block}
+.recipe-v220-list.has-focused-recipe>.recipe-v220-card.is-open{width:100%;max-width:100%}
+.recipe-v220-card.is-open .recipe-v220-open{grid-template-columns:minmax(0,1fr);max-width:100%}
+.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb{height:260px!important;min-height:0!important;display:grid;place-items:center}
+.recipe-v220-card.is-open .recipe-v220-open>.recipe-v220-thumb img{max-height:245px}
+.recipe-v220-card.is-open .recipe-v220-inline-detail{padding:14px clamp(14px,3vw,36px) 24px}
+.recipe-v220-card.is-open .recipe-v220-inline-detail>section,.recipe-v220-card.is-open .recipe-v220-inline-detail>.recipe-v220-steps,.recipe-v220-card.is-open .recipe-v220-inline-detail>.recipe-v220-variant{max-width:780px;margin-left:auto;margin-right:auto}
+.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;max-width:780px;margin-left:auto;margin-right:auto}
+.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component>*:last-child{justify-self:end}
+}
