@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const sql=fs.readFileSync('supabase/migrations/20261009090000_sheet_server_change_detection.sql','utf8');
+assert.match(sql,/cron\.schedule\('baekeok-sheet-change-check','\* \* \* \* \*'/);
+assert.match(sql,/where id=1/);
+for(const table of ['attendance_events','event_corrections','employees','employment_contracts','employment_contract_workdays','payroll_period_employee','payroll_snapshot'])assert.ok(sql.includes('public.'+table),table);
+assert.match(sql,/fingerprint=excluded\.fingerprint/);
+assert.match(sql,/changed_at=case when/);
+assert.doesNotMatch(sql,/net\.http_post|SHEET_SHARED_SECRET|sheet_webapp_url|delete from|truncate /i);
+console.log('PASS one-minute read-only server change detector contract');
