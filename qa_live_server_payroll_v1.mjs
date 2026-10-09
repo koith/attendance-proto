@@ -13,5 +13,5 @@ assert.match(night,/typeof BE\.serverPayroll==="function"\)\{window\.__nightPayr
 assert.match(loader,/payroll_contract_authority_v1\.js\?v=20261009v0185/);
 assert.match(loader,/payroll_night_allowance_v1\.js\?v=20261009v0185/);
 assert.match(index,/if\(LIVE && Number\(CURRENT_STORE_ID\)===1\)return;/);
-assert.match(index,/const APP_VERSION="v0\.185"/);
+assert.match(index,/const APP_VERSION="v0\.186"/);
 console.log('PASS pilot payroll uses authenticated server result; no double premiums or browser Sheet timer race');
