@@ -26,7 +26,7 @@ with bounds as (
  select e.id,e.name,c.id,c.new_event_type,c.new_event_at,'correction'::text
  from public.event_corrections c join public.employees e on e.id=c.employee_id
  where e.store_id=p_store_id and c.action='ADD'
- and not exists (select 1 from public.event_corrections v where v.action='VOID_ADD' and v.employee_id=c.employee_id and v.created_at>=c.created_at and v.created_at<=c.created_at+interval '2 days' and v.id>c.id)
+ -- Browser applyCorrections currently retains ADD even when a VOID_ADD exists.
 )
 select x.employee_id,x.employee_name,x.event_id,x.event_type,x.event_at,x.source
 from effective x cross join bounds b
