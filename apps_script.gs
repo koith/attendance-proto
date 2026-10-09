@@ -4,7 +4,7 @@
  *
  * 배포: Apps Script 편집기 → 배포 → 새 배포 → 웹앱
  *   - 실행: 나(스크립트 소유자)
- *   - 액세스: ANYONE (Supabase 서버 fetch는 Google 로그인 쿠키가 없으므로 필요)
+ *   - 액세스: ANYONE_ANONYMOUS (ANYONE은 로그인 필요; 서버 fetch는 로그인 쿠키가 없음)
  *   - 보안: 요청 본문 SHARED_SECRET 검사 후에만 시트 쓰기 허용
  *   → 웹앱 URL을 Supabase Edge Function secret(SHEET_WEBAPP_URL)에 등록
  *
