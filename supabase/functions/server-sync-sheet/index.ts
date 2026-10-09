@@ -51,6 +51,12 @@ class HttpError extends Error{constructor(status,message){super(message);this.st
 async function sourceFor(ym,storeId){
   const {data,error}=await client.rpc("sheet_server_payroll_source",{p_store_id:storeId,p_ym:ym});
   if(error||!data)throw new Error("SERVER_PAYROLL_SOURCE_FAILED: "+(error?.code||"NO_DATA"));
+  const {data:weeklyApprovals,error:weeklyApprovalError}=await client.from("payroll_weekly_approvals")
+    .select("employee_id,week_start,calculated_won,approved_won,reason,approved_by,approved_at,id")
+    .eq("store_id",storeId).gte("week_start",ym+"-01")
+    .lt("week_start",new Date(Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7)),1)).toISOString().slice(0,10))
+    .order("approved_at",{ascending:false}).order("id",{ascending:false});
+  if(weeklyApprovalError)throw new Error("WEEKLY_APPROVALS_READ_FAILED: "+weeklyApprovalError.code);
   const BE={
     allEmployees:async()=>data.employees||[],
     eventsWithCorrections:async()=>({events:data.events||[],corrections:data.corrections||[]}),
@@ -58,6 +64,7 @@ async function sourceFor(ym,storeId){
     payrollContracts:async()=>data.contracts||[],
     payrollContractWorkdays:async()=>data.workdays||[],
     payrollSubstitutions:async()=>data.substitutions||[],
+    payrollWeeklyApprovals:async()=>weeklyApprovals||[],
     employmentBundle:async id=>{
       const bundle=data.bundles?.[String(id)];
       if(!bundle)throw new Error("MISSING_EMPLOYEE_CONTRACT_BUNDLE");
