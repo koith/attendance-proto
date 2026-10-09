@@ -5,6 +5,8 @@ on:
       - 'supabase/functions/server-sync-sheet/**'
       - 'qa_payroll_policy_adjustment_v1.mjs'
       - 'qa_payroll_weekly_integration_v1.mjs'
+      - 'qa_payroll_month_boundary_v1.mjs'
+      - 'supabase/migrations/20261010100000_sheet_payroll_week_boundary.sql'
       - '.github/workflows/payroll-policy-approval-v1-regression.yml'
   push:
     branches: [main]
@@ -21,4 +23,5 @@ jobs:
           node-version: '22'
       - run: node qa_payroll_policy_adjustment_v1.mjs
       - run: node qa_payroll_weekly_integration_v1.mjs
+      - run: node qa_payroll_month_boundary_v1.mjs
       - run: node qa_server_payroll_fixture_parity_v1.mjs
