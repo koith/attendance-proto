@@ -147,7 +147,10 @@ async function finish(storeId,ym,fingerprint,token,ok,message){
 async function writeClaimed(ym,storeId,prepared,release,force=false){
   const fingerprint=await hash(JSON.stringify({release,ym,report:prepared.report,closed:prepared.closed,closedPayroll:prepared.closedPayroll}));
   const lease=await claim(storeId,ym,fingerprint,force);
-  if(!lease)return {ok:true,ym,skipped:true};
+  if(!lease){
+    if(force)throw new HttpError(409,"SHEET_SYNC_BUSY");
+    return {ok:true,ym,skipped:true};
+  }
   try{
     const result=await googleWrite(ym,prepared.report,prepared.closed,prepared.closedPayroll);
     await finish(storeId,ym,fingerprint,lease,true,null);
