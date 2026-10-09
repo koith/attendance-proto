@@ -729,7 +729,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.186</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.187</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -818,7 +818,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.186";
+const APP_VERSION="v0.187";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -897,13 +897,13 @@ function calcPayroll(emp, monthHours, weeks, ov){
   const rate = (ov.tax_rate_override!=null) ? ov.tax_rate_override : ((emp.tax_rate!=null)?emp.tax_rate:0.033);
   const adjust = ov.adjust_amount||0;
 
-  const base=xround(wage*monthHours,-1);              // 기본급 10원 반올림
+  const base=Math.trunc(wage*monthHours);              // 기본급 10원 반올림
   let juhyu=0, weekly=0;
   if(jh>0){
-    weekly = (emp.juhyu_round!=null) ? xround(wage*jh, emp.juhyu_round) : Math.round(wage*jh);
-    juhyu = Math.round(weekly*jweeks);               // 원 단위 정수화 (부동소수점 오차 제거)
+    weekly = (emp.juhyu_round!=null) ? xround(wage*jh, emp.juhyu_round) : Math.trunc(wage*jh);
+    juhyu = Math.trunc(weekly*jweeks);               // 원 단위 정수화 (부동소수점 오차 제거)
   }
-  const gross=Math.round(base+juhyu+adjust);         // 임의 가감액 포함
+  const gross=Math.trunc(base+juhyu+adjust);         // 임의 가감액 포함
   const net=xrounddown(gross*(1-rate),-1);           // 세후 10원 버림
   return {base, weekly, juhyu, adjust, gross, net, rate, wage, jweeks, usedOverride:Object.keys(ov).length>0};
 }
@@ -2444,7 +2444,7 @@ async function computeMonthPayroll(ym){
       const monthlySalary=Number(contract.monthly_salary);
       const completedDayKeys=new Set(sess.filter(x=>x.status==="COMPLETE"&&x.in&&x.out).map(x=>`${x.in.getFullYear()}-${p2(x.in.getMonth()+1)}-${p2(x.in.getDate())}`));
       const accruedDays=completedDayKeys.size;
-      const accruedBase=Math.round(monthlySalary/daysInMonth*accruedDays);
+      const accruedBase=Math.trunc(monthlySalary/daysInMonth*accruedDays);
       const gross=Math.round(accruedBase+substitutePay+(ov?.adjust_amount||0));
       const rate=(ov?.tax_rate_override!=null)?Number(ov.tax_rate_override):(contract.tax_treatment==="BUSINESS_INCOME"?Number(contract.business_deduction_rate||0.033):0);
       pay={base:accruedBase,weekly:0,juhyu:0,substitutePay,substituteMinutes,adjust:ov?.adjust_amount||0,gross,net:xrounddown(gross*(1-rate),-1),rate,wage:0,jweeks:0,usedOverride:!!ov,payrollType:"MONTHLY",monthlySalary,accruedDays,daysInMonth};
@@ -2487,9 +2487,9 @@ async function computeMonthPayroll(ym){
         }
         pay.jweeks=qualifiedWeeks;
         pay.weekly=Math.round(effWage*Math.min(8,weeklyContractMin/300));
-        pay.juhyu=Math.round(effWage*juhyuHours);
+        pay.juhyu=Math.trunc(effWage*juhyuHours);
         if(hours<=0){pay.base=0;pay.weekly=0;pay.juhyu=0;pay.adjust=0;pay.gross=0;pay.net=0;pay.jweeks=0;}
-        else {const breakCompPay=Math.round((effWage||0)*breakBonusMinutes/60);pay.breakCompPay=breakCompPay;pay.gross=Math.round(pay.base+pay.juhyu+pay.adjust+breakCompPay);pay.net=xrounddown(pay.gross*(1-pay.rate),-1);}
+        else {const breakCompPay=Math.trunc((effWage||0)*breakBonusMinutes/60);pay.breakCompPay=breakCompPay;pay.gross=Math.trunc(pay.base+pay.juhyu+pay.adjust+breakCompPay);pay.net=xrounddown(pay.gross*(1-pay.rate),-1);}
       }
     }
     if(pay && sec<=0 && payrollType!=="MONTHLY"){ pay.base=0; pay.weekly=0; pay.juhyu=0; pay.adjust=0; pay.gross=0; pay.net=0; pay.jweeks=0; }
@@ -2515,7 +2515,7 @@ async function computeMonthPayroll(ym){
       },0);
       const hourlyBase=payrollType==="HOURLY"?Number(effWage||0):0;
       if(mode==="FLAT"||hourlyBase>0){
-        nightAllowance=Math.round(nightWorkedMin/60*(mode==="FLAT"?value:hourlyBase*value/100));
+        nightAllowance=Math.trunc(nightWorkedMin/60*(mode==="FLAT"?value:hourlyBase*value/100));
         nightAllowanceLabel=mode==="FLAT"?`정액 ${won(value)}/시간`:`정률 ${value}%`;
       }else nightAllowanceLabel="시급 기준 확인 필요";
       if(pay&&nightAllowance>0){pay.nightAllowance=nightAllowance;pay.gross=Math.round(Number(pay.gross||0)+nightAllowance);pay.net=xrounddown(pay.gross*(1-Number(pay.rate||0)),-1);}
@@ -2610,20 +2610,71 @@ async function drawPay(ym){
     const payLabel="현재 급여";
     const detailLines=isMonthly
       ? [`인정일 ${completedDays}/${pay?.daysInMonth||0}일`,`월 기본급 ${Number(pay?.monthlySalary||0).toLocaleString()}원`,`일할 누적 ${Number(pay?.base||0).toLocaleString()}원`,...(rec.substituteMinutes>0?[`대타근무 ${fmtHM(rec.substituteMinutes*60)} · +${Number(rec.substitutePay||0).toLocaleString()}원`]:[]),...(Number(pay?.adjust||0)!==0?[`조정액 ${Number(pay.adjust).toLocaleString()}원`]:[])]
-      : [`시급 ${Number(pay?.wage||0).toLocaleString()}원`,`기본 근무급 ${Number(pay?.base||0).toLocaleString()}원`,...(Number(pay?.juhyu||0)>0?[`주휴수당 ${Number(pay.juhyu).toLocaleString()}원`]:[]),...(rec.substituteMinutes>0?[`대타근무 ${fmtHM(rec.substituteMinutes*60)} · +${Number(rec.substitutePay||0).toLocaleString()}원`]:[]),...(Number(pay?.breakCompPay||0)>0?[`휴게 미제공 보상 +${Number(pay.breakCompPay).toLocaleString()}원`]:[]),...(Number(pay?.adjust||0)!==0?[`조정액 ${Number(pay.adjust).toLocaleString()}원`]:[])];
+      : [`시급 ${Number(pay?.wage||0).toLocaleString()}원`,`기본 근무급 ${Number(pay?.base||0).toLocaleString()}원`,...(Number(pay?.juhyu||0)>0?[`주휴수당 ${Number(pay.juhyu).toLocaleString()}원`]:[]),...(rec.substituteMinutes>0?[`대타근무 ${fmtHM(rec.substituteMinutes*60)} · +${Number(rec.substitutePay||0).toLocaleString()}원`]:[]),...(Number(pay?.breakCompPay||0)>0?[`휴게 미제공 보상 +${Number(pay.breakCompPay).toLocaleString()}원`]:[]),...(Number(pay?.adjust||0)!==0?[`조정액 ${Number(pay.adjust).toLocaleString()}원`]:[]),...(pay?.weeklyReviewComments||[]).map(x=>`주휴 검토: ${x}`)];
     card.innerHTML=`
       <div class="employee-card-primary">
         <span class="employee-card-identity"><span class="employee-card-name">${safeHtml(eName)}</span><small class="employee-card-id">(No.${safeHtml(employeeNumber(e))})</small></span>
         ${issues?`<span class="badge issue">근태확인 ${issues}</span>`:(isMonthly?`<span class="badge">월급제</span>`:'<span></span>')}
       </div>
       <div class="employee-card-secondary"><span class="employee-card-secondary-main">${workInfo}</span></div>
-      <div class="payroll-employee-payline">${pay?`<button type="button" class="payroll-pay-detail" aria-expanded="false"><span class="payroll-card-metric"><span>${payLabel}</span><strong class="payroll-gross-value">${representativePay.toLocaleString()}원</strong></span><span class="payroll-info-dot" aria-hidden="true">ⓘ</span></button><div class="payroll-detail-popover" hidden>${detailLines.map(x=>`<div>${x}</div>`).join("")}<div class="payroll-detail-total">현재 급여 ${pay.gross.toLocaleString()}원</div></div>`:'<span aria-hidden="true">&nbsp;</span>'}</div>
+      <div class="payroll-employee-payline">${pay?`<button type="button" class="payroll-pay-detail" aria-expanded="false"><span class="payroll-card-metric"><span>${payLabel}</span><strong class="payroll-gross-value">${representativePay.toLocaleString()}원</strong></span><span class="payroll-info-dot" aria-hidden="true">ⓘ</span></button><div class="payroll-detail-popover" hidden>${detailLines.map(x=>`<div>${safeHtml(x)}</div>`).join("")}<div class="payroll-detail-total">현재 급여 ${pay.gross.toLocaleString()}원</div></div>`:'<span aria-hidden="true">&nbsp;</span>'}</div>
     `;
     if(LIVE){
       const detailBtn=card.querySelector(".payroll-pay-detail"), detail=card.querySelector(".payroll-detail-popover");
       if(detailBtn&&detail){
         detailBtn.onclick=ev=>{ev.stopPropagation();const open=detail.hidden;closePayrollDetailPopovers(detail);detail.hidden=!open;detailBtn.setAttribute("aria-expanded",String(open));};
         detailBtn.addEventListener("pointerenter",()=>{if(matchMedia("(hover:hover)").matches){closePayrollDetailPopovers(detail);detail.hidden=false;detailBtn.setAttribute("aria-expanded","true");}});
+      }
+    }
+    if(LIVE&&Number(CURRENT_STORE_ID)===1&&pay?.payrollType==="HOURLY"){
+      const detail=card.querySelector(".payroll-detail-popover");
+      if(detail){
+        const btn=document.createElement("button");
+        btn.type="button";btn.className="btn btn-sm";btn.textContent="주휴수당 정정·승인";
+        btn.onclick=ev=>{
+          ev.stopPropagation();
+          const veil=document.getElementById("addVeil"),modal=veil?.querySelector(".modal");
+          if(!modal)return;
+          const firstWeek=new Date(ym+"-01T00:00:00");firstWeek.setDate(firstWeek.getDate()+((8-firstWeek.getDay())%7));
+          const firstMonday=firstWeek.getFullYear()+"-"+String(firstWeek.getMonth()+1).padStart(2,"0")+"-"+String(firstWeek.getDate()).padStart(2,"0");
+          modal.innerHTML=`<h3>주휴수당 정정 · ${safeHtml(eName)}</h3>
+          <div class="field"><label>대상 주 월요일</label><input id="weeklyApproveDate" type="date" value="${firstMonday}"></div>
+          <div class="field"><label>해당 주 자동계산 금액 (원)</label><input id="weeklyApproveOriginal" type="number" min="0" step="1" value="0"></div>
+          <div class="field"><label>최종 승인 금액 (원)</label><input id="weeklyApproveAmount" type="number" min="0" step="1" value="0"></div>
+          <div class="field"><label>정정 사유</label><textarea id="weeklyApproveReason" placeholder="대타 승인 내역 및 지급 판단 근거"></textarea></div>
+          <p style="font-size:.8rem">해당 주의 자동계산액을 확인한 후 입력하세요. 승인 기록은 삭제하지 않고 보존합니다.</p>
+          <button type="button" class="btn btn-primary btn-block" id="weeklyApproveSave">정정 승인</button>`;
+          openAddVeil();
+          const syncWeekAmount=()=>{const key=modal.querySelector("#weeklyApproveDate").value;
+            const amount=Number(pay.weeklyCalculatedAmounts?.[key]||0);
+            modal.querySelector("#weeklyApproveOriginal").value=String(amount);
+            modal.querySelector("#weeklyApproveAmount").value=String(amount);
+          };
+          modal.querySelector("#weeklyApproveOriginal").readOnly=true;
+          modal.querySelector("#weeklyApproveDate").onchange=syncWeekAmount;
+          syncWeekAmount();
+          modal.querySelector("#weeklyApproveSave").onclick=async()=>{
+            const week_start=modal.querySelector("#weeklyApproveDate").value;
+            const calculated_won=Number(modal.querySelector("#weeklyApproveOriginal").value);
+            const approved_won=Number(modal.querySelector("#weeklyApproveAmount").value);
+            const reason=modal.querySelector("#weeklyApproveReason").value.trim();
+            if(!/^\d{4}-\d{2}-\d{2}$/.test(week_start)||new Date(week_start+"T00:00:00").getDay()!==1||
+               !Number.isSafeInteger(calculated_won)||calculated_won<0||
+               !Number.isSafeInteger(approved_won)||approved_won<0||reason.length<3){
+              alert("월요일 날짜, 원 단위 금액, 정정 사유를 확인하세요.");return;
+            }
+            if(!confirm(`주휴수당 ${calculated_won.toLocaleString()}원 → ${approved_won.toLocaleString()}원으로 승인하시겠습니까?`))return;
+            const response=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/server-sync-sheet`,{
+              method:"POST",headers:{Authorization:`Bearer ${Auth.token}`,"Content-Type":"application/json"},
+              body:JSON.stringify({mode:"weekly_approve",store_id:Number(CURRENT_STORE_ID),ym,
+                employee_id:Number(rec.employee_id),week_start,calculated_won,approved_won,reason})
+            });
+            const data=await response.json();
+            if(!response.ok||!data.ok){alert(data.error||"승인 실패");return;}
+            veil.classList.remove("show");restoreAddModal();drawPay(ym);
+          };
+        };
+        detail.appendChild(btn);
       }
     }
     card.addEventListener("mouseleave",()=>{const d=card.querySelector(".payroll-detail-popover"),b=card.querySelector(".payroll-pay-detail");if(d&&!d.hidden&&matchMedia("(hover:hover)").matches){d.hidden=true;b?.setAttribute("aria-expanded","false");}});
