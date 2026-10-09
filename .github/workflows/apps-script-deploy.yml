@@ -32,6 +32,7 @@ jobs:
           node-version: 22
       - name: Validate report contract
         run: |
+          node qa_sheet_payable_source.mjs
           node qa_sheet_report_design.mjs
           node qa_sheet_display_values.mjs
           node qa_sheet_auto_resize_contract.mjs
