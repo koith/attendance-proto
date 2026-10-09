@@ -2,7 +2,7 @@
 -- New contracts default to NOT_PROVIDED; IGNORED means neither break deduction nor allowance.
 alter table public.employment_contracts add column if not exists break_provision_mode text;
 update public.employment_contracts set break_provision_mode=case when break_time_provided then 'PROVIDED' else 'NOT_PROVIDED' end where break_provision_mode is null;
-alter table public.employment_contracts alter column break_provision_mode set default 'NOT_PROVIDED', alter column break_provision_mode set not null;
+alter table public.employment_contracts alter column break_provision_mode set default 'NOT_PROVIDED', alter column break_provision_mode set not null, alter column break_time_provided set default false;
 do $$ begin if not exists(select 1 from pg_constraint where conname='employment_contracts_break_provision_mode_check') then alter table public.employment_contracts add constraint employment_contracts_break_provision_mode_check check (break_provision_mode in ('PROVIDED','NOT_PROVIDED','IGNORED')); end if; end $$;
 create or replace function public.admin_contract_break_mode_set(p_contract_id bigint,p_break_mode text) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
 begin
