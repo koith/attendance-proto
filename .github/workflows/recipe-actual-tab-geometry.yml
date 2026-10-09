@@ -6,6 +6,8 @@ on:
       - 'recipe_access_v220.css'
       - 'qa_recipe_actual_tab_geometry.mjs'
       - 'qa_recipe_live_route_geometry.mjs'
+      - 'qa_recipe_cross_page_desktop_geometry.mjs'
+      - 'actual_attendance.css'
       - '.github/workflows/recipe-actual-tab-geometry.yml'
   workflow_dispatch:
 jobs:
@@ -27,3 +29,4 @@ jobs:
         if: runner.os == 'Windows'
       - run: node qa_recipe_actual_tab_geometry.mjs
       - run: node qa_recipe_live_route_geometry.mjs
+      - run: node qa_recipe_cross_page_desktop_geometry.mjs
