@@ -214,7 +214,7 @@ Deno.serve(async req=>{
   if(req.method!=="POST")return reply({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   try{
     const body=await req.json(),mode=String(body?.mode||"sync");
-    if(!["cron","dryrun","deployment","payroll","parity","sync"].includes(mode))throw new HttpError(400,"BAD_MODE");
+    if(!["cron","dryrun","deployment","payroll","parity","sync","weekly_approve"].includes(mode))throw new HttpError(400,"BAD_MODE");
     await authenticate(req,mode);
     if(mode==="deployment"){
       const ym=currentYm();
@@ -239,6 +239,22 @@ Deno.serve(async req=>{
     const ym=String(body.ym||currentYm()),storeId=Number(body.store_id||1);
     if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(ym))throw new HttpError(400,"BAD_YM");
     if(storeId!==1)throw new HttpError(403,"STORE_NOT_ENABLED");
+    if(mode==="weekly_approve"){
+      const employeeId=Number(body.employee_id),weekStart=String(body.week_start||"");
+      const calculatedWon=Number(body.calculated_won),approvedWon=Number(body.approved_won);
+      const reason=String(body.reason||"").trim();
+      if(!Number.isSafeInteger(employeeId)||employeeId<=0||
+         !/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(weekStart)||
+         !Number.isSafeInteger(calculatedWon)||calculatedWon<0||
+         !Number.isSafeInteger(approvedWon)||approvedWon<0||reason.length<3)
+        throw new HttpError(400,"INVALID_WEEKLY_APPROVAL");
+      const {data,error}=await client.rpc("approve_payroll_weekly_allowance",{
+        p_store_id:storeId,p_employee_id:employeeId,p_week_start:weekStart,
+        p_calculated_won:calculatedWon,p_approved_won:approvedWon,p_reason:reason
+      });
+      if(error)throw new HttpError(409,"WEEKLY_APPROVAL_REJECTED: "+error.message);
+      return reply({ok:true,approval_id:data});
+    }
     if(mode==="payroll"){
       const {engine}=await sourceFor(ym,storeId);
       const report=await engine.computeMonthPayroll(ym);
