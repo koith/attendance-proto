@@ -171,3 +171,7 @@
 
 /* Desktop: match the application content width and give seven day cells enough room. */
 @media (min-width: 900px){.wrap{max-width:1280px;width:100%;padding-left:18px;padding-right:18px}.day{min-height:136px;padding:8px 9px}.day .line{font-size:.72rem}.calendar-work-duration{font-size:.65rem!important}.calendar-day-total{font-size:.63rem!important}.today-fab{right:max(18px,calc((100vw - 1280px)/2 + 18px))}}
+
+/* v0.173: optical vertical centering of month/day chevrons, without shifting button hitboxes. */
+.toolbar .nav,.dayhead .day-nav{display:inline-flex!important;align-items:center!important;justify-content:center!important;line-height:1!important;text-indent:0!important;padding-bottom:4px!important}
+@media(max-width:520px){.toolbar .nav,.dayhead .day-nav{padding-bottom:2px!important}}
