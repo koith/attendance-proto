@@ -2712,7 +2712,7 @@ async function buildSheetSyncPayload(ym){
     store_name:STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||CONFIG.STORE_NAME,
     attendance:{ header:["날짜","직원명","출근","퇴근","실근무","상태","정정","정정사유","야간근무","휴게 제공 여부"], rows:detailedAttendance },
     sessions:{ header:[], rows:[] },
-    payroll:{ header:["직원명","급여형태","총근무","야간근무","시급","기본급","야근수당적용여부","야근수당","주휴","휴게","휴게수당","조정","예상 세전급여"], rows:humanPayroll },
+    payroll:{ header:["직원명","총근무","야간근무","시급","기본급","주휴","휴게","휴게 기준시간(참고)","휴게 제공 여부","휴게수당","조정","예상 세전급여","상태","휴게 미제공 가산시간","가산 포함 급여산정시간"], rows:humanPayroll },
   };
 }
 function sheetCorrectionReason(reason){
