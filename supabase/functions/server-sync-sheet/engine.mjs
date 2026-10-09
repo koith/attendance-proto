@@ -305,7 +305,9 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   return {active:payrollEmployees, events, weeks, overrides, rows, totalNet, totalGross};
 }
   async function buildSheetSyncPayload(ym){
-  const R=await computeMonthPayroll(ym);
+  const calculated=await computeMonthPayroll(ym);
+  // Test employees remain in the app and database, but never enter exported reports.
+  const R={...calculated,rows:calculated.rows.filter(rec=>String(rec.employee_name||'').trim().toUpperCase()!=='TEST')};
   const p2=n=>String(n).padStart(2,"0");
   const dstr=d=>`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
   // 근태 일별요약 + 세션상세
