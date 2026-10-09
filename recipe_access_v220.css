@@ -137,3 +137,6 @@
 @media(min-width:621px){.recipe-v220-edit{display:grid!important;place-items:center!important;padding:0!important;font-size:1.28rem!important;line-height:1!important}.recipe-v220-edit-glyph{display:block!important;line-height:1!important;transform:none!important;margin:0!important}}
 /* Restore original readable mobile category illustration scale (v0.93 era). */
 @media(max-width:620px){.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder i{font-size:2.45rem!important;line-height:1!important}}
+
+/* v0.173: desktop ingredient rows share exact width of method panels, including heading. */
+@media(min-width:900px){.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component{box-sizing:border-box!important;width:100%!important;max-width:none!important;display:grid!important;grid-template-columns:minmax(0,1fr) max-content!important;align-items:baseline!important;gap:16px!important}.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component>*:first-child{min-width:0!important;overflow-wrap:anywhere!important}.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component>*:last-child{justify-self:end!important;white-space:nowrap!important}}
