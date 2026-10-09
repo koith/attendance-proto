@@ -132,11 +132,28 @@ function _seniorAttendanceLayout(section,payroll){
     return [get('날짜'),get('직원명'),payTypeByName[String(get('직원명'))]||'미설정',get('출근'),get('퇴근'),raw,get('야간근무'),get('휴게 제공 여부'),dur(deduct),'—',get('급여산정시간')||'0:00',get('상태'),get('정정'),get('정정사유')];
   })};
 }
+// Keep attendance in chronological order on every refresh, independently of
+// the source payload's employee-grouped order. Preserve order within a date.
+function _sortAttendanceByDate(section){
+  var dateCol=(section.header||[]).indexOf('날짜');
+  if(dateCol<0)return section;
+  var rows=(section.rows||[]).map(function(row,index){return {row:row,index:index};});
+  function dateKey(value){
+    if(value instanceof Date)return value.getFullYear()*10000+(value.getMonth()+1)*100+value.getDate();
+    if(typeof value==='number'){var d=new Date(Math.round(value*86400000)+Date.UTC(1899,11,30));return d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate();}
+    var text=String(value==null?'':value).trim();
+    var match=text.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+    if(match)return Number(match[1])*10000+Number(match[2])*100+Number(match[3]);
+    return Number.MAX_SAFE_INTEGER;
+  }
+  rows.sort(function(a,b){return dateKey(a.row[dateCol])-dateKey(b.row[dateCol])||a.index-b.index;});
+  return {header:section.header,rows:rows.map(function(item){return item.row;})};
+}
 function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   // Senior October workbook is the display contract. Transform report columns only.
   payroll=_withoutPayrollStatusColumns(payroll);
   payroll=_seniorPayrollLayout(payroll);
-  attendance=_seniorAttendanceLayout(attendance,payroll);
+  attendance=_sortAttendanceByDate(_seniorAttendanceLayout(attendance,payroll));
   var sh=ss.getSheetByName(name); if(!sh) sh=ss.insertSheet(name);
   var monthNum=Number(String(name).replace(/[^0-9]/g,''))||0;
   var ym=String(ss.getName()).match(/(20\d{2})/);
