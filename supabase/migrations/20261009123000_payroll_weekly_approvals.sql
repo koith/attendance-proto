@@ -12,8 +12,8 @@ create table if not exists public.payroll_weekly_approvals (
  constraint weekly_approval_monday check(extract(isodow from week_start)=1)
 );
 create or replace function public.payroll_weekly_approval_immutable()
-returns trigger language plpgsql set search_path=public,pg_temp as $
-begin raise exception 'WEEKLY_APPROVAL_AUDIT_IMMUTABLE'; end $;
+returns trigger language plpgsql set search_path=public,pg_temp as $$
+begin raise exception 'WEEKLY_APPROVAL_AUDIT_IMMUTABLE'; end $$;
 drop trigger if exists payroll_weekly_approval_immutable_guard on public.payroll_weekly_approvals;
 create trigger payroll_weekly_approval_immutable_guard before update or delete
 on public.payroll_weekly_approvals for each row execute function public.payroll_weekly_approval_immutable();
