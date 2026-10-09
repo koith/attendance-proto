@@ -142,6 +142,8 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   var monthNum=Number(String(name).replace(/[^0-9]/g,''))||0;
   var ym=String(ss.getName()).match(/(20\d{2})/);
   var reportTitle=(ym?ym[1]+'년 ':'')+monthNum+'월 근태 · 급여 보고서';
+  // Deployment invariant: only payroll and attendance sections; no session-detail block.
+  // All blank separators must remain white after every automatic or manual refresh.
   var sections=[
     {title:'급여 집계',data:payroll},
     {title:'근태 현황',data:attendance}
