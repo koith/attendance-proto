@@ -181,7 +181,8 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
       var col=idx+1, range=sh.getRange(dr.first,col,dr.count,1);
       if(h==='날짜') range.setNumberFormat('yyyy-mm-dd');
       if(['출근','퇴근'].indexOf(h)>=0) range.setNumberFormat('hh:mm');
-      if(['실근무','총근무','야간근무','휴게 기준시간(참고)','휴게 미제공 가산시간','가산 포함 급여산정시간'].indexOf(h)>=0) range.setNumberFormat('[h]:mm');
+      if(['실근무','총근무','야간근무'].indexOf(h)>=0) range.setNumberFormat('[h]:mm');
+      if(['휴게 기준시간(참고)','휴게 미제공 가산시간','가산 포함 급여산정시간'].indexOf(h)>=0) range.setNumberFormat('[h]:mm');
     });
   });
 
