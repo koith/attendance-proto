@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   deploy:
@@ -51,3 +52,21 @@ jobs:
             exit 1
           fi
           node tools/deploy_apps_script.mjs
+
+      - name: Confirm Sheet refresh after Apps Script deployment
+        if: github.event_name != 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const audience = 'https://waluhdgqhwjjwmflhrle.supabase.co/functions/v1/server-sync-sheet';
+            const token = await core.getIDToken(audience);
+            const response = await fetch(audience, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+              body: JSON.stringify({mode:'deployment'})
+            });
+            const result = await response.json();
+            if (!response.ok || result.ok !== true || result.written !== true || !result.spreadsheet_id || result.column_resize_applied !== true) {
+              throw new Error('Apps Script deployment Sheet refresh unconfirmed: ' + JSON.stringify(result));
+            }
+            core.info('Sheet refreshed after Apps Script deploy: ' + result.ym);
