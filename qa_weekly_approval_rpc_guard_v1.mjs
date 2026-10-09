@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const sql=fs.readFileSync('supabase/migrations/20261010013000_weekly_approval_rpc_closed_week.sql','utf8');
+assert.match(sql,/SECURITY DEFINER/);
+assert.match(sql,/auth\.uid\(\) IS NULL OR NOT EXISTS/);
+assert.match(sql,/EMPLOYEE_STORE_MISMATCH/);
+assert.match(sql,/EXTRACT\(isodow FROM p_week_start\)<>1/);
+assert.match(sql,/CURRENT_TIMESTAMP AT TIME ZONE 'Asia\/Seoul'/);
+assert.match(sql,/p_week_start::timestamp \+ INTERVAL '7 days 2 hours'/);
+assert.match(sql,/WEEK_NOT_CLOSED/);
+assert.match(sql,/PAYROLL_ALREADY_CLOSED/);
+console.log('PASS SQL weekly approval access and closed-week guards');
