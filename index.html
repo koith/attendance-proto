@@ -2731,14 +2731,18 @@ const SheetAutoSync=(()=>{
   let busy=false,lastFingerprint="",retryMs=0,timer=null;
   const currentYm=()=>{const d=kstNow();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`};
   const fingerprint=p=>JSON.stringify(p);
+  // A report is not a background job: keep a time-based refresh even when data is unchanged.
+  // This does not replace server-side scheduled sync when no admin has the app open.
+  let lastSuccessfulAt=0;
+  const MAX_REFRESH_AGE_MS=15*60*1000;
   async function run(reason="timer"){
     if(!LIVE||!Auth.token||busy||document.visibilityState==="hidden")return;
     busy=true;
     try{
       const ym=currentYm(),payload=await buildSheetSyncPayload(ym),fp=fingerprint(payload);
-      if(reason==="timer"&&fp===lastFingerprint)return;
+      if(reason==="timer"&&fp===lastFingerprint&&Date.now()-lastSuccessfulAt<MAX_REFRESH_AGE_MS)return;
       const syncResult=await BE.syncSheet(ym,payload);
-      lastFingerprint=fp;retryMs=0;
+      lastFingerprint=fp;lastSuccessfulAt=Date.now();retryMs=0;
       localStorage.setItem("baekeok_sheet_sync_v1",JSON.stringify({ok:true,ym,at:new Date().toISOString(),sheet_url:syncResult?.result?.spreadsheet_url||syncResult?.spreadsheet_url||null}));
       const msg=document.getElementById("syncMsg");if(msg){const d=new Date();const stamp=d.toLocaleString("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:true}).replace(/\\. /g,".").replace(",","");msg.textContent=`${stamp} 자동 갱신됨`;}
     }catch(e){
