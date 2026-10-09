@@ -255,6 +255,12 @@ Deno.serve(async req=>{
          !Number.isSafeInteger(calculatedWon)||calculatedWon<0||
          !Number.isSafeInteger(approvedWon)||approvedWon<0||reason.length<3)
         throw new HttpError(400,"INVALID_WEEKLY_APPROVAL");
+      const weekMonday=new Date(weekStart+"T00:00:00Z");
+      const nowSeoul=seoulParts();
+      const nowWall=new Date(nowSeoul.year+"-"+nowSeoul.month+"-"+nowSeoul.day+"T"+nowSeoul.hour+":"+nowSeoul.minute+":00Z");
+      if(!Number.isFinite(weekMonday.getTime())||weekMonday.getUTCDay()!==1||
+         nowWall.getTime()<weekMonday.getTime()+7*86400000+2*3600000)
+        throw new HttpError(409,"WEEK_NOT_CLOSED");
       const {engine:approvalEngine}=await sourceFor(ym,storeId);
       const currentPayroll=await approvalEngine.computeMonthPayroll(ym);
       const employeeRow=currentPayroll.rows.find(r=>Number(r.employee_id)===employeeId);
