@@ -299,7 +299,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
         pay.weeklyApprovalDelta=approvalDelta;
         pay.jweeks=qualifiedWeeks;
         pay.weekly=Math.round(effWage*Math.min(8,weeklyContractMin/300));
-        pay.juhyu=Math.trunc(effWage*juhyuHours)+Number(pay.weeklyApprovalDelta||0);
+        pay.juhyu=[...weeklyAmounts.values()].reduce((sum,won)=>sum+won,0)+Number(pay.weeklyApprovalDelta||0);
         if(hours<=0){pay.base=0;pay.weekly=0;pay.juhyu=0;pay.adjust=0;pay.gross=0;pay.net=0;pay.jweeks=0;}
         else {const breakCompPay=Math.trunc((effWage||0)*breakBonusMinutes/60);pay.breakCompPay=breakCompPay;pay.gross=Math.trunc(pay.base+pay.juhyu+pay.adjust+breakCompPay);pay.net=xrounddown(pay.gross*(1-pay.rate),-1);}
       }
