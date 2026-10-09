@@ -2393,8 +2393,7 @@ async function computeMonthPayroll(ym){
     // Over 4h + break not provided => automatically add 30 minutes (= 50% of hourly wage) per eligible shift.
     const breakMode=contract?.break_provision_mode||(contract?.break_time_provided===true?'PROVIDED':'NOT_PROVIDED');
     const breakTimeProvided=breakMode==='PROVIDED';
-    const breakTimeIgnored=breakMode==='IGNORED';
-    const breakConfirmedCount=breakEligibleCount;
+    const breakConfirmedCount=breakTimeProvided?breakEligibleCount:0;
     const breakNotProvidedCount=breakMode==='NOT_PROVIDED'?breakEligibleCount:0;
     const breakCompensateCount=breakNotProvidedCount;
     // Per completed shift: >4h earns 30m; >=8h earns 60m (not cumulative).
