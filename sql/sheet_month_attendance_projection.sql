@@ -6,7 +6,8 @@ language sql stable security invoker set search_path = public,pg_temp as $fn$
 with bounds as (
  select to_date(p_ym||'-01','YYYY-MM-DD')::timestamp as start_at,
         (to_date(p_ym||'-01','YYYY-MM-DD')+interval '1 month')::timestamp as end_at
- where p_ym ~ '^[0-9]{4}-(0[1-9]|1[0-2])), base as (
+ where p_ym between '2000-01' and '2099-12' and length(p_ym)=7
+), base as (
  select e.id employee_id,e.name employee_name,a.id event_id,a.event_type,a.event_at
  from public.attendance_events a join public.employees e on e.id=a.employee_id
  where e.store_id=p_store_id
