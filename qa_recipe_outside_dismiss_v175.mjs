@@ -7,6 +7,6 @@ assert.match(js,/if\(!state\.focusedKey \|\| !listEl\.isConnected\)return/);
 assert.match(js,/e\.target\.closest\("\.recipe-v220-card\.is-open"\)/);
 assert.match(js,/e\.target\.closest\("\.recipe-v220-modal"\)/);
 assert.match(js,/closeFocused\(\);\s*\},\{signal:window\.recipeFocusAbort\.signal\}\)/);
-assert.match(html,/@media \(min-width:769px\)\{ html\{overflow-y:scroll; scrollbar-gutter:stable;\} \}/);
-assert.match(html,/v0\.175/);
+assert.match(html,/@media \(min-width:769px\)\{ html\{overflow-y:scroll;scrollbar-gutter:stable both-edges;\} body\{overflow-y:visible;\} \}/);
+assert.match(html,/v0\.179/);
 console.log('PASS recipe outside dismissal, lifecycle cleanup and desktop scrollbar stability');
