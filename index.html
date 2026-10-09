@@ -531,6 +531,9 @@
   .locked-store-name.show{display:block}
   @media(max-width:430px){.locked-store-name{max-width:118px;font-size:.82rem}}
 
+  /* v0.170: store identity must remain visible beside the brand on all store pages. */
+  header .brand #lockedStoreName:not([hidden]){display:block!important;flex:0 1 auto;min-width:0;color:#fff;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  @media(min-width:431px){header .brand #lockedStoreName:not([hidden]){max-width:240px}}
   /* V2.01 payroll card exact geometry restored from pre-regression v1.79 */
   #adminPanel:has(#payList) .payroll-employee-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-flow:row!important;grid-auto-rows:108px!important;gap:8px!important;align-content:start!important;height:auto!important;min-height:224px!important;max-height:none!important;overflow-y:auto!important}
   #adminPanel:has(#payList) .payroll-employee-card{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;box-sizing:border-box!important;width:auto!important;min-width:0!important;max-width:none!important;height:108px!important;min-height:108px!important;max-height:108px!important;border:1px solid var(--border)!important;border-radius:var(--r)!important;background:var(--surface)!important;padding:0 14px 14px!important;gap:0!important;overflow:hidden!important}
