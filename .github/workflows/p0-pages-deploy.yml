@@ -86,3 +86,5 @@ jobs:
       - name: Deploy only after P0 gate passed
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Confirm production Sheet sync after Pages deployment
+        run: node tools/trigger_sheet_deploy_sync.mjs
