@@ -174,7 +174,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   // Do not merge across the table width; merged regions made narrow mobile views visually drift.
   sh.getRange(1,1,1,width).setBackground(green).setFontColor(white).setFontSize(18).setFontWeight('bold').setHorizontalAlignment('left');
   sh.getRange(2,1,1,width).setBackground(green).setFontColor('#eef8f1').setFontSize(10).setFontWeight('bold').setHorizontalAlignment('left');
-  sh.getRange(3,1,1,width).setBackground(canvas);
+  sh.getRange(3,1,1,width).setBackground(white);
   sh.setRowHeight(1,42); sh.setRowHeight(2,28); sh.setRowHeight(3,10);
 
   sections.forEach(function(s,i){
@@ -259,11 +259,8 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     }
     return Math.ceil(units*fontSize*(isBold?1.08:1)+paddingPx);
   }
-  for(var cc=0;cc<width;cc++){
-    var required=0;
-    for(var rr=2;rr<display.length;rr++) required=Math.max(required,textWidthPx(display[rr][cc],sizes[rr][cc]||10,weights[rr][cc]==='bold'));
-    sh.setColumnWidth(cc+1,required);
-  }
+  // Never resize the active month independently: that produces a visible width drift
+  // before the annual shared-width pass, especially when refreshing October.
   // A single month must not independently shrink columns: normalize the same column
   // against every populated month in the annual workbook after each write.
   var sharedWidths=[];
