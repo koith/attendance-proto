@@ -121,3 +121,10 @@
 
 /* v0.167: compact, regular-weight single-line placeholder labels. */
 .recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.43rem!important;font-weight:400!important;letter-spacing:-.05em!important;white-space:nowrap!important;word-break:keep-all!important}
+
+/* v0.168: match fallback label to recipe name typography and shrink desktop pencil glyph only. */
+@media(min-width:621px){
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb:has(.recipe-v220-thumb-placeholder){width:94px!important;min-width:94px!important}
+.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder small{font-size:.88rem!important;font-weight:700!important;letter-spacing:-.025em!important;white-space:nowrap!important;max-width:100%!important}
+.recipe-v220-edit{font-size:1.6rem!important}
+}
