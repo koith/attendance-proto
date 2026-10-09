@@ -2664,7 +2664,7 @@ async function buildSheetSyncPayload(ym){
   const humanPayroll=payRows.map((r,i)=>{
     const rec=R.rows[i];
     const base=rec.pay?.payrollType==="MONTHLY"?won(rec.pay.monthlySalary):r[4];
-    return [r[0],r[1],r[2],r[3],base,r[5],r[6],
+    return [r[0],rec.pay?.payrollType==="MONTHLY"?"월급제":rec.pay?"시급제":"미설정",r[1],r[2],r[3],base,r[5],r[6],
       sheetDuration(rec.sessions.filter(x=>x.status==="COMPLETE").reduce((total,x)=>total+(Number(x.sec||0)>8.5*3600?3600:Number(x.sec||0)>4*3600?1800:0),0)),
       rec.breakTimeProvided?"제공":"미제공",
       r[9],r[10],r[11],r[12]];
@@ -2703,14 +2703,14 @@ async function buildSheetSyncPayload(ym){
     const multi=(sessionCount.get(key)||0)>1;
     const idx=detailIndexes.get(key)||0;detailIndexes.set(key,idx+1);
     const night=multi?detail?.sessions?.[idx]:detail?.night;
-    return [...row,night||"00:00",detail?.breakSetting||"—"];
+    return [row[0],row[1],(R.rows.find(x=>x.employee_name===row[1])?.pay?.payrollType==="MONTHLY"?"월급제":"시급제"),...row.slice(2),night||"00:00",detail?.breakSetting||"—"];
   });
   return {
     store_key:String(CURRENT_STORE_ID||1),
     store_name:STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||CONFIG.STORE_NAME,
-    attendance:{ header:["날짜","직원명","출근","퇴근","실근무","상태","정정","정정사유","야간근무","휴게 제공 여부"], rows:detailedAttendance },
+    attendance:{ header:["날짜","직원명","급여형태","출근","퇴근","실근무","상태","정정","정정사유","야간근무","휴게 제공 여부"], rows:detailedAttendance },
     sessions:{ header:[], rows:[] },
-    payroll:{ header:["직원명","총근무","야간근무","시급","기본급","주휴","휴게","휴게 기준시간(참고)","휴게 제공 여부","휴게수당","조정","예상 세전급여","상태"], rows:humanPayroll },
+    payroll:{ header:["직원명","급여형태","총근무","야간근무","시급","기본급","주휴","휴게","휴게 기준시간(참고)","휴게 제공 여부","휴게수당","조정","예상 세전급여","상태"], rows:humanPayroll },
   };
 }
 function sheetDuration(sec){sec=Math.max(0,Math.round(Number(sec)||0));const mins=Math.floor(sec/60);return `${String(Math.floor(mins/60)).padStart(2,"0")}:${String(mins%60).padStart(2,"0")}`;}
