@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   deploy:
@@ -51,3 +52,6 @@ jobs:
             exit 1
           fi
           node tools/deploy_apps_script.mjs
+      - name: Confirm production Sheet sync after Apps Script deployment
+        if: github.event_name != 'pull_request'
+        run: node tools/trigger_sheet_deploy_sync.mjs
