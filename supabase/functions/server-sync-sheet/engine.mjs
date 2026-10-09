@@ -142,7 +142,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   const isActive=e=>e.is_active!==false && e.active!==false;
   const active=emps.filter(isActive);
   const eventEmployeeIds=new Set(events.map(x=>Number(x.employee_id)));
-  const payrollCandidates=emps.filter(e=>!isHiddenInhaTestEmployee(e)&&(isActive(e)||eventEmployeeIds.has(Number(e.id))));
+  const payrollCandidates=emps.filter(e=>isActive(e)||eventEmployeeIds.has(Number(e.id)));
   let periodWeeks=null, overrides={}, contracts={}, contractWorkdays={}, substitutions=[];
   if(LIVE){
     try{
