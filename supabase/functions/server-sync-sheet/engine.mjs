@@ -279,7 +279,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
               const review=assessWeeklyRest({weeklyMinutes:weeklyContractMin,workdays:weeklyWorkdays,departureDate,
                 sessions:sess,substitutions:weeklySubstitutions,weekStart:mondayKey});
               if(review.automaticEligible){qualifiedWeeks++;juhyuHours+=weeklyHolidayHours;weeklyAmounts.set(mondayKey,truncateWon(effWage*weeklyHolidayHours));}
-              else {weeklyReviewComments.push(...review.reasons.map(reason=>mondayKey+': '+reason));}
+              else {weeklyReviewComments.push(...review.reasons.map(reason=>mondayKey+': '+reason));if(review.completed&&departureDate)weeklyReviewComments.push(mondayKey+': 퇴사 주간 추가 지급 검토액 '+truncateWon(effWage*weeklyHolidayHours)+'원');}
             }
           }
         }
