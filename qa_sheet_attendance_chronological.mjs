@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+const src=fs.readFileSync('apps_script.gs','utf8');
+assert.match(src,/attendance=_sortAttendanceByDate\(_seniorAttendanceLayout\(attendance,payroll\)\)/);
+const match=src.match(/function _sortAttendanceByDate\(section\)\{[\s\S]*?\n\}/);
+assert.ok(match,'Apps Script date sorter exists');
+const ctx={Date,Number,String};vm.createContext(ctx);vm.runInContext(match[0],ctx);
+const input={header:['날짜','직원명'],rows:[['2026-10-09','Z'],['2026-10-01','B'],['2026-10-01','A'],['2026-10-05','C']]};
+const out=ctx._sortAttendanceByDate(input);
+assert.deepEqual(Array.from(out.rows,r=>r[1]),['B','A','C','Z']);
+assert.equal(input.rows[0][1],'Z','input untouched');
+const mixed={header:['날짜','직원명'],rows:[[46304,'last'],['2026-10-01','first'],[46297,'middle']]};
+assert.deepEqual(Array.from(ctx._sortAttendanceByDate(mixed).rows,r=>r[1]),['first','middle','last']);
+console.log('PASS chronological attendance sort, stable equal dates, mixed date serials');
