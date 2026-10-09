@@ -2626,6 +2626,47 @@ async function drawPay(ym){
         detailBtn.addEventListener("pointerenter",()=>{if(matchMedia("(hover:hover)").matches){closePayrollDetailPopovers(detail);detail.hidden=false;detailBtn.setAttribute("aria-expanded","true");}});
       }
     }
+    if(LIVE&&Number(CURRENT_STORE_ID)===1&&pay?.payrollType==="HOURLY"){
+      const detail=card.querySelector(".payroll-detail-popover");
+      if(detail){
+        const btn=document.createElement("button");
+        btn.type="button";btn.className="btn btn-sm";btn.textContent="주휴수당 정정·승인";
+        btn.onclick=ev=>{
+          ev.stopPropagation();
+          const veil=document.getElementById("addVeil"),modal=veil?.querySelector(".modal");
+          if(!modal)return;
+          modal.innerHTML=`<h3>주휴수당 정정 · ${safeHtml(eName)}</h3>
+          <div class="field"><label>대상 주 월요일</label><input id="weeklyApproveDate" type="date" value="${ym}-01"></div>
+          <div class="field"><label>해당 주 자동계산 금액 (원)</label><input id="weeklyApproveOriginal" type="number" min="0" step="1" value="0"></div>
+          <div class="field"><label>최종 승인 금액 (원)</label><input id="weeklyApproveAmount" type="number" min="0" step="1" value="0"></div>
+          <div class="field"><label>정정 사유</label><textarea id="weeklyApproveReason" placeholder="대타 승인 내역 및 지급 판단 근거"></textarea></div>
+          <p style="font-size:.8rem">해당 주의 자동계산액을 확인한 후 입력하세요. 승인 기록은 삭제하지 않고 보존합니다.</p>
+          <button type="button" class="btn btn-primary btn-block" id="weeklyApproveSave">정정 승인</button>`;
+          openAddVeil();
+          modal.querySelector("#weeklyApproveSave").onclick=async()=>{
+            const week_start=modal.querySelector("#weeklyApproveDate").value;
+            const calculated_won=Number(modal.querySelector("#weeklyApproveOriginal").value);
+            const approved_won=Number(modal.querySelector("#weeklyApproveAmount").value);
+            const reason=modal.querySelector("#weeklyApproveReason").value.trim();
+            if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(week_start)||new Date(week_start+"T00:00:00").getDay()!==1||
+               !Number.isSafeInteger(calculated_won)||calculated_won<0||
+               !Number.isSafeInteger(approved_won)||approved_won<0||reason.length<3){
+              alert("월요일 날짜, 원 단위 금액, 정정 사유를 확인하세요.");return;
+            }
+            if(!confirm(`주휴수당 ${calculated_won.toLocaleString()}원 → ${approved_won.toLocaleString()}원으로 승인하시겠습니까?`))return;
+            const response=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/server-sync-sheet`,{
+              method:"POST",headers:{Authorization:`Bearer ${Auth.token}`,"Content-Type":"application/json"},
+              body:JSON.stringify({mode:"weekly_approve",store_id:Number(CURRENT_STORE_ID),ym,
+                employee_id:Number(rec.employee_id),week_start,calculated_won,approved_won,reason})
+            });
+            const data=await response.json();
+            if(!response.ok||!data.ok){alert(data.error||"승인 실패");return;}
+            veil.classList.remove("show");restoreAddModal();drawPay(ym);
+          };
+        };
+        detail.appendChild(btn);
+      }
+    }
     card.addEventListener("mouseleave",()=>{const d=card.querySelector(".payroll-detail-popover"),b=card.querySelector(".payroll-pay-detail");if(d&&!d.hidden&&matchMedia("(hover:hover)").matches){d.hidden=true;b?.setAttribute("aria-expanded","false");}});
     const secondary=card.querySelector(":scope > .employee-card-secondary");
     const payline=card.querySelector(":scope > .payroll-employee-payline");
