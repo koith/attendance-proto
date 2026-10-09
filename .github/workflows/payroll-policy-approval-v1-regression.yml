@@ -4,6 +4,8 @@ on:
     paths:
       - 'supabase/functions/server-sync-sheet/**'
       - 'qa_payroll_policy_adjustment_v1.mjs'
+      - 'qa_weekly_approval_rpc_guard_v1.mjs'
+      - 'supabase/migrations/20261010013000_weekly_approval_rpc_closed_week.sql'
       - 'qa_payroll_weekly_integration_v1.mjs'
       - 'qa_payroll_month_boundary_v1.mjs'
       - 'qa_payroll_week_boundary_behavior_v1.mjs'
@@ -24,6 +26,7 @@ jobs:
         with:
           node-version: '22'
       - run: node qa_payroll_policy_adjustment_v1.mjs
+      - run: node qa_weekly_approval_rpc_guard_v1.mjs
       - run: node qa_payroll_weekly_integration_v1.mjs
       - run: node qa_payroll_month_boundary_v1.mjs
       - run: node qa_payroll_week_boundary_behavior_v1.mjs
