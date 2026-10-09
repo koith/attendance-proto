@@ -2698,12 +2698,13 @@ async function buildSheetSyncPayload(ym){
     }
   }
   const detailIndexes=new Map();
+  const payTypeByName=new Map(R.rows.map(rec=>[rec.employee_name,!rec.pay?"미설정":rec.pay.payrollType==="MONTHLY"?"월급제":"시급제"]));
   const detailedAttendance=humanAttendance.map(row=>{
     const key=row[0]+"|"+row[1],detail=detailLookup.get(key);
     const multi=(sessionCount.get(key)||0)>1;
     const idx=detailIndexes.get(key)||0;detailIndexes.set(key,idx+1);
     const night=multi?detail?.sessions?.[idx]:detail?.night;
-    return [row[0],row[1],(R.rows.find(x=>x.employee_name===row[1])?.pay?.payrollType==="MONTHLY"?"월급제":"시급제"),...row.slice(2),night||"00:00",detail?.breakSetting||"—"];
+    return [row[0],row[1],(payTypeByName.get(row[1])||"미설정"),...row.slice(2),night||"00:00",detail?.breakSetting||"—"];
   });
   return {
     store_key:String(CURRENT_STORE_ID||1),
