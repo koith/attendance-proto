@@ -113,10 +113,10 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   const base=Math.trunc(wage*monthHours);              // 기본급 10원 반올림
   let juhyu=0, weekly=0;
   if(jh>0){
-    weekly = (emp.juhyu_round!=null) ? xround(wage*jh, emp.juhyu_round) : Math.round(wage*jh);
-    juhyu = Math.round(weekly*jweeks);               // 원 단위 정수화 (부동소수점 오차 제거)
+    weekly = (emp.juhyu_round!=null) ? xround(wage*jh, emp.juhyu_round) : Math.trunc(wage*jh);
+    juhyu = Math.trunc(weekly*jweeks);               // 원 단위 정수화 (부동소수점 오차 제거)
   }
-  const gross=Math.round(base+juhyu+adjust);         // 임의 가감액 포함
+  const gross=Math.trunc(base+juhyu+adjust);         // 임의 가감액 포함
   const net=xrounddown(gross*(1-rate),-1);           // 세후 10원 버림
   return {base, weekly, juhyu, adjust, gross, net, rate, wage, jweeks, usedOverride:Object.keys(ov).length>0};
 }
@@ -301,7 +301,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
         pay.weekly=Math.round(effWage*Math.min(8,weeklyContractMin/300));
         pay.juhyu=Math.trunc(effWage*juhyuHours)+Number(pay.weeklyApprovalDelta||0);
         if(hours<=0){pay.base=0;pay.weekly=0;pay.juhyu=0;pay.adjust=0;pay.gross=0;pay.net=0;pay.jweeks=0;}
-        else {const breakCompPay=Math.trunc((effWage||0)*breakBonusMinutes/60);pay.breakCompPay=breakCompPay;pay.gross=Math.round(pay.base+pay.juhyu+pay.adjust+breakCompPay);pay.net=xrounddown(pay.gross*(1-pay.rate),-1);}
+        else {const breakCompPay=Math.trunc((effWage||0)*breakBonusMinutes/60);pay.breakCompPay=breakCompPay;pay.gross=Math.trunc(pay.base+pay.juhyu+pay.adjust+breakCompPay);pay.net=xrounddown(pay.gross*(1-pay.rate),-1);}
       }
     }
     if(pay && sec<=0 && payrollType!=="MONTHLY"){ pay.base=0; pay.weekly=0; pay.juhyu=0; pay.adjust=0; pay.gross=0; pay.net=0; pay.jweeks=0; }
