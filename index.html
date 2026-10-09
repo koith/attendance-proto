@@ -2471,7 +2471,7 @@ async function computeMonthPayroll(ym){
     if(contract?.night_allowance_enabled===true){
       const mode=String(contract.night_allowance_mode||"RATE").toUpperCase();
       const value=Math.max(0,Number(contract.night_allowance_value||0));
-      const timeMin=(v,fallback)=>{const m=String(v||"").match(/^(\\d{1,2}):(\\d{2})/);return m?Number(m[1])*60+Number(m[2]):fallback;};
+      const timeMin=(v,fallback)=>{const m=String(v||"").match(/^([0-9]{1,2}):([0-9]{2})/);return m?Number(m[1])*60+Number(m[2]):fallback;};
       const startMin=timeMin(contract.night_allowance_start,1320),endMin=timeMin(contract.night_allowance_end,360);
       const nightWorkedMin=sess.filter(x=>x.status==="COMPLETE"&&x.in&&x.out).reduce((sum,shift)=>{
         let t=new Date(shift.in),stop=new Date(shift.out),minutes=0;
