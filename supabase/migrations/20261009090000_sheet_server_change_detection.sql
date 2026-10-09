@@ -14,7 +14,7 @@ create or replace function public.system_check_sheet_changes()
 returns void language plpgsql security definer set search_path = public, pg_temp as $$
 declare st record; fp text;
 begin
-  for st in select id from public.stores where id=1 -- Inha pilot; expand only after server parity QA loop
+  for st in select id from public.stores where id=1 loop -- Inha pilot; expand only after server parity QA
     select md5(concat_ws('|',
       coalesce((select string_agg(md5(row_to_json(a)::text),',' order by a.id) from public.attendance_events a join public.employees e on e.id=a.employee_id where e.store_id=st.id),''),
       coalesce((select string_agg(md5(row_to_json(c)::text),',' order by c.id) from public.event_corrections c join public.employees e on e.id=c.employee_id where e.store_id=st.id),''),
