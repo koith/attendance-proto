@@ -1,3 +1,4 @@
+import {assessWeeklyRest,approvedWeeklyAdjustment,truncateWon} from './payroll_policy.mjs';
 /* Server runtime mirrors the browser's payroll and sheet report algorithms.
    SOURCE SNAPSHOT: index.html v0.181, payroll_contract_authority_v1.js,
    payroll_night_allowance_v1.js. Never add independent payroll policy here.
@@ -237,6 +238,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
         const cw=contractWorkdays[Number(e.id)];
         const weeklyContractMin=Number(cw?.weeklyMinutes||0);
         let qualifiedWeeks=0, juhyuHours=0;
+        const weeklyReviewComments=[];
         if(weeklyContractMin>=900 && cw){
           const weekMap={};
           for(const ss of sess.filter(x=>x.status==="COMPLETE")){
@@ -258,9 +260,22 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
             // 진행 중 세션은 위에서 제외했으므로, 주휴는 완료된 근무만으로 확정된다.
             const settleAt=new Date(monday); settleAt.setDate(monday.getDate()+7); settleAt.setHours(2,0,0,0);
             const weekClosed=(ym<`${nowLimit.getFullYear()}-${p2(nowLimit.getMonth()+1)}`) || settleAt<=nowLimit;
-            if(weekClosed && mins>=weeklyContractMin){ qualifiedWeeks++; juhyuHours+=weeklyHolidayHours; }
+            if(weekClosed && mins>=weeklyContractMin){
+              const mondayKey=weekKey;
+              const weeklySubstitutions=substitutions.filter(z=>{
+                const d=new Date(z.work_start);if(!Number.isFinite(d.getTime()))return false;
+                const start=new Date(mondayKey+'T00:00:00');return d>=start&&d<new Date(start.getTime()+7*86400000)&&
+                  (Number(z.requester_employee_id)===Number(e.id)||Number(z.substitute_employee_id)===Number(e.id));
+              });
+              const weeklyWorkdays=Object.entries(cw.days).map(([weekday,contracted_minutes])=>({weekday,contracted_minutes}));
+              const review=assessWeeklyRest({weeklyMinutes:weeklyContractMin,workdays:weeklyWorkdays,
+                sessions:sess,substitutions:weeklySubstitutions,weekStart:mondayKey});
+              if(review.automaticEligible){qualifiedWeeks++;juhyuHours+=weeklyHolidayHours;}
+              else {weeklyReviewComments.push(...review.reasons.map(reason=>mondayKey+': '+reason));}
+            }
           }
         }
+        pay.weeklyReviewComments=weeklyReviewComments;
         pay.jweeks=qualifiedWeeks;
         pay.weekly=Math.round(effWage*Math.min(8,weeklyContractMin/300));
         pay.juhyu=Math.round(effWage*juhyuHours);
