@@ -21,3 +21,16 @@ select v.*,coalesce(c.break_provision_mode,case when v.break_time_provided then 
 $;
 revoke all on function public.admin_store_payroll_contracts_v4(bigint,date) from public,anon;
 grant execute on function public.admin_store_payroll_contracts_v4(bigint,date) to authenticated,service_role;
+
+-- Compatibility for older cached clients that still call the boolean RPC.
+create or replace function public._contract_break_mode_legacy_sync() returns trigger language plpgsql as $$
+begin
+ if new.break_time_provided is distinct from old.break_time_provided
+    and new.break_provision_mode is not distinct from old.break_provision_mode then
+   new.break_provision_mode=case when new.break_time_provided then 'PROVIDED' else 'NOT_PROVIDED' end;
+ end if;
+ return new;
+end $$;
+drop trigger if exists contract_break_mode_legacy_sync on public.employment_contracts;
+create trigger contract_break_mode_legacy_sync before update of break_time_provided,break_provision_mode on public.employment_contracts
+for each row execute function public._contract_break_mode_legacy_sync();
