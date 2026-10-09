@@ -7,6 +7,7 @@ on:
       - 'qa_payroll_weekly_integration_v1.mjs'
       - 'qa_payroll_month_boundary_v1.mjs'
       - 'qa_payroll_week_boundary_behavior_v1.mjs'
+      - 'qa_server_payroll_parity_fixtures.mjs'
       - 'supabase/migrations/20261010100000_sheet_payroll_week_boundary.sql'
       - '.github/workflows/payroll-policy-approval-v1-regression.yml'
   push:
@@ -26,4 +27,5 @@ jobs:
       - run: node qa_payroll_weekly_integration_v1.mjs
       - run: node qa_payroll_month_boundary_v1.mjs
       - run: node qa_payroll_week_boundary_behavior_v1.mjs
+      - run: node qa_server_payroll_parity_fixtures.mjs
       - run: node qa_server_payroll_fixture_parity_v1.mjs
