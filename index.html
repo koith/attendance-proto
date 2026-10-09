@@ -729,7 +729,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.179</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.180</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -1493,7 +1493,7 @@ function route(){
   else if(h==="attendance"){ setTab("attendance"); if(!LIVE){ location.href="actual_attendance.html"; return; } sessionStorage.removeItem("staff_attendance_auth"); if(Auth.isLoggedIn()){ BE.isAdmin().then(isAdmin=>{ if(isAdmin) location.href="actual_attendance.html"; else openMyRecord(); }).catch(()=>openMyRecord()); return; } openMyRecord(); }
   else if(h==="pay"){ setTab("pay"); requireAuth(async()=>{await renderPay();await mountAdminSubnav("pay");}); }
   else if(["report","sales","inventory","ops"].includes(h)&&Number(CURRENT_STORE_ID)!==1){location.hash="#admin";return;}
-  else if(h==="report"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");await mountAdminSubnav("report");}); } else if(h==="sales"){ setTab("sales"); requireAuth(async()=>{await renderOperations("inquiry");await mountAdminSubnav("sales");}); } else if(h==="inventory"){ setTab("inventory"); requireAuth(async()=>{await renderOperations("inventory");await mountAdminSubnav("inventory");}); } else if(h==="recipe"){ setTab("recipe"); renderRecipeHub(); } else if(h==="products"){location.hash="#dashboard";return;} else if(h==="ops"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");await mountAdminSubnav("report");}); }
+  else if(h==="report"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");await mountAdminSubnav("report");}); } else if(h==="sales"){ setTab("sales"); requireAuth(async()=>{await renderOperations("inquiry");await mountAdminSubnav("sales");}); } else if(h==="inventory"){ setTab("inventory"); requireAuth(async()=>{await renderOperations("inventory");await mountAdminSubnav("inventory");}); } else if(h==="recipe"){ setTab("recipe"); renderRecipeHub(); requestAnimationFrame(()=>{ if(location.hash==="#recipe" && window.scrollX!==0) window.scrollTo({left:0,top:window.scrollY,behavior:"instant"}); }); } else if(h==="products"){location.hash="#dashboard";return;} else if(h==="ops"){ setTab("report"); requireAuth(async()=>{await renderOperations("dashboard");await mountAdminSubnav("report");}); }
   else if(h==="hours"){ setTab("hours"); requireAuth(async()=>{await renderStoreHours();upgradeLegacyPageTitle(".store-hours-page>.section-t","운영시간");await mountAdminSubnav("hours");}); }
   else{ setTab("pos"); renderPos(); }
 }
