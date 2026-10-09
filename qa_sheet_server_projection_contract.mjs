@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const sql=fs.readFileSync('sql/sheet_month_attendance_projection.sql','utf8');
+assert.match(sql,/security invoker/i);
+assert.match(sql,/e\.store_id=p_store_id/);
+assert.match(sql,/edits\.action is distinct from 'VOID'/);
+assert.match(sql,/edits\.action='EDIT_TIME'/);
+assert.match(sql,/edits\.action='EDIT_TYPE'/);
+assert.match(sql,/c\.action='ADD'/);
+assert.match(sql,/revoke all on function public\.sheet_month_attendance_projection/);
+assert.match(sql,/grant execute on function public\.sheet_month_attendance_projection\(bigint,text\) to service_role/);
+assert.equal((sql.match(/create or replace function/g)||[]).length,1);
+console.log('PASS server attendance projection SQL contract');
