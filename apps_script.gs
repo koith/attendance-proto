@@ -136,7 +136,7 @@ function _seniorAttendanceLayout(section,payroll){
   var keys=['날짜','직원명','급여형태','출근','퇴근','총근무','야간근무','휴게시간제공여부','법정휴게시간','실제휴게시간','급여산정시간','상태','정정','정정사유'];
   return {header:keys,rows:(section.rows||[]).map(function(row){
     var get=function(key){var i=h.indexOf(key);return i<0?'':row[i];};
-    var raw=get('실근무');
+    var raw=get('실근무')||get('총근무');
     var m=String(raw).match(/^([0-9]+):([0-9]{2})/),seconds=m?Number(m[1])*3600+Number(m[2])*60:0;
     
     // Reference-only statutory break duration; never change source payable time.
