@@ -188,12 +188,13 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     const contract=contracts[Number(e.id)]||null;
     // Contract-level rule: over 4h + break provided => no allowance.
     // Over 4h + break not provided => automatically add 30 minutes (= 50% of hourly wage) per eligible shift.
-    const breakTimeProvided=contract?.break_time_provided!==false;
-    const breakConfirmedCount=breakEligibleCount;
-    const breakNotProvidedCount=breakTimeProvided?0:breakEligibleCount;
+    const breakMode=contract?.break_provision_mode||(contract?.break_time_provided===true?'PROVIDED':'NOT_PROVIDED');
+    const breakTimeProvided=breakMode==='PROVIDED';
+    const breakConfirmedCount=breakTimeProvided?breakEligibleCount:0;
+    const breakNotProvidedCount=breakMode==='NOT_PROVIDED'?breakEligibleCount:0;
     const breakCompensateCount=breakNotProvidedCount;
     // Per completed shift: >4h earns 30m; >=8h earns 60m (not cumulative).
-    const breakBonusMinutes=breakTimeProvided?0:eligibleBreakSessions.reduce((sum,shift)=>sum+(Number(shift.sec||0)>=8*3600?60:30),0);
+    const breakBonusMinutes=breakMode!=='NOT_PROVIDED'?0:eligibleBreakSessions.reduce((sum,shift)=>sum+(Number(shift.sec||0)>=8*3600?60:30),0);
     // Provided break: first 30m is bounded by time beyond 4h; next 30m beyond 8h30.
     // 4:20 => 4:00 payable, 8:40 => 8:00 payable, 9:00 => 8:00 payable.
     const breakDeductSeconds=breakTimeProvided?sess.filter(s=>s.status==="COMPLETE").reduce((sum,shift)=>{const t=Math.max(0,Number(shift.sec||0));return sum+Math.min(1800,Math.max(0,t-4*3600))+Math.min(1800,Math.max(0,t-8.5*3600));},0):0;
@@ -298,7 +299,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     if(pay){pay.nightAllowance=nightAllowance;pay.nightAllowanceLabel=nightAllowanceLabel;}
     if(pay){ totalNet+=Number(pay.net||0); totalGross+=Number(pay.gross||0); }
     rows.push({employee_id:e.id, employee_name:e.name, emp:e, hours, sec, sessions:sess, issues, ov,
-      hasWage, pay, contract, payrollType, substitutePay, substituteMinutes, nightMinutes, breakEligibleCount, breakConfirmedCount, breakNotProvidedCount, breakCompensateCount, breakBonusMinutes, breakDeductSeconds, breakTimeProvided, breakDecisions:[], memo:(ov&&ov.memo)||e.memo||""});
+      hasWage, pay, contract, payrollType, substitutePay, substituteMinutes, nightMinutes, breakEligibleCount, breakConfirmedCount, breakNotProvidedCount, breakCompensateCount, breakBonusMinutes, breakDeductSeconds, breakTimeProvided, breakMode, breakDecisions:[], memo:(ov&&ov.memo)||e.memo||""});
   }
   const payrollEmployees=rows.map(r=>r.emp);
   return {active:payrollEmployees, events, weeks, overrides, rows, totalNet, totalGross};
@@ -340,10 +341,10 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   // 급여 (마감 전 예상; 마감 후엔 Edge Function이 snapshot으로 대체)
   const payRows=[];
   for(const rec of R.rows){
-    if(!rec.pay){ payRows.push([rec.employee_name, sheetDuration(rec.sec), sheetDuration(rec.nightMinutes*60), "미설정","—","—",rec.breakTimeProvided?"제공":"미제공",rec.breakNotProvidedCount,rec.breakCompensateCount,"—","—","—","시급 설정 필요"]); continue; }
+    if(!rec.pay){ payRows.push([rec.employee_name, sheetDuration(rec.sec), sheetDuration(rec.nightMinutes*60), "미설정","—","—",rec.breakMode==="IGNORED"?"미고려":rec.breakTimeProvided?"제공":"미제공",rec.breakNotProvidedCount,rec.breakCompensateCount,"—","—","—","시급 설정 필요"]); continue; }
     const p=rec.pay;
     payRows.push([rec.employee_name, sheetDuration(rec.sec), sheetDuration(rec.nightMinutes*60), won(p.wage), won(p.base),
-      won(p.juhyu), rec.breakTimeProvided?"제공":"미제공", rec.breakNotProvidedCount, rec.breakCompensateCount, won(p.breakCompPay||0), won(p.adjust), won(p.gross), "예상"]);
+      won(p.juhyu), rec.breakMode==="IGNORED"?"미고려":rec.breakTimeProvided?"제공":"미제공", rec.breakNotProvidedCount, rec.breakCompensateCount, won(p.breakCompPay||0), won(p.adjust), won(p.gross), "예상"]);
   }
   // Google Sheet is a human-facing report. Avoid duplicating the same one-session day in a second table.
   // If a day contains multiple sessions, expand only that day into individual session rows.
@@ -361,7 +362,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     const base=rec.pay?.payrollType==="MONTHLY"?won(rec.pay.monthlySalary):r[4];
     return [r[0],r[1],r[2],r[3],base,r[5],r[6],
       sheetDuration(rec.breakDeductSeconds||0),
-      rec.breakTimeProvided?"제공":"미제공",
+      rec.breakMode==="IGNORED"?"미고려":rec.breakTimeProvided?"제공":"미제공",
       r[9],r[10],r[11],r[12],sheetDuration((rec.breakBonusMinutes||0)*60),sheetDuration(Math.max(0,rec.sec-(rec.breakDeductSeconds||0))+(rec.breakBonusMinutes||0)*60),rec.pay?.nightAllowanceLabel||"미적용",won(rec.pay?.nightAllowance||0)];
   });
   // Senior workbook: show the source-backed break setting and 22:00-06:00 overlap
@@ -380,11 +381,13 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   }
   // The sheet must receive payable time from the same completed sessions used by payroll.
   // Never re-derive it from the rounded human-readable '실근무' column in Apps Script.
-  function payableSeconds(shift,provided){
+  function payableSeconds(shift,mode){
+    const provided=mode==='PROVIDED';
+    const ignored=mode==='IGNORED';
     if(shift.status!=="COMPLETE")return 0;
     const sec=Math.max(0,Number(shift.sec||0));
     const deduct=provided?Math.min(1800,Math.max(0,sec-14400))+Math.min(1800,Math.max(0,sec-30600)):0;
-    const bonus=provided?0:(sec>=28800?3600:sec>14400?1800:0);
+    const bonus=(provided||ignored)?0:(sec>=28800?3600:sec>14400?1800:0);
     return Math.max(0,sec-deduct)+bonus;
   }
   const detailLookup=new Map();
@@ -397,8 +400,8 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     for(const [day,items] of days){
       const complete=items.filter(x=>x.status==="COMPLETE");
       const night=complete.reduce((n,x)=>n+nightSeconds(x.in,x.out),0);
-      detailLookup.set(day+"|"+rec.employee_name,{night:sheetDuration(night),breakSetting:rec.breakTimeProvided?"제공":"미제공",
-        payable:sheetDuration(complete.reduce((n,x)=>n+payableSeconds(x,rec.breakTimeProvided),0)),sessions:items.map(x=>sheetDuration(x.status==="COMPLETE"?nightSeconds(x.in,x.out):0)),payableSessions:items.map(x=>sheetDuration(payableSeconds(x,rec.breakTimeProvided)))});
+      detailLookup.set(day+"|"+rec.employee_name,{night:sheetDuration(night),breakSetting:rec.breakMode==="IGNORED"?"미고려":rec.breakTimeProvided?"제공":"미제공",
+        payable:sheetDuration(complete.reduce((n,x)=>n+payableSeconds(x,rec.breakMode),0)),sessions:items.map(x=>sheetDuration(x.status==="COMPLETE"?nightSeconds(x.in,x.out):0)),payableSessions:items.map(x=>sheetDuration(payableSeconds(x,rec.breakMode)))});
     }
   }
   const detailIndexes=new Map();
