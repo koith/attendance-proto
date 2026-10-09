@@ -111,7 +111,9 @@ function _withoutPayrollStatusColumns(section){
 }
 
 function _writeMonth(ss, name, meta, attendance, sessions, payroll){
-  payroll=_withoutPayrollStatusColumns(payroll);
+  // Senior October workbook is the display contract. Transform report columns only.
+  payroll=_seniorPayrollLayout(_withoutPayrollStatusColumns(payroll));
+  attendance=_seniorAttendanceLayout(attendance);
   var sh=ss.getSheetByName(name); if(!sh) sh=ss.insertSheet(name);
   var monthNum=Number(String(name).replace(/[^0-9]/g,''))||0;
   var ym=String(ss.getName()).match(/(20\d{2})/);
