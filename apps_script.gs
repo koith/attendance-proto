@@ -148,7 +148,19 @@ function _sortAttendanceByDate(section){
     if(match)return Number(match[1])*10000+Number(match[2])*100+Number(match[3]);
     return Number.MAX_SAFE_INTEGER;
   }
-  rows.sort(function(a,b){return dateKey(a.row[dateCol])-dateKey(b.row[dateCol])||a.index-b.index;});
+  var clockCol=(section.header||[]).indexOf('출근');
+  function clockKey(value){
+    if(value instanceof Date)return value.getHours()*3600+value.getMinutes()*60+value.getSeconds();
+    if(typeof value==='number')return Math.round(((value%1)+1)%1*86400);
+    var text=String(value==null?'':value).trim();
+    var m=text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    return m?Number(m[1])*3600+Number(m[2])*60+Number(m[3]||0):Number.MAX_SAFE_INTEGER;
+  }
+  rows.sort(function(a,b){
+    return dateKey(a.row[dateCol])-dateKey(b.row[dateCol])
+      ||(clockCol<0?0:clockKey(a.row[clockCol])-clockKey(b.row[clockCol]))
+      ||a.index-b.index;
+  });
   return {header:section.header,rows:rows.map(function(item){return item.row;})};
 }
 function _writeMonth(ss, name, meta, attendance, sessions, payroll){
