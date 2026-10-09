@@ -729,7 +729,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.181</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.182</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -818,7 +818,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.181";
+const APP_VERSION="v0.182";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1123,11 +1123,21 @@ const SupaBE = (()=>{
     async reopenPayroll(ym){ return rpc("admin_reopen_payroll",{p_ym:ym},true); },
     async snapshot(ym){ return rpc("admin_snapshot",{p_ym:ym},true); },
     // M8.7: 구글시트 동기화 (Edge Function 호출)
-    async syncSheet(ym, payload){
-      const r=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/sync-sheet`,{
+    async serverPayroll(ym){
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/server-sync-sheet`,{
         method:"POST",
         headers:{"Authorization":`Bearer ${Auth.token||CONFIG.SUPABASE_ANON_KEY}`,"Content-Type":"application/json"},
-        body:JSON.stringify({ym,payload})
+        body:JSON.stringify({mode:"payroll",ym,store_id:CURRENT_STORE_ID||1})
+      });
+      const t=await r.text();let j=null;try{j=JSON.parse(t)}catch(e){}
+      if(!r.ok||!j?.ok)throw new Error("SERVER_PAYROLL_FAILED: "+(j?.error||r.status));
+      return j;
+    },
+    async syncSheet(ym, payload){
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/server-sync-sheet`,{
+        method:"POST",
+        headers:{"Authorization":`Bearer ${Auth.token||CONFIG.SUPABASE_ANON_KEY}`,"Content-Type":"application/json"},
+        body:JSON.stringify({mode:"sync",ym,store_id:CURRENT_STORE_ID||1,payload})
       });
       const t=await r.text(); let j=null; try{ j=JSON.parse(t); }catch(e){}
       if(!r.ok || (j&&j.ok===false)) throw new Error([j?.error,typeof j?.detail==="string"?j.detail:(j?.detail?JSON.stringify(j.detail):"")].filter(Boolean).join(": ")||t.slice(0,200));
