@@ -27,6 +27,7 @@
       append('test_mode_ui_v1.js?v=20260927v221','test-mode-ui');
       append('senior_requirements_v3.js?v=20260916a','senior-requirements-v3');
       append('payroll_refresh_coordinator_v1.js?v=20260916a','payroll-refresh-coordinator');
+      append('server_payroll_bridge_v1.js?v=20261009v182','server-payroll-bridge');
     };
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true}); else install();
   }
