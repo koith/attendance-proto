@@ -1481,7 +1481,7 @@ function route(){
   if(window._adminAccountMenuCleanup){window._adminAccountMenuCleanup();window._adminAccountMenuCleanup=null}
   syncStoreContextUI();
   if(h!=="pos"){ clearInterval(_posTimer); }
-  if(h==="dashboard"){if(STORE_ENTRY_LOCK){location.hash="#pos";return}setTab("dashboard");requireAuth(renderDashboard);}
+  if(h==="dashboard"){if(STORE_ENTRY_LOCK){location.hash="#pos";return}setTab("dashboard");requireAuth(async()=>{try{const ctx=await BE.adminContext();if(ctx?.role!=="HQ"){location.hash="#pos";return}await renderDashboard()}catch(e){console.warn("HQ dashboard authorization failed",e);location.hash="#pos"}});}
   else if(h==="admin"){
     const q=new URLSearchParams(location.search);
     setTab("admin");
