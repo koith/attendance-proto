@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+const src=fs.readFileSync('apps_script.gs','utf8');
+const section=src.match(/function _seniorAttendanceLayout\(section,payroll\)\{[\s\S]*?\n\}/);
+assert.ok(section);
+const ctx={};vm.createContext(ctx);vm.runInContext(section[0],ctx);
+const a={header:['날짜','직원명','실근무','급여산정시간'],rows:[['2026-10-01','A','08:00','07:00'],['2026-10-02','B','04:00','03:30']]};
+const p={rows:[['A','시급제'],['B','월급제']]};
+const out=ctx._seniorAttendanceLayout(a,p);
+assert.deepEqual(Array.from(out.rows,r=>r[8]),['1:00','0:30']);
+assert.deepEqual(Array.from(out.rows,r=>r[10]),['07:00','03:30']);
+console.log('PASS attendance presentation runtime and payable-time preservation');
