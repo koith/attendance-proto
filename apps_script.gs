@@ -1,5 +1,6 @@
 /**
  * M8.7 백억커피 근태·급여 리포트 — Google Apps Script 웹앱
+ * 2026-10-09: redeploy live web app to restore current monthly report layout and sync contract.
  *
  * 배포: Apps Script 편집기 → 배포 → 새 배포 → 웹앱
  *   - 실행: 나(스크립트 소유자)
