@@ -1,0 +1,16 @@
+name: desktop-scrollbar-gutter
+on:
+  pull_request:
+    paths: ['index.html','qa_desktop_scrollbar_gutter.mjs','.github/workflows/desktop-scrollbar-gutter.yml']
+  push:
+    branches: [main]
+    paths: ['index.html','qa_desktop_scrollbar_gutter.mjs','.github/workflows/desktop-scrollbar-gutter.yml']
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node qa_desktop_scrollbar_gutter.mjs
