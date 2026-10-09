@@ -7,5 +7,5 @@ assert.match(css,/white-space:normal!important/);
 assert.match(css,/overflow-wrap:anywhere!important/);
 assert.match(css,/header \.clock\{margin-left:auto!important/);
 assert.match(html,/if\(STORE_ENTRY_LOCK\)return;/);
-assert.match(html,/const APP_VERSION="v0\.187"/);
+assert.match(html,/const APP_VERSION="v0\.\d+"/);
 console.log('PASS mobile store name visibility and HQ navigation isolation');

@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const sql=fs.readFileSync('supabase/migrations/20261010100000_sheet_payroll_week_boundary.sql','utf8');
+assert.match(sql,/v_begin=\(v_first-interval '7 days'\)::timestamp/);
+assert.match(sql,/v_end=\(v_first\+interval '1 month 7 days'\)::timestamp/);
+assert.match(sql,/a\.event_at>=/);
+assert.match(sql,/a\.event_at</);
+const engine=fs.readFileSync('supabase/functions/server-sync-sheet/engine.mjs','utf8');
+assert.match(engine,/for\(const ss of allSess\.filter\(x=>x\.status==="COMPLETE"\)\)/);
+assert.match(engine,/if\(!weekKey\.startsWith\(ym\)\)continue/);
+assert.match(engine,/sessions:allSess,substitutions:weeklySubstitutions/);
+const d=new Date('2026-10-01T00:00:00Z');
+const monday=new Date(d);monday.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));
+assert.equal(monday.toISOString().slice(0,10),'2026-09-28');
+const start=new Date('2026-09-24T00:00:00Z');
+const end=new Date('2026-11-08T00:00:00Z');
+assert.ok(start<=monday && end>new Date('2026-10-04T00:00:00Z'));
+console.log('PASS server source spans complete cross-month payroll weeks');
