@@ -53,7 +53,7 @@ const browserSource=[
   exactBlock('function fromIso('),exactBlock('function applyCorrections('),
   exactBlock('function pairEvents('),exactBlock('function idOrder('),
   exactBlock('function isHiddenInhaTestEmployee('),
-  exactLine('function secToHours('),exactLine('function xround('),
+  exactLine('function secToHours('),exactBlock('function xround('),
   exactLine('function xrounddown('),exactBlock('function calcPayroll('),
   exactBlock('async function computeMonthPayroll('),
   'globalThis.browserPayroll=computeMonthPayroll;'
