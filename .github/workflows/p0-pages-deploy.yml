@@ -12,6 +12,8 @@ on:
       - 'qa_sheet_auto_resize_contract.mjs'
       - 'qa_sheet_display_values.mjs'
       - 'qa_sheet_new_month_format_contract.mjs'
+      - 'qa_server_owned_sheet_v1.mjs'
+      - 'supabase/functions/server-sync-sheet/**'
       - '.github/workflows/p0-pages-deploy.yml'
   push:
     branches: [main]
@@ -56,6 +58,7 @@ jobs:
           node qa_sheet_display_values.mjs
           node qa_sheet_auto_resize_contract.mjs
           node qa_sheet_new_month_format_contract.mjs
+          node qa_server_owned_sheet_v1.mjs
       - name: Intentional gate failure proof
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.prove_gate_failure }}
         run: |
