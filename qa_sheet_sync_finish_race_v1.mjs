@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const sql=fs.readFileSync('supabase/migrations/20261010110000_sheet_sync_finish_fingerprint_race.sql','utf8');
+assert.match(sql,/CREATE OR REPLACE FUNCTION public\.sheet_autosync_finish/);
+assert.match(sql,/synced_fingerprint=case when p_ok then p_fingerprint else synced_fingerprint end/);
+assert.match(sql,/where store_id=p_store_id and ym=p_ym and claim_token=p_claim;/);
+assert.doesNotMatch(sql,/claim_token=p_claim and desired_fingerprint=p_fingerprint/);
+assert.doesNotMatch(sql,/desired_fingerprint\s*=/);
+const desiredNew='B',writtenOld='A';
+const state={desired_fingerprint:desiredNew,synced_fingerprint:null,claim_token:'lease-1'};
+if(state.claim_token==='lease-1')state.synced_fingerprint=writtenOld;
+assert.equal(state.synced_fingerprint,'A');
+assert.notEqual(state.synced_fingerprint,state.desired_fingerprint,'newer desired revision must remain pending');
+console.log('PASS Sheet lease finish preserves concurrent desired fingerprint changes');
