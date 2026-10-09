@@ -151,6 +151,14 @@
     const refresh=async()=>{const next=await BE.storeRecipeList(CURRENT_STORE_ID);window.recipeFocusAbort?.abort();renderList(next,true)};
     window.recipeFocusAbort?.abort();window.recipeFocusAbort=new AbortController();
     window.addEventListener("popstate",onPop,{signal:window.recipeFocusAbort.signal});
+    // Dismiss the expanded recipe when tapping/clicking outside its card.
+    // Keep card controls, filters, search and modal actions working normally.
+    document.addEventListener("pointerdown",e=>{
+      if(!state.focusedKey || !listEl.isConnected)return;
+      if(e.target.closest(".recipe-v220-card.is-open"))return;
+      if(e.target.closest(".recipe-v220-modal"))return;
+      closeFocused();
+    },{signal:window.recipeFocusAbort.signal});
     const syncSearchClear=()=>searchClearEl.classList.toggle("is-visible",!!searchEl.value);catEl.onchange=draw;sortEl.onchange=draw;searchEl.oninput=()=>{syncSearchClear();draw()};searchClearEl.onclick=()=>{searchEl.value="";syncSearchClear();draw();searchEl.focus()};syncSearchClear();draw();
   }
 

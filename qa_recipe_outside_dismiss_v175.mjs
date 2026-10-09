@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const js=fs.readFileSync('recipe_access_v220.js','utf8');
+const html=fs.readFileSync('index.html','utf8');
+assert.match(js,/document\.addEventListener\("pointerdown",e=>\{/);
+assert.match(js,/if\(!state\.focusedKey \|\| !listEl\.isConnected\)return/);
+assert.match(js,/e\.target\.closest\("\.recipe-v220-card\.is-open"\)/);
+assert.match(js,/e\.target\.closest\("\.recipe-v220-modal"\)/);
+assert.match(js,/closeFocused\(\);\s*\},\{signal:window\.recipeFocusAbort\.signal\}\)/);
+assert.match(html,/@media \(min-width:769px\)\{ html\{overflow-y:scroll; scrollbar-gutter:stable;\} \}/);
+assert.match(html,/v0\.175/);
+console.log('PASS recipe outside dismissal, lifecycle cleanup and desktop scrollbar stability');
