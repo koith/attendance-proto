@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const s=fs.readFileSync('index.html','utf8');
+const start=s.indexOf('async function buildSheetSyncPayload(ym)');
+const end=s.indexOf('function sheetDuration(sec)',start);
+assert(start>=0&&end>start,'sheet payload builder exists');
+const body=s.slice(start,end);
+for(const token of ['"정정사유"','"야간근무"','"휴게 제공 여부"','rows:detailedAttendance','detailLookup','rec.breakTimeProvided','nightSeconds(x.in,x.out)','22,0,0,0','6,0,0,0'])assert(body.includes(token),'missing senior workbook report field '+token);
+assert(body.includes('payroll:{ header:')&&body.includes('rows:humanPayroll'),'existing payroll authority preserved');
+assert(!body.includes('paidHours=')&&!body.includes('breakCompensation='),'no unapproved payroll policy');
+console.log('PASS senior workbook night/break/correction source report contract');
