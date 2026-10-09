@@ -218,7 +218,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     s.data.header.forEach(function(h,idx){
       var col=idx+1;
       if(centerHeaders.indexOf(h)>=0) sh.getRange(dr.first,col,dr.count,1).setHorizontalAlignment('center');
-      if(['시급','기본급','주휴','휴게수당','조정','예상 세전급여','확정 세전급여'].indexOf(h)>=0)
+      if(false && ['시급','기본급','주휴','휴게수당','조정','예상 세전급여','확정 세전급여'].indexOf(h)>=0)
         sh.getRange(dr.first,col,dr.count,1).setHorizontalAlignment('right');
     });
   });
