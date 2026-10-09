@@ -6,7 +6,9 @@ assert.match(gas,/getDisplayValues\(\)/,'width sizing must use displayed cell st
 assert.match(gas,/getFontSizes\(\)/,'width sizing must account for actual font size');
 assert.match(gas,/getFontWeights\(\)/,'width sizing must account for bold text');
 assert.match(gas,/for\(var pc=0;pc<width;pc\+\+\)/,'every used column must be measured across months');
-assert.match(gas,/for\(var pr=2;pr<peerDisplay\.length;pr\+\+\)/,'exclude title and metadata from width calculation');
+assert.match(gas,/for\(var pr=2;pr<peerDisplay\.length;pr\+\+\)/,'exclude title and metadata rows');
+assert.match(gas,/first==='급여 집계'\|\|first==='근태 현황'/,'section headings cannot affect width');
+assert.match(gas,/\^마지막 동기화/,'sync subtitle cannot affect width');
 assert.match(gas,/target\.setColumnWidth\(sc\+1,sharedWidths\[sc\]\)/,'shared measured width must be applied to all months');
 assert.doesNotMatch(gas,/sh\.setColumnWidth\(/,'active month must never resize independently');
 assert.doesNotMatch(gas,/Math\.min\(|Math\.max\(\s*\d+\s*,\s*required|widthBuckets|typeWidth/,'no fixed min/max or type bucket width policy');
