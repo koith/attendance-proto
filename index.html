@@ -701,7 +701,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.158</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.159</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -790,7 +790,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.158";
+const APP_VERSION="v0.159";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -2635,13 +2635,13 @@ async function buildSheetSyncPayload(ym){
         sessRows.push([day, rec.employee_name, i+1,
           s.in?sheetClock(s.in):"—", s.out?sheetClock(s.out):"—",
           s.status==="COMPLETE"?sheetDuration(s.sec):(s.status==="WORKING"?"근무중":"—"),
-          _statusLabel(s.status), s.corrected?"정정":"", s.correctionReason||""]);
+          _statusLabel(s.status), s.corrected?"정정":"", sheetCorrectionReason(s.correctionReason)]);
       });
       const firstIn=daySess.find(s=>s.in), lastOut=[...daySess].reverse().find(s=>s.out);
       attRows.push([day, rec.employee_name,
         firstIn?sheetClock(firstIn.in):"—", lastOut?sheetClock(lastOut.out):"—",
         daySec?sheetDuration(daySec):"—", daySess.length,
-        issue?"확인필요":"정상", hasCorrected?"정정":"", [...new Set(daySess.map(s=>s.correctionReason).filter(Boolean))].join(" / ")]);
+        issue?"확인필요":"정상", hasCorrected?"정정":"", [...new Set(daySess.map(s=>sheetCorrectionReason(s.correctionReason)).filter(Boolean))].join(" / ")]);
     }
   }
   // 급여 (마감 전 예상; 마감 후엔 Edge Function이 snapshot으로 대체)
@@ -2714,6 +2714,10 @@ async function buildSheetSyncPayload(ym){
     sessions:{ header:[], rows:[] },
     payroll:{ header:["직원명","총근무","야간근무","시급","기본급","주휴","휴게","휴게 기준시간(참고)","휴게 제공 여부","휴게수당","조정","예상 세전급여","상태","휴게 미제공 가산시간","가산 포함 급여산정시간"], rows:humanPayroll },
   };
+}
+function sheetCorrectionReason(reason){
+  const labels={SYSTEM_STORE_CLOSE:"영업 종료 자동 보정",SYSTEM_AUTO_CLOSE:"시스템 자동 퇴근",AUTO_CLOSE:"시스템 자동 퇴근"};
+  return String(reason||"").split(/\s*\/\s*/).map(part=>labels[part]||part).filter(Boolean).join(" / ");
 }
 function sheetDuration(sec){sec=Math.max(0,Math.round(Number(sec)||0));const mins=Math.floor(sec/60);return `${String(Math.floor(mins/60)).padStart(2,"0")}:${String(mins%60).padStart(2,"0")}`;}
 function sheetClock(value){const d=value instanceof Date?value:fromIso(value);if(!Number.isFinite(d.getTime()))return "—";return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;}
