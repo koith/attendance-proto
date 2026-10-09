@@ -2691,13 +2691,19 @@ async function buildSheetSyncPayload(ym){
       const day=dstr(anchor),items=days.get(day)||[];items.push(session);days.set(day,items);
     }
     for(const [day,items] of days){
-      const night=items.reduce((n,x)=>n+(x.status==="COMPLETE"?nightSeconds(x.in,x.out):0),0);
-      detailLookup.set(day+"|"+rec.employee_name,{night:sheetDuration(night),breakSetting:rec.breakTimeProvided?"제공":"미제공"});
+      const complete=items.filter(x=>x.status==="COMPLETE");
+      const night=complete.reduce((n,x)=>n+nightSeconds(x.in,x.out),0);
+      detailLookup.set(day+"|"+rec.employee_name,{night:sheetDuration(night),breakSetting:rec.breakTimeProvided?"제공":"미제공",
+        sessions:items.map(x=>sheetDuration(x.status==="COMPLETE"?nightSeconds(x.in,x.out):0))});
     }
   }
+  const detailIndexes=new Map();
   const detailedAttendance=humanAttendance.map(row=>{
-    const detail=detailLookup.get(row[0]+"|"+row[1]);
-    return [...row,detail?.night||"00:00",detail?.breakSetting||"—"];
+    const key=row[0]+"|"+row[1],detail=detailLookup.get(key);
+    const multi=(sessionCount.get(key)||0)>1;
+    const idx=detailIndexes.get(key)||0;detailIndexes.set(key,idx+1);
+    const night=multi?detail?.sessions?.[idx]:detail?.night;
+    return [...row,night||"00:00",detail?.breakSetting||"—"];
   });
   return {
     store_key:String(CURRENT_STORE_ID||1),
