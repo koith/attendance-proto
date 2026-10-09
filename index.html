@@ -2665,7 +2665,9 @@ async function drawPay(ym){
 }
 // M8.7: 시트 동기화 payload 생성 (DOM 아님 — DB조회+기존 계산함수 재사용)
 async function buildSheetSyncPayload(ym){
-  const R=await computeMonthPayroll(ym);
+  const calculated=await computeMonthPayroll(ym);
+  // Test employees remain in the app and database, but never enter exported reports.
+  const R={...calculated,rows:calculated.rows.filter(rec=>String(rec.employee_name||'').trim().toUpperCase()!=='TEST')};
   const p2=n=>String(n).padStart(2,"0");
   const dstr=d=>`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
   // 근태 일별요약 + 세션상세
