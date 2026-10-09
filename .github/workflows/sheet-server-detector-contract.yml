@@ -1,0 +1,22 @@
+name: sheet-server-detector-contract
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/*sheet_server_change_detection.sql'
+      - 'qa_sheet_server_change_detector.mjs'
+      - '.github/workflows/sheet-server-detector-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/*sheet_server_change_detection.sql'
+      - 'qa_sheet_server_change_detector.mjs'
+      - '.github/workflows/sheet-server-detector-contract.yml'
+jobs:
+  detector:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node qa_sheet_server_change_detector.mjs
