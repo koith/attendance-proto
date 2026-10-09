@@ -182,11 +182,12 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
       if(h==='날짜') range.setNumberFormat('yyyy-mm-dd');
       if(['출근','퇴근'].indexOf(h)>=0) range.setNumberFormat('hh:mm');
       if(['실근무','총근무','야간근무'].indexOf(h)>=0) range.setNumberFormat('[h]:mm');
+      if(['휴게 기준시간(참고)','휴게 미제공 가산시간','가산 포함 급여산정시간'].indexOf(h)>=0) range.setNumberFormat('[h]:mm');
     });
   });
 
   // Align by semantic data type while preserving content-authoritative widths.
-  var centerHeaders=['날짜','직원명','출근','퇴근','실근무','상태','정정','총근무','야간근무','휴게'];
+  var centerHeaders=['날짜','직원명','출근','퇴근','실근무','상태','정정','총근무','야간근무','휴게','휴게 기준시간(참고)','휴게 미제공 가산시간','가산 포함 급여산정시간'];
   sections.forEach(function(s,i){
     var dr=dataRanges[i]; if(!dr.count)return;
     s.data.header.forEach(function(h,idx){
