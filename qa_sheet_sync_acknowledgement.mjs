@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const src=fs.readFileSync('edge_sync_sheet.ts','utf8');
+const observe=src.indexOf('const observedFingerprint');
+const write=src.indexOf('const gsRes = await fetch');
+const ack=src.indexOf("synced_fingerprint: observedFingerprint");
+assert.ok(observe>0&&observe<write&&write<ack,'observe before write, acknowledge after');
+assert.match(src,/\.eq\('store_id', 1\)\.eq\('fingerprint', observedFingerprint\)/);
+assert.ok(ack>src.indexOf('SHEET_COLUMN_RESIZE_NOT_CONFIRMED'),'do not acknowledge failed formatting');
+console.log('PASS conditional Sheet sync acknowledgement');
