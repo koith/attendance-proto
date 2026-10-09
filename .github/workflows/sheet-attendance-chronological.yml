@@ -1,10 +1,10 @@
 name: sheet-attendance-chronological
 on:
   pull_request:
-    paths: ['apps_script.gs','qa_sheet_attendance_chronological.mjs','.github/workflows/sheet-attendance-chronological.yml']
+    paths: ['apps_script.gs','qa_sheet_attendance_chronological.mjs','qa_sheet_senior_attendance_runtime.mjs','.github/workflows/sheet-attendance-chronological.yml']
   push:
     branches: [main]
-    paths: ['apps_script.gs','qa_sheet_attendance_chronological.mjs','.github/workflows/sheet-attendance-chronological.yml']
+    paths: ['apps_script.gs','qa_sheet_attendance_chronological.mjs','qa_sheet_senior_attendance_runtime.mjs','.github/workflows/sheet-attendance-chronological.yml']
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -14,3 +14,4 @@ jobs:
         with:
           node-version: '22'
       - run: node qa_sheet_attendance_chronological.mjs
+      - run: node qa_sheet_senior_attendance_runtime.mjs
