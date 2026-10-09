@@ -4,6 +4,8 @@ on:
     paths:
       - 'index.html'
       - 'recipe_access_v220.css'
+      - 'actual_attendance.css'
+      - 'qa_recipe_cross_page_desktop_geometry.mjs'
       - 'qa_recipe_actual_tab_geometry.mjs'
       - 'qa_recipe_live_route_geometry.mjs'
       - '.github/workflows/recipe-actual-tab-geometry.yml'
@@ -20,3 +22,4 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node qa_recipe_actual_tab_geometry.mjs
       - run: node qa_recipe_live_route_geometry.mjs
+      - run: node qa_recipe_cross_page_desktop_geometry.mjs
