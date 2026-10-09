@@ -1,0 +1,18 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+const s=fs.readFileSync('apps_script.gs','utf8');
+assert.match(s,/var raw=get\('실근무'\)\|\|get\('총근무'\)/);
+assert.match(s,/var keys=\['날짜','직원명','급여형태','출근','퇴근','총근무'/);
+assert.match(s,/var keys=\['직원명','급여형태','총근무','야간근무','급여산정시간','시급'/);
+assert.match(s,/sh\.getRange\(1,1,out\.length,width\)\.setValues\(out\)/);
+const a=s.indexOf('function _seniorPayrollLayout('),b=s.indexOf('function _sortAttendanceByDate(');
+const ctx={};vm.createContext(ctx);vm.runInContext(s.slice(a,b),ctx);
+const attendance={header:['날짜','직원명','출근','퇴근','총근무','급여산정시간'],rows:[['2026-10-01','직원A','09:00','18:00','9:00','8:30']]};
+const payroll={header:['직원명','총근무','야간근무','시급'],rows:[['직원A','9:00','0:00','10,000원']]};
+const p=ctx._seniorPayrollLayout(payroll,attendance);const t=ctx._seniorAttendanceLayout(attendance,p);
+assert.deepEqual(Array.from(t.header.slice(3,6)),['출근','퇴근','총근무']);
+assert.deepEqual(Array.from(t.rows[0].slice(3,6)),['09:00','18:00','9:00']);
+assert.deepEqual(Array.from(p.header.slice(3,6)),['야간근무','급여산정시간','시급']);
+assert.equal(p.rows[0][4],'8:30');
+console.log('PASS independent report section columns and refresh payload');
