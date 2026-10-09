@@ -259,8 +259,6 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
           const monthEnd=new Date(py,pm,0); monthEnd.setHours(23,59,59,999);
           const nowLimit=kstNow();
           for(const [weekKey,mins] of Object.entries(weekMap)){
-            // Attribute a cross-month week only once, to its Monday's month.
-            if(!weekKey.startsWith(ym))continue;
             const monday=new Date(weekKey+"T00:00:00");
             // 인하대점 운영일은 일요일 심야근무(26:00 = 월요일 02:00)까지 포함해 주간을 마감한다.
             // 진행 중 세션은 위에서 제외했으므로, 주휴는 완료된 근무만으로 확정된다.
