@@ -144,7 +144,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   const active=emps.filter(isActive);
   const eventEmployeeIds=new Set(events.map(x=>Number(x.employee_id)));
   const payrollCandidates=emps.filter(e=>isActive(e)||eventEmployeeIds.has(Number(e.id)));
-  let periodWeeks=null, overrides={}, contracts={}, contractWorkdays={}, substitutions=[], weeklyApprovals=[];
+  let periodWeeks=null, overrides={}, contracts={}, contractWorkdays={}, substitutions=[], weeklyApprovals=[], employmentPeriods=[];
   if(LIVE){
     try{
       const pd=await BE.payrollPeriod(ym);
@@ -162,6 +162,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     }catch(e){ console.warn("payroll contract load failed",e); }
     try{ substitutions=await BE.payrollSubstitutions(ym)||[]; }catch(e){ console.warn("payroll substitution load failed",e); }
     if(typeof BE.payrollWeeklyApprovals==='function')weeklyApprovals=await BE.payrollWeeklyApprovals(ym)||[];
+    if(typeof BE.payrollEmploymentPeriods==='function')employmentPeriods=await BE.payrollEmploymentPeriods(ym)||[];
   }
   const weeks = periodWeeks || weeksInMonth(ym);
   const p2=n=>String(n).padStart(2,"0");
@@ -270,7 +271,12 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
                   (Number(z.requester_employee_id)===Number(e.id)||Number(z.substitute_employee_id)===Number(e.id));
               });
               const weeklyWorkdays=Object.entries(cw.days).map(([weekday,contracted_minutes])=>({weekday,contracted_minutes}));
-              const review=assessWeeklyRest({weeklyMinutes:weeklyContractMin,workdays:weeklyWorkdays,
+              const weekEnd=new Date(mondayKey+'T00:00:00');weekEnd.setDate(weekEnd.getDate()+6);
+              const endKey=`${weekEnd.getFullYear()}-${p2(weekEnd.getMonth()+1)}-${p2(weekEnd.getDate())}`;
+              const departureDate=employmentPeriods.filter(p=>Number(p.employee_id)===Number(e.id)&&
+                p.ended_on&&p.ended_on>=mondayKey&&p.ended_on<=endKey)
+                .map(p=>p.ended_on)[0]||null;
+              const review=assessWeeklyRest({weeklyMinutes:weeklyContractMin,workdays:weeklyWorkdays,departureDate,
                 sessions:sess,substitutions:weeklySubstitutions,weekStart:mondayKey});
               if(review.automaticEligible){qualifiedWeeks++;juhyuHours+=weeklyHolidayHours;weeklyAmounts.set(mondayKey,truncateWon(effWage*weeklyHolidayHours));}
               else {weeklyReviewComments.push(...review.reasons.map(reason=>mondayKey+': '+reason));}
