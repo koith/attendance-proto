@@ -2669,10 +2669,46 @@ async function buildSheetSyncPayload(ym){
       rec.breakTimeProvided?"제공":"미제공",
       r[9],r[10],r[11],r[12]];
   });
+  // Senior workbook: show the source-backed break setting and 22:00-06:00 overlap
+  // in the attendance table. These are reporting fields only; never invent a
+  // paid-hours or break-compensation policy from the workbook examples.
+  function nightSeconds(start,end){
+    if(!(start instanceof Date)||!(end instanceof Date)||end<=start)return 0;
+    let total=0;
+    const cursor=new Date(start.getFullYear(),start.getMonth(),start.getDate()-1);
+    for(let d=0;d<40&&cursor<end;d++,cursor.setDate(cursor.getDate()+1)){
+      const from=new Date(cursor);from.setHours(22,0,0,0);
+      const until=new Date(cursor);until.setDate(until.getDate()+1);until.setHours(6,0,0,0);
+      total+=Math.max(0,Math.min(end.getTime(),until.getTime())-Math.max(start.getTime(),from.getTime()))/1000;
+    }
+    return total;
+  }
+  const detailLookup=new Map();
+  for(const rec of R.rows){
+    const days=new Map();
+    for(const session of rec.sessions){
+      const anchor=session.in||session.out;if(!anchor)continue;
+      const day=dstr(anchor),items=days.get(day)||[];items.push(session);days.set(day,items);
+    }
+    for(const [day,items] of days){
+      const complete=items.filter(x=>x.status==="COMPLETE");
+      const night=complete.reduce((n,x)=>n+nightSeconds(x.in,x.out),0);
+      detailLookup.set(day+"|"+rec.employee_name,{night:sheetDuration(night),breakSetting:rec.breakTimeProvided?"제공":"미제공",
+        sessions:items.map(x=>sheetDuration(x.status==="COMPLETE"?nightSeconds(x.in,x.out):0))});
+    }
+  }
+  const detailIndexes=new Map();
+  const detailedAttendance=humanAttendance.map(row=>{
+    const key=row[0]+"|"+row[1],detail=detailLookup.get(key);
+    const multi=(sessionCount.get(key)||0)>1;
+    const idx=detailIndexes.get(key)||0;detailIndexes.set(key,idx+1);
+    const night=multi?detail?.sessions?.[idx]:detail?.night;
+    return [...row,night||"00:00",detail?.breakSetting||"—"];
+  });
   return {
     store_key:String(CURRENT_STORE_ID||1),
     store_name:STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||CONFIG.STORE_NAME,
-    attendance:{ header:["날짜","직원명","출근","퇴근","실근무","상태","정정","정정사유"], rows:humanAttendance },
+    attendance:{ header:["날짜","직원명","출근","퇴근","실근무","상태","정정","정정사유","야간근무","휴게 제공 여부"], rows:detailedAttendance },
     sessions:{ header:[], rows:[] },
     payroll:{ header:["직원명","총근무","야간근무","시급","기본급","주휴","휴게","휴게 기준시간(참고)","휴게 제공 여부","휴게수당","조정","예상 세전급여","상태"], rows:humanPayroll },
   };
