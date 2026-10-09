@@ -14,8 +14,13 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   function weeksInMonth(ym){const [y,m]=ym.split("-").map(Number),cur=`${nowWall.getFullYear()}-${String(nowWall.getMonth()+1).padStart(2,"0")}`;if(ym<cur)return 4;if(ym>cur)return 0;let n=0;for(let d=1;d<nowWall.getDate();d++)if(new Date(y,m-1,d).getDay()===0)n++;return Math.min(4,n)}
   function secToHours(sec){ return sec/3600; }
   function xround(x,n){ // ROUND(x,10^-n): n=-1 → 10원 반올림
+  const step=Math.pow(10,-n); return Math.round(x/step)*step;
+}
   function xrounddown(x,n){ const step=Math.pow(10,-n); return Math.floor(x/step)*step; }
   function sheetCorrectionReason(reason){
+  const labels={SYSTEM_STORE_CLOSE:"영업 종료 자동 보정",SYSTEM_AUTO_CLOSE:"시스템 자동 퇴근",AUTO_CLOSE:"시스템 자동 퇴근"};
+  return String(reason||"").split(/\s*\/\s*/).map(part=>labels[part]||part).filter(Boolean).join(" / ");
+}
   function sheetDuration(sec){sec=Math.max(0,Math.round(Number(sec)||0));const mins=Math.floor(sec/60);return `${String(Math.floor(mins/60)).padStart(2,"0")}:${String(mins%60).padStart(2,"0")}`;}
   function sheetClock(value){const d=value instanceof Date?value:fromIso(value);if(!Number.isFinite(d.getTime()))return "—";return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;}
   function _statusLabel(s){ return {COMPLETE:"정상",WORKING:"근무중",INCOMPLETE:"퇴근누락",ORPHAN_OUT:"출근누락"}[s]||s; }
@@ -427,7 +432,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   const covers=(c,d)=>d&&String(c.effective_from)<=d&&(!c.effective_to||String(c.effective_to)>=d);
   const termsKey=c=>[c.payroll_type,c.hourly_wage,c.monthly_salary,c.weekly_contracted_minutes,c.tax_treatment,c.business_deduction_rate,c.night_allowance_enabled,c.night_allowance_mode,c.night_allowance_value,c.night_allowance_start,c.night_allowance_end].join('|');
   function chooseContract(row,ym,b){const contracts=(b.contracts||[]).filter(c=>overlaps(c,monthBounds(ym))).sort((a,z)=>String(z.effective_from).localeCompare(String(a.effective_from)));if(!contracts.length)return {mode:'MISSING_CONTRACT',issue:'계약조건 미등록 · 급여 계산 보류'};const payable=(row.sessions||[]).filter(s=>(s.status==='COMPLETE'||s.status==='WORKING')&&s.in);const used=contracts.filter(c=>payable.some(s=>covers(c,dayKey(s.in))));const candidates=used.length?used:contracts;const displayContract=candidates[0]||contracts[0]||null;if(candidates.some(c=>c.tax_treatment==='FOUR_INSURANCE'))return {mode:'BLOCKED',contract:displayContract,issue:'4대보험 공제 계산정책 미확정'};if(candidates.some(c=>c.payroll_type==='MONTHLY')){if(candidates.some(c=>c.payroll_type!=='MONTHLY'))return {mode:'BLOCKED',contract:displayContract,issue:'월중 급여유형 변경 · 구간별 급여 계산 확인 필요'};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'MONTHLY',contract:candidates[0]};}if(candidates.some(c=>c.payroll_type!=='HOURLY'||c.tax_treatment!=='BUSINESS_INCOME'))return {mode:'BLOCKED',contract:displayContract,issue:'급여 계약조건 확인 필요'};const uncoveredDays=[...new Set(payable.filter(s=>!contracts.some(c=>covers(c,dayKey(s.in)))).map(s=>dayKey(s.in)))];if(uncoveredDays.length)return {mode:'BLOCKED',contract:displayContract,issue:`계약기간 밖 실근무 ${uncoveredDays.join(', ')} · 급여 확인 필요`};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'CONTRACT',contract:candidates[0]}}
-  const nightMin=s=>{const m=/^([01]\\d|2[0-3]):([0-5]\\d)/.exec(String(s??''));return m?Number(m[1])*60+Number(m[2]):null};
+  const nightMin=s=>{const m=/^([01]\d|2[0-3]):([0-5]\d)/.exec(String(s??''));return m?Number(m[1])*60+Number(m[2]):null};
   function nightOverlap(sessions,start,end){const sm=nightMin(start),em=nightMin(end);if(sm==null||em==null)return 0;let sec=0;for(const x of sessions||[]){if(!['COMPLETE','WORKING'].includes(x.status)||!x.in)continue;const out=x.out||kstNow();if(out<=x.in)continue;for(let d=new Date(x.in.getFullYear(),x.in.getMonth(),x.in.getDate()-1);d<=out;d.setDate(d.getDate()+1)){const a=new Date(d.getFullYear(),d.getMonth(),d.getDate(),Math.floor(sm/60),sm%60),b=new Date(d.getFullYear(),d.getMonth(),d.getDate()+(em<=sm?1:0),Math.floor(em/60),em%60),lo=Math.max(x.in,a),hi=Math.min(out,b);if(hi>lo)sec+=(hi-lo)/1000}}return sec}
   // The browser's loaded wrapper order is live-accrual -> contract authority -> night.
   const browserBase=computeMonthPayroll;
