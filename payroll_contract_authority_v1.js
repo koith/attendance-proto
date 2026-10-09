@@ -10,6 +10,7 @@
   const cache=new Map();
   const CACHE_TTL_MS=60000;
   let lastResult=null,refreshBusy=false;
+  window.__setServerPayrollResult=(result)=>{lastResult=result};
 
   const p2=n=>String(n).padStart(2,'0');
   const dayKey=d=>d?`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`:'';
