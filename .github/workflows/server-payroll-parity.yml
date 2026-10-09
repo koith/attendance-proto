@@ -1,0 +1,23 @@
+name: server-payroll-parity
+on:
+  pull_request:
+    paths:
+      - 'server_payroll_engine.mjs'
+      - 'qa_server_payroll_engine.mjs'
+      - '.github/workflows/server-payroll-parity.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'server_payroll_engine.mjs'
+      - 'qa_server_payroll_engine.mjs'
+      - '.github/workflows/server-payroll-parity.yml'
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check server_payroll_engine.mjs
+      - run: node qa_server_payroll_engine.mjs
