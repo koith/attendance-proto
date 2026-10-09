@@ -714,6 +714,8 @@
 
 @media(min-width:621px){.recipe-v220-edit{display:grid!important;place-items:center!important;padding:0!important;font-size:1.28rem!important;line-height:1!important}.recipe-v220-edit-glyph{display:block!important;line-height:1!important;transform:none!important;margin:0!important}}
 @media(max-width:620px){.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder i{font-size:2.45rem!important;line-height:1!important}}
+
+@media(min-width:900px){.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component{box-sizing:border-box!important;width:100%!important;max-width:none!important;display:grid!important;grid-template-columns:minmax(0,1fr) max-content!important;align-items:baseline!important;gap:16px!important}.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component>*:first-child{min-width:0!important;overflow-wrap:anywhere!important}.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component>*:last-child{justify-self:end!important;white-space:nowrap!important}}
 </style>
 <link rel="stylesheet" href="operations_v1.css?v=20260930v083">
 <link rel="stylesheet" href="recipe_access_v220.css?v=20261001v096">
@@ -725,7 +727,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.172</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.173</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -814,7 +816,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.172";
+const APP_VERSION="v0.173";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
