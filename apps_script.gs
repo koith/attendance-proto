@@ -261,7 +261,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   }
   for(var cc=0;cc<width;cc++){
     var required=0;
-    for(var rr=0;rr<display.length;rr++) required=Math.max(required,textWidthPx(display[rr][cc],sizes[rr][cc]||10,weights[rr][cc]==='bold'));
+    for(var rr=2;rr<display.length;rr++) required=Math.max(required,textWidthPx(display[rr][cc],sizes[rr][cc]||10,weights[rr][cc]==='bold'));
     sh.setColumnWidth(cc+1,required);
   }
   // A single month must not independently shrink columns: normalize the same column
@@ -276,7 +276,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     var peerSizes=peerRange.getFontSizes();
     var peerWeights=peerRange.getFontWeights();
     for(var pc=0;pc<width;pc++){
-      for(var pr=0;pr<peerDisplay.length;pr++){
+      for(var pr=2;pr<peerDisplay.length;pr++){
         sharedWidths[pc]=Math.max(sharedWidths[pc]||0,textWidthPx(peerDisplay[pr][pc],peerSizes[pr][pc]||10,peerWeights[pr][pc]==='bold'));
       }
     }
