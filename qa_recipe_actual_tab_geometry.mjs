@@ -49,8 +49,8 @@ try {
     assert.ok(Math.abs(actual.recipe.center-actual.view.center)<0.5,`${width}px actual recipe is not centered`);
     assert.ok(Math.abs(actual.list.center-actual.recipe.center)<0.5,`${width}px recipe grid drifts from its parent`);
     await page.locator('.recipe-v220-card .recipe-v220-open').first().click();
-    const expanded=await read();
-    assert.ok(Math.abs(expanded.wrap.x-attendance.wrap.x)<0.5,`${width}px expanded recipe shifts root`);
+    const expandedWrap=await page.locator('.wrap').boundingBox();
+    assert.ok(Math.abs(expandedWrap.x-attendance.wrap.x)<0.5,`${width}px expanded recipe shifts root`);
     await page.close();
   }
 } finally { await browser.close(); }
