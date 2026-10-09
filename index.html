@@ -2478,7 +2478,7 @@ async function computeMonthPayroll(ym){
         while(t<stop){const minute=t.getHours()*60+t.getMinutes();if(startMin<endMin?(minute>=startMin&&minute<endMin):(minute>=startMin||minute<endMin))minutes++;t=new Date(t.getTime()+60000);}
         return sum+minutes;
       },0);
-      const hourlyBase=Number(effWage||0);
+      const hourlyBase=payrollType==="HOURLY"?Number(effWage||0):0;
       if(mode==="FLAT"||hourlyBase>0){
         nightAllowance=Math.round(nightWorkedMin/60*(mode==="FLAT"?value:hourlyBase*value/100));
         nightAllowanceLabel=mode==="FLAT"?`정액 ${won(value)}/시간`:`정률 ${value}%`;
