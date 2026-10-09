@@ -4,6 +4,7 @@ on:
     paths:
       - 'supabase/functions/server-sync-sheet/**'
       - 'qa_payroll_policy_adjustment_v1.mjs'
+      - 'qa_payroll_weekly_integration_v1.mjs'
       - '.github/workflows/payroll-policy-approval-v1-regression.yml'
   push:
     branches: [main]
@@ -19,4 +20,5 @@ jobs:
         with:
           node-version: '22'
       - run: node qa_payroll_policy_adjustment_v1.mjs
+      - run: node qa_payroll_weekly_integration_v1.mjs
       - run: node qa_server_payroll_fixture_parity_v1.mjs
