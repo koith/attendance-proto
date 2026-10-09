@@ -245,7 +245,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
         const weeklyAmounts=new Map();
         if(weeklyContractMin>=900 && cw){
           const weekMap={};
-          for(const ss of sess.filter(x=>x.status==="COMPLETE")){
+          for(const ss of allSess.filter(x=>x.status==="COMPLETE")){
             if(!ss.in) continue;
             const d=new Date(ss.in); const day=(d.getDay()+6)%7;
             const monday=new Date(d); monday.setHours(0,0,0,0); monday.setDate(d.getDate()-day);
@@ -259,6 +259,8 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
           const monthEnd=new Date(py,pm,0); monthEnd.setHours(23,59,59,999);
           const nowLimit=kstNow();
           for(const [weekKey,mins] of Object.entries(weekMap)){
+            // Attribute each complete Monday-Sunday week to its Monday month once.
+            if(!weekKey.startsWith(ym))continue;
             const monday=new Date(weekKey+"T00:00:00");
             // 인하대점 운영일은 일요일 심야근무(26:00 = 월요일 02:00)까지 포함해 주간을 마감한다.
             // 진행 중 세션은 위에서 제외했으므로, 주휴는 완료된 근무만으로 확정된다.
@@ -278,7 +280,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
                 p.ended_on&&p.ended_on>=mondayKey&&p.ended_on<=endKey)
                 .map(p=>p.ended_on)[0]||null;
               const review=assessWeeklyRest({weeklyMinutes:weeklyContractMin,workdays:weeklyWorkdays,departureDate,
-                sessions:sess,substitutions:weeklySubstitutions,weekStart:mondayKey});
+                sessions:allSess,substitutions:weeklySubstitutions,weekStart:mondayKey});
               if(review.automaticEligible){qualifiedWeeks++;juhyuHours+=weeklyHolidayHours;weeklyAmounts.set(mondayKey,truncateWon(effWage*weeklyHolidayHours));}
               else {weeklyReviewComments.push(...review.reasons.map(reason=>mondayKey+': '+reason));if(review.completed&&departureDate)weeklyReviewComments.push(mondayKey+': 퇴사 주간 추가 지급 검토액 '+truncateWon(effWage*weeklyHolidayHours)+'원');}
             }
