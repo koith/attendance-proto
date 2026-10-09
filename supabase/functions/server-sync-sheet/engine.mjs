@@ -289,6 +289,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
           approvalDelta+=decision.amount-original;
           weeklyReviewComments.push(a.week_start+': 관리자 승인 '+original+'원 → '+decision.amount+'원 ('+a.reason+')');
         }
+        pay.weeklyCalculatedAmounts=Object.fromEntries(weeklyAmounts);
         pay.weeklyApprovalDelta=approvalDelta;
         pay.jweeks=qualifiedWeeks;
         pay.weekly=Math.round(effWage*Math.min(8,weeklyContractMin/300));
