@@ -464,5 +464,5 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     R.totalGross=gross;R.totalNet=net;
     return R;
   };
-  return {computeMonthPayroll,buildSheetSyncPayload,calcPayroll,applyCorrections,pairEvents};
+  return {computeMonthPayroll,buildSheetSyncPayload,calcPayroll,applyCorrections,pairEvents,browserBasePayroll:browserBase};
 }
