@@ -144,8 +144,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   var reportTitle=(ym?ym[1]+'년 ':'')+monthNum+'월 근태 · 급여 보고서';
   var sections=[
     {title:'급여 집계',data:payroll},
-    {title:'근태 현황',data:attendance},
-    {title:'세션 상세',data:sessions}
+    {title:'근태 현황',data:attendance}
   ];
   var width=1; sections.forEach(function(s){width=Math.max(width,s.data.header.length);});
   var out=[[reportTitle],[meta],[]], sectionRows=[],headerRows=[],dataRanges=[];
@@ -196,7 +195,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
       // Preserve an intentionally empty section without inventing content.
       sh.setRowHeight(dr.first,18);
     }
-    sh.getRange(dr.last+1,1,1,width).setBackground(canvas);
+    sh.getRange(dr.last+1,1,1,width).setBackground(white);
     sh.setRowHeight(dr.last+1,18);
   });
 
@@ -264,6 +263,28 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     var required=0;
     for(var rr=0;rr<display.length;rr++) required=Math.max(required,textWidthPx(display[rr][cc],sizes[rr][cc]||10,weights[rr][cc]==='bold'));
     sh.setColumnWidth(cc+1,required);
+  }
+  // A single month must not independently shrink columns: normalize the same column
+  // against every populated month in the annual workbook after each write.
+  var sharedWidths=[];
+  for(var mm=1;mm<=12;mm++){
+    var peer=ss.getSheetByName(mm+'월');
+    if(!peer)continue;
+    var peerLast=Math.max(1,peer.getLastRow());
+    var peerRange=peer.getRange(1,1,peerLast,width);
+    var peerDisplay=peerRange.getDisplayValues();
+    var peerSizes=peerRange.getFontSizes();
+    var peerWeights=peerRange.getFontWeights();
+    for(var pc=0;pc<width;pc++){
+      for(var pr=0;pr<peerDisplay.length;pr++){
+        sharedWidths[pc]=Math.max(sharedWidths[pc]||0,textWidthPx(peerDisplay[pr][pc],peerSizes[pr][pc]||10,peerWeights[pr][pc]==='bold'));
+      }
+    }
+  }
+  for(var sm=1;sm<=12;sm++){
+    var target=ss.getSheetByName(sm+'월');
+    if(!target)continue;
+    for(var sc=0;sc<width;sc++)if(sharedWidths[sc]>0)target.setColumnWidth(sc+1,sharedWidths[sc]);
   }
   SpreadsheetApp.flush();
 
