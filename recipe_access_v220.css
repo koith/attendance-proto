@@ -94,3 +94,6 @@
 
 /* v0.96 searchable text fields: one-tap clear control */
 .recipe-v220-searchbox{position:relative;display:block}.recipe-v220-searchbox input{padding-right:52px!important}.recipe-v220-search-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;border-radius:50%;background:#e6ebe8;color:#52605a;font-size:26px;line-height:32px;font-weight:400;padding:0;display:none;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}.recipe-v220-search-clear.is-visible{display:flex}.recipe-v220-search-clear:active{background:#d8e0dc}
+
+/* Desktop recipe hub shares the full available title/content width. */
+@media(min-width:900px){.recipe-v220{max-width:none;width:100%;margin:0}.recipe-v220-list{grid-template-columns:repeat(auto-fill,minmax(275px,1fr))}}

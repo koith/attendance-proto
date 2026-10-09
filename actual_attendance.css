@@ -168,3 +168,6 @@
 
 /* v0.127 correction validation must stay visible inside the modal */
 .correction-modal .input-error{border-color:#d43f3a!important;background:#fff7f7!important;box-shadow:0 0 0 2px rgba(212,63,58,.10)!important}.correction-field-error{min-height:18px;margin:4px 0 2px;color:#c62828;font-size:.72rem;font-weight:700}.correction-field-error:empty{min-height:0;margin:0}
+
+/* Desktop: match the application content width and give seven day cells enough room. */
+@media (min-width: 900px){.wrap{max-width:1280px;width:100%;padding-left:18px;padding-right:18px}.day{min-height:136px;padding:8px 9px}.day .line{font-size:.72rem}.calendar-work-duration{font-size:.65rem!important}.calendar-day-total{font-size:.63rem!important}.today-fab{right:max(18px,calc((100vw - 1280px)/2 + 18px))}}
