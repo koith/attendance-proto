@@ -1,0 +1,2 @@
+export function truncateWon(value){return Math.trunc(Number(value)||0)}
+export function approvedWeeklyAdjustment(base,amount,reason,approver,approvedAt){if(amount==null)return {amount:truncateWon(base),adjusted:false};if(!Number.isFinite(Number(amount))||Number(amount)<0||!String(reason||'').trim()||!approver||!approvedAt)throw new Error('Approval and reason required');return {amount:truncateWon(amount),original:truncateWon(base),adjusted:true,reason,approver,approvedAt}}
