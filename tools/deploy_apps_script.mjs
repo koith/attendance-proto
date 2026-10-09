@@ -35,4 +35,13 @@ if(!res.ok)throw new Error('createVersion failed '+res.status+' '+await res.text
 const version=await res.json();
 res=await fetch('https://script.googleapis.com/v1/projects/'+scriptId+'/deployments/'+deploymentId,{method:'PUT',headers:auth,body:JSON.stringify({deploymentConfig:{scriptId,versionNumber:version.versionNumber,manifestFileName:'appsscript',description:'GitHub automated deployment'}})});
 if(!res.ok)throw new Error('updateDeployment failed '+res.status+' '+await res.text());
-console.log('Apps Script deployment updated to version',version.versionNumber);
+// Confirm the *deployed* entry point, not merely the repository manifest.
+res=await fetch('https://script.googleapis.com/v1/projects/'+scriptId+'/deployments/'+deploymentId,{headers:auth});
+if(!res.ok)throw new Error('verifyDeployment failed '+res.status+' '+await res.text());
+const live=await res.json();
+const entry=live.entryPoints?.find(e=>e.entryPointType==='WEB_APP');
+const config=entry?.webApp?.entryPointConfig;
+if(!entry?.webApp?.url?.endsWith('/exec') || config?.access!=='ANYONE_ANONYMOUS' || config?.executeAs!=='USER_DEPLOYING'){
+  throw new Error('DEPLOYMENT_NOT_ANONYMOUS: live entry point missing or access/executeAs mismatch; '+JSON.stringify({webAppPresent:!!entry,access:config?.access,executeAs:config?.executeAs}));
+}
+console.log('Apps Script deployment verified: version',version.versionNumber,'access',config.access,'executeAs',config.executeAs);
