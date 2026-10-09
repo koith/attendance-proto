@@ -10,7 +10,11 @@ on:
   workflow_dispatch:
 jobs:
   geometry:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,5 +22,8 @@ jobs:
           node-version: '22'
       - run: npm install --no-save playwright
       - run: npx playwright install --with-deps chromium
+        if: runner.os == 'Linux'
+      - run: npx playwright install chromium
+        if: runner.os == 'Windows'
       - run: node qa_recipe_actual_tab_geometry.mjs
       - run: node qa_recipe_live_route_geometry.mjs
