@@ -115,7 +115,7 @@ function _seniorPayrollLayout(section){
   var keys=['직원명','급여형태','총근무','야간근무','시급','기본급','야근수당적용여부','야근수당','주휴','휴게','휴게수당','조정','예상 세전급여'];
   return {header:keys,rows:(section.rows||[]).map(function(row){
     var get=function(key){var i=h.indexOf(key);return i<0?'':row[i];};
-    return [get('직원명'),get('시급')==='0원'?'월급제':'시급제',get('총근무'),get('야간근무'),get('시급'),get('기본급'),'미설정','0원',get('주휴'),get('휴게 제공 여부'),get('휴게수당'),get('조정'),get('예상 세전급여')];
+    return [get('직원명'),get('시급')==='0원'?'월급제':'시급제',get('총근무'),get('야간근무'),get('시급'),get('기본급'),get('야근수당적용여부')||'미적용',get('야근수당')||'0원',get('주휴'),get('휴게 제공 여부'),get('휴게수당'),get('조정'),get('예상 세전급여')];
   })};
 }
 function _seniorAttendanceLayout(section,payroll){
