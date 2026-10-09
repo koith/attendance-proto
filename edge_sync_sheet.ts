@@ -117,8 +117,8 @@ Deno.serve(async (req) => {
     let gsJson: any = null;
     try { gsJson = JSON.parse(gsText); } catch { /* keep text */ }
 
-    if (!gsRes.ok || (gsJson && gsJson.ok === false)) {
-      return json({ ok: false, error: "SHEET_WRITE_FAILED", detail: gsJson?.error ?? gsText.slice(0, 200) }, 502);
+    if (!gsRes.ok || !gsJson || gsJson.ok !== true) {
+      return json({ ok: false, error: "SHEET_WRITE_FAILED", detail: gsJson?.error ?? (gsText.trimStart().startsWith("<") ? "GOOGLE_HTML_RESPONSE: Apps Script URL/access/deployment must be checked" : gsText.slice(0, 200)) }, 502);
     }
 
     // Column sizing is part of a successful sync contract, not best-effort formatting.
