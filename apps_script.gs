@@ -139,8 +139,8 @@ function _sortAttendanceByDate(section){
   if(dateCol<0)return section;
   var rows=(section.rows||[]).map(function(row,index){return {row:row,index:index};});
   function dateKey(value){
-    if(value instanceof Date)return value.getTime();
-    if(typeof value==='number')return value*86400000;
+    if(value instanceof Date)return value.getFullYear()*10000+(value.getMonth()+1)*100+value.getDate();
+    if(typeof value==='number'){var d=new Date(Math.round(value*86400000)+Date.UTC(1899,11,30));return d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate();}
     var text=String(value==null?'':value).trim();
     var match=text.match(/^(\\d{4})[-./](\\d{1,2})[-./](\\d{1,2})/);
     if(match)return Number(match[1])*10000+Number(match[2])*100+Number(match[3]);
