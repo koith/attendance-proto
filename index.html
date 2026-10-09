@@ -704,7 +704,7 @@
     <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.153</span></div>
     <header>
       <div class="brand">
-        <button type="button" id="hqHome" aria-label="본사 대시보드" title="본사 대시보드" style="border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></button><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
+        <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
       </div>
       <div class="clock" id="clock">--:--:--</div>
     </header>
@@ -1186,7 +1186,7 @@ function syncStoreContextUI(){
   if(crumb){crumb.classList.toggle("store-context-selector-hidden",dashboard);crumb.hidden=dashboard;}
   if(lockedName){const name=STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||sessionStorage.getItem("baekeok_store_name")||sel?.selectedOptions?.[0]?.text||"현재 지점";lockedName.textContent=name;lockedName.classList.toggle("show",STORE_ENTRY_LOCK&&!dashboard);lockedName.hidden=!(STORE_ENTRY_LOCK&&!dashboard);}
   if(tabs)tabs.style.display=dashboard?"none":"";
-  if(home){home.disabled=STORE_ENTRY_LOCK;home.style.cursor=STORE_ENTRY_LOCK?"default":"pointer";home.setAttribute("aria-label",STORE_ENTRY_LOCK?"백억커피":"본사 대시보드");home.title=STORE_ENTRY_LOCK?"":"본사 대시보드";}
+  if(home){home.setAttribute("aria-label","백억커피");home.removeAttribute("title");}
   if(STORE_ENTRY_LOCK&&dashboard)location.hash="#pos";
 }
 function openHqDashboard(){
@@ -3156,7 +3156,7 @@ function removeLegacySubstituteEntry(){
 removeLegacySubstituteEntry();
 
 
-document.getElementById("hqHome")?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();if(!STORE_ENTRY_LOCK)openHqDashboard();});
+// Brand logo is decorative: store pages must never navigate to the HQ dashboard from it.
 if(LIVE) Auth.load();
 loadStores().finally(()=>route());
 </script>
