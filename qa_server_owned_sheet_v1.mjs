@@ -16,5 +16,5 @@ assert.match(api,/sheet_server_payroll_source/);
 assert.match(api,/createRemoteJWKSet/);
 assert.match(api,/jwtVerify/);
 for(const keyword of ['computeMonthPayroll','buildSheetSyncPayload','applyCorrections','pairEvents','break_provision_mode','night_allowance']) assert.ok(engine.includes(keyword),keyword);
-assert.match(index,/const APP_VERSION="v0\.\d+"/);
+assert.match(html,/const APP_VERSION="v0\.\d+"/);
 console.log("PASS server-owned sheet source, manual parity gate and payroll engine wiring");
