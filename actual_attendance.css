@@ -175,3 +175,16 @@
 /* v0.173: optical vertical centering of month/day chevrons, without shifting button hitboxes. */
 .toolbar .nav,.dayhead .day-nav{display:inline-flex!important;align-items:center!important;justify-content:center!important;line-height:1!important;text-indent:0!important;padding-bottom:4px!important}
 @media(max-width:520px){.toolbar .nav,.dayhead .day-nav{padding-bottom:2px!important}}
+
+/* v0.183: align the separate attendance document with the main app's
+   centered desktop viewport. The old attendance breakpoint was 900px and
+   max-width:1280, while index used 769px/1024 then 1280px/1280.
+   Returning to Recipe therefore shifted the entire layout at intermediate
+   desktop widths; matching root scrollbar gutters also removes the
+   visible half-scrollbar drift in classic-scrollbar browsers. */
+@media(min-width:769px){
+  html{overflow-y:scroll;scrollbar-gutter:stable both-edges}
+  body{width:100%;max-width:100%;overflow-x:clip}
+  .wrap{width:100%;max-width:1024px!important;padding-left:18px;padding-right:18px}
+}
+@media(min-width:1280px){.wrap{max-width:1280px!important}}
