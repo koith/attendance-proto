@@ -2617,7 +2617,7 @@ async function drawPay(ym){
         ${issues?`<span class="badge issue">근태확인 ${issues}</span>`:(isMonthly?`<span class="badge">월급제</span>`:'<span></span>')}
       </div>
       <div class="employee-card-secondary"><span class="employee-card-secondary-main">${workInfo}</span></div>
-      <div class="payroll-employee-payline">${pay?`<button type="button" class="payroll-pay-detail" aria-expanded="false"><span class="payroll-card-metric"><span>${payLabel}</span><strong class="payroll-gross-value">${representativePay.toLocaleString()}원</strong></span><span class="payroll-info-dot" aria-hidden="true">ⓘ</span></button><div class="payroll-detail-popover" hidden>${detailLines.map(x=>`<div>${x}</div>`).join("")}<div class="payroll-detail-total">현재 급여 ${pay.gross.toLocaleString()}원</div></div>`:'<span aria-hidden="true">&nbsp;</span>'}</div>
+      <div class="payroll-employee-payline">${pay?`<button type="button" class="payroll-pay-detail" aria-expanded="false"><span class="payroll-card-metric"><span>${payLabel}</span><strong class="payroll-gross-value">${representativePay.toLocaleString()}원</strong></span><span class="payroll-info-dot" aria-hidden="true">ⓘ</span></button><div class="payroll-detail-popover" hidden>${detailLines.map(x=>`<div>${safeHtml(x)}</div>`).join("")}<div class="payroll-detail-total">현재 급여 ${pay.gross.toLocaleString()}원</div></div>`:'<span aria-hidden="true">&nbsp;</span>'}</div>
     `;
     if(LIVE){
       const detailBtn=card.querySelector(".payroll-pay-detail"), detail=card.querySelector(".payroll-detail-popover");
