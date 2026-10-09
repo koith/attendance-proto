@@ -110,22 +110,33 @@ function _withoutPayrollStatusColumns(section){
   };
 }
 
-function _seniorPayrollLayout(section){
+function _seniorPayrollLayout(section,attendance){
+  var payableByName={};
+  (attendance.rows||[]).forEach(function(row){
+    var headers=attendance.header||[];
+    var name=String(row[headers.indexOf('직원명')]||'');
+    var value=String(row[headers.indexOf('급여산정시간')]||'');
+    var match=value.match(/^(\d+):(\d{2})$/);
+    if(!name||!match)return;
+    if(!payableByName[name])payableByName[name]={minutes:0,count:0};
+    payableByName[name].minutes+=Number(match[1])*60+Number(match[2]);
+    payableByName[name].count++;
+  });
   var h=section.header||[];
-  var keys=['직원명','급여형태','총근무','야간근무','시급','기본급','야근수당적용여부','야근수당','주휴','휴게','휴게수당','조정','예상 세전급여'];
+  var keys=['직원명','급여형태','총근무','야간근무','급여산정시간','시급','기본급','야근수당적용여부','야근수당','주휴','휴게','휴게수당','조정','예상 세전급여'];
   return {header:keys,rows:(section.rows||[]).map(function(row){
     var get=function(key){var i=h.indexOf(key);return i<0?'':row[i];};
-    return [get('직원명'),get('시급')==='0원'?'월급제':'시급제',get('총근무'),get('야간근무'),get('시급'),get('기본급'),get('야근수당적용여부')||'미적용',get('야근수당')||'0원',get('주휴'),get('휴게 제공 여부'),get('휴게수당'),get('조정'),get('예상 세전급여')];
+    return [get('직원명'),get('시급')==='0원'?'월급제':'시급제',get('총근무'),get('야간근무'),(function(){var p=payableByName[String(get('직원명'))];return p&&p.count?Math.floor(p.minutes/60)+':'+String(p.minutes%60).padStart(2,'0'):'—';})(),get('시급'),get('기본급'),get('야근수당적용여부')||'미적용',get('야근수당')||'0원',get('주휴'),get('휴게 제공 여부'),get('휴게수당'),get('조정'),get('예상 세전급여')];
   })};
 }
 function _seniorAttendanceLayout(section,payroll){
   var payTypeByName={};
   (payroll.rows||[]).forEach(function(r){payTypeByName[String(r[0])]=r[1];});
   var h=section.header||[];
-  var keys=['날짜','직원명','급여형태','출근','퇴근','실근무','야간근무','휴게시간제공여부','법정휴게시간','실제휴게시간','급여산정시간','상태','정정','정정사유'];
+  var keys=['날짜','직원명','급여형태','출근','퇴근','총근무','야간근무','휴게시간제공여부','법정휴게시간','실제휴게시간','급여산정시간','상태','정정','정정사유'];
   return {header:keys,rows:(section.rows||[]).map(function(row){
     var get=function(key){var i=h.indexOf(key);return i<0?'':row[i];};
-    var raw=get('실근무');
+    var raw=get('실근무')||get('총근무');
     var m=String(raw).match(/^([0-9]+):([0-9]{2})/),seconds=m?Number(m[1])*3600+Number(m[2])*60:0;
     
     // Reference-only statutory break duration; never change source payable time.
@@ -166,7 +177,7 @@ function _sortAttendanceByDate(section){
 function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   // Senior October workbook is the display contract. Transform report columns only.
   payroll=_withoutPayrollStatusColumns(payroll);
-  payroll=_seniorPayrollLayout(payroll);
+  payroll=_seniorPayrollLayout(payroll,attendance);
   attendance=_sortAttendanceByDate(_seniorAttendanceLayout(attendance,payroll));
   var sh=ss.getSheetByName(name); if(!sh) sh=ss.insertSheet(name);
   var monthNum=Number(String(name).replace(/[^0-9]/g,''))||0;
@@ -214,12 +225,12 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     sh.getRange(sr,1,1,width).setBackground(pale).setFontColor(headerGreen)
       .setFontSize(13).setFontWeight('bold').setHorizontalAlignment('left');
     sh.setRowHeight(sr,30);
-    sh.getRange(hr,1,1,width).setBackground(headerGreen).setFontColor('#ffffff')
+    sh.getRange(hr,1,1,s.data.header.length).setBackground(headerGreen).setFontColor('#ffffff')
       .setFontWeight('bold').setHorizontalAlignment('center')
       .setBorder(true,true,true,true,true,true,'#9fb2a6',SpreadsheetApp.BorderStyle.SOLID);
     sh.setRowHeight(hr,30);
     if(dr.count){
-      sh.getRange(dr.first,1,dr.count,width).setBackground(white)
+      sh.getRange(dr.first,1,dr.count,s.data.header.length).setBackground(white)
         .setBorder(true,true,true,true,true,true,line,SpreadsheetApp.BorderStyle.SOLID)
         .setVerticalAlignment('middle');
       for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,28);

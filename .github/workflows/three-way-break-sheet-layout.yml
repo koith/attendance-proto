@@ -1,0 +1,14 @@
+name: three-way-break-and-sheet-layout
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node qa_three_way_break_sheet_layout_v1.mjs

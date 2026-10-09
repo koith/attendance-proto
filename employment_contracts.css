@@ -14,3 +14,7 @@
 .contract-option-row>input[type="checkbox"]{width:24px;height:24px;flex:0 0 24px;margin:0;accent-color:var(--brand)}
 .break-policy-row+.night-heading-row{margin-top:10px}
 @media(max-width:520px){.contract-option-row{padding:11px 12px;gap:12px}.contract-option-copy p{font-size:.72rem}}
+
+/* Three-way break handling: preserve a readable picker on mobile and desktop. */
+.break-policy-row select{width:min(100%,190px);min-width:0;flex:0 1 190px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--text)}
+@media(max-width:520px){.break-policy-row{flex-wrap:wrap}.break-policy-row select{width:100%;flex-basis:100%}}
