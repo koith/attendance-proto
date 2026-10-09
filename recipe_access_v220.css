@@ -140,3 +140,11 @@
 
 /* v0.173: desktop ingredient rows share exact width of method panels, including heading. */
 @media(min-width:900px){.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component{box-sizing:border-box!important;width:100%!important;max-width:none!important;display:grid!important;grid-template-columns:minmax(0,1fr) max-content!important;align-items:baseline!important;gap:16px!important}.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component>*:first-child{min-width:0!important;overflow-wrap:anywhere!important}.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component>*:last-child{justify-self:end!important;white-space:nowrap!important}}
+
+/* Keep ingredient rows within the same measured content column as manufacturing methods. */
+@media(min-width:900px){
+.recipe-v220-card.is-open .recipe-v220-inline-detail>section{box-sizing:border-box;width:100%;max-width:780px;margin-inline:auto}
+.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component{box-sizing:border-box;min-width:0;max-width:100%!important;width:100%!important;grid-template-columns:minmax(0,1fr) minmax(0,max-content)!important}
+.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component>span{min-width:0;overflow-wrap:anywhere}
+.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component>b{text-align:right;white-space:normal!important;overflow-wrap:anywhere}
+}
