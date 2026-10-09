@@ -19,7 +19,7 @@ assert.ok(app.includes('functions/v1/server-sync-sheet'));
 assert.ok(app.includes('async serverPayroll(ym)'));
 assert.ok(bridge.includes('window.__setServerPayrollResult?.(result)'));
 assert.ok(read('payroll_elapsed_weeks_v1.js').includes("append('server_payroll_bridge_v1.js"));
-assert.ok(pages.includes('id: deployment\n        uses: actions/deploy-pages@v4\n      - name: Confirm production Sheet sync'));
+assert.ok(pages.includes('id: deployment\n        uses: actions/deploy-pages@v4'));\nassert.ok(pages.includes('uses: actions/checkout@v4\n      - name: Confirm production Sheet sync'));
 assert.ok(script.includes('node tools/trigger_sheet_deploy_sync.mjs'));
 assert.match(read('tools/trigger_sheet_deploy_sync.mjs'),/body\.written!==true/);
 assert.match(read('tools/trigger_sheet_deploy_sync.mjs'),/body\.column_resize_applied!==true/);
