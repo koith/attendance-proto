@@ -1,4 +1,3 @@
-import {truncateWon} from './payroll_policy.mjs';
 /* Server runtime mirrors the browser's payroll and sheet report algorithms.
    SOURCE SNAPSHOT: index.html v0.181, payroll_contract_authority_v1.js,
    payroll_night_allowance_v1.js. Never add independent payroll policy here.
@@ -110,13 +109,13 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   const rate = (ov.tax_rate_override!=null) ? ov.tax_rate_override : ((emp.tax_rate!=null)?emp.tax_rate:0.033);
   const adjust = ov.adjust_amount||0;
 
-  const base=truncateWon(wage*monthHours);              // 기본급 10원 반올림
+  const base=xround(wage*monthHours,-1);              // 기본급 10원 반올림
   let juhyu=0, weekly=0;
   if(jh>0){
-    weekly = (emp.juhyu_round!=null) ? xround(wage*jh, emp.juhyu_round) : truncateWon(wage*jh);
-    juhyu = truncateWon(weekly*jweeks);               // 원 단위 정수화 (부동소수점 오차 제거)
+    weekly = (emp.juhyu_round!=null) ? xround(wage*jh, emp.juhyu_round) : Math.round(wage*jh);
+    juhyu = Math.round(weekly*jweeks);               // 원 단위 정수화 (부동소수점 오차 제거)
   }
-  const gross=truncateWon(base+juhyu+adjust);         // 임의 가감액 포함
+  const gross=Math.round(base+juhyu+adjust);         // 임의 가감액 포함
   const net=xrounddown(gross*(1-rate),-1);           // 세후 10원 버림
   return {base, weekly, juhyu, adjust, gross, net, rate, wage, jweeks, usedOverride:Object.keys(ov).length>0};
 }
