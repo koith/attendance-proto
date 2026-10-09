@@ -217,6 +217,8 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   // Do not merge across the table width; merged regions made narrow mobile views visually drift.
   sh.getRange(1,1,1,width).setBackground(green).setFontColor(white).setFontSize(18).setFontWeight('bold').setHorizontalAlignment('left');
   sh.getRange(2,1,1,width).setBackground(green).setFontColor('#eef8f1').setFontSize(10).setFontWeight('bold').setHorizontalAlignment('left');
+  // The report tables end at N. Never paint the unused O+ title area green on sync.
+  if(width>14) sh.getRange(1,15,2,width-14).setBackground(white);
   sh.getRange(3,1,1,width).setBackground(white);
   sh.setRowHeight(1,42); sh.setRowHeight(2,28); sh.setRowHeight(3,10);
 
