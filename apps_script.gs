@@ -118,7 +118,9 @@ function _seniorPayrollLayout(section){
     return [get('직원명'),get('시급')==='0원'?'월급제':'시급제',get('총근무'),get('야간근무'),get('시급'),get('기본급'),'미설정','0원',get('주휴'),get('휴게 제공 여부'),get('휴게수당'),get('조정'),get('예상 세전급여')];
   })};
 }
-function _seniorAttendanceLayout(section){
+function _seniorAttendanceLayout(section,payroll){
+  var payTypeByName={};
+  (payroll.rows||[]).forEach(function(r){payTypeByName[String(r[0])]=r[1];});
   var h=section.header||[];
   var keys=['날짜','직원명','급여형태','출근','퇴근','실근무','야간근무','휴게시간제공여부','법정휴게시간','실제휴게시간','급여산정시간','상태','정정','정정사유'];
   return {header:keys,rows:(section.rows||[]).map(function(row){
@@ -128,14 +130,14 @@ function _seniorAttendanceLayout(section){
     var deduct=provided?(seconds<=14400?0:seconds<=16200?seconds-14400:seconds<=30600?1800:seconds<=32400?seconds-28800:3600):0;
     var bonus=provided?0:(seconds>=28800?3600:seconds>14400?1800:0);
     var dur=function(n){var v=Math.floor(n/60);return Math.floor(v/60)+':'+String(v%60).padStart(2,'0');};
-    return [get('날짜'),get('직원명'),'—',get('출근'),get('퇴근'),raw,get('야간근무'),get('휴게 제공 여부'),dur(deduct),'—',dur(seconds-deduct+bonus),get('상태'),get('정정'),get('정정사유')];
+    return [get('날짜'),get('직원명'),payTypeByName[String(get('직원명'))]||'미설정',get('출근'),get('퇴근'),raw,get('야간근무'),get('휴게 제공 여부'),dur(deduct),'—',dur(seconds-deduct+bonus),get('상태'),get('정정'),get('정정사유')];
   })};
 }
 function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   // Senior October workbook is the display contract. Transform report columns only.
   payroll=_withoutPayrollStatusColumns(payroll);
   payroll=_seniorPayrollLayout(payroll);
-  attendance=_seniorAttendanceLayout(attendance);
+  attendance=_seniorAttendanceLayout(attendance,payroll);
   var sh=ss.getSheetByName(name); if(!sh) sh=ss.insertSheet(name);
   var monthNum=Number(String(name).replace(/[^0-9]/g,''))||0;
   var ym=String(ss.getName()).match(/(20\d{2})/);
