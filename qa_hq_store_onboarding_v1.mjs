@@ -35,7 +35,7 @@ assert.match(ui,/hq_store_register/);
 assert.match(ui,/hq_store_manager_revoke/);
 assert.match(ui,/invite_store_manager/);
 assert.match(ui,/entryUrl=id=>location\.origin\+location\.pathname/);
-assert.match(app,/hq_store_onboarding_ui\\.js\\?v=20[0-9]{6}v[0-9]+/);
+assert.match(app,/hq_store_onboarding_ui\.js\?v=20[0-9]{6}v[0-9]+/);
 assert.match(edge,/owner_activation\.html/);
 const activation=fs.readFileSync('owner_activation.js','utf8');
 const demoGate=fs.readFileSync('supabase/migrations/20261011032000_block_demo_store_activation.sql','utf8');
