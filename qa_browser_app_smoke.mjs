@@ -105,6 +105,13 @@ async function smoke(browser,label,viewport){
   assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='payroll'&&x.args.store_id===1),'Live payroll adapter did not call Edge '+label);
   await page.evaluate(()=>{location.hash='#inventory'});
   await page.waitForFunction(()=>location.hash==='#inventory');
+  await page.locator('#opsInventoryAdd').waitFor({timeout:12000});
+  await page.locator('#opsInventoryAdd').click();
+  await page.locator('#inventoryName').waitFor({timeout:10000});
+  await page.locator('.ops-modal').last().locator('.ops-modal-head button').click();
+  await page.locator('#opsInventoryBulk').click();
+  await page.locator('#inventoryBulkFile').waitFor({timeout:10000});
+  await page.locator('.ops-modal').last().locator('.ops-modal-head button').click();
   await page.evaluate(()=>{location.hash='#attendance'});
   await page.waitForURL(/actual_attendance\.html/,{timeout:20000});
   await page.locator('#monthLabel').waitFor({timeout:20000});
