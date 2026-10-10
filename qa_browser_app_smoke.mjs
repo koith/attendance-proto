@@ -17,7 +17,7 @@ function reply(route,value,status=200){
 }
 
 async function configure(page,calls,role='HQ',managerStoreId=null){
-  let working=false, payrollClosed=false,ownerInvited=false,provenanceVerified=false,stageActivated=false;
+  let working=false, payrollClosed=false,ownerInvited=false,ownerConfirmed=false,provenanceVerified=false,stageActivated=false;
   await page.addInitScript(()=>{
     localStorage.setItem('baekeok_auth',JSON.stringify({
       access_token:'qa-local-token',refresh_token:'qa-refresh-token'
@@ -33,7 +33,7 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
     if(name==='hq_stores_onboarding_list')return reply(route,stores.map(x=>({
       ...x,code:'QA_'+x.id,region_group:'인천',
       onboarding_status:x.id===1?'READY':stageActivated?'READY':'STAGED',
-      is_active:x.id===1||stageActivated,manager_count:x.id===1?0:ownerInvited?1:0
+      is_active:x.id===1||stageActivated,manager_count:x.id===1?0:ownerConfirmed?1:0
     })));
     if(name==='hq_store_provenance_list')return reply(route,provenanceVerified?[{
       store_id:2,decision:'VERIFIED',evidence_reference:'https://example.invalid/hq-review/qa-branch',reviewed_at:'2026-10-11T00:00:00Z'
@@ -103,6 +103,7 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
       active:[],rows:[],weeks:4,overrides:{},totalGross:0,totalNet:0
     }});
   });
+  return {confirmOwnerInvitation(){ownerConfirmed=true;}};
 }
 async function check(condition,message){assert.ok(condition,message)}
 
@@ -115,7 +116,7 @@ async function smoke(browser,label,viewport){
     if(msg.type()==='error' && /SyntaxError|Invalid or unexpected token|Uncaught/.test(msg.text()))
       errors.push({message:msg.text(),source:msg.location()});
   });
-  await configure(page,calls);
+  const qaAuth=await configure(page,calls);
   await page.goto(host+'/index.html?mode=store&store=1#pos',{waitUntil:'domcontentloaded'});
   await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
   assert.equal((await page.locator('#appVersion').innerText()).trim(),expectedVersion,'Deployed app version mismatch '+label);
@@ -207,7 +208,9 @@ async function smoke(browser,label,viewport){
   await page.waitForFunction(()=>document.querySelector('#hqOnboardingBody')?.innerText.includes('owner@example.invalid'),null,{timeout:12000});
   assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='invite_store_manager'&&x.args.store_id===2),
     'HQ invite service not called '+label);
-  assert.ok(await page.locator('#hqStoreReady').isDisabled(),'Store cannot activate before proof '+label);
+  assert.ok(await page.locator('#hqStoreReady').isDisabled(),'Pending invite cannot activate '+label);
+  qaAuth.confirmOwnerInvitation();
+  assert.ok(await page.locator('#hqStoreReady').isDisabled(),'Proof remains required after confirmed owner '+label);
   await page.locator('#hqStoreEvidence').fill('https://example.invalid/hq-review/qa-branch');
   await page.locator('#hqStoreVerify').click();
   await page.waitForFunction(()=>document.querySelector('#hqStoreReady')?.disabled===false,null,{timeout:12000});
