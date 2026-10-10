@@ -43,6 +43,13 @@ async function authenticate(req,mode){
   if(!match)throw new HttpError(401,"NOT_AUTHORIZED");
   const {data,error}=await client.auth.getUser(match[1]);
   if(error||!data?.user)throw new HttpError(401,"NOT_AUTHORIZED");
+  // Revoked/banned/unconfirmed managers must not use privileged Edge paths
+  // even when a previously minted JWT remains unexpired.
+  const authUser=data.user;
+  if(!authUser.email_confirmed_at||authUser.is_anonymous===true||
+     Boolean(authUser.deleted_at)||
+     (authUser.banned_until&&Date.parse(authUser.banned_until)>Date.now()))
+    throw new HttpError(403,"INACTIVE_ADMIN_ACCOUNT");
   const admin=await client.from("admin_users").select("user_id,admin_role,store_id").eq("user_id",data.user.id).maybeSingle();
   if(admin.error||!admin.data)throw new HttpError(403,"NOT_ADMIN");
   return {internal:false,userId:data.user.id,adminRole:admin.data.admin_role,storeId:admin.data.store_id};
