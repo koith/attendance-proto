@@ -190,7 +190,6 @@ async function smoke(browser,label,viewport){
   await page.locator('#hqOnboardingStore').selectOption('2');
   assert.match(await page.locator('#hqOnboardingBody').innerText(),/STAGED/);
   await page.locator('#hqManagerEmail').fill('owner@example.invalid');
-  page.on('dialog',dialog=>dialog.accept());
   await page.locator('#hqManagerInvite').click();
   await page.waitForFunction(()=>document.querySelector('#hqOnboardingBody')?.innerText.includes('owner@example.invalid'),null,{timeout:12000});
   assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='invite_store_manager'&&x.args.store_id===2),
