@@ -495,6 +495,13 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       if(row.pay){gross+=row.pay.gross;net+=row.pay.net}
     }
     R.totalGross=gross;R.totalNet=net;
+    for(const row of R.rows){
+      const c=row.contract,p=row.pay;
+      if(p&&c?.night_allowance_enabled){
+        p.nightHours=nightOverlap(row.sessions,c.night_allowance_start||'22:00',c.night_allowance_end||'06:00')/3600;
+        p.night=Number(p.nightAllowance||0);
+      }
+    }
     // Night premium is already calculated in browserBasePayroll. Do not add it
     // again in this contract-authority wrapper: it would double the earnings.
     R.totalGross=R.rows.reduce((sum,row)=>sum+Number(row.pay?.gross||0),0);
