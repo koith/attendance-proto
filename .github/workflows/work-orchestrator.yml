@@ -1,0 +1,40 @@
+name: Work orchestration guard
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+  push:
+    paths:
+      - 'scripts/work-orchestrator.mjs'
+      - 'scripts/orchestrator.test.mjs'
+      - '.github/workflows/work-orchestrator.yml'
+permissions:
+  contents: read
+  issues: write
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/orchestrator.test.mjs
+      - id: state
+        run: |
+          node scripts/work-orchestrator.mjs next > next.json
+          echo "json=$(cat next.json)" >> "$GITHUB_OUTPUT"
+      - uses: actions/github-script@v7
+        if: github.event_name != 'push'
+        env:
+          NEXT_JSON: ${{ steps.state.outputs.json }}
+        with:
+          script: |
+            const state=JSON.parse(process.env.NEXT_JSON);
+            if(state.status==='complete')return;
+            const title='[자동 작업 추적] 미완료 개발 작업';
+            const body=`미완료 작업: ${state.task}\n남은 검증: ${state.missing.join(', ')}\n\n이 워크플로는 작업을 추적하지만 AI 코드를 자동 생성하거나 배포하지 않습니다.`;
+            const issues=await github.paginate(github.rest.issues.listForRepo,{...context.repo,state:'open',per_page:100});
+            const existing=issues.find(i=>!i.pull_request&&i.title===title);
+            if(existing)await github.rest.issues.update({...context.repo,issue_number:existing.number,body});
+            else await github.rest.issues.create({...context.repo,title,body});

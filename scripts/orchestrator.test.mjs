@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {execFileSync} from 'node:child_process';
+const file=path.join(fs.mkdtempSync(path.join(os.tmpdir(),'work-guard-')),'state.json');
+const run=(...args)=>execFileSync(process.execPath,['scripts/work-orchestrator.mjs',...args],{env:{...process.env,WORK_STATE_FILE:file},encoding:'utf8'});
+assert.equal(JSON.parse(run('next')).task,'payroll');
+assert.throws(()=>run('complete','payroll'));
+assert.throws(()=>run('record','payroll','payroll-scenarios','bad'));
+for(const check of ['payroll-scenarios','weekly-approval','payroll-production'])run('record','payroll',check,'https://github.com/example/evidence');
+run('complete','payroll');
+assert.equal(JSON.parse(run('next')).task,'admin');
+assert.throws(()=>run('complete','deploy'));
+console.log('PASS evidence and ordering guards');
