@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const legacy=fs.readFileSync('operations_v1.js','utf8');
+const unified=fs.readFileSync('operations_reference_ui_v208.js','utf8');
+const html=fs.readFileSync('index.html','utf8');
+assert.match(legacy,/window\.openInventoryEntryFromUnified=\(mode,item=null\)=>openInventoryEntry\(mode,item,/);
+assert.match(legacy,/async function openInventoryEntry\(mode,item=null,onSaved=null\)/);
+assert.match(legacy,/if\(onSaved\)await onSaved\(\);else await draw\(\)/);
+assert.match(unified,/const editor=window\.openInventoryEntryFromUnified/);
+assert.match(unified,/onclick=\(\)=>editor\("manual"\)/);
+assert.match(unified,/onclick=\(\)=>editor\("bulk"\)/);
+assert.doesNotMatch(unified,/onclick=openInventoryBulk/);
+assert.match(html,/operations_v1\.js\?v=20261010v195/);
+assert.match(html,/operations_reference_ui_v208\.js\?v=20261010v195/);
+console.log('PASS inventory manual and CSV bulk dialogs wired through shared editor');

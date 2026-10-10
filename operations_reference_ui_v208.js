@@ -85,7 +85,11 @@ async function renderInventory(refresh=false){
   const all=REF.inventory||[],categories=["전체",...new Set(all.map(x=>x.category))];let rows=inventoryCategory==="전체"?all:all.filter(x=>x.category===inventoryCategory);
   if(inventoryQuery)rows=rows.filter(x=>[x.name,x.current_text,x.minimum_text,x.order_text,x.note].some(v=>String(v||"").toLowerCase().includes(inventoryQuery)));
   body.innerHTML=orderPanel()+receivingPanel()+'<div class="ops-unified-section-title"><b>재고 기준</b><span>'+rows.length+'개</span></div><div class="ops-inventory-toolbar ops-reference-toolbar"><label>검색<input id="opsReferenceInventorySearch" type="search" value="'+esc(inventoryQuery)+'" placeholder="품목명·현재고·발주기준"></label><label>카테고리<select id="opsReferenceInventoryCat">'+categories.map(x=>'<option '+(x===inventoryCategory?'selected':'')+'>'+esc(x)+'</option>').join("")+'</select></label></div><div class="ops-stock-chart ops-stock-grid">'+(rows.length?rows.map(inventoryCard).join(""):'<div class="ops-empty"><b>검색 결과가 없습니다.</b></div>')+'</div>';
-  document.getElementById("opsInventoryAdd").onclick=()=>openInventoryEditor();document.getElementById("opsInventoryBulk").onclick=openInventoryBulk;
+  // Use the already-implemented and authorized inventory editors in operations_v1.
+  const editor=window.openInventoryEntryFromUnified;
+  if(typeof editor!=="function")throw new Error("INVENTORY_EDITOR_NOT_READY");
+  document.getElementById("opsInventoryAdd").onclick=()=>editor("manual");
+  document.getElementById("opsInventoryBulk").onclick=()=>editor("bulk");
   body.querySelectorAll("[data-managed-stock]").forEach(button=>button.onclick=()=>openPurchaseOrder(managedInventory[Number(button.dataset.managedStock)]));
   body.querySelectorAll("[data-receive-order]").forEach(button=>button.onclick=()=>openReceiveOrder(purchaseOrders[Number(button.dataset.receiveOrder)]));
   const search=document.getElementById("opsReferenceInventorySearch");search.oninput=e=>{inventoryQuery=e.target.value.trim().toLowerCase();renderInventory(true);const next=document.getElementById("opsReferenceInventorySearch");next.focus();next.setSelectionRange(next.value.length,next.value.length)};
