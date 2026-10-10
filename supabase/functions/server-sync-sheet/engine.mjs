@@ -495,17 +495,17 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       if(row.pay){gross+=row.pay.gross;net+=row.pay.net}
     }
     R.totalGross=gross;R.totalNet=net;
-    gross=0;net=0;
     for(const row of R.rows){
       const c=row.contract,p=row.pay;
       if(p&&c?.night_allowance_enabled){
-        const h=nightOverlap(row.sessions,c.night_allowance_start||'22:00',c.night_allowance_end||'06:00')/3600,v=Number(c.night_allowance_value||0);
-        const add=c.night_allowance_mode==='FLAT'?Math.round(h*v):Math.round(h*Number(p.wage||0)*v/100);
-        p.nightHours=h;p.night=add;p.gross+=add;p.net=xrounddown(p.gross*(1-p.rate),-1);
+        p.nightHours=nightOverlap(row.sessions,c.night_allowance_start||'22:00',c.night_allowance_end||'06:00')/3600;
+        p.night=Number(p.nightAllowance||0);
       }
-      if(p){gross+=p.gross;net+=p.net}
     }
-    R.totalGross=gross;R.totalNet=net;
+    // Night premium is already calculated in browserBasePayroll. Do not add it
+    // again in this contract-authority wrapper: it would double the earnings.
+    R.totalGross=R.rows.reduce((sum,row)=>sum+Number(row.pay?.gross||0),0);
+    R.totalNet=R.rows.reduce((sum,row)=>sum+Number(row.pay?.net||0),0);
     return R;
   };
   return {computeMonthPayroll,buildSheetSyncPayload,calcPayroll,applyCorrections,pairEvents,browserBasePayroll:browserBase};

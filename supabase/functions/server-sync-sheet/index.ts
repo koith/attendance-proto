@@ -223,7 +223,7 @@ Deno.serve(async req=>{
   try{
     const body=await req.json(),mode=String(body?.mode||"sync");
     if(!["cron","dryrun","deployment","payroll","parity","sync","weekly_approve"].includes(mode))throw new HttpError(400,"BAD_MODE");
-    await authenticate(req,mode);
+    const actor=await authenticate(req,mode);
     if(mode==="deployment"){
       const ym=currentYm();
       const prepared=await buildReport(ym,1);
@@ -269,15 +269,11 @@ Deno.serve(async req=>{
         throw new HttpError(404,"WEEKLY_EMPLOYEE_NOT_FOUND");
       const actualCalculated=Number(employeeRow.pay.weeklyCalculatedAmounts?.[weekStart]||0);
       if(calculatedWon!==actualCalculated)throw new HttpError(409,"WEEKLY_CALCULATED_AMOUNT_CHANGED");
-      const token=/^Bearer (.+)$/i.exec(req.headers.get("Authorization")||"")?.[1];
-      if(!token)throw new HttpError(401,"NOT_AUTHORIZED");
-      const userClient=createClient(projectUrl,Deno.env.get("SUPABASE_ANON_KEY")||"",{
-        auth:{autoRefreshToken:false,persistSession:false},
-        global:{headers:{Authorization:"Bearer "+token}}
-      });
-      const {data,error}=await userClient.rpc("approve_payroll_weekly_allowance",{
+      if(actor.internal||!actor.userId)throw new HttpError(403,"ADMIN_USER_REQUIRED");
+      const {data,error}=await client.rpc("approve_payroll_weekly_allowance_internal",{
         p_store_id:storeId,p_employee_id:employeeId,p_week_start:weekStart,
-        p_calculated_won:calculatedWon,p_approved_won:approvedWon,p_reason:reason
+        p_calculated_won:actualCalculated,p_approved_won:approvedWon,p_reason:reason,
+        p_approver_id:actor.userId
       });
       if(error)throw new HttpError(409,"WEEKLY_APPROVAL_REJECTED: "+error.message);
       return reply({ok:true,approval_id:data});

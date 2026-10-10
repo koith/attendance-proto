@@ -25,6 +25,7 @@ for(const name of ['admin_correct_event','admin_update_employee','admin_retire_e
   assert.match(guards.slice(start,start+1900),/public\.can_manage_store\(/,name+' must be store-scoped');
 }
 assert.match(guards,/EVENT_EMPLOYEE_MISMATCH/);
-assert.match(html,/const APP_VERSION="v0\.191"/);
+const version=html.match(/const APP_VERSION="(v[0-9.]+)"/)?.[1];
+assert.ok(version&&html.includes('id="appVersion">'+version+'</span>'),'app header/version mismatch');
 assert.match(html,/id="hqHome" aria-label="백억커피" style=/);
 console.log('PASS: HQ dashboard shows attributable actual sales and store attendance remains scoped');
