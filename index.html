@@ -1104,7 +1104,7 @@ const SupaBE = (()=>{
     async storeManagerList(){return rpc("hq_store_manager_list",{},true);},
     async grantAdmin(email){ return rpc("admin_grant",{p_email:email},true); },
     async revokeAdmin(userId){ return rpc("admin_revoke",{p_user_id:userId},true); },
-    async punch(id,pin,subForId=null){ return rpc("punch",{p_employee_id:id,p_pin:pin,p_device:CONFIG.DEVICE_ID,p_substitute_for_employee_id:subForId}); },
+    async punch(id,pin,subForId=null){ return rpc("punch",{p_employee_id:id,p_pin:pin,p_device:Number(CURRENT_STORE_ID)===1?CONFIG.DEVICE_ID:"POS_STORE_"+Number(CURRENT_STORE_ID),p_substitute_for_employee_id:subForId}); },
     // --- 관리자 (authenticated) ---
     async allEmployees(){ return CURRENT_STORE_ID?rpc("list_store_employees",{p_store_id:CURRENT_STORE_ID},true):rpc("admin_list_all_employees",{},true); },
     async createEmployee(name,pin){ const storeId=Number(CURRENT_STORE_ID)||Number(sessionStorage.getItem("baekeok_store_id"))||1;return rpc("admin_create_employee_for_store",{p_name:name.trim(),p_pin:pin,p_store_id:storeId},true); },
