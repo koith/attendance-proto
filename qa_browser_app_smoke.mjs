@@ -106,6 +106,7 @@ async function smoke(browser,label,viewport){
   assert.match(await page.locator('#adEmps').innerText(),/김지수/,'Employee roster missing '+label);
   assert.equal(await page.locator('#adEmps .contract-alert').count(),0,'Contract flags must come from scoped RPC '+label);
   assert.ok(calls.some(x=>x.name==='admin_store_employee_contract_statuses'&&x.args.p_store_id===1),'Scoped contract-status query missing '+label);
+  assert.ok(!calls.some(x=>x.name==='admin_employee_contract_statuses'),'Legacy global contract-status read must not run '+label);
   await page.locator('#empTabRetired').click();
   await page.locator('#adEmps .employee-empty').waitFor({timeout:10000});
   await page.locator('#empTabActive').click();
