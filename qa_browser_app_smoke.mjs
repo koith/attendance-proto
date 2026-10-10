@@ -17,7 +17,7 @@ function reply(route,value,status=200){
 }
 
 async function configure(page,calls,role='HQ',managerStoreId=null){
-  let working=false, payrollClosed=false,ownerInvited=false,stageActivated=false;
+  let working=false, payrollClosed=false,ownerInvited=false,provenanceVerified=false,stageActivated=false;
   await page.addInitScript(()=>{
     localStorage.setItem('baekeok_auth',JSON.stringify({
       access_token:'qa-local-token',refresh_token:'qa-refresh-token'
@@ -35,10 +35,19 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
       onboarding_status:x.id===1?'READY':stageActivated?'READY':'STAGED',
       is_active:x.id===1||stageActivated,manager_count:x.id===1?0:ownerInvited?1:0
     })));
+    if(name==='hq_store_provenance_list')return reply(route,provenanceVerified?[{
+      store_id:2,decision:'VERIFIED',evidence_reference:'https://example.invalid/hq-review/qa-branch',reviewed_at:'2026-10-11T00:00:00Z'
+    }]:[]);
+    if(name==='hq_store_provenance_review'){
+      if(args.p_store_id!==2||args.p_decision!=='VERIFIED'||String(args.p_evidence_reference||'').length<15)
+        return reply(route,{message:'INVALID_QA_REVIEW'},400);
+      provenanceVerified=true;return reply(route,{ok:true,store_id:2,decision:'VERIFIED',review_id:42});
+    }
     if(name==='hq_store_manager_list')return reply(route,ownerInvited?[
       {user_id:'qa-invited-id',email:'owner@example.invalid',store_id:2,store_name:'송도점'}
     ]:[]);
     if(name==='hq_store_onboarding_set'){
+      if(!provenanceVerified)return reply(route,{message:'PROVENANCE_VERIFICATION_REQUIRED'},409);
       if(!ownerInvited)return reply(route,{message:'STORE_MANAGER_REQUIRED'},409);
       stageActivated=true;return reply(route,{ok:true,store_id:2,status:'READY'});
     }
@@ -198,6 +207,12 @@ async function smoke(browser,label,viewport){
   await page.waitForFunction(()=>document.querySelector('#hqOnboardingBody')?.innerText.includes('owner@example.invalid'),null,{timeout:12000});
   assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='invite_store_manager'&&x.args.store_id===2),
     'HQ invite service not called '+label);
+  assert.ok(await page.locator('#hqStoreReady').isDisabled(),'Store cannot activate before proof '+label);
+  await page.locator('#hqStoreEvidence').fill('https://example.invalid/hq-review/qa-branch');
+  await page.locator('#hqStoreVerify').click();
+  await page.waitForFunction(()=>document.querySelector('#hqStoreReady')?.disabled===false,null,{timeout:12000});
+  assert.ok(calls.some(x=>x.name==='hq_store_provenance_review'&&x.args.p_store_id===2),
+    'HQ verification RPC not called '+label);
   await page.locator('#hqStoreReady').click();
   await page.locator('#hqStoreLink').waitFor({timeout:12000});
   assert.match(await page.locator('#hqStoreLink').getAttribute('href'),/mode=store&store=2#pos/);
