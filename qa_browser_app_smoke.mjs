@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
+import fs from 'node:fs';
 
-const host='http://127.0.0.1:4173';
+const host=(process.env.APP_SMOKE_HOST||'http://127.0.0.1:4173').replace(/\/$/,'');
+const expectedVersion=fs.readFileSync('index.html','utf8').match(/const APP_VERSION="(v[0-9.]+)"/)?.[1];
+assert.ok(expectedVersion,'Expected app version absent');
 const employees=[{id:123,name:'김지수',employee_no:1,is_active:true,working:false,today_work_seconds:0,wage:12000,store_id:1}];
 const stores=[{id:1,name:'인하대학교점',is_active:true,source_store_key:'official_demo'},{id:2,name:'송도점',is_active:true,source_store_key:'demo_songdo'}];
 const dashboard=stores.map(s=>({
@@ -74,6 +77,7 @@ async function smoke(browser,label,viewport){
   await configure(page,calls);
   await page.goto(host+'/index.html?mode=store&store=1#pos',{waitUntil:'domcontentloaded'});
   await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
+  assert.equal((await page.locator('#appVersion').innerText()).trim(),expectedVersion,'Deployed app version mismatch '+label);
   assert.match(await page.locator('#empGrid').innerText(),/김지수/);
   await check(await page.locator('#lockedStoreName').isVisible(),'Store identity missing '+label);
   // Exercise IN/OUT with local fixtures only; never submit real attendance.
