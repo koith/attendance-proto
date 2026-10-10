@@ -16,7 +16,7 @@ function reply(route,value,status=200){
   return route.fulfill({status,contentType:'application/json; charset=utf-8',body:JSON.stringify(value)});
 }
 
-async function configure(page,calls){
+async function configure(page,calls,role='HQ',managerStoreId=null){
   let working=false, payrollClosed=false,ownerInvited=false,stageActivated=false;
   await page.addInitScript(()=>{
     localStorage.setItem('baekeok_auth',JSON.stringify({
@@ -44,6 +44,10 @@ async function configure(page,calls){
     }
     if(name==='admin_store_payroll_period')return reply(route,{
       period:{store_id:Number(args.p_store_id),ym:args.p_ym,weeks:4,status:payrollClosed?'CLOSED':'OPEN'},overrides:[]});
+    if(name==='list_store_employees'&&role==='STORE_MANAGER')
+      return reply(route,employees.map(e=>({...e,store_id:managerStoreId,name:'점주 지점 직원'})));
+    if(name==='list_employees_state'&&role==='STORE_MANAGER')
+      return reply(route,employees.map(e=>({...e,store_id:managerStoreId,name:'점주 지점 직원'})));
     if(name==='list_employees_state'){
       return reply(route,employees.map(e=>({...e,working,working_since:working?'2026-10-10T09:00:00':null})));
     }
@@ -54,7 +58,7 @@ async function configure(page,calls){
     }
     const fixtures={
       is_admin:true,
-      admin_context:{role:'HQ',store_id:null,email:'qa@example.invalid'},
+      admin_context:{role,store_id:managerStoreId,email:'qa@example.invalid'},
       list_stores:stores,
       list_employees_state:employees,
       list_store_employees:employees,
@@ -210,10 +214,33 @@ async function smoke(browser,label,viewport){
   await context.close();
   console.log('PASS browser smoke '+label+': POS IN/OUT / store lock / employees / server payroll / inventory / attendance / HQ navigation');
 }
+async function ownerScopedRoute(browser,label,viewport){
+  const context=await browser.newContext({viewport,locale:'ko-KR',timezoneId:'Asia/Seoul'});
+  const page=await context.newPage();
+  const calls=[],errors=[];
+  page.on('pageerror',e=>errors.push(String(e?.message||e)));
+  await configure(page,calls,'STORE_MANAGER',2);
+  await page.goto(host+'/index.html?mode=store&store=1#admin',{waitUntil:'domcontentloaded'});
+  await page.waitForURL(/mode=store&store=2#pos/,{timeout:20000});
+  await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
+  assert.ok((await page.locator('#empGrid').innerText()).includes('점주 지점 직원'),'Store owner POS scope '+label);
+  assert.equal(await page.locator('#storeSelect').count(),0,'Store owner must not have HQ store switcher '+label);
+  await page.evaluate(()=>{location.hash='#admin'});
+  await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:18000});
+  assert.ok(calls.some(x=>x.name==='list_store_employees'&&x.args.p_store_id===2),'Owner employees not scoped '+label);
+  assert.ok(!calls.some(x=>x.name==='list_store_employees'&&x.args.p_store_id===1),'Owner accessed Inha employees '+label);
+  await page.evaluate(()=>{location.hash='#dashboard'});
+  await page.waitForFunction(()=>location.hash==='#pos',null,{timeout:10000});
+  assert.equal(errors.length,0,'Owner route browser runtime exceptions '+label+': '+JSON.stringify(errors));
+  await context.close();
+  console.log('PASS scoped store manager '+label+': wrong-store redirect, employee isolation, HQ lock');
+}
 const browser=await chromium.launch({headless:true});
 try{
   await smoke(browser,'mobile',{width:390,height:844});
   await smoke(browser,'desktop',{width:1440,height:900});
+  await ownerScopedRoute(browser,'mobile',{width:390,height:844});
+  await ownerScopedRoute(browser,'desktop',{width:1440,height:900});
 }finally{
   await browser.close();
 }
