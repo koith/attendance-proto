@@ -29,7 +29,7 @@ assert.throws(()=>closingRows(failed),/UNRESOLVED_ATTENDANCE_SESSIONS/);
 failed.rows[0].issues=0;failed.rows[0].sec=0;
 assert.throws(()=>closingRows(failed),/NO_COMPLETED_WORK_FOR_MONTH/);
 assert.match(edge,/mode==="payroll_close_preview"/);
-assert.match(edge,/mode==="payroll_close"/);
+assert.ok(edge.includes('"payroll_close_preview","payroll_close","payroll_reopen"'));
 assert.match(edge,/mode==="payroll_reopen"/);
 assert.match(edge,/actor\.adminRole!=="HQ"/);
 assert.match(edge,/body\.confirm_ym!==ym/);
