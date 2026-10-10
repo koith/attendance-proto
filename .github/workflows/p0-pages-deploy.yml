@@ -28,6 +28,10 @@ on:
       - 'supabase/migrations/20261010234500_weekly_append_only_decisions.sql'
       - 'qa_payroll_close_server_authority_v1.mjs'
       - 'qa_store_payroll_isolation_v1.mjs'
+      - 'hq_store_onboarding_ui.js'
+      - 'qa_hq_store_onboarding_v1.mjs'
+      - 'supabase/migrations/20261011023000_hq_store_onboarding_and_manager_roles.sql'
+      - 'supabase/migrations/20261011025500_store_roster_and_invite_boundary.sql'
       - 'supabase/migrations/20261010235500_store_scoped_payroll_base.sql'
       - 'supabase/migrations/20261010235510_store_payroll_source_weekly_scope.sql'
       - 'supabase/migrations/20261010235520_store_scoped_payroll_close_reopen.sql'
@@ -119,6 +123,10 @@ jobs:
           node qa_server_sheet_test_exclusion_v1.mjs
       - name: Store payroll isolation QA
         run: node qa_multistore_payroll_isolation_v1.mjs
+      - name: HQ store onboarding and invitation authorization regression
+        run: |
+          node --check hq_store_onboarding_ui.js
+          node qa_hq_store_onboarding_v1.mjs
       - name: Multi-store payroll isolation regression
         run: node qa_store_payroll_isolation_v1.mjs
       - name: Payroll close and reopen server authority regression
