@@ -131,7 +131,7 @@ async function smoke(browser,label,viewport){
   await page.locator('#payMonth').fill('2026-09');
   await page.locator('#payMonth').dispatchEvent('change');
   await page.getByRole('button',{name:'급여 마감 검토'}).waitFor({timeout:15000});
-  assert.ok(calls.some(x=>x.name==='admin_store_payroll_period'&&x.args.p_store_id===1),'Payroll period must be scoped to selected store '+label);
+  assert.ok(!calls.some(x=>x.name==='admin_payroll_period'),'Legacy global payroll period must not be requested '+label);
   page.on('dialog',dialog=>dialog.accept(dialog.type()==='prompt'?'모의 마감 재오픈 QA':''));
   await page.getByRole('button',{name:'급여 마감 검토'}).click();
   await page.waitForTimeout(300);
