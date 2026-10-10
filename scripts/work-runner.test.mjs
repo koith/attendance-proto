@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {spawnSync} from 'node:child_process';
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'runner-'));
+const file=path.join(dir,'state.json');
+fs.writeFileSync(file,JSON.stringify({tasks:[{id:'payroll',status:'pending',checks:['proof'],evidence:{}}],history:[]}));
+const r=spawnSync(process.execPath,['scripts/work-runner.mjs'],{encoding:'utf8',env:{...process.env,WORK_STATE_FILE:file,WORKER_COMMAND:'node -e "process.exit(0)"',MAX_ATTEMPTS:'2',MAX_STEPS:'4'}});
+assert.equal(r.status,3);
+const state=JSON.parse(fs.readFileSync(file,'utf8'));
+assert.equal(state.tasks[0].status,'blocked');
+assert.equal(state.attempts['payroll:proof'],2);
+assert.equal(state.tasks[0].evidence.proof,undefined);
+console.log('PASS: worker cannot self-certify; retry cap blocks without evidence');
