@@ -739,7 +739,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.193</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.194</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -808,7 +808,7 @@
 
 <script src="operations_reference_v208.js?v=20260928v022"></script>
 <script src="operations_v1.js?v=20260929v070"></script>
-<script src="operations_reference_ui_v208.js?v=20260930v083"></script>
+<script src="operations_reference_ui_v208.js?v=20261010fixed"></script>
 <script src="recipe_access_v220.js?v=20261001v096"></script>
 <script>
 /* =========================================================================
@@ -828,7 +828,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.193";
+const APP_VERSION="v0.194";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1132,6 +1132,7 @@ const SupaBE = (()=>{
       });
       const text=await r.text();let data=null;try{data=JSON.parse(text)}catch{}
       if(!r.ok||data?.ok!==true||!data.result)throw new Error(data?.error||"SERVER_PAYROLL_UNAVAILABLE");
+      if(data.engine_revision!=="20261010-verified")throw new Error("SERVER_PAYROLL_ENGINE_OUTDATED");
       return data.result;
     },
     async payrollBreakDecisions(fromIso,toIso){ return rpc("admin_attendance_break_decisions",{p_store_id:CURRENT_STORE_ID||1,p_from:fromIso,p_to:toIso},true); },
@@ -1568,8 +1569,13 @@ async function renderPos(){
   let adminMode=false;
   if(LIVE&&Auth.isLoggedIn()){try{adminMode=!!(await BE.isAdmin())}catch(_){adminMode=false}}
   let emps=[];
-  try{ emps=await BE.listEmployeesState(); }catch(e){ grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
-  document.getElementById("empCount").textContent=`총 ${emps.length}명`;
+  try{ emps=await BE.listEmployeesState(); }catch(e){ if(grid.isConnected)grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
+  // Route may have changed while listEmployeesState was in flight: never mutate
+  // an obsolete POS view or dereference its already-removed counter element.
+  if(!grid.isConnected || location.hash!=="#pos")return;
+  const count=document.getElementById("empCount");
+  if(!count)return;
+  count.textContent=`총 ${emps.length}명`;
   if(!emps.length){ grid.innerHTML=`<div class="empty">등록된 직원이 없습니다.<br>관리자 탭에서 먼저 직원을 등록하세요.</div>`; return; }
   for(const e of emps){
     const card=document.createElement("div");
@@ -2355,12 +2361,21 @@ async function computeMonthPayroll(ym){
   // contracts, substitutions, breaks, adjustments and night allowances.
   if(LIVE && Number(CURRENT_STORE_ID)===1 && typeof BE.serverPayroll==="function"){
     if(!Auth.token)throw new Error("SERVER_PAYROLL_AUTH_REQUIRED");
-    const payroll=await BE.serverPayroll(ym);
-    for(const rec of payroll.rows||[])for(const session of rec.sessions||[]){
-      if(session.in)session.in=fromIso(session.in);
-      if(session.out)session.out=fromIso(session.out);
+    let payroll=null;
+    try{ payroll=await BE.serverPayroll(ym); }
+    catch(e){
+      if(String(e?.message||e)!=="SERVER_PAYROLL_ENGINE_OUTDATED")throw e;
+      // Older live Edge revisions add the night premium twice. Use the
+      // client-side verified fallback until the new Edge is deployed.
+      console.warn("PAYROLL_SERVER_UPGRADE_PENDING");
     }
-    return payroll;
+    if(payroll){
+      for(const rec of payroll.rows||[])for(const session of rec.sessions||[]){
+        if(session.in)session.in=fromIso(session.in);
+        if(session.out)session.out=fromIso(session.out);
+      }
+      return payroll;
+    }
   }
   let emps=[], events=[];
   emps=await BE.allEmployees();
