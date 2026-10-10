@@ -99,6 +99,14 @@ async function smoke(browser,label,viewport){
   assert.ok((new URL(page.url())).hash==='#pos','Brand logo must not open headquarters '+label);
   await page.evaluate(()=>{location.hash='#dashboard'});
   await page.waitForFunction(()=>location.hash==='#pos');
+  // Employee management must render active employees without mutating production records.
+  await page.evaluate(()=>{location.hash='#admin'});
+  await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:15000});
+  assert.match(await page.locator('#adEmps').innerText(),/김지수/,'Employee roster missing '+label);
+  await page.locator('#empTabRetired').click();
+  await page.locator('#adEmps .employee-empty').waitFor({timeout:10000});
+  await page.locator('#empTabActive').click();
+  await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:10000});
   await page.evaluate(()=>{location.hash='#pay'});
   await page.waitForFunction(()=>document.querySelector('#payList')?.innerText.match(/등록된 급여 대상 직원|불러오기 실패/),null,{timeout:18000});
   assert.match(await page.locator('#payList').innerText(),/등록된 급여 대상 직원/,'Server payroll rendering failed '+label+'; calls='+JSON.stringify(calls.filter(x=>x.name==='server-sync-sheet')));
@@ -131,7 +139,7 @@ async function smoke(browser,label,viewport){
   }
   assert.deepEqual(errors,[],'Browser runtime exceptions '+label);
   await context.close();
-  console.log('PASS browser smoke '+label+': POS IN/OUT / store lock / server payroll / inventory / attendance / HQ navigation');
+  console.log('PASS browser smoke '+label+': POS IN/OUT / store lock / employees / server payroll / inventory / attendance / HQ navigation');
 }
 const browser=await chromium.launch({headless:true});
 try{
