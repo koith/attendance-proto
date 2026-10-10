@@ -38,6 +38,9 @@ on:
       - 'qa_global_admin_rpc_hq_boundary_v1.mjs'
       - 'qa_store_inventory_isolation_v1.mjs'
       - 'qa_store_operations_isolation_v1.mjs'
+      - 'qa_store_provenance_gate_v1.mjs'
+      - 'supabase/migrations/20261011102000_store_provenance_review_and_activation.sql'
+      - 'hq_store_onboarding_ui.js'
       - 'supabase/migrations/20261011092000_store_scoped_operations_ledger.sql'
       - 'supabase/migrations/20261011083000_store_scoped_inventory_ledger.sql'
       - 'supabase/migrations/20261011071000_legacy_global_admin_rpc_hq_gate.sql'
@@ -140,6 +143,8 @@ jobs:
           node --check hq_store_onboarding_ui.js
           node --check owner_activation.js
           node qa_hq_store_onboarding_v1.mjs
+      - name: Audited real-store review gate regression
+        run: node qa_store_provenance_gate_v1.mjs
       - name: Store-isolated sales and CSV import regression
         run: node qa_store_operations_isolation_v1.mjs
       - name: Multi-store inventory ledger regression
