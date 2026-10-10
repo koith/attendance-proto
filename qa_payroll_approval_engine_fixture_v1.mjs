@@ -36,4 +36,12 @@ const zero=await calculate([{...approval,approved_won:0}]);
 assert.equal(zero.juhyu,0);
 assert.equal(zero.gross,baseline.gross-38400);
 assert.ok(corrected.net<=baseline.net);
+const rejection={...approval,id:2,decision:'REJECT',approved_won:0,reason:'지급 반려 기록',approved_at:'2026-10-18T02:00:00Z'};
+const reapproval={...approval,id:3,decision:'REAPPROVE',approved_won:35000,reason:'수정된 급여 근거',approved_at:'2026-10-18T03:00:00Z'};
+const rejected=await calculate([rejection,approval]);
+assert.equal(rejected.juhyu,0,'Latest rejection removes pending weekly allowance');
+const reapproved=await calculate([reapproval,rejection,approval]);
+assert.equal(reapproved.juhyu,35000,'Latest appended reapproval wins without deleting history');
+assert.equal(reapproved.gross,baseline.gross-(38400-35000));
+
 console.log('PASS server payroll computed week, approved adjustment, zero approval and gross/net propagation');
