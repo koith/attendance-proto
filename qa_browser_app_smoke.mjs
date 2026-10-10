@@ -44,6 +44,7 @@ async function configure(page,calls){
       list_stores:stores,
       list_employees_state:employees,
       list_store_employees:employees,
+      admin_store_employee_contract_statuses:[{employee_id:123,contract_registered:true,contract_effective:true,document_attached:true}],
       admin_store_events_with_corrections:{events:[],corrections:[]},
       admin_store_events:[],
       admin_store_settings_get:{open_minute:420,close_minute:1500,close_grace_minutes:0},
@@ -99,6 +100,17 @@ async function smoke(browser,label,viewport){
   assert.ok((new URL(page.url())).hash==='#pos','Brand logo must not open headquarters '+label);
   await page.evaluate(()=>{location.hash='#dashboard'});
   await page.waitForFunction(()=>location.hash==='#pos');
+  // Employee management must render active employees without mutating production records.
+  await page.evaluate(()=>{location.hash='#admin'});
+  await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:15000});
+  assert.match(await page.locator('#adEmps').innerText(),/김지수/,'Employee roster missing '+label);
+  assert.equal(await page.locator('#adEmps .contract-alert').count(),0,'Contract flags must come from scoped RPC '+label);
+  assert.ok(calls.some(x=>x.name==='admin_store_employee_contract_statuses'&&x.args.p_store_id===1),'Scoped contract-status query missing '+label);
+  assert.ok(!calls.some(x=>x.name==='admin_employee_contract_statuses'),'Legacy global contract-status read must not run '+label);
+  await page.locator('#empTabRetired').click();
+  await page.locator('#adEmps .employee-empty').waitFor({timeout:10000});
+  await page.locator('#empTabActive').click();
+  await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:10000});
   await page.evaluate(()=>{location.hash='#pay'});
   await page.waitForFunction(()=>document.querySelector('#payList')?.innerText.match(/등록된 급여 대상 직원|불러오기 실패/),null,{timeout:18000});
   assert.match(await page.locator('#payList').innerText(),/등록된 급여 대상 직원/,'Server payroll rendering failed '+label+'; calls='+JSON.stringify(calls.filter(x=>x.name==='server-sync-sheet')));
@@ -131,7 +143,7 @@ async function smoke(browser,label,viewport){
   }
   assert.deepEqual(errors,[],'Browser runtime exceptions '+label);
   await context.close();
-  console.log('PASS browser smoke '+label+': POS IN/OUT / store lock / server payroll / inventory / attendance / HQ navigation');
+  console.log('PASS browser smoke '+label+': POS IN/OUT / store lock / employees / server payroll / inventory / attendance / HQ navigation');
 }
 const browser=await chromium.launch({headless:true});
 try{
