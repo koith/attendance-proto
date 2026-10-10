@@ -90,17 +90,21 @@ function packLocalDates(value){
   return value;
 }
 function payrollClosingRows(report){
-  const rows=(report.rows||[]).filter(r=>{
+  const relevant=(report.rows||[]).filter(r=>{
     const e=r.emp||{},name=String(r.employee_name||"").trim().toLowerCase();
     const memo=String(e.memo||"").trim().toLowerCase();
-    return r.pay && r.payrollType && name!=="test" &&
-      !name.startsWith("테스트") && !name.startsWith("test") &&
+    return name!=="test" && !name.startsWith("테스트") && !name.startsWith("test") &&
       memo!=="데모 지점 직원" && !memo.includes("테스트");
   });
-  if(!rows.length)throw new HttpError(409,"NO_PAYROLL_ROWS_TO_CLOSE");
-  if(rows.some(r=>(Number(r.issues||0)>0)||
+  // An unresolved timecard or worked employee without a pay rule must block
+  // the entire close. Checking only payable rows would silently omit them.
+  if(relevant.some(r=>Number(r.issues||0)>0||
     (r.sessions||[]).some(x=>x.status!=="COMPLETE")))
     throw new HttpError(409,"UNRESOLVED_ATTENDANCE_SESSIONS");
+  if(relevant.some(r=>Number(r.sec||0)>0 && (!r.pay||!r.payrollType)))
+    throw new HttpError(409,"EMPLOYEE_PAY_RULE_MISSING");
+  const rows=relevant.filter(r=>r.pay && r.payrollType);
+  if(!rows.length)throw new HttpError(409,"NO_PAYROLL_ROWS_TO_CLOSE");
   if(rows.every(r=>Number(r.sec||0)===0))throw new HttpError(409,"NO_COMPLETED_WORK_FOR_MONTH");
   return rows.map(r=>{
     const p=r.pay;
