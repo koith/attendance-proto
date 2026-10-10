@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const html=fs.readFileSync('index.html','utf8');
+const migration=fs.readFileSync('supabase/migrations/20261010222000_store_employee_contract_status_isolation.sql','utf8');
+const browser=fs.readFileSync('qa_browser_app_smoke.mjs','utf8');
+assert.match(html,/rpc\("admin_store_employee_contract_statuses",\{p_store_id:CURRENT_STORE_ID\|\|1\},true\)/);
+assert.doesNotMatch(html,/rpc\("admin_employee_contract_statuses",\{\},true\)/);
+assert.match(migration,/public\.can_manage_store\(p_store_id\)/);
+assert.match(migration,/e\.store_id=p_store_id/);
+assert.match(migration,/FROM PUBLIC,anon/);
+assert.match(migration,/TO authenticated,service_role/);
+assert.match(browser,/name==='admin_store_employee_contract_statuses'/);
+console.log('PASS scoped contract-status indicators for store managers');
