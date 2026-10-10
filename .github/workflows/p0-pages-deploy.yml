@@ -37,6 +37,8 @@ on:
       - 'qa_store_owner_revocation_hardening_v1.mjs'
       - 'qa_global_admin_rpc_hq_boundary_v1.mjs'
       - 'qa_store_inventory_isolation_v1.mjs'
+      - 'qa_store_operations_isolation_v1.mjs'
+      - 'supabase/migrations/20261011092000_store_scoped_operations_ledger.sql'
       - 'supabase/migrations/20261011083000_store_scoped_inventory_ledger.sql'
       - 'supabase/migrations/20261011071000_legacy_global_admin_rpc_hq_gate.sql'
       - 'supabase/migrations/20261011063000_store_owner_authorization_hardening.sql'
@@ -138,6 +140,8 @@ jobs:
           node --check hq_store_onboarding_ui.js
           node --check owner_activation.js
           node qa_hq_store_onboarding_v1.mjs
+      - name: Store-isolated sales and CSV import regression
+        run: node qa_store_operations_isolation_v1.mjs
       - name: Multi-store inventory ledger regression
         run: node qa_store_inventory_isolation_v1.mjs
       - name: Legacy global admin RPC HQ scope regression
