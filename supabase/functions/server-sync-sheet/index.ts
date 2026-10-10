@@ -52,7 +52,7 @@ async function sourceFor(ym,storeId){
   const {data,error}=await client.rpc("sheet_server_payroll_source",{p_store_id:storeId,p_ym:ym});
   if(error||!data)throw new Error("SERVER_PAYROLL_SOURCE_FAILED: "+(error?.code||"NO_DATA"));
   const {data:weeklyApprovals,error:weeklyApprovalError}=await client.from("payroll_weekly_approvals")
-    .select("employee_id,week_start,calculated_won,approved_won,reason,approved_by,approved_at,id")
+    .select("employee_id,week_start,calculated_won,approved_won,reason,decision,approved_by,approved_at,id")
     // Include the Monday of a week crossing into this month; payroll source includes boundary shifts.
     .eq("store_id",storeId).gte("week_start",new Date(Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7))-1,-6)).toISOString().slice(0,10))
     .lt("week_start",new Date(Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7)),1)).toISOString().slice(0,10))
@@ -81,7 +81,7 @@ async function sourceFor(ym,storeId){
   };
   const storeName=storeId===1?"인하대학교점":String(storeId);
   const engine=createPayrollEngine({BE,storeId,storeName});
-  return {data,engine};
+  return {data,engine,weeklyApprovals:weeklyApprovals||[]};
 }
 function packLocalDates(value){
   if(value instanceof Date)return `${value.getFullYear()}-${p2(value.getMonth()+1)}-${p2(value.getDate())}T${p2(value.getHours())}:${p2(value.getMinutes())}:${p2(value.getSeconds())}`;
@@ -261,7 +261,7 @@ Deno.serve(async req=>{
   if(req.method!=="POST")return reply({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   try{
     const body=await req.json(),mode=String(body?.mode||"sync");
-    if(!["cron","dryrun","deployment","payroll","parity","sync","weekly_approve","payroll_close_preview","payroll_close","payroll_reopen"].includes(mode))throw new HttpError(400,"BAD_MODE");
+    if(!["cron","dryrun","deployment","payroll","parity","sync","weekly_approve","weekly_decide","payroll_close_preview","payroll_close","payroll_reopen"].includes(mode))throw new HttpError(400,"BAD_MODE");
     const actor=await authenticate(req,mode);
     if(mode==="deployment"){
       const ym=currentYm();
@@ -315,22 +315,26 @@ Deno.serve(async req=>{
       if(error)throw new HttpError(409,"PAYROLL_CLOSE_REJECTED: "+error.message);
       return reply({ok:true,ym,result:data});
     }
-    if(mode==="weekly_approve"){
+    if(mode==="weekly_approve"||mode==="weekly_decide"){
       const employeeId=Number(body.employee_id),weekStart=String(body.week_start||"");
       const calculatedWon=Number(body.calculated_won),approvedWon=Number(body.approved_won);
       const reason=String(body.reason||"").trim();
       if(!Number.isSafeInteger(employeeId)||employeeId<=0||
-         !/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(weekStart)||!weekStart.startsWith(ym)||
+         !/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(weekStart)||
          !Number.isSafeInteger(calculatedWon)||calculatedWon<0||
          !Number.isSafeInteger(approvedWon)||approvedWon<0||reason.length<3)
         throw new HttpError(400,"INVALID_WEEKLY_APPROVAL");
       const weekMonday=new Date(weekStart+"T00:00:00Z");
+      const year=Number(ym.slice(0,4)),month=Number(ym.slice(5,7));
+      const monthBegin=Date.UTC(year,month-1,1),monthEnd=Date.UTC(year,month,1);
+      if(weekMonday.getTime()<monthBegin-6*86400000||weekMonday.getTime()>=monthEnd)
+        throw new HttpError(400,"WEEK_NOT_IN_PAYROLL_MONTH");
       const nowSeoul=seoulParts();
       const nowWall=new Date(nowSeoul.year+"-"+nowSeoul.month+"-"+nowSeoul.day+"T"+nowSeoul.hour+":"+nowSeoul.minute+":00Z");
       if(!Number.isFinite(weekMonday.getTime())||weekMonday.getUTCDay()!==1||
          nowWall.getTime()<weekMonday.getTime()+7*86400000+2*3600000)
         throw new HttpError(409,"WEEK_NOT_CLOSED");
-      const {engine:approvalEngine}=await sourceFor(ym,storeId);
+      const {engine:approvalEngine,weeklyApprovals}=await sourceFor(ym,storeId);
       const currentPayroll=await approvalEngine.computeMonthPayroll(ym);
       const employeeRow=currentPayroll.rows.find(r=>Number(r.employee_id)===employeeId);
       if(!employeeRow||!employeeRow.pay||employeeRow.payrollType!=="HOURLY")
@@ -338,13 +342,18 @@ Deno.serve(async req=>{
       const actualCalculated=Number(employeeRow.pay.weeklyCalculatedAmounts?.[weekStart]||0);
       if(calculatedWon!==actualCalculated)throw new HttpError(409,"WEEKLY_CALCULATED_AMOUNT_CHANGED");
       if(actor.internal||!actor.userId)throw new HttpError(403,"ADMIN_USER_REQUIRED");
-      const {data,error}=await client.rpc("approve_payroll_weekly_allowance_internal",{
+      const prior=weeklyApprovals.some(a=>Number(a.employee_id)===employeeId&&a.week_start===weekStart);
+      const decision=String(body.decision||(!prior?"APPROVE":"REAPPROVE")).toUpperCase();
+      if(!["APPROVE","REJECT","REAPPROVE"].includes(decision)||
+         (decision==="REJECT"&&approvedWon!==0))
+        throw new HttpError(400,"INVALID_WEEKLY_DECISION");
+      const {data,error}=await client.rpc("server_record_weekly_decision_verified",{
         p_store_id:storeId,p_employee_id:employeeId,p_week_start:weekStart,
         p_calculated_won:actualCalculated,p_approved_won:approvedWon,p_reason:reason,
-        p_approver_id:actor.userId
+        p_decision:decision,p_actor_id:actor.userId
       });
       if(error)throw new HttpError(409,"WEEKLY_APPROVAL_REJECTED: "+error.message);
-      return reply({ok:true,approval_id:data});
+      return reply({ok:true,approval_id:data,decision});
     }
     if(mode==="payroll"){
       const {engine}=await sourceFor(ym,storeId);
