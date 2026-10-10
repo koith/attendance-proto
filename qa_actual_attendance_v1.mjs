@@ -4,7 +4,7 @@ const html=fs.readFileSync('actual_attendance.html','utf8');
 const css=fs.readFileSync('actual_attendance.css','utf8');
 const index=fs.readFileSync('index.html','utf8');
 function a(v,m){if(!v)throw new Error(m)}
-a(js.includes('admin_events_with_corrections'),'correction-aware data missing');
+a(js.includes("rpc('admin_store_events_with_corrections'"),'store-scoped correction-aware data missing');
 a(js.includes('applyCorrections'),'correction layer missing');
 a(js.includes('data-day')&&js.includes('renderDay'),'calendar drilldown missing');
 a(js.includes('axisStart=')&&js.includes('axisEnd='),'dynamic timeline axis missing');
