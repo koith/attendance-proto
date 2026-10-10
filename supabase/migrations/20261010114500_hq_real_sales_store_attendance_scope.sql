@@ -60,7 +60,7 @@ BEGIN
  RETURN QUERY SELECT ev.id,ev.employee_id,ev.event_type,
   (ev.event_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Seoul',
   (ev.server_received_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Seoul',
-  ev.device_id,ev.created_at,ev.client_reported_at
+  ev.device_id,ev.created_at,ev.client_reported_at,ev.substitute_for_employee_id
  FROM public.attendance_events ev JOIN public.employees e ON e.id=ev.employee_id
  WHERE e.store_id=p_store_id
    AND ev.event_at>=((p_from AT TIME ZONE 'Asia/Seoul') AT TIME ZONE 'UTC')
