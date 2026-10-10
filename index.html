@@ -739,7 +739,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.196</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.197</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -828,7 +828,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.196";
+const APP_VERSION="v0.197";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1140,8 +1140,19 @@ const SupaBE = (()=>{
     async setPeriodWeeks(ym,weeks){ return rpc("admin_set_period_weeks",{p_ym:ym,p_weeks:weeks},true); },
     async setPeriodEmployee(ym,empId,fields){ return rpc("admin_set_period_employee",{p_ym:ym,p_employee_id:empId,p_fields:fields},true); },
     // --- M8: 마감/스냅샷 ---
-    async closePayroll(ym,rows,fingerprint){ return rpc("admin_close_payroll",{p_ym:ym,p_rows:rows,p_fingerprint:fingerprint},true); },
-    async reopenPayroll(ym){ return rpc("admin_reopen_payroll",{p_ym:ym},true); },
+    async payrollCloseRequest(mode,ym,fields={}){
+      if(!Auth.token)throw new Error("PAYROLL_AUTH_REQUIRED");
+      const r=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/server-sync-sheet`,{
+        method:"POST",headers:{"Authorization":"Bearer "+Auth.token,"Content-Type":"application/json"},
+        body:JSON.stringify({mode,ym,store_id:Number(CURRENT_STORE_ID||1),...fields})
+      });
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok||data.ok!==true)throw new Error(data.error||"PAYROLL_SERVER_ERROR");
+      return data;
+    },
+    async payrollClosePreview(ym){return this.payrollCloseRequest("payroll_close_preview",ym);},
+    async closePayroll(ym,fingerprint){return this.payrollCloseRequest("payroll_close",ym,{confirm_ym:ym,fingerprint});},
+    async reopenPayroll(ym,reason){return this.payrollCloseRequest("payroll_reopen",ym,{confirm_ym:ym,reason});},
     async snapshot(ym){ return rpc("admin_snapshot",{p_ym:ym},true); },
     // M8.7: 구글시트 동기화 (Edge Function 호출)
     async syncSheet(ym, payload){
@@ -2346,6 +2357,7 @@ async function renderPay(){
       </div>
       <div id="paySummarySlot"></div>
     </div>
+    <div id="payCloseSlot" aria-live="polite"></div>
     <div id="payList"></div>`;
   const payMonth=document.getElementById("payMonth");
   const movePayMonth=delta=>{ const [y,m]=payMonth.value.split("-").map(Number); const d=new Date(y,m-1+delta,1); payMonth.value=`${d.getFullYear()}-${p(d.getMonth()+1)}`; drawPay(payMonth.value); };
@@ -2582,6 +2594,47 @@ async function drawPay(ym){
   try{ R=await computeMonthPayroll(ym); }
   catch(e){ if(drawSeq===PAYROLL_DRAW_SEQ) el.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
   if(drawSeq!==PAYROLL_DRAW_SEQ || !el.isConnected) return;
+  const closeSlot=document.getElementById("payCloseSlot");
+  if(closeSlot){
+    closeSlot.replaceChildren();
+    const current=kstNow(),todayYm=`${current.getFullYear()}-${String(current.getMonth()+1).padStart(2,"0")}`;
+    if(LIVE && Number(CURRENT_STORE_ID)===1 && ym<todayYm && Auth.token){
+      BE.payrollPeriod(ym).then(info=>{
+        if(drawSeq!==PAYROLL_DRAW_SEQ||!closeSlot.isConnected)return;
+        let closed=info?.period?.status==="CLOSED";
+        const button=document.createElement("button");
+        button.type="button";button.className=closed?"btn btn-secondary":"btn btn-primary";
+        button.textContent=closed?"급여 마감 재오픈":"급여 마감 검토";
+        closeSlot.appendChild(button);
+        button.onclick=async()=>{
+          button.disabled=true;
+          try{
+            if(closed){
+              const reason=prompt(ym+" 급여 마감을 재오픈할 사유를 입력하세요 (5자 이상).");
+              if(reason===null)return;
+              if(reason.trim().length<5)throw new Error("재오픈 사유를 5자 이상 입력하세요.");
+              if(!confirm(ym+" 급여 마감을 재오픈할까요? 기존 스냅샷은 감사 이력에 보존됩니다."))return;
+              await BE.reopenPayroll(ym,reason.trim());
+              closed=false;button.textContent="급여 마감 검토";button.className="btn btn-primary";
+              toast("in","급여 마감 재오픈",ym+" 감사 이력 보존 완료");
+            }else{
+              const p=await BE.payrollClosePreview(ym);
+              const message=ym+" 급여 마감 (서버 검증)\\n"+
+                "대상 "+p.employee_count+"명 · 세전 "+won(p.gross)+" · 세후 "+won(p.net)+
+                "\\n해당 월을 마감하면 급여 스냅샷이 고정됩니다. 계속할까요?";
+              if(!confirm(message))return;
+              const result=await BE.closePayroll(ym,p.fingerprint);
+              if(result?.result?.status!=="CLOSED")throw new Error("마감 결과를 확인할 수 없습니다.");
+              closed=true;button.textContent="급여 마감 재오픈";button.className="btn btn-secondary";
+              toast("in","급여 마감 완료",ym+" · "+p.employee_count+"명");
+            }
+            if(closeSlot.isConnected&&document.getElementById("payMonth")?.value===ym)drawPay(ym);
+          }catch(error){toast("err","급여 마감 처리 실패",String(error?.message||error));}
+          finally{button.disabled=false;}
+        };
+      }).catch(()=>{if(drawSeq===PAYROLL_DRAW_SEQ)closeSlot.replaceChildren();});
+    }
+  }
   const active=R.active, weeks=R.weeks, overrides=R.overrides;
   if(!active.length){ el.innerHTML=`<div class="empty">등록된 급여 대상 직원이 없습니다.</div>`; return; }
   // UI boundary invariant: an hourly row rendered as 0 completed work can never display pay.

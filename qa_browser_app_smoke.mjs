@@ -17,7 +17,7 @@ function reply(route,value,status=200){
 }
 
 async function configure(page,calls){
-  let working=false;
+  let working=false, payrollClosed=false;
   await page.addInitScript(()=>{
     localStorage.setItem('baekeok_auth',JSON.stringify({
       access_token:'qa-local-token',refresh_token:'qa-refresh-token'
@@ -30,6 +30,7 @@ async function configure(page,calls){
     const name=url.pathname.split('/').pop();
     let args={};try{args=JSON.parse(route.request().postData()||'{}')}catch{}
     calls.push({name,args});
+    if(name==='admin_payroll_period')return reply(route,{period:{weeks:4,status:payrollClosed?'CLOSED':'OPEN'},overrides:[]});
     if(name==='list_employees_state'){
       return reply(route,employees.map(e=>({...e,working,working_since:working?'2026-10-10T09:00:00':null})));
     }
@@ -58,6 +59,15 @@ async function configure(page,calls){
   await page.route('**/functions/v1/server-sync-sheet',route=>{
     let args={};try{args=JSON.parse(route.request().postData()||'{}')}catch{}
     calls.push({name:'server-sync-sheet',args});
+    if(args.mode==='payroll_close_preview')return reply(route,{ok:true,ym:args.ym,employee_count:1,gross:54000,net:52210,fingerprint:'a'.repeat(64)});
+    if(args.mode==='payroll_close'){
+      if(args.fingerprint!=='a'.repeat(64)||args.confirm_ym!==args.ym)return reply(route,{ok:false,error:'BAD_QA_FINGERPRINT'},409);
+      payrollClosed=true;return reply(route,{ok:true,result:{status:'CLOSED',count:1}});
+    }
+    if(args.mode==='payroll_reopen'){
+      if(args.confirm_ym!==args.ym||String(args.reason||'').length<5)return reply(route,{ok:false,error:'BAD_QA_REOPEN'},409);
+      payrollClosed=false;return reply(route,{ok:true,result:{status:'OPEN',archived:1}});
+    }
     if(args.mode!=='payroll')return reply(route,{ok:false,error:'UNSUPPORTED_QA_MODE'},403);
     return reply(route,{ok:true,ym:args.ym,engine_revision:'20261010-verified',result:{
       active:[],rows:[],weeks:4,overrides:{},totalGross:0,totalNet:0
@@ -115,6 +125,27 @@ async function smoke(browser,label,viewport){
   await page.waitForFunction(()=>document.querySelector('#payList')?.innerText.match(/등록된 급여 대상 직원|불러오기 실패/),null,{timeout:18000});
   assert.match(await page.locator('#payList').innerText(),/등록된 급여 대상 직원/,'Server payroll rendering failed '+label+'; calls='+JSON.stringify(calls.filter(x=>x.name==='server-sync-sheet')));
   assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='payroll'&&x.args.store_id===1),'Live payroll adapter did not call Edge '+label);
+  // Exercise preview -> confirmed close -> reasoned reopen only against mock APIs.
+  await page.locator('#payMonth').fill('2026-09');
+  await page.locator('#payMonth').dispatchEvent('change');
+  await page.getByRole('button',{name:'급여 마감 검토'}).waitFor({timeout:15000});
+  page.on('dialog',dialog=>dialog.accept(dialog.type()==='prompt'?'모의 마감 재오픈 QA':''));
+  await page.getByRole('button',{name:'급여 마감 검토'}).click();
+  await page.waitForTimeout(300);
+  const actions=calls.filter(x=>x.name==='server-sync-sheet').map(x=>x.args.mode);
+  assert.ok(actions.includes('payroll_close_preview'),'Preview did not invoke Edge '+label+' '+JSON.stringify(actions));
+  assert.ok(actions.includes('payroll_close'),'Close did not invoke Edge '+label+' '+JSON.stringify(actions)+'; UI='+await page.locator('#payCloseSlot').innerText()+' toast='+await page.locator('#toast').innerText());
+  await page.waitForTimeout(800);
+  const closingSlot=await page.locator('#payCloseSlot').innerText();
+  assert.ok(closingSlot.includes('급여 마감 재오픈'),'Close did not switch to CLOSED '+label+
+    '; slot='+JSON.stringify(closingSlot)+'; toast='+JSON.stringify(await page.locator('#toast').innerText())+
+    '; calls='+JSON.stringify(calls.filter(x=>x.name==='server-sync-sheet'||x.name==='admin_payroll_period')));
+  await page.getByRole('button',{name:'급여 마감 재오픈'}).click();
+  await page.getByRole('button',{name:'급여 마감 검토'}).waitFor({timeout:15000});
+  const closeModes=calls.filter(x=>x.name==='server-sync-sheet'&&
+     ['payroll_close_preview','payroll_close','payroll_reopen'].includes(x.args.mode)).map(x=>x.args.mode);
+  assert.deepEqual(closeModes,['payroll_close_preview','payroll_close','payroll_reopen'],'Safe close/reopen flow '+label);
+
   await page.evaluate(()=>{location.hash='#inventory'});
   await page.waitForFunction(()=>location.hash==='#inventory');
   await page.locator('#opsInventoryAdd').waitFor({timeout:12000});

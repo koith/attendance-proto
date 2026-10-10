@@ -24,6 +24,9 @@ on:
       - 'qa_server_owned_sheet_v1.mjs'
       - 'qa_server_payroll_parity_v1.mjs'
       - 'qa_weekly_approval_service_boundary_v1.mjs'
+      - 'qa_payroll_close_server_authority_v1.mjs'
+      - 'supabase/migrations/20261010223000_server_owned_payroll_close_reopen.sql'
+      - 'supabase/migrations/20261010224000_block_closed_month_overrides.sql'
       - 'qa_server_night_single_premium_v1.mjs'
       - 'supabase/functions/server-sync-sheet/engine.mjs'
       - 'supabase/functions/server-sync-sheet/index.ts'
@@ -102,6 +105,8 @@ jobs:
           node qa_server_payroll_fixture_parity_v1.mjs
           node qa_live_server_payroll_v1.mjs
           node qa_server_sheet_test_exclusion_v1.mjs
+      - name: Payroll close and reopen server authority regression
+        run: node qa_payroll_close_server_authority_v1.mjs
       - name: Weekly approval authorization QA
         run: |
           node qa_payroll_weekly_integration_v1.mjs
