@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const sql=fs.readFileSync('supabase/migrations/20261011103500_confirmed_owner_activation_security.sql','utf8');
 const ui=fs.readFileSync('hq_store_onboarding_ui.js','utf8');
+const edge=fs.readFileSync('supabase/functions/server-sync-sheet/index.ts','utf8');
 const original=fs.readFileSync('supabase/migrations/20261011102000_store_provenance_review_and_activation.sql','utf8');
 for(const sig of ['public.is_admin()','public.is_hq_admin()',
   'public.can_manage_store(p_store_id bigint)','public.hq_store_manager_revoke(p_user_id uuid)',
@@ -25,4 +26,7 @@ assert.match(original,/PROVENANCE_VERIFICATION_REQUIRED/);
 assert.match(ui,/Number\(store\?\.manager_count\|\|0\)>0/);
 assert.match(ui,/이메일 확인 완료/);
 assert.doesNotMatch(sql,/DELETE FROM public\.(?:employees|payroll_snapshot|attendance_events)/);
+assert.match(edge,/INACTIVE_ADMIN_ACCOUNT/);
+assert.match(edge,/authUser\.email_confirmed_at/);
+assert.match(edge,/authUser\.banned_until/);
 console.log('PASS confirmed active owner required for scoped access, activation, HQ permissions and safe revocation');
