@@ -112,7 +112,7 @@ function monthTargets(nowYm){
   return list;
 }
 function shouldWriteMonth(ym,current,data){
-  return ym===current || (data.events||[]).length>0 || (data.overrides||[]).length>0 || (data.corrections||[]).length>0 || (data.contracts||[]).length>0 || (data.substitutions||[]).length>0 || (data.workdays||[]).length>0;
+  return ym===current || (data.events||[]).length>0 || (data.overrides||[]).length>0 || (data.corrections||[]).length>0 || (data.substitutions||[]).length>0;
 }
 function snapshotRows(snap,ym){
   if(!snap.length)return null;
