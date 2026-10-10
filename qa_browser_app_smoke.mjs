@@ -76,10 +76,22 @@ async function smoke(browser,label,viewport){
   await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
   assert.match(await page.locator('#empGrid').innerText(),/김지수/);
   await check(await page.locator('#lockedStoreName').isVisible(),'Store identity missing '+label);
-  // Verify both punch directions with mock-only RPCs; never write live attendance.
-  await page.locator('#empGrid .emp').first().click();
-  await page.locator('#padVeil.show').waitFor({timeout:10000});
-  for(const digit of ['1','2','3','4']) await page.locator('#padKeys button').filter({hasText:new RegExp('^'+digit+'
+  // Exercise IN/OUT with local fixtures only; never submit real attendance.
+  for(const expectedWorking of [true,false]){
+    await page.locator('#empGrid .emp').first().click();
+    await page.locator('#padVeil.show').waitFor({timeout:10000});
+    for(const digit of ['1','2','3','4']){
+      await page.locator('#padKeys button').getByText(digit,{exact:true}).click();
+    }
+    await page.locator('#padKeys .ok-action').click();
+    await page.waitForFunction(working=>{
+      const card=document.querySelector('#empGrid .emp');
+      return !!card && card.classList.contains('working')===working;
+    },expectedWorking,{timeout:12000});
+    await page.locator('#success').click({force:true});
+  }
+  assert.deepEqual(calls.filter(x=>x.name==='punch').map(x=>x.args.p_employee_id),[123,123],'IN/OUT punch employee IDs '+label);
+  await page.locator('#hqHome').click();
   assert.ok((new URL(page.url())).hash==='#pos','Brand logo must not open headquarters '+label);
   await page.evaluate(()=>{location.hash='#dashboard'});
   await page.waitForFunction(()=>location.hash==='#pos');
