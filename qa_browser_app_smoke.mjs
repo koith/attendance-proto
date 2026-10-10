@@ -126,6 +126,7 @@ async function smoke(browser,label,viewport){
   await page.waitForFunction(()=>document.querySelector('#payList')?.innerText.match(/등록된 급여 대상 직원|불러오기 실패/),null,{timeout:18000});
   assert.match(await page.locator('#payList').innerText(),/등록된 급여 대상 직원/,'Server payroll rendering failed '+label+'; calls='+JSON.stringify(calls.filter(x=>x.name==='server-sync-sheet')));
   assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='payroll'&&x.args.store_id===1),'Live payroll adapter did not call Edge '+label);
+  await page.waitForFunction(()=>document.querySelector('#payMonth')!==null);
   assert.ok(calls.some(x=>x.name==='admin_store_payroll_period'&&x.args.p_store_id===1),'Payroll period must be scoped to selected store '+label);
   // Exercise preview -> confirmed close -> reasoned reopen only against mock APIs.
   await page.locator('#payMonth').fill('2026-09');
