@@ -33,7 +33,8 @@ assert.match(app,/async operationsScoped\(hqFn,storeFn,hqArgs=\{\},storeArgs=\{\
 assert.match(app,/if\(context\?\.role==="STORE_MANAGER"\)/);
 assert.match(app,/rpc\(storeFn,\{p_store_id:CURRENT_STORE_ID\|\|1,\.\.\.storeArgs\},true\)/);
 assert.match(app,/if\(context\?\.role==="HQ"\)return rpc\(hqFn,hqArgs,true\)/);
-const appVersion=Number((app.match(/const APP_VERSION="v0\\.(\\d+)"/)||[])[1]);\nassert.ok(appVersion>=202,"Store operations require v0.202+");
+const appVersion=Number((app.match(/const APP_VERSION="v0\.(\d+)"/)||[])[1]);
+assert.ok(appVersion>=202,"Store operations require v0.202+");
 assert.match(ops,/connector_configured===false/);
 assert.match(ops,/r\?\.normalized\?'지점 데이터 반영 완료'/);
 console.log('PASS per-store sales, reporting and validated CSV import scoped to manager store');
