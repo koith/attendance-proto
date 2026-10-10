@@ -8,7 +8,7 @@ assert.match(api,/mode==="weekly_approve"/);
 assert.match(api,/client\.rpc\("server_record_weekly_decision_verified"/);
 assert.match(api,/mode==="weekly_decide"/);
 assert.match(html,/weeklyRejectSave/);
-assert.match(api,/p_approver_id:actor\.userId/);
+assert.match(api,/p_actor_id:actor\.userId/);
 assert.match(api,/WEEKLY_CALCULATED_AMOUNT_CHANGED/);
 assert.match(engine,/assessWeeklyRest\(/);
 assert.match(engine,/weeklyApprovalDelta/);
