@@ -57,7 +57,7 @@ async function smoke(browser,label,viewport){
   const context=await browser.newContext({viewport,locale:'ko-KR',timezoneId:'Asia/Seoul'});
   const page=await context.newPage();
   const calls=[],errors=[];
-  page.on('pageerror',err=>errors.push(String(err.message||err)));
+  page.on('pageerror',err=>errors.push({message:String(err.message||err),stack:String(err.stack||''),url:page.url()}));
   await configure(page,calls);
   await page.goto(host+'/index.html?mode=store&store=1#pos',{waitUntil:'domcontentloaded'});
   await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
