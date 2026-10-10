@@ -81,7 +81,7 @@ async function smoke(browser,label,viewport){
     await page.locator('#empGrid .emp').first().click();
     await page.locator('#padVeil.show').waitFor({timeout:10000});
     for(const digit of ['1','2','3','4']){
-      await page.locator('#padKeys button').getByText(digit,{exact:true}).click();
+      await page.locator('#padKeys').getByRole('button',{name:digit,exact:true}).click();
     }
     await page.locator('#padKeys .ok-action').click();
     await page.waitForFunction(working=>{
