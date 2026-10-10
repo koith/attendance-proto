@@ -21,7 +21,14 @@ export function assessWeeklyRest({weeklyMinutes,workdays,sessions,substitutions=
     const dow=d.getDay();
     actual.set(dow,(actual.get(dow)||0)+Number(s.sec)/60);
   }
-  const missing=planned.filter(x=>(actual.get(Number(x.weekday))||0)+0.00001<Number(x.contracted_minutes)).map(x=>Number(x.weekday));
+  // Do not count duplicate workday rows twice; they describe the same contracted day.
+  const contractedByDay=new Map();
+  for(const row of planned){
+    const day=Number(row.weekday),minutes=Number(row.contracted_minutes);
+    if(!Number.isInteger(day)||day<0||day>6)throw new Error('Invalid contracted weekday');
+    contractedByDay.set(day,Math.max(contractedByDay.get(day)||0,minutes));
+  }
+  const missing=[...contractedByDay].filter(([day,minutes])=>(actual.get(day)||0)+0.00001<minutes).map(([day])=>day);
   const reasons=[];
   if(Number(weeklyMinutes)<900)reasons.push('계약상 주 15시간 미만');
   if(!planned.length)reasons.push('계약상 소정근로일 확인 필요');
