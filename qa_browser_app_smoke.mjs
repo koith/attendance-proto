@@ -141,7 +141,7 @@ async function smoke(browser,label,viewport){
   const closingSlot=await page.locator('#payCloseSlot').innerText();
   assert.ok(closingSlot.includes('급여 마감 재오픈'),'Close did not switch to CLOSED '+label+
     '; slot='+JSON.stringify(closingSlot)+'; toast='+JSON.stringify(await page.locator('#toast').innerText())+
-    '; calls='+JSON.stringify(calls.filter(x=>x.name==='server-sync-sheet'||x.name==='admin_payroll_period')));
+    '; calls='+JSON.stringify(calls.filter(x=>x.name==='server-sync-sheet'||x.name==='admin_store_payroll_period')));
   await page.getByRole('button',{name:'급여 마감 재오픈'}).click();
   await page.getByRole('button',{name:'급여 마감 검토'}).waitFor({timeout:15000});
   const closeModes=calls.filter(x=>x.name==='server-sync-sheet'&&
