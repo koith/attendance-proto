@@ -7,6 +7,11 @@ const sql=[
 const ui=fs.readFileSync('hq_store_onboarding_ui.js','utf8');
 const app=fs.readFileSync('index.html','utf8');
 const edge=fs.readFileSync('supabase/functions/server-sync-sheet/index.ts','utf8');
+const revokeGuard=fs.readFileSync('supabase/migrations/20261011030000_owner_role_revocation_guard.sql','utf8');
+assert.match(revokeGuard,/USE_STORE_MANAGER_REVOKE/);
+assert.match(revokeGuard,/email_confirmed_at IS NOT NULL/);
+assert.match(revokeGuard,/v_total from public.admin_users where admin_role='HQ'/);
+
 const checks=[
  ['HQ-only mutation',/IF NOT public\.is_hq_admin\(\) THEN RAISE EXCEPTION 'NOT_AUTHORIZED'/],
  ['role is store-scoped',/VALUES\(v_uid,v_email,'Store manager assigned by HQ','STORE_MANAGER',p_store_id\)/],
@@ -33,6 +38,7 @@ assert.match(ui,/entryUrl=id=>location\.origin\+location\.pathname/);
 assert.match(app,/hq_store_onboarding_ui\.js\?v=20261011v200/);
 assert.match(app,/window\.mountHqStoreOnboarding\(box\)/);
 assert.match(app,/ctx\?\.role==="STORE_MANAGER"/);
+assert.match(app,/ownerIds\.has\(a\.user_id\)/);
 assert.match(app,/location\.assign\(STORE_ENTRY_URL\(ownStore\)\)/);
 assert.match(app,/if\(LIVE && typeof BE\.serverPayroll==="function"\)/);
 assert.match(app,/!info\?\.store_ready/);
