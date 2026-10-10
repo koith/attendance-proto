@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const rpc=fs.readFileSync('supabase/migrations/20261010133000_payroll_weekly_internal_verified_rpc.sql','utf8');
 const edge=fs.readFileSync('supabase/functions/server-sync-sheet/index.ts','utf8');
+const legacyRevoke=fs.readFileSync('supabase/migrations/20261010154500_revoke_legacy_weekly_approval_rpc.sql','utf8');
+assert.match(legacyRevoke,/REVOKE ALL ON FUNCTION public\.approve_payroll_weekly_allowance\(/);
+assert.match(legacyRevoke,/FROM PUBLIC,anon,authenticated/);
+assert.match(legacyRevoke,/TO service_role/);
+
 assert.match(rpc,/auth\.jwt\(\)->>'role',''\)<>'service_role'/);
 assert.match(rpc,/a\.admin_role='STORE_MANAGER' AND a\.store_id=p_store_id/);
 assert.match(rpc,/EMPLOYEE_STORE_MISMATCH/);
