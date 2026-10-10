@@ -13,8 +13,10 @@ for(const page of pages){
     scripts.add(script);
   }
 }
+const syntaxErrors=[];
 for(const script of scripts){
   try{execFileSync(process.execPath,['--check',script],{encoding:'utf8',stdio:'pipe'})}
-  catch(error){throw new Error('SCRIPT_SYNTAX_INVALID '+script+': '+String(error.stderr||error.message).slice(0,1200))}
+  catch(error){syntaxErrors.push('SCRIPT_SYNTAX_INVALID '+script+': '+String(error.stderr||error.message).slice(0,1200))}
 }
+if(syntaxErrors.length)throw new Error(syntaxErrors.join('\n\n'));
 console.log('PASS '+scripts.size+' locally referenced JS assets have valid syntax');
