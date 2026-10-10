@@ -1125,7 +1125,7 @@ const SupaBE = (()=>{
     // --- M4: 정정/수정 ---
     async myEvents(id,pin,fromIso,toIso){ return rpc("my_events",{p_employee_id:id,p_pin:pin,p_from:fromIso,p_to:toIso}); },
     async requestCorrection(id,pin,kind,eventId,reqAt,reqType,note){ return rpc("request_correction",{p_employee_id:id,p_pin:pin,p_kind:kind,p_event_id:eventId,p_requested_at:reqAt,p_requested_type:reqType,p_note:note}); },
-    async pendingRequests(){ return rpc("admin_pending_requests",{},true); },
+    async pendingRequests(){ return rpc("admin_store_pending_requests",{p_store_id:CURRENT_STORE_ID||1},true); },
     async resolveRequest(reqId,approve,reason){ return rpc("admin_resolve_request",{p_request_id:reqId,p_approve:approve,p_reject_reason:reason||null},true); },
     async correctEvent(action,eventId,empId,newAt,newType,reason){ return rpc("admin_correct_event",{p_action:action,p_event_id:eventId,p_employee_id:empId,p_new_at:newAt,p_new_type:newType,p_reason:reason},true); },
     async eventsWithCorrections(fromIso,toIso){ return rpc("admin_store_events_with_corrections",{p_store_id:CURRENT_STORE_ID||1,p_from:fromIso,p_to:toIso},true); },
