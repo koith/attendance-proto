@@ -27,7 +27,7 @@ assert.match(ui,/rpc\("hq_store_provenance_list"\)/);
 assert.match(ui,/rpc\("hq_store_provenance_review"/);
 assert.match(ui,/p_evidence_reference:evidence/);
 assert.match(ui,/hqStoreReady.*disabled/);
-assert.match(ui,/canActivate=selected===1\|\|\(verified&&list\.length>0\)/);
+assert.match(ui,/canActivate=selected===1\|\|\(verified&&Number\(store\?\.manager_count\|\|0\)>0\)/);
 assert.match(ui,/실재 확인 기록/);
 assert.match(html,/hq_store_onboarding_ui\.js\?v=20261011v203/);
 assert.doesNotMatch(sql,/UPDATE public\.stores SET onboarding_status='READY' WHERE/);
