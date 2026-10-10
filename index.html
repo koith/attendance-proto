@@ -1074,7 +1074,7 @@ const SupaBE = (()=>{
     async listEmployeesState(){ return rpc("list_employees_state",{p_store_id:CURRENT_STORE_ID||null}); },
     async dashboard(){ return rpc("hq_store_dashboard",{},true); },
     async isAdmin(){ return rpc("is_admin",{},true); },
-    async scheduleList(fromDate,toDate){ return rpc("admin_schedule_list",{p_from:fromDate,p_to:toDate},true); },
+    async scheduleList(fromDate,toDate){ return rpc("admin_store_schedule_list",{p_store_id:CURRENT_STORE_ID||1,p_from:fromDate,p_to:toDate},true); },
     async scheduleSet(empId,date,status,start,end,memo){ return rpc("admin_schedule_set",{p_employee_id:empId,p_work_date:date,p_status:status,p_start:start||null,p_end:end||null,p_memo:memo||null},true); },
     async scheduleDelete(empId,date){ return rpc("admin_schedule_delete",{p_employee_id:empId,p_work_date:date},true); },
     // 계약서 (schema_v11): metadata는 RPC, 파일은 Storage(admin JWT)
