@@ -270,7 +270,7 @@ Deno.serve(async req=>{
         throw new HttpError(403,"HQ_ONLY");
       const email=String(body.email||"").trim().toLowerCase();
       const storeId=Number(body.store_id);
-      if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||email.length>254||
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||
          !Number.isSafeInteger(storeId)||storeId<=0)
         throw new HttpError(400,"INVALID_INVITATION");
       const {data:store,error:storeError}=await client.from("stores")
