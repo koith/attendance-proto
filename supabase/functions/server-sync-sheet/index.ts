@@ -89,6 +89,41 @@ function packLocalDates(value){
   if(value&&typeof value==="object")return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,packLocalDates(v)]));
   return value;
 }
+function payrollClosingRows(report){
+  const rows=(report.rows||[]).filter(r=>{
+    const e=r.emp||{},name=String(r.employee_name||"").trim().toLowerCase();
+    const memo=String(e.memo||"").trim().toLowerCase();
+    return r.pay && r.payrollType && name!=="test" &&
+      !name.startsWith("테스트") && !name.startsWith("test") &&
+      memo!=="데모 지점 직원" && !memo.includes("테스트");
+  });
+  if(!rows.length)throw new HttpError(409,"NO_PAYROLL_ROWS_TO_CLOSE");
+  if(rows.some(r=>(Number(r.issues||0)>0)||
+    (r.sessions||[]).some(x=>x.status!=="COMPLETE")))
+    throw new HttpError(409,"UNRESOLVED_ATTENDANCE_SESSIONS");
+  if(rows.every(r=>Number(r.sec||0)===0))throw new HttpError(409,"NO_COMPLETED_WORK_FOR_MONTH");
+  return rows.map(r=>{
+    const p=r.pay;
+    const row={
+      employee_id:Number(r.employee_id),employee_name:String(r.employee_name),
+      hours:Math.round(Number(r.hours||0)*100)/100,wage:Number(p.wage||0),
+      weeks:Number(p.jweeks||0),base_pay:Number(p.base||0),juhyu_pay:Number(p.juhyu||0),
+      adjust:Number(p.adjust||0),gross_pay:Number(p.gross||0),
+      tax_rate:Number(p.rate||0),net_pay:Number(p.net||0),memo:String(r.memo||"")
+    };
+    if(!Number.isSafeInteger(row.employee_id)||row.employee_id<=0 ||
+       Object.entries(row).some(([key,value])=>typeof value==="number"&&!Number.isFinite(value)))
+      throw new HttpError(409,"INVALID_CALCULATED_PAYROLL_ROW");
+    return row;
+  }).sort((a,b)=>a.employee_id-b.employee_id);
+}
+async function closingPreview(ym,storeId){
+  const {engine}=await sourceFor(ym,storeId);
+  const report=await engine.computeMonthPayroll(ym);
+  const rows=payrollClosingRows(report);
+  const fingerprint=await hash(JSON.stringify({ym,storeId,rows,events:packLocalDates(report.events||[])}));
+  return {rows,fingerprint,gross:rows.reduce((x,r)=>x+r.gross_pay,0),net:rows.reduce((x,r)=>x+r.net_pay,0)};
+}
 async function hash(text){
   const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));
   return Array.from(new Uint8Array(bytes),x=>x.toString(16).padStart(2,"0")).join("");
@@ -222,7 +257,7 @@ Deno.serve(async req=>{
   if(req.method!=="POST")return reply({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   try{
     const body=await req.json(),mode=String(body?.mode||"sync");
-    if(!["cron","dryrun","deployment","payroll","parity","sync","weekly_approve"].includes(mode))throw new HttpError(400,"BAD_MODE");
+    if(!["cron","dryrun","deployment","payroll","parity","sync","weekly_approve","payroll_close_preview","payroll_close","payroll_reopen"].includes(mode))throw new HttpError(400,"BAD_MODE");
     const actor=await authenticate(req,mode);
     if(mode==="deployment"){
       const ym=currentYm();
@@ -249,6 +284,33 @@ Deno.serve(async req=>{
     if(storeId!==1)throw new HttpError(403,"STORE_NOT_ENABLED");
     if(!actor.internal && actor.adminRole!=="HQ" && !(actor.adminRole==="STORE_MANAGER"&&Number(actor.storeId)===storeId))
       throw new HttpError(403,"STORE_NOT_AUTHORIZED");
+    if(["payroll_close_preview","payroll_close","payroll_reopen"].includes(mode)){
+      if(actor.internal||actor.adminRole!=="HQ"||!actor.userId)
+        throw new HttpError(403,"HQ_APPROVAL_REQUIRED");
+      if(ym>=currentYm()&&mode!=="payroll_reopen")
+        throw new HttpError(409,"CURRENT_OR_FUTURE_MONTH_CANNOT_CLOSE");
+      if(mode==="payroll_reopen"){
+        const reason=String(body.reason||"").trim();
+        if(reason.length<5||body.confirm_ym!==ym)
+          throw new HttpError(400,"REOPEN_CONFIRMATION_REQUIRED");
+        const {data,error}=await client.rpc("server_payroll_reopen_verified",{
+          p_ym:ym,p_reason:reason,p_actor_id:actor.userId
+        });
+        if(error)throw new HttpError(409,"PAYROLL_REOPEN_REJECTED: "+error.message);
+        return reply({ok:true,ym,result:data});
+      }
+      const {rows,fingerprint,gross,net}=await closingPreview(ym,storeId);
+      if(mode==="payroll_close_preview")
+        return reply({ok:true,ym,employee_count:rows.length,gross,net,fingerprint,
+          status:"READY",engine_revision:"20261010-verified"});
+      if(body.confirm_ym!==ym||String(body.fingerprint||"")!==fingerprint)
+        throw new HttpError(409,"PAYROLL_SOURCE_CHANGED_OR_NOT_CONFIRMED");
+      const {data,error}=await client.rpc("server_payroll_close_verified",{
+        p_store_id:storeId,p_ym:ym,p_rows:rows,p_fingerprint:fingerprint,p_actor_id:actor.userId
+      });
+      if(error)throw new HttpError(409,"PAYROLL_CLOSE_REJECTED: "+error.message);
+      return reply({ok:true,ym,result:data});
+    }
     if(mode==="weekly_approve"){
       const employeeId=Number(body.employee_id),weekStart=String(body.week_start||"");
       const calculatedWon=Number(body.calculated_won),approvedWon=Number(body.approved_won);
