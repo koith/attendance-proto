@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const sql=fs.readFileSync('supabase/migrations/20261011083000_store_scoped_inventory_ledger.sql','utf8');
+const html=fs.readFileSync('index.html','utf8');
+const ops=fs.readFileSync('operations_v1.js','utf8');
+assert.match(sql,/inventory_movements\s+ADD COLUMN IF NOT EXISTS store_id bigint REFERENCES public\.stores\(id\)/);
+assert.match(sql,/CREATE TABLE IF NOT EXISTS public\.store_inventory_unit_configs/);
+assert.match(sql,/ALTER TABLE public\.store_inventory_unit_configs ENABLE ROW LEVEL SECURITY/);
+assert.match(sql,/REVOKE ALL ON TABLE public\.store_inventory_unit_configs FROM PUBLIC,anon,authenticated/);
+for(const n of ['admin_store_inventory_overview_v3','admin_store_inventory_items','admin_store_inventory_movements','admin_store_inventory_unit_config_save'])
+ assert.match(sql,new RegExp('CREATE OR REPLACE FUNCTION public\\.'+n+'\\('));
+assert.match(sql,/m\.store_id=p_store_id OR \(p_store_id=1 AND m\.store_id IS NULL\)/);
+assert.match(sql,/public\.can_manage_store\(p_store_id\)/);
+assert.match(sql,/LEFT JOIN public\.store_inventory_unit_configs c/);
+assert.match(sql,/WHERE m\.id=p_manual_item_id AND m\.store_id=p_store_id/);
+assert.match(sql,/\(store_id,item_id,business_date,movement_type,quantity,source_type,source_key,note\)/);
+assert.match(sql,/VALUES\(r\.store_id,r\.item_id/);
+assert.match(sql,/WHERE id=r\.manual_item_id AND store_id=r\.store_id/);
+assert.match(sql,/COALESCE\(c\.conversion_quantity,i\.conversion_quantity\)/);
+for(const n of ['admin_store_inventory_overview_v3','admin_store_inventory_items','admin_store_inventory_movements','admin_store_inventory_unit_config_save'])
+ assert.ok(html.includes('rpc("'+n+'"'),'App does not call '+n);
+for(const n of ['admin_inventory_overview_v3','admin_inventory_items','admin_inventory_movements','admin_inventory_unit_config_save'])
+ assert.ok(!html.includes('rpc("'+n+'"'),'Unscoped inventory RPC still in app: '+n);
+assert.match(ops,/inventoryUnitConfigSave\(item\.id,s,o,q,!!item\.manual\)/);
+assert.match(html,/operations_v1\.js\?v=20261011v201/);
+assert.match(html,/const APP_VERSION="v0\.201"/);
+assert.doesNotMatch(sql,/UPDATE public\.inventory_movements SET store_id=/);
+console.log('PASS store inventory balance and receipts isolated; manual settings and Inha history protected');
