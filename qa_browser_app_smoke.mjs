@@ -131,7 +131,11 @@ async function smoke(browser,label,viewport){
   await page.getByRole('button',{name:'급여 마감 검토'}).waitFor({timeout:15000});
   page.on('dialog',dialog=>dialog.accept(dialog.type()==='prompt'?'모의 마감 재오픈 QA':''));
   await page.getByRole('button',{name:'급여 마감 검토'}).click();
-  await page.getByRole('button',{name:'급여 마감 재오픈'}).waitFor({timeout:15000});
+  await page.waitForTimeout(300);
+  const actions=calls.filter(x=>x.name==='server-sync-sheet').map(x=>x.args.mode);
+  assert.ok(actions.includes('payroll_close_preview'),'Preview did not invoke Edge '+label+' '+JSON.stringify(actions));
+  assert.ok(actions.includes('payroll_close'),'Close did not invoke Edge '+label+' '+JSON.stringify(actions)+'; UI='+await page.locator('#payCloseSlot').innerText()+' toast='+await page.locator('#toast').innerText());
+  await page.getByRole('button',{name:'급여 마감 재오픈'}).waitFor({timeout:8000});
   await page.getByRole('button',{name:'급여 마감 재오픈'}).click();
   await page.getByRole('button',{name:'급여 마감 검토'}).waitFor({timeout:15000});
   const closeModes=calls.filter(x=>x.name==='server-sync-sheet'&&
