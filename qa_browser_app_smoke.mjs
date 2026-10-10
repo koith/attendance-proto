@@ -76,7 +76,8 @@ async function smoke(browser,label,viewport){
   await page.evaluate(()=>{location.hash='#attendance'});
   await page.waitForURL(/actual_attendance\.html/,{timeout:20000});
   await page.locator('#monthLabel').waitFor({timeout:20000});
-  assert.ok(calls.some(x=>x.name==='admin_store_events_with_corrections'&&x.args.p_store_id===1),'Attendance not scoped '+label);
+  await page.locator('.calendar').waitFor({timeout:20000});
+  assert.ok(calls.some(x=>x.name==='admin_store_events_with_corrections'&&x.args.p_store_id===1),'Attendance not scoped '+label+'; calls='+JSON.stringify(calls.map(x=>x.name)));
   assert.ok(!calls.some(x=>x.name==='admin_events_with_corrections'||x.name==='admin_list_all_employees'),'Legacy broad data access '+label);
   await page.goto(host+'/index.html#dashboard',{waitUntil:'domcontentloaded'});
   await page.locator('.hq-store-panel').first().waitFor({timeout:20000});
