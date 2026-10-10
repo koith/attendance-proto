@@ -1390,8 +1390,20 @@ function openAddVeil(){
 async function refreshNextEmployeeNumber(){
   const el=document.getElementById("newEmpNo");
   if(!el) return;
+  // Onboarding is rendered while the app boots, before Auth.load() completes.
+  // Never request another store's employee list merely to prefill a hidden modal.
+  if(LIVE&&!Auth.isLoggedIn()){el.textContent="로그인 후 확인";return;}
   el.textContent="계산 중…";
   try{
+    if(LIVE){
+      const ctx=await BE.adminContext();
+      if(ctx?.role==="STORE_MANAGER"&&Number(ctx.store_id)!==Number(CURRENT_STORE_ID)){
+        el.textContent="지점 확인 필요";return;
+      }
+      if(ctx?.role!=="HQ"&&ctx?.role!=="STORE_MANAGER"){
+        el.textContent="권한 없음";return;
+      }
+    }
     const emps=await BE.allEmployees();
     const maxNo=(emps||[]).reduce((m,e)=>Math.max(m,employeeNumber(e)),0);
     el.textContent="No."+String(maxNo+1);
