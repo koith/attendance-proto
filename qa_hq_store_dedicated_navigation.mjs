@@ -6,5 +6,7 @@ assert.match(html,/const bindStoreButtons=\(\)=>[\s\S]{0,240}location\.assign\(S
 assert.match(html,/if\(location\.hash==="#dashboard"\)location\.assign\(STORE_ENTRY_URL\(id\)\)/);
 assert.match(html,/if\(STORE_ENTRY_LOCK\)return;/);
 assert.match(html,/if\(h==="dashboard"\)\{if\(STORE_ENTRY_LOCK\)/);
-assert.match(html,/const APP_VERSION="v0\.190"/);
+const version=html.match(/const APP_VERSION="(v[0-9.]+)"/)?.[1];
+assert.ok(version,'app version must exist');
+assert.ok(html.includes('id="appVersion">'+version+'</span>'),'header badge must match app version');
 console.log('PASS HQ store navigation always enters store-locked URL');
