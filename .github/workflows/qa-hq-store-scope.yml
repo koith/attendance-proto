@@ -1,0 +1,22 @@
+name: HQ Store Isolation QA
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - 'supabase/migrations/*hq_real_sales_store_attendance_scope.sql'
+      - qa_hq_store_scope_v1.mjs
+      - .github/workflows/qa-hq-store-scope.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node qa_hq_store_scope_v1.mjs
