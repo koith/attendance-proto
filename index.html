@@ -739,7 +739,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.199</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.200</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -828,7 +828,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.199";
+const APP_VERSION="v0.200";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1533,7 +1533,24 @@ function route(){
 }
 // 관리자 탭 로그인 게이트
 function requireAuth(then){
-  if(!LIVE || Auth.isLoggedIn()){ then(); return; }
+  const scopedProceed=async()=>{
+    if(LIVE){
+      try{
+        const ctx=await BE.adminContext();
+        if(ctx?.role==="STORE_MANAGER"){
+          const ownStore=Number(ctx.store_id);
+          if(!Number.isSafeInteger(ownStore)||ownStore<1){
+            view.innerHTML='<div class="empty">배정된 지점이 없습니다. 본사에 문의하세요.</div>';return;
+          }
+          if(Number(CURRENT_STORE_ID)!==ownStore){
+            location.assign(STORE_ENTRY_URL(ownStore));return;
+          }
+        }
+      }catch(e){view.innerHTML='<div class="empty">관리자 지점 권한을 확인할 수 없습니다.</div>';return;}
+    }
+    then();
+  };
+  if(!LIVE || Auth.isLoggedIn()){ void scopedProceed(); return; }
   view.innerHTML=`
     <div class="page-title-row"><h2 class="page-title">관리자 로그인</h2></div>
     <div class="field"><label>이메일</label><input id="loginEmail" type="email" autocomplete="username" placeholder="관리자 이메일"></div>
@@ -1556,7 +1573,7 @@ function requireAuth(then){
         document.getElementById("loginBtn").textContent="로그인";
         return;
       }
-      then();
+      await scopedProceed();
     }
     catch(e){ errEl.textContent="로그인 실패: 이메일/비밀번호를 확인하세요."; document.getElementById("loginBtn").textContent="로그인"; }
   };
@@ -1992,6 +2009,13 @@ async function openAccountMgmt(){
 async function renderAccountMgmt(){
   const box=document.getElementById("adAccount"); if(!box) return;
   box.innerHTML=`<div class="empty">불러오는 중…</div>`;
+  try{
+    const ctx=LIVE?await BE.adminContext():{role:"HQ"};
+    if(ctx?.role==="STORE_MANAGER"){
+      box.textContent="이 계정은 배정된 지점의 점주 관리자 계정입니다. 지점 배정이나 계정 변경은 본사 관리자에게 요청하세요.";
+      return;
+    }
+  }catch(e){box.textContent="계정 권한을 확인할 수 없습니다.";return;}
   let me=null, admins=[];
   try{
     me=await Auth.getUser();
@@ -2007,6 +2031,7 @@ async function renderAccountMgmt(){
   }
   html+='</div>';
   box.innerHTML=html;
+  if(LIVE && typeof window.mountHqStoreOnboarding==='function') void window.mountHqStoreOnboarding(box);
 
   // 해제
   box.querySelectorAll("[data-revoke]").forEach(b=>b.onclick=async()=>{
@@ -2371,7 +2396,7 @@ async function renderPay(){
 async function computeMonthPayroll(ym){
   // The live store's payroll authority runs in the Edge Function, including open shifts,
   // contracts, substitutions, breaks, adjustments and night allowances.
-  if(LIVE && Number(CURRENT_STORE_ID)===1 && typeof BE.serverPayroll==="function"){
+  if(LIVE && typeof BE.serverPayroll==="function"){
     if(!Auth.token)throw new Error("SERVER_PAYROLL_AUTH_REQUIRED");
     let payroll=null;
     try{ payroll=await BE.serverPayroll(ym); }
@@ -2598,9 +2623,9 @@ async function drawPay(ym){
   if(closeSlot){
     closeSlot.replaceChildren();
     const current=kstNow(),todayYm=`${current.getFullYear()}-${String(current.getMonth()+1).padStart(2,"0")}`;
-    if(LIVE && Number(CURRENT_STORE_ID)===1 && ym<todayYm && Auth.token){
+    if(LIVE && ym<todayYm && Auth.token){
       BE.payrollPeriod(ym).then(info=>{
-        if(drawSeq!==PAYROLL_DRAW_SEQ||!closeSlot.isConnected)return;
+        if(drawSeq!==PAYROLL_DRAW_SEQ||!closeSlot.isConnected||!info?.store_ready)return;
         let closed=info?.period?.status==="CLOSED";
         const button=document.createElement("button");
         button.type="button";button.className=closed?"btn btn-secondary":"btn btn-primary";
@@ -3396,5 +3421,6 @@ if(LIVE) Auth.load();
 loadStores().finally(()=>route());
 </script>
 <script src="store_controls_v1.js?v=20260929v066"></script>
+<script src="hq_store_onboarding_ui.js?v=20261011v200"></script>
 </body>
 </html>
