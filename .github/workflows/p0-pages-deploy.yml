@@ -39,6 +39,8 @@ on:
       - 'qa_store_inventory_isolation_v1.mjs'
       - 'qa_store_operations_isolation_v1.mjs'
       - 'qa_store_provenance_gate_v1.mjs'
+      - 'qa_confirmed_owner_permission_v1.mjs'
+      - 'supabase/migrations/20261011103500_confirmed_owner_activation_security.sql'
       - 'supabase/migrations/20261011102000_store_provenance_review_and_activation.sql'
       - 'hq_store_onboarding_ui.js'
       - 'supabase/migrations/20261011092000_store_scoped_operations_ledger.sql'
@@ -143,6 +145,8 @@ jobs:
           node --check hq_store_onboarding_ui.js
           node --check owner_activation.js
           node qa_hq_store_onboarding_v1.mjs
+      - name: Confirmed owner and HQ authorization regression
+        run: node qa_confirmed_owner_permission_v1.mjs
       - name: Audited real-store review gate regression
         run: node qa_store_provenance_gate_v1.mjs
       - name: Store-isolated sales and CSV import regression
