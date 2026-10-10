@@ -22,4 +22,6 @@ assert.match(edge,/if\(calculatedWon!==actualCalculated\)throw new HttpError\(40
 assert.match(edge,/p_calculated_won:actualCalculated/);
 assert.match(edge,/p_approver_id:actor\.userId/);
 assert.doesNotMatch(edge,/userClient\.rpc\("approve_payroll_weekly_allowance"/);
+assert.match(edge,/client\.rpc\("server_record_weekly_decision_verified"/);
+assert.match(edge,/p_decision:decision/);
 console.log('PASS weekly approvals require authenticated Edge verification and service-only mutation');
