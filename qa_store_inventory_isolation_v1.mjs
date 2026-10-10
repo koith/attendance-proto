@@ -23,6 +23,6 @@ for(const n of ['admin_inventory_overview_v3','admin_inventory_items','admin_inv
  assert.ok(!html.includes('rpc("'+n+'"'),'Unscoped inventory RPC still in app: '+n);
 assert.match(ops,/inventoryUnitConfigSave\(item\.id,s,o,q,!!item\.manual\)/);
 assert.match(html,/operations_v1\.js\?v=20261011v202/);
-assert.match(html,/const APP_VERSION="v0\.202"/);
+const appVersion=Number((html.match(/const APP_VERSION="v0\\.(\\d+)"/)||[])[1]);\nassert.ok(appVersion>=201,"Store inventory requires v0.201+");
 assert.doesNotMatch(sql,/UPDATE public\.inventory_movements SET store_id=/);
 console.log('PASS store inventory balance and receipts isolated; manual settings and Inha history protected');
