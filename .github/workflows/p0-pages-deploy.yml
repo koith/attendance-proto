@@ -29,6 +29,9 @@ on:
       - 'qa_payroll_close_server_authority_v1.mjs'
       - 'qa_store_payroll_isolation_v1.mjs'
       - 'hq_store_onboarding_ui.js'
+      - 'owner_activation.html'
+      - 'owner_activation.js'
+      - 'supabase/migrations/20261011030000_owner_role_revocation_guard.sql'
       - 'qa_hq_store_onboarding_v1.mjs'
       - 'supabase/migrations/20261011023000_hq_store_onboarding_and_manager_roles.sql'
       - 'supabase/migrations/20261011025500_store_roster_and_invite_boundary.sql'
@@ -126,6 +129,7 @@ jobs:
       - name: HQ store onboarding and invitation authorization regression
         run: |
           node --check hq_store_onboarding_ui.js
+          node --check owner_activation.js
           node qa_hq_store_onboarding_v1.mjs
       - name: Multi-store payroll isolation regression
         run: node qa_store_payroll_isolation_v1.mjs
