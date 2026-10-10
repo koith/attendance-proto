@@ -57,15 +57,15 @@ window.mountHqStoreOnboarding=async function(box){
     const ready=store?.onboarding_status==="READY";
     const proof=proofs.find(p=>Number(p.store_id)===selected);
     const verified=selected===1||proof?.decision==="VERIFIED";
-    const canActivate=selected===1||(verified&&list.length>0);
+    const canActivate=selected===1||(verified&&Number(store?.manager_count||0)>0);
     body.innerHTML=
       '<div class="field"><label for="hqOnboardingStore">대상 지점</label><select id="hqOnboardingStore" class="form-control">'+
       stores.map(s=>'<option value="'+Number(s.id)+'"'+(Number(s.id)===selected?' selected':'')+'>'+
         escapeHTML(s.name)+' ('+Number(s.id)+', '+escapeHTML(s.onboarding_status)+')</option>').join("")+
       '</select></div>'+
       '<div style="margin:8px 0;font-size:.85rem">상태: <strong>'+escapeHTML(store?.onboarding_status||"UNKNOWN")+
-      '</strong> · 배정된 점주 '+list.length+'명 · 실재 확인 <strong>'+escapeHTML(selected===1?"기존 운영점":proof?.decision||"미확인")+'</strong></div>'+
-      '<div style="font-size:.77rem;color:var(--text-muted);margin:6px 0 8px">운영 활성화 전 공식 가맹점 정보 확인 기록과 점주 연결이 필요합니다. 기존 시연용 직원 자료는 별도 점검 후 정리해야 합니다.</div>'+
+      '</strong> · 배정된 점주 '+list.length+'명 · 이메일 확인 완료 '+Number(store?.manager_count||0)+'명 · 실재 확인 <strong>'+escapeHTML(selected===1?"기존 운영점":proof?.decision||"미확인")+'</strong></div>'+
+      '<div style="font-size:.77rem;color:var(--text-muted);margin:6px 0 8px">운영 활성화 전 공식 가맹점 확인과 이메일 인증을 완료한 점주 계정이 필요합니다. 기존 시연용 직원 자료는 별도 점검 후 정리해야 합니다.</div>'+
       '<div class="field"><label for="hqStoreEvidence">확인 근거 (공식 가맹점 자료 URL·본사 확인 기록 등)</label><input class="form-control" id="hqStoreEvidence" type="text" maxlength="2000" placeholder="공식 출처와 확인 정보를 구체적으로 입력 (15자 이상)"></div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px">'+
       '<button type="button" class="btn btn-secondary btn-sm" id="hqStoreVerify"'+(selected===1?' disabled':'')+'>실재 확인 기록</button>'+
