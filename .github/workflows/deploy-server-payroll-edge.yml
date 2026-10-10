@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: production-payroll-edge
@@ -71,3 +72,24 @@ jobs:
             echo "::error::Unauthenticated payroll probe expected 401/403, got $status"
             exit 1
           fi
+
+      - name: Publish successful production deployment receipt
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              ...context.repo,sha:context.sha,
+              state:'success',context:'edge/server-sync-sheet-deploy',
+              description:'Production Edge payroll deployed; anonymous access rejected'
+            });
+      - name: Publish failed production deployment receipt
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              ...context.repo,sha:context.sha,
+              state:'failure',context:'edge/server-sync-sheet-deploy',
+              description:'Production payroll deployment failed; see Actions logs'
+            });
