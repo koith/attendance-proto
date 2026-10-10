@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const rpc=fs.readFileSync('supabase/migrations/20261010133000_payroll_weekly_internal_verified_rpc.sql','utf8');
+const edge=fs.readFileSync('supabase/functions/server-sync-sheet/index.ts','utf8');
+assert.match(rpc,/auth\.jwt\(\)->>'role',''\)<>'service_role'/);
+assert.match(rpc,/a\.admin_role='STORE_MANAGER' AND a\.store_id=p_store_id/);
+assert.match(rpc,/EMPLOYEE_STORE_MISMATCH/);
+assert.match(rpc,/WEEK_NOT_CLOSED/);
+assert.match(rpc,/PAYROLL_ALREADY_CLOSED/);
+assert.match(rpc,/REVOKE ALL ON FUNCTION public\.approve_payroll_weekly_allowance_internal/);
+assert.match(rpc,/GRANT EXECUTE ON FUNCTION public\.approve_payroll_weekly_allowance_internal[\s\S]*TO service_role/);
+assert.match(edge,/const actor=await authenticate\(req,mode\)/);
+assert.match(edge,/if\(calculatedWon!==actualCalculated\)throw new HttpError\(409,"WEEKLY_CALCULATED_AMOUNT_CHANGED"\)/);
+assert.match(edge,/p_calculated_won:actualCalculated/);
+assert.match(edge,/p_approver_id:actor\.userId/);
+assert.doesNotMatch(edge,/userClient\.rpc\("approve_payroll_weekly_allowance"/);
+console.log('PASS weekly approvals require authenticated Edge verification and service-only mutation');
