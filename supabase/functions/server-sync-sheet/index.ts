@@ -263,8 +263,31 @@ Deno.serve(async req=>{
   if(req.method!=="POST")return reply({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   try{
     const body=await req.json(),mode=String(body?.mode||"sync");
-    if(!["cron","dryrun","deployment","payroll","parity","sync","weekly_approve","weekly_decide","payroll_close_preview","payroll_close","payroll_reopen"].includes(mode))throw new HttpError(400,"BAD_MODE");
+    if(!["cron","dryrun","deployment","payroll","parity","sync","weekly_approve","weekly_decide","payroll_close_preview","payroll_close","payroll_reopen","invite_store_manager"].includes(mode))throw new HttpError(400,"BAD_MODE");
     const actor=await authenticate(req,mode);
+    if(mode==="invite_store_manager"){
+      if(actor.internal||actor.adminRole!=="HQ"||!actor.userId)
+        throw new HttpError(403,"HQ_ONLY");
+      const email=String(body.email||"").trim().toLowerCase();
+      const storeId=Number(body.store_id);
+      if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||email.length>254||
+         !Number.isSafeInteger(storeId)||storeId<=0)
+        throw new HttpError(400,"INVALID_INVITATION");
+      const {data:store,error:storeError}=await client.from("stores")
+        .select("id,onboarding_status").eq("id",storeId).maybeSingle();
+      if(storeError||!store||store.onboarding_status==="SUSPENDED")
+        throw new HttpError(403,"STORE_NOT_ELIGIBLE");
+      const {data:invited,error:inviteError}=await client.auth.admin.inviteUserByEmail(email);
+      if(inviteError||!invited?.user?.id)
+        throw new HttpError(409,"INVITE_FAILED: "+String(inviteError?.message||"NO_USER"));
+      const {data:assigned,error:assignError}=await client.rpc("service_store_manager_attach_invited_user",{
+        p_store_id:storeId,p_user_id:invited.user.id,p_actor_id:actor.userId
+      });
+      if(assignError||assigned?.ok!==true)
+        throw new HttpError(502,"INVITE_SENT_BUT_ROLE_ASSIGN_FAILED: "+
+          String(assignError?.message||"UNKNOWN"));
+      return reply({ok:true,store_id:storeId,email,role:"STORE_MANAGER",invited:true});
+    }
     if(mode==="deployment"){
       const ym=currentYm();
       const prepared=await buildReport(ym,1);
