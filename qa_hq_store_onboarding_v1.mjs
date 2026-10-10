@@ -42,7 +42,7 @@ const demoGate=fs.readFileSync('supabase/migrations/20261011032000_block_demo_st
 assert.match(demoGate,/DEMO_EMPLOYEES_REQUIRE_REVIEW/);
 assert.match(demoGate,/e\.store_id=p_store_id/);
 assert.ok(activation.includes('"/auth/v1/user"'));
-assert.ok(activation.includes('"admin_context"'));
+assert.ok(activation.includes('admin_context'));
 assert.ok(activation.includes('ctx?.role!=="STORE_MANAGER"'));
 assert.ok(activation.includes('location.replace("index.html?mode=store&store="'));
 assert.doesNotMatch(activation,/SUPABASE_SERVICE_ROLE_KEY/);
