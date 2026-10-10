@@ -43,7 +43,7 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
       stageActivated=true;return reply(route,{ok:true,store_id:2,status:'READY'});
     }
     if(name==='admin_store_payroll_period')return reply(route,{
-      period:{store_id:Number(args.p_store_id),ym:args.p_ym,weeks:4,status:payrollClosed?'CLOSED':'OPEN'},overrides:[]});
+      store_ready:true,period:{store_id:Number(args.p_store_id),ym:args.p_ym,weeks:4,status:payrollClosed?'CLOSED':'OPEN'},overrides:[]});
     if(name==='list_store_employees'&&role==='STORE_MANAGER')
       return reply(route,employees.map(e=>({...e,store_id:managerStoreId,name:'점주 지점 직원'})));
     if(name==='list_employees_state'&&role==='STORE_MANAGER')
