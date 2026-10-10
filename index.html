@@ -1132,6 +1132,7 @@ const SupaBE = (()=>{
       });
       const text=await r.text();let data=null;try{data=JSON.parse(text)}catch{}
       if(!r.ok||data?.ok!==true||!data.result)throw new Error(data?.error||"SERVER_PAYROLL_UNAVAILABLE");
+      if(data.engine_revision!=="20261010-verified")throw new Error("SERVER_PAYROLL_ENGINE_OUTDATED");
       return data.result;
     },
     async payrollBreakDecisions(fromIso,toIso){ return rpc("admin_attendance_break_decisions",{p_store_id:CURRENT_STORE_ID||1,p_from:fromIso,p_to:toIso},true); },
@@ -2360,12 +2361,21 @@ async function computeMonthPayroll(ym){
   // contracts, substitutions, breaks, adjustments and night allowances.
   if(LIVE && Number(CURRENT_STORE_ID)===1 && typeof BE.serverPayroll==="function"){
     if(!Auth.token)throw new Error("SERVER_PAYROLL_AUTH_REQUIRED");
-    const payroll=await BE.serverPayroll(ym);
-    for(const rec of payroll.rows||[])for(const session of rec.sessions||[]){
-      if(session.in)session.in=fromIso(session.in);
-      if(session.out)session.out=fromIso(session.out);
+    let payroll=null;
+    try{ payroll=await BE.serverPayroll(ym); }
+    catch(e){
+      if(String(e?.message||e)!=="SERVER_PAYROLL_ENGINE_OUTDATED")throw e;
+      // Older live Edge revisions add the night premium twice. Use the
+      // client-side verified fallback until the new Edge is deployed.
+      console.warn("PAYROLL_SERVER_UPGRADE_PENDING");
     }
-    return payroll;
+    if(payroll){
+      for(const rec of payroll.rows||[])for(const session of rec.sessions||[]){
+        if(session.in)session.in=fromIso(session.in);
+        if(session.out)session.out=fromIso(session.out);
+      }
+      return payroll;
+    }
   }
   let emps=[], events=[];
   emps=await BE.allEmployees();
