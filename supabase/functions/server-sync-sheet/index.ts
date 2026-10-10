@@ -43,9 +43,9 @@ async function authenticate(req,mode){
   if(!match)throw new HttpError(401,"NOT_AUTHORIZED");
   const {data,error}=await client.auth.getUser(match[1]);
   if(error||!data?.user)throw new HttpError(401,"NOT_AUTHORIZED");
-  const admin=await client.from("admin_users").select("user_id").eq("user_id",data.user.id).maybeSingle();
+  const admin=await client.from("admin_users").select("user_id,admin_role,store_id").eq("user_id",data.user.id).maybeSingle();
   if(admin.error||!admin.data)throw new HttpError(403,"NOT_ADMIN");
-  return {internal:false,userId:data.user.id};
+  return {internal:false,userId:data.user.id,adminRole:admin.data.admin_role,storeId:admin.data.store_id};
 }
 class HttpError extends Error{constructor(status,message){super(message);this.status=status}}
 async function sourceFor(ym,storeId){
@@ -247,6 +247,8 @@ Deno.serve(async req=>{
     const ym=String(body.ym||currentYm()),storeId=Number(body.store_id||1);
     if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(ym))throw new HttpError(400,"BAD_YM");
     if(storeId!==1)throw new HttpError(403,"STORE_NOT_ENABLED");
+    if(!actor.internal && actor.adminRole!=="HQ" && !(actor.adminRole==="STORE_MANAGER"&&Number(actor.storeId)===storeId))
+      throw new HttpError(403,"STORE_NOT_AUTHORIZED");
     if(mode==="weekly_approve"){
       const employeeId=Number(body.employee_id),weekStart=String(body.week_start||"");
       const calculatedWon=Number(body.calculated_won),approvedWon=Number(body.approved_won);

@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'index.html'
+      - 'actual_attendance.js'
+      - 'actual_attendance_test_mode_v1.js'
+      - 'qa_actual_attendance_store_scope_v1.mjs'
       - 'qa_boot_syntax.mjs'
       - 'qa_index_startup_smoke_v1.mjs'
       - 'qa_adversarial_audit_v2.mjs'
@@ -67,6 +70,8 @@ jobs:
         run: node qa_hq_dashboard_entry_auth.mjs
       - name: HQ to store dedicated navigation regression
         run: node qa_hq_store_dedicated_navigation.mjs
+      - name: Actual attendance store isolation regression
+        run: node qa_actual_attendance_store_scope_v1.mjs
       - name: Mobile store identity regression
         run: node qa_store_mobile_header_identity.mjs
       - name: Sheet report contracts
