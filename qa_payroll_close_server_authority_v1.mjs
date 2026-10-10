@@ -28,6 +28,12 @@ failed.rows[0].sessions=[{status:'COMPLETE'}];failed.rows[0].issues=1;
 assert.throws(()=>closingRows(failed),/UNRESOLVED_ATTENDANCE_SESSIONS/);
 failed.rows[0].issues=0;failed.rows[0].sec=0;
 assert.throws(()=>closingRows(failed),/NO_COMPLETED_WORK_FOR_MONTH/);
+const missingPay=structuredClone(fixture);
+missingPay.rows.push({employee_id:789,employee_name:'Unclassified worker',emp:{memo:''},payrollType:null,pay:null,
+  sec:3600,sessions:[{status:'COMPLETE'}],issues:0});
+assert.throws(()=>closingRows(missingPay),/EMPLOYEE_PAY_RULE_MISSING/);
+missingPay.rows[2].sec=0;missingPay.rows[2].issues=1;
+assert.throws(()=>closingRows(missingPay),/UNRESOLVED_ATTENDANCE_SESSIONS/);
 assert.match(edge,/mode==="payroll_close_preview"/);
 assert.ok(edge.includes('"payroll_close_preview","payroll_close","payroll_reopen"'));
 assert.match(edge,/mode==="payroll_reopen"/);
