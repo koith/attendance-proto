@@ -228,7 +228,7 @@ async function ownerScopedRoute(browser,label,viewport){
   await page.evaluate(()=>{location.hash='#admin'});
   await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:18000});
   assert.ok(calls.some(x=>x.name==='list_store_employees'&&x.args.p_store_id===2),'Owner employees not scoped '+label);
-  assert.ok(!calls.some(x=>x.name==='list_store_employees'&&x.args.p_store_id===1),'Owner accessed Inha employees '+label);
+  assert.ok(!calls.some(x=>x.name==='list_store_employees'&&x.args.p_store_id===1),'Owner accessed Inha employees '+label+'; calls='+JSON.stringify(calls.filter(x=>x.name==='list_store_employees'||x.name==='admin_context')));
   await page.evaluate(()=>{location.hash='#dashboard'});
   await page.waitForFunction(()=>location.hash==='#pos',null,{timeout:10000});
   assert.equal(errors.length,0,'Owner route browser runtime exceptions '+label+': '+JSON.stringify(errors));
