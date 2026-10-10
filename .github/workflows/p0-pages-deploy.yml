@@ -26,6 +26,8 @@ on:
       - 'supabase/migrations/20261010133000_payroll_weekly_internal_verified_rpc.sql'
       - 'qa_server_payroll_fixture_parity_v1.mjs'
       - 'qa_live_server_payroll_v1.mjs'
+      - 'qa_production_deployment_health_v1.mjs'
+      - 'qa_browser_app_smoke.mjs'
       - 'qa_hq_dashboard_entry_auth.mjs'
       - 'qa_server_sheet_test_exclusion_v1.mjs'
       - 'supabase/functions/server-sync-sheet/**'
@@ -44,6 +46,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  statuses: write
 
 concurrency:
   group: pages
@@ -100,6 +103,10 @@ jobs:
           node qa_payroll_month_boundary_v1.mjs
           node qa_payroll_approval_engine_fixture_v1.mjs
           node qa_server_night_single_premium_v1.mjs
+      - name: Verify deploy smoke scripts parse
+        run: |
+          node --check qa_production_deployment_health_v1.mjs
+          node --check qa_browser_app_smoke.mjs
       - name: Intentional gate failure proof
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.prove_gate_failure }}
         run: |
@@ -131,6 +138,39 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
+      - name: Checkout tested Pages release
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate live public deployment and payroll access boundary
+        id: public_health
+        run: node qa_production_deployment_health_v1.mjs
+      - name: Install Chromium acceptance harness
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Exercise actual published mobile and desktop routes
+        id: browser_health
+        env:
+          APP_SMOKE_HOST: https://koith.github.io/attendance-proto
+        run: node qa_browser_app_smoke.mjs
+      - name: Publish live webapp verification result
+        if: ${{ always() && !cancelled() }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const healthy = '${{ steps.public_health.outcome }}' === 'success' &&
+                            '${{ steps.browser_health.outcome }}' === 'success';
+            await github.rest.repos.createCommitStatus({
+              ...context.repo,
+              sha:context.sha,
+              state:healthy?'success':'failure',
+              context:'webapp/pages-live-qa',
+              target_url:'https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId,
+              description:healthy?'Live Pages version, Edge authorization, mobile/desktop QA passed':
+                'Live Pages acceptance failed: inspect workflow run'
+            });
       - name: Confirm immediate Sheet refresh after Pages deployment
         uses: actions/github-script@v7
         with:
