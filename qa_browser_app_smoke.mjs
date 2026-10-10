@@ -58,6 +58,10 @@ async function smoke(browser,label,viewport){
   const page=await context.newPage();
   const calls=[],errors=[];
   page.on('pageerror',err=>errors.push({message:String(err.message||err),stack:String(err.stack||''),url:page.url()}));
+  page.on('console',msg=>{
+    if(msg.type()==='error' && /SyntaxError|Invalid or unexpected token|Uncaught/.test(msg.text()))
+      errors.push({message:msg.text(),source:msg.location()});
+  });
   await configure(page,calls);
   await page.goto(host+'/index.html?mode=store&store=1#pos',{waitUntil:'domcontentloaded'});
   await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
