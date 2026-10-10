@@ -1,0 +1,47 @@
+name: Mobile Desktop Browser Regression
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'actual_attendance.js'
+      - 'actual_attendance.html'
+      - 'qa_browser_app_smoke.mjs'
+      - '.github/workflows/qa-browser-app-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'actual_attendance.js'
+      - 'actual_attendance.html'
+      - 'qa_browser_app_smoke.mjs'
+      - '.github/workflows/qa-browser-app-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    name: Chromium mobile + desktop app smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Start isolated static preview
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/attendance-preview.log 2>&1 &
+          for i in $(seq 1 15); do
+            if curl -fsS http://127.0.0.1:4173/index.html -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/attendance-preview.log
+          exit 1
+      - name: Exercise responsive routes without modifying production
+        run: node qa_browser_app_smoke.mjs
