@@ -2601,7 +2601,7 @@ async function drawPay(ym){
     if(LIVE && Number(CURRENT_STORE_ID)===1 && ym<todayYm && Auth.token){
       BE.payrollPeriod(ym).then(info=>{
         if(drawSeq!==PAYROLL_DRAW_SEQ||!closeSlot.isConnected)return;
-        const closed=info?.period?.status==="CLOSED";
+        let closed=info?.period?.status==="CLOSED";
         const button=document.createElement("button");
         button.type="button";button.className=closed?"btn btn-secondary":"btn btn-primary";
         button.textContent=closed?"급여 마감 재오픈":"급여 마감 검토";
@@ -2615,6 +2615,7 @@ async function drawPay(ym){
               if(reason.trim().length<5)throw new Error("재오픈 사유를 5자 이상 입력하세요.");
               if(!confirm(ym+" 급여 마감을 재오픈할까요? 기존 스냅샷은 감사 이력에 보존됩니다."))return;
               await BE.reopenPayroll(ym,reason.trim());
+              closed=false;button.textContent="급여 마감 검토";button.className="btn btn-primary";
               toast("in","급여 마감 재오픈",ym+" 감사 이력 보존 완료");
             }else{
               const p=await BE.payrollClosePreview(ym);
@@ -2624,6 +2625,7 @@ async function drawPay(ym){
               if(!confirm(message))return;
               const result=await BE.closePayroll(ym,p.fingerprint);
               if(result?.result?.status!=="CLOSED")throw new Error("마감 결과를 확인할 수 없습니다.");
+              closed=true;button.textContent="급여 마감 재오픈";button.className="btn btn-secondary";
               toast("in","급여 마감 완료",ym+" · "+p.employee_count+"명");
             }
             if(closeSlot.isConnected&&document.getElementById("payMonth")?.value===ym)drawPay(ym);
