@@ -18,5 +18,5 @@ assert.match(edge,/client\.rpc\("server_record_weekly_decision_verified"/);
 assert.match(html,/decision:decision==="REJECT"\?"REJECT":undefined/);
 assert.match(html,/weeklyRejectSave/);
 assert.match(html,/submitWeeklyDecision\("REJECT"\)/);
-assert.match(html,/approval_id/);
+assert.match(edge,/approval_id:data,decision/);
 console.log('PASS immutable approve/reject/reapprove flow and cross-month close guard');
