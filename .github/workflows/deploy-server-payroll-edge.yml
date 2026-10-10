@@ -81,6 +81,7 @@ jobs:
             await github.rest.repos.createCommitStatus({
               ...context.repo,sha:context.sha,
               state:'success',context:'edge/server-sync-sheet-deploy',
+              target_url:'https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId,
               description:'Production Edge payroll deployed; anonymous access rejected'
             });
       - name: Publish failed production deployment receipt
@@ -91,5 +92,6 @@ jobs:
             await github.rest.repos.createCommitStatus({
               ...context.repo,sha:context.sha,
               state:'failure',context:'edge/server-sync-sheet-deploy',
+              target_url:'https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId,
               description:'Production payroll deployment failed; see Actions logs'
             });
