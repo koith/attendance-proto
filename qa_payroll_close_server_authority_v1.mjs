@@ -37,7 +37,7 @@ assert.match(edge,/PAYROLL_SOURCE_CHANGED_OR_NOT_CONFIRMED/);
 assert.match(edge,/client\.rpc\("server_payroll_close_verified"/);
 assert.match(edge,/client\.rpc\("server_payroll_reopen_verified"/);
 assert.match(sql,/pg_advisory_xact_lock/);
-assert.match(sql,/auth\\.jwt\\(\\)->>'role'/);
+assert.ok(sql.includes("auth.jwt()->>'role'"));
 assert.match(sql,/TO service_role/);
 assert.match(sql,/payroll_snapshot_reopen_audit/);
 assert.match(sql,/REVOKE ALL ON FUNCTION public\.admin_close_payroll/);
