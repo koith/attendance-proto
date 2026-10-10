@@ -15,6 +15,11 @@ assert.match(index.slice(adapterBoundary,publicBoundary),/async serverPayroll\(y
 assert.match(index,/mode:"payroll",ym,store_id:Number\(CURRENT_STORE_ID\|\|1\)/);
 assert.match(index,/typeof BE\.serverPayroll==="function"/);
 assert.match(index,/SERVER_PAYROLL_AUTH_REQUIRED/);
+assert.match(index,/SERVER_PAYROLL_ENGINE_OUTDATED/);
+assert.match(index,/PAYROLL_SERVER_UPGRADE_PENDING/);
+const edge=fs.readFileSync('supabase/functions/server-sync-sheet/index.ts','utf8');
+assert.match(edge,/engine_revision:"20261010-verified"/);
+
 assert.match(contract,/typeof BE\.serverPayroll==="function"\)\{lastResult=R;return R;/);
 assert.match(night,/typeof BE\.serverPayroll==="function"\)\{window\.__nightPayrollResult=R;return R;/);
 assert.match(loader,/payroll_contract_authority_v1\.js\?v=20261009v0185/);
