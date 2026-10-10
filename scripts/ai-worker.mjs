@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+import {execFileSync} from 'node:child_process';
+const endpoint=process.env.AI_API_URL||'https://api.openai.com/v1/responses';
+const token=process.env.OPENAI_API_KEY;
+const model=process.env.AI_MODEL||'gpt-5.2';
+const task=process.env.WORK_TASK_ID,check=process.env.WORK_CHECK_ID;
+if(!token||!task||!check)throw Error('OPENAI_API_KEY, WORK_TASK_ID and WORK_CHECK_ID required');
+const input=`You are a bounded coding worker. Repository koith/attendance-proto. Task ${task}; verification ${check}. Return a JSON object with keys "status", "summary", "evidence". Never claim completion without externally verifiable evidence. You do not have repository write tools in this API call, so do not claim to have edited code. If implementation requires repository access, return status blocked and explain what tools are needed.`;
+const res=await fetch(endpoint,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({model,input,max_output_tokens:1200})});
+if(!res.ok)throw Error('AI API error '+res.status+': '+(await res.text()).slice(0,300));
+const body=await res.json();
+const content=(body.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('\n');
+if(!content)throw Error('No AI response text');
+console.log(content);
+fs.mkdirSync('.automation',{recursive:true});
+fs.appendFileSync('.automation/worker-output.jsonl',JSON.stringify({task,check,response:content,at:new Date().toISOString()})+'\n');
