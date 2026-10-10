@@ -10,6 +10,8 @@ on:
       - 'qa_boot_syntax.mjs'
       - 'qa_pos_route_async_guard_v1.mjs'
       - 'operations_reference_ui_v208.js'
+      - 'operations_v1.js'
+      - 'qa_inventory_editor_wiring_v1.mjs'
       - 'qa_index_startup_smoke_v1.mjs'
       - 'qa_adversarial_audit_v2.mjs'
       - 'qa_deep_audit_v1.mjs'
@@ -63,8 +65,11 @@ jobs:
           node-version: 22
       - name: boot-syntax-regression
         run: node qa_boot_syntax.mjs
-      - name: Inventory renderer syntax guard
-        run: node --check operations_reference_ui_v208.js
+      - name: Inventory renderer syntax and editor wiring guard
+        run: |
+          node --check operations_reference_ui_v208.js
+          node --check operations_v1.js
+          node qa_inventory_editor_wiring_v1.mjs
       - name: POS asynchronous route guard
         run: node qa_pos_route_async_guard_v1.mjs
       - name: index-startup-smoke-v1
