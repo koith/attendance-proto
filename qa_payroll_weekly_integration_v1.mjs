@@ -5,7 +5,8 @@ const engine=fs.readFileSync('supabase/functions/server-sync-sheet/engine.mjs','
 const html=fs.readFileSync('index.html','utf8');
 const migration=fs.readFileSync('supabase/migrations/20261009123000_payroll_weekly_approvals.sql','utf8');
 assert.match(api,/mode==="weekly_approve"/);
-assert.match(api,/userClient\.rpc\("approve_payroll_weekly_allowance"/);
+assert.match(api,/client\.rpc\("approve_payroll_weekly_allowance_internal"/);
+assert.match(api,/p_approver_id:actor\.userId/);
 assert.match(api,/WEEKLY_CALCULATED_AMOUNT_CHANGED/);
 assert.match(engine,/assessWeeklyRest\(/);
 assert.match(engine,/weeklyApprovalDelta/);
