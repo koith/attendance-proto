@@ -44,6 +44,7 @@ async function configure(page,calls){
       list_stores:stores,
       list_employees_state:employees,
       list_store_employees:employees,
+      admin_store_employee_contract_statuses:[{employee_id:123,contract_registered:true,contract_effective:true,document_attached:true}],
       admin_store_events_with_corrections:{events:[],corrections:[]},
       admin_store_events:[],
       admin_store_settings_get:{open_minute:420,close_minute:1500,close_grace_minutes:0},
@@ -103,6 +104,8 @@ async function smoke(browser,label,viewport){
   await page.evaluate(()=>{location.hash='#admin'});
   await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:15000});
   assert.match(await page.locator('#adEmps').innerText(),/김지수/,'Employee roster missing '+label);
+  assert.equal(await page.locator('#adEmps .contract-alert').count(),0,'Contract flags must come from scoped RPC '+label);
+  assert.ok(calls.some(x=>x.name==='admin_store_employee_contract_statuses'&&x.args.p_store_id===1),'Scoped contract-status query missing '+label);
   await page.locator('#empTabRetired').click();
   await page.locator('#adEmps .employee-empty').waitFor({timeout:10000});
   await page.locator('#empTabActive').click();
