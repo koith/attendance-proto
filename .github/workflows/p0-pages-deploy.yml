@@ -7,6 +7,8 @@ on:
       - 'actual_attendance.js'
       - 'actual_attendance_test_mode_v1.js'
       - 'qa_actual_attendance_store_scope_v1.mjs'
+      - 'qa_employee_contract_status_store_scope_v1.mjs'
+      - 'supabase/migrations/20261010222000_store_employee_contract_status_isolation.sql'
       - 'qa_boot_syntax.mjs'
       - 'qa_pos_route_async_guard_v1.mjs'
       - 'operations_reference_ui_v208.js'
@@ -86,6 +88,8 @@ jobs:
         run: node qa_hq_store_dedicated_navigation.mjs
       - name: Actual attendance store isolation regression
         run: node qa_actual_attendance_store_scope_v1.mjs
+      - name: Store employee contract status authorization regression
+        run: node qa_employee_contract_status_store_scope_v1.mjs
       - name: Mobile store identity regression
         run: node qa_store_mobile_header_identity.mjs
       - name: Sheet report contracts
