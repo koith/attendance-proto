@@ -135,7 +135,11 @@ async function smoke(browser,label,viewport){
   const actions=calls.filter(x=>x.name==='server-sync-sheet').map(x=>x.args.mode);
   assert.ok(actions.includes('payroll_close_preview'),'Preview did not invoke Edge '+label+' '+JSON.stringify(actions));
   assert.ok(actions.includes('payroll_close'),'Close did not invoke Edge '+label+' '+JSON.stringify(actions)+'; UI='+await page.locator('#payCloseSlot').innerText()+' toast='+await page.locator('#toast').innerText());
-  await page.getByRole('button',{name:'급여 마감 재오픈'}).waitFor({timeout:8000});
+  await page.waitForTimeout(800);
+  const closingSlot=await page.locator('#payCloseSlot').innerText();
+  assert.ok(closingSlot.includes('급여 마감 재오픈'),'Close did not switch to CLOSED '+label+
+    '; slot='+JSON.stringify(closingSlot)+'; toast='+JSON.stringify(await page.locator('#toast').innerText())+
+    '; calls='+JSON.stringify(calls.filter(x=>x.name==='server-sync-sheet'||x.name==='admin_payroll_period')));
   await page.getByRole('button',{name:'급여 마감 재오픈'}).click();
   await page.getByRole('button',{name:'급여 마감 검토'}).waitFor({timeout:15000});
   const closeModes=calls.filter(x=>x.name==='server-sync-sheet'&&
