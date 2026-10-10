@@ -7,7 +7,7 @@ assert(nightPay.includes('night_allowance_end')&&nightPay.includes('p.night=Numb
 assert(nightPay.includes('([01]\\d|2[0-3]):([0-5]\\d)')&&nightPay.includes('m?Number(m[1])*60+Number(m[2]):null'), 'night time parser must reject malformed hours/minutes');
 assert(core.includes('baekeok_test_mode_v1')&&core.includes('BE.eventsWithCorrections')&&core.includes('kstNow=()=>now()'));
 assert(actual.indexOf('actual_attendance_test_mode_v1.js')<actual.indexOf('actual_attendance.js'));
-assert(bridge.includes('admin_events_with_corrections')&&bridge.includes('admin_correct_event'));
+assert(bridge.includes('admin_store_events_with_corrections')&&bridge.includes('admin_correct_event'));
 assert(contract.includes("location.replace('index.html#admin')"));
 ['test_mode_core_v1.js','store_controls_v1.js','payroll_night_allowance_v1.js','test_mode_ui_v1.js'].forEach(x=>assert(loader.includes(x)));
 console.log('store/night/test V1 QA PASS');
