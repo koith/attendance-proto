@@ -46,7 +46,7 @@ async function configure(page,calls){
     let args={};try{args=JSON.parse(route.request().postData()||'{}')}catch{}
     calls.push({name:'server-sync-sheet',args});
     if(args.mode!=='payroll')return reply(route,{ok:false,error:'UNSUPPORTED_QA_MODE'},403);
-    return reply(route,{ok:true,ym:args.ym,result:{
+    return reply(route,{ok:true,ym:args.ym,engine_revision:'20261010-verified',result:{
       active:[],rows:[],weeks:4,overrides:{},totalGross:0,totalNet:0
     }});
   });
