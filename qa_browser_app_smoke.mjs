@@ -68,7 +68,8 @@ async function smoke(browser,label,viewport){
   await page.evaluate(()=>{location.hash='#dashboard'});
   await page.waitForFunction(()=>location.hash==='#pos');
   await page.evaluate(()=>{location.hash='#pay'});
-  await page.waitForFunction(()=>document.querySelector('#payList')?.innerText.includes('등록된 급여 대상 직원'),{timeout:20000});
+  await page.waitForFunction(()=>document.querySelector('#payList')?.innerText.match(/등록된 급여 대상 직원|불러오기 실패/),null,{timeout:18000});
+  assert.match(await page.locator('#payList').innerText(),/등록된 급여 대상 직원/,'Server payroll rendering failed '+label+'; calls='+JSON.stringify(calls.filter(x=>x.name==='server-sync-sheet')));
   assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='payroll'&&x.args.store_id===1),'Live payroll adapter did not call Edge '+label);
   await page.evaluate(()=>{location.hash='#inventory'});
   await page.waitForFunction(()=>location.hash==='#inventory');
