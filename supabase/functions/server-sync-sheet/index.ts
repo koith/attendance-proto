@@ -79,7 +79,9 @@ async function sourceFor(ym,storeId){
       return bundle;
     },
   };
-  const storeName=storeId===1?"인하대학교점":String(storeId);
+  const {data:store,error:storeError}=await client.from("stores").select("name").eq("id",storeId).maybeSingle();
+  if(storeError||!store)throw new Error("UNKNOWN_PAYROLL_STORE");
+  const storeName=String(store.name);
   const engine=createPayrollEngine({BE,storeId,storeName});
   return {data,engine};
 }
@@ -285,11 +287,17 @@ Deno.serve(async req=>{
     }
     const ym=String(body.ym||currentYm()),storeId=Number(body.store_id||1);
     if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(ym))throw new HttpError(400,"BAD_YM");
-    if(storeId!==1)throw new HttpError(403,"STORE_NOT_ENABLED");
+    if(!Number.isSafeInteger(storeId)||storeId<=0)throw new HttpError(400,"INVALID_STORE");
+    const {data:store,error:storeError}=await client.from("stores")
+      .select("id,name,is_active,onboarding_status").eq("id",storeId).maybeSingle();
+    if(storeError||!store||!store.is_active||store.onboarding_status!=="READY")
+      throw new HttpError(403,"STORE_NOT_ONBOARDED");
+    if(["sync","parity"].includes(mode)&&storeId!==1)
+      throw new HttpError(403,"STORE_SHEET_SYNC_NOT_CONFIGURED");
     if(!actor.internal && actor.adminRole!=="HQ" && !(actor.adminRole==="STORE_MANAGER"&&Number(actor.storeId)===storeId))
       throw new HttpError(403,"STORE_NOT_AUTHORIZED");
     if(["payroll_close_preview","payroll_close","payroll_reopen"].includes(mode)){
-      if(actor.internal||actor.adminRole!=="HQ"||!actor.userId)
+      if(actor.internal||!actor.userId)
         throw new HttpError(403,"HQ_APPROVAL_REQUIRED");
       if(ym>=currentYm()&&mode!=="payroll_reopen")
         throw new HttpError(409,"CURRENT_OR_FUTURE_MONTH_CANNOT_CLOSE");
@@ -298,7 +306,7 @@ Deno.serve(async req=>{
         if(reason.length<5||body.confirm_ym!==ym)
           throw new HttpError(400,"REOPEN_CONFIRMATION_REQUIRED");
         const {data,error}=await client.rpc("server_payroll_reopen_verified",{
-          p_ym:ym,p_reason:reason,p_actor_id:actor.userId
+          p_store_id:storeId,p_ym:ym,p_reason:reason,p_actor_id:actor.userId
         });
         if(error)throw new HttpError(409,"PAYROLL_REOPEN_REJECTED: "+error.message);
         return reply({ok:true,ym,result:data});
