@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const script=fs.readFileSync('actual_attendance.js','utf8');
+const mock=fs.readFileSync('actual_attendance_test_mode_v1.js','utf8');
+const qa=fs.readFileSync('qa_store_night_test_v1.mjs','utf8');
+assert.match(script,/rpc\('list_store_employees',\{p_store_id:storeId\}\)/);
+assert.match(script,/rpc\('admin_store_events_with_corrections',\{p_store_id:storeId,/);
+assert.match(script,/rpc\('staff_actual_attendance',\{p_employee_id:Number\(a.employee_id\),p_pin:/);
+assert.doesNotMatch(script,/rpc\('admin_list_all_employees'\)/);
+assert.doesNotMatch(script,/rpc\('admin_events_with_corrections'/);
+assert.ok(mock.includes('/rest/v1/rpc/admin_store_events_with_corrections'));
+assert.ok(qa.includes("bridge.includes('admin_store_events_with_corrections')"));
+console.log('PASS actual attendance staff/admin paths use store-scoped reads');
