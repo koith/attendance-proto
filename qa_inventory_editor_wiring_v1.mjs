@@ -10,6 +10,6 @@ assert.match(unified,/const editor=window\.openInventoryEntryFromUnified/);
 assert.match(unified,/onclick=\(\)=>editor\("manual"\)/);
 assert.match(unified,/onclick=\(\)=>editor\("bulk"\)/);
 assert.doesNotMatch(unified,/onclick=openInventoryBulk/);
-assert.match(html,/operations_v1\.js\?v=20261010v195/);
+assert.match(html,/operations_v1\.js\?v=20261011v201/);
 assert.match(html,/operations_reference_ui_v208\.js\?v=20261010v195/);
 console.log('PASS inventory manual and CSV bulk dialogs wired through shared editor');
