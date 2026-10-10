@@ -22,7 +22,7 @@ for(const n of ['admin_store_inventory_overview_v3','admin_store_inventory_items
 for(const n of ['admin_inventory_overview_v3','admin_inventory_items','admin_inventory_movements','admin_inventory_unit_config_save'])
  assert.ok(!html.includes('rpc("'+n+'"'),'Unscoped inventory RPC still in app: '+n);
 assert.match(ops,/inventoryUnitConfigSave\(item\.id,s,o,q,!!item\.manual\)/);
-assert.match(html,/operations_v1\.js\?v=20261011v201/);
-assert.match(html,/const APP_VERSION="v0\.201"/);
+assert.match(html,/operations_v1\.js\?v=20261011v202/);
+assert.match(html,/const APP_VERSION="v0\.202"/);
 assert.doesNotMatch(sql,/UPDATE public\.inventory_movements SET store_id=/);
 console.log('PASS store inventory balance and receipts isolated; manual settings and Inha history protected');
