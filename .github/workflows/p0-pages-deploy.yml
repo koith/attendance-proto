@@ -34,6 +34,8 @@ on:
       - 'supabase/migrations/20261011030000_owner_role_revocation_guard.sql'
       - 'supabase/migrations/20261011032000_block_demo_store_activation.sql'
       - 'qa_hq_store_onboarding_v1.mjs'
+      - 'qa_store_owner_revocation_hardening_v1.mjs'
+      - 'supabase/migrations/20261011063000_store_owner_authorization_hardening.sql'
       - 'supabase/migrations/20261011023000_hq_store_onboarding_and_manager_roles.sql'
       - 'supabase/migrations/20261011025500_store_roster_and_invite_boundary.sql'
       - 'supabase/migrations/20261010235500_store_scoped_payroll_base.sql'
@@ -132,6 +134,8 @@ jobs:
           node --check hq_store_onboarding_ui.js
           node --check owner_activation.js
           node qa_hq_store_onboarding_v1.mjs
+      - name: Store owner revocation and activation security regression
+        run: node qa_store_owner_revocation_hardening_v1.mjs
       - name: Multi-store payroll isolation regression
         run: node qa_store_payroll_isolation_v1.mjs
       - name: Payroll close and reopen server authority regression
