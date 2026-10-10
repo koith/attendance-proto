@@ -35,11 +35,11 @@ window.mountHqStoreOnboarding=async function(box){
     '<div id="hqOnboardingBody" aria-live="polite">지점 정보를 불러오는 중…</div>';
   box.appendChild(section);
   const body=section.querySelector("#hqOnboardingBody");
-  let stores=[],managers=[],selected=1,busy=false;
+  let stores=[],managers=[],proofs=[],selected=1,busy=false;
   const message=(title,detail)=>{if(typeof toast==="function")toast("in",title,detail);};
   const err=error=>{if(typeof toast==="function")toast("err","지점 설정 실패",String(error?.message||error));};
   async function refresh(){
-    [stores,managers]=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list")]);
+    [stores,managers,proofs]=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_provenance_list")]);
     if(!stores.some(s=>Number(s.id)===selected))selected=Number(stores[0]?.id||1);
     render();
   }
@@ -55,15 +55,24 @@ window.mountHqStoreOnboarding=async function(box){
     const store=stores.find(s=>Number(s.id)===selected);
     const list=managers.filter(m=>Number(m.store_id)===selected);
     const ready=store?.onboarding_status==="READY";
+    const proof=proofs.find(p=>Number(p.store_id)===selected);
+    const verified=selected===1||proof?.decision==="VERIFIED";
+    const canActivate=selected===1||(verified&&list.length>0);
     body.innerHTML=
       '<div class="field"><label for="hqOnboardingStore">대상 지점</label><select id="hqOnboardingStore" class="form-control">'+
       stores.map(s=>'<option value="'+Number(s.id)+'"'+(Number(s.id)===selected?' selected':'')+'>'+
         escapeHTML(s.name)+' ('+Number(s.id)+', '+escapeHTML(s.onboarding_status)+')</option>').join("")+
       '</select></div>'+
       '<div style="margin:8px 0;font-size:.85rem">상태: <strong>'+escapeHTML(store?.onboarding_status||"UNKNOWN")+
-      '</strong> · 배정된 점주 '+list.length+'명</div>'+
+      '</strong> · 배정된 점주 '+list.length+'명 · 실재 확인 <strong>'+escapeHTML(selected===1?"기존 운영점":proof?.decision||"미확인")+'</strong></div>'+
+      '<div style="font-size:.77rem;color:var(--text-muted);margin:6px 0 8px">운영 활성화 전 공식 가맹점 정보 확인 기록과 점주 연결이 필요합니다. 기존 시연용 직원 자료는 별도 점검 후 정리해야 합니다.</div>'+
+      '<div class="field"><label for="hqStoreEvidence">확인 근거 (공식 가맹점 자료 URL·본사 확인 기록 등)</label><input class="form-control" id="hqStoreEvidence" type="text" maxlength="2000" placeholder="공식 출처와 확인 정보를 구체적으로 입력 (15자 이상)"></div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px">'+
+      '<button type="button" class="btn btn-secondary btn-sm" id="hqStoreVerify"'+(selected===1?' disabled':'')+'>실재 확인 기록</button>'+
+      '<button type="button" class="btn btn-secondary btn-sm" id="hqStoreReject"'+(selected===1||ready?' disabled':'')+'>확인 반려 기록</button></div>'+
+      (proof?.evidence_reference?'<div style="font-size:.76rem;color:var(--text-muted);overflow-wrap:anywhere">최근 증빙: '+escapeHTML(proof.evidence_reference)+'</div>':'')+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">'+
-      '<button type="button" class="btn btn-primary btn-sm" id="hqStoreReady"'+(ready?' disabled':'')+'>운영 활성화</button>'+
+      '<button type="button" class="btn btn-primary btn-sm" id="hqStoreReady"'+(ready||!canActivate?' disabled':'')+'>운영 활성화</button>'+
       '<button type="button" class="btn btn-secondary btn-sm" id="hqStoreSuspend"'+(Number(selected)===1?' disabled':'')+'>지점 일시중지</button>'+
       (ready?'<a class="btn btn-secondary btn-sm" id="hqStoreLink" href="'+escapeHTML(entryUrl(selected))+
         '" target="_blank" rel="noopener noreferrer">지점 전용 페이지 열기</a>':'')+'</div>'+
@@ -87,6 +96,17 @@ window.mountHqStoreOnboarding=async function(box){
     body.querySelector("#hqOnboardingStore").onchange=e=>{
       selected=Number(e.target.value);render();
     };
+    const verifyStore=(decision)=>{
+      const evidence=body.querySelector("#hqStoreEvidence").value.trim();
+      if(evidence.length<15)return err("실제 지점임을 확인한 공식 출처와 확인 근거를 15자 이상 입력하세요.");
+      if(!confirm(store.name+" 실재 확인 결과를 "+(decision==="VERIFIED"?"승인":"반려")+
+        "하고 감사 이력에 기록하시겠습니까?"))return;
+      act(()=>rpc("hq_store_provenance_review",{
+        p_store_id:selected,p_decision:decision,p_evidence_reference:evidence
+      }),decision==="VERIFIED"?"지점 확인 기록이 저장됐습니다.":"검증 반려 이력이 기록됐습니다.");
+    };
+    body.querySelector("#hqStoreVerify").onclick=()=>verifyStore("VERIFIED");
+    body.querySelector("#hqStoreReject").onclick=()=>verifyStore("REJECTED");
     body.querySelector("#hqStoreReady").onclick=()=>{
       if(!confirm(escapeHTML(store?.name)+" 점주의 접근 권한과 운영 준비가 확인됐습니까?"))return;
       act(()=>rpc("hq_store_onboarding_set",{p_store_id:selected,p_status:"READY"}),"해당 지점이 운영 활성화되었습니다.");
