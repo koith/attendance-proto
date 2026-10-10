@@ -30,7 +30,8 @@ async function configure(page,calls){
     const name=url.pathname.split('/').pop();
     let args={};try{args=JSON.parse(route.request().postData()||'{}')}catch{}
     calls.push({name,args});
-    if(name==='admin_payroll_period')return reply(route,{period:{weeks:4,status:payrollClosed?'CLOSED':'OPEN'},overrides:[]});
+    if(name==='admin_store_payroll_period')return reply(route,{
+      period:{store_id:Number(args.p_store_id),ym:args.p_ym,weeks:4,status:payrollClosed?'CLOSED':'OPEN'},overrides:[]});
     if(name==='list_employees_state'){
       return reply(route,employees.map(e=>({...e,working,working_since:working?'2026-10-10T09:00:00':null})));
     }
@@ -52,7 +53,7 @@ async function configure(page,calls){
       admin_store_pending_requests:[],
       admin_store_schedule_list:[],
       hq_store_dashboard:dashboard,
-      admin_payroll_period:{period:{weeks:4},overrides:[]}
+      admin_store_payroll_period:{period:{weeks:4},overrides:[]}
     };
     return reply(route,Object.hasOwn(fixtures,name)?fixtures[name]:[]);
   });
@@ -125,6 +126,7 @@ async function smoke(browser,label,viewport){
   await page.waitForFunction(()=>document.querySelector('#payList')?.innerText.match(/등록된 급여 대상 직원|불러오기 실패/),null,{timeout:18000});
   assert.match(await page.locator('#payList').innerText(),/등록된 급여 대상 직원/,'Server payroll rendering failed '+label+'; calls='+JSON.stringify(calls.filter(x=>x.name==='server-sync-sheet')));
   assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='payroll'&&x.args.store_id===1),'Live payroll adapter did not call Edge '+label);
+  assert.ok(calls.some(x=>x.name==='admin_store_payroll_period'&&x.args.p_store_id===1),'Payroll period must be scoped to selected store '+label);
   // Exercise preview -> confirmed close -> reasoned reopen only against mock APIs.
   await page.locator('#payMonth').fill('2026-09');
   await page.locator('#payMonth').dispatchEvent('change');
