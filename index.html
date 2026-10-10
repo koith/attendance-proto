@@ -1101,6 +1101,7 @@ const SupaBE = (()=>{
     async enforceStoreClose(){ return rpc(["system","enforce","store","close"].join("_"),{p_store_id:CURRENT_STORE_ID||1},true); },
     async listAdmins(){ return rpc("admin_list_admins",{},true); },
     async listAuthUsers(){ return rpc("admin_list_auth_users",{},true); },
+    async storeManagerList(){return rpc("hq_store_manager_list",{},true);},
     async grantAdmin(email){ return rpc("admin_grant",{p_email:email},true); },
     async revokeAdmin(userId){ return rpc("admin_revoke",{p_user_id:userId},true); },
     async punch(id,pin,subForId=null){ return rpc("punch",{p_employee_id:id,p_pin:pin,p_device:CONFIG.DEVICE_ID,p_substitute_for_employee_id:subForId}); },
@@ -2016,18 +2017,19 @@ async function renderAccountMgmt(){
       return;
     }
   }catch(e){box.textContent="계정 권한을 확인할 수 없습니다.";return;}
-  let me=null, admins=[];
+  let me=null, admins=[], ownerIds=new Set();
   try{
     me=await Auth.getUser();
     admins=await BE.listAuthUsers();
+    if(LIVE)ownerIds=new Set((await BE.storeManagerList()).map(x=>x.user_id));
   }catch(e){
     box.innerHTML=`<div class="empty">계정 정보 불러오기 실패: ${e.message}</div>`; return;
   }
   const myId = me && me.id;
   let html='<div style="display:flex;flex-direction:column;gap:8px">';
   for(const a of admins){
-    const isMe=a.user_id===myId, role=a.is_admin?"관리자":"일반", em=safeHtml(a.email||"");
-    html+='<div class="row" style="margin:0;padding:10px 12px"><div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">'+em+'</div><span class="badge '+(a.is_admin?"success":"")+'">'+role+(isMe?" · 나":"")+'</span>'+(isMe?"":a.is_admin?'<button class="btn btn-danger btn-sm" data-revoke="'+a.user_id+'" data-email="'+em+'">관리자 해제</button>':'<button class="btn btn-secondary btn-sm" data-promote="'+em+'">관리자 지정</button>')+'</div>';
+    const isMe=a.user_id===myId, isOwner=ownerIds.has(a.user_id), role=isOwner?"지점 점주":a.is_admin?"본사 관리자":"일반", em=safeHtml(a.email||"");
+    html+='<div class="row" style="margin:0;padding:10px 12px"><div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">'+em+'</div><span class="badge '+(a.is_admin?"success":"")+'">'+role+(isMe?" · 나":"")+'</span>'+((isMe||isOwner)?"":a.is_admin?'<button class="btn btn-danger btn-sm" data-revoke="'+a.user_id+'" data-email="'+em+'">관리자 해제</button>':'<button class="btn btn-secondary btn-sm" data-promote="'+em+'">관리자 지정</button>')+'</div>';
   }
   html+='</div>';
   box.innerHTML=html;
