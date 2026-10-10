@@ -277,7 +277,7 @@ Deno.serve(async req=>{
         .select("id,onboarding_status").eq("id",storeId).maybeSingle();
       if(storeError||!store||store.onboarding_status==="SUSPENDED")
         throw new HttpError(403,"STORE_NOT_ELIGIBLE");
-      const {data:invited,error:inviteError}=await client.auth.admin.inviteUserByEmail(email);
+      const {data:invited,error:inviteError}=await client.auth.admin.inviteUserByEmail(email,{redirectTo:"https://koith.github.io/attendance-proto/owner_activation.html"});
       if(inviteError||!invited?.user?.id)
         throw new HttpError(409,"INVITE_FAILED: "+String(inviteError?.message||"NO_USER"));
       const {data:assigned,error:assignError}=await client.rpc("service_store_manager_attach_invited_user",{
