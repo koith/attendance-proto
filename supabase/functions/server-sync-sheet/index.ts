@@ -53,7 +53,8 @@ async function sourceFor(ym,storeId){
   if(error||!data)throw new Error("SERVER_PAYROLL_SOURCE_FAILED: "+(error?.code||"NO_DATA"));
   const {data:weeklyApprovals,error:weeklyApprovalError}=await client.from("payroll_weekly_approvals")
     .select("employee_id,week_start,calculated_won,approved_won,reason,approved_by,approved_at,id")
-    .eq("store_id",storeId).gte("week_start",ym+"-01")
+    // Include the Monday of a week crossing into this month; payroll source includes boundary shifts.
+    .eq("store_id",storeId).gte("week_start",new Date(Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7))-1,-6)).toISOString().slice(0,10))
     .lt("week_start",new Date(Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7)),1)).toISOString().slice(0,10))
     .order("approved_at",{ascending:false}).order("id",{ascending:false});
   if(weeklyApprovalError)throw new Error("WEEKLY_APPROVALS_READ_FAILED: "+weeklyApprovalError.code);
