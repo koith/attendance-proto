@@ -283,7 +283,7 @@ Deno.serve(async req=>{
     if(mode==="payroll"){
       const {engine}=await sourceFor(ym,storeId);
       const report=await engine.computeMonthPayroll(ym);
-      return reply({ok:true,ym,result:packLocalDates(report)});
+      return reply({ok:true,ym,result:packLocalDates(report),engine_revision:"20261010-verified"});
     }
     const prepared=await buildReport(ym,storeId);
     if(mode==="parity"){
