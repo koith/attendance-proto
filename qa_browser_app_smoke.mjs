@@ -14,6 +14,7 @@ function reply(route,value,status=200){
 }
 
 async function configure(page,calls){
+  let working=false;
   await page.addInitScript(()=>{
     localStorage.setItem('baekeok_auth',JSON.stringify({
       access_token:'qa-local-token',refresh_token:'qa-refresh-token'
@@ -26,6 +27,14 @@ async function configure(page,calls){
     const name=url.pathname.split('/').pop();
     let args={};try{args=JSON.parse(route.request().postData()||'{}')}catch{}
     calls.push({name,args});
+    if(name==='list_employees_state'){
+      return reply(route,employees.map(e=>({...e,working,working_since:working?'2026-10-10T09:00:00':null})));
+    }
+    if(name==='punch'){
+      if(String(args.p_pin)!=='1234')return reply(route,{ok:false,error:'BAD_PIN'});
+      working=!working;
+      return reply(route,{ok:true,type:working?'IN':'OUT',name:'김지수'});
+    }
     const fixtures={
       is_admin:true,
       admin_context:{role:'HQ',store_id:null,email:'qa@example.invalid'},
@@ -67,6 +76,96 @@ async function smoke(browser,label,viewport){
   await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
   assert.match(await page.locator('#empGrid').innerText(),/김지수/);
   await check(await page.locator('#lockedStoreName').isVisible(),'Store identity missing '+label);
+  // Verify both punch directions with mock-only RPCs; never write live attendance.
+  await page.locator('#empGrid .emp').first().click();
+  await page.locator('#padVeil.show').waitFor({timeout:10000});
+  for(const digit of ['1','2','3','4']) await page.locator('#padKeys button').filter({hasText:new RegExp('^'+digit+'
+  assert.ok((new URL(page.url())).hash==='#pos','Brand logo must not open headquarters '+label);
+  await page.evaluate(()=>{location.hash='#dashboard'});
+  await page.waitForFunction(()=>location.hash==='#pos');
+  await page.evaluate(()=>{location.hash='#pay'});
+  await page.waitForFunction(()=>document.querySelector('#payList')?.innerText.match(/등록된 급여 대상 직원|불러오기 실패/),null,{timeout:18000});
+  assert.match(await page.locator('#payList').innerText(),/등록된 급여 대상 직원/,'Server payroll rendering failed '+label+'; calls='+JSON.stringify(calls.filter(x=>x.name==='server-sync-sheet')));
+  assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='payroll'&&x.args.store_id===1),'Live payroll adapter did not call Edge '+label);
+  await page.evaluate(()=>{location.hash='#inventory'});
+  await page.waitForFunction(()=>location.hash==='#inventory');
+  await page.evaluate(()=>{location.hash='#attendance'});
+  await page.waitForURL(/actual_attendance\.html/,{timeout:20000});
+  await page.locator('#monthLabel').waitFor({timeout:20000});
+  await page.locator('.calendar').waitFor({timeout:20000});
+  assert.ok(calls.some(x=>x.name==='admin_store_events_with_corrections'&&x.args.p_store_id===1),'Attendance not scoped '+label+'; calls='+JSON.stringify(calls.map(x=>x.name)));
+  assert.ok(!calls.some(x=>x.name==='admin_events_with_corrections'||x.name==='admin_list_all_employees'),'Legacy broad data access '+label);
+  await page.goto(host+'/index.html#dashboard',{waitUntil:'domcontentloaded'});
+  await page.locator('.hq-store-panel').first().waitFor({timeout:20000});
+  assert.equal(await page.locator('.hq-store-panel').count(),2,'HQ store cards '+label);
+  assert.match(await page.locator('#view').innerText(),/시연용 거래는 매출 집계에서 제외했습니다/);
+  await page.locator('.hq-store-panel button').first().click();
+  await page.waitForURL(/mode=store&store=/,{timeout:15000});
+  await check(!(await page.locator('#storeSelect').isVisible().catch(()=>false)),'Store should not show HQ switcher '+label);
+  if(viewport.width<500){
+    const widths=await page.evaluate(()=>({doc:document.documentElement.scrollWidth,view:innerWidth}));
+    assert.ok(widths.doc<=widths.view+30,'Mobile horizontal overflow: '+JSON.stringify(widths));
+  }
+  assert.deepEqual(errors,[],'Browser runtime exceptions '+label);
+  await context.close();
+  console.log('PASS browser smoke '+label+': POS IN/OUT / store lock / server payroll / inventory / attendance / HQ navigation');
+}
+const browser=await chromium.launch({headless:true});
+try{
+  await smoke(browser,'mobile',{width:390,height:844});
+  await smoke(browser,'desktop',{width:1440,height:900});
+}finally{
+  await browser.close();
+}
+)}).click();
+  await page.locator('#padKeys .ok-action').click();
+  await page.locator('#empGrid .emp.working').waitFor({timeout:12000});
+  await page.locator('#success').click({force:true});
+  await page.locator('#empGrid .emp').first().click();
+  await page.locator('#padVeil.show').waitFor({timeout:10000});
+  for(const digit of ['1','2','3','4']) await page.locator('#padKeys button').filter({hasText:new RegExp('^'+digit+'
+  assert.ok((new URL(page.url())).hash==='#pos','Brand logo must not open headquarters '+label);
+  await page.evaluate(()=>{location.hash='#dashboard'});
+  await page.waitForFunction(()=>location.hash==='#pos');
+  await page.evaluate(()=>{location.hash='#pay'});
+  await page.waitForFunction(()=>document.querySelector('#payList')?.innerText.match(/등록된 급여 대상 직원|불러오기 실패/),null,{timeout:18000});
+  assert.match(await page.locator('#payList').innerText(),/등록된 급여 대상 직원/,'Server payroll rendering failed '+label+'; calls='+JSON.stringify(calls.filter(x=>x.name==='server-sync-sheet')));
+  assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='payroll'&&x.args.store_id===1),'Live payroll adapter did not call Edge '+label);
+  await page.evaluate(()=>{location.hash='#inventory'});
+  await page.waitForFunction(()=>location.hash==='#inventory');
+  await page.evaluate(()=>{location.hash='#attendance'});
+  await page.waitForURL(/actual_attendance\.html/,{timeout:20000});
+  await page.locator('#monthLabel').waitFor({timeout:20000});
+  await page.locator('.calendar').waitFor({timeout:20000});
+  assert.ok(calls.some(x=>x.name==='admin_store_events_with_corrections'&&x.args.p_store_id===1),'Attendance not scoped '+label+'; calls='+JSON.stringify(calls.map(x=>x.name)));
+  assert.ok(!calls.some(x=>x.name==='admin_events_with_corrections'||x.name==='admin_list_all_employees'),'Legacy broad data access '+label);
+  await page.goto(host+'/index.html#dashboard',{waitUntil:'domcontentloaded'});
+  await page.locator('.hq-store-panel').first().waitFor({timeout:20000});
+  assert.equal(await page.locator('.hq-store-panel').count(),2,'HQ store cards '+label);
+  assert.match(await page.locator('#view').innerText(),/시연용 거래는 매출 집계에서 제외했습니다/);
+  await page.locator('.hq-store-panel button').first().click();
+  await page.waitForURL(/mode=store&store=/,{timeout:15000});
+  await check(!(await page.locator('#storeSelect').isVisible().catch(()=>false)),'Store should not show HQ switcher '+label);
+  if(viewport.width<500){
+    const widths=await page.evaluate(()=>({doc:document.documentElement.scrollWidth,view:innerWidth}));
+    assert.ok(widths.doc<=widths.view+30,'Mobile horizontal overflow: '+JSON.stringify(widths));
+  }
+  assert.deepEqual(errors,[],'Browser runtime exceptions '+label);
+  await context.close();
+  console.log('PASS browser smoke '+label+': POS / store lock / server payroll / inventory / attendance / HQ navigation');
+}
+const browser=await chromium.launch({headless:true});
+try{
+  await smoke(browser,'mobile',{width:390,height:844});
+  await smoke(browser,'desktop',{width:1440,height:900});
+}finally{
+  await browser.close();
+}
+)}).click();
+  await page.locator('#padKeys .ok-action').click();
+  await page.waitForFunction(()=>document.querySelector('#empGrid .emp:not(.working)'));
+  await page.locator('#success').click({force:true});
+  assert.deepEqual(calls.filter(x=>x.name==='punch').map(x=>x.args.p_employee_id),[123,123],'IN/OUT punch employee IDs '+label);
   await page.locator('#hqHome').click();
   assert.ok((new URL(page.url())).hash==='#pos','Brand logo must not open headquarters '+label);
   await page.evaluate(()=>{location.hash='#dashboard'});
