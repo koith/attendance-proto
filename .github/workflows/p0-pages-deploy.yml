@@ -24,6 +24,8 @@ on:
       - 'qa_server_owned_sheet_v1.mjs'
       - 'qa_server_payroll_parity_v1.mjs'
       - 'qa_weekly_approval_service_boundary_v1.mjs'
+      - 'qa_weekly_decision_append_only_v1.mjs'
+      - 'supabase/migrations/20261010233000_weekly_decision_append_only.sql'
       - 'qa_payroll_close_server_authority_v1.mjs'
       - 'supabase/migrations/20261010223000_server_owned_payroll_close_reopen.sql'
       - 'supabase/migrations/20261010224000_block_closed_month_overrides.sql'
@@ -112,6 +114,7 @@ jobs:
           node qa_payroll_weekly_integration_v1.mjs
           node qa_weekly_approval_rpc_guard_v1.mjs
           node qa_weekly_approval_service_boundary_v1.mjs
+          node qa_weekly_decision_append_only_v1.mjs
           node qa_payroll_policy_scenarios_v1.mjs
           node qa_payroll_week_boundary_behavior_v1.mjs
           node qa_payroll_month_boundary_v1.mjs

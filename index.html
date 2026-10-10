@@ -739,7 +739,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.197</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.198</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -828,7 +828,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.197";
+const APP_VERSION="v0.198";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -2722,8 +2722,9 @@ async function drawPay(ym){
           <div class="field"><label>해당 주 자동계산 금액 (원)</label><input id="weeklyApproveOriginal" type="number" min="0" step="1" value="0"></div>
           <div class="field"><label>최종 승인 금액 (원)</label><input id="weeklyApproveAmount" type="number" min="0" step="1" value="0"></div>
           <div class="field"><label>정정 사유</label><textarea id="weeklyApproveReason" placeholder="대타 승인 내역 및 지급 판단 근거"></textarea></div>
-          <p style="font-size:.8rem">해당 주의 자동계산액을 확인한 후 입력하세요. 승인 기록은 삭제하지 않고 보존합니다.</p>
-          <button type="button" class="btn btn-primary btn-block" id="weeklyApproveSave">정정 승인</button>`;
+          <p style="font-size:.8rem">자동 계산액을 확인하고 사유를 기록하세요. 승인·반려·재승인 내역은 삭제하지 않고 감사 기록에 누적됩니다.</p>
+          <button type="button" class="btn btn-primary btn-block" id="weeklyApproveSave">정정 승인·재승인</button>
+          <button type="button" class="btn btn-secondary btn-block" id="weeklyRejectSave">주휴수당 지급 반려(0원)</button>`;
           openAddVeil();
           const syncWeekAmount=()=>{const key=modal.querySelector("#weeklyApproveDate").value;
             const amount=Number(pay.weeklyCalculatedAmounts?.[key]||0);
@@ -2733,26 +2734,29 @@ async function drawPay(ym){
           modal.querySelector("#weeklyApproveOriginal").readOnly=true;
           modal.querySelector("#weeklyApproveDate").onchange=syncWeekAmount;
           syncWeekAmount();
-          modal.querySelector("#weeklyApproveSave").onclick=async()=>{
+          const submitWeeklyDecision=async(decision)=>{
             const week_start=modal.querySelector("#weeklyApproveDate").value;
             const calculated_won=Number(modal.querySelector("#weeklyApproveOriginal").value);
-            const approved_won=Number(modal.querySelector("#weeklyApproveAmount").value);
+            const approved_won=decision==="REJECT"?0:Number(modal.querySelector("#weeklyApproveAmount").value);
             const reason=modal.querySelector("#weeklyApproveReason").value.trim();
             if(!/^\d{4}-\d{2}-\d{2}$/.test(week_start)||new Date(week_start+"T00:00:00").getDay()!==1||
                !Number.isSafeInteger(calculated_won)||calculated_won<0||
                !Number.isSafeInteger(approved_won)||approved_won<0||reason.length<3){
               alert("월요일 날짜, 원 단위 금액, 정정 사유를 확인하세요.");return;
             }
-            if(!confirm(`주휴수당 ${calculated_won.toLocaleString()}원 → ${approved_won.toLocaleString()}원으로 승인하시겠습니까?`))return;
+            if(!confirm(`주휴수당 ${calculated_won.toLocaleString()}원 → ${approved_won.toLocaleString()}원으로 ${decision==="REJECT"?"반려":"승인·재승인"}하시겠습니까? 이 판단은 감사 기록에 보존됩니다.`))return;
             const response=await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/server-sync-sheet`,{
               method:"POST",headers:{Authorization:`Bearer ${Auth.token}`,"Content-Type":"application/json"},
               body:JSON.stringify({mode:"weekly_approve",store_id:Number(CURRENT_STORE_ID),ym,
-                employee_id:Number(rec.employee_id),week_start,calculated_won,approved_won,reason})
+                employee_id:Number(rec.employee_id),week_start,calculated_won,approved_won,reason,
+                decision:decision==="REJECT"?"REJECT":undefined})
             });
             const data=await response.json();
             if(!response.ok||!data.ok){alert(data.error||"승인 실패");return;}
             veil.classList.remove("show");restoreAddModal();drawPay(ym);
           };
+          modal.querySelector("#weeklyApproveSave").onclick=()=>submitWeeklyDecision("APPROVE");
+          modal.querySelector("#weeklyRejectSave").onclick=()=>submitWeeklyDecision("REJECT");
         };
         detail.appendChild(btn);
       }
