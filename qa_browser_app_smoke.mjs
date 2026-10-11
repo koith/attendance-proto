@@ -17,7 +17,7 @@ function reply(route,value,status=200){
 }
 
 async function configure(page,calls,role='HQ',managerStoreId=null){
-  let working=false, payrollClosed=false,ownerInvited=false,stageActivated=false;
+  let working=false, payrollClosed=false,ownerInvited=false,storeVerified=false,stageActivated=false;
   await page.addInitScript(()=>{
     localStorage.setItem('baekeok_auth',JSON.stringify({
       access_token:'qa-local-token',refresh_token:'qa-refresh-token'
@@ -38,8 +38,19 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
     if(name==='hq_store_manager_list')return reply(route,ownerInvited?[
       {user_id:'qa-invited-id',email:'owner@example.invalid',store_id:2,store_name:'송도점'}
     ]:[]);
+    if(name==='hq_store_provenance_list')return reply(route,storeVerified?[
+      {store_id:2,decision:'VERIFIED',evidence_reference:'QA verified official shop record',reviewed_at:'2026-10-11T00:00:00Z'}
+    ]:[]);
+    if(name==='hq_store_provenance_review'){
+      if(Number(args.p_store_id)!==2 || args.p_decision!=='VERIFIED' ||
+         String(args.p_evidence_reference||'').trim().length<15)
+        return reply(route,{message:'BAD_VERIFICATION_EVIDENCE'},409);
+      storeVerified=true;
+      return reply(route,{ok:true,store_id:2,decision:'VERIFIED'});
+    }
     if(name==='hq_store_onboarding_set'){
-      if(!ownerInvited)return reply(route,{message:'STORE_MANAGER_REQUIRED'},409);
+      if(!storeVerified)return reply(route,{message:'PROVENANCE_VERIFICATION_REQUIRED'},409);
+      if(!ownerInvited)return reply(route,{message:'CONFIRMED_STORE_MANAGER_REQUIRED'},409);
       stageActivated=true;return reply(route,{ok:true,store_id:2,status:'READY'});
     }
     if(name==='admin_store_payroll_period')return reply(route,{
@@ -221,11 +232,19 @@ async function smoke(browser,label,viewport){
   await page.locator('#hqOnboardingStore').waitFor({timeout:12000});
   await page.locator('#hqOnboardingStore').selectOption('2');
   assert.match(await page.locator('#hqOnboardingBody').innerText(),/STAGED/);
+  assert.equal(await page.locator('#hqStoreReady').isDisabled(),true,'Unverified store must not activate '+label);
   await page.locator('#hqManagerEmail').fill('owner@example.invalid');
   await page.locator('#hqManagerInvite').click();
   await page.waitForFunction(()=>document.querySelector('#hqOnboardingBody')?.innerText.includes('owner@example.invalid'),null,{timeout:12000});
   assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='invite_store_manager'&&x.args.store_id===2),
     'HQ invite service not called '+label);
+  assert.equal(await page.locator('#hqStoreReady').isDisabled(),true,'Invitation without verification must not activate '+label);
+  await page.locator('#hqStoreEvidence').fill('QA verified official shop record');
+  await page.locator('#hqStoreVerify').click();
+  await page.waitForFunction(()=>document.querySelector('#hqStoreReady')?.disabled===false,null,{timeout:12000});
+  assert.ok(calls.some(x=>x.name==='hq_store_provenance_review'&&x.args.p_store_id===2&&
+     x.args.p_decision==='VERIFIED'&&x.args.p_evidence_reference==='QA verified official shop record'),
+     'HQ verification audit was not recorded '+label);
   await page.locator('#hqStoreReady').click();
   await page.locator('#hqStoreLink').waitFor({timeout:12000});
   assert.match(await page.locator('#hqStoreLink').getAttribute('href'),/mode=store&store=2#pos/);
