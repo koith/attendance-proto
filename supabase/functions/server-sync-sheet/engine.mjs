@@ -217,16 +217,23 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     const effWage=(ov&&ov.wage_override!=null)?Number(ov.wage_override):(contractWage||Number(e.wage||0));
     let pay=null;
     if(payrollType==="MONTHLY"&&Number(contract?.monthly_salary||0)>0){
-      // 월급제 대표값은 정상 출퇴근이 완료된 날짜만 일할 누적한다.
-      // 예: 260만원 / 30일 × 정상 출퇴근 1일.
+      // Contractual monthly salary is the base for a full employment month;
+      // only the actual employment/contract date range justifies proration.
+      // Attendance day count must never turn a fixed salary into a daily wage.
       const [yy,mm]=ym.split("-").map(Number);
       const daysInMonth=new Date(yy,mm,0).getDate();
       const monthlySalary=Number(contract.monthly_salary);
-      const completedDayKeys=new Set(sess.filter(x=>x.status==="COMPLETE"&&x.in&&x.out).map(x=>`${x.in.getFullYear()}-${p2(x.in.getMonth()+1)}-${p2(x.in.getDate())}`));
-      const accruedDays=completedDayKeys.size;
+      const employeePeriods=employmentPeriods.filter(period=>Number(period.employee_id)===Number(e.id));
+      let accruedDays=0;
+      for(let day=1;day<=daysInMonth;day++){
+        const date=`${ym}-${p2(day)}`;
+        if(String(contract.effective_from)>date||(contract.effective_to&&String(contract.effective_to)<date))continue;
+        if(employeePeriods.length&&!employeePeriods.some(period=>String(period.started_on)<=date&&(!period.ended_on||String(period.ended_on)>=date)))continue;
+        accruedDays++;
+      }
       const accruedBase=Math.trunc(monthlySalary/daysInMonth*accruedDays);
       const gross=Math.round(accruedBase+substitutePay+(ov?.adjust_amount||0));
-      const rate=(ov?.tax_rate_override!=null)?Number(ov.tax_rate_override):(contract.tax_treatment==="BUSINESS_INCOME"?Number(contract.business_deduction_rate||0.033):0);
+      const rate=(ov?.tax_rate_override!=null)?Number(ov.tax_rate_override):(contract.tax_treatment==="BUSINESS_INCOME"?Number(contract.business_deduction_rate??0.033):0);
       pay={base:accruedBase,weekly:0,juhyu:0,substitutePay,substituteMinutes,adjust:ov?.adjust_amount||0,gross,net:xrounddown(gross*(1-rate),-1),rate,wage:0,jweeks:0,usedOverride:!!ov,payrollType:"MONTHLY",monthlySalary,accruedDays,daysInMonth};
     }else if(effWage>0){
       const payrollEmp=contract?{...e,wage:effWage,juhyu_hours:0}:{...e,wage:effWage};
