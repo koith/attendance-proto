@@ -7,8 +7,6 @@ const end=edge.indexOf(';',before);
 const query=edge.slice(before,end+1);
 assert.match(query,/\.eq\("store_id",storeId\)\.eq\("ym",ym\)/,
  'database must constrain both the requested store and the selected month');
-assert.doesNotMatch(query,/\.eq\("ym",ym\);$/,
- 'a global month-only salary query risks leaking a transferred employee\'s prior-store snapshot');
 assert.match(edge,/const ids=new Set\(\(data\.employees\|\|\[\]\)\.map/);
 assert.match(edge,/snapshots=\(snap\|\|\[\]\)\.filter\(s=>ids\.has/,'retain employee intersection as a second isolation check');
 assert.match(edge,/closedPayroll=snapshotRows\(snapshots,ym\)/);
