@@ -28,7 +28,49 @@
   async function adminRpc(fn,args={}){const call=async token=>fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:`Bearer ${token||CONFIG.SUPABASE_ANON_KEY}`,'Content-Type':'application/json'},body:JSON.stringify(args)});const s=storedSession();let token=(typeof Auth!=='undefined'&&Auth.token)||s?.access_token||null;let r=await call(token),text=await r.text();if(r.status===401||r.status===403||/JWT|NOT_AUTHORIZED|expired/i.test(text)){const fresh=await refreshSession();if(fresh){r=await call(fresh);text=await r.text()}}if(!r.ok)throw new Error(`RPC ${fn} ${r.status}: ${text||r.statusText}`);return text?JSON.parse(text):null}
   async function bundle(empId){const key=Number(empId),now=Date.now(),hit=cache.get(key);if(hit&&now-hit.at<CACHE_TTL_MS)return hit.value;const value=(await adminRpc('admin_employment_bundle',{p_employee_id:key}))||{contracts:[],periods:[],workdays:[]};cache.set(key,{value,at:now});return value}
   function safeOverride(ov){if(!ov)return null;const out={};if(ov.juhyu_weeks_override!=null)out.juhyu_weeks_override=ov.juhyu_weeks_override;if(ov.adjust_amount!=null)out.adjust_amount=ov.adjust_amount;if(ov.memo!=null)out.memo=ov.memo;return Object.keys(out).length?out:null}
-  function chooseContract(row,ym,b){const contracts=(b.contracts||[]).filter(c=>overlaps(c,monthBounds(ym))).sort((a,z)=>String(z.effective_from).localeCompare(String(a.effective_from)));if(!contracts.length)return {mode:'MISSING_CONTRACT',issue:'계약조건 미등록 · 급여 계산 보류'};const payable=(row.sessions||[]).filter(s=>(s.status==='COMPLETE'||s.status==='WORKING')&&s.in);const used=contracts.filter(c=>payable.some(s=>covers(c,dayKey(s.in))));const candidates=used.length?used:contracts;const displayContract=candidates[0]||contracts[0]||null;if(contracts.length>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};if(candidates.some(c=>c.tax_treatment==='FOUR_INSURANCE'))return {mode:'BLOCKED',contract:displayContract,issue:'4대보험 공제 계산정책 미확정'};if(candidates.some(c=>c.payroll_type==='MONTHLY')){if(candidates.some(c=>c.payroll_type!=='MONTHLY'))return {mode:'BLOCKED',contract:displayContract,issue:'월중 급여유형 변경 · 구간별 급여 계산 확인 필요'};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'MONTHLY',contract:candidates[0]};}if(candidates.some(c=>c.payroll_type!=='HOURLY'||c.tax_treatment!=='BUSINESS_INCOME'))return {mode:'BLOCKED',contract:displayContract,issue:'급여 계약조건 확인 필요'};const uncoveredDays=[...new Set(payable.filter(s=>!contracts.some(c=>covers(c,dayKey(s.in)))).map(s=>dayKey(s.in)))];if(uncoveredDays.length)return {mode:'BLOCKED',contract:displayContract,issue:`계약기간 밖 실근무 ${uncoveredDays.join(', ')} · 급여 확인 필요`};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'CONTRACT',contract:candidates[0]}}
+  // Date-effective, bounded fixed-salary changes only. Hourly, night, tax
+  // regime, overlapping/gapped and under-specified revisions still need review.
+  function monthlyContractSegments(contracts,periods,ym,employeeId){
+    if(contracts.length<2||contracts.some(c=>c.payroll_type!=='MONTHLY'||
+      c.tax_treatment!=='BUSINESS_INCOME'||!(Number(c.monthly_salary)>0)||
+      c.night_allowance_enabled===true))return null;
+    const rates=new Set(contracts.map(c=>Number(c.business_deduction_rate??0.033)));
+    const breaks=new Set(contracts.map(c=>c.break_provision_mode||'NOT_PROVIDED'));
+    if(rates.size!==1||breaks.size!==1)return null;
+    const rate=[...rates][0];
+    if(!Number.isFinite(rate)||rate<0||rate>=1)return null;
+    const [year,month]=ym.split('-').map(Number);
+    const daysInMonth=new Date(year,month,0).getDate();
+    const first=ym+'-01',last=ym+'-'+String(daysInMonth).padStart(2,'0');
+    const spanFirst=contracts.map(c=>String(c.effective_from)).sort()[0];
+    const spanLast=contracts.map(c=>c.effective_to?String(c.effective_to):last).sort().at(-1);
+    const jobs=(periods||[]).filter(p=>Number(p.employee_id)===Number(employeeId));
+    const allocation=new Map(contracts.map(c=>[c,0]));
+    for(let day=1;day<=daysInMonth;day++){
+      const date=ym+'-'+String(day).padStart(2,'0');
+      const employed=jobs.length
+        ?jobs.some(p=>String(p.started_on)<=date&&(!p.ended_on||String(p.ended_on)>=date))
+        :date>=spanFirst&&date<=spanLast;
+      if(!employed)continue;
+      const matches=contracts.filter(c=>String(c.effective_from)<=date&&
+        (!c.effective_to||String(c.effective_to)>=date));
+      if(matches.length!==1)return null;
+      allocation.set(matches[0],allocation.get(matches[0])+1);
+    }
+    const parts=contracts.filter(c=>allocation.get(c)>0).map(c=>{
+      const accruedDays=allocation.get(c),monthlySalary=Number(c.monthly_salary);
+      return {contractId:c.contract_id??c.id,accruedDays,monthlySalary,
+        base:Math.trunc(monthlySalary/daysInMonth*accruedDays)};
+    });
+    if(parts.length!==contracts.length)return null;
+    return {base:parts.reduce((s,x)=>s+x.base,0),
+      accruedDays:parts.reduce((s,x)=>s+x.accruedDays,0),daysInMonth,rate,parts};
+  }
+  function chooseContract(row,ym,b){const contracts=(b.contracts||[]).filter(c=>overlaps(c,monthBounds(ym))).sort((a,z)=>String(z.effective_from).localeCompare(String(a.effective_from)));if(!contracts.length)return {mode:'MISSING_CONTRACT',issue:'계약조건 미등록 · 급여 계산 보류'};const payable=(row.sessions||[]).filter(s=>(s.status==='COMPLETE'||s.status==='WORKING')&&s.in);const used=contracts.filter(c=>payable.some(s=>covers(c,dayKey(s.in))));const candidates=used.length?used:contracts;const displayContract=candidates[0]||contracts[0]||null;if(contracts.length>1){
+      const segments=monthlyContractSegments(contracts,b.periods||[],ym,row.employee_id);
+      if(segments)return {mode:'MONTHLY',contract:displayContract,monthlySegments:segments};
+      return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};
+    }if(candidates.some(c=>c.tax_treatment==='FOUR_INSURANCE'))return {mode:'BLOCKED',contract:displayContract,issue:'4대보험 공제 계산정책 미확정'};if(candidates.some(c=>c.payroll_type==='MONTHLY')){if(candidates.some(c=>c.payroll_type!=='MONTHLY'))return {mode:'BLOCKED',contract:displayContract,issue:'월중 급여유형 변경 · 구간별 급여 계산 확인 필요'};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'MONTHLY',contract:candidates[0]};}if(candidates.some(c=>c.payroll_type!=='HOURLY'||c.tax_treatment!=='BUSINESS_INCOME'))return {mode:'BLOCKED',contract:displayContract,issue:'급여 계약조건 확인 필요'};const uncoveredDays=[...new Set(payable.filter(s=>!contracts.some(c=>covers(c,dayKey(s.in)))).map(s=>dayKey(s.in)))];if(uncoveredDays.length)return {mode:'BLOCKED',contract:displayContract,issue:`계약기간 밖 실근무 ${uncoveredDays.join(', ')} · 급여 확인 필요`};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'CONTRACT',contract:candidates[0]}}
   function contractEmployee(emp,c){const weeklyMinutes=Number(c.weekly_contracted_minutes||0);return {...emp,wage:Number(c.hourly_wage||0),juhyu_hours:weeklyMinutes>=900?weeklyMinutes/60/5:0,tax_rate:Number(c.business_deduction_rate||0)}}
   function contractSummary(c){if(!c)return '';const period=`${c.effective_from}${c.effective_to?' ~ '+c.effective_to:''}`;if(c.payroll_type==='HOURLY')return `계약 시급 ${Number(c.hourly_wage||0).toLocaleString()}원 · ${period}`;return `계약 월급 ${Number(c.monthly_salary||0).toLocaleString()}원 · ${period}`}
 
