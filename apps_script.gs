@@ -350,8 +350,30 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   }
   SpreadsheetApp.flush();
 
+  // Verify the actual persisted column widths after the annual cross-month
+  // normalization. A successful setColumnWidth call alone is not sufficient
+  // evidence of a correctly sized rendered report.
+  var widthVerifiedMonths=0, widthVerifiedColumns=0;
+  for(var vm=1;vm<=12;vm++){
+    var vsh=ss.getSheetByName(vm+'월');
+    if(!vsh)throw new Error('COLUMN_WIDTH_MONTH_MISSING: '+vm);
+    for(var vc=0;vc<width;vc++){
+      var requiredWidth=sharedWidths[vc]||0;
+      if(requiredWidth<=0)continue;
+      var persistedWidth=vsh.getColumnWidth(vc+1);
+      if(persistedWidth<requiredWidth){
+        throw new Error('COLUMN_WIDTH_READBACK_MISMATCH: '+vsh.getName()+' col '+(vc+1));
+      }
+      widthVerifiedColumns++;
+    }
+    widthVerifiedMonths++;
+  }
+  if(widthVerifiedMonths!==12)throw new Error('COLUMN_WIDTH_MONTH_SCOPE_INCOMPLETE');
+
   return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
     width_source:'measured_display_text',resized_columns:width,
+    column_width_readback_verified:true,verified_month_tabs:widthVerifiedMonths,
+    verified_column_widths:widthVerifiedColumns,
     report_design_applied:true,report_design_version:'sheet-report-v8'};
 }
 
