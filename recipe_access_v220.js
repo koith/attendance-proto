@@ -2,9 +2,9 @@
 (function(){
   const esc=v=>window.safeHtml?window.safeHtml(v):String(v??"");
   const number=v=>Number(v||0).toLocaleString("ko-KR");
-  const reference=()=>Array.isArray(window.OPERATIONS_REFERENCE_V208?.recipes)?window.OPERATIONS_REFERENCE_V208.recipes:[];
-  const referenceFor=row=>reference().find(x=>String(x.menu_name).trim()===String(row.menu_name).trim());
-  const instructionsFor=row=>Array.isArray(row.instructions)&&row.instructions.length?row.instructions:(referenceFor(row)?.variants||[]);
+  // Never fall back to an anonymously hosted manufacturing reference.
+  // Manager/staff RPC responses are the only authority for recipe instructions.
+  const instructionsFor=row=>Array.isArray(row.instructions)?row.instructions:[];
   const sourceMaterials=row=>instructionsFor(row).map(v=>({label:v.label||"기본",lines:String(v.content||"").split("\n").map(x=>x.trim()).filter(Boolean).filter(x=>/\d+(?:\.\d+)?\s*(?:g|ml|샷|P|펌프|개|봉|장|스쿱|oz|L)\b|얼음\s*가득/i.test(x))})).filter(v=>v.lines.length);
   const stockReference=item=>(window.OPERATIONS_REFERENCE_V208?.inventory||[]).find(x=>String(x.name).trim()===String(item?.name).trim());
   const displayMenuName=row=>{
