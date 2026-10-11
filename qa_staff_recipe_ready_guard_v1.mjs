@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const sql=fs.readFileSync('supabase/migrations/20261011145000_staff_recipe_ready_guard.sql','utf8');
+const html=fs.readFileSync('index.html','utf8');
+assert.match(sql,/CREATE OR REPLACE FUNCTION public\.staff_recipe_list\(/);
+assert.match(sql,/s\.id=p_store_id and s\.is_active and s\.onboarding_status='READY'/);
+assert.match(sql,/raise exception 'STORE_NOT_READY'/);
+assert.ok(sql.indexOf("STORE_NOT_READY")<sql.indexOf("BAD_PIN"),'Store gate must run before employee credential checks');
+assert.match(sql,/e\.store_id=p_store_id and e\.is_active and e\.pin_bcrypt=crypt\(p_pin,e\.pin_bcrypt\)/);
+assert.match(sql,/public\.substitution_is_working\(p_employee_id\)/);
+assert.match(sql,/left join public\.store_recipe_overrides o on o\.store_id=p_store_id/);
+assert.doesNotMatch(sql,/\b(?:UPDATE|DELETE|TRUNCATE|INSERT)\s+(?:INTO\s+|FROM\s+)?public\./i);
+assert.match(html,/const APP_VERSION="v0\.211"/);
+console.log('PASS staff recipes require READY store, correct employee PIN, on-shift status and scoped overrides');
