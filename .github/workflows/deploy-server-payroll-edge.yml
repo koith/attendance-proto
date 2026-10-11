@@ -39,6 +39,7 @@ jobs:
           node qa_payroll_weekly_integration_v1.mjs
           node qa_weekly_approval_rpc_guard_v1.mjs
           node qa_weekly_approval_service_boundary_v1.mjs
+          node qa_weekly_cross_month_close_guard_v1.mjs
           node qa_payroll_month_boundary_v1.mjs
           node qa_monthly_contract_salary_authority_v1.mjs
           node qa_payroll_no_future_month_salary_v1.mjs
