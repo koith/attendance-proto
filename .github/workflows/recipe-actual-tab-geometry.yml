@@ -4,6 +4,7 @@ on:
     paths:
       - 'index.html'
       - 'recipe_access_v220.css'
+      - 'recipe_access_v220.js'
       - 'qa_recipe_actual_tab_geometry.mjs'
       - 'qa_recipe_live_route_geometry.mjs'
       - 'qa_recipe_cross_page_desktop_geometry.mjs'
