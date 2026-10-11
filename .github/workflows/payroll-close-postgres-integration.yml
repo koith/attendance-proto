@@ -1,0 +1,43 @@
+name: payroll-close-postgres-integration
+on:
+  pull_request:
+    paths:
+      - 'qa_payroll_close_postgres_integration.sql'
+      - 'supabase/migrations/20261012063000_payroll_close_require_nonnull_amounts.sql'
+      - '.github/workflows/payroll-close-postgres-integration.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'qa_payroll_close_postgres_integration.sql'
+      - 'supabase/migrations/20261012063000_payroll_close_require_nonnull_amounts.sql'
+      - '.github/workflows/payroll-close-postgres-integration.yml'
+jobs:
+  isolated-payroll-sql:
+    name: Execute payroll close on synthetic PostgreSQL only
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_fixture_only
+          POSTGRES_DB: payroll_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d payroll_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_fixture_only
+      PGDATABASE: payroll_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if unavailable
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Exercise production close SQL with synthetic fixture only
+        run: psql -v ON_ERROR_STOP=1 -f qa_payroll_close_postgres_integration.sql

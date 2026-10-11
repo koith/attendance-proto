@@ -1,0 +1,139 @@
+-- Isolated PostgreSQL 16 integration. No Supabase network access, production
+-- credentials, personnel records, real PINs or live payroll writes.
+\set ON_ERROR_STOP on
+CREATE SCHEMA auth;
+CREATE TABLE auth.users(id uuid primary key,email text);
+CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
+  SELECT jsonb_build_object('role',current_setting('request.jwt.claim.role',true))
+$$;
+CREATE TABLE public.stores(id bigint primary key,is_active boolean,onboarding_status text);
+CREATE TABLE public.admin_users(user_id uuid primary key,admin_role text,store_id bigint);
+CREATE TABLE public.employees(id bigint primary key,name text,store_id bigint,is_active boolean);
+CREATE TABLE public.payroll_period(
+  store_id bigint not null,ym text not null,status text not null,
+  updated_by text,updated_at timestamptz default now(),
+  primary key(store_id,ym)
+);
+CREATE TABLE public.payroll_snapshot(
+  store_id bigint not null,ym text not null,employee_id bigint not null,
+  employee_name text not null,hours numeric,wage integer,weeks integer,
+  base_pay integer,juhyu_pay integer,adjust integer,gross_pay integer,
+  tax_rate numeric,net_pay integer,memo text,source_fingerprint text,
+  closed_by text,closed_at timestamptz default now(),
+  primary key(store_id,ym,employee_id)
+);
+INSERT INTO public.stores VALUES(1,true,'READY'),(2,false,'STAGED');
+INSERT INTO public.admin_users VALUES ('00000000-0000-4000-8000-000000000001','HQ',1);
+INSERT INTO auth.users VALUES('00000000-0000-4000-8000-000000000001','qa@example.invalid');
+INSERT INTO public.employees VALUES(1,'Synthetic employee',1,true),(2,'Another store',2,true);
+SELECT set_config('request.jwt.claim.role','service_role',false);
+
+-- Execute the real migration, not a mocked interpretation of its SQL.
+\i supabase/migrations/20261012063000_payroll_close_require_nonnull_amounts.sql
+
+CREATE OR REPLACE FUNCTION public.assert_payroll_close_error(
+ p_row jsonb,p_error text,p_ym text default '2026-09',
+ p_store bigint default 1) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE observed text;
+BEGIN
+ BEGIN
+  PERFORM public.server_payroll_close_verified(
+    p_store,p_ym,jsonb_build_array(p_row),repeat('a',64),
+    '00000000-0000-4000-8000-000000000001'::uuid);
+  RAISE EXCEPTION 'EXPECTED_REJECTION_WAS_MISSING';
+ EXCEPTION WHEN OTHERS THEN
+  GET STACKED DIAGNOSTICS observed=MESSAGE_TEXT;
+  IF observed IS DISTINCT FROM p_error THEN
+    RAISE EXCEPTION 'Expected %, got %',p_error,observed;
+  END IF;
+ END;
+END
+$$;
+CREATE OR REPLACE FUNCTION public.test_salary_json()
+RETURNS jsonb LANGUAGE sql IMMUTABLE AS $$
+ SELECT jsonb_build_object(
+   'employee_id',1,'employee_name','Synthetic employee',
+   'hours',0,'wage',0,'weeks',0,
+   'base_pay',800000,'juhyu_pay',0,'adjust',0,
+   'gross_pay',800000,'tax_rate',0.033,'net_pay',773600,
+   'memo','Synthetic salary: no punches')
+$$;
+
+DO $$
+DECLARE good jsonb:=public.test_salary_json();
+        key text;
+BEGIN
+ -- Presence is not enough: each required value must be a JSON number.
+ FOREACH key IN ARRAY ARRAY['employee_id','hours','wage','weeks',
+   'base_pay','juhyu_pay','adjust','gross_pay','tax_rate','net_pay']
+ LOOP
+  PERFORM public.assert_payroll_close_error(
+    jsonb_set(good,ARRAY[key],'null'::jsonb),'PAYROLL_ROW_NONNUMERIC_OR_NULL');
+  PERFORM public.assert_payroll_close_error(
+    jsonb_set(good,ARRAY[key],'"garbage"'::jsonb),'PAYROLL_ROW_NONNUMERIC_OR_NULL');
+  PERFORM public.assert_payroll_close_error(
+    good-key,'PAYROLL_ROW_FIELDS_MISSING');
+ END LOOP;
+ PERFORM public.assert_payroll_close_error(
+   jsonb_set(good,'{employee_name}','null'::jsonb),
+   'PAYROLL_ROW_NONNUMERIC_OR_NULL');
+ PERFORM public.assert_payroll_close_error(
+   jsonb_set(good,'{employee_name}','4'::jsonb),
+   'PAYROLL_ROW_NONNUMERIC_OR_NULL');
+ IF EXISTS(SELECT 1 FROM public.payroll_snapshot) THEN
+  RAISE EXCEPTION 'Rejected snapshots unexpectedly persisted';
+ END IF;
+END
+$$;
+
+-- The isolated anon role must not reach the privileged close routine.
+SELECT set_config('request.jwt.claim.role','anon',false);
+SELECT public.assert_payroll_close_error(public.test_salary_json(),'SERVICE_ONLY');
+SELECT set_config('request.jwt.claim.role','service_role',false);
+-- A staged / inactive store must never accept a close.
+SELECT public.assert_payroll_close_error(public.test_salary_json(),'NOT_AUTHORIZED','2026-09',2);
+-- No current/future payroll close, even with a legitimate salary.
+SELECT public.assert_payroll_close_error(public.test_salary_json(),
+ 'CURRENT_OR_FUTURE_MONTH_CANNOT_CLOSE','2099-12');
+
+-- Legitimate month with no timecards must be persisted atomically.
+SELECT public.server_payroll_close_verified(
+ 1,'2026-09',jsonb_build_array(public.test_salary_json()),
+ repeat('a',64),'00000000-0000-4000-8000-000000000001'::uuid);
+
+DO $$
+BEGIN
+ IF (SELECT count(*) FROM public.payroll_snapshot
+   WHERE store_id=1 AND ym='2026-09' AND hours=0 AND base_pay=800000
+     AND gross_pay=800000 AND net_pay=773600)<>1 THEN
+  RAISE EXCEPTION 'Valid zero-punch salaried close did not persist';
+ END IF;
+ IF NOT EXISTS (SELECT 1 FROM public.payroll_period
+   WHERE store_id=1 AND ym='2026-09' AND status='CLOSED') THEN
+  RAISE EXCEPTION 'Close period missing';
+ END IF;
+END $$;
+
+-- Repeating close must not silently replace the immutable monthly snapshot.
+SELECT public.assert_payroll_close_error(public.test_salary_json(),
+ 'PAYROLL_ALREADY_CLOSED','2026-09');
+
+-- Verified weekly-only arrears can be closed without current-month punches.
+SELECT public.server_payroll_close_verified(
+ 1,'2026-08',jsonb_build_array(jsonb_build_object(
+   'employee_id',1,'employee_name','Synthetic employee',
+   'hours',0,'wage',12000,'weeks',0,'base_pay',0,'juhyu_pay',25000,
+   'adjust',0,'gross_pay',25000,'tax_rate',0,'net_pay',25000)),
+ repeat('b',64),'00000000-0000-4000-8000-000000000001'::uuid);
+
+DO $$
+BEGIN
+ IF (SELECT count(*) FROM public.payroll_snapshot)<>2 THEN
+  RAISE EXCEPTION 'Expected two distinct close snapshots';
+ END IF;
+ IF (SELECT juhyu_pay FROM public.payroll_snapshot
+   WHERE ym='2026-08' AND store_id=1 AND employee_id=1)<>25000 THEN
+  RAISE EXCEPTION 'Approved weekly-only accrual missing';
+ END IF;
+END $$;
+\echo PASS: isolated real PostgreSQL close RPC rejects NULL fields, permits verified zero-punch earnings
