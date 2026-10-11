@@ -171,8 +171,23 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   const weeklyDecisionEmployeeIds=new Set(weeklyApprovals
     .filter(a=>String(a.week_start||'').startsWith(ym+'-'))
     .map(a=>Number(a.employee_id)));
+  // Monthly salary is owed by the valid employment period, not by punches.
+  // For inactive staff require an explicitly ended employment period; an
+  // open/inconsistent period must not create indefinite retroactive wages.
+  const [payYear,payMonth]=ym.split('-').map(Number);
+  const monthFirst=ym+'-01',monthLast=ym+'-'+String(new Date(payYear,payMonth,0).getDate()).padStart(2,'0');
+  const terminatedMonthlyEmployeeIds=new Set(emps.filter(e=>{
+    if(isActive(e))return false;
+    const contract=contracts[Number(e.id)];
+    if(contract?.payroll_type!=='MONTHLY'||!(Number(contract.monthly_salary)>0))return false;
+    if(String(contract.effective_from||'')>monthLast||
+      (contract.effective_to&&String(contract.effective_to)<monthFirst))return false;
+    return employmentPeriods.some(p=>Number(p.employee_id)===Number(e.id)&&
+      p.ended_on&&String(p.started_on)<=monthLast&&String(p.ended_on)>=monthFirst);
+  }).map(e=>Number(e.id)));
   const payrollCandidates=emps.filter(e=>isActive(e)||
-    eventEmployeeIds.has(Number(e.id))||weeklyDecisionEmployeeIds.has(Number(e.id)));
+    eventEmployeeIds.has(Number(e.id))||weeklyDecisionEmployeeIds.has(Number(e.id))||
+    terminatedMonthlyEmployeeIds.has(Number(e.id)));
   const weeks = periodWeeks || weeksInMonth(ym);
   const p2=n=>String(n).padStart(2,"0");
   const rows=[]; let totalNet=0, totalGross=0;
@@ -195,7 +210,8 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       return `${monday.getFullYear()}-${p2(monday.getMonth()+1)}`===ym;
     });
     if(!isActive(e)&&!sess.length&&!hasMondayOwnedCompletedWeek&&
-      !weeklyDecisionEmployeeIds.has(Number(e.id)))continue;
+      !weeklyDecisionEmployeeIds.has(Number(e.id))&&
+      !terminatedMonthlyEmployeeIds.has(Number(e.id)))continue;
     const completedSec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
     const liveSec=sess.filter(s=>s.status==="WORKING"&&s.in).reduce((a,x)=>a+Math.max(0,(kstNow()-x.in)/1000),0);
     const sec=completedSec+liveSec;
