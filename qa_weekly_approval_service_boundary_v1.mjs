@@ -22,4 +22,15 @@ assert.match(edge,/if\(calculatedWon!==actualCalculated\)throw new HttpError\(40
 assert.match(edge,/p_calculated_won:actualCalculated/);
 assert.match(edge,/p_approver_id:actor\.userId/);
 assert.doesNotMatch(edge,/userClient\.rpc\("approve_payroll_weekly_allowance"/);
+// The superseded service_role RPCs must not remain callable after the
+// verified store-scoped decision endpoint became canonical.
+const retired=fs.readFileSync('supabase/migrations/20261011223000_revoke_obsolete_weekly_approval_rpcs.sql','utf8');
+for(const name of ['approve_payroll_weekly_allowance','approve_payroll_weekly_allowance_internal',
+  'server_record_weekly_decision_verified']){
+  assert.ok(retired.includes('REVOKE ALL ON FUNCTION public.'+name+'('),
+    name+' must not retain stale service-role access');
+}
+assert.match(retired,/FROM PUBLIC,anon,authenticated,service_role/g);
+assert.doesNotMatch(retired,/REVOKE ALL ON FUNCTION public\.approve_payroll_weekly_decision_internal\(/);
+assert.match(edge,/client\.rpc\("approve_payroll_weekly_decision_internal"/);
 console.log('PASS weekly approvals require authenticated Edge verification and service-only mutation');
