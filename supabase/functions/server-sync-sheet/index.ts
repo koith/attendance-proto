@@ -364,12 +364,18 @@ Deno.serve(async req=>{
       const decision=String(body.decision||"APPROVE").toUpperCase();
       const reason=String(body.reason||"").trim();
       if(!Number.isSafeInteger(employeeId)||employeeId<=0||
-         !/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(weekStart)||!weekStart.startsWith(ym)||
+         !/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(weekStart)||
          !Number.isSafeInteger(calculatedWon)||calculatedWon<0||
          !Number.isSafeInteger(approvedWon)||approvedWon<0||reason.length<3||
          !["APPROVE","REJECT"].includes(decision)||(decision==="REJECT"&&approvedWon!==0))
         throw new HttpError(400,"INVALID_WEEKLY_APPROVAL");
       const weekMonday=new Date(weekStart+"T00:00:00Z");
+      // A week may begin in the prior calendar month; reject unrelated weeks.
+      const monthStart=Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7))-1,1);
+      const nextMonth=Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7)),1);
+      if(!Number.isFinite(weekMonday.getTime())||
+         weekMonday.getTime()<monthStart-6*86400000||weekMonday.getTime()>=nextMonth)
+        throw new HttpError(400,"WEEK_NOT_IN_PAYROLL_MONTH");
       const nowSeoul=seoulParts();
       const nowWall=new Date(nowSeoul.year+"-"+nowSeoul.month+"-"+nowSeoul.day+"T"+nowSeoul.hour+":"+nowSeoul.minute+":00Z");
       if(!Number.isFinite(weekMonday.getTime())||weekMonday.getUTCDay()!==1||
