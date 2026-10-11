@@ -336,6 +336,18 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       if(pay&&nightAllowance>0){pay.nightAllowance=nightAllowance;pay.gross=Math.round(Number(pay.gross||0)+nightAllowance);pay.net=xrounddown(pay.gross*(1-Number(pay.rate||0)),-1);}
     }
     if(pay){pay.nightAllowance=nightAllowance;pay.nightAllowanceLabel=nightAllowanceLabel;}
+    // Never recognize salary, allowances, manual adjustments or substitutions
+    // for a calendar month that has not started in the store's KST timezone.
+    // The current month still shows contract-based projected monthly base pay.
+    const currentPayrollMonth=`${nowWall.getFullYear()}-${p2(nowWall.getMonth()+1)}`;
+    if(pay&&ym>currentPayrollMonth){
+      Object.assign(pay,{
+        base:0,weekly:0,juhyu:0,adjust:0,gross:0,net:0,jweeks:0,
+        substitutePay:0,breakCompPay:0,nightAllowance:0,night:0,
+        weeklyApprovalDelta:0,weeklyCalculatedAmounts:{},accruedDays:0
+      });
+      nightAllowance=0;
+    }
     if(pay){ totalNet+=Number(pay.net||0); totalGross+=Number(pay.gross||0); }
     rows.push({employee_id:e.id, employee_name:e.name, emp:e, hours, sec, sessions:sess, issues, ov,
       hasWage, pay, contract, payrollType, substitutePay, substituteMinutes, nightMinutes, breakEligibleCount, breakConfirmedCount, breakNotProvidedCount, breakCompensateCount, breakBonusMinutes, breakDeductSeconds, breakTimeProvided, breakMode, breakDecisions:[], memo:(ov&&ov.memo)||e.memo||""});
