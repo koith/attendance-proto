@@ -172,13 +172,13 @@ async function smoke(browser,label,viewport){
      ['payroll_close_preview','payroll_close','payroll_reopen'].includes(x.args.mode)).map(x=>x.args.mode);
   assert.deepEqual(closeModes,['payroll_close_preview','payroll_close','payroll_reopen'],'Safe close/reopen flow '+label);
 
-  // Senior-approved management tabs: unfinished report/sales/inventory are not public.
+  // Inha exposes the complete operations navigation; other stores retain three tabs.
   await page.evaluate(()=>{location.hash='#admin'});
   // Waiting for the prior payroll subnav is racy: require the new admin view first.
   await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:18000});
-  await page.waitForFunction(()=>document.querySelectorAll('.admin-subnav-shell .admin-subtabs a').length===3,null,{timeout:12000});
+  await page.waitForFunction(()=>document.querySelectorAll('.admin-subnav-shell .admin-subtabs a').length===6,null,{timeout:12000});
   assert.deepEqual(await page.locator('.admin-subnav-shell .admin-subtabs a').allTextContents(),
-    ['직원 관리','급여','운영시간'],'Management tab visibility '+label);
+    ['리포트','직원 관리','급여','운영시간','매출·매입','재고'],'Inha management tab visibility '+label);
   // Exercise the internal inventory renderer BEFORE testing the blocked public route.
   // A redirect to #admin starts an async admin render which can erase the internal
   // test screen (especially in slower desktop CI) while stock data is loading.
@@ -203,12 +203,9 @@ async function smoke(browser,label,viewport){
   assert.ok(calls.some(x=>x.name==='admin_store_inventory_overview_v3'&&x.args.p_store_id===1),
     'Approved inventory bypassed scoped RPC '+label);
   await page.evaluate(()=>{location.hash='#inventory'});
-  await page.waitForFunction(()=>location.hash==='#admin',null,{timeout:12000});
-  await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:18000});
-  assert.deepEqual(await page.locator('.admin-subnav-shell .admin-subtabs a').allTextContents(),
-    ['직원 관리','급여','운영시간'],'Unreleased route must return to approved admin navigation '+label);
-  assert.equal(await page.locator('.admin-subnav-shell a[href="#inventory"]').count(),0,
-    'Unreleased inventory route exposed '+label);
+  await page.locator('#opsInventoryAdd').waitFor({timeout:12000});
+  assert.equal(await page.locator('.admin-subnav-shell a[href="#inventory"]').count(),1,
+    'Inha inventory tab should be visible '+label);
   await page.evaluate(()=>{location.hash='#attendance'});
   await page.waitForURL(/actual_attendance\.html/,{timeout:20000});
   await page.locator('#monthLabel').waitFor({timeout:20000});

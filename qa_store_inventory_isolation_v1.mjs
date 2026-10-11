@@ -24,11 +24,13 @@ for(const n of ['admin_inventory_overview_v3','admin_inventory_items','admin_inv
  assert.ok(!html.includes('rpc("'+n+'"'),'Unscoped inventory RPC still in app: '+n);
 assert.match(ops,/inventoryUnitConfigSave\(item\.id,s,o,q,!!item\.manual\)/);
 assert.match(html,/operations_v1\.js\?v=20261011v202/);
-assert.match(html,/const APP_VERSION="v0\.203"/);
+assert.match(html,/const APP_VERSION="v0\.204"/);
 assert.doesNotMatch(sql,/UPDATE public\.inventory_movements SET store_id=/);
 // UI rollout is deliberately hidden; the preserved renderer can still be tested internally.
-assert.match(html,/const tabs=\[\["admin","직원 관리"\],\["pay","급여"\],\["hours","운영시간"\]\]/);
-assert.match(html,/else if\(\["report","sales","inventory","ops"\]\.includes\(h\)\)\{location\.hash="#admin";return;\}/);
+assert.match(html,/const tabs=Number\(CURRENT_STORE_ID\)===1/);
+assert.match(html,/\[\["report","리포트"\],\["admin","직원 관리"\]/);
+assert.match(html,/: \[\["admin","직원 관리"\],\["pay","급여"\],\["hours","운영시간"\]\]/);
+assert.match(html,/else if\(\["report","sales","inventory","ops"\]\.includes\(h\)&&Number\(CURRENT_STORE_ID\)!==1\)\{location\.hash="#admin";return;\}/);
 assert.match(refUI,/window\.renderOperations=async tab=>tab==="recipe"\?renderRecipes\(\):originalRender\(tab\)/);
 assert.doesNotMatch(refUI,/tab==="inventory"\?renderInventory\(\)/);
 assert.match(ops,/ops-unit-config-btn/);
