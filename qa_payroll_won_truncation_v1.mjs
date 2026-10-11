@@ -33,7 +33,7 @@ const BE={
     work_start:'2026-10-05T09:00:00'}],
   payrollWeeklyApprovals:async()=>[],
   payrollEmploymentPeriods:async()=>[],
-  employmentBundle:async()=>({contracts:[monthly,hourly],periods:[],workdays:[]})
+  employmentBundle:async id=>({contracts:[monthly,hourly].filter(c=>c.employee_id===id),periods:[],workdays:[]})
 };
 const report=await createPayrollEngine({BE,storeId:1,now:new Date('2026-10-20T05:00:00Z')}).computeMonthPayroll(ym);
 const month=report.rows.find(row=>row.employee_id===991)?.pay;

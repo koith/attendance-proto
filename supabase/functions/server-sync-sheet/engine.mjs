@@ -291,7 +291,9 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
           }
         }
         pay.weeklyReviewComments=weeklyReviewComments;
-        const employeeApprovals=weeklyApprovals.filter(a=>Number(a.employee_id)===Number(e.id));
+        // Keep each Monday-owned week in its own payroll month even if the
+        // source query includes the preceding month's overlapping week.
+        const employeeApprovals=weeklyApprovals.filter(a=>Number(a.employee_id)===Number(e.id)&&String(a.week_start||'').startsWith(ym+'-'));
         const approvedWeeks=new Set();
         let approvalDelta=0;
         for(const a of employeeApprovals){
