@@ -1,0 +1,22 @@
+name: Attendance correction audit reason regression
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261011170000_event_correction_reason_required.sql'
+      - 'qa_event_correction_reason_guard_v1.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20261011170000_event_correction_reason_required.sql'
+      - 'qa_event_correction_reason_guard_v1.mjs'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node qa_event_correction_reason_guard_v1.mjs
