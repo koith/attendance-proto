@@ -611,6 +611,14 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       const pick=chooseContract(row,ym,bundle);
       row.contractMode=pick.mode;row.contractIssue=pick.issue||null;
       row.contract=pick.contract||null;
+      if(pick.monthlySegments&&row.pay){
+        const s=pick.monthlySegments,p=row.pay;
+        p.base=s.base;p.accruedDays=s.accruedDays;p.daysInMonth=s.daysInMonth;
+        p.monthlySegments=s.parts;
+        p.gross=truncateWon(s.base+Number(p.substitutePay||0)+
+          Number(p.adjust||0)+Number(p.nightAllowance||0));
+        p.net=xrounddown(p.gross*(1-Number(p.rate||0)),-1);
+      }
       if(pick.mode==="BLOCKED"||pick.mode==="MISSING_CONTRACT"){row.pay=null;row.hasWage=false}
       if(row.pay){gross+=row.pay.gross;net+=row.pay.net}
     }
