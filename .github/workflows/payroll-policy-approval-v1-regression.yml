@@ -8,6 +8,13 @@ on:
       - 'qa_payroll_monday_month_no_local_work_v1.mjs'
       - 'qa_payroll_inactive_monday_month_v1.mjs'
       - 'qa_payroll_approval_engine_fixture_v1.mjs'
+      - 'qa_payroll_close_server_authority_v1.mjs'
+      - 'qa_payroll_no_local_punch_close_v1.mjs'
+      - 'qa_monthly_segments_report_parity_v1.mjs'
+      - 'qa_hourly_segments_sheet_parity_v1.mjs'
+      - 'qa_payroll_contract_transition_fail_closed_v1.mjs'
+      - 'qa_weekly_decision_end_to_end_v1.mjs'
+      - 'qa_payroll_weekly_substitution_boundary_v1.mjs'
       - 'qa_payroll_week_approval_boundary_source_v1.mjs'
       - 'qa_weekly_approval_rpc_guard_v1.mjs'
       - 'supabase/migrations/20261010013000_weekly_approval_rpc_closed_week.sql'
@@ -36,6 +43,13 @@ jobs:
       - run: node qa_payroll_monday_month_no_local_work_v1.mjs
       - run: node qa_payroll_inactive_monday_month_v1.mjs
       - run: node qa_payroll_approval_engine_fixture_v1.mjs
+      - run: node qa_payroll_close_server_authority_v1.mjs
+      - run: node qa_payroll_no_local_punch_close_v1.mjs
+      - run: node qa_monthly_segments_report_parity_v1.mjs
+      - run: node qa_hourly_segments_sheet_parity_v1.mjs
+      - run: node qa_payroll_contract_transition_fail_closed_v1.mjs
+      - run: node qa_weekly_decision_end_to_end_v1.mjs
+      - run: node qa_payroll_weekly_substitution_boundary_v1.mjs
       - run: node qa_payroll_week_approval_boundary_source_v1.mjs
       - run: node qa_weekly_approval_rpc_guard_v1.mjs
       - run: node qa_payroll_weekly_integration_v1.mjs
