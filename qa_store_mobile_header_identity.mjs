@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const html=fs.readFileSync('index.html','utf8');
-const css=html.match(/\/\* Keep the full store name readable on narrow screens[\s\S]*?\n  \}/)?.[0];
+const css=html.match(/\/\* Keep the approved 2026-10-09 header for standard store names\.[\s\S]*?\n  \}/)?.[0];
 assert.ok(css,'mobile store identity styling missing');
 assert.match(css,/white-space:normal!important/);
 assert.match(css,/overflow-wrap:anywhere!important/);
-assert.match(css,/header \.clock\{margin-left:auto!important/);
+assert.match(css,/header\.long-store-context \.clock\{margin-left:auto!important/);
+assert.match(css,/header\.long-store-context\{flex-wrap:wrap!important/);
+assert.doesNotMatch(css,/\n\s+header\{flex-wrap:wrap!important/);
+assert.match(html,/classList\.toggle\("long-store-context",!dashboard&&\[\.\.\.name\]\.length>9\)/);
 assert.match(html,/if\(STORE_ENTRY_LOCK\)return;/);
 assert.match(html,/const APP_VERSION="v0\.\d+"/);
 console.log('PASS mobile store name visibility and HQ navigation isolation');

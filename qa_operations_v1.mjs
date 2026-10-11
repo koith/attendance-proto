@@ -1,9 +1,14 @@
 import fs from 'node:fs';import assert from 'node:assert/strict';
 const html=fs.readFileSync('index.html','utf8'),js=fs.readFileSync('operations_v1.js','utf8'),css=fs.readFileSync('operations_v1.css','utf8');
 for(const route of ['report','admin','pay','hours','sales','inventory','recipe']) assert.ok(html.includes('"'+route+'"'));
-for(const label of ['리포트','직원','급여','운영시간','매출·매입','재고','레시피']) assert.ok(html.includes(label));
+for(const label of ['직원 관리','급여','운영시간','레시피']) assert.ok(html.includes(label));
+assert.ok(html.includes('const tabs=[["admin","직원 관리"],["pay","급여"],["hours","운영시간"]]'));
+assert.ok(html.includes('else if(["report","sales","inventory","ops"].includes(h)){location.hash="#admin";return;}'));
+assert.ok(!html.includes('[["report","리포트"]'));
+assert.ok(!html.includes('[["inventory","재고"]'));
+assert.ok(js.includes('window.renderOperations=shell'),'Keep private operations renderer for later development');
 assert.ok(!html.includes('>매장운영</a>'));
-for(const tab of ['renderOperations("dashboard")','renderOperations("inquiry")','renderOperations("inventory")']) assert.ok(html.includes(tab));
+for(const tab of ['dashboard','inquiry','inventory']) assert.ok(js.includes('tab==="'+tab+'"')||js.includes(tab+':["'),'Private operations code must be preserved for '+tab);
 assert.ok(html.includes('renderRecipeHub()'),'recipe must use the dedicated top-level recipe renderer');
 assert.ok(!html.includes('["products","상품배포"]'),'product deployment must not be an admin subtab');
 assert.ok(html.includes('window.openHqProductModal?.()'),'dashboard product button must open the modal directly');
