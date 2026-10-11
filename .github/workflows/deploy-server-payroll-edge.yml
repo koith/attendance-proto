@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/server-sync-sheet/**'
+      - 'payroll_contract_authority_v1.js'
       - '.github/workflows/deploy-server-payroll-edge.yml'
   pull_request:
     paths:
       - 'supabase/functions/server-sync-sheet/**'
+      - 'payroll_contract_authority_v1.js'
       - '.github/workflows/deploy-server-payroll-edge.yml'
   workflow_dispatch:
 
