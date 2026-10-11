@@ -34,7 +34,7 @@ const events=[
 ];
 const corrections=[{id:1,event_id:2,employee_id:1,action:'EDIT_TIME',new_event_at:'2026-09-14T19:00:00',reason:'CORRECTED',created_at:'2026-09-20T10:00:00Z'}];
 const overrides=[{employee_id:1,adjust_amount:1000,tax_rate_override:.033}];
-const substitutions=[{id:1,requester_employee_id:1,substitute_employee_id:3,actual_minutes:60}];
+const substitutions=[{id:1,requester_employee_id:1,substitute_employee_id:3,actual_minutes:60,work_start:'2026-09-17T09:00:00'}];
 const bundles={};
 for(const c of contracts)bundles[c.employee_id]={contracts:[c],periods:[],workdays:[]};
 function buildBE(){

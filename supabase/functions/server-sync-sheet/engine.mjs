@@ -201,7 +201,9 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     const breakDeductSeconds=breakTimeProvided?sess.filter(s=>s.status==="COMPLETE").reduce((sum,shift)=>{const t=Math.max(0,Number(shift.sec||0));return sum+Math.min(1800,Math.max(0,t-4*3600))+Math.min(1800,Math.max(0,t-8.5*3600));},0):0;
     const paidHours=secToHours(Math.max(0,sec-breakDeductSeconds));
     const payrollType=contract?.payroll_type||((e.wage||0)>0?"HOURLY":null);
-    const substituteRows=substitutions.filter(x=>Number(x.substitute_employee_id)===Number(e.id));
+    // Payroll earnings belong to their work_start month, but the wider
+    // substitution set is retained for weekly-rest reviews crossing month end.
+    const substituteRows=substitutions.filter(x=>Number(x.substitute_employee_id)===Number(e.id)&&String(x.work_start||'').slice(0,7)===ym);
     const substituteMinutes=substituteRows.reduce((sum,x)=>sum+Math.max(0,Number(x.actual_minutes||0)),0);
     let substitutePay=0;
     for(const sr of substituteRows){
