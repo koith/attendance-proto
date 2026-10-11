@@ -16,7 +16,7 @@ q(/if\(STORE_ENTRY_LOCK&&\(!requested\|\|STORE_ENTRY_INVALID\)\)\{STORE_ENTRY_UN
 q(/const tabs=Number\(CURRENT_STORE_ID\)===1/);
 q(/\["report","리포트"\]/);
 q(/\["inventory","재고"\]/);
-q(/const APP_VERSION="v0\.212"/);
+q(/const APP_VERSION="v0\.213"/);
 assert.ok(!/CURRENT_STORE_ID=STORE_ENTRY_ID\|\|1;[\s\S]{0,500}catch\(e\)\{\}/.test(html),
   'Store identity lookup must not silently swallow readiness failures');
 // Run the shipped URL decoder in isolation: a missing store ID must never become Inha.
