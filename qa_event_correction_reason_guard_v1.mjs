@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const sql=fs.readFileSync('supabase/migrations/20261011170000_event_correction_reason_required.sql','utf8');
+assert.match(sql,/ALTER TABLE public\.event_corrections/);
+assert.match(sql,/ADD CONSTRAINT event_corrections_reason_required/);
+assert.match(sql,/reason IS NOT NULL AND length\(btrim\(reason\)\) > 0/);
+assert.doesNotMatch(sql,/\b(?:UPDATE|DELETE|TRUNCATE|DROP)\b/i,'audit history must not be mutated');
+const base=fs.readFileSync('index.html','utf8');
+assert.match(base,/correctEvent\("VOID"/,'admin void flow must still retain reason');
+assert.match(base,/correctEvent\("ADD"/,'admin add flow must still retain reason');
+console.log('PASS manual correction rows require an audit reason without altering existing history');
