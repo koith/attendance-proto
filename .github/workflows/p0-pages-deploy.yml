@@ -102,6 +102,7 @@ on:
       - 'supabase/migrations/20261010133000_payroll_weekly_internal_verified_rpc.sql'
       - 'qa_server_payroll_fixture_parity_v1.mjs'
       - 'qa_sheet_working_payable_parity_v1.mjs'
+      - 'qa_sheet_monthly_proration_parity_v1.mjs'
       - 'qa_sheet_snapshot_store_scope_v1.mjs'
       - 'supabase/functions/server-sync-sheet/sheet_working_payable.mjs'
       - 'qa_payroll_no_future_month_salary_v1.mjs'
@@ -179,6 +180,7 @@ jobs:
           node qa_server_payroll_parity_v1.mjs
           node qa_server_payroll_fixture_parity_v1.mjs
           node qa_sheet_working_payable_parity_v1.mjs
+          node qa_sheet_monthly_proration_parity_v1.mjs
           node qa_sheet_snapshot_store_scope_v1.mjs
           node qa_live_server_payroll_v1.mjs
           node qa_server_sheet_test_exclusion_v1.mjs
