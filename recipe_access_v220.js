@@ -63,7 +63,23 @@
   };
   const stepsHtml=content=>instructionSteps(content).map((step,i)=>`<div class="recipe-v220-step"><span class="recipe-v220-step-no">${i+1}</span><div>${step.lines.map((line,j)=>`<p class="${j?"sub":""}">${esc(line)}</p>`).join("")}</div></div>`).join("");
   const recipeThumbPlaceholder=row=>{const c=String(row?.category||""),n=String(row?.menu_name||"");let icon="📋",label="제조 레시피";if(c==="대용량 베이스"||/베이스|크림/.test(n)){icon="🥣";label="베이스 제조"}else if(c.startsWith("푸드")){icon="🍽️";label="푸드 조리"}else if(/티백|제공법|추가 옵션/.test(n)){icon="🧾";label="운영 가이드"}else if(/펄/.test(n)){icon="🧋";label="재료 제조"}else if(/티|스윗티/.test(c)){icon="🍵";label="음료 제조"}return '<span class="recipe-v220-thumb-placeholder" aria-label="'+esc(label)+'"><i>'+icon+'</i><small>'+esc(label)+'</small></span>'};
-  const recipeThumb=row=>row.thumbnail_url?'<img src="'+esc(row.thumbnail_url)+'" alt="" loading="lazy">':recipeThumbPlaceholder(row);
+  const recipeThumb=row=>row.thumbnail_url?'<img src="'+esc(row.thumbnail_url)+'" alt="" loading="lazy" data-recipe-thumb="1" data-category="'+esc(row.category||"")+'" data-menu-name="'+esc(row.menu_name||"")+'">':recipeThumbPlaceholder(row);
+  // An official thumbnail may later 404 or fail to load on a poor connection.
+  // Display the same category-appropriate placeholder already used for empty URLs.
+  // Use capturing error delegation so it covers cards and modal details, including
+  // dynamically-rendered content, without inline DOM event handlers.
+  if(!window.__recipeV220ImageFallbackInstalled){
+    document.addEventListener("error",event=>{
+      const image=event.target;
+      if(!image?.matches?.('.recipe-v220-thumb img[data-recipe-thumb]'))return;
+      const target=image.closest('.recipe-v220-thumb');
+      if(!target)return;
+      target.innerHTML=recipeThumbPlaceholder({
+        category:image.dataset.category||"",menu_name:image.dataset.menuName||""
+      });
+    },true);
+    window.__recipeV220ImageFallbackInstalled=true;
+  }
   function recipeDetail(row,manager,refresh){
     const variants=instructionsFor(row),components=Array.isArray(row.components)?row.components:[],source=sourceMaterials(row);
     const m=modal(row.menu_name,`<div class="recipe-v220-detail">
