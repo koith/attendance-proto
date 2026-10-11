@@ -23,14 +23,14 @@ const payload=await engine.buildSheetSyncPayload('2026-10');
 const calculated=await engine.computeMonthPayroll('2026-10');
 const before=structuredClone(payload.attendance);
 assert.equal(before.rows.length,1);
-assert.equal(before.rows[0][5],'근무중');
+assert.equal(before.rows[0][5],'정상','legacy single open session incorrectly labeled normal');
 assert.equal(before.rows[0][10],'0:00','canonical builder retains original parity data');
 assert.equal(calculated.rows[0].sec,16200,'working shift is recognized as elapsed payroll time');
 const actual=attendanceWithWorkingPayable(payload.attendance,calculated);
 assert.equal(actual.rows[0][10],'04:30','writer uses server-accrued working seconds');
 assert.deepEqual(payload.attendance,before,'parity payload remains untouched');
 assert.equal(calculated.rows[0].pay.base,54000,'same raw seconds underlie hourly payroll base');
-assert.equal(actual.rows[0][5],'근무중','working status unchanged');
+assert.equal(actual.rows[0][5],'근무중','writer also corrects a lone ongoing shift status');
 const extras={header:[],rows:[
  ['2026-10-11','Working Sheet QA','12:30','—','근무중','근무중','','','','','0:00'],
  ['2026-10-11','Other employee','09:00','17:00','08:00','정상','','','','','08:00']
