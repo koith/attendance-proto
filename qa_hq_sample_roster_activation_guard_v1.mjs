@@ -23,4 +23,20 @@ assert.doesNotMatch(statements,/\b(?:DELETE|TRUNCATE)\s+(?:FROM\s+)?public\.(?:s
 assert.doesNotMatch(statements,/UPDATE public\.employees/i);
 assert.equal((statements.match(/UPDATE public\.stores SET onboarding_status=p_status/g)||[]).length,1,
   'Existing HQ activation status transition must be the only store update');
+const ui=fs.readFileSync('hq_store_onboarding_ui.js','utf8');
+assert.match(ui,/rpc\("hq_store_sample_roster_counts"\)/);
+assert.match(ui,/!Array\.isArray\(sampleCounts\)/);
+assert.match(ui,/sampleEmployeeCount===0/);
+assert.match(ui,/id="hqSampleRosterBlocker"/);
+assert.match(ui,/id="hqSampleRosterSummary"/);
+const predicate=ui.match(/const canActivate=([^;]+);/)?.[1];
+assert.ok(predicate,'Activation readiness expression missing');
+const {runInNewContext}=await import('node:vm');
+const canActivate=(selected,verified,manager_count,sampleEmployeeCount)=>
+  runInNewContext(predicate,{selected,verified,store:{manager_count},sampleEmployeeCount});
+assert.equal(canActivate(2,true,1,3),false,'Seed staff must block even confirmed owner');
+assert.equal(canActivate(2,true,1,0),true,'Reviewed clean roster permits ready state');
+assert.equal(canActivate(2,false,1,0),false,'Unverified shop cannot activate');
+assert.equal(canActivate(2,true,0,0),false,'Unconfirmed owner cannot activate');
+assert.equal(canActivate(1,true,0,0),true,'Inha existing ready state remains unchanged');
 console.log('PASS seeded sample+demo employees block READY activation; HQ-only aggregate, no deletion, Inha unchanged');
