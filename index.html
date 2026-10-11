@@ -2974,7 +2974,10 @@ async function buildSheetSyncPayload(ym){
   // Preserve the authoritative calculation: these are reporting columns, not a new pay policy.
   const humanPayroll=payRows.map((r,i)=>{
     const rec=R.rows[i];
-    const base=rec.pay?.payrollType==="MONTHLY"?won(rec.pay.monthlySalary):r[4];
+    // Basic salary is the actually earned/prorated amount, not the full
+    // contract monthly salary when employment starts or ends mid-month.
+    // payRows[i][4] already comes from the authoritative rec.pay.base.
+    const base=r[4];
     return [r[0],r[1],r[2],r[3],base,r[5],r[6],
       sheetDuration(rec.breakDeductSeconds||0),
       rec.breakMode==="IGNORED"?"미고려":rec.breakTimeProvided?"제공":"미제공",
