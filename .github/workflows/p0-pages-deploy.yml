@@ -34,6 +34,7 @@ on:
       - 'owner_activation.js'
       - 'qa_admin_context_active_gate_v1.mjs'
       - 'qa_staff_recipe_ready_guard_v1.mjs'
+      - 'qa_payroll_unfinished_month_boundary_v1.mjs'
       - 'supabase/migrations/20261011145000_staff_recipe_ready_guard.sql'
       - 'supabase/migrations/20261011132000_admin_context_active_identity_guard.sql'
       - 'supabase/migrations/20261011030000_owner_role_revocation_guard.sql'
@@ -193,6 +194,7 @@ jobs:
           node qa_payroll_policy_scenarios_v1.mjs
           node qa_payroll_week_boundary_behavior_v1.mjs
           node qa_payroll_month_boundary_v1.mjs
+          node qa_payroll_unfinished_month_boundary_v1.mjs
           node qa_payroll_approval_engine_fixture_v1.mjs
           node qa_server_night_single_premium_v1.mjs
       - name: Verify deploy smoke scripts parse
