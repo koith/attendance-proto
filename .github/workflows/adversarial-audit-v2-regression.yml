@@ -16,5 +16,8 @@ jobs:
         run: node qa_null_pin_auth_fail_closed_v1.mjs
       - name: Substitution candidate and staged-store isolation
         run: node qa_substitution_candidate_store_guard_v1.mjs
-      - name: Employee creator PIN-null rejection
+      - name: Employee PIN creation validation
+        run: node qa_create_employee_pin_required_v1.mjs
+
+      - name: Onboarding PIN creation validation
         run: node qa_staff_creation_pin_required_v1.mjs
