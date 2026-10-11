@@ -17,7 +17,7 @@ function reply(route,value,status=200){
 }
 
 async function configure(page,calls,role='HQ',managerStoreId=null){
-  let working=false, payrollClosed=false,ownerInvited=false,storeVerified=false,stageActivated=false;
+  let working=false, payrollClosed=false,ownerInvited=false,ownerConfirmed=false,storeVerified=false,stageActivated=false;
   await page.addInitScript(()=>{
     localStorage.setItem('baekeok_auth',JSON.stringify({
       access_token:'qa-local-token',refresh_token:'qa-refresh-token'
@@ -32,11 +32,18 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
     calls.push({name,args});
     if(name==='list_stores')return reply(route,role==='STORE_MANAGER'?stores:
       stores.filter(x=>x.id===1||stageActivated));
-    if(name==='hq_stores_onboarding_list')return reply(route,stores.map(x=>({
-      ...x,code:'QA_'+x.id,region_group:'인천',
-      onboarding_status:x.id===1?'READY':stageActivated?'READY':'STAGED',
-      is_active:x.id===1||stageActivated,manager_count:x.id===1?0:ownerInvited?1:0
-    })));
+    if(name==='hq_stores_onboarding_list')return reply(route,[
+      ...stores.map(x=>({
+        ...x,code:'QA_'+x.id,region_group:'인천',
+        onboarding_status:x.id===1?'READY':stageActivated?'READY':'STAGED',
+        is_active:x.id===1||stageActivated,manager_count:x.id===1?0:ownerConfirmed?1:0
+      })),
+      ...Array.from({length:281},(_,i)=>({
+        id:1000+i,name:'준비 지점 '+(1000+i),code:'QA_'+(1000+i),
+        region_group:i%2?'서울':'부산',onboarding_status:'STAGED',
+        is_active:false,manager_count:0
+      }))
+    ]);
     if(name==='hq_store_manager_list')return reply(route,ownerInvited?[
       {user_id:'qa-invited-id',email:'owner@example.invalid',store_id:2,store_name:'송도점'}
     ]:[]);
@@ -109,6 +116,9 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
       active:[],rows:[],weeks:4,overrides:{},totalGross:0,totalNet:0
     }});
   });
+  // Server fixtures can confirm an invitation only after the simulated owner
+  // completes email verification. No email or production auth state is touched.
+  return {confirmOwner:()=>{if(!ownerInvited)throw Error('INVITE_NOT_SENT');ownerConfirmed=true;}};
 }
 async function check(condition,message){assert.ok(condition,message)}
 
@@ -121,7 +131,7 @@ async function smoke(browser,label,viewport){
     if(msg.type()==='error' && /SyntaxError|Invalid or unexpected token|Uncaught/.test(msg.text()))
       errors.push({message:msg.text(),source:msg.location()});
   });
-  await configure(page,calls);
+  const ownerFixture=await configure(page,calls);
   await page.goto(host+'/index.html?mode=store&store=1#pos',{waitUntil:'domcontentloaded'});
   await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
   assert.equal((await page.locator('#appVersion').innerText()).trim(),expectedVersion,'Deployed app version mismatch '+label);
@@ -232,6 +242,14 @@ async function smoke(browser,label,viewport){
   // HQ provisioning must not send a real email: mock Edge and SQL RPCs only.
   await page.evaluate(()=>openAccountMgmt());
   await page.locator('#hqOnboardingStore').waitFor({timeout:12000});
+  assert.match(await page.locator('#hqStoreCounts').innerText(),/등록 283곳 · 운영 1 · 준비 282/);
+  await page.locator('#hqStoreSearch').fill('송도');
+  await page.waitForFunction(()=>document.querySelectorAll('#hqOnboardingStore option').length===1);
+  assert.match(await page.locator('#hqOnboardingStore').innerText(),/송도점/);
+  await page.locator('#hqStoreStatusFilter').selectOption('READY');
+  assert.equal(await page.locator('#hqOnboardingStore').isDisabled(),true,
+    'READY filter must not match unactivated Songdo '+label);
+  await page.locator('#hqStoreStatusFilter').selectOption('STAGED');
   await page.locator('#hqOnboardingStore').selectOption('2');
   assert.match(await page.locator('#hqOnboardingBody').innerText(),/STAGED/);
   assert.equal(await page.locator('#hqStoreReady').isDisabled(),true,'Unverified store must not activate '+label);
@@ -243,13 +261,26 @@ async function smoke(browser,label,viewport){
   assert.equal(await page.locator('#hqStoreReady').isDisabled(),true,'Invitation without verification must not activate '+label);
   await page.locator('#hqStoreEvidence').fill('QA verified official shop record');
   await page.locator('#hqStoreVerify').click();
-  await page.waitForFunction(()=>document.querySelector('#hqStoreReady')?.disabled===false,null,{timeout:12000});
+  await page.waitForFunction(()=>document.querySelector('#hqOnboardingBody')?.innerText.includes('VERIFIED'),
+    null,{timeout:12000});
+  assert.equal(await page.locator('#hqStoreReady').isDisabled(),true,
+    'Verified branch with an unconfirmed invite must remain inactive '+label);
+  assert.equal(calls.filter(x=>x.name==='hq_store_onboarding_set').length,0,
+    'Unconfirmed owner must never activate a store '+label);
+  ownerFixture.confirmOwner();
+  await page.locator('#hqStoreRefresh').click();
+  await page.waitForFunction(()=>document.querySelector('#hqStoreReady')?.disabled===false,
+    null,{timeout:12000});
   assert.ok(calls.some(x=>x.name==='hq_store_provenance_review'&&x.args.p_store_id===2&&
      x.args.p_decision==='VERIFIED'&&x.args.p_evidence_reference==='QA verified official shop record'),
      'HQ verification audit was not recorded '+label);
   await page.locator('#hqStoreReady').click();
   await page.locator('#hqStoreLink').waitFor({timeout:12000});
   assert.match(await page.locator('#hqStoreLink').getAttribute('href'),/mode=store&store=2#pos/);
+  assert.match(await page.locator('#hqStoreShareUrl').inputValue(),/mode=store&store=2#pos/);
+  await page.locator('#hqStoreShareUrl').click();
+  assert.equal(await page.locator('#hqStoreShareUrl').evaluate(el=>el.selectionStart),0,
+    'READY store URL should be easy to copy '+label);
   await page.locator('#accountClose').click();
 
   await page.locator('.hq-store-panel button').first().click();
