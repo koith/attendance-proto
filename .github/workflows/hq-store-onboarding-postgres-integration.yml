@@ -1,0 +1,43 @@
+name: hq-store-onboarding-postgres-integration
+on:
+  pull_request:
+    paths:
+      - 'qa_hq_store_onboarding_postgres_integration.sql'
+      - 'supabase/migrations/20261011130000_hq_sample_roster_activation_guard.sql'
+      - '.github/workflows/hq-store-onboarding-postgres-integration.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'qa_hq_store_onboarding_postgres_integration.sql'
+      - 'supabase/migrations/20261011130000_hq_sample_roster_activation_guard.sql'
+      - '.github/workflows/hq-store-onboarding-postgres-integration.yml'
+jobs:
+  hq-isolated-activation-sql:
+    name: Verify HQ readiness gates using disposable synthetic PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_fixture_only
+          POSTGRES_DB: hq_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d hq_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_fixture_only
+      PGDATABASE: hq_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if unavailable
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Verify actual HQ activation and isolation function, synthetic data only
+        run: psql -v ON_ERROR_STOP=1 -f qa_hq_store_onboarding_postgres_integration.sql
