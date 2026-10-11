@@ -35,7 +35,7 @@ window.mountHqStoreOnboarding=async function(box){
     '<div id="hqOnboardingBody" aria-live="polite">지점 정보를 불러오는 중…</div>';
   box.appendChild(section);
   const body=section.querySelector("#hqOnboardingBody");
-  let stores=[],managers=[],proofs=[],selected=1,busy=false;
+  let stores=[],managers=[],proofs=[],selected=1,busy=false,searchTerm="",statusFilter="ALL";
   const message=(title,detail)=>{if(typeof toast==="function")toast("in",title,detail);};
   const err=error=>{if(typeof toast==="function")toast("err","지점 설정 실패",String(error?.message||error));};
   async function refresh(){
@@ -58,11 +58,27 @@ window.mountHqStoreOnboarding=async function(box){
     const proof=proofs.find(p=>Number(p.store_id)===selected);
     const verified=selected===1||proof?.decision==="VERIFIED";
     const canActivate=selected===1||(verified&&Number(store?.manager_count||0)>0);
+    const readyCount=stores.filter(s=>s.onboarding_status==="READY").length;
+    const stagedCount=stores.filter(s=>s.onboarding_status==="STAGED").length;
+    const suspendedCount=stores.filter(s=>s.onboarding_status==="SUSPENDED").length;
     body.innerHTML=
-      '<div class="field"><label for="hqOnboardingStore">대상 지점</label><select id="hqOnboardingStore" class="form-control">'+
-      stores.map(s=>'<option value="'+Number(s.id)+'"'+(Number(s.id)===selected?' selected':'')+'>'+
-        escapeHTML(s.name)+' ('+Number(s.id)+', '+escapeHTML(s.onboarding_status)+')</option>').join("")+
-      '</select></div>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:9px">'+
+        '<div id="hqStoreCounts" style="font-size:.84rem">등록 '+stores.length+'곳 · 운영 '+readyCount+' · 준비 '+stagedCount+' · 중지 '+suspendedCount+'</div>'+
+        '<button type="button" id="hqStoreRefresh" class="btn btn-secondary btn-sm">정보 새로고침</button></div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">'+
+        '<div class="field"><label for="hqStoreSearch">지점명·코드·지역 검색</label>'+
+          '<input id="hqStoreSearch" class="form-control" type="search" autocomplete="off" placeholder="예: 송도점" value="'+escapeHTML(searchTerm)+'"></div>'+
+        '<div class="field"><label for="hqStoreStatusFilter">운영 상태 필터</label>'+
+          '<select id="hqStoreStatusFilter" class="form-control">'+
+          '<option value="ALL"'+(statusFilter==="ALL"?' selected':'')+'>전체</option>'+
+          '<option value="READY"'+(statusFilter==="READY"?' selected':'')+'>운영 중</option>'+
+          '<option value="STAGED"'+(statusFilter==="STAGED"?' selected':'')+'>준비 중</option>'+
+          '<option value="SUSPENDED"'+(statusFilter==="SUSPENDED"?' selected':'')+'>일시중지</option>'+
+          '</select></div></div>'+
+      '<div class="field"><label for="hqOnboardingStore">대상 지점 <span id="hqStoreSearchCount"></span></label>'+
+        '<select id="hqOnboardingStore" class="form-control"></select></div>'+
+      '<div style="font-size:.77rem;color:var(--text-muted);margin-bottom:8px">현재 선택: <strong>'+escapeHTML(store?.name||"없음")+
+        '</strong> · 검색 결과에서 새 지점을 선택하면 아래 관리 대상이 변경됩니다.</div>'+
       '<div style="margin:8px 0;font-size:.85rem">상태: <strong>'+escapeHTML(store?.onboarding_status||"UNKNOWN")+
       '</strong> · 배정된 점주 '+list.length+'명 · 이메일 확인 완료 '+Number(store?.manager_count||0)+'명 · 실재 확인 <strong>'+escapeHTML(selected===1?"기존 운영점":proof?.decision||"미확인")+'</strong></div>'+
       '<div style="font-size:.77rem;color:var(--text-muted);margin:6px 0 8px">운영 활성화 전 공식 가맹점 확인과 이메일 인증을 완료한 점주 계정이 필요합니다. 기존 시연용 직원 자료는 별도 점검 후 정리해야 합니다.</div>'+
@@ -76,6 +92,8 @@ window.mountHqStoreOnboarding=async function(box){
       '<button type="button" class="btn btn-secondary btn-sm" id="hqStoreSuspend"'+(Number(selected)===1?' disabled':'')+'>지점 일시중지</button>'+
       (ready?'<a class="btn btn-secondary btn-sm" id="hqStoreLink" href="'+escapeHTML(entryUrl(selected))+
         '" target="_blank" rel="noopener noreferrer">지점 전용 페이지 열기</a>':'')+'</div>'+
+      (ready?'<div class="field"><label for="hqStoreShareUrl">점주 공유용 지점 주소 (클릭하여 선택)</label>'+
+        '<input id="hqStoreShareUrl" class="form-control" type="text" readonly value="'+escapeHTML(entryUrl(selected))+'"></div>':'')+
       '<div class="field"><label for="hqManagerEmail">점주 로그인 이메일</label><input id="hqManagerEmail" class="form-control" type="email" autocomplete="off" placeholder="owner@example.com"></div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px">'+
       '<button type="button" class="btn btn-secondary btn-sm" id="hqManagerAssign">기존 계정에 점주 권한 부여</button>'+
@@ -93,9 +111,30 @@ window.mountHqStoreOnboarding=async function(box){
       '<input class="form-control" id="hqNewStoreRegion" placeholder="지역 (선택)">'+
       '<button type="button" class="btn btn-secondary btn-sm" id="hqNewStoreCreate">준비 상태로 등록</button>'+
       '</div></details>';
-    body.querySelector("#hqOnboardingStore").onchange=e=>{
-      selected=Number(e.target.value);render();
+    const storePicker=body.querySelector("#hqOnboardingStore");
+    const updateChoices=()=>{
+      const needle=searchTerm.trim().toLocaleLowerCase("ko-KR");
+      const rows=stores.filter(s=>
+        (statusFilter==="ALL"||s.onboarding_status===statusFilter)&&
+        (!needle||[s.name,s.code,s.region_group,s.id].some(v=>String(v??"").toLocaleLowerCase("ko-KR").includes(needle))));
+      const included=rows.some(s=>Number(s.id)===selected);
+      storePicker.innerHTML=(included?"":'<option value="" selected disabled>검색 결과에서 지점을 선택하세요</option>')+
+        rows.map(s=>'<option value="'+Number(s.id)+'">'+escapeHTML(s.name)+' ('+Number(s.id)+', '+
+          escapeHTML(s.onboarding_status)+')</option>').join("");
+      if(included)storePicker.value=String(selected);
+      body.querySelector("#hqStoreSearchCount").textContent="("+rows.length+"곳)";
+      storePicker.disabled=rows.length===0;
     };
+    body.querySelector("#hqStoreSearch").oninput=e=>{searchTerm=e.target.value;updateChoices();};
+    body.querySelector("#hqStoreStatusFilter").onchange=e=>{statusFilter=e.target.value;updateChoices();};
+    storePicker.onchange=e=>{if(!e.target.value)return;selected=Number(e.target.value);render();};
+    body.querySelector("#hqStoreRefresh").onclick=()=>{
+      if(busy)return;busy=true;
+      refresh().catch(err).finally(()=>{busy=false;});
+    };
+    const share=body.querySelector("#hqStoreShareUrl");
+    if(share)share.onclick=()=>share.select();
+    updateChoices();
     const verifyStore=(decision)=>{
       const evidence=body.querySelector("#hqStoreEvidence").value.trim();
       if(evidence.length<15)return err("실제 지점임을 확인한 공식 출처와 확인 근거를 15자 이상 입력하세요.");
