@@ -28,6 +28,8 @@ on:
       - 'qa_weekly_decision_end_to_end_v1.mjs'
       - 'supabase/migrations/20261010234500_weekly_append_only_decisions.sql'
       - 'supabase/migrations/20261011191500_weekly_cross_month_close_guard.sql'
+      - 'supabase/migrations/20261011193500_weekly_scoped_close_lock.sql'
+      - 'qa_weekly_scoped_close_lock_v1.mjs'
       - 'qa_weekly_cross_month_close_guard_v1.mjs'
       - 'qa_payroll_close_server_authority_v1.mjs'
       - 'qa_store_payroll_isolation_v1.mjs'
@@ -221,6 +223,7 @@ jobs:
           node qa_weekly_approval_service_boundary_v1.mjs
           node qa_weekly_decision_end_to_end_v1.mjs
           node qa_weekly_cross_month_close_guard_v1.mjs
+          node qa_weekly_scoped_close_lock_v1.mjs
           node qa_payroll_policy_scenarios_v1.mjs
           node qa_payroll_week_boundary_behavior_v1.mjs
           node qa_payroll_month_boundary_v1.mjs
