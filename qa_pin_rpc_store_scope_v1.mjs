@@ -12,6 +12,7 @@ function body(name){
   assert.ok(begin>start && end>begin,'Missing function body: '+name);
   return sql.slice(begin,end);
 }
+assert.equal((sql.match(/\$function\$;/g)||[]).length,6, 'All six Postgres CREATE FUNCTION statements require terminators');
 const names=['punch','my_events','request_correction','substitution_request_create',
   'substitution_request_respond','substitution_clock_in'];
 assert.equal((sql.match(/CREATE OR REPLACE FUNCTION public\./g)||[]).length,names.length);
