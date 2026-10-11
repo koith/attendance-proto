@@ -129,7 +129,13 @@ function payrollClosingRows(report){
     throw new HttpError(409,"EMPLOYEE_PAY_RULE_MISSING");
   const rows=relevant.filter(r=>r.pay && r.payrollType);
   if(!rows.length)throw new HttpError(409,"NO_PAYROLL_ROWS_TO_CLOSE");
-  if(rows.every(r=>Number(r.sec||0)===0))throw new HttpError(409,"NO_COMPLETED_WORK_FOR_MONTH");
+  // A verified monthly salary or Monday-owned weekly allowance may be owed
+  // with no punches in the selected calendar month. Keep the zero-work
+  // safeguard for unsupported hourly/adjustment-only payouts.
+  if(rows.every(r=>Number(r.sec||0)===0&&
+    !(r.payrollType==="MONTHLY"&&Number(r.pay?.base||0)>0)&&
+    Number(r.pay?.juhyu||0)<=0))
+    throw new HttpError(409,"NO_COMPLETED_WORK_FOR_MONTH");
   return rows.map(r=>{
     const p=r.pay;
     const row={

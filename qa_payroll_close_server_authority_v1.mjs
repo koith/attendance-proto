@@ -28,6 +28,33 @@ failed.rows[0].sessions=[{status:'COMPLETE'}];failed.rows[0].issues=1;
 assert.throws(()=>closingRows(failed),/UNRESOLVED_ATTENDANCE_SESSIONS/);
 failed.rows[0].issues=0;failed.rows[0].sec=0;
 assert.throws(()=>closingRows(failed),/NO_COMPLETED_WORK_FOR_MONTH/);
+// A fixed-salary employee without timecards earns salary by active or
+// terminated employment dates. The server must allow an immutable close.
+const monthlyOnly=structuredClone(fixture);
+monthlyOnly.rows=[{employee_id:181,employee_name:'Salaried earned month',emp:{memo:''},
+  payrollType:'MONTHLY',contractMode:'MONTHLY',hours:0,sec:0,issues:0,sessions:[],
+  pay:{wage:0,base:838709,juhyu:0,adjust:0,gross:838709,net:838700,rate:0,jweeks:0}}];
+assert.equal(closingRows(monthlyOnly)[0].base_pay,838709,
+  'Prorated final salary without timecard must remain closable');
+const weeklyOnly=structuredClone(monthlyOnly);
+weeklyOnly.rows[0]={employee_id:182,employee_name:'Monday-owned weekly allowance',
+  emp:{memo:''},payrollType:'HOURLY',contractMode:'CONTRACT',
+  hours:0,sec:0,issues:0,sessions:[],
+  pay:{wage:12000,base:0,juhyu:25000,adjust:0,gross:25000,net:25000,rate:0,jweeks:0}};
+assert.equal(closingRows(weeklyOnly)[0].juhyu_pay,25000,
+  'Audited prior-Monday month weekly-only allowance must be closable');
+const unsupported=structuredClone(weeklyOnly);
+unsupported.rows[0].pay={...unsupported.rows[0].pay,juhyu:0,adjust:12345,gross:12345,net:12345};
+assert.throws(()=>closingRows(unsupported),/NO_COMPLETED_WORK_FOR_MONTH/,
+  'Unverified adjustments alone cannot bypass the no-work guard');
+const zeroSalary=structuredClone(monthlyOnly);
+zeroSalary.rows[0].pay={...zeroSalary.rows[0].pay,base:0,gross:0,net:0};
+assert.throws(()=>closingRows(zeroSalary),/NO_COMPLETED_WORK_FOR_MONTH/,
+  'Zero-value monthly salary is not a legitimate close exception');
+const unresolvedMonthly=structuredClone(monthlyOnly);
+unresolvedMonthly.rows[0].sessions=[{status:'WORKING'}];
+assert.throws(()=>closingRows(unresolvedMonthly),/UNRESOLVED_ATTENDANCE_SESSIONS/,
+  'Salary without complete timecards cannot bypass unfinished-shift gate');
 const missingPay=structuredClone(fixture);
 missingPay.rows.push({employee_id:789,employee_name:'Unclassified worker',emp:{memo:''},payrollType:null,pay:null,
   sec:3600,sessions:[{status:'COMPLETE'}],issues:0});
