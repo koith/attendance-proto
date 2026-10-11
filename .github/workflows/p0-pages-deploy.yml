@@ -38,6 +38,7 @@ on:
       - 'qa_recipe_staff_shift_only_v1.mjs'
       - 'supabase/migrations/20261011172000_revoke_public_recipe_instructions.sql'
       - 'qa_payroll_unfinished_month_boundary_v1.mjs'
+      - 'qa_attendance_correction_tiebreak_v1.mjs'
       - 'qa_event_correction_reason_guard_v1.mjs'
       - 'supabase/migrations/20261011170000_event_correction_reason_required.sql'
       - 'supabase/migrations/20261011145000_staff_recipe_ready_guard.sql'
@@ -205,6 +206,7 @@ jobs:
           node qa_payroll_policy_scenarios_v1.mjs
           node qa_payroll_week_boundary_behavior_v1.mjs
           node qa_payroll_month_boundary_v1.mjs
+          node qa_attendance_correction_tiebreak_v1.mjs
           node qa_payroll_unfinished_month_boundary_v1.mjs
           node qa_payroll_approval_engine_fixture_v1.mjs
           node qa_server_night_single_premium_v1.mjs
