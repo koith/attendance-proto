@@ -322,8 +322,9 @@ async function blockedStoreRoute(browser,label,viewport){
   const page=await context.newPage();const calls=[],errors=[];
   page.on('pageerror',e=>errors.push(String(e?.message||e)));
   await configure(page,calls,'HQ');
-  for(const id of ['2','999999','invalid','0']){
-    await page.goto(host+'/index.html?mode=store&store='+id+'#pos',{waitUntil:'domcontentloaded'});
+  for(const id of ['2','999999','invalid','0',null]){
+    const url=id===null?'/index.html?mode=store#pos':'/index.html?mode=store&store='+id+'#pos';
+    await page.goto(host+url,{waitUntil:'domcontentloaded'});
     await page.getByText('지점 운영 준비 중').waitFor({timeout:15000});
     assert.equal(await page.locator('#empGrid .emp').count(),0,
       'Blocked store must not display Inha employee cards '+label+'/'+id);
