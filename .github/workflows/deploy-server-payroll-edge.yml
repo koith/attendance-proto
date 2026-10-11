@@ -41,10 +41,13 @@ jobs:
           node qa_weekly_approval_service_boundary_v1.mjs
           node qa_payroll_month_boundary_v1.mjs
           node qa_monthly_contract_salary_authority_v1.mjs
+          node qa_payroll_no_future_month_salary_v1.mjs
           node qa_payroll_week_boundary_behavior_v1.mjs
           node qa_server_payroll_fixture_parity_v1.mjs
           node qa_attendance_correction_tiebreak_v1.mjs
+          node qa_sheet_working_payable_parity_v1.mjs
           node qa_server_night_single_premium_v1.mjs
+          node qa_night_completed_only_allowance_v1.mjs
           node qa_night_pay_seconds_v1.mjs
           node qa_actual_attendance_store_scope_v1.mjs
 

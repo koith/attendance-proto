@@ -44,8 +44,6 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     if(c.action==="ADD"){ added.push(c); continue; }
     // 같은 event_id의 보정 중 최신만 유효
     if(c.event_id!=null){ const prev=corrByEvent[c.event_id];
-      // created_at can be identical for two audit rows: the higher correction id wins.
-      // Always use the same deterministic newest-event ordering as database RPCs.
       const at=new Date(c.created_at).getTime(),prior=prev?new Date(prev.created_at).getTime():-Infinity;
       if(!prev || at>prior || (at===prior && Number(c.id)>Number(prev.id))) corrByEvent[c.event_id]=c; }
   }
@@ -339,6 +337,18 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       if(pay&&nightAllowance>0){pay.nightAllowance=nightAllowance;pay.gross=Math.round(Number(pay.gross||0)+nightAllowance);pay.net=xrounddown(pay.gross*(1-Number(pay.rate||0)),-1);}
     }
     if(pay){pay.nightAllowance=nightAllowance;pay.nightAllowanceLabel=nightAllowanceLabel;}
+    // Never recognize salary, allowances, manual adjustments or substitutions
+    // for a calendar month that has not started in the store's KST timezone.
+    // The current month still shows contract-based projected monthly base pay.
+    const currentPayrollMonth=`${nowWall.getFullYear()}-${p2(nowWall.getMonth()+1)}`;
+    if(pay&&ym>currentPayrollMonth){
+      Object.assign(pay,{
+        base:0,weekly:0,juhyu:0,adjust:0,gross:0,net:0,jweeks:0,
+        substitutePay:0,breakCompPay:0,nightAllowance:0,night:0,
+        weeklyApprovalDelta:0,weeklyCalculatedAmounts:{},accruedDays:0
+      });
+      nightAllowance=0;
+    }
     if(pay){ totalNet+=Number(pay.net||0); totalGross+=Number(pay.gross||0); }
     rows.push({employee_id:e.id, employee_name:e.name, emp:e, hours, sec, sessions:sess, issues, ov,
       hasWage, pay, contract, payrollType, substitutePay, substituteMinutes, nightMinutes, breakEligibleCount, breakConfirmedCount, breakNotProvidedCount, breakCompensateCount, breakBonusMinutes, breakDeductSeconds, breakTimeProvided, breakMode, breakDecisions:[], memo:(ov&&ov.memo)||e.memo||""});
@@ -479,8 +489,8 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   const covers=(c,d)=>d&&String(c.effective_from)<=d&&(!c.effective_to||String(c.effective_to)>=d);
   const termsKey=c=>[c.payroll_type,c.hourly_wage,c.monthly_salary,c.weekly_contracted_minutes,c.tax_treatment,c.business_deduction_rate,c.night_allowance_enabled,c.night_allowance_mode,c.night_allowance_value,c.night_allowance_start,c.night_allowance_end].join('|');
   function chooseContract(row,ym,b){const contracts=(b.contracts||[]).filter(c=>overlaps(c,monthBounds(ym))).sort((a,z)=>String(z.effective_from).localeCompare(String(a.effective_from)));if(!contracts.length)return {mode:'MISSING_CONTRACT',issue:'계약조건 미등록 · 급여 계산 보류'};const payable=(row.sessions||[]).filter(s=>(s.status==='COMPLETE'||s.status==='WORKING')&&s.in);const used=contracts.filter(c=>payable.some(s=>covers(c,dayKey(s.in))));const candidates=used.length?used:contracts;const displayContract=candidates[0]||contracts[0]||null;if(candidates.some(c=>c.tax_treatment==='FOUR_INSURANCE'))return {mode:'BLOCKED',contract:displayContract,issue:'4대보험 공제 계산정책 미확정'};if(candidates.some(c=>c.payroll_type==='MONTHLY')){if(candidates.some(c=>c.payroll_type!=='MONTHLY'))return {mode:'BLOCKED',contract:displayContract,issue:'월중 급여유형 변경 · 구간별 급여 계산 확인 필요'};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'MONTHLY',contract:candidates[0]};}if(candidates.some(c=>c.payroll_type!=='HOURLY'||c.tax_treatment!=='BUSINESS_INCOME'))return {mode:'BLOCKED',contract:displayContract,issue:'급여 계약조건 확인 필요'};const uncoveredDays=[...new Set(payable.filter(s=>!contracts.some(c=>covers(c,dayKey(s.in)))).map(s=>dayKey(s.in)))];if(uncoveredDays.length)return {mode:'BLOCKED',contract:displayContract,issue:`계약기간 밖 실근무 ${uncoveredDays.join(', ')} · 급여 확인 필요`};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'CONTRACT',contract:candidates[0]}}
-  const nightMin=s=>{const m=/^([01]\d|2[0-3]):([0-5]\d)/.exec(String(s??''));return m?Number(m[1])*60+Number(m[2]):null};
-  function nightOverlap(sessions,start,end){const sm=nightMin(start),em=nightMin(end);if(sm==null||em==null)return 0;let sec=0;for(const x of sessions||[]){if(!['COMPLETE','WORKING'].includes(x.status)||!x.in)continue;const out=x.out||kstNow();if(out<=x.in)continue;for(let d=new Date(x.in.getFullYear(),x.in.getMonth(),x.in.getDate()-1);d<=out;d.setDate(d.getDate()+1)){const a=new Date(d.getFullYear(),d.getMonth(),d.getDate(),Math.floor(sm/60),sm%60),b=new Date(d.getFullYear(),d.getMonth(),d.getDate()+(em<=sm?1:0),Math.floor(em/60),em%60),lo=Math.max(x.in,a),hi=Math.min(out,b);if(hi>lo)sec+=(hi-lo)/1000}}return sec}
+  const nightSecond=s=>{const m=/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/.exec(String(s??''));return m?Number(m[1])*3600+Number(m[2])*60+Number(m[3]||0):null};
+  function nightOverlap(sessions,start,end){const sm=nightSecond(start),em=nightSecond(end);if(sm==null||em==null)return 0;let sec=0;for(const x of sessions||[]){if(!['COMPLETE','WORKING'].includes(x.status)||!x.in)continue;const out=x.out||kstNow();if(out<=x.in)continue;for(let d=new Date(x.in.getFullYear(),x.in.getMonth(),x.in.getDate()-1);d<=out;d.setDate(d.getDate()+1)){const a=new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,0,sm),b=new Date(d.getFullYear(),d.getMonth(),d.getDate()+(em<=sm?1:0),0,0,em),lo=Math.max(x.in,a),hi=Math.min(out,b);if(hi>lo)sec+=(hi-lo)/1000}}return sec}
   // The browser's loaded wrapper order is live-accrual -> contract authority -> night.
   const browserBase=computeMonthPayroll;
   computeMonthPayroll=async function(ym){
@@ -501,7 +511,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     for(const row of R.rows){
       const c=row.contract,p=row.pay;
       if(p&&c?.night_allowance_enabled){
-        p.nightHours=nightOverlap(row.sessions,c.night_allowance_start||'22:00',c.night_allowance_end||'06:00')/3600;
+        p.nightHours=nightOverlap(row.sessions.filter(shift=>shift.status==='COMPLETE'&&shift.in&&shift.out),c.night_allowance_start||'22:00',c.night_allowance_end||'06:00')/3600;
         p.night=Number(p.nightAllowance||0);
       }
     }

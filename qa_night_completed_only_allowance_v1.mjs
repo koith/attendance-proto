@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {createPayrollEngine} from './supabase/functions/server-sync-sheet/engine.mjs';
+const id=991287,contract={id:95,contract_id:95,employee_id:id,effective_from:'2026-10-01',payroll_type:'HOURLY',hourly_wage:12000,weekly_contracted_minutes:0,tax_treatment:'BUSINESS_INCOME',business_deduction_rate:0,break_provision_mode:'IGNORED',night_allowance_enabled:true,night_allowance_mode:'RATE',night_allowance_value:50,night_allowance_start:'22:00',night_allowance_end:'06:00'};
+const events=[['2026-10-05T22:00:00','IN'],['2026-10-06T02:00:00','OUT'],['2026-10-20T22:00:00','IN']].map(([event_at,event_type],i)=>({id:i+1,employee_id:id,event_at,event_type}));
+const BE={allEmployees:async()=>[{id,is_active:true,wage:12000,tax_rate:0}],eventsWithCorrections:async()=>({events,corrections:[]}),payrollPeriod:async()=>({period:{weeks:0},overrides:[]}),payrollContracts:async()=>[contract],payrollContractWorkdays:async()=>[],payrollSubstitutions:async()=>[],payrollWeeklyApprovals:async()=>[],payrollEmploymentPeriods:async()=>[],employmentBundle:async()=>({contracts:[contract],periods:[],workdays:[]})};
+const result=await createPayrollEngine({BE,storeId:1,now:new Date('2026-10-20T14:00:00Z')}).computeMonthPayroll('2026-10');
+const row=result.rows[0];
+assert.equal(row.nightMinutes,240);
+assert.equal(row.pay.nightHours,4);
+assert.equal(row.pay.nightAllowance,24000);
+assert.equal(row.pay.base,60000);
+assert.equal(row.pay.gross,84000);
+console.log('PASS completed night premium excludes active shift while base accrues');

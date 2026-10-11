@@ -36,6 +36,12 @@ on:
       - 'qa_staff_recipe_ready_guard_v1.mjs'
       - 'recipe_access_v220.js'
       - 'qa_recipe_staff_shift_only_v1.mjs'
+      - 'qa_recipe_no_static_instruction_leak_v1.mjs'
+      - 'qa_public_recipe_asset_health_v1.mjs'
+      - 'supabase/migrations/20261011183000_lock_source_recipe_helpers.sql'
+      - 'operations_reference_v208.js'
+      - 'operations_reference_ui_v208.js'
+      - 'recipe_access_v220.js'
       - 'supabase/migrations/20261011172000_revoke_public_recipe_instructions.sql'
       - 'qa_payroll_unfinished_month_boundary_v1.mjs'
       - 'qa_attendance_correction_tiebreak_v1.mjs'
@@ -82,6 +88,10 @@ on:
       - 'supabase/functions/server-sync-sheet/index.ts'
       - 'supabase/migrations/20261010133000_payroll_weekly_internal_verified_rpc.sql'
       - 'qa_server_payroll_fixture_parity_v1.mjs'
+      - 'qa_sheet_working_payable_parity_v1.mjs'
+      - 'supabase/functions/server-sync-sheet/sheet_working_payable.mjs'
+      - 'qa_payroll_no_future_month_salary_v1.mjs'
+      - 'payroll_night_allowance_v1.js'
       - 'qa_live_server_payroll_v1.mjs'
       - 'qa_production_deployment_health_v1.mjs'
       - 'qa_browser_app_smoke.mjs'
@@ -154,6 +164,7 @@ jobs:
           node qa_deployment_sheet_transient_retry_v1.mjs
           node qa_server_payroll_parity_v1.mjs
           node qa_server_payroll_fixture_parity_v1.mjs
+          node qa_sheet_working_payable_parity_v1.mjs
           node qa_live_server_payroll_v1.mjs
           node qa_server_sheet_test_exclusion_v1.mjs
       - name: Store payroll isolation QA
@@ -177,6 +188,10 @@ jobs:
         run: |
           node --check recipe_access_v220.js
           node qa_recipe_staff_shift_only_v1.mjs
+      - name: Source recipe must not ship in the anonymous Pages bundle
+        run: |
+          node --check operations_reference_ui_v208.js
+          node qa_recipe_no_static_instruction_leak_v1.mjs
       - name: Attendance correction reason audit regression
         run: node qa_event_correction_reason_guard_v1.mjs
       - name: READY-only dedicated store route regression
@@ -207,6 +222,7 @@ jobs:
           node qa_payroll_week_boundary_behavior_v1.mjs
           node qa_payroll_month_boundary_v1.mjs
           node qa_attendance_correction_tiebreak_v1.mjs
+          node qa_payroll_no_future_month_salary_v1.mjs
           node qa_payroll_unfinished_month_boundary_v1.mjs
           node qa_payroll_approval_engine_fixture_v1.mjs
           node qa_server_night_single_premium_v1.mjs
@@ -262,20 +278,26 @@ jobs:
         env:
           APP_SMOKE_HOST: https://koith.github.io/attendance-proto
         run: node qa_browser_app_smoke.mjs
+      - name: Verify public Pages recipe asset contains no manufacturing instructions
+        id: recipe_asset_health
+        env:
+          APP_SMOKE_HOST: https://koith.github.io/attendance-proto
+        run: node qa_public_recipe_asset_health_v1.mjs
       - name: Publish live webapp verification result
         if: ${{ always() && !cancelled() }}
         uses: actions/github-script@v7
         with:
           script: |
             const healthy = '${{ steps.public_health.outcome }}' === 'success' &&
-                            '${{ steps.browser_health.outcome }}' === 'success';
+                            '${{ steps.browser_health.outcome }}' === 'success' &&
+                            '${{ steps.recipe_asset_health.outcome }}' === 'success';
             await github.rest.repos.createCommitStatus({
               ...context.repo,
               sha:context.sha,
               state:healthy?'success':'failure',
               context:'webapp/pages-live-qa',
               target_url:'https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId,
-              description:healthy?'Live Pages version, Edge authorization, mobile/desktop QA passed':
+              description:healthy?'Live Pages version, Edge authorization, mobile/desktop and recipe source QA passed':
                 'Live Pages acceptance failed: inspect workflow run'
             });
       - name: Confirm immediate Sheet refresh after Pages deployment

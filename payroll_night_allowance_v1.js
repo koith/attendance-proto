@@ -2,12 +2,14 @@
 if(window.__nightPayV1)return;window.__nightPayV1=true;
 if(typeof computeMonthPayroll!=='function')return;
 const base=computeMonthPayroll;
-const min=s=>{const m=/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(String(s??''));return m?Number(m[1])*60+Number(m[2]):null};
-function overlap(sessions,start,end){const sm=min(start),em=min(end);if(sm==null||em==null)return 0;let sec=0,now=typeof kstNow==='function'?kstNow():new Date();for(const x of sessions||[]){if(!['COMPLETE','WORKING'].includes(x.status)||!x.in)continue;const out=x.out||now;if(out<=x.in)continue;for(let d=new Date(x.in.getFullYear(),x.in.getMonth(),x.in.getDate()-1);d<=out;d.setDate(d.getDate()+1)){const a=new Date(d.getFullYear(),d.getMonth(),d.getDate(),Math.floor(sm/60),sm%60),b=new Date(d.getFullYear(),d.getMonth(),d.getDate()+(em<=sm?1:0),Math.floor(em/60),em%60),lo=Math.max(x.in,a),hi=Math.min(out,b);if(hi>lo)sec+=(hi-lo)/1000}}return sec}
+const second=s=>{const m=/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/.exec(String(s??''));return m?Number(m[1])*3600+Number(m[2])*60+Number(m[3]||0):null};
+function overlap(sessions,start,end){const sm=second(start),em=second(end);if(sm==null||em==null)return 0;let sec=0,now=typeof kstNow==='function'?kstNow():new Date();for(const x of sessions||[]){if(!['COMPLETE','WORKING'].includes(x.status)||!x.in)continue;const out=x.out||now;if(out<=x.in)continue;for(let d=new Date(x.in.getFullYear(),x.in.getMonth(),x.in.getDate()-1);d<=out;d.setDate(d.getDate()+1)){const a=new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,0,sm),b=new Date(d.getFullYear(),d.getMonth(),d.getDate()+(em<=sm?1:0),0,0,em),lo=Math.max(x.in,a),hi=Math.min(out,b);if(hi>lo)sec+=(hi-lo)/1000}}return sec}
 computeMonthPayroll=async function(ym){
  const R=await base(ym);
  if(LIVE&&Number(CURRENT_STORE_ID)===1&&typeof BE.serverPayroll==="function"){window.__nightPayrollResult=R;return R;}
  let tg=0,tn=0;
+ const today=typeof kstNow==='function'?kstNow():new Date();
+ const currentPayrollMonth=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0');
  for(const row of R.rows||[]){
    const c=row.contract,p=row.pay;
    if(p&&c?.night_allowance_enabled){
@@ -22,6 +24,13 @@ computeMonthPayroll=async function(ym){
      p.nightAllowance=expected;p.night=expected;
      p.gross=Math.round(Number(p.gross||0)+delta);
      p.net=xrounddown(p.gross*(1-Number(p.rate||0)),-1);
+   }
+   // Final browser fallback gate must run AFTER contract and night wrappers.
+   // This matches the production Edge rule for a month not yet started.
+   if(p&&ym>currentPayrollMonth){
+     Object.assign(p,{base:0,weekly:0,juhyu:0,adjust:0,gross:0,net:0,jweeks:0,
+       substitutePay:0,breakCompPay:0,nightAllowance:0,night:0,
+       weeklyApprovalDelta:0,weeklyCalculatedAmounts:{},accruedDays:0});
    }
    if(p){tg+=p.gross;tn+=p.net}
  }
