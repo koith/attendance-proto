@@ -8,3 +8,21 @@ jobs:
       - uses: actions/setup-node@v4
         with: {node-version: 22}
       - run: node qa_v096_search_clear.mjs
+
+  payroll-acceptance-p0-p2:
+    name: Monthly close and payroll integration QA
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/test/payroll-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22}
+      - name: Run synthetic payroll acceptance fixtures without production writes
+        run: |
+          node qa_payroll_close_server_authority_v1.mjs
+          node qa_payroll_no_local_punch_close_v1.mjs
+          node qa_monthly_segments_report_parity_v1.mjs
+          node qa_hourly_segments_sheet_parity_v1.mjs
+          node qa_payroll_contract_transition_fail_closed_v1.mjs
+          node qa_weekly_decision_end_to_end_v1.mjs
+          node qa_payroll_weekly_substitution_boundary_v1.mjs
