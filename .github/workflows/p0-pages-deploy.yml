@@ -36,6 +36,10 @@ on:
       - 'qa_staff_recipe_ready_guard_v1.mjs'
       - 'recipe_access_v220.js'
       - 'qa_recipe_staff_shift_only_v1.mjs'
+      - 'qa_recipe_no_static_instruction_leak_v1.mjs'
+      - 'operations_reference_v208.js'
+      - 'operations_reference_ui_v208.js'
+      - 'recipe_access_v220.js'
       - 'supabase/migrations/20261011172000_revoke_public_recipe_instructions.sql'
       - 'qa_payroll_unfinished_month_boundary_v1.mjs'
       - 'qa_event_correction_reason_guard_v1.mjs'
@@ -178,6 +182,10 @@ jobs:
         run: |
           node --check recipe_access_v220.js
           node qa_recipe_staff_shift_only_v1.mjs
+      - name: Source recipe must not ship in the anonymous Pages bundle
+        run: |
+          node --check operations_reference_ui_v208.js
+          node qa_recipe_no_static_instruction_leak_v1.mjs
       - name: Attendance correction reason audit regression
         run: node qa_event_correction_reason_guard_v1.mjs
       - name: READY-only dedicated store route regression
