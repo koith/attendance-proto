@@ -50,6 +50,7 @@ on:
       - 'recipe_access_v220.js'
       - 'supabase/migrations/20261011172000_revoke_public_recipe_instructions.sql'
       - 'qa_payroll_unfinished_month_boundary_v1.mjs'
+      - 'qa_payroll_monday_month_no_local_work_v1.mjs'
       - 'qa_attendance_correction_tiebreak_v1.mjs'
       - 'qa_event_correction_reason_guard_v1.mjs'
       - 'supabase/migrations/20261011170000_event_correction_reason_required.sql'
@@ -235,6 +236,7 @@ jobs:
           node qa_attendance_correction_tiebreak_v1.mjs
           node qa_payroll_no_future_month_salary_v1.mjs
           node qa_payroll_unfinished_month_boundary_v1.mjs
+          node qa_payroll_monday_month_no_local_work_v1.mjs
           node qa_payroll_approval_engine_fixture_v1.mjs
           node qa_server_night_single_premium_v1.mjs
       - name: Verify deploy smoke scripts parse
