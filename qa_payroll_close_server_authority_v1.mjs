@@ -34,6 +34,23 @@ missingPay.rows.push({employee_id:789,employee_name:'Unclassified worker',emp:{m
 assert.throws(()=>closingRows(missingPay),/EMPLOYEE_PAY_RULE_MISSING/);
 missingPay.rows[2].sec=0;missingPay.rows[2].issues=1;
 assert.throws(()=>closingRows(missingPay),/UNRESOLVED_ATTENDANCE_SESSIONS/);
+// An otherwise valid close must not omit a fixed-salary employee merely
+// because contract terms require review and no timecards were submitted.
+const blockedSalary=structuredClone(fixture);
+blockedSalary.rows.push({employee_id:795,employee_name:'Salaried contract review',emp:{memo:''},
+  payrollType:'MONTHLY',contractMode:'BLOCKED',pay:null,sec:0,issues:0,sessions:[]});
+assert.throws(()=>closingRows(blockedSalary),/CONTRACT_PAYROLL_REVIEW_REQUIRED/,
+  'Contract review must block month close even with zero recorded work');
+const blockedHourly=structuredClone(fixture);
+blockedHourly.rows[0].contractMode='BLOCKED';
+assert.throws(()=>closingRows(blockedHourly),/CONTRACT_PAYROLL_REVIEW_REQUIRED/,
+  'A blocked hourly contract must not be closed either');
+const noWorkUnknown=structuredClone(fixture);
+noWorkUnknown.rows.push({employee_id:796,employee_name:'No work and no contract',
+  emp:{memo:''},payrollType:null,contractMode:'MISSING_CONTRACT',pay:null,
+  sec:0,issues:0,sessions:[]});
+assert.equal(closingRows(noWorkUnknown).length,1,
+  'Zero-work unclassified employee alone must not lock unrelated payroll');
 assert.match(edge,/mode==="payroll_close_preview"/);
 assert.ok(edge.includes('"payroll_close_preview","payroll_close","payroll_reopen"'));
 assert.match(edge,/mode==="payroll_reopen"/);
