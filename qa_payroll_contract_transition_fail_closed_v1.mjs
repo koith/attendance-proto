@@ -68,6 +68,10 @@ const incompatible=await run({contracts:[monthlyA,{...monthlyB,business_deductio
 assert.equal(incompatible.contractMode,'BLOCKED','Different tax regimes remain outside safe auto-segment scope');
 assert.equal(incompatible.pay,null);
 const browser=fs.readFileSync('payroll_contract_authority_v1.js','utf8');
-assert.match(browser,/if\(contracts\.length>1\)return \{mode:'BLOCKED'/,
-  'Browser fallback must also fail closed for multiple effective monthly contracts');
+assert.ok(browser.includes('const segments=monthlyContractSegments('),
+  'Browser must validate effective-date salary segments');
+assert.ok(browser.includes("if(segments)return {mode:'MONTHLY'"),
+  'Only verified salary segments may bypass the legacy review block');
+assert.ok(browser.includes("return {mode:'BLOCKED',contract:displayContract"),
+  'All unsupported contract revisions remain blocked');
 console.log('PASS valid salaried segments and fail-closed hourly/overlap/gap/tax changes');
