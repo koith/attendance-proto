@@ -35,6 +35,7 @@ on:
       - 'supabase/migrations/20261011030000_owner_role_revocation_guard.sql'
       - 'supabase/migrations/20261011032000_block_demo_store_activation.sql'
       - 'qa_hq_store_onboarding_v1.mjs'
+      - 'qa_hq_store_search_owner_activation_v1.mjs'
       - 'qa_store_entry_ready_lock_v1.mjs'
       - 'qa_staged_store_active_consistency_v1.mjs'
       - 'supabase/migrations/20261011124000_staged_store_inactive_consistency.sql'
@@ -149,6 +150,8 @@ jobs:
           node --check hq_store_onboarding_ui.js
           node --check owner_activation.js
           node qa_hq_store_onboarding_v1.mjs
+      - name: Nationwide HQ search and confirmed owner share regression
+        run: node qa_hq_store_search_owner_activation_v1.mjs
       - name: Audited real-store review gate regression
         run: node qa_store_provenance_gate_v1.mjs
       - name: Confirmed owner and HQ authorization regression
