@@ -34,6 +34,7 @@ on:
       - 'supabase/migrations/20261011030000_owner_role_revocation_guard.sql'
       - 'supabase/migrations/20261011032000_block_demo_store_activation.sql'
       - 'qa_hq_store_onboarding_v1.mjs'
+      - 'qa_store_entry_ready_lock_v1.mjs'
       - 'qa_store_provenance_gate_v1.mjs'
       - 'qa_confirmed_owner_permission_v1.mjs'
       - 'supabase/migrations/20261011102000_store_provenance_review_and_activation.sql'
@@ -148,6 +149,8 @@ jobs:
         run: node qa_store_provenance_gate_v1.mjs
       - name: Confirmed owner and HQ authorization regression
         run: node qa_confirmed_owner_permission_v1.mjs
+      - name: READY-only dedicated store route regression
+        run: node qa_store_entry_ready_lock_v1.mjs
       - name: Store-isolated sales and CSV import regression
         run: node qa_store_operations_isolation_v1.mjs
       - name: Multi-store inventory ledger regression
