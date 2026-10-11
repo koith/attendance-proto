@@ -27,7 +27,7 @@ assert.match(browser,/Verified branch with an unconfirmed invite must remain ina
 assert.match(browser,/Unconfirmed owner must never activate a store/);
 assert.match(evidence,/PROVENANCE_VERIFICATION_REQUIRED/);
 assert.match(confirmed,/CONFIRMED_STORE_MANAGER_REQUIRED/);
-const renderedVersion=html.match(/const APP_VERSION="(v\\d+\\.\\d+)";/);
+const renderedVersion=html.match(/const APP_VERSION="(v[0-9]+[.][0-9]+)";/);
 assert.ok(renderedVersion,'App must declare a parseable release version');
 assert.ok(html.includes('id="appVersion">'+renderedVersion[1]+'</span>'),
   'App badge must match the release version without hardcoded test literals');
