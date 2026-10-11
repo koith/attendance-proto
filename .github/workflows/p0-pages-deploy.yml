@@ -37,6 +37,7 @@ on:
       - 'recipe_access_v220.js'
       - 'qa_recipe_staff_shift_only_v1.mjs'
       - 'qa_recipe_no_static_instruction_leak_v1.mjs'
+      - 'supabase/migrations/20261011183000_lock_source_recipe_helpers.sql'
       - 'operations_reference_v208.js'
       - 'operations_reference_ui_v208.js'
       - 'recipe_access_v220.js'
