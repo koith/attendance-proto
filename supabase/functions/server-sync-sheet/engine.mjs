@@ -355,7 +355,14 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     // for wage-based employees, regardless of legacy juhyu/override data.
     if(sec<=0 && Number(e.wage||0)>0 && !mondayOwnedWeeklyOnly){
       const zeroWage=Number(effWage||e.wage||0);
-      pay={base:0,weekly:0,juhyu:0,adjust:0,gross:0,net:0,rate:0,wage:zeroWage,jweeks:0,usedOverride:false,payrollType:"HOURLY"};
+      // Zero earnings must not erase the source-backed manager review trail
+      // for a completed, yet ineligible, Monday-owned week (including exit).
+      const reviewState=contract?{
+        weeklyReviewComments:pay?.weeklyReviewComments||[],
+        weeklyCalculatedAmounts:pay?.weeklyCalculatedAmounts||{},
+        weeklyApprovalDelta:0
+      }:{};
+      pay={base:0,weekly:0,juhyu:0,adjust:0,gross:0,net:0,rate:0,wage:zeroWage,jweeks:0,usedOverride:false,payrollType:"HOURLY",...reviewState};
     }
     const hasWage=!!pay;
     // Contract-specific night premium is earned only on completed shifts and only when enabled.
