@@ -246,11 +246,13 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // A one-minute background Sheet sync can own the lease when deployment starts.
-            // Retry only that transient conflict; never silently accept failed writes.
+            // Preserve the mandatory Sheet write+column-resize proof. Google Apps Script
+            // occasionally returns a transient non-JSON HTML response under load;
+            // the Supabase writer explicitly signals that as SHEET_NON_JSON_RESPONSE.
+            // Retry only this known transient or the database sync lease conflict.
             const audience = 'https://waluhdgqhwjjwmflhrle.supabase.co/functions/v1/server-sync-sheet';
             const token = await core.getIDToken(audience);
-            let result, response;
+            let result, response, confirmed = false;
             for (let attempt = 1; attempt <= 8; attempt++) {
               response = await fetch(audience, {
                 method: 'POST',
@@ -261,11 +263,17 @@ jobs:
               if (response.ok && result.ok === true && result.written === true &&
                   result.spreadsheet_id && result.column_resize_applied === true) {
                 core.info('Sheet refreshed after deployment: ' + result.ym + ' (' + result.spreadsheet_id + ')');
+                confirmed = true;
                 break;
               }
-              if (response.status !== 409 || result.error !== 'SHEET_SYNC_BUSY' || attempt === 8) {
+              const transient = (response.status === 409 && result?.error === 'SHEET_SYNC_BUSY') ||
+                (response.status === 502 && result?.error === 'SHEET_NON_JSON_RESPONSE');
+              if (!transient || attempt === 8) {
                 throw new Error('Deployment Sheet write unconfirmed: ' + JSON.stringify(result));
               }
-              core.warning('Concurrent Sheet sync lease; retry ' + attempt + '/8 in 15 seconds');
-              await new Promise(resolve => setTimeout(resolve, 15000));
+              const delay = result?.error === 'SHEET_SYNC_BUSY' ? 15000 : 30000;
+              core.warning('Transient Sheet sync response ' + result?.error +
+                '; retry ' + attempt + '/8 after ' + delay / 1000 + 's');
+              await new Promise(resolve => setTimeout(resolve, delay));
             }
+            if (!confirmed) throw new Error('Deployment Sheet write missing mandatory proof');
