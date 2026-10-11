@@ -199,5 +199,9 @@ async function renderHqProducts(body){
   hqProducts=await BE.hqProductList().catch(error=>{body.innerHTML='<div class="ops-empty"><b>상품 정보를 불러오지 못했습니다.</b><span>'+esc(error.message)+'</span></div>';return null});if(!hqProducts)return;paintHqProducts(body);
 }
 window.openHqProductModal=()=>{if(window.STORE_ENTRY_LOCK)return;hqRemovalMode=false;hqRemovalSelection.clear();const m=modal("상품 배포",'<div class="ops-hq-loading"><span></span><b>상품 정보를 불러오는 중입니다.</b></div>');m.wrap.classList.add("ops-hq-fullscreen");renderHqProducts(m.body)};
-window.renderOperations=async tab=>tab==="inventory"?renderInventory():tab==="recipe"?renderRecipes():originalRender(tab);
+// The 2026-10-09 approved inventory cards, status badges, stock bar and unit-conversion
+// controls live in operations_v1.js. The reference workbook inventory renderer is
+// retained for later development but must not override the store inventory screen.
+// Recipe rendering is unchanged.
+window.renderOperations=async tab=>tab==="recipe"?renderRecipes():originalRender(tab);
 })();
