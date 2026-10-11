@@ -2,8 +2,8 @@
 if(window.__nightPayV1)return;window.__nightPayV1=true;
 if(typeof computeMonthPayroll!=='function')return;
 const base=computeMonthPayroll;
-const min=s=>{const m=/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(String(s??''));return m?Number(m[1])*60+Number(m[2]):null};
-function overlap(sessions,start,end){const sm=min(start),em=min(end);if(sm==null||em==null)return 0;let sec=0,now=typeof kstNow==='function'?kstNow():new Date();for(const x of sessions||[]){if(!['COMPLETE','WORKING'].includes(x.status)||!x.in)continue;const out=x.out||now;if(out<=x.in)continue;for(let d=new Date(x.in.getFullYear(),x.in.getMonth(),x.in.getDate()-1);d<=out;d.setDate(d.getDate()+1)){const a=new Date(d.getFullYear(),d.getMonth(),d.getDate(),Math.floor(sm/60),sm%60),b=new Date(d.getFullYear(),d.getMonth(),d.getDate()+(em<=sm?1:0),Math.floor(em/60),em%60),lo=Math.max(x.in,a),hi=Math.min(out,b);if(hi>lo)sec+=(hi-lo)/1000}}return sec}
+const second=s=>{const m=/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/.exec(String(s??''));return m?Number(m[1])*3600+Number(m[2])*60+Number(m[3]||0):null};
+function overlap(sessions,start,end){const sm=second(start),em=second(end);if(sm==null||em==null)return 0;let sec=0,now=typeof kstNow==='function'?kstNow():new Date();for(const x of sessions||[]){if(!['COMPLETE','WORKING'].includes(x.status)||!x.in)continue;const out=x.out||now;if(out<=x.in)continue;for(let d=new Date(x.in.getFullYear(),x.in.getMonth(),x.in.getDate()-1);d<=out;d.setDate(d.getDate()+1)){const a=new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,0,sm),b=new Date(d.getFullYear(),d.getMonth(),d.getDate()+(em<=sm?1:0),0,0,em),lo=Math.max(x.in,a),hi=Math.min(out,b);if(hi>lo)sec+=(hi-lo)/1000}}return sec}
 computeMonthPayroll=async function(ym){
  const R=await base(ym);
  if(LIVE&&Number(CURRENT_STORE_ID)===1&&typeof BE.serverPayroll==="function"){window.__nightPayrollResult=R;return R;}
