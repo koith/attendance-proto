@@ -66,6 +66,9 @@ assert.match(sql,/payroll_snapshot_reopen_audit/);
 assert.match(sql,/REVOKE ALL ON FUNCTION public\.admin_close_payroll/);
 assert.match(sql,/REVOKE ALL ON FUNCTION public\.admin_reopen_payroll/);
 assert.equal((guards.match(/PAYROLL_ALREADY_CLOSED/g)||[]).length,2);
+assert.match(app,/CONTRACT_PAYROLL_REVIEW_REQUIRED/,
+  'Client must render a useful review message instead of a raw code');
+assert.match(app,/계약 조건 검토가 필요한 직원/);
 assert.match(app,/id="payCloseSlot"/);
 assert.match(app,/async payrollClosePreview\(ym\)/);
 assert.match(app,/async closePayroll\(ym,fingerprint\)/);
