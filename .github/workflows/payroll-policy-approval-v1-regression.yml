@@ -6,6 +6,7 @@ on:
       - 'qa_payroll_policy_adjustment_v1.mjs'
       - 'qa_payroll_policy_scenarios_v1.mjs'
       - 'qa_payroll_monday_month_no_local_work_v1.mjs'
+      - 'qa_payroll_inactive_monday_month_v1.mjs'
       - 'qa_payroll_approval_engine_fixture_v1.mjs'
       - 'qa_payroll_week_approval_boundary_source_v1.mjs'
       - 'qa_weekly_approval_rpc_guard_v1.mjs'
@@ -33,6 +34,7 @@ jobs:
       - run: node qa_payroll_policy_adjustment_v1.mjs
       - run: node qa_payroll_policy_scenarios_v1.mjs
       - run: node qa_payroll_monday_month_no_local_work_v1.mjs
+      - run: node qa_payroll_inactive_monday_month_v1.mjs
       - run: node qa_payroll_approval_engine_fixture_v1.mjs
       - run: node qa_payroll_week_approval_boundary_source_v1.mjs
       - run: node qa_weekly_approval_rpc_guard_v1.mjs
