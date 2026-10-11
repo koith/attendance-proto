@@ -32,6 +32,8 @@ on:
       - 'hq_store_onboarding_ui.js'
       - 'owner_activation.html'
       - 'owner_activation.js'
+      - 'qa_admin_context_active_gate_v1.mjs'
+      - 'supabase/migrations/20261011132000_admin_context_active_identity_guard.sql'
       - 'supabase/migrations/20261011030000_owner_role_revocation_guard.sql'
       - 'supabase/migrations/20261011032000_block_demo_store_activation.sql'
       - 'qa_hq_store_onboarding_v1.mjs'
@@ -158,6 +160,8 @@ jobs:
         run: node qa_store_provenance_gate_v1.mjs
       - name: Confirmed owner and HQ authorization regression
         run: node qa_confirmed_owner_permission_v1.mjs
+      - name: Verified active admin context gate regression
+        run: node qa_admin_context_active_gate_v1.mjs
       - name: READY-only dedicated store route regression
         run: node qa_store_entry_ready_lock_v1.mjs
       - name: STAGED store active flag consistency regression
