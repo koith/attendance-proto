@@ -2096,6 +2096,8 @@ async function renderAdmin(){
       </div>
       <div id="adEmps" class="employee-list-mask"></div>
     </div>`;
+  // The view can be replaced while awaiting server data. Never bind controls on a stale view.
+  const listMount=document.getElementById("adEmps");
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
   const day=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`;
   document.getElementById("adAdd").onclick=()=>{ restoreAddModal(); openAddVeil(); };
@@ -2114,9 +2116,10 @@ async function renderAdmin(){
     if(String(e.message).includes("NOT_AUTHORIZED")){ toast("err","직원 관리","관리자 권한이 없습니다."); return; }
     toast("err","직원 관리",`불러오기 실패: ${e.message}`); return;
   }
+  if(!listMount?.isConnected || location.hash!=="#admin")return;
   const active=emps.filter(e=>e.is_active!==false && e.active!==false).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ko-KR"));
     // 직원 관리: 모바일은 문서 전체 스크롤, 데스크톱은 넓은 목록 영역 사용
-  const empsEl=document.getElementById("adEmps");
+  const empsEl=listMount;
   const retired=emps.filter(e=>(e.is_active===false||e.active===false)&&!isHiddenInhaTestEmployee(e)).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ko-KR"));
   let employeeStatusTab="active";
   const renderEmployeeList=()=>{
@@ -2159,8 +2162,11 @@ async function renderAdmin(){
       empsEl.appendChild(div);
     }
   };
-  document.getElementById("empTabActive").onclick=()=>{employeeStatusTab="active";renderEmployeeList()};
-  document.getElementById("empTabRetired").onclick=()=>{employeeStatusTab="retired";renderEmployeeList()};
+  const activeTab=empsEl.parentElement?.querySelector("#empTabActive");
+  const retiredTab=empsEl.parentElement?.querySelector("#empTabRetired");
+  if(!activeTab||!retiredTab)return;
+  activeTab.onclick=()=>{employeeStatusTab="active";renderEmployeeList()};
+  retiredTab.onclick=()=>{employeeStatusTab="retired";renderEmployeeList()};
   renderEmployeeList();
 }
 
