@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const migrated=fs.readFileSync('supabase/migrations/20261011193500_weekly_scoped_close_lock.sql','utf8');
+const close=fs.readFileSync('supabase/migrations/20261010235520_store_scoped_payroll_close_reopen.sql','utf8');
+const server=fs.readFileSync('supabase/functions/server-sync-sheet/index.ts','utf8');
+assert.match(close,/payroll-close:'\|\|p_store_id\|\|':'\|\|p_ym/);
+assert.match(migrated,/payroll-close:'\|\|p_store_id\|\|':'\|\|v_ym/);
+assert.match(migrated,/payroll-close:'\|\|p_store_id\|\|':'\|\|v_next_ym/);
+assert.match(migrated,/pg_advisory_xact_lock\(hashtextextended\('payroll-close:'\|\|v_ym,0\)\)/);
+assert.match(migrated,/pg_advisory_xact_lock\(hashtextextended\('payroll-close:'\|\|v_next_ym,0\)\)/);
+assert.match(migrated,/ym IN \(v_ym,v_next_ym\) AND status='CLOSED'/);
+assert.match(migrated,/s\.ym IN \(v_ym,v_next_ym\)/);
+assert.match(server,/weekMonday\.getTime\(\)<monthStart-6\*86400000/);
+assert.match(migrated,/SERVICE_ONLY/);
+assert.match(migrated,/REVOKE ALL ON FUNCTION/);
+assert.doesNotMatch(migrated,/\b(?:UPDATE|DELETE|TRUNCATE)\s+(?:FROM\s+)?public\.payroll_weekly_approvals\b/i);
+console.log('PASS both monthly and store-scoped month close locks protect cross-month audit decisions');
