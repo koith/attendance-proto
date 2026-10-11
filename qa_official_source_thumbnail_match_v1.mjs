@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const sql=fs.readFileSync('supabase/migrations/20261012052000_official_source_variant_thumbnail_match.sql','utf8');
+assert.equal((sql.match(/UPDATE public\.recipe_source_variants/g)||[]).length,1);
+assert.match(sql,/v\.id\s*=\s*225/);
+assert.match(sql,/rv\.id\s*=\s*117/);
+assert.ok(sql.includes("v.menu_name = '땅콩버터 오징어'"));
+assert.ok(sql.includes("rv.menu_name = '땅콩 버터 오징어'"));
+assert.ok(sql.includes("v.category = '푸드류(백억 시네마)'"));
+assert.ok(sql.includes("rv.is_demo IS FALSE"));
+assert.ok(sql.includes("rv.effective_to IS NULL"));
+assert.ok(sql.includes("NULLIF(TRIM(v.thumbnail_url), '') IS NULL"));
+assert.ok(sql.includes("public.recipe_thumbnail_for_source(v.menu_name) = rv.thumbnail_url"));
+assert.ok(sql.includes("https://10billioncoffee.co.kr/uploads/menu_boards/"));
+assert.doesNotMatch(sql,/\bTRUNCATE\b|\bDROP TABLE\b|\bDELETE FROM\b|\bUPDATE\s+public\.(?!recipe_source_variants)/i);
+console.log('PASS exact official recipe thumbnail backfill scoped to one source variant');
