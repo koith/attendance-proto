@@ -14,3 +14,5 @@ jobs:
         run: node qa_pin_rpc_store_scope_v1.mjs
       - name: NULL PIN rejection regression
         run: node qa_null_pin_auth_fail_closed_v1.mjs
+      - name: Employee PIN creation validation
+        run: node qa_create_employee_pin_required_v1.mjs
