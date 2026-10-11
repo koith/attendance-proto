@@ -37,6 +37,7 @@ jobs:
           node qa_payroll_policy_scenarios_v1.mjs
           node qa_payroll_approval_engine_fixture_v1.mjs
           node qa_payroll_won_truncation_v1.mjs
+          node qa_payroll_weekly_substitution_boundary_v1.mjs
           node qa_payroll_weekly_integration_v1.mjs
           node qa_weekly_approval_rpc_guard_v1.mjs
           node qa_weekly_approval_service_boundary_v1.mjs
