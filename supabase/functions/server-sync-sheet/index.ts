@@ -177,10 +177,11 @@ async function buildReport(ym,storeId){
   // overlays the live shift seconds already present in authoritative payroll.
   const calculated=await engine.computeMonthPayroll(ym);
   const workingAttendance=attendanceWithWorkingPayable(report.attendance,calculated);
-  const {data:snap,error:snapError}=await client.from("payroll_snapshot").select("employee_id,employee_name,hours,wage,base_pay,juhyu_pay,adjust,gross_pay,closed_at").eq("store_id",storeId).eq("ym",ym);
+  const {data:snap,error:snapError}=await client.from("payroll_snapshot").select("store_id,employee_id,employee_name,hours,wage,base_pay,juhyu_pay,adjust,gross_pay,closed_at").eq("store_id",storeId).eq("ym",ym);
   if(snapError)throw new Error("SNAPSHOT_READ_FAILED");
-  const ids=new Set((data.employees||[]).map(e=>Number(e.id)));
-  const snapshots=(snap||[]).filter(s=>ids.has(Number(s.employee_id)));
+  // Historical closed payroll belongs to its original store even after an employee transfers.
+  // Keep a second explicit store check after the authoritative store+month DB filter.
+  const snapshots=(snap||[]).filter(s=>Number(s.store_id)===storeId);
   const closedPayroll=snapshotRows(snapshots,ym);
   return {source:data,report,workingAttendance,closed:!!closedPayroll,closedPayroll};
 }
