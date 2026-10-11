@@ -48,6 +48,6 @@ assert.equal(bridged.pay.juhyu,36000,'Last Sunday session from following month m
 assert.ok(bridged.range.to>'2026-10-04T14:00:00','Event fetch must cover entire closing Sunday');
 const october=await calculate({...spansSunday,now:'2026-10-04T17:01:00Z',ym:'2026-10'});
 assert.equal(october.pay.juhyu,0,'Same cross-month week must not be paid again in October');
-const html=fs.readFileSync('index.html','utf8');
-assert.doesNotMatch(html,/const weekClosed=\(ym<[^\n]+\) \|\| settleAt<=nowLimit/,'Browser fallback must not consider all old-month weeks settled');
+const engineSource=fs.readFileSync('supabase/functions/server-sync-sheet/engine.mjs','utf8');
+assert.match(engineSource,/const weekClosed=settleAt<=nowLimit/,'Server must require actual Sunday business close');
 console.log('PASS real payroll engine: unfinished previous-month week unpaid, Sunday 26:00 cutoff, full boundary data, no duplicate in next month');
