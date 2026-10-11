@@ -1,0 +1,45 @@
+name: payroll-weekly-postgres-integration
+on:
+  pull_request:
+    paths:
+      - 'qa_payroll_weekly_postgres_integration.sql'
+      - 'supabase/migrations/20261009123000_payroll_weekly_approvals.sql'
+      - 'supabase/migrations/20261011210000_weekly_reapprove_immutable_audit.sql'
+      - '.github/workflows/payroll-weekly-postgres-integration.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'qa_payroll_weekly_postgres_integration.sql'
+      - 'supabase/migrations/20261009123000_payroll_weekly_approvals.sql'
+      - 'supabase/migrations/20261011210000_weekly_reapprove_immutable_audit.sql'
+      - '.github/workflows/payroll-weekly-postgres-integration.yml'
+jobs:
+  isolated-weekly-approval-sql:
+    name: Test immutable manager decisions in disposable PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_fixture_only
+          POSTGRES_DB: weekly_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d weekly_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_fixture_only
+      PGDATABASE: weekly_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if unavailable
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Execute immutable decision migration and synthetic approval cycle
+        run: psql -v ON_ERROR_STOP=1 -f qa_payroll_weekly_postgres_integration.sql
