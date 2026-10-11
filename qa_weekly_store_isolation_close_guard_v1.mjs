@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const sql=fs.readFileSync('supabase/migrations/20261011194500_weekly_store_isolation_close_guard.sql','utf8');
+const existing=fs.readFileSync('supabase/migrations/20261010235520_store_scoped_payroll_close_reopen.sql','utf8');
+assert.match(existing,/FROM public\.payroll_period WHERE store_id=p_store_id AND ym=p_ym/);
+assert.match(existing,/FROM public\.payroll_snapshot WHERE store_id=p_store_id AND ym=p_ym/);
+assert.match(sql,/FROM public\.payroll_period WHERE store_id=p_store_id AND ym IN \(v_ym,v_next_ym\) AND status='CLOSED'/);
+assert.match(sql,/FROM public\.payroll_snapshot s WHERE s\.store_id=p_store_id AND s\.employee_id=p_employee_id AND s\.ym IN \(v_ym,v_next_ym\)/);
+assert.match(sql,/AND is_active AND onboarding_status='READY'/);
+assert.match(sql,/payroll-close:'\|\|p_store_id\|\|':'\|\|v_next_ym/);
+assert.match(sql,/IF EXISTS\(SELECT 1 FROM public\.payroll_period/);
+assert.match(sql,/REVOKE ALL ON FUNCTION public\.approve_payroll_weekly_decision_internal/);
+assert.doesNotMatch(sql,/\b(?:UPDATE|DELETE|TRUNCATE)\s+(?:FROM\s+)?public\.payroll_weekly_approvals\b/i);
+console.log('PASS per-store READY weekly decision close checks and cross-month locks are scoped');
