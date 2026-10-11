@@ -8,6 +8,8 @@ on:
       - 'supabase/migrations/*hq_real_sales_store_attendance_scope.sql'
       - qa_hq_store_scope_v1.mjs
       - qa_store_admin_tabs_policy_v1.mjs
+      - hq_store_onboarding_ui.js
+      - qa_hq_store_readiness_export_v1.mjs
       - .github/workflows/qa-hq-store-scope.yml
   workflow_dispatch:
 permissions:
@@ -22,3 +24,4 @@ jobs:
           node-version: '22'
       - run: node qa_hq_store_scope_v1.mjs
       - run: node qa_store_admin_tabs_policy_v1.mjs
+      - run: node qa_hq_store_readiness_export_v1.mjs

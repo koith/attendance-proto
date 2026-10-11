@@ -25,6 +25,38 @@ async function invite(email,store_id){
   if(!response.ok||data?.ok!==true)throw Error(data?.error||"INVITE_FAILED");
   return data;
 }
+// Readiness export contains no PINs or owner emails. Keep all 283 registered
+// stores, regardless of the current filtered HQ picker, so a single CSV is
+// usable as a nationwide rollout checklist. Data comes only from HQ RPCs.
+const readinessCsvCell=value=>{
+  let text=String(value??"");
+  // Excel/Sheets interpret leading = + - @ (also after whitespace) as
+  // formulas. Prefix an apostrophe before RFC 4180 CSV quoting.
+  if(/^\s*[=+\-@]/.test(text))text="'"+text;
+  return '"'+text.replace(/"/g,'""')+'"';
+};
+const readinessCsv=(stores,proofs,sampleCounts)=>{
+  const header=["지점ID","지점명","코드","지역","운영상태","실재확인","이메일확인점주수","샘플직원수","개통가능여부","미완료조건"];
+  const rows=[header];
+  for(const store of stores){
+    const id=Number(store.id);
+    const proof=proofs.find(item=>Number(item.store_id)===id);
+    const sample=Number(sampleCounts.find(item=>Number(item.store_id)===id)?.sample_employee_count||0);
+    const owners=Number(store.manager_count||0);
+    const verified=id===1||proof?.decision==="VERIFIED";
+    const isReady=store.onboarding_status==="READY";
+    const blockers=[];
+    if(!isReady){
+      if(!verified)blockers.push("본사 실재 확인");
+      if(owners<1)blockers.push("인증 점주 계정");
+      if(sample>0)blockers.push("샘플·데모 직원 검토");
+    }
+    rows.push([id,store.name||"",store.code||"",store.region_group||"",
+      store.onboarding_status||"UNKNOWN",id===1?"기존 운영점":proof?.decision||"미확인",
+      owners,sample,isReady?"운영 중":blockers.length?"아니오":"예",blockers.join(" / ")]);
+  }
+  return "\uFEFF"+rows.map(row=>row.map(readinessCsvCell).join(",")).join("\r\n")+"\r\n";
+};
 window.mountHqStoreOnboarding=async function(box){
   if(!box||!box.isConnected)return;
   const section=document.createElement("section");
@@ -69,7 +101,7 @@ window.mountHqStoreOnboarding=async function(box){
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:9px">'+
         '<div><div id="hqStoreCounts" style="font-size:.84rem">등록 '+stores.length+'곳 · 운영 '+readyCount+' · 준비 '+stagedCount+' · 중지 '+suspendedCount+'</div>'+ 
         '<div id="hqSampleRosterSummary" style="font-size:.75rem;color:var(--text-muted)">초기 직원 자료 점검 필요 '+sampleStoreCount+'곳 · '+sampleTotal+'명</div></div>'+
-        '<button type="button" id="hqStoreRefresh" class="btn btn-secondary btn-sm">정보 새로고침</button></div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" id="hqStoreReadinessExport" class="btn btn-secondary btn-sm">개통 준비 현황 CSV</button><button type="button" id="hqStoreRefresh" class="btn btn-secondary btn-sm">정보 새로고침</button></div></div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">'+
         '<div class="field"><label for="hqOnboardingSearchInput">지점명·코드·지역 검색</label>'+
           '<input id="hqOnboardingSearchInput" class="form-control" type="search" autocomplete="off" placeholder="예: 송도점" value="'+escapeHTML(searchTerm)+'"></div>'+
@@ -137,6 +169,19 @@ window.mountHqStoreOnboarding=async function(box){
     body.querySelector("#hqStoreRefresh").onclick=()=>{
       if(busy)return;busy=true;
       refresh().catch(err).finally(()=>{busy=false;});
+    };
+    body.querySelector("#hqStoreReadinessExport").onclick=()=>{
+      const text=readinessCsv(stores,proofs,sampleCounts);
+      const blob=new Blob([text],{type:"text/csv;charset=utf-8"});
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement("a");
+      link.href=url;
+      link.download="baekeok-store-readiness-"+new Date().toISOString().slice(0,10)+".csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+      message("개통 준비 현황","등록 지점 "+stores.length+"곳의 운영 준비 조건을 CSV로 내보냈습니다.");
     };
     const share=body.querySelector("#hqStoreShareUrl");
     if(share)share.onclick=()=>share.select();
