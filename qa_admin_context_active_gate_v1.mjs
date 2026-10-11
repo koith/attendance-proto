@@ -6,5 +6,5 @@ assert.match(sql,/CREATE OR REPLACE FUNCTION public\.admin_context\(\)/);
 assert.match(sql,/CASE WHEN public\.is_admin\(\) THEN/);
 assert.match(sql,/ELSE jsonb_build_object\('role',null,'store_id',null,'email',null\)/);
 assert.match(html,/if\(ctx\?\.role!=="HQ"&&ctx\?\.role!=="STORE_MANAGER"\)/);
-assert.match(html,/const APP_VERSION="v0\.214"/);
+assert.match(html,/const APP_VERSION="v0\.215"/);
 console.log('PASS verified administrator context and fail-closed client route');
