@@ -153,7 +153,15 @@
     Object.assign(p,{base,gross,net:Math.floor(gross*(1-rate)/10)*10,rate,monthlySalary,accruedDays,daysInMonth});
   }
 
-  computeMonthPayroll=async function(ym){const R=await baseComputeMonthPayroll(ym);if(LIVE&&Number(CURRENT_STORE_ID)===1&&typeof BE.serverPayroll==="function"){lastResult=R;return R;}if(!LIVE){lastResult=R;return R;}let totalNet=0,totalGross=0;await Promise.all(R.rows.map(async row=>{try{const b=await bundle(row.employee_id),pick=chooseContract(row,ym,b);row.contractMode=pick.mode;row.contractIssue=pick.issue||null;row.contract=pick.contract||null;if(pick.mode==='CONTRACT'){/* Base computeMonthPayroll is authoritative for earned hourly pay, qualified weekly holiday, substitutions and adjustments. Do not recalculate here. */row.hasWage=!!row.pay;row.memo=(row.ov&&row.ov.memo)||row.emp.memo||''}else if(pick.mode==='MONTHLY'){
+  computeMonthPayroll=async function(ym){const R=await baseComputeMonthPayroll(ym);if(LIVE&&Number(CURRENT_STORE_ID)===1&&typeof BE.serverPayroll==="function"){lastResult=R;return R;}if(!LIVE){lastResult=R;return R;}let totalNet=0,totalGross=0;await Promise.all(R.rows.map(async row=>{try{const b=await bundle(row.employee_id),pick=chooseContract(row,ym,b);row.contractMode=pick.mode;row.contractIssue=pick.issue||null;row.contract=pick.contract||null;if(pick.mode==='CONTRACT'){
+    if(pick.hourlySegments&&row.pay){
+      const s=pick.hourlySegments,p=row.pay;
+      p.base=s.base;p.breakCompPay=s.breakCompPay;p.hourlySegments=s.parts;
+      p.gross=Math.trunc(s.base+s.breakCompPay+Number(p.adjust||0));
+      p.net=Math.floor(p.gross*(1-Number(p.rate||0))/10)*10;
+    }
+    /* Base computeMonthPayroll remains authoritative for single-contract hourly, weekly and substitutions. */
+    row.hasWage=!!row.pay;row.memo=(row.ov&&row.ov.memo)||row.emp.memo||''}else if(pick.mode==='MONTHLY'){
     if(pick.monthlySegments&&row.pay){
       const s=pick.monthlySegments,p=row.pay;
       p.base=s.base;p.accruedDays=s.accruedDays;p.daysInMonth=s.daysInMonth;
