@@ -498,7 +498,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     for(const row of R.rows){
       const c=row.contract,p=row.pay;
       if(p&&c?.night_allowance_enabled){
-        p.nightHours=nightOverlap(row.sessions,c.night_allowance_start||'22:00',c.night_allowance_end||'06:00')/3600;
+        p.nightHours=nightOverlap(row.sessions.filter(shift=>shift.status==='COMPLETE'&&shift.in&&shift.out),c.night_allowance_start||'22:00',c.night_allowance_end||'06:00')/3600;
         p.night=Number(p.nightAllowance||0);
       }
     }

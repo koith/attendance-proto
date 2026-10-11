@@ -44,6 +44,7 @@ jobs:
           node qa_payroll_week_boundary_behavior_v1.mjs
           node qa_server_payroll_fixture_parity_v1.mjs
           node qa_server_night_single_premium_v1.mjs
+          node qa_night_completed_only_allowance_v1.mjs
           node qa_night_pay_seconds_v1.mjs
           node qa_actual_attendance_store_scope_v1.mjs
 
