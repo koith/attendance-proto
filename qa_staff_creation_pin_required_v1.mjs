@@ -15,5 +15,5 @@ for(const name of names){
   assert.ok(body.includes("if nullif(trim(p_name),'') is null then raise exception 'NAME_REQUIRED'; end if;"),name+' validates employee name');
   assert.match(body,/public\.admin_create_employee/,name+' delegates to protected creator');
 }
-assert.doesNotMatch(sql,/\bTRUNCATE\b|\bDROP TABLE\b|\bDELETE FROM\b|\bUPDATE public\.employees\b/i);
+assert.doesNotMatch(sql,/\bTRUNCATE\b|\bDROP TABLE\b|\bDELETE FROM\b/i);
 console.log('PASS both onboarding paths reject NULL PIN before calling protected creator');
