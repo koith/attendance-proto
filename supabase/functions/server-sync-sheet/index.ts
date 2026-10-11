@@ -120,6 +120,11 @@ function payrollClosingRows(report){
   if(relevant.some(r=>Number(r.issues||0)>0||
     (r.sessions||[]).some(x=>x.status!=="COMPLETE")))
     throw new HttpError(409,"UNRESOLVED_ATTENDANCE_SESSIONS");
+  // A blocked contract must never silently disappear from the immutable close
+  // snapshot just because a salaried employee had no timecard this month.
+  // Missing-contract zero-work legacy records remain handled separately.
+  if(relevant.some(r=>r.contractMode==="BLOCKED"))
+    throw new HttpError(409,"CONTRACT_PAYROLL_REVIEW_REQUIRED");
   if(relevant.some(r=>Number(r.sec||0)>0 && (!r.pay||!r.payrollType)))
     throw new HttpError(409,"EMPLOYEE_PAY_RULE_MISSING");
   const rows=relevant.filter(r=>r.pay && r.payrollType);
