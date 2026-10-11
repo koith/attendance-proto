@@ -131,8 +131,8 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   emps=await BE.allEmployees();
   if(LIVE){
     const [y,m]=ym.split("-").map(Number); const p=n=>String(n).padStart(2,"0");
-    const start=new Date(y,m-1,1); start.setDate(start.getDate()-1);
-    const end=new Date(y,m,1); end.setDate(end.getDate()+2);
+    const start=new Date(y,m-1,1); start.setDate(start.getDate()-7);
+    const end=new Date(y,m,1); end.setDate(end.getDate()+7);
     const sd=`${start.getFullYear()}-${p(start.getMonth()+1)}-${p(start.getDate())}`;
     const ed=`${end.getFullYear()}-${p(end.getMonth()+1)}-${p(end.getDate())}`;
     const data=await BE.eventsWithCorrections(`${sd}T00:00:00`,`${ed}T00:00:00`);
@@ -265,7 +265,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
             // 인하대점 운영일은 일요일 심야근무(26:00 = 월요일 02:00)까지 포함해 주간을 마감한다.
             // 진행 중 세션은 위에서 제외했으므로, 주휴는 완료된 근무만으로 확정된다.
             const settleAt=new Date(monday); settleAt.setDate(monday.getDate()+7); settleAt.setHours(2,0,0,0);
-            const weekClosed=(ym<`${nowLimit.getFullYear()}-${p2(nowLimit.getMonth()+1)}`) || settleAt<=nowLimit;
+            const weekClosed=settleAt<=nowLimit; // Never settle an unfinished cross-month week.
             if(weekClosed && mins>=weeklyContractMin){
               const mondayKey=weekKey;
               const weeklySubstitutions=substitutions.filter(z=>{
