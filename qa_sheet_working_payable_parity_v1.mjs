@@ -24,7 +24,7 @@ const calculated=await engine.computeMonthPayroll('2026-10');
 const before=structuredClone(payload.attendance);
 assert.equal(before.rows.length,1);
 assert.equal(before.rows[0][5],'정상','legacy single open session incorrectly labeled normal');
-assert.equal(before.rows[0][10],'0:00','canonical builder retains original parity data');
+assert.equal(before.rows[0][10],'00:00','canonical builder retains original parity data');
 assert.equal(calculated.rows[0].sec,16200,'working shift is recognized as elapsed payroll time');
 const actual=attendanceWithWorkingPayable(payload.attendance,calculated);
 assert.equal(actual.rows[0][10],'04:30','writer uses server-accrued working seconds');
