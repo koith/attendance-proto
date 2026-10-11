@@ -180,11 +180,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     const liveSec=sess.filter(s=>s.status==="WORKING"&&s.in).reduce((a,x)=>a+Math.max(0,(kstNow()-x.in)/1000),0);
     const sec=completedSec+liveSec;
     const hours=secToHours(sec);
-    const nightMinutes=sess.filter(s=>s.status==="COMPLETE"&&s.in&&s.out).reduce((sum,s)=>{
-      let cur=new Date(s.in), end=new Date(s.out), mins=0;
-      while(cur<end){ const h=cur.getHours(); if(h>=22||h<6) mins++; cur=new Date(cur.getTime()+60000); }
-      return sum+mins;
-    },0);
+    const nightMinutes=nightOverlap(sess.filter(s=>s.status==="COMPLETE"&&s.in&&s.out),'22:00','06:00')/60;
     const eligibleBreakSessions=sess.filter(s=>s.status==="COMPLETE"&&Number(s.sec||0)>4*3600);
     const breakEligibleCount=eligibleBreakSessions.length;
     const issues=sess.filter(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
@@ -328,16 +324,13 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     if(contract?.night_allowance_enabled===true){
       const mode=String(contract.night_allowance_mode||"RATE").toUpperCase();
       const value=Math.max(0,Number(contract.night_allowance_value||0));
-      const timeMin=(v,fallback)=>{const m=String(v||"").match(/^([0-9]{1,2}):([0-9]{2})/);return m?Number(m[1])*60+Number(m[2]):fallback;};
-      const startMin=timeMin(contract.night_allowance_start,1320),endMin=timeMin(contract.night_allowance_end,360);
-      const nightWorkedMin=sess.filter(x=>x.status==="COMPLETE"&&x.in&&x.out).reduce((sum,shift)=>{
-        let t=new Date(shift.in),stop=new Date(shift.out),minutes=0;
-        while(t<stop){const minute=t.getHours()*60+t.getMinutes();if(startMin<endMin?(minute>=startMin&&minute<endMin):(minute>=startMin||minute<endMin))minutes++;t=new Date(t.getTime()+60000);}
-        return sum+minutes;
-      },0);
+      const nightWorkedSeconds=nightOverlap(
+        sess.filter(x=>x.status==="COMPLETE"&&x.in&&x.out),
+        contract.night_allowance_start||'22:00',contract.night_allowance_end||'06:00'
+      );
       const hourlyBase=payrollType==="HOURLY"?Number(effWage||0):0;
       if(mode==="FLAT"||hourlyBase>0){
-        nightAllowance=Math.trunc(nightWorkedMin/60*(mode==="FLAT"?value:hourlyBase*value/100));
+        nightAllowance=Math.trunc(nightWorkedSeconds/3600*(mode==="FLAT"?value:hourlyBase*value/100));
         nightAllowanceLabel=mode==="FLAT"?`정액 ${won(value)}/시간`:`정률 ${value}%`;
       }else nightAllowanceLabel="시급 기준 확인 필요";
       if(pay&&nightAllowance>0){pay.nightAllowance=nightAllowance;pay.gross=Math.round(Number(pay.gross||0)+nightAllowance);pay.net=xrounddown(pay.gross*(1-Number(pay.rate||0)),-1);}
