@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/server-sync-sheet/**'
+      - 'payroll_contract_authority_v1.js'
       - '.github/workflows/deploy-server-payroll-edge.yml'
   pull_request:
     paths:
       - 'supabase/functions/server-sync-sheet/**'
+      - 'payroll_contract_authority_v1.js'
       - '.github/workflows/deploy-server-payroll-edge.yml'
   workflow_dispatch:
 
@@ -38,6 +40,7 @@ jobs:
           node qa_weekly_approval_rpc_guard_v1.mjs
           node qa_weekly_approval_service_boundary_v1.mjs
           node qa_payroll_month_boundary_v1.mjs
+          node qa_monthly_contract_salary_authority_v1.mjs
           node qa_payroll_week_boundary_behavior_v1.mjs
           node qa_server_payroll_fixture_parity_v1.mjs
           node qa_server_night_single_premium_v1.mjs
