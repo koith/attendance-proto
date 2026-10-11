@@ -81,6 +81,8 @@ on:
       - 'supabase/functions/server-sync-sheet/index.ts'
       - 'supabase/migrations/20261010133000_payroll_weekly_internal_verified_rpc.sql'
       - 'qa_server_payroll_fixture_parity_v1.mjs'
+      - 'qa_payroll_no_future_month_salary_v1.mjs'
+      - 'payroll_night_allowance_v1.js'
       - 'qa_live_server_payroll_v1.mjs'
       - 'qa_production_deployment_health_v1.mjs'
       - 'qa_browser_app_smoke.mjs'
@@ -205,6 +207,7 @@ jobs:
           node qa_payroll_policy_scenarios_v1.mjs
           node qa_payroll_week_boundary_behavior_v1.mjs
           node qa_payroll_month_boundary_v1.mjs
+          node qa_payroll_no_future_month_salary_v1.mjs
           node qa_payroll_unfinished_month_boundary_v1.mjs
           node qa_payroll_approval_engine_fixture_v1.mjs
           node qa_server_night_single_premium_v1.mjs
