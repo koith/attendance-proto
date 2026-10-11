@@ -7,7 +7,7 @@ const browser=fs.readFileSync('qa_browser_app_smoke.mjs','utf8');
 const evidence=fs.readFileSync('supabase/migrations/20261011102000_store_provenance_review_and_activation.sql','utf8');
 const confirmed=fs.readFileSync('supabase/migrations/20261011103500_confirmed_owner_activation_security.sql','utf8');
 
-for(const id of ['hqStoreSearch','hqStoreStatusFilter','hqOnboardingStore','hqStoreSearchCount',
+for(const id of ['hqOnboardingSearchInput','hqStoreStatusFilter','hqOnboardingStore','hqStoreSearchCount',
  'hqStoreCounts','hqStoreRefresh','hqStoreShareUrl'])
  assert.match(ui,new RegExp(id),'Missing scalable HQ store control '+id);
 assert.match(ui,/searchTerm\.trim\(\)\.toLocaleLowerCase\("ko-KR"\)/);
