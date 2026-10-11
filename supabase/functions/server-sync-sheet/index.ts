@@ -18,6 +18,14 @@ const p2=n=>String(n).padStart(2,"0");
 function seoulParts(date=new Date()){
   return Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(date).map(p=>[p.type,p.value]));
 }
+function weekBelongsToPayrollMonth(ym,weekStart){
+  // A settled week is posted once, to its Monday's month, not to an overlap month.
+  if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(ym)||
+     !/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(weekStart)||
+     !weekStart.startsWith(ym+"-"))return false;
+  const day=new Date(weekStart+"T00:00:00Z");
+  return Number.isFinite(day.getTime())&&day.toISOString().slice(0,10)===weekStart&&day.getUTCDay()===1;
+}
 function currentYm(){const v=seoulParts();return `${v.year}-${v.month}`;}
 function seoulStamp(){const v=seoulParts();return `${v.year}-${v.month}-${v.day} ${v.hour}:${v.minute}`;}
 async function authenticate(req,mode){
@@ -371,11 +379,8 @@ Deno.serve(async req=>{
          !["APPROVE","REJECT"].includes(decision)||(decision==="REJECT"&&approvedWon!==0))
         throw new HttpError(400,"INVALID_WEEKLY_APPROVAL");
       const weekMonday=new Date(weekStart+"T00:00:00Z");
-      // A week may begin in the prior calendar month; reject unrelated weeks.
-      const monthStart=Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7))-1,1);
-      const nextMonth=Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7)),1);
-      if(!Number.isFinite(weekMonday.getTime())||
-         weekMonday.getTime()<monthStart-6*86400000||weekMonday.getTime()>=nextMonth)
+      // Match the engine's Monday-month attribution before computing approval amount.
+      if(!weekBelongsToPayrollMonth(ym,weekStart))
         throw new HttpError(400,"WEEK_NOT_IN_PAYROLL_MONTH");
       const nowSeoul=seoulParts();
       const nowWall=new Date(nowSeoul.year+"-"+nowSeoul.month+"-"+nowSeoul.day+"T"+nowSeoul.hour+":"+nowSeoul.minute+":00Z");
