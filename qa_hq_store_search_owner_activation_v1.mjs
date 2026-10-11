@@ -27,7 +27,7 @@ assert.match(browser,/Verified branch with an unconfirmed invite must remain ina
 assert.match(browser,/Unconfirmed owner must never activate a store/);
 assert.match(evidence,/PROVENANCE_VERIFICATION_REQUIRED/);
 assert.match(confirmed,/CONFIRMED_STORE_MANAGER_REQUIRED/);
-assert.match(html,/const APP_VERSION="v0\.208"/);
+assert.match(html,/const APP_VERSION="v0\.209"/);
 assert.match(html,/hq_store_onboarding_ui\.js\?v=20261011v208/);
 assert.match(html,/\["report","리포트"\]/,'Inha six management tabs must remain visible');
 assert.match(html,/STORE_ENTRY_UNAVAILABLE/,'Unapproved store URL must remain blocked');
