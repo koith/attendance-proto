@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - apps_script.gs
+      - qa_apps_script_no_pr_deploy_v1.mjs
       - .github/workflows/apps-script-deploy.yml
   push:
     branches: [main]
@@ -16,6 +17,7 @@ on:
       - tools/deploy_apps_script.mjs
       - tools/apps_script_secret.mjs
       - qa_apps_script_deploy_secret.mjs
+      - qa_apps_script_no_pr_deploy_v1.mjs
       - .github/workflows/apps-script-deploy.yml
 
 permissions:
@@ -39,7 +41,9 @@ jobs:
           node qa_sheet_auto_resize_contract.mjs
           node qa_sheet_new_month_format_contract.mjs
           node qa_apps_script_deploy_secret.mjs
+          node qa_apps_script_no_pr_deploy_v1.mjs
       - name: Push source and redeploy existing web app
+        if: github.event_name != 'pull_request'
         env:
           SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
           DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}

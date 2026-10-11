@@ -13,6 +13,8 @@ assert.match(gas,/target\.setColumnWidth\(sc\+1,sharedWidths\[sc\]\)/,'shared me
 assert.doesNotMatch(gas,/sh\.setColumnWidth\(/,'active month must never resize independently');
 assert.doesNotMatch(gas,/Math\.min\(|Math\.max\(\s*\d+\s*,\s*required|widthBuckets|typeWidth/,'no fixed min/max or type bucket width policy');
 assert.match(gas,/width_source:'measured_display_text'/,'Apps Script must report measured displayed-text sizing');
+assert.match(gas,/column_width_readback_verified:true/,'Every sync must report actual post-write width verification');
+assert.match(gas,/getColumnWidth\(vc\+1\)/,'Width verification must query the persisted Google Sheet dimension');
 assert.match(edge,/SHEET_COLUMN_RESIZE_NOT_CONFIRMED/,'Edge sync must fail closed without resize proof');
 assert.match(edge,/width_source:\s*"measured_display_text"/,'Edge request must declare the same measured-display width source as Apps Script');
 assert.match(edge,/resize\.width_source !== "measured_display_text"/,'Edge response validation must accept only the deployed measured-display proof token');
