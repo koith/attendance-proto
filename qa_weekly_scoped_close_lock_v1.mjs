@@ -10,7 +10,9 @@ assert.match(migrated,/pg_advisory_xact_lock\(hashtextextended\('payroll-close:'
 assert.match(migrated,/pg_advisory_xact_lock\(hashtextextended\('payroll-close:'\|\|v_next_ym,0\)\)/);
 assert.match(migrated,/ym IN \(v_ym,v_next_ym\) AND status='CLOSED'/);
 assert.match(migrated,/s\.ym IN \(v_ym,v_next_ym\)/);
-assert.match(server,/weekMonday\.getTime\(\)<monthStart-6\*86400000/);
+// Approval request month must equal the week Monday's calendar month.
+assert.match(server,/if\(!weekBelongsToPayrollMonth\(ym,weekStart\)\)/);
+assert.match(server,/!weekStart\.startsWith\(ym\+"-"\)/);
 assert.match(migrated,/SERVICE_ONLY/);
 assert.match(migrated,/REVOKE ALL ON FUNCTION/);
 assert.doesNotMatch(migrated,/\b(?:UPDATE|DELETE|TRUNCATE)\s+(?:FROM\s+)?public\.payroll_weekly_approvals\b/i);
