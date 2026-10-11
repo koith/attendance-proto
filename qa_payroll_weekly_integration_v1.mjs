@@ -7,6 +7,16 @@ const migration=fs.readFileSync('supabase/migrations/20261009123000_payroll_week
 assert.match(api,/mode==="weekly_approve"/);
 assert.match(api,/client\.rpc\("approve_payroll_weekly_decision_internal"/);
 assert.match(api,/p_decision:decision/);
+assert.match(api,/const decision=requestedDecision==="APPROVE"&&priorDecision\?"REAPPROVE":requestedDecision/);
+assert.match(api,/return \{data,engine,weeklyApprovals:weeklyApprovals\|\|\[\]\}/);
+assert.match(api,/INITIAL_APPROVAL_REQUIRED/);
+assert.match(html,/id="weeklyApproveSave">정정 승인·재승인/);
+const reaudit=fs.readFileSync('supabase/migrations/20261011210000_weekly_reapprove_immutable_audit.sql','utf8');
+assert.match(reaudit,/REAPPROVAL_REQUIRED/);
+assert.match(reaudit,/INITIAL_APPROVAL_REQUIRED/);
+assert.match(reaudit,/p_decision NOT IN \('APPROVE','REJECT','REAPPROVE'\)/);
+assert.match(reaudit,/p\.store_id=p_store_id/);
+
 assert.match(api,/mode==="weekly_decide"/);
 assert.match(html,/id="weeklyDecision"/);
 assert.match(html,/mode:"weekly_decide"/);
