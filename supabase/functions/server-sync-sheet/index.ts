@@ -3,6 +3,7 @@
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
 import {createRemoteJWKSet,jwtVerify} from "https://esm.sh/jose@5";
 import {createPayrollEngine} from "./engine.mjs";
+import {attendanceWithWorkingPayable} from "./sheet_working_payable.mjs";
 
 const CORS={
   "Access-Control-Allow-Origin":"*",
@@ -172,14 +173,18 @@ function won(n){return (Number(n)||0).toLocaleString("ko-KR")+"원";}
 async function buildReport(ym,storeId){
   const {data,engine}=await sourceFor(ym,storeId);
   const report=await engine.buildSheetSyncPayload(ym);
+  // Keep raw browser/server parity data unchanged; only the Sheet writer
+  // overlays the live shift seconds already present in authoritative payroll.
+  const calculated=await engine.computeMonthPayroll(ym);
+  const workingAttendance=attendanceWithWorkingPayable(report.attendance,calculated);
   const {data:snap,error:snapError}=await client.from("payroll_snapshot").select("employee_id,employee_name,hours,wage,base_pay,juhyu_pay,adjust,gross_pay,closed_at").eq("ym",ym);
   if(snapError)throw new Error("SNAPSHOT_READ_FAILED");
   const ids=new Set((data.employees||[]).map(e=>Number(e.id)));
   const snapshots=(snap||[]).filter(s=>ids.has(Number(s.employee_id)));
   const closedPayroll=snapshotRows(snapshots,ym);
-  return {source:data,report,closed:!!closedPayroll,closedPayroll};
+  return {source:data,report,workingAttendance,closed:!!closedPayroll,closedPayroll};
 }
-async function googleWrite(ym,payload,closed,closedPayroll){
+async function googleWrite(ym,payload,closed,closedPayroll,workingAttendance){
   const url=Deno.env.get("SHEET_WEBAPP_URL"),secret=Deno.env.get("SHEET_SHARED_SECRET");
   if(!url||!/^https:\/\/script\.google\.com\//.test(url)||!secret)throw new Error("SHEET_APP_NOT_CONFIGURED");
   const body={
@@ -187,7 +192,7 @@ async function googleWrite(ym,payload,closed,closedPayroll){
     store_key:String(payload.store_key||"1"),store_name:String(payload.store_name||"인하대학교점"),
     drive_structure:{root_folder_name:"백억커피",store_folder_name:String(payload.store_name||"인하대학교점"),create_missing_folders:true,one_spreadsheet_per_store:true,separate_by_store:true},
     sheet_format:{auto_resize_columns:true,resize_scope:"all_used_columns_after_write",width_source:"measured_display_text",recalculate_on_every_sync:true,human_readable_report:true,hide_empty_sections:true,freeze_header_rows:true,duration_format:"HH:MM"},
-    attendance:payload.attendance,sessions:payload.sessions,payroll:closed?(closedPayroll||payload.payroll):payload.payroll
+    attendance:workingAttendance||payload.attendance,sessions:payload.sessions,payroll:closed?(closedPayroll||payload.payroll):payload.payroll
   };
   const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   const raw=await res.text();let result;
@@ -215,7 +220,7 @@ async function writeClaimed(ym,storeId,prepared,release,force=false){
     return {ok:true,ym,skipped:true};
   }
   try{
-    const result=await googleWrite(ym,prepared.report,prepared.closed,prepared.closedPayroll);
+    const result=await googleWrite(ym,prepared.report,prepared.closed,prepared.closedPayroll,prepared.workingAttendance);
     await finish(storeId,ym,fingerprint,lease,true,null);
     return {ok:true,ym,written:true,result};
   }catch(error){
