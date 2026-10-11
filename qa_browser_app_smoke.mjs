@@ -244,7 +244,7 @@ async function smoke(browser,label,viewport){
   await page.locator('#hqOnboardingStore').waitFor({timeout:12000});
   assert.match(await page.locator('#hqStoreCounts').innerText(),/등록 283곳 · 운영 1 · 준비 282/);
   await page.locator('#hqOnboardingSearchInput').fill('송도');
-  await page.waitForFunction(()=>document.querySelectorAll('#hqOnboardingStore option').length===1);
+  await page.waitForFunction(()=>[...document.querySelectorAll('#hqOnboardingStore option')].filter(o=>!o.disabled).length===1);
   assert.match(await page.locator('#hqOnboardingStore').innerText(),/송도점/);
   await page.locator('#hqStoreStatusFilter').selectOption('READY');
   assert.equal(await page.locator('#hqOnboardingStore').isDisabled(),true,
