@@ -9,3 +9,4 @@ jobs:
       - run: node qa_substitution_runtime_hardening_v1.mjs
       - run: node --check substitution_v1.js
       - run: node qa_substitution_scoped_roster_v1.mjs
+      - run: node qa_substitution_private_helpers_v1.mjs
