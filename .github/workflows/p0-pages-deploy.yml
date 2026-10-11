@@ -38,6 +38,8 @@ on:
       - 'qa_hq_store_search_owner_activation_v1.mjs'
       - 'qa_store_entry_ready_lock_v1.mjs'
       - 'qa_staged_store_active_consistency_v1.mjs'
+      - 'qa_hq_sample_roster_activation_guard_v1.mjs'
+      - 'supabase/migrations/20261011130000_hq_sample_roster_activation_guard.sql'
       - 'supabase/migrations/20261011124000_staged_store_inactive_consistency.sql'
       - 'qa_store_provenance_gate_v1.mjs'
       - 'qa_confirmed_owner_permission_v1.mjs'
@@ -160,6 +162,8 @@ jobs:
         run: node qa_store_entry_ready_lock_v1.mjs
       - name: STAGED store active flag consistency regression
         run: node qa_staged_store_active_consistency_v1.mjs
+      - name: Sample roster activation denial and HQ-only visibility regression
+        run: node qa_hq_sample_roster_activation_guard_v1.mjs
       - name: Store-isolated sales and CSV import regression
         run: node qa_store_operations_isolation_v1.mjs
       - name: Multi-store inventory ledger regression

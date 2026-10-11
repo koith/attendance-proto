@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const sql=fs.readFileSync('supabase/migrations/20261011130000_hq_sample_roster_activation_guard.sql','utf8');
+const older=fs.readFileSync('supabase/migrations/20261011103500_confirmed_owner_activation_security.sql','utf8');
+assert.match(sql,/CREATE OR REPLACE FUNCTION public\.hq_store_onboarding_set\(/);
+const gate=sql.split('CREATE OR REPLACE FUNCTION public.hq_store_sample_roster_counts()')[0];
+assert.match(gate,/v_review IS DISTINCT FROM 'VERIFIED'/);
+assert.match(gate,/u\.email_confirmed_at IS NOT NULL/);
+assert.match(gate,/CONFIRMED_STORE_MANAGER_REQUIRED/);
+assert.match(gate,/INHA_PRODUCTION_LOCK/);
+assert.match(gate,/e\.store_id=p_store_id/);
+assert.match(gate,/coalesce\(e\.memo,''\) ILIKE '%데모%'/);
+assert.match(gate,/coalesce\(e\.memo,''\) ILIKE '%샘플%'/);
+assert.match(gate,/e\.name ILIKE '%테스트%'/);
+assert.match(gate,/DEMO_EMPLOYEES_REQUIRE_REVIEW/);
+assert.match(sql,/CREATE OR REPLACE FUNCTION public\.hq_store_sample_roster_counts\(\)/);
+assert.match(sql,/IF NOT public\.is_hq_admin\(\) THEN RAISE EXCEPTION 'NOT_AUTHORIZED'/);
+assert.match(sql,/REVOKE ALL ON FUNCTION public\.hq_store_sample_roster_counts\(\) FROM PUBLIC,anon/);
+assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.hq_store_sample_roster_counts\(\) TO authenticated/);
+assert.match(older,/PROVENANCE_VERIFICATION_REQUIRED/);
+const statements=sql.split('\n').filter(line=>!line.trimStart().startsWith('--')).join('\n');
+assert.doesNotMatch(statements,/\b(?:DELETE|TRUNCATE)\s+(?:FROM\s+)?public\.(?:stores|employees)/i);
+assert.doesNotMatch(statements,/UPDATE public\.employees/i);
+assert.equal((statements.match(/UPDATE public\.stores SET onboarding_status=p_status/g)||[]).length,1,
+  'Existing HQ activation status transition must be the only store update');
+console.log('PASS seeded sample+demo employees block READY activation; HQ-only aggregate, no deletion, Inha unchanged');
