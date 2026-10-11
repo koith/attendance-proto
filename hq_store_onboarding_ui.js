@@ -35,11 +35,12 @@ window.mountHqStoreOnboarding=async function(box){
     '<div id="hqOnboardingBody" aria-live="polite">지점 정보를 불러오는 중…</div>';
   box.appendChild(section);
   const body=section.querySelector("#hqOnboardingBody");
-  let stores=[],managers=[],proofs=[],selected=1,busy=false,searchTerm="",statusFilter="ALL";
+  let stores=[],managers=[],proofs=[],sampleCounts=[],selected=1,busy=false,searchTerm="",statusFilter="ALL";
   const message=(title,detail)=>{if(typeof toast==="function")toast("in",title,detail);};
   const err=error=>{if(typeof toast==="function")toast("err","지점 설정 실패",String(error?.message||error));};
   async function refresh(){
-    [stores,managers,proofs]=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_provenance_list")]);
+    [stores,managers,proofs,sampleCounts]=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_provenance_list"),rpc("hq_store_sample_roster_counts")]);
+    if(!Array.isArray(sampleCounts))throw Error("SAMPLE_ROSTER_COUNTS_INVALID");
     if(!stores.some(s=>Number(s.id)===selected))selected=Number(stores[0]?.id||1);
     render();
   }
@@ -57,13 +58,17 @@ window.mountHqStoreOnboarding=async function(box){
     const ready=store?.onboarding_status==="READY";
     const proof=proofs.find(p=>Number(p.store_id)===selected);
     const verified=selected===1||proof?.decision==="VERIFIED";
-    const canActivate=selected===1||(verified&&Number(store?.manager_count||0)>0);
+    const sampleEmployeeCount=Number(sampleCounts.find(x=>Number(x.store_id)===selected)?.sample_employee_count||0);
+    const canActivate=selected===1||(verified&&Number(store?.manager_count||0)>0&&sampleEmployeeCount===0);
+    const sampleStoreCount=sampleCounts.filter(x=>Number(x.sample_employee_count)>0).length;
+    const sampleTotal=sampleCounts.reduce((n,x)=>n+Number(x.sample_employee_count||0),0);
     const readyCount=stores.filter(s=>s.onboarding_status==="READY").length;
     const stagedCount=stores.filter(s=>s.onboarding_status==="STAGED").length;
     const suspendedCount=stores.filter(s=>s.onboarding_status==="SUSPENDED").length;
     body.innerHTML=
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:9px">'+
-        '<div id="hqStoreCounts" style="font-size:.84rem">등록 '+stores.length+'곳 · 운영 '+readyCount+' · 준비 '+stagedCount+' · 중지 '+suspendedCount+'</div>'+
+        '<div><div id="hqStoreCounts" style="font-size:.84rem">등록 '+stores.length+'곳 · 운영 '+readyCount+' · 준비 '+stagedCount+' · 중지 '+suspendedCount+'</div>'+ 
+        '<div id="hqSampleRosterSummary" style="font-size:.75rem;color:var(--text-muted)">초기 직원 자료 점검 필요 '+sampleStoreCount+'곳 · '+sampleTotal+'명</div></div>'+
         '<button type="button" id="hqStoreRefresh" class="btn btn-secondary btn-sm">정보 새로고침</button></div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">'+
         '<div class="field"><label for="hqOnboardingSearchInput">지점명·코드·지역 검색</label>'+
@@ -81,7 +86,8 @@ window.mountHqStoreOnboarding=async function(box){
         '</strong> · 검색 결과에서 새 지점을 선택하면 아래 관리 대상이 변경됩니다.</div>'+
       '<div style="margin:8px 0;font-size:.85rem">상태: <strong>'+escapeHTML(store?.onboarding_status||"UNKNOWN")+
       '</strong> · 배정된 점주 '+list.length+'명 · 이메일 확인 완료 '+Number(store?.manager_count||0)+'명 · 실재 확인 <strong>'+escapeHTML(selected===1?"기존 운영점":proof?.decision||"미확인")+'</strong></div>'+
-      '<div style="font-size:.77rem;color:var(--text-muted);margin:6px 0 8px">운영 활성화 전 공식 가맹점 확인과 이메일 인증을 완료한 점주 계정이 필요합니다. 기존 시연용 직원 자료는 별도 점검 후 정리해야 합니다.</div>'+
+      '<div style="font-size:.77rem;color:var(--text-muted);margin:6px 0 8px">운영 활성화 전 공식 가맹점 확인과 이메일 인증을 완료한 점주 계정이 필요합니다. 기존 시연용 직원 자료는 별도 점검 후 정리해야 합니다.</div>'+ 
+      (sampleEmployeeCount>0?'<div id="hqSampleRosterBlocker" role="status" style="font-size:.8rem;color:var(--warning);margin:6px 0 10px">개통 차단: 이 지점에 확인이 필요한 샘플·데모 직원 '+sampleEmployeeCount+'명이 있습니다. 자료 출처를 검증하기 전에는 운영 활성화할 수 없습니다. 기존 직원 자료는 자동 삭제되지 않습니다.</div>':'')+
       '<div class="field"><label for="hqStoreEvidence">확인 근거 (공식 가맹점 자료 URL·본사 확인 기록 등)</label><input class="form-control" id="hqStoreEvidence" type="text" maxlength="2000" placeholder="공식 출처와 확인 정보를 구체적으로 입력 (15자 이상)"></div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px">'+
       '<button type="button" class="btn btn-secondary btn-sm" id="hqStoreVerify"'+(selected===1?' disabled':'')+'>실재 확인 기록</button>'+
