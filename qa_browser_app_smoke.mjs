@@ -30,6 +30,8 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
     const name=url.pathname.split('/').pop();
     let args={};try{args=JSON.parse(route.request().postData()||'{}')}catch{}
     calls.push({name,args});
+    if(name==='list_stores')return reply(route,role==='STORE_MANAGER'?stores:
+      stores.filter(x=>x.id===1||stageActivated));
     if(name==='hq_stores_onboarding_list')return reply(route,stores.map(x=>({
       ...x,code:'QA_'+x.id,region_group:'인천',
       onboarding_status:x.id===1?'READY':stageActivated?'READY':'STAGED',
@@ -284,12 +286,40 @@ async function ownerScopedRoute(browser,label,viewport){
   await context.close();
   console.log('PASS scoped store manager '+label+': wrong-store redirect, employee isolation, HQ lock');
 }
+async function blockedStoreRoute(browser,label,viewport){
+  const context=await browser.newContext({viewport,locale:'ko-KR',timezoneId:'Asia/Seoul'});
+  const page=await context.newPage();const calls=[],errors=[];
+  page.on('pageerror',e=>errors.push(String(e?.message||e)));
+  await configure(page,calls,'HQ');
+  for(const id of ['2','999999','invalid','0']){
+    await page.goto(host+'/index.html?mode=store&store='+id+'#pos',{waitUntil:'domcontentloaded'});
+    await page.getByText('지점 운영 준비 중').waitFor({timeout:15000});
+    assert.equal(await page.locator('#empGrid .emp').count(),0,
+      'Blocked store must not display Inha employee cards '+label+'/'+id);
+    assert.equal(await page.locator('#storeSelect').count(),0,
+      'Blocked store must not expose HQ selector '+label+'/'+id);
+    assert.equal(await page.locator('.tabwrap').isVisible(),false,
+      'Blocked store must not expose POS or management tabs '+label+'/'+id);
+    assert.equal((await page.locator('#lockedStoreName').innerText()).trim(),'지점 확인 필요');
+    await page.evaluate(()=>{location.hash='#admin'});
+    await page.getByText('지점 운영 준비 중').waitFor({timeout:10000});
+    assert.equal(await page.locator('#adEmps .employee-manage-card').count(),0,
+      'Direct hash entry must not bypass pending store gate '+label+'/'+id);
+    assert.equal(await page.locator('.admin-subnav-shell').count(),0,
+      'Blocked store must not render Inha admin controls '+label+'/'+id);
+  }
+  assert.deepEqual(errors,[],'Blocked store caused browser errors '+label);
+  await context.close();
+  console.log('PASS blocked store routes '+label+': STAGED, unknown, malformed, no Inha fallback');
+}
 const browser=await chromium.launch({headless:true});
 try{
   await smoke(browser,'mobile',{width:390,height:844});
   await smoke(browser,'desktop',{width:1440,height:900});
   await ownerScopedRoute(browser,'mobile',{width:390,height:844});
   await ownerScopedRoute(browser,'desktop',{width:1440,height:900});
+  await blockedStoreRoute(browser,'mobile',{width:390,height:844});
+  await blockedStoreRoute(browser,'desktop',{width:1440,height:900});
 }finally{
   await browser.close();
 }
