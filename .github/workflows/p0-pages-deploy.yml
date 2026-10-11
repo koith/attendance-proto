@@ -34,6 +34,7 @@ on:
       - 'qa_weekly_scoped_close_lock_v1.mjs'
       - 'qa_weekly_cross_month_close_guard_v1.mjs'
       - 'qa_payroll_close_server_authority_v1.mjs'
+      - 'qa_payroll_contract_authority_v1.mjs'
       - 'qa_store_payroll_isolation_v1.mjs'
       - 'hq_store_onboarding_ui.js'
       - 'owner_activation.html'
@@ -230,6 +231,8 @@ jobs:
         run: node qa_store_payroll_isolation_v1.mjs
       - name: Payroll close and reopen server authority regression
         run: node qa_payroll_close_server_authority_v1.mjs
+      - name: Browser month-close pending shift preflight regression
+        run: node qa_payroll_contract_authority_v1.mjs
       - name: Weekly approval authorization QA
         run: |
           node qa_payroll_weekly_integration_v1.mjs
