@@ -38,7 +38,7 @@ const BE={
 const report=await createPayrollEngine({BE,storeId:1,now:new Date('2026-10-20T05:00:00Z')}).computeMonthPayroll(ym);
 const month=report.rows.find(row=>row.employee_id===991)?.pay;
 const week=report.rows.find(row=>row.employee_id===993)?.pay;
-assert.ok(month&&week,'Both synthetic employees must have payroll rows');
+assert.ok(month&&week,'Expected both synthetic employee pays: '+JSON.stringify(report.rows.map(r=>({id:r.employee_id,name:r.employee_name,type:r.payrollType,hasPay:!!r.pay,sec:r.sec}))));
 assert.equal(month.accruedDays,16);
 assert.equal(month.base,Math.trunc(1000001*16/31),'Monthly salary partial-day pay truncates fractional won');
 assert.equal(month.substitutePay,166,'One minute at 10,001 won/hour truncates to 166 won, not nearest ten');
