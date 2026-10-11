@@ -591,9 +591,69 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     return {base:parts.reduce((s,x)=>s+x.base,0),
       accruedDays:parts.reduce((s,x)=>s+x.accruedDays,0),daysInMonth,rate,parts};
   }
+  // Only source-verifiable completed hourly shifts, with constant tax/break
+  // policy and no weekly or night premium, qualify for automatic repricing.
+  function hourlyContractSegments(contracts,periods,ym,employeeId,sessions,row){
+    if(contracts.length<2||contracts.some(c=>c.payroll_type!=='HOURLY'||
+      c.tax_treatment!=='BUSINESS_INCOME'||!(Number(c.hourly_wage)>0)||
+      Number(c.weekly_contracted_minutes||0)!==0||c.night_allowance_enabled===true))return null;
+    const rates=new Set(contracts.map(c=>Number(c.business_deduction_rate??0.033)));
+    const modes=new Set(contracts.map(c=>c.break_provision_mode||'NOT_PROVIDED'));
+    if(rates.size!==1||modes.size!==1)return null;
+    const mode=[...modes][0],rate=[...rates][0];
+    if(!['PROVIDED','NOT_PROVIDED','IGNORED','NOT_CONSIDERED'].includes(mode)||
+      !Number.isFinite(rate)||rate<0||rate>=1)return null;
+    if(row.ov?.wage_override!=null||Number(row.pay?.juhyu||0)!==0||
+      Number(row.pay?.substitutePay||row.substitutePay||0)!==0)return null;
+    if((sessions||[]).some(s=>s.status!=='COMPLETE'))return null;
+    const completed=(sessions||[]).filter(s=>s.in&&s.out&&Number(s.sec)>0);
+    if(!completed.length)return null;
+    const [year,month]=ym.split('-').map(Number),days=new Date(year,month,0).getDate();
+    const last=ym+'-'+String(days).padStart(2,'0');
+    const firstContract=contracts.map(c=>String(c.effective_from)).sort()[0];
+    const lastContract=contracts.map(c=>c.effective_to?String(c.effective_to):last).sort().at(-1);
+    const jobs=(periods||[]).filter(p=>Number(p.employee_id)===Number(employeeId));
+    const matchDate=date=>contracts.filter(c=>String(c.effective_from)<=date&&
+      (!c.effective_to||String(c.effective_to)>=date));
+    const employed=date=>jobs.length
+      ?jobs.some(p=>String(p.started_on)<=date&&(!p.ended_on||String(p.ended_on)>=date))
+      :date>=firstContract&&date<=lastContract;
+    for(let day=1;day<=days;day++){
+      const date=ym+'-'+String(day).padStart(2,'0');
+      if(employed(date)&&matchDate(date).length!==1)return null;
+    }
+    const totals=new Map(contracts.map(c=>[c,{paid:0,bonus:0}]));
+    for(const shift of completed){
+      const a=dayKey(shift.in),b=dayKey(shift.out);
+      if(!employed(a)||!employed(b))return null;
+      const matches=matchDate(a),endMatches=matchDate(b);
+      if(matches.length!==1||endMatches.length!==1||
+        matches[0]!==endMatches[0])return null;
+      const sec=Number(shift.sec);
+      if(!Number.isFinite(sec)||sec<=0)return null;
+      const deduct=mode==='PROVIDED'
+        ?Math.min(1800,Math.max(0,sec-14400))+
+          Math.min(1800,Math.max(0,sec-30600)):0;
+      const bonus=mode==='NOT_PROVIDED'?(sec>=28800?60:sec>14400?30:0):0;
+      const total=totals.get(matches[0]);
+      total.paid+=Math.max(0,sec-deduct);total.bonus+=bonus;
+    }
+    const parts=contracts.map(c=>{
+      const total=totals.get(c),wage=Number(c.hourly_wage);
+      return {contractId:c.contract_id??c.id,hourlyWage:wage,
+        paidSeconds:total.paid,breakBonusMinutes:total.bonus,
+        base:Math.trunc(wage*total.paid/3600),
+        breakCompPay:Math.trunc(wage*total.bonus/60)};
+    });
+    return {base:parts.reduce((s,x)=>s+x.base,0),
+      breakCompPay:parts.reduce((s,x)=>s+x.breakCompPay,0),rate,parts};
+  }
   function chooseContract(row,ym,b){const contracts=(b.contracts||[]).filter(c=>overlaps(c,monthBounds(ym))).sort((a,z)=>String(z.effective_from).localeCompare(String(a.effective_from)));if(!contracts.length)return {mode:'MISSING_CONTRACT',issue:'계약조건 미등록 · 급여 계산 보류'};const payable=(row.sessions||[]).filter(s=>(s.status==='COMPLETE'||s.status==='WORKING')&&s.in);const used=contracts.filter(c=>payable.some(s=>covers(c,dayKey(s.in))));const candidates=used.length?used:contracts;const displayContract=candidates[0]||contracts[0]||null;if(contracts.length>1){
       const segments=monthlyContractSegments(contracts,b.periods||[],ym,row.employee_id);
       if(segments)return {mode:'MONTHLY',contract:displayContract,monthlySegments:segments};
+      const hourly=hourlyContractSegments(contracts,b.periods||[],ym,
+        row.employee_id,row.sessions||[],row);
+      if(hourly)return {mode:'CONTRACT',contract:displayContract,hourlySegments:hourly};
       return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};
     }if(candidates.some(c=>c.tax_treatment==='FOUR_INSURANCE'))return {mode:'BLOCKED',contract:displayContract,issue:'4대보험 공제 계산정책 미확정'};if(candidates.some(c=>c.payroll_type==='MONTHLY')){if(candidates.some(c=>c.payroll_type!=='MONTHLY'))return {mode:'BLOCKED',contract:displayContract,issue:'월중 급여유형 변경 · 구간별 급여 계산 확인 필요'};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'MONTHLY',contract:candidates[0]};}if(candidates.some(c=>c.payroll_type!=='HOURLY'||c.tax_treatment!=='BUSINESS_INCOME'))return {mode:'BLOCKED',contract:displayContract,issue:'급여 계약조건 확인 필요'};const uncoveredDays=[...new Set(payable.filter(s=>!contracts.some(c=>covers(c,dayKey(s.in)))).map(s=>dayKey(s.in)))];if(uncoveredDays.length)return {mode:'BLOCKED',contract:displayContract,issue:`계약기간 밖 실근무 ${uncoveredDays.join(', ')} · 급여 확인 필요`};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'CONTRACT',contract:candidates[0]}}
   const nightSecond=s=>{const m=/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/.exec(String(s??''));return m?Number(m[1])*3600+Number(m[2])*60+Number(m[3]||0):null};
