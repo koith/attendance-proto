@@ -34,6 +34,9 @@ on:
       - 'owner_activation.js'
       - 'qa_admin_context_active_gate_v1.mjs'
       - 'qa_staff_recipe_ready_guard_v1.mjs'
+      - 'recipe_access_v220.js'
+      - 'qa_recipe_staff_shift_only_v1.mjs'
+      - 'supabase/migrations/20261011172000_revoke_public_recipe_instructions.sql'
       - 'qa_payroll_unfinished_month_boundary_v1.mjs'
       - 'qa_event_correction_reason_guard_v1.mjs'
       - 'supabase/migrations/20261011170000_event_correction_reason_required.sql'
@@ -169,6 +172,10 @@ jobs:
         run: node qa_admin_context_active_gate_v1.mjs
       - name: Staff recipe READY-only store authorization regression
         run: node qa_staff_recipe_ready_guard_v1.mjs
+      - name: Staff recipe on-shift PIN and no public bypass
+        run: |
+          node --check recipe_access_v220.js
+          node qa_recipe_staff_shift_only_v1.mjs
       - name: Attendance correction reason audit regression
         run: node qa_event_correction_reason_guard_v1.mjs
       - name: READY-only dedicated store route regression
