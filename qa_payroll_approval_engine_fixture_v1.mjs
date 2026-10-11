@@ -41,4 +41,10 @@ const reapproved={...approval,id:3,decision:'REAPPROVE',approved_won:35000,appro
 assert.equal((await calculate([rejected,approval])).juhyu,0,'latest rejection overrides initial approval');
 assert.equal((await calculate([reapproved,rejected,approval])).juhyu,35000,'latest reapproval takes effect without erasing previous audit');
 assert.equal((await calculate([reapproved,rejected,approval])).gross,baseline.gross-3400);
+const priorMonth={...approval,id:10,week_start:'2026-09-28',approved_won:250000,reason:'Prior month decision'};
+const isolated=await calculate([priorMonth,approval]);
+assert.equal(isolated.juhyu,corrected.juhyu,'September approved week must not be paid in October');
+const onlyPrior=await calculate([priorMonth]);
+assert.equal(onlyPrior.juhyu,baseline.juhyu,'Prior-month decision alone cannot add October holiday pay');
 console.log('PASS server payroll computed week, approved adjustment, zero approval and gross/net propagation');
+

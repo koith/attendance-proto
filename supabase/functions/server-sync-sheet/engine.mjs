@@ -208,7 +208,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       const requesterContract=contracts[Number(sr.requester_employee_id)]||null;
       const requesterEmp=emps.find(x=>Number(x.id)===Number(sr.requester_employee_id));
       const substituteWage=Number(requesterContract?.hourly_wage||requesterEmp?.wage||0);
-      if(substituteWage>0) substitutePay+=xround(substituteWage*(Math.max(0,Number(sr.actual_minutes||0))/60),-1);
+      if(substituteWage>0) substitutePay+=truncateWon(substituteWage*(Math.max(0,Number(sr.actual_minutes||0))/60));
     }
     const contractWage=payrollType==="HOURLY"?Number(contract?.hourly_wage||0):0;
     const effWage=(ov&&ov.wage_override!=null)?Number(ov.wage_override):(contractWage||Number(e.wage||0));
@@ -229,7 +229,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
         accruedDays++;
       }
       const accruedBase=Math.trunc(monthlySalary/daysInMonth*accruedDays);
-      const gross=Math.round(accruedBase+substitutePay+(ov?.adjust_amount||0));
+      const gross=truncateWon(accruedBase+substitutePay+(ov?.adjust_amount||0));
       const rate=(ov?.tax_rate_override!=null)?Number(ov.tax_rate_override):(contract.tax_treatment==="BUSINESS_INCOME"?Number(contract.business_deduction_rate??0.033):0);
       pay={base:accruedBase,weekly:0,juhyu:0,substitutePay,substituteMinutes,adjust:ov?.adjust_amount||0,gross,net:xrounddown(gross*(1-rate),-1),rate,wage:0,jweeks:0,usedOverride:!!ov,payrollType:"MONTHLY",monthlySalary,accruedDays,daysInMonth};
     }else if(effWage>0){
@@ -291,7 +291,9 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
           }
         }
         pay.weeklyReviewComments=weeklyReviewComments;
-        const employeeApprovals=weeklyApprovals.filter(a=>Number(a.employee_id)===Number(e.id));
+        // Keep each Monday-owned week in its own payroll month even if the
+        // source query includes the preceding month's overlapping week.
+        const employeeApprovals=weeklyApprovals.filter(a=>Number(a.employee_id)===Number(e.id)&&String(a.week_start||'').startsWith(ym+'-'));
         const approvedWeeks=new Set();
         let approvalDelta=0;
         for(const a of employeeApprovals){
@@ -305,7 +307,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
         pay.weeklyCalculatedAmounts=Object.fromEntries(weeklyAmounts);
         pay.weeklyApprovalDelta=approvalDelta;
         pay.jweeks=qualifiedWeeks;
-        pay.weekly=Math.round(effWage*Math.min(8,weeklyContractMin/300));
+        pay.weekly=truncateWon(effWage*Math.min(8,weeklyContractMin/300));
         pay.juhyu=[...weeklyAmounts.values()].reduce((sum,won)=>sum+won,0)+Number(pay.weeklyApprovalDelta||0);
         if(hours<=0){pay.base=0;pay.weekly=0;pay.juhyu=0;pay.adjust=0;pay.gross=0;pay.net=0;pay.jweeks=0;}
         else {const breakCompPay=Math.trunc((effWage||0)*breakBonusMinutes/60);pay.breakCompPay=breakCompPay;pay.gross=Math.trunc(pay.base+pay.juhyu+pay.adjust+breakCompPay);pay.net=xrounddown(pay.gross*(1-pay.rate),-1);}
@@ -334,7 +336,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
         nightAllowance=Math.trunc(nightWorkedSeconds/3600*(mode==="FLAT"?value:hourlyBase*value/100));
         nightAllowanceLabel=mode==="FLAT"?`정액 ${won(value)}/시간`:`정률 ${value}%`;
       }else nightAllowanceLabel="시급 기준 확인 필요";
-      if(pay&&nightAllowance>0){pay.nightAllowance=nightAllowance;pay.gross=Math.round(Number(pay.gross||0)+nightAllowance);pay.net=xrounddown(pay.gross*(1-Number(pay.rate||0)),-1);}
+      if(pay&&nightAllowance>0){pay.nightAllowance=nightAllowance;pay.gross=truncateWon(Number(pay.gross||0)+nightAllowance);pay.net=xrounddown(pay.gross*(1-Number(pay.rate||0)),-1);}
     }
     if(pay){pay.nightAllowance=nightAllowance;pay.nightAllowanceLabel=nightAllowanceLabel;}
     // Never recognize salary, allowances, manual adjustments or substitutions
