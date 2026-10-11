@@ -28,10 +28,13 @@ export function attendanceWithWorkingPayable(attendance,calculated){
   }
  }
  return {...attendance,rows:attendance.rows.map(row=>{
-  if(!Array.isArray(row)||row[5]!=='근무중')return row;
+  if(!Array.isArray(row)||row[3]!=='—')return row;
   const key=String(row[0])+'|'+String(row[1])+'|'+String(row[2]);
   const list=working.get(key);
   if(!list?.length)return row;
-  return row.map((cell,i)=>i===10?duration(list.shift()):cell);
+  const seconds=list.shift();
+  // A one-session open day was previously mislabeled '정상' by the
+  // attendance summary builder. Only the matched live session is relabeled.
+  return row.map((cell,i)=>i===5?'근무중':i===10?duration(seconds):cell);
  })};
 }
