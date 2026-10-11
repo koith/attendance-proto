@@ -162,16 +162,64 @@
     const syncSearchClear=()=>searchClearEl.classList.toggle("is-visible",!!searchEl.value);catEl.onchange=draw;sortEl.onchange=draw;searchEl.oninput=()=>{syncSearchClear();draw()};searchClearEl.onclick=()=>{searchEl.value="";syncSearchClear();draw();searchEl.focus()};syncSearchClear();draw();
   }
 
+  let staffShiftTimer=null;
+  const stopShiftTimer=()=>{if(staffShiftTimer!==null){clearInterval(staffShiftTimer);staffShiftTimer=null}};
+  async function staffRecipeGate(){
+    const all=await BE.listEmployeesState();
+    const working=(Array.isArray(all)?all:[]).filter(e=>e.working===true);
+    if(!working.length){
+      view.innerHTML='<div class="recipe-v220-empty">현재 출근 중인 직원만 레시피를 볼 수 있습니다.<p><button type="button" class="btn btn-secondary" id="rvStaffRetry">근무 상태 다시 확인</button></p></div>';
+      document.getElementById('rvStaffRetry').onclick=()=>renderRecipeHub();
+      return;
+    }
+    view.innerHTML=`<section class="recipe-v220 recipe-v220-staff-gate"><h2>직원 레시피 열람</h2>
+      <p>현재 출근 중인 직원만 레시피를 볼 수 있습니다. 직원 본인의 비밀번호를 확인합니다.</p>
+      <form id="rvStaffLogin"><label>근무 중인 직원<select id="rvStaffEmployee" required>
+      ${working.map(e=>`<option value="${Number(e.id)}">${esc(e.name)}</option>`).join("")}</select></label>
+      <label>직원 비밀번호<input id="rvStaffPin" type="password" inputmode="numeric" autocomplete="off" required></label>
+      <button class="btn btn-primary" type="submit" id="rvStaffRead">보기 전용 레시피 열람</button>
+      <p id="rvStaffError" role="alert" aria-live="polite"></p></form></section>`;
+    const form=document.getElementById('rvStaffLogin');
+    form.onsubmit=async event=>{
+      event.preventDefault();
+      const id=Number(document.getElementById('rvStaffEmployee').value);
+      const pin=document.getElementById('rvStaffPin').value;
+      const submit=document.getElementById('rvStaffRead'),notice=document.getElementById('rvStaffError');
+      if(!Number.isSafeInteger(id)||!pin)return;
+      submit.disabled=true;notice.textContent='';
+      try{
+        const allowed=await BE.staffRecipeList(id,pin,CURRENT_STORE_ID);
+        document.getElementById('rvStaffPin').value='';
+        renderList(allowed,false);
+        stopShiftTimer();
+        staffShiftTimer=setInterval(async()=>{
+          if(!document.getElementById('rvList')){stopShiftTimer();return}
+          try{
+            const now=await BE.listEmployeesState();
+            if(!Array.isArray(now)||!now.some(e=>Number(e.id)===id&&e.working===true)){stopShiftTimer();await renderRecipeHub()}
+          }catch(_){stopShiftTimer();await renderRecipeHub()}
+        },30000);
+      }catch(e){
+        document.getElementById('rvStaffPin').value='';
+        notice.textContent='열람할 수 없습니다. 본인 비밀번호와 출근 상태를 확인하세요.';
+        submit.disabled=false;
+      }
+    };
+  }
   async function renderRecipeHub(){
+    stopShiftTimer();
     view.innerHTML='<div class="recipe-v220-loading">레시피를 불러오는 중…</div>';
     try{
       let manager=false;
       if(LIVE&&Auth.isLoggedIn()){
         try{manager=!!(await BE.isAdmin())}catch(_){manager=false}
       }
-      rows=manager?await BE.storeRecipeList(CURRENT_STORE_ID):await BE.publicStoreRecipeList(CURRENT_STORE_ID);
-      renderList(rows,manager);
-    }catch(e){view.innerHTML=`<p class="recipe-v220-empty">레시피를 불러오지 못했습니다.<br>${esc(e.message)}</p>`}
+      if(manager){
+        rows=await BE.storeRecipeList(CURRENT_STORE_ID);
+        renderList(rows,true);
+      }else if(LIVE) await staffRecipeGate();
+      else view.innerHTML='<p class="recipe-v220-empty">직원 레시피 열람은 운영 출근 인증 후 이용할 수 있습니다.</p>';
+    }catch(e){view.innerHTML=`<p class="recipe-v220-empty">레시피를 불러오지 못했습니다. 근무 상태를 다시 확인하세요.</p>`}
   }
   window.renderRecipeHub=renderRecipeHub;
 })();
