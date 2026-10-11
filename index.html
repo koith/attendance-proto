@@ -2958,7 +2958,7 @@ async function buildSheetSyncPayload(ym){
   for(const rec of R.rows){
     if(!rec.pay){ payRows.push([rec.employee_name, sheetDuration(rec.sec), sheetDuration(rec.nightMinutes*60), "미설정","—","—",rec.breakMode==="IGNORED"?"미고려":rec.breakTimeProvided?"제공":"미제공",rec.breakNotProvidedCount,rec.breakCompensateCount,"—","—","—","시급 설정 필요"]); continue; }
     const p=rec.pay;
-    payRows.push([rec.employee_name, sheetDuration(rec.sec), sheetDuration(rec.nightMinutes*60), won(p.wage), won(p.base),
+    payRows.push([rec.employee_name, sheetDuration(rec.sec), sheetDuration(rec.nightMinutes*60), p.hourlySegments?.length>1?'구간별':won(p.wage), won(p.base),
       won(p.juhyu), rec.breakMode==="IGNORED"?"미고려":rec.breakTimeProvided?"제공":"미제공", rec.breakNotProvidedCount, rec.breakCompensateCount, won(p.breakCompPay||0), won(p.adjust), won(p.gross), "예상"]);
   }
   // Google Sheet is a human-facing report. Avoid duplicating the same one-session day in a second table.
