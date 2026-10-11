@@ -66,8 +66,8 @@ window.mountHqStoreOnboarding=async function(box){
         '<div id="hqStoreCounts" style="font-size:.84rem">등록 '+stores.length+'곳 · 운영 '+readyCount+' · 준비 '+stagedCount+' · 중지 '+suspendedCount+'</div>'+
         '<button type="button" id="hqStoreRefresh" class="btn btn-secondary btn-sm">정보 새로고침</button></div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">'+
-        '<div class="field"><label for="hqStoreSearch">지점명·코드·지역 검색</label>'+
-          '<input id="hqStoreSearch" class="form-control" type="search" autocomplete="off" placeholder="예: 송도점" value="'+escapeHTML(searchTerm)+'"></div>'+
+        '<div class="field"><label for="hqOnboardingSearchInput">지점명·코드·지역 검색</label>'+
+          '<input id="hqOnboardingSearchInput" class="form-control" type="search" autocomplete="off" placeholder="예: 송도점" value="'+escapeHTML(searchTerm)+'"></div>'+
         '<div class="field"><label for="hqStoreStatusFilter">운영 상태 필터</label>'+
           '<select id="hqStoreStatusFilter" class="form-control">'+
           '<option value="ALL"'+(statusFilter==="ALL"?' selected':'')+'>전체</option>'+
@@ -125,7 +125,7 @@ window.mountHqStoreOnboarding=async function(box){
       body.querySelector("#hqStoreSearchCount").textContent="("+rows.length+"곳)";
       storePicker.disabled=rows.length===0;
     };
-    body.querySelector("#hqStoreSearch").oninput=e=>{searchTerm=e.target.value;updateChoices();};
+    body.querySelector("#hqOnboardingSearchInput").oninput=e=>{searchTerm=e.target.value;updateChoices();};
     body.querySelector("#hqStoreStatusFilter").onchange=e=>{statusFilter=e.target.value;updateChoices();};
     storePicker.onchange=e=>{if(!e.target.value)return;selected=Number(e.target.value);render();};
     body.querySelector("#hqStoreRefresh").onclick=()=>{
