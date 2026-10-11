@@ -13,8 +13,9 @@ function eventsFor(dates){
   {id:id++,employee_id:emp.id,event_type:'OUT',event_at:date+'T14:00:00'}
  ]);
 }
-async function calculate({dates,days,now,ym='2026-09'}){
+async function calculate({dates,days,now,ym='2026-09',unclosedDates=[]}){
  const ev=eventsFor(dates);
+ for(const day of unclosedDates)ev.push({id:ev.length+1,employee_id:emp.id,event_type:'IN',event_at:day+'T09:00:00'});
  const wd=days.map(weekday=>({employee_id:emp.id,contract_id:71,weekday,contracted_minutes:300,weekly_contracted_minutes:900}));
  let fetchedBounds;
  const BE={
@@ -48,6 +49,15 @@ assert.equal(bridged.pay.juhyu,36000,'Last Sunday session from following month m
 assert.ok(bridged.range.to>'2026-10-04T14:00:00','Event fetch must cover entire closing Sunday');
 const october=await calculate({...spansSunday,now:'2026-10-04T17:01:00Z',ym:'2026-10'});
 assert.equal(october.pay.juhyu,0,'Same cross-month week must not be paid again in October');
+// The first three shifts satisfy the 15h contract. An additional open
+// Friday shift within the same week must prevent automatic weekly payment.
+const unpaired=await calculate({...finishedEarly,unclosedDates:['2026-10-02'],now:'2026-10-04T17:01:00Z'});
+assert.equal(unpaired.pay.juhyu,0,'Completed scheduled hours cannot hide a later unpaired shift');
+assert.match(unpaired.pay.weeklyReviewComments.join(' '),/미완료 또는 출퇴근 누락/);
+// A settled week with fewer completed minutes must expose why it pays 0.
+const shortWeek=await calculate({dates:['2026-09-28','2026-09-29'],days:[1,2,3],now:'2026-10-04T17:01:00Z'});
+assert.equal(shortWeek.pay.juhyu,0);
+assert.match(shortWeek.pay.weeklyReviewComments.join(' '),/계약상 주간 근무시간 미달/);
 const engineSource=fs.readFileSync('supabase/functions/server-sync-sheet/engine.mjs','utf8');
 assert.match(engineSource,/const weekClosed=settleAt<=nowLimit/,'Server must require actual Sunday business close');
 console.log('PASS real payroll engine: unfinished previous-month week unpaid, Sunday 26:00 cutoff, full boundary data, no duplicate in next month');

@@ -24,4 +24,17 @@ assert.equal(approvedWeeklyAdjustment(50000,0,'주휴 미충족','manager','2026
 for(const amount of [-1,Infinity,NaN])assert.throws(()=>approvedWeeklyAdjustment(50000,amount,'승인 사유','manager','2026-10-10T00:00:00Z'));
 assert.throws(()=>approvedWeeklyAdjustment(50000,40000,'', 'manager','2026-10-10T00:00:00Z'));
 assert.throws(()=>approvedWeeklyAdjustment(50000,40000,'승인 사유',null,'2026-10-10T00:00:00Z'));
-console.log('PASS 17 payroll contract, attendance, cross-month and approval scenarios');
+// A completed 16-hour week is still unsafe when another timecard in the
+// same week is unpaired, invalid or open. A separate week must not block it.
+for(const status of ['WORKING','INCOMPLETE','ORPHAN_OUT','INVALID_TIME']){
+  const broken={status,in:status==='ORPHAN_OUT'?null:new Date('2026-10-02T09:00:00'),
+    out:status==='ORPHAN_OUT'?new Date('2026-10-02T10:00:00'):null,sec:null};
+  const review=assessWeeklyRest({...baseline,sessions:[...sessions,broken]});
+  assert.equal(review.automaticEligible,false,status+' in week blocks auto-approval');
+  assert.equal(review.completed,false,status+' week cannot be marked completed');
+  assert.match(review.reasons.join(' '),/미완료 또는 출퇴근 누락/);
+}
+const unrelated={status:'WORKING',in:new Date('2026-10-05T09:00:00'),out:null,sec:null};
+assert.equal(assessWeeklyRest({...baseline,sessions:[...sessions,unrelated]}).automaticEligible,true,
+  'Unresolved next-week session cannot block prior settled week');
+console.log('PASS payroll policy scenarios including unfinished-shift review and week isolation');

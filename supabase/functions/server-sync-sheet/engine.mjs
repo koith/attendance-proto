@@ -272,7 +272,13 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
             // 진행 중 세션은 위에서 제외했으므로, 주휴는 완료된 근무만으로 확정된다.
             const settleAt=new Date(monday); settleAt.setDate(monday.getDate()+7); settleAt.setHours(2,0,0,0);
             const weekClosed=settleAt<=nowLimit; // Never settle an unfinished cross-month week.
-            if(weekClosed && mins>=weeklyContractMin){
+            if(weekClosed){
+              // Do not silently omit a settled, under-hours week: the manager
+              // needs a review reason when its automatic weekly amount is 0.
+              if(mins<weeklyContractMin){
+                weeklyReviewComments.push(weekKey+': 계약상 주간 근무시간 미달 ('+Math.floor(mins)+'/'+weeklyContractMin+'분)');
+                continue;
+              }
               const mondayKey=weekKey;
               const weeklySubstitutions=substitutions.filter(z=>{
                 const d=new Date(z.work_start);if(!Number.isFinite(d.getTime()))return false;
