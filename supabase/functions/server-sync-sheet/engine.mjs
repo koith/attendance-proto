@@ -189,7 +189,10 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     const contract=contracts[Number(e.id)]||null;
     // Contract-level rule: over 4h + break provided => no allowance.
     // Over 4h + break not provided => automatically add 30 minutes (= 50% of hourly wage) per eligible shift.
-    const breakMode=contract?.break_provision_mode||(contract?.break_time_provided===true?'PROVIDED':'NOT_PROVIDED');
+    const rawBreakMode=contract?.break_provision_mode||(contract?.break_time_provided===true?'PROVIDED':'NOT_PROVIDED');
+    // Historical NOT_CONSIDERED and current IGNORED both mean no automatic
+    // break deduction or compensation. Normalize before display and export.
+    const breakMode=rawBreakMode==='NOT_CONSIDERED'?'IGNORED':rawBreakMode;
     const breakTimeProvided=breakMode==='PROVIDED';
     const breakConfirmedCount=breakTimeProvided?breakEligibleCount:0;
     const breakNotProvidedCount=breakMode==='NOT_PROVIDED'?breakEligibleCount:0;
