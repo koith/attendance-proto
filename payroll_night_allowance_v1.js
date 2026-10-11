@@ -8,6 +8,8 @@ computeMonthPayroll=async function(ym){
  const R=await base(ym);
  if(LIVE&&Number(CURRENT_STORE_ID)===1&&typeof BE.serverPayroll==="function"){window.__nightPayrollResult=R;return R;}
  let tg=0,tn=0;
+ const today=typeof kstNow==='function'?kstNow():new Date();
+ const currentPayrollMonth=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0');
  for(const row of R.rows||[]){
    const c=row.contract,p=row.pay;
    if(p&&c?.night_allowance_enabled){
@@ -22,6 +24,13 @@ computeMonthPayroll=async function(ym){
      p.nightAllowance=expected;p.night=expected;
      p.gross=Math.round(Number(p.gross||0)+delta);
      p.net=xrounddown(p.gross*(1-Number(p.rate||0)),-1);
+   }
+   // Final browser fallback gate must run AFTER contract and night wrappers.
+   // This matches the production Edge rule for a month not yet started.
+   if(p&&ym>currentPayrollMonth){
+     Object.assign(p,{base:0,weekly:0,juhyu:0,adjust:0,gross:0,net:0,jweeks:0,
+       substitutePay:0,breakCompPay:0,nightAllowance:0,night:0,
+       weeklyApprovalDelta:0,weeklyCalculatedAmounts:{},accruedDays:0});
    }
    if(p){tg+=p.gross;tn+=p.net}
  }
