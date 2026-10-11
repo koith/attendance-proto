@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const sql=fs.readFileSync('supabase/migrations/20261011132000_admin_context_active_identity_guard.sql','utf8');
+const html=fs.readFileSync('index.html','utf8');
+assert.match(sql,/CREATE OR REPLACE FUNCTION public\.admin_context\(\)/);
+assert.match(sql,/CASE WHEN public\.is_admin\(\) THEN/);
+assert.match(sql,/ELSE jsonb_build_object\('role',null,'store_id',null,'email',null\)/);
+assert.match(html,/if\(ctx\?\.role!=="HQ"&&ctx\?\.role!=="STORE_MANAGER"\)/);
+assert.match(html,/const APP_VERSION="v0\.210"/);
+console.log('PASS verified administrator context and fail-closed client route');
