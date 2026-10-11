@@ -27,7 +27,7 @@ assert.doesNotMatch(edge,/userClient\.rpc\("approve_payroll_weekly_allowance"/);
 const retired=fs.readFileSync('supabase/migrations/20261011223000_revoke_obsolete_weekly_approval_rpcs.sql','utf8');
 for(const name of ['approve_payroll_weekly_allowance','approve_payroll_weekly_allowance_internal',
   'server_record_weekly_decision_verified']){
-  assert.match(retired,new RegExp('REVOKE ALL ON FUNCTION public\\\\.'+name+'\\\\('),
+  assert.ok(retired.includes('REVOKE ALL ON FUNCTION public.'+name+'('),
     name+' must not retain stale service-role access');
 }
 assert.match(retired,/FROM PUBLIC,anon,authenticated,service_role/g);
