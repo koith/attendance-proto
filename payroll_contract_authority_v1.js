@@ -62,7 +62,10 @@
       return {contractId:c.contract_id??c.id,accruedDays,monthlySalary,
         base:Math.trunc(monthlySalary/daysInMonth*accruedDays)};
     });
-    if(parts.length!==contracts.length)return null;
+    // Ignore contracts that cover no verified employment days. A join or exit
+    // on the revision date may correctly earn salary from one of two contracts.
+    // Overlapping or uncovered employed days are still rejected in the daily loop.
+    if(!parts.length)return null;
     return {base:parts.reduce((s,x)=>s+x.base,0),
       accruedDays:parts.reduce((s,x)=>s+x.accruedDays,0),daysInMonth,rate,parts};
   }
