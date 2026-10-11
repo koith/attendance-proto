@@ -44,7 +44,8 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     if(c.action==="ADD"){ added.push(c); continue; }
     // 같은 event_id의 보정 중 최신만 유효
     if(c.event_id!=null){ const prev=corrByEvent[c.event_id];
-      if(!prev || new Date(c.created_at)>new Date(prev.created_at)) corrByEvent[c.event_id]=c; }
+      const at=new Date(c.created_at).getTime(),prior=prev?new Date(prev.created_at).getTime():-Infinity;
+      if(!prev || at>prior || (at===prior && Number(c.id)>Number(prev.id))) corrByEvent[c.event_id]=c; }
   }
   const eff=[];
   for(const e of (events||[])){
