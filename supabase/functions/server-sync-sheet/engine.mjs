@@ -553,7 +553,49 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   const overlaps=(c,b)=>String(c.effective_from)<=b.last&&(!c.effective_to||String(c.effective_to)>=b.first);
   const covers=(c,d)=>d&&String(c.effective_from)<=d&&(!c.effective_to||String(c.effective_to)>=d);
   const termsKey=c=>[c.payroll_type,c.hourly_wage,c.monthly_salary,c.weekly_contracted_minutes,c.tax_treatment,c.business_deduction_rate,c.night_allowance_enabled,c.night_allowance_mode,c.night_allowance_value,c.night_allowance_start,c.night_allowance_end].join('|');
-  function chooseContract(row,ym,b){const contracts=(b.contracts||[]).filter(c=>overlaps(c,monthBounds(ym))).sort((a,z)=>String(z.effective_from).localeCompare(String(a.effective_from)));if(!contracts.length)return {mode:'MISSING_CONTRACT',issue:'계약조건 미등록 · 급여 계산 보류'};const payable=(row.sessions||[]).filter(s=>(s.status==='COMPLETE'||s.status==='WORKING')&&s.in);const used=contracts.filter(c=>payable.some(s=>covers(c,dayKey(s.in))));const candidates=used.length?used:contracts;const displayContract=candidates[0]||contracts[0]||null;if(contracts.length>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};if(candidates.some(c=>c.tax_treatment==='FOUR_INSURANCE'))return {mode:'BLOCKED',contract:displayContract,issue:'4대보험 공제 계산정책 미확정'};if(candidates.some(c=>c.payroll_type==='MONTHLY')){if(candidates.some(c=>c.payroll_type!=='MONTHLY'))return {mode:'BLOCKED',contract:displayContract,issue:'월중 급여유형 변경 · 구간별 급여 계산 확인 필요'};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'MONTHLY',contract:candidates[0]};}if(candidates.some(c=>c.payroll_type!=='HOURLY'||c.tax_treatment!=='BUSINESS_INCOME'))return {mode:'BLOCKED',contract:displayContract,issue:'급여 계약조건 확인 필요'};const uncoveredDays=[...new Set(payable.filter(s=>!contracts.some(c=>covers(c,dayKey(s.in)))).map(s=>dayKey(s.in)))];if(uncoveredDays.length)return {mode:'BLOCKED',contract:displayContract,issue:`계약기간 밖 실근무 ${uncoveredDays.join(', ')} · 급여 확인 필요`};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'CONTRACT',contract:candidates[0]}}
+  // Date-effective, bounded fixed-salary changes only. Hourly, night, tax
+  // regime, overlapping/gapped and under-specified revisions still need review.
+  function monthlyContractSegments(contracts,periods,ym,employeeId){
+    if(contracts.length<2||contracts.some(c=>c.payroll_type!=='MONTHLY'||
+      c.tax_treatment!=='BUSINESS_INCOME'||!(Number(c.monthly_salary)>0)||
+      c.night_allowance_enabled===true))return null;
+    const rates=new Set(contracts.map(c=>Number(c.business_deduction_rate??0.033)));
+    const breaks=new Set(contracts.map(c=>c.break_provision_mode||'NOT_PROVIDED'));
+    if(rates.size!==1||breaks.size!==1)return null;
+    const rate=[...rates][0];
+    if(!Number.isFinite(rate)||rate<0||rate>=1)return null;
+    const [year,month]=ym.split('-').map(Number);
+    const daysInMonth=new Date(year,month,0).getDate();
+    const first=ym+'-01',last=ym+'-'+String(daysInMonth).padStart(2,'0');
+    const spanFirst=contracts.map(c=>String(c.effective_from)).sort()[0];
+    const spanLast=contracts.map(c=>c.effective_to?String(c.effective_to):last).sort().at(-1);
+    const jobs=(periods||[]).filter(p=>Number(p.employee_id)===Number(employeeId));
+    const allocation=new Map(contracts.map(c=>[c,0]));
+    for(let day=1;day<=daysInMonth;day++){
+      const date=ym+'-'+String(day).padStart(2,'0');
+      const employed=jobs.length
+        ?jobs.some(p=>String(p.started_on)<=date&&(!p.ended_on||String(p.ended_on)>=date))
+        :date>=spanFirst&&date<=spanLast;
+      if(!employed)continue;
+      const matches=contracts.filter(c=>String(c.effective_from)<=date&&
+        (!c.effective_to||String(c.effective_to)>=date));
+      if(matches.length!==1)return null;
+      allocation.set(matches[0],allocation.get(matches[0])+1);
+    }
+    const parts=contracts.filter(c=>allocation.get(c)>0).map(c=>{
+      const accruedDays=allocation.get(c),monthlySalary=Number(c.monthly_salary);
+      return {contractId:c.contract_id??c.id,accruedDays,monthlySalary,
+        base:Math.trunc(monthlySalary/daysInMonth*accruedDays)};
+    });
+    if(parts.length!==contracts.length)return null;
+    return {base:parts.reduce((s,x)=>s+x.base,0),
+      accruedDays:parts.reduce((s,x)=>s+x.accruedDays,0),daysInMonth,rate,parts};
+  }
+  function chooseContract(row,ym,b){const contracts=(b.contracts||[]).filter(c=>overlaps(c,monthBounds(ym))).sort((a,z)=>String(z.effective_from).localeCompare(String(a.effective_from)));if(!contracts.length)return {mode:'MISSING_CONTRACT',issue:'계약조건 미등록 · 급여 계산 보류'};const payable=(row.sessions||[]).filter(s=>(s.status==='COMPLETE'||s.status==='WORKING')&&s.in);const used=contracts.filter(c=>payable.some(s=>covers(c,dayKey(s.in))));const candidates=used.length?used:contracts;const displayContract=candidates[0]||contracts[0]||null;if(contracts.length>1){
+      const segments=monthlyContractSegments(contracts,b.periods||[],ym,row.employee_id);
+      if(segments)return {mode:'MONTHLY',contract:displayContract,monthlySegments:segments};
+      return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};
+    }if(candidates.some(c=>c.tax_treatment==='FOUR_INSURANCE'))return {mode:'BLOCKED',contract:displayContract,issue:'4대보험 공제 계산정책 미확정'};if(candidates.some(c=>c.payroll_type==='MONTHLY')){if(candidates.some(c=>c.payroll_type!=='MONTHLY'))return {mode:'BLOCKED',contract:displayContract,issue:'월중 급여유형 변경 · 구간별 급여 계산 확인 필요'};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'MONTHLY',contract:candidates[0]};}if(candidates.some(c=>c.payroll_type!=='HOURLY'||c.tax_treatment!=='BUSINESS_INCOME'))return {mode:'BLOCKED',contract:displayContract,issue:'급여 계약조건 확인 필요'};const uncoveredDays=[...new Set(payable.filter(s=>!contracts.some(c=>covers(c,dayKey(s.in)))).map(s=>dayKey(s.in)))];if(uncoveredDays.length)return {mode:'BLOCKED',contract:displayContract,issue:`계약기간 밖 실근무 ${uncoveredDays.join(', ')} · 급여 확인 필요`};const keys=new Set(candidates.map(termsKey));if(keys.size>1)return {mode:'BLOCKED',contract:displayContract,issue:'월중 계약조건 변경 · 구간별 급여 계산 확인 필요'};return {mode:'CONTRACT',contract:candidates[0]}}
   const nightSecond=s=>{const m=/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/.exec(String(s??''));return m?Number(m[1])*3600+Number(m[2])*60+Number(m[3]||0):null};
   function nightOverlap(sessions,start,end){const sm=nightSecond(start),em=nightSecond(end);if(sm==null||em==null)return 0;let sec=0;for(const x of sessions||[]){if(!['COMPLETE','WORKING'].includes(x.status)||!x.in)continue;const out=x.out||kstNow();if(out<=x.in)continue;for(let d=new Date(x.in.getFullYear(),x.in.getMonth(),x.in.getDate()-1);d<=out;d.setDate(d.getDate()+1)){const a=new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,0,sm),b=new Date(d.getFullYear(),d.getMonth(),d.getDate()+(em<=sm?1:0),0,0,em),lo=Math.max(x.in,a),hi=Math.min(out,b);if(hi>lo)sec+=(hi-lo)/1000}}return sec}
   // The browser's loaded wrapper order is live-accrual -> contract authority -> night.
@@ -569,6 +611,14 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       const pick=chooseContract(row,ym,bundle);
       row.contractMode=pick.mode;row.contractIssue=pick.issue||null;
       row.contract=pick.contract||null;
+      if(pick.monthlySegments&&row.pay){
+        const s=pick.monthlySegments,p=row.pay;
+        p.base=s.base;p.accruedDays=s.accruedDays;p.daysInMonth=s.daysInMonth;
+        p.monthlySegments=s.parts;
+        p.gross=truncateWon(s.base+Number(p.substitutePay||0)+
+          Number(p.adjust||0)+Number(p.nightAllowance||0));
+        p.net=xrounddown(p.gross*(1-Number(p.rate||0)),-1);
+      }
       if(pick.mode==="BLOCKED"||pick.mode==="MISSING_CONTRACT"){row.pay=null;row.hasWage=false}
       if(row.pay){gross+=row.pay.gross;net+=row.pay.net}
     }

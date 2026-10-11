@@ -55,9 +55,23 @@ const mixed=await run({contracts:[old,revised],dates:['2026-10-05','2026-10-20']
 assert.equal(mixed.contractMode,'BLOCKED');
 assert.equal(mixed.pay,null);
 const salary=await run({contracts:[monthlyA,monthlyB]});
-assert.equal(salary.contractMode,'BLOCKED','Monthly salary changes require per-period authority');
-assert.equal(salary.pay,null);
+assert.equal(salary.contractMode,'MONTHLY','Safe non-overlapping monthly changes use effective-date segments');
+assert.equal(salary.pay.base,Math.trunc(2600000*15/31)+Math.trunc(3000000*16/31));
+assert.equal(salary.pay.monthlySegments.length,2);
+const overlapping=await run({contracts:[monthlyA,{...monthlyB,effective_from:'2026-10-10'}]});
+assert.equal(overlapping.contractMode,'BLOCKED','Overlapping monthly contracts cannot be paid twice');
+assert.equal(overlapping.pay,null);
+const gap=await run({contracts:[monthlyA,{...monthlyB,effective_from:'2026-10-20'}]});
+assert.equal(gap.contractMode,'BLOCKED','An uncovered employed salary period must be reviewed');
+assert.equal(gap.pay,null);
+const incompatible=await run({contracts:[monthlyA,{...monthlyB,business_deduction_rate:0.043}]});
+assert.equal(incompatible.contractMode,'BLOCKED','Different tax regimes remain outside safe auto-segment scope');
+assert.equal(incompatible.pay,null);
 const browser=fs.readFileSync('payroll_contract_authority_v1.js','utf8');
-assert.match(browser,/if\(contracts\.length>1\)return \{mode:'BLOCKED'/,
-  'Browser fallback must also fail closed for multiple effective monthly contracts');
-console.log('PASS single-term wages and fail-closed hourly/monthly midmonth contract transitions');
+assert.ok(browser.includes('const segments=monthlyContractSegments('),
+  'Browser must validate effective-date salary segments');
+assert.ok(browser.includes("if(segments)return {mode:'MONTHLY'"),
+  'Only verified salary segments may bypass the legacy review block');
+assert.ok(browser.includes("return {mode:'BLOCKED',contract:displayContract"),
+  'All unsupported contract revisions remain blocked');
+console.log('PASS valid salaried segments and fail-closed hourly/overlap/gap/tax changes');
