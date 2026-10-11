@@ -15,7 +15,7 @@ const reaudit=fs.readFileSync('supabase/migrations/20261011210000_weekly_reappro
 assert.match(reaudit,/REAPPROVAL_REQUIRED/);
 assert.match(reaudit,/INITIAL_APPROVAL_REQUIRED/);
 assert.match(reaudit,/p_decision NOT IN \('APPROVE','REJECT','REAPPROVE'\)/);
-assert.match(reaudit,/p\.store_id=p_store_id/);
+assert.match(reaudit,/a\.store_id=p_store_id/);
 
 assert.match(api,/mode==="weekly_decide"/);
 assert.match(html,/id="weeklyDecision"/);
