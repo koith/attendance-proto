@@ -10,5 +10,5 @@ assert.match(sql,/e\.store_id=p_store_id and e\.is_active and e\.pin_bcrypt=cryp
 assert.match(sql,/public\.substitution_is_working\(p_employee_id\)/);
 assert.match(sql,/left join public\.store_recipe_overrides o on o\.store_id=p_store_id/);
 assert.doesNotMatch(sql,/\b(?:UPDATE|DELETE|TRUNCATE|INSERT)\s+(?:INTO\s+|FROM\s+)?public\./i);
-assert.match(html,/const APP_VERSION="v0\.211"/);
+assert.match(html,/const APP_VERSION="v0\.212"/);
 console.log('PASS staff recipes require READY store, correct employee PIN, on-shift status and scoped overrides');
