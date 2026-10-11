@@ -1,73 +1,5 @@
--- Reject NULL/malformed PIN and blank names before any creation insert.
--- SQL three-valued logic makes bare p_pin !~ regex NULL-unsafe.
--- Existing identities, hashes, contracts and payroll remain untouched.
-
-CREATE OR REPLACE FUNCTION public.admin_create_employee(p_name text, p_pin text)
- RETURNS bigint
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'extensions', 'pg_temp'
-AS $function$
-declare
-  v_id bigint;
-  v_store_id bigint;
-begin
-  if not public.is_hq_admin() then raise exception 'NOT_AUTHORIZED'; end if;
-  if nullif(trim(p_name),'') is null then raise exception 'NAME_REQUIRED'; end if;
-  if p_pin is null or p_pin !~ '^\d{4}
-  select id into v_store_id
-  from public.stores
-  where is_active=true
-  order by case when id=1 then 0 else 1 end,id
-  limit 1;
-  if v_store_id is null then raise exception 'STORE_NOT_FOUND'; end if;
-  insert into public.employees(name,pin_bcrypt,is_active,store_id)
-  values(trim(p_name),crypt(p_pin,gen_salt('bf')),true,v_store_id)
-  returning id into v_id;
-  return v_id;
-end
-$function$
- then raise exception 'PIN_REQUIRED'; end if;
-  select id into v_store_id
-  from public.stores
-  where is_active=true
-  order by case when id=1 then 0 else 1 end,id
-  limit 1;
-  if v_store_id is null then raise exception 'STORE_NOT_FOUND'; end if;
-  insert into public.employees(name,pin_bcrypt,is_active,store_id)
-  values(trim(p_name),crypt(p_pin,gen_salt('bf')),true,v_store_id)
-  returning id into v_id;
-  return v_id;
-end
-$function$;
-
-CREATE OR REPLACE FUNCTION public.admin_create_employee_for_store(p_name text, p_pin text, p_store_id bigint)
- RETURNS bigint
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'extensions', 'pg_temp'
-AS $function$
-declare
-  v_id bigint;
-begin
-  if not public.can_manage_store(p_store_id) then raise exception 'NOT_AUTHORIZED'; end if;
-  if nullif(trim(p_name),'') is null then raise exception 'NAME_REQUIRED'; end if;
-  if p_pin is null or p_pin !~ '^\d{4}
-  if not exists(select 1 from public.stores where id=p_store_id and is_active=true) then raise exception 'STORE_NOT_FOUND'; end if;
-  insert into public.employees(name,pin_bcrypt,is_active,store_id)
-  values(trim(p_name),crypt(p_pin,gen_salt('bf')),true,p_store_id)
-  returning id into v_id;
-  return v_id;
-end
-$function$
- then raise exception 'PIN_REQUIRED'; end if;
-  if not exists(select 1 from public.stores where id=p_store_id and is_active=true) then raise exception 'STORE_NOT_FOUND'; end if;
-  insert into public.employees(name,pin_bcrypt,is_active,store_id)
-  values(trim(p_name),crypt(p_pin,gen_salt('bf')),true,p_store_id)
-  returning id into v_id;
-  return v_id;
-end
-$function$;
+-- Harden two remaining onboarding wrappers; creator RPCs are already protected by PR #674.
+-- Reject NULL/malformed PIN before invoking employee creation. No production data writes.
 
 CREATE OR REPLACE FUNCTION public.admin_create_employee_onboarding(p_name text, p_pin text, p_started_on date, p_payroll_type text, p_hourly_wage integer, p_monthly_salary integer, p_tax_treatment text, p_business_deduction_rate numeric, p_night_allowance_enabled boolean, p_night_allowance_mode text, p_night_allowance_value numeric, p_night_allowance_start time without time zone, p_memo text, p_workdays jsonb)
  RETURNS jsonb
@@ -84,7 +16,7 @@ declare
 begin
   if not public.is_hq_admin() then raise exception 'NOT_AUTHORIZED'; end if;
   if nullif(trim(p_name),'') is null then raise exception 'NAME_REQUIRED'; end if;
-  if p_pin is null or p_pin !~ '^\d{4}
+  if p_pin is null or p_pin !~ '^[0-9]{4}
   if p_started_on is null then raise exception 'START_DATE_REQUIRED'; end if;
 
   v_emp := public.admin_create_employee(trim(p_name),p_pin);
@@ -160,7 +92,7 @@ declare
 begin
   if not public.can_manage_store(p_store_id) then raise exception 'NOT_AUTHORIZED'; end if;
   if nullif(trim(p_name),'') is null then raise exception 'NAME_REQUIRED'; end if;
-  if p_pin is null or p_pin !~ '^\d{4}
+  if p_pin is null or p_pin !~ '^[0-9]{4}
   if p_started_on is null then raise exception 'START_DATE_REQUIRED'; end if;
   if not exists(select 1 from public.stores where id=p_store_id and is_active=true) then raise exception 'STORE_NOT_FOUND'; end if;
   v_emp:=public.admin_create_employee_for_store(trim(p_name),p_pin,p_store_id);
