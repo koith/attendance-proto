@@ -39,6 +39,7 @@ jobs:
           node qa_payroll_close_server_authority_v1.mjs
           node qa_payroll_no_local_punch_close_v1.mjs
           node qa_monthly_segments_report_parity_v1.mjs
+          node qa_monthly_contract_unpaid_segment_v1.mjs
           node qa_hourly_segments_sheet_parity_v1.mjs
           node qa_payroll_contract_transition_fail_closed_v1.mjs
           node qa_weekly_decision_end_to_end_v1.mjs
