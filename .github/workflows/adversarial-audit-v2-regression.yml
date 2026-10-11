@@ -12,3 +12,5 @@ jobs:
         run: node qa_adversarial_audit_v2.mjs
       - name: Store scope checks
         run: node qa_pin_rpc_store_scope_v1.mjs
+      - name: NULL PIN rejection regression
+        run: node qa_null_pin_auth_fail_closed_v1.mjs
