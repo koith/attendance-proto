@@ -144,7 +144,6 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   const isActive=e=>e.is_active!==false && e.active!==false;
   const active=emps.filter(isActive);
   const eventEmployeeIds=new Set(events.map(x=>Number(x.employee_id)));
-  const payrollCandidates=emps.filter(e=>isActive(e)||eventEmployeeIds.has(Number(e.id)));
   let periodWeeks=null, overrides={}, contracts={}, contractWorkdays={}, substitutions=[], weeklyApprovals=[], employmentPeriods=[];
   if(LIVE){
     try{
@@ -166,6 +165,14 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     if(typeof BE.payrollWeeklyApprovals==='function')weeklyApprovals=await BE.payrollWeeklyApprovals(ym)||[];
     if(typeof BE.payrollEmploymentPeriods==='function')employmentPeriods=await BE.payrollEmploymentPeriods(ym)||[];
   }
+  // An inactive employee can still own an audited weekly decision in this
+  // payroll month even when their last attendance falls in the next month.
+  // Read decisions before choosing the roster so approval-only history survives.
+  const weeklyDecisionEmployeeIds=new Set(weeklyApprovals
+    .filter(a=>String(a.week_start||'').startsWith(ym+'-'))
+    .map(a=>Number(a.employee_id)));
+  const payrollCandidates=emps.filter(e=>isActive(e)||
+    eventEmployeeIds.has(Number(e.id))||weeklyDecisionEmployeeIds.has(Number(e.id)));
   const weeks = periodWeeks || weeksInMonth(ym);
   const p2=n=>String(n).padStart(2,"0");
   const rows=[]; let totalNet=0, totalGross=0;
@@ -176,7 +183,19 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       const payrollAnchor=s.in||s.out; // 말일 심야근무도 출근한 달 급여에 전부 귀속
       return `${payrollAnchor.getFullYear()}-${p2(payrollAnchor.getMonth()+1)}`===ym; });
     // Deactivation is a current roster state, not a reason to erase historical payroll.
-    if(!isActive(e)&&!sess.length) continue;
+    // A Sunday-ended week may belong to the previous Monday month even
+    // when all completed shifts took place in the following calendar month.
+    // Keep inactive staff in the calculation for that week or an explicit
+    // approval; otherwise retain the existing skip for unrelated history.
+    const hasMondayOwnedCompletedWeek=allSess.some(s=>{
+      if(s.status!=="COMPLETE"||!s.in)return false;
+      const monday=new Date(s.in);
+      monday.setHours(0,0,0,0);
+      monday.setDate(s.in.getDate()-((s.in.getDay()+6)%7));
+      return `${monday.getFullYear()}-${p2(monday.getMonth()+1)}`===ym;
+    });
+    if(!isActive(e)&&!sess.length&&!hasMondayOwnedCompletedWeek&&
+      !weeklyDecisionEmployeeIds.has(Number(e.id)))continue;
     const completedSec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
     const liveSec=sess.filter(s=>s.status==="WORKING"&&s.in).reduce((a,x)=>a+Math.max(0,(kstNow()-x.in)/1000),0);
     const sec=completedSec+liveSec;
@@ -336,7 +355,14 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     // for wage-based employees, regardless of legacy juhyu/override data.
     if(sec<=0 && Number(e.wage||0)>0 && !mondayOwnedWeeklyOnly){
       const zeroWage=Number(effWage||e.wage||0);
-      pay={base:0,weekly:0,juhyu:0,adjust:0,gross:0,net:0,rate:0,wage:zeroWage,jweeks:0,usedOverride:false,payrollType:"HOURLY"};
+      // Zero earnings must not erase the source-backed manager review trail
+      // for a completed, yet ineligible, Monday-owned week (including exit).
+      const reviewState=contract?{
+        weeklyReviewComments:pay?.weeklyReviewComments||[],
+        weeklyCalculatedAmounts:pay?.weeklyCalculatedAmounts||{},
+        weeklyApprovalDelta:0
+      }:{};
+      pay={base:0,weekly:0,juhyu:0,adjust:0,gross:0,net:0,rate:0,wage:zeroWage,jweeks:0,usedOverride:false,payrollType:"HOURLY",...reviewState};
     }
     const hasWage=!!pay;
     // Contract-specific night premium is earned only on completed shifts and only when enabled.

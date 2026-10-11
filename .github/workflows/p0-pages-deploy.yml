@@ -51,6 +51,7 @@ on:
       - 'supabase/migrations/20261011172000_revoke_public_recipe_instructions.sql'
       - 'qa_payroll_unfinished_month_boundary_v1.mjs'
       - 'qa_payroll_monday_month_no_local_work_v1.mjs'
+      - 'qa_payroll_inactive_monday_month_v1.mjs'
       - 'qa_attendance_correction_tiebreak_v1.mjs'
       - 'qa_event_correction_reason_guard_v1.mjs'
       - 'supabase/migrations/20261011170000_event_correction_reason_required.sql'
@@ -242,6 +243,7 @@ jobs:
           node qa_payroll_no_future_month_salary_v1.mjs
           node qa_payroll_unfinished_month_boundary_v1.mjs
           node qa_payroll_monday_month_no_local_work_v1.mjs
+          node qa_payroll_inactive_monday_month_v1.mjs
           node qa_payroll_approval_engine_fixture_v1.mjs
           node qa_night_pay_seconds_v1.mjs
           node qa_break_not_considered_alias_v1.mjs
