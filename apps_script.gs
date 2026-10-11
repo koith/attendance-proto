@@ -126,7 +126,7 @@ function _seniorPayrollLayout(section,attendance){
   var keys=['직원명','급여형태','총근무','야간근무','급여산정시간','시급','기본급','야근수당적용여부','야근수당','주휴','휴게','휴게수당','조정','예상 세전급여'];
   return {header:keys,rows:(section.rows||[]).map(function(row){
     var get=function(key){var i=h.indexOf(key);return i<0?'':row[i];};
-    return [get('직원명'),get('시급')==='0원'?'월급제':'시급제',get('총근무'),get('야간근무'),(function(){var p=payableByName[String(get('직원명'))];return p&&p.count?Math.floor(p.minutes/60)+':'+String(p.minutes%60).padStart(2,'0'):'—';})(),get('시급'),get('기본급'),get('야근수당적용여부')||'미적용',get('야근수당')||'0원',get('주휴'),get('휴게 제공 여부'),get('휴게수당'),get('조정'),get('예상 세전급여')];
+    return [get('직원명'),get('시급')==='0원'?'월급제':'시급제',get('총근무'),get('야간근무'),(function(){var canonical=String(get('가산 포함 급여산정시간')||'');if(/^\d+:[0-5]\d(?::[0-5]\d)?$/.test(canonical))return canonical;var p=payableByName[String(get('직원명'))];return p&&p.count?Math.floor(p.minutes/60)+':'+String(p.minutes%60).padStart(2,'0'):'—';})(),get('시급'),get('기본급'),get('야근수당적용여부')||'미적용',get('야근수당')||'0원',get('주휴'),get('휴게 제공 여부'),get('휴게수당'),get('조정'),get('예상 세전급여')];
   })};
 }
 function _seniorAttendanceLayout(section,payroll){
@@ -142,7 +142,7 @@ function _seniorAttendanceLayout(section,payroll){
     // Reference-only statutory break duration; never change source payable time.
     var deduct=seconds>=28800?3600:seconds>=14400?1800:0;
     var dur=function(n){var v=Math.floor(n/60);return Math.floor(v/60)+':'+String(v%60).padStart(2,'0');};
-    return [get('날짜'),get('직원명'),payTypeByName[String(get('직원명'))]||'미설정',get('출근'),get('퇴근'),raw,get('야간근무'),get('휴게 제공 여부'),dur(deduct),'—',get('급여산정시간')||'0:00',get('상태'),get('정정'),get('정정사유')];
+    return [get('날짜'),get('직원명'),payTypeByName[String(get('직원명'))]||'미설정',get('출근'),get('퇴근'),raw,get('야간근무'),get('휴게 제공 여부'),dur(deduct),'—',get('급여산정시간')||'0:00',(get('상태')==='정상'&&get('출근')&&get('출근')!=='—'&&(!get('퇴근')||get('퇴근')==='—'))?'근무중':get('상태'),get('정정'),get('정정사유')];
   })};
 }
 // Keep attendance in chronological order on every refresh, independently of
