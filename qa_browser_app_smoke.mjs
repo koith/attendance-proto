@@ -66,6 +66,8 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
       admin_store_events_with_corrections:{events:[],corrections:[]},
       admin_store_events:[],
       admin_store_settings_get:{open_minute:420,close_minute:1500,close_grace_minutes:0},
+      // A real store-scoped record matching the approved 2026-10-09 stock card.
+      admin_store_inventory_overview_v3:[{id:1234,name:"정수",sku:"QA-WATER",category:"기타",unit:"ml",on_hand:4400,reorder_level:20000,reorder_point:15000,unit_configured:false,is_demo:false}],
       admin_store_pending_requests:[],
       admin_store_schedule_list:[],
       hq_store_dashboard:dashboard,
@@ -112,6 +114,7 @@ async function smoke(browser,label,viewport){
   assert.equal((await page.locator('#appVersion').innerText()).trim(),expectedVersion,'Deployed app version mismatch '+label);
   assert.match(await page.locator('#empGrid').innerText(),/김지수/);
   await check(await page.locator('#lockedStoreName').isVisible(),'Store identity missing '+label);
+  assert.equal(await page.locator('header.long-store-context').count(),0,'Inha header regression '+label);
   // Exercise IN/OUT with local fixtures only; never submit real attendance.
   for(const expectedWorking of [true,false]){
     await page.locator('#empGrid .emp').first().click();
@@ -169,15 +172,35 @@ async function smoke(browser,label,viewport){
      ['payroll_close_preview','payroll_close','payroll_reopen'].includes(x.args.mode)).map(x=>x.args.mode);
   assert.deepEqual(closeModes,['payroll_close_preview','payroll_close','payroll_reopen'],'Safe close/reopen flow '+label);
 
+  // Senior-approved management tabs: unfinished report/sales/inventory are not public.
+  await page.evaluate(()=>{location.hash='#admin'});
+  await page.locator('.admin-subnav-shell .admin-subtabs').waitFor({timeout:12000});
+  assert.deepEqual(await page.locator('.admin-subnav-shell .admin-subtabs a').allTextContents(),
+    ['직원 관리','급여','운영시간'],'Management tab visibility '+label);
   await page.evaluate(()=>{location.hash='#inventory'});
-  await page.waitForFunction(()=>location.hash==='#inventory');
+  await page.waitForFunction(()=>location.hash==='#admin',null,{timeout:12000});
+  assert.equal(await page.locator('.admin-subnav-shell a[href="#inventory"]').count(),0,'Unreleased inventory route exposed '+label);
+  // Keep testing the preserved internal inventory renderer with mocked, scoped RPCs.
+  await page.evaluate(()=>window.renderOperations('inventory'));
   await page.locator('#opsInventoryAdd').waitFor({timeout:12000});
+  const water=page.locator('.ops-stock-bar[data-inventory-name="정수"]');
+  await water.waitFor({timeout:12000});
+  assert.match(await water.innerText(),/긴급 부족/,'Approved stock state card missing '+label);
+  assert.match(await water.innerText(),/발주 필요: 15,600 ml/,'Approved stock quantity card missing '+label);
+  assert.match(await water.innerText(),/단위 확인 필요/,'Unit conversion notice missing '+label);
+  assert.equal(await water.locator('.ops-stock-level').count(),1,'Stock level indicator missing '+label);
+  await water.locator('.ops-unit-config-btn').click();
+  await page.locator('#unitStock').waitFor({timeout:12000});
+  assert.match(await page.locator('.ops-modal').last().innerText(),/단위 환산/);
+  await page.locator('.ops-modal').last().locator('.ops-modal-head button').click();
   await page.locator('#opsInventoryAdd').click();
   await page.locator('#inventoryName').waitFor({timeout:10000});
   await page.locator('.ops-modal').last().locator('.ops-modal-head button').click();
   await page.locator('#opsInventoryBulk').click();
   await page.locator('#inventoryBulkFile').waitFor({timeout:10000});
   await page.locator('.ops-modal').last().locator('.ops-modal-head button').click();
+  assert.ok(calls.some(x=>x.name==='admin_store_inventory_overview_v3'&&x.args.p_store_id===1),
+    'Approved inventory bypassed scoped RPC '+label);
   await page.evaluate(()=>{location.hash='#attendance'});
   await page.waitForURL(/actual_attendance\.html/,{timeout:20000});
   await page.locator('#monthLabel').waitFor({timeout:20000});
@@ -227,6 +250,8 @@ async function ownerScopedRoute(browser,label,viewport){
   assert.equal(await page.locator('#storeSelect').count(),0,'Store owner must not have HQ store switcher '+label);
   await page.evaluate(()=>{location.hash='#admin'});
   await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:18000});
+  assert.deepEqual(await page.locator('.admin-subnav-shell .admin-subtabs a').allTextContents(),
+    ['직원 관리','급여','운영시간'],'Owner management tabs '+label);
   assert.ok(calls.some(x=>x.name==='list_store_employees'&&x.args.p_store_id===2),'Owner employees not scoped '+label);
   assert.ok(!calls.some(x=>x.name==='list_store_employees'&&x.args.p_store_id===1),'Owner accessed Inha employees '+label+'; calls='+JSON.stringify(calls.filter(x=>x.name==='list_store_employees'||x.name==='admin_context')));
   await page.evaluate(()=>{location.hash='#dashboard'});
