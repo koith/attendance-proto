@@ -21,7 +21,7 @@ ok('canonical writer applies dark table headers', /setBackground\(headerGreen\)\
 ok('canonical writer applies cell borders', /setBorder\(true,true,true,true,true,true/.test(src));
 ok('canonical writer restores date display', /h==='날짜'\) range\.setNumberFormat\('yyyy-mm-dd'\)/.test(src));
 ok('canonical writer restores clock display', /\['출근','퇴근'\][\s\S]*setNumberFormat\('hh:mm'\)/.test(src));
-ok('canonical writer restores duration display', /\['실근무','총근무','야간근무'\][\s\S]*setNumberFormat\('\[h\]:mm'\)/.test(src));
+ok('canonical writer restores duration display', /\['실근무','총근무','야간근무','급여산정시간','법정휴게시간','실제휴게시간'\][\s\S]*setNumberFormat\('\[h\]:mm'\)/.test(src));
 ok('canonical writer keeps body background continuous', !src.slice(src.indexOf('var aStatus'),src.indexOf('var gross')).includes('setBackground('));
 ok('canonical writer measures displayed contents for every used column', /getDisplayValues\(\)/.test(src) && /target\.setColumnWidth\(sc\+1,sharedWidths\[sc\]\)/.test(src));
 ok('no fixed column width survives canonical writer', !/setColumnWidth\s*\(\s*\d+\s*,\s*\d+\s*\)/.test(src));
