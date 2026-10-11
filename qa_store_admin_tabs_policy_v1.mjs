@@ -10,6 +10,11 @@ assert.ok(start>0 && end>start,'Extract canonical admin subnav');
 const fn=new Function('CURRENT_STORE_ID','active',
   html.slice(start,end)+'\nreturn adminSubnav(active);');
 const tabs=(id,active='admin')=>Array.from(fn(id,active).matchAll(/href="#([^"]+)"/g),m=>m[1]);
+for(const id of [1,2,283]){
+  const markup=fn(id,'admin');
+  assert.equal((markup.match(/id="adminAccountTrigger"/g)||[]).length,1,
+    'Keep account controls accessible to each store manager');
+}
 const inha=['report','admin','pay','hours','sales','inventory'];
 const scoped=['admin','pay','hours'];
 assert.deepEqual(tabs(1),inha,'Inha University store retains all management tabs');
