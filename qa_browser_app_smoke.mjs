@@ -174,7 +174,7 @@ async function smoke(browser,label,viewport){
 
   // Senior-approved management tabs: unfinished report/sales/inventory are not public.
   await page.evaluate(()=>{location.hash='#admin'});
-  await page.locator('.admin-subnav-shell .admin-subtabs').waitFor({timeout:12000});
+  await page.waitForFunction(()=>document.querySelectorAll('.admin-subnav-shell .admin-subtabs a').length===3,null,{timeout:12000});
   assert.deepEqual(await page.locator('.admin-subnav-shell .admin-subtabs a').allTextContents(),
     ['직원 관리','급여','운영시간'],'Management tab visibility '+label);
   await page.evaluate(()=>{location.hash='#inventory'});
