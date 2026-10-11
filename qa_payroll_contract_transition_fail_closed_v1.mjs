@@ -45,15 +45,25 @@ const unchanged=await run({contracts:[old],dates:['2026-10-05']});
 assert.equal(unchanged.contractMode,'CONTRACT');
 assert.equal(unchanged.pay.base,80000,'Single valid hourly contract still calculates normally');
 const oldOnly=await run({contracts:[old,revised],dates:['2026-10-05']});
-assert.equal(oldOnly.contractMode,'BLOCKED','Earlier only shift must not be priced using latest contract');
-assert.equal(oldOnly.pay,null,'Unsafe salary cannot be paid or closed');
-assert.match(oldOnly.contractIssue,/월중 계약조건 변경/);
+assert.equal(oldOnly.contractMode,'CONTRACT','Earlier shift is priced at original hourly contract');
+assert.equal(oldOnly.pay.base,80000);
 const newOnly=await run({contracts:[old,revised],dates:['2026-10-20']});
-assert.equal(newOnly.contractMode,'BLOCKED','Do not silently skip contract transition audit');
-assert.equal(newOnly.pay,null);
+assert.equal(newOnly.contractMode,'CONTRACT');
+assert.equal(newOnly.pay.base,160000);
 const mixed=await run({contracts:[old,revised],dates:['2026-10-05','2026-10-20']});
-assert.equal(mixed.contractMode,'BLOCKED');
-assert.equal(mixed.pay,null);
+assert.equal(mixed.contractMode,'CONTRACT');
+assert.equal(mixed.pay.base,240000);
+assert.equal(mixed.pay.hourlySegments.length,2);
+const weekly=await run({contracts:[old,{...revised,weekly_contracted_minutes:900}],
+  dates:['2026-10-05','2026-10-20']});
+assert.equal(weekly.contractMode,'BLOCKED','Weekly-rest policy changes remain review-only');
+assert.equal(weekly.pay,null);
+const hourlyGap=await run({contracts:[old,{...revised,effective_from:'2026-10-20'}],
+  dates:['2026-10-05','2026-10-21']});
+assert.equal(hourlyGap.contractMode,'BLOCKED','Contract gaps remain review-only');
+const hourlyNight=await run({contracts:[old,{...revised,night_allowance_enabled:true}],
+  dates:['2026-10-05','2026-10-20']});
+assert.equal(hourlyNight.contractMode,'BLOCKED','Night-rate changes remain review-only');
 const salary=await run({contracts:[monthlyA,monthlyB]});
 assert.equal(salary.contractMode,'MONTHLY','Safe non-overlapping monthly changes use effective-date segments');
 assert.equal(salary.pay.base,Math.trunc(2600000*15/31)+Math.trunc(3000000*16/31));
@@ -74,4 +84,4 @@ assert.ok(browser.includes("if(segments)return {mode:'MONTHLY'"),
   'Only verified salary segments may bypass the legacy review block');
 assert.ok(browser.includes("return {mode:'BLOCKED',contract:displayContract"),
   'All unsupported contract revisions remain blocked');
-console.log('PASS valid salaried segments and fail-closed hourly/overlap/gap/tax changes');
+console.log('PASS bounded hourly and monthly contract segments, unsafe weekly/night/overlap/gap/tax changes');
