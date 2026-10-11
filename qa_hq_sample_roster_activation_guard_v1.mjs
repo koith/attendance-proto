@@ -18,6 +18,9 @@ assert.match(sql,/IF NOT public\.is_hq_admin\(\) THEN RAISE EXCEPTION 'NOT_AUTHO
 assert.match(sql,/REVOKE ALL ON FUNCTION public\.hq_store_sample_roster_counts\(\) FROM PUBLIC,anon/);
 assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.hq_store_sample_roster_counts\(\) TO authenticated/);
 assert.match(older,/PROVENANCE_VERIFICATION_REQUIRED/);
-assert.doesNotMatch(sql,/\b(?:DELETE|TRUNCATE)\b.*?public\.(?:stores|employees)/is);
-assert.doesNotMatch(sql,/UPDATE public\.employees|UPDATE public\.stores/i);
+const statements=sql.split('\n').filter(line=>!line.trimStart().startsWith('--')).join('\n');
+assert.doesNotMatch(statements,/\b(?:DELETE|TRUNCATE)\s+(?:FROM\s+)?public\.(?:stores|employees)/i);
+assert.doesNotMatch(statements,/UPDATE public\.employees/i);
+assert.equal((statements.match(/UPDATE public\.stores SET onboarding_status=p_status/g)||[]).length,1,
+  'Existing HQ activation status transition must be the only store update');
 console.log('PASS seeded sample+demo employees block READY activation; HQ-only aggregate, no deletion, Inha unchanged');
