@@ -177,7 +177,7 @@ async function buildReport(ym,storeId){
   // overlays the live shift seconds already present in authoritative payroll.
   const calculated=await engine.computeMonthPayroll(ym);
   const workingAttendance=attendanceWithWorkingPayable(report.attendance,calculated);
-  const {data:snap,error:snapError}=await client.from("payroll_snapshot").select("employee_id,employee_name,hours,wage,base_pay,juhyu_pay,adjust,gross_pay,closed_at").eq("ym",ym);
+  const {data:snap,error:snapError}=await client.from("payroll_snapshot").select("employee_id,employee_name,hours,wage,base_pay,juhyu_pay,adjust,gross_pay,closed_at").eq("store_id",storeId).eq("ym",ym);
   if(snapError)throw new Error("SNAPSHOT_READ_FAILED");
   const ids=new Set((data.employees||[]).map(e=>Number(e.id)));
   const snapshots=(snap||[]).filter(s=>ids.has(Number(s.employee_id)));
