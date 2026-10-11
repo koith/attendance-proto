@@ -179,10 +179,9 @@ async function smoke(browser,label,viewport){
   await page.waitForFunction(()=>document.querySelectorAll('.admin-subnav-shell .admin-subtabs a').length===3,null,{timeout:12000});
   assert.deepEqual(await page.locator('.admin-subnav-shell .admin-subtabs a').allTextContents(),
     ['직원 관리','급여','운영시간'],'Management tab visibility '+label);
-  await page.evaluate(()=>{location.hash='#inventory'});
-  await page.waitForFunction(()=>location.hash==='#admin',null,{timeout:12000});
-  assert.equal(await page.locator('.admin-subnav-shell a[href="#inventory"]').count(),0,'Unreleased inventory route exposed '+label);
-  // Keep testing the preserved internal inventory renderer with mocked, scoped RPCs.
+  // Exercise the internal inventory renderer BEFORE testing the blocked public route.
+  // A redirect to #admin starts an async admin render which can erase the internal
+  // test screen (especially in slower desktop CI) while stock data is loading.
   await page.evaluate(()=>window.renderOperations('inventory'));
   await page.locator('#opsInventoryAdd').waitFor({timeout:12000});
   const water=page.locator('.ops-stock-bar[data-inventory-name="정수"]');
@@ -203,6 +202,13 @@ async function smoke(browser,label,viewport){
   await page.locator('.ops-modal').last().locator('.ops-modal-head button').click();
   assert.ok(calls.some(x=>x.name==='admin_store_inventory_overview_v3'&&x.args.p_store_id===1),
     'Approved inventory bypassed scoped RPC '+label);
+  await page.evaluate(()=>{location.hash='#inventory'});
+  await page.waitForFunction(()=>location.hash==='#admin',null,{timeout:12000});
+  await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:18000});
+  assert.deepEqual(await page.locator('.admin-subnav-shell .admin-subtabs a').allTextContents(),
+    ['직원 관리','급여','운영시간'],'Unreleased route must return to approved admin navigation '+label);
+  assert.equal(await page.locator('.admin-subnav-shell a[href="#inventory"]').count(),0,
+    'Unreleased inventory route exposed '+label);
   await page.evaluate(()=>{location.hash='#attendance'});
   await page.waitForURL(/actual_attendance\.html/,{timeout:20000});
   await page.locator('#monthLabel').waitFor({timeout:20000});
