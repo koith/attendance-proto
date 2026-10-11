@@ -97,6 +97,7 @@ on:
       - 'qa_monthly_contract_salary_authority_v1.mjs'
       - 'qa_payroll_contract_transition_fail_closed_v1.mjs'
       - 'qa_monthly_segments_report_parity_v1.mjs'
+      - 'qa_hourly_segments_sheet_parity_v1.mjs'
       - 'qa_payroll_won_truncation_v1.mjs'
       - 'qa_payroll_weekly_substitution_boundary_v1.mjs'
       - 'qa_server_night_single_premium_v1.mjs'
@@ -259,6 +260,7 @@ jobs:
           node qa_monthly_contract_salary_authority_v1.mjs
           node qa_payroll_contract_transition_fail_closed_v1.mjs
           node qa_monthly_segments_report_parity_v1.mjs
+          node qa_hourly_segments_sheet_parity_v1.mjs
           node qa_payroll_won_truncation_v1.mjs
           node qa_payroll_weekly_substitution_boundary_v1.mjs
           node qa_server_night_single_premium_v1.mjs
