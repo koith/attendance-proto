@@ -317,14 +317,21 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
         pay.jweeks=qualifiedWeeks;
         pay.weekly=truncateWon(effWage*Math.min(8,weeklyContractMin/300));
         pay.juhyu=[...weeklyAmounts.values()].reduce((sum,won)=>sum+won,0)+Number(pay.weeklyApprovalDelta||0);
-        if(hours<=0){pay.base=0;pay.weekly=0;pay.juhyu=0;pay.adjust=0;pay.gross=0;pay.net=0;pay.jweeks=0;}
-        else {const breakCompPay=Math.trunc((effWage||0)*breakBonusMinutes/60);pay.breakCompPay=breakCompPay;pay.gross=Math.trunc(pay.base+pay.juhyu+pay.adjust+breakCompPay);pay.net=xrounddown(pay.gross*(1-pay.rate),-1);}
+        if(hours<=0){
+          // A Monday-owned week can be worked entirely in the following month.
+          // Keep its settled/approved weekly allowance in the Monday month even
+          // when there is no wage-bearing shift in that calendar month.
+          pay.base=0;pay.adjust=0;pay.breakCompPay=0;
+          pay.gross=truncateWon(pay.juhyu);
+          pay.net=xrounddown(pay.gross*(1-pay.rate),-1);
+        }else {const breakCompPay=Math.trunc((effWage||0)*breakBonusMinutes/60);pay.breakCompPay=breakCompPay;pay.gross=Math.trunc(pay.base+pay.juhyu+pay.adjust+breakCompPay);pay.net=xrounddown(pay.gross*(1-pay.rate),-1);}
       }
     }
-    if(pay && sec<=0 && payrollType!=="MONTHLY"){ pay.base=0; pay.weekly=0; pay.juhyu=0; pay.adjust=0; pay.gross=0; pay.net=0; pay.jweeks=0; }
+    const mondayOwnedWeeklyOnly=!!contract&&payrollType==="HOURLY"&&Number(pay?.juhyu||0)>0;
+    if(pay && sec<=0 && payrollType!=="MONTHLY" && !mondayOwnedWeeklyOnly){ pay.base=0; pay.weekly=0; pay.juhyu=0; pay.adjust=0; pay.gross=0; pay.net=0; pay.jweeks=0; }
     // Final payroll invariant: no completed work in the selected month means no earned pay
     // for wage-based employees, regardless of legacy juhyu/override data.
-    if(sec<=0 && Number(e.wage||0)>0){
+    if(sec<=0 && Number(e.wage||0)>0 && !mondayOwnedWeeklyOnly){
       const zeroWage=Number(effWage||e.wage||0);
       pay={base:0,weekly:0,juhyu:0,adjust:0,gross:0,net:0,rate:0,wage:zeroWage,jweeks:0,usedOverride:false,payrollType:"HOURLY"};
     }

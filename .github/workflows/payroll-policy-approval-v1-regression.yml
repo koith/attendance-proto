@@ -5,6 +5,7 @@ on:
       - 'supabase/functions/server-sync-sheet/**'
       - 'qa_payroll_policy_adjustment_v1.mjs'
       - 'qa_payroll_policy_scenarios_v1.mjs'
+      - 'qa_payroll_monday_month_no_local_work_v1.mjs'
       - 'qa_payroll_approval_engine_fixture_v1.mjs'
       - 'qa_payroll_week_approval_boundary_source_v1.mjs'
       - 'qa_weekly_approval_rpc_guard_v1.mjs'
@@ -31,6 +32,7 @@ jobs:
           node-version: '22'
       - run: node qa_payroll_policy_adjustment_v1.mjs
       - run: node qa_payroll_policy_scenarios_v1.mjs
+      - run: node qa_payroll_monday_month_no_local_work_v1.mjs
       - run: node qa_payroll_approval_engine_fixture_v1.mjs
       - run: node qa_payroll_week_approval_boundary_source_v1.mjs
       - run: node qa_weekly_approval_rpc_guard_v1.mjs
