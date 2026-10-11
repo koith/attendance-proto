@@ -99,7 +99,7 @@ async function sourceFor(ym,storeId){
   if(storeError||!store)throw new Error("UNKNOWN_PAYROLL_STORE");
   const storeName=String(store.name);
   const engine=createPayrollEngine({BE,storeId,storeName});
-  return {data,engine};
+  return {data,engine,weeklyApprovals:weeklyApprovals||[]};
 }
 function packLocalDates(value){
   if(value instanceof Date)return `${value.getFullYear()}-${p2(value.getMonth()+1)}-${p2(value.getDate())}T${p2(value.getHours())}:${p2(value.getMinutes())}:${p2(value.getSeconds())}`;
@@ -370,13 +370,13 @@ Deno.serve(async req=>{
     if(mode==="weekly_approve"||mode==="weekly_decide"){
       const employeeId=Number(body.employee_id),weekStart=String(body.week_start||"");
       const calculatedWon=Number(body.calculated_won),approvedWon=Number(body.approved_won);
-      const decision=String(body.decision||"APPROVE").toUpperCase();
+      const requestedDecision=String(body.decision||"APPROVE").toUpperCase();
       const reason=String(body.reason||"").trim();
       if(!Number.isSafeInteger(employeeId)||employeeId<=0||
          !/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(weekStart)||
          !Number.isSafeInteger(calculatedWon)||calculatedWon<0||
          !Number.isSafeInteger(approvedWon)||approvedWon<0||reason.length<3||
-         !["APPROVE","REJECT"].includes(decision)||(decision==="REJECT"&&approvedWon!==0))
+         !["APPROVE","REJECT","REAPPROVE"].includes(requestedDecision)||(requestedDecision==="REJECT"&&approvedWon!==0))
         throw new HttpError(400,"INVALID_WEEKLY_APPROVAL");
       const weekMonday=new Date(weekStart+"T00:00:00Z");
       // Match the engine's Monday-month attribution before computing approval amount.
@@ -387,7 +387,7 @@ Deno.serve(async req=>{
       if(!Number.isFinite(weekMonday.getTime())||weekMonday.getUTCDay()!==1||
          nowWall.getTime()<weekMonday.getTime()+7*86400000+2*3600000)
         throw new HttpError(409,"WEEK_NOT_CLOSED");
-      const {engine:approvalEngine}=await sourceFor(ym,storeId);
+      const {engine:approvalEngine,weeklyApprovals}=await sourceFor(ym,storeId);
       const currentPayroll=await approvalEngine.computeMonthPayroll(ym);
       const employeeRow=currentPayroll.rows.find(r=>Number(r.employee_id)===employeeId);
       if(!employeeRow||!employeeRow.pay||employeeRow.payrollType!=="HOURLY")
@@ -395,6 +395,10 @@ Deno.serve(async req=>{
       const actualCalculated=Number(employeeRow.pay.weeklyCalculatedAmounts?.[weekStart]||0);
       if(calculatedWon!==actualCalculated)throw new HttpError(409,"WEEKLY_CALCULATED_AMOUNT_CHANGED");
       if(actor.internal||!actor.userId)throw new HttpError(403,"ADMIN_USER_REQUIRED");
+      // Initial APPROVE followed by another manager approval is audited as REAPPROVE.
+      const priorDecision=weeklyApprovals.some(a=>Number(a.employee_id)===employeeId&&String(a.week_start)===weekStart);
+      const decision=requestedDecision==="APPROVE"&&priorDecision?"REAPPROVE":requestedDecision;
+      if(decision==="REAPPROVE"&&!priorDecision)throw new HttpError(409,"INITIAL_APPROVAL_REQUIRED");
       const {data,error}=await client.rpc("approve_payroll_weekly_decision_internal",{
         p_store_id:storeId,p_employee_id:employeeId,p_week_start:weekStart,
         p_calculated_won:actualCalculated,p_approved_won:approvedWon,p_reason:reason,
