@@ -137,3 +137,55 @@ BEGIN
  END IF;
 END $$;
 \echo PASS: isolated real PostgreSQL close RPC rejects NULL fields, permits verified zero-punch earnings
+
+
+-- Regression for the new immutable itemized close protocol. The existing two
+-- historical snapshots remain readable with NULL component evidence.
+\i supabase/migrations/20261012121500_payroll_close_allowance_component_snapshot.sql
+DO $$
+BEGIN
+ IF (SELECT count(*) FROM public.payroll_snapshot
+     WHERE night_allowance_won IS NULL AND break_compensation_won IS NULL
+       AND substitution_pay_won IS NULL)<>2
+ THEN RAISE EXCEPTION 'Old snapshots must preserve unknown component history'; END IF;
+END $$;
+
+SELECT public.assert_payroll_close_error(
+ public.test_salary_json()||'{"night_allowance_won":null}'::jsonb,
+ 'PAYROLL_ALLOWANCE_COMPONENT_INVALID','2026-07');
+SELECT public.assert_payroll_close_error(
+ public.test_salary_json()||'{"break_compensation_won":"500"}'::jsonb,
+ 'PAYROLL_ALLOWANCE_COMPONENT_INVALID','2026-07');
+SELECT public.assert_payroll_close_error(
+ public.test_salary_json()||'{"substitution_pay_won":false}'::jsonb,
+ 'PAYROLL_ALLOWANCE_COMPONENT_INVALID','2026-07');
+SELECT public.assert_payroll_close_error(
+ public.test_salary_json()||'{"night_allowance_won":-1}'::jsonb,
+ 'PAYROLL_ROW_VALUE_INVALID','2026-07');
+SELECT public.assert_payroll_close_error(
+ public.test_salary_json()||'{"break_mode":"NOT_A_MODE"}'::jsonb,
+ 'PAYROLL_ROW_VALUE_INVALID','2026-07');
+
+SELECT public.server_payroll_close_verified(
+ 1,'2026-07',jsonb_build_array(jsonb_build_object(
+  'employee_id',1,'employee_name','Synthetic employee',
+  'hours',8,'wage',12000,'weeks',0,
+  'base_pay',100000,'juhyu_pay',0,'adjust',0,
+  'gross_pay',117000,'tax_rate',0,'net_pay',117000,
+  'night_allowance_won',10000,'break_compensation_won',5000,
+  'substitution_pay_won',2000,'night_allowance_label','정률 50%',
+  'break_mode','NOT_PROVIDED')),
+ repeat('c',64),'00000000-0000-4000-8000-000000000001'::uuid);
+
+DO $$
+BEGIN
+ IF (SELECT count(*) FROM public.payroll_snapshot
+   WHERE store_id=1 AND ym='2026-07' AND employee_id=1
+   AND gross_pay=117000 AND night_allowance_won=10000
+   AND break_compensation_won=5000 AND substitution_pay_won=2000
+   AND night_allowance_label='정률 50%' AND break_mode='NOT_PROVIDED')<>1
+ THEN RAISE EXCEPTION 'Verified immutable allowance components did not persist'; END IF;
+ IF (SELECT count(*) FROM public.payroll_snapshot)<>3
+ THEN RAISE EXCEPTION 'Unexpected extra/overwritten salary snapshots'; END IF;
+END $$;
+\echo PASS: itemized night/break/substitution amounts persist; historical absence remains NULL; malformed payloads rejected

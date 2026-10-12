@@ -6,11 +6,13 @@ on:
     paths:
       - 'supabase/functions/server-sync-sheet/**'
       - 'payroll_contract_authority_v1.js'
+      - 'qa_payroll_snapshot_components_v1.mjs'
       - '.github/workflows/deploy-server-payroll-edge.yml'
   pull_request:
     paths:
       - 'supabase/functions/server-sync-sheet/**'
       - 'payroll_contract_authority_v1.js'
+      - 'qa_payroll_snapshot_components_v1.mjs'
       - '.github/workflows/deploy-server-payroll-edge.yml'
   workflow_dispatch:
 
@@ -37,6 +39,7 @@ jobs:
           node qa_payroll_policy_scenarios_v1.mjs
           node qa_payroll_approval_engine_fixture_v1.mjs
           node qa_payroll_close_server_authority_v1.mjs
+          node qa_payroll_snapshot_components_v1.mjs
           node qa_payroll_no_local_punch_close_v1.mjs
           node qa_monthly_segments_report_parity_v1.mjs
           node qa_monthly_contract_unpaid_segment_v1.mjs

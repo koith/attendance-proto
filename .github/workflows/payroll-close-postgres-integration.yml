@@ -4,12 +4,14 @@ on:
     paths:
       - 'qa_payroll_close_postgres_integration.sql'
       - 'supabase/migrations/20261012063000_payroll_close_require_nonnull_amounts.sql'
+      - 'supabase/migrations/20261012121500_payroll_close_allowance_component_snapshot.sql'
       - '.github/workflows/payroll-close-postgres-integration.yml'
   push:
     branches: [main]
     paths:
       - 'qa_payroll_close_postgres_integration.sql'
       - 'supabase/migrations/20261012063000_payroll_close_require_nonnull_amounts.sql'
+      - 'supabase/migrations/20261012121500_payroll_close_allowance_component_snapshot.sql'
       - '.github/workflows/payroll-close-postgres-integration.yml'
 jobs:
   isolated-payroll-sql:

@@ -26,12 +26,15 @@ const source=[
  {store_id:1,employee_name:'Synthetic Hourly',hours:12.5,wage:13000,
   base_pay:162500,juhyu_pay:50000,adjust:1000,gross_pay:249500},
  {store_id:1,employee_name:'Synthetic Monthly',hours:0,wage:0,
-  base_pay:2600000,juhyu_pay:0,adjust:0,gross_pay:2600000}
+  base_pay:2600000,juhyu_pay:0,adjust:0,gross_pay:2600000,
+  night_allowance_won:0,break_compensation_won:0,substitution_pay_won:0,
+  night_allowance_label:'미적용',break_mode:'PROVIDED'}
 ];
 const expected=source.map(s=>s.gross_pay.toLocaleString('ko-KR')+'원');
 const closedSource=snapshot(source,'2026-09');
 assert.deepEqual([...closedSource.header],
- ['직원명','총 실근무시간','시급','기본급','주휴','조정','확정 세전급여'],
+ ['직원명','총 실근무시간','시급','기본급','주휴','조정','확정 세전급여',
+  '야근수당적용여부','야근수당','휴게 제공 여부','휴게수당'],
  'Canonical closed snapshot must retain confirmed gross');
 const syntheticAttendance={header:['직원명','급여산정시간'],rows:[
  ['Synthetic Hourly','05:15'],['Synthetic Hourly','07:15']
@@ -53,6 +56,10 @@ assert.equal(closed.rows[0][7],'—',
  'Historical night allowance enabled status must not be fabricated');
 assert.equal(closed.rows[0][11],'—',
  'Unavailable historical break compensation must not be falsely reported');
+assert.equal(closed.rows[1][7],'미적용','New snapshot retains night policy label');
+assert.equal(closed.rows[1][8],'0원','Known zero allowance must remain 0원');
+assert.equal(closed.rows[1][10],'제공','New snapshot retains verified break provision mode');
+assert.equal(closed.rows[1][11],'0원','Known zero break compensation must remain 0원');
 assert.equal(closed.rows[0][9],'50,000원');
 assert.equal(closed.rows[0][12],'1,000원');
 
