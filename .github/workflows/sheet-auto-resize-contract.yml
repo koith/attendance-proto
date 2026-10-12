@@ -7,6 +7,7 @@ on:
       - 'qa_sheet_auto_resize_contract.mjs'
       - 'qa_sheet_width_readback_v1.mjs'
       - 'qa_sheet_formula_literal_v1.mjs'
+      - 'qa_sheet_valid_month_v1.mjs'
       - 'qa_sheet_report_design.mjs'
       - 'qa_sheet_display_values.mjs'
       - 'qa_sheet_new_month_format_contract.mjs'
@@ -34,6 +35,7 @@ jobs:
       - run: node qa_sheet_auto_resize_contract.mjs
       - run: node qa_sheet_width_readback_v1.mjs
       - run: node qa_sheet_formula_literal_v1.mjs
+      - run: node qa_sheet_valid_month_v1.mjs
       - run: node qa_sheet_report_design.mjs
       - run: node qa_sheet_display_values.mjs
       - run: node qa_sheet_new_month_format_contract.mjs
