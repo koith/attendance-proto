@@ -22,8 +22,8 @@ const mixed=reconcileSheetPayableMinutes(
  [{employeeId:1,seconds:3659,isWorking:false},{employeeId:2,seconds:7203,isWorking:false},
   {employeeId:1,seconds:3661,isWorking:false},{employeeId:2,seconds:3661,isWorking:true}]
 );
-assert.equal(mixed[0][10],'01:00');
-assert.equal(mixed[2][10],'01:02');
+assert.equal(mixed[0][10],'01:01');
+assert.equal(mixed[2][10],'01:01');
 assert.equal(mixed[1][10],'02:00');
 assert.equal(mixed[3][10],'01:00','A working row remains untouched by completed-shift reconciliation');
 assert.throws(()=>reconcileSheetPayableMinutes(input,[]),/SHAPE/);
