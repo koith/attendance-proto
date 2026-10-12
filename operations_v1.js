@@ -29,7 +29,46 @@ async function openOpsModal(kind){
  const wrap=document.createElement("div");wrap.className="ops-modal";wrap.innerHTML='<div class="ops-modal-sheet ops-import-sheet"><div class="ops-modal-head"><b>'+(kind==="collect"?"데이터 수집":"파일 업로드")+'</b><button type="button" class="ops-modal-close" aria-label="닫기">×</button></div><div class="ops-modal-body">'+(kind==="collect"?collect:upload)+'</div></div>';document.body.appendChild(wrap);const close=()=>wrap.remove();wrap.querySelector(".ops-modal-close").onclick=close;wrap.onclick=e=>{if(e.target===wrap)close()};
  if(kind==="collect"){wrap.querySelectorAll("[data-source]").forEach(btn=>btn.onclick=async()=>{btn.disabled=true;const st=btn.querySelector(".ops-status");st.textContent="요청 등록 중…";try{const result=await BE.operationsCollectRequest(btn.dataset.source);st.textContent=result?.connector_configured===false?"외부 연동 미설정 · CSV 업로드 이용":"수집 요청 대기";if(result?.connector_configured!==false)st.classList.add("ok")}catch(e){st.textContent="등록 실패";btn.disabled=false;alert("수집 요청 등록 실패: "+e.message)}});return}
  const input=wrap.querySelector("#opsImportFile"),preview=wrap.querySelector("#opsImportPreview"),submit=wrap.querySelector("#opsImportSubmit");let parsed=[];
- const parseCsv=text=>{const lines=text.replace(/^\uFEFF/,"").split(/\r?\n/).filter(x=>x.trim());if(lines.length<2)throw Error("헤더와 데이터 행이 필요합니다.");const split=line=>{const out=[];let v="",q=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'&&line[i+1]==='"'){v+='"';i++}else if(ch==='"')q=!q;else if(ch===","&&!q){out.push(v);v=""}else v+=ch}out.push(v);return out};const heads=split(lines[0]).map(x=>x.trim());if(heads.some(x=>!x))throw Error("빈 헤더명이 있습니다.");return lines.slice(1).map((line,idx)=>{const vals=split(line),o={source_record_key:String(idx+1)};heads.forEach((h,i)=>o[h]=vals[i]??"");return o})};
+ const parseCsv=text=>{
+   const source=String(text??"").replace(/^\uFEFF/,""),records=[];
+   let field="",record=[],quoted=false,closed=false;
+   const finishField=()=>{record.push(field);field="";closed=false};
+   const finishRecord=()=>{finishField();if(record.some(x=>x.trim()))records.push(record);record=[]};
+   for(let i=0;i<source.length;i++){
+     const ch=source[i];
+     if(quoted){
+       if(ch==='"'&&source[i+1]==='"'){field+='"';i++}
+       else if(ch==='"'){quoted=false;closed=true}
+       else field+=ch;
+       continue;
+     }
+     if(closed){
+       if(ch===" "||ch==="\t")continue;
+       if(ch===","){finishField();continue}
+       if(ch==="\r"||ch==="\n"){finishRecord();if(ch==="\r"&&source[i+1]==="\n")i++;continue}
+       throw Error("CSV 따옴표 뒤에 잘못된 문자가 있습니다.");
+     }
+     if(ch==='"'){
+       if(field!=="")throw Error("CSV 따옴표 형식을 확인하세요.");
+       quoted=true;continue;
+     }
+     if(ch===","){finishField();continue}
+     if(ch==="\r"||ch==="\n"){finishRecord();if(ch==="\r"&&source[i+1]==="\n")i++;continue}
+     field+=ch;
+   }
+   if(quoted)throw Error("CSV 따옴표가 닫히지 않았습니다.");
+   if(record.length||field!==""||closed)finishRecord();
+   if(records.length<2)throw Error("헤더와 데이터 행이 필요합니다.");
+   const heads=records[0].map(x=>x.trim());
+   if(heads.some(x=>!x))throw Error("빈 헤더명이 있습니다.");
+   if(new Set(heads).size!==heads.length)throw Error("중복된 CSV 헤더가 있습니다.");
+   return records.slice(1).map((values,index)=>{
+     if(values.length!==heads.length)throw Error("CSV "+(index+2)+"번째 행의 열 개수가 헤더와 다릅니다.");
+     const row={source_record_key:String(index+1)};
+     heads.forEach((name,i)=>row[name]=values[i]);
+     return row;
+   });
+ };
  input.onchange=async()=>{parsed=[];submit.disabled=true;const file=input.files?.[0];if(!file)return;try{if(file.size>5*1024*1024)throw Error("파일은 5MB 이하만 업로드할 수 있습니다.");parsed=parseCsv(await file.text());preview.innerHTML='<b>'+esc(file.name)+'</b><span>'+parsed.length+'행 · CSV 검증 완료</span>';submit.disabled=!parsed.length}catch(e){preview.textContent=e.message}};
  wrap.querySelector("#opsTemplate").onclick=()=>{const csv="business_date,transaction_type,channel,total_amount,counterparty,source_record_key\n2026-09-26,SALE,STORE,4500,,sample-001\n",blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"}),u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download="baekeok_operations_template.csv";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
  submit.onclick=async()=>{const file=input.files?.[0];if(!file||!parsed.length)return;submit.disabled=true;submit.textContent="업로드 중…";try{const r=await BE.operationsImportStage(wrap.querySelector("#opsImportSource").value,file.name,parsed);preview.innerHTML='<b>'+(r?.normalized?'지점 데이터 반영 완료':'업로드 등록 완료 · 정규화 대기')+'</b><span>'+num(r?.row_count||parsed.length)+'행 · 배치 #'+esc(r?.batch_id||"")+'</span>';submit.textContent="완료"}catch(e){submit.disabled=false;submit.textContent="검증 후 업로드";alert("업로드 실패: "+e.message)}}
