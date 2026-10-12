@@ -5,12 +5,20 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/server-sync-sheet/**'
+      - 'edge-release/supabase/**'
+      - 'ci_native_supabase_receipt.cjs'
+      - 'qa_native_supabase_receipt_v1.mjs'
+      - 'scripts/sync_supabase_native_edge_release.mjs'
       - 'payroll_contract_authority_v1.js'
       - 'qa_payroll_snapshot_components_v1.mjs'
       - '.github/workflows/deploy-server-payroll-edge.yml'
   pull_request:
     paths:
       - 'supabase/functions/server-sync-sheet/**'
+      - 'edge-release/supabase/**'
+      - 'ci_native_supabase_receipt.cjs'
+      - 'qa_native_supabase_receipt_v1.mjs'
+      - 'scripts/sync_supabase_native_edge_release.mjs'
       - 'payroll_contract_authority_v1.js'
       - 'qa_payroll_snapshot_components_v1.mjs'
       - '.github/workflows/deploy-server-payroll-edge.yml'
@@ -19,6 +27,7 @@ on:
 permissions:
   contents: read
   statuses: write
+  checks: read
 
 concurrency:
   group: production-payroll-edge
@@ -67,6 +76,7 @@ jobs:
           node qa_night_completed_only_allowance_v1.mjs
           node qa_night_pay_seconds_v1.mjs
           node qa_actual_attendance_store_scope_v1.mjs
+          node qa_native_supabase_receipt_v1.mjs
 
   deploy:
     name: Attest Supabase native production deployment
