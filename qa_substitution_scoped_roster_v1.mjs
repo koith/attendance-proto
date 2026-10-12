@@ -36,7 +36,10 @@ for(const page of ['substitution_v1.js','substitution_v2.js']){
 const html=fs.readFileSync('substitution.html','utf8');
 const app=fs.readFileSync('index.html','utf8');
 assert.match(html,/substitution_v2\.js\?v=20261012v236/);
-assert.match(app,/const APP_VERSION="v0\.236"/);
+const version=app.match(/const APP_VERSION="(v0\.\d+)"/);
+assert.ok(version,'Main app version must be defined');
+assert.ok(app.includes('id="appVersion">'+version[1]+'</span>'),
+  'Visible version badge must match the deployed app version');
 assert.match(fs.readFileSync('substitution_v2.js','utf8'),
   /back\.href='index\.html\?mode=store&store='\+SUB_STORE_ID\+'#pos'/,
   'Return to the exact READY store when the standalone page closes');
