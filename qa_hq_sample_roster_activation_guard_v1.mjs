@@ -25,7 +25,7 @@ assert.equal((statements.match(/UPDATE public\.stores SET onboarding_status=p_st
   'Existing HQ activation status transition must be the only store update');
 const ui=fs.readFileSync('hq_store_onboarding_ui.js','utf8');
 assert.match(ui,/rpc\("hq_store_sample_roster_counts"\)/);
-assert.match(ui,/!Array\.isArray\(sampleCounts\)/);
+assert.match(ui,/!result\.every\(Array\.isArray\)/,'All HQ RPC lists must be validated, including sample roster');
 assert.match(ui,/sampleEmployeeCount===0/);
 assert.match(ui,/id="hqSampleRosterBlocker"/);
 assert.match(ui,/id="hqSampleRosterSummary"/);
