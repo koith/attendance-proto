@@ -272,7 +272,9 @@ jobs:
           node qa_store_operations_isolation_v1.mjs
           node qa_operations_real_ledger_export_v1.mjs
       - name: Multi-store inventory ledger regression
-        run: node qa_store_inventory_isolation_v1.mjs
+        run: |
+          node qa_store_inventory_isolation_v1.mjs
+          node qa_store_stocktake_ui_v1.mjs
       - name: Legacy global admin RPC HQ scope regression
         run: node qa_global_admin_rpc_hq_boundary_v1.mjs
       - name: Store owner revocation and activation security regression
