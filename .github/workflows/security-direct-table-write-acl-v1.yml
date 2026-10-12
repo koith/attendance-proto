@@ -1,0 +1,41 @@
+name: security-direct-table-write-acl-v1
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261013200000_security_invoker_write_acl.sql'
+      - 'qa_security_invoker_write_acl_v1.sql'
+      - '.github/workflows/security-direct-table-write-acl-v1.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20261013200000_security_invoker_write_acl.sql'
+      - 'qa_security_invoker_write_acl_v1.sql'
+      - '.github/workflows/security-direct-table-write-acl-v1.yml'
+jobs:
+  postgres-role-fixture:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_fixture_only
+          POSTGRES_DB: security_fixture
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d security_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_fixture_only
+      PGDATABASE: security_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Verify direct SQL table write firewall and unchanged field workflows
+        run: psql -v ON_ERROR_STOP=1 -f qa_security_invoker_write_acl_v1.sql
