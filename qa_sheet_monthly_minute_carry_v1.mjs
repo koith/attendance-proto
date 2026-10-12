@@ -69,6 +69,19 @@ const totalWage=payroll.rows[0].pay.base;
 assert.equal(report.payroll.rows[0][report.payroll.header.indexOf('기본급')],
  totalWage.toLocaleString('ko-KR')+'원',
  'Minute redistribution never changes actual earned money');
+const browserSrc=fs.readFileSync('index.html','utf8');
+const helperSrc=fs.readFileSync('supabase/functions/server-sync-sheet/sheet_minute_reconciliation.mjs','utf8');
+function extractFunction(source,signature){
+ const start=source.indexOf(signature);
+ assert.ok(start>=0,'Missing '+signature);
+ const end=source.indexOf('\n}\n',start);
+ assert.ok(end>start,'Unclosed '+signature);
+ return source.slice(start,end+2);
+}
+assert.equal(
+ extractFunction(browserSrc,'function reconcileSheetPayableMinutes(rows, metadata)'),
+ extractFunction(helperSrc,'export function reconcileSheetPayableMinutes(rows, metadata)').replace(/^export /,''),
+ 'Browser and Edge minute reconciliation must remain byte-identical');
 const engineSrc=fs.readFileSync('supabase/functions/server-sync-sheet/engine.mjs','utf8');
 assert.match(engineSrc,/reconcileSheetPayableMinutes\(detailedAttendance,minuteMetadata\)/);
 assert.match(engineSrc,/rawSessionSeconds:items\.map\(x=>payableSeconds\(x,rec\.breakMode\)\)/);
