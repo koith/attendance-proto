@@ -31,14 +31,14 @@ edge-release/
 - 커밋 전 검증: `node scripts/sync_supabase_native_edge_release.mjs --check`
 - 새 PR/푸시의 `native-supabase-edge-release-parity` GitHub Actions가 배포용 5개 파일의 exact parity, 설정 내 비밀 없음, 과거 migration 디렉터리 부재, 기존 급여/인증 테스트를 강제한다.
 
-## 관리자의 1회 OAuth 연결 (현재 연결됐다고 주장하지 않음)
+## 공식 GitHub Integration 연결 및 자동 배포 실증 완료 (2026-10-13)
 
-1. [Supabase 프로젝트 통합 설정](https://supabase.com/dashboard/project/waluhdgqhwjjwmflhrle/settings/integrations)에서 **GitHub Integration → Authorize GitHub**를 통해 본인 계정으로 승인한다.
+1. (설정 완료) [Supabase 프로젝트 통합 설정](https://supabase.com/dashboard/project/waluhdgqhwjjwmflhrle/settings/integrations)에서 **GitHub Integration → Authorize GitHub**를 통해 본인 계정으로 승인한다.
 2. 저장소를 `koith/attendance-proto`로 선택하고 **Working directory = `edge-release`** 를 정확히 지정한다. `.` 또는 `supabase`를 지정하면 안 된다.
 3. Production branch가 `main`인지 확인하고, **Deploy to production**을 사용한다. 자동 Preview Branch 생성은 불필요하며 우선 사용하지 않는다.
 4. Supabase 배포 기록에서 실제 마이그레이션 적용 0건, `server-sync-sheet`만 변경됐는지 확인한다. 새 Edge 버전과 코드 비교, 미인증 급여 요청 HTTP 401/403, 인하 POS·Google Sheets 동기화 P0 검사로 검증한다.
-5. 기존 PAT 기반 GitHub Actions는 아직 fail-closed이며, native integration의 실제 성공 상태/receipt 형태가 관찰된 다음 신뢰 가능한 동일 커밋 배포 확인으로 전환해야 한다. 단지 Supabase 연동을 승인한 것만으로 CI-01 전체 완료를 선언하지 않는다.
+5. [PR #717](https://github.com/koith/attendance-proto/pull/717) 주석-only main 변경 뒤 공식 Supabase App \`Supabase Preview\` 검사가 성공했고 운영 Edge v51→v52가 자동 갱신되었다. 모든 5개 배포된 파일을 GitHub 복제본과 직접 대조하여 일치했다.\n6. [PR #718](https://github.com/koith/attendance-proto/pull/718)에서 Actions의 개인 토큰 의존을 제거했다. 같은 main SHA의 공식 Supabase 체크(app.slug=\`supabase\`, app.id=330661, project URL 일치)가 SUCCESS인지 검증하고 공개 급여 비인증 401/403을 확인한 뒤 \`edge/server-sync-sheet-deploy\` 성공 receipt를 남긴다. 실패/누락/위조/다른 커밋이면 Pages 배포를 차단한다.
 
 공식 참고: https://supabase.com/docs/guides/deployment/branching/github-integration 와 https://supabase.com/docs/guides/functions/function-configuration
 
-**현재 상태:** 토큰 없는 Supabase 관리 도구 배포 **실증 완료**. 자동 배포에 필요한 GitHub OAuth 승인과 실제 최초 연동 배포 검증은 **아직 미완료**. 설정 없이 자동 배포 성공으로 보고하지 말 것.
+**현재 상태:** GitHub OAuth 연동, 자동 운영 배포(Edge v52) 및 공식 앱 동일 커밋 체크, Actions 검증과 성공 receipt까지 실제 입증되었다. \`edge-release/supabase\`에는 과거 운영 DB 마이그레이션을 두지 않는다. 새 기능 코드 수정 시에는 정본과 배포용 복제본을 반드시 동시에 갱신하고 CI parity 검증을 통과시킨다.

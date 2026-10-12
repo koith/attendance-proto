@@ -23,7 +23,7 @@
 ## 개통 전에 관리자 확인이 필요한 외부 설정
 - **초대 이메일 리디렉션:** Supabase Dashboard → Authentication → URL Configuration → Redirect URLs에
   `https://koith.github.io/attendance-proto/owner_activation.html` 허용. 이 설정을 확인하지 않고 실제 이메일 초대 전달 성공을 주장하면 안 됩니다.
-- **Edge GitHub 자동 배포:** Supabase Dashboard → Account → Access Tokens에서 배포 권한이 있는 제한된 토큰을 발급하고, GitHub `koith/attendance-proto` → Settings → Secrets and variables → Actions에 `SUPABASE_ACCESS_TOKEN`으로 **비공개 설정**합니다. 토큰은 코드·이슈·채팅에 복사하지 않습니다. 연결 후 `.github/workflows/deploy-server-payroll-edge.yml`이 main에서 성공하고 Edge가 체크인된 소스와 일치해야 자동 배포 완료입니다.
+- **Edge GitHub 자동 배포:** Supabase Dashboard → Project Settings → Integrations에서 GitHub `koith/attendance-proto`, Working directory `edge-release`, Production branch `main`, Deploy to production ON으로 연결 완료(2026-10-13). 별도의 `SUPABASE_ACCESS_TOKEN` 발급·GitHub Secret 등록은 필요하지 않습니다. `main`의 공식 Supabase GitHub App 배포 체크(동일 커밋·동일 프로젝트) → `.github/workflows/deploy-server-payroll-edge.yml`의 검증 receipt → Pages P0 게이트가 성공해야 합니다. `edge-release/supabase`에는 이전 DB migrations 폴더를 추가하지 않습니다.
 - **유출 비밀번호 보호:** Supabase Auth Security and Protection 설정에서 leaked password protection을 켭니다. 연결된 도구로 해당 대시보드 설정을 변경할 수 없으면 운영 담당자가 직접 설정해야 합니다.
 - **초기 점주:** 실운영 점주 이메일은 아직 제공되지 않았으므로 운영 점주 계정은 임의로 생성·초대하지 않습니다.
 
