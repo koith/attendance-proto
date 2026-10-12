@@ -7,6 +7,21 @@ function empty(t,s=""){return `<div class="ops-empty"><b>${esc(t)}</b>${s?`<smal
 // Do not invent stock quantities or recipe ingredients as a fallback for a missing backend row.
 const recipeComponents=r=>Array.isArray(r.components)?r.components:[];
 const withCatalog=rows=>(rows||[]).filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.name||""));
+function shell(tab){
+ S.tab=tab||S.tab;
+ const[f,t]=range(),titles={dashboard:["리포트","매출·매입·재고·원가 흐름을 요약합니다."],inquiry:["매출·매입","거래 데이터를 조회하고 원천 데이터를 관리합니다."],inventory:["재고","카테고리별 현재고와 발주 필요량을 확인합니다."],recipe:["레시피","메뉴별 표준 레시피와 원가 구조를 관리합니다."]},meta=titles[S.tab]||["매장운영",""];
+ const salesActions=S.tab==="inquiry"?'<div class="ops-head-actions"><button class="btn btn-secondary btn-sm" id="opsCollectOpen">데이터 수집</button><button class="btn btn-secondary btn-sm" id="opsUploadOpen">파일 업로드</button><button class="btn btn-secondary btn-sm" id="opsExportActual">실거래 CSV</button></div>':"";
+ const filter=(S.tab==="dashboard"||S.tab==="inquiry")?'<div class="ops-filter"><div><label>시작일</label><input id="opsFrom" type="date" value="'+f+'"></div><div><label>종료일</label><input id="opsTo" type="date" value="'+t+'"></div><button class="btn btn-primary" id="opsRefresh">조회</button></div>':"";
+ view.innerHTML='<div class="ops-head page-title-row"><div><h2 class="page-title">'+meta[0]+'</h2></div>'+salesActions+'</div>'+filter+'<div id="opsBody"></div>';
+ // Operations owns a full #view render. Restore the shared admin navigation immediately after every shell rebuild.
+ const adminTab={dashboard:"report",inquiry:"sales",inventory:"inventory"}[S.tab];
+ if(adminTab&&typeof window.mountAdminSubnav==="function") window.mountAdminSubnav(adminTab);
+ if(document.getElementById("opsRefresh"))opsRefresh.onclick=draw;
+ if(document.getElementById("opsCollectOpen"))opsCollectOpen.onclick=()=>openOpsModal("collect");
+ if(document.getElementById("opsUploadOpen"))opsUploadOpen.onclick=()=>openOpsModal("upload");
+ if(document.getElementById("opsExportActual"))document.getElementById("opsExportActual").onclick=exportActualOperations;
+ draw()
+}
 // Real, confirmed transactions only. This export is intentionally separate from
 // the historical read-only inquiry (which may still display labeled demo rows).
 function operationsCsvCell(value,numeric=false){
@@ -72,21 +87,6 @@ async function exportActualOperations(){
  }catch(error){
   alert("실거래 CSV 내보내기 실패: "+error.message);
  }finally{button.disabled=false;button.textContent=previousText;}
-}
-function shell(tab){
- S.tab=tab||S.tab;
- const[f,t]=range(),titles={dashboard:["리포트","매출·매입·재고·원가 흐름을 요약합니다."],inquiry:["매출·매입","거래 데이터를 조회하고 원천 데이터를 관리합니다."],inventory:["재고","카테고리별 현재고와 발주 필요량을 확인합니다."],recipe:["레시피","메뉴별 표준 레시피와 원가 구조를 관리합니다."]},meta=titles[S.tab]||["매장운영",""];
- const salesActions=S.tab==="inquiry"?'<div class="ops-head-actions"><button class="btn btn-secondary btn-sm" id="opsCollectOpen">데이터 수집</button><button class="btn btn-secondary btn-sm" id="opsUploadOpen">파일 업로드</button><button class="btn btn-secondary btn-sm" id="opsExportActual">실거래 CSV</button></div>':"";
- const filter=(S.tab==="dashboard"||S.tab==="inquiry")?'<div class="ops-filter"><div><label>시작일</label><input id="opsFrom" type="date" value="'+f+'"></div><div><label>종료일</label><input id="opsTo" type="date" value="'+t+'"></div><button class="btn btn-primary" id="opsRefresh">조회</button></div>':"";
- view.innerHTML='<div class="ops-head page-title-row"><div><h2 class="page-title">'+meta[0]+'</h2></div>'+salesActions+'</div>'+filter+'<div id="opsBody"></div>';
- // Operations owns a full #view render. Restore the shared admin navigation immediately after every shell rebuild.
- const adminTab={dashboard:"report",inquiry:"sales",inventory:"inventory"}[S.tab];
- if(adminTab&&typeof window.mountAdminSubnav==="function") window.mountAdminSubnav(adminTab);
- if(document.getElementById("opsRefresh"))opsRefresh.onclick=draw;
- if(document.getElementById("opsCollectOpen"))opsCollectOpen.onclick=()=>openOpsModal("collect");
- if(document.getElementById("opsUploadOpen"))opsUploadOpen.onclick=()=>openOpsModal("upload");
- if(document.getElementById("opsExportActual"))document.getElementById("opsExportActual").onclick=exportActualOperations;
- draw()
 }
 async function openOpsModal(kind){
  let rows=[];try{rows=await BE.operationsImports()}catch(_){}
