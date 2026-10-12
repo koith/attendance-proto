@@ -12,6 +12,8 @@ assert.match(section,/compareCommits/,'commit delta must be checked');
 assert.match(section,/server-sync-sheet\//,'canonical Edge source must trigger gate');
 assert.match(section,/edge\/server-sync-sheet-deploy/,'matching runtime receipt required');
 assert.match(section,/getCombinedStatusForRef/,'use GitHub commit status, not unrelated old deployment');
+assert.match(section,/attempt <= 48/,'Pages receipt window must outlast 36-attempt native deploy attestation');
+assert.match(section,/attempt < 48/,'Wait window must not be shortened during polling');
 const marker='          script: |\n';
 assert.ok(section.includes(marker),'inline GitHub script must be present');
 const script=section.slice(section.indexOf(marker)+marker.length)
