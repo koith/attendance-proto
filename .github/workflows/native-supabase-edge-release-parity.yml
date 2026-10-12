@@ -1,0 +1,33 @@
+name: native-supabase-edge-release-parity
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/server-sync-sheet/**'
+      - 'edge-release/supabase/**'
+      - 'scripts/sync_supabase_native_edge_release.mjs'
+      - '.github/workflows/native-supabase-edge-release-parity.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/server-sync-sheet/**'
+      - 'edge-release/supabase/**'
+      - 'scripts/sync_supabase_native_edge_release.mjs'
+      - '.github/workflows/native-supabase-edge-release-parity.yml'
+permissions:
+  contents: read
+jobs:
+  exact-edge-release:
+    name: Verify native Supabase deploy is migration-free and matches canonical Edge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reject drift, credentials and migration replay risk
+        run: node scripts/sync_supabase_native_edge_release.mjs --check
+      - name: Existing Edge auth boundary and payroll tests
+        run: |
+          node qa_payroll_close_server_authority_v1.mjs
+          node qa_payroll_snapshot_components_v1.mjs
+          node qa_pages_edge_receipt_gate_v1.mjs

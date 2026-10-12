@@ -1,0 +1,50 @@
+name: operations-dummy-end-to-end-postgres
+on:
+  pull_request:
+    paths:
+      - 'qa_operations_dummy_end_to_end_postgres.sql'
+      - 'supabase/migrations/20261011092000_store_scoped_operations_ledger.sql'
+      - 'supabase/migrations/20261012200500_operations_real_ledger_export.sql'
+      - 'supabase/migrations/20261012221000_store_operations_reconciliation.sql'
+      - '.github/workflows/operations-dummy-end-to-end-postgres.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'qa_operations_dummy_end_to_end_postgres.sql'
+      - 'supabase/migrations/20261011092000_store_scoped_operations_ledger.sql'
+      - 'supabase/migrations/20261012200500_operations_real_ledger_export.sql'
+      - 'supabase/migrations/20261012221000_store_operations_reconciliation.sql'
+      - '.github/workflows/operations-dummy-end-to-end-postgres.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  postgres:
+    name: Dummy POS-delivery-purchasing full round-trip (isolated PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_fixture_only
+          POSTGRES_DB: dummy_operations
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dummy_operations"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_fixture_only
+      PGDATABASE: dummy_operations
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client when absent
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Use real production RPC definitions against isolated dummy data
+        run: psql -v ON_ERROR_STOP=1 -f qa_operations_dummy_end_to_end_postgres.sql

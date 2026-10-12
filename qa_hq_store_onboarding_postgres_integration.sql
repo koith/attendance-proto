@@ -148,4 +148,24 @@ BEGIN
  END IF;
 END $$;
 
+-- Full-scale gate rehearsal: populate all 283 published branch identifiers
+-- inside the disposable PostgreSQL instance, without generating any real owner.
+INSERT INTO public.stores(id,name,source_store_key,onboarding_status,is_active)
+SELECT i,'Synthetic store '||i,'synthetic:'||i,'STAGED',false
+FROM generate_series(4,283) AS i;
+DO $check_283$
+DECLARE total bigint;ready bigint;staged bigint;suspended bigint;
+BEGIN
+ SELECT count(*),count(*) FILTER(WHERE onboarding_status='READY'),
+ count(*) FILTER(WHERE onboarding_status='STAGED'),
+ count(*) FILTER(WHERE onboarding_status='SUSPENDED')
+ INTO total,ready,staged,suspended FROM public.stores;
+ IF total<>283 OR ready<>1 OR staged<>281 OR suspended<>1 THEN
+  RAISE EXCEPTION '283_STORE_LIFECYCLE_WRONG %/%/%/%',total,ready,staged,suspended;
+ END IF;
+ IF EXISTS(SELECT 1 FROM public.stores WHERE id>3 AND is_active) THEN
+  RAISE EXCEPTION 'UNVERIFIED_STORE_AUTO_ACTIVATED';
+ END IF;
+END $check_283$;
+
 \echo PASS: HQ store READY requires provenance, no demo, verified manager; INHA and other branches isolated
