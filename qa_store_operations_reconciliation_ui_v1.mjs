@@ -11,7 +11,7 @@ assert.match(ops,/S\.tab==="dashboard"\?'<div class="ops-head-actions">/);
 assert.match(ops,/id="opsReconciliationOpen"/);
 assert.match(ops,/window\.openStoreOperationsReconciliation\?\.\(\)/);
 assert.match(ui,/window\.openStoreOperationsReconciliation=async function/);
-assert.match(ui,/await BE\.reconciliationIssues\(from,to\)/);
+assert.match(ui,/await BE\.storeReconciliationIssues\(from,to\)/);
 assert.match(ui,/Array\.isArray\(issues\)/);
 assert.match(ui,/issues\.length>=2000/);
 assert.match(ui,/x\.issue_type==="IMPORT_FAILED"/);
