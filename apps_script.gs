@@ -174,6 +174,17 @@ function _sortAttendanceByDate(section){
   });
   return {header:section.header,rows:rows.map(function(item){return item.row;})};
 }
+// Treat all external report strings as literal data, never as spreadsheet formulas.
+// Google Apps Script setValues interprets strings starting with "=" as formulas.
+// Escape spreadsheet/CSV formula prefixes after leading whitespace/control chars;
+// preserve numbers, dates, empty values and already-literal strings.
+function _sheetLiteralValue(value){
+  if(typeof value==='string' && /^[\u0000-\u0020\u200B-\u200D\uFEFF]*[=+\-@]/.test(value)){
+    return "'"+value;
+  }
+  return value;
+}
+
 function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   // TEST is an operational test employee, not a payroll/reporting employee.
   // Filter both sections on every sync, including old cached client payloads.
@@ -218,7 +229,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   // Clear the entire grid, not only the current report width. Old report versions styled
   // columns beyond the current data range; those stale fills must not survive a rewrite.
   sh.getRange(1,1,sh.getMaxRows(),sh.getMaxColumns()).clear({contentsOnly:false});
-  sh.getRange(1,1,out.length,width).setValues(out);
+  sh.getRange(1,1,out.length,width).setValues(out.map(function(row){return row.map(_sheetLiteralValue);}));
   sh.setHiddenGridlines(true);
   sh.setFrozenRows(headerRows[0]);
 
