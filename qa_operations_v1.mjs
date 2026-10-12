@@ -25,3 +25,5 @@ console.log('operations navigation/inventory/recipe/HQ products: PASS');
 import './qa_operations_real_data_only_v1.mjs';
 
 import './qa_operations_csv_integrity_v1.mjs';
+
+import './qa_operations_real_ledger_export_v1.mjs';

@@ -23,7 +23,7 @@ for(const n of ['admin_store_inventory_overview_v3','admin_store_inventory_items
 for(const n of ['admin_inventory_overview_v3','admin_inventory_items','admin_inventory_movements','admin_inventory_unit_config_save'])
  assert.ok(!html.includes('rpc("'+n+'"'),'Unscoped inventory RPC still in app: '+n);
 assert.match(ops,/inventoryUnitConfigSave\(item\.id,s,o,q,!!item\.manual\)/);
-assert.match(html,/operations_v1\.js\?v=20261012v242/);
+assert.match(html,/operations_v1\.js\?v=20261012v243/);
 assert.match(html,/const APP_VERSION="v[0-9]+[.][0-9]+"/);
 assert.doesNotMatch(sql,/UPDATE public\.inventory_movements SET store_id=/);
 // UI rollout is deliberately hidden; the preserved renderer can still be tested internally.

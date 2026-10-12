@@ -268,7 +268,9 @@ jobs:
       - name: Sample roster activation denial and HQ-only visibility regression
         run: node qa_hq_sample_roster_activation_guard_v1.mjs
       - name: Store-isolated sales and CSV import regression
-        run: node qa_store_operations_isolation_v1.mjs
+        run: |
+          node qa_store_operations_isolation_v1.mjs
+          node qa_operations_real_ledger_export_v1.mjs
       - name: Multi-store inventory ledger regression
         run: node qa_store_inventory_isolation_v1.mjs
       - name: Legacy global admin RPC HQ scope regression
