@@ -9,6 +9,9 @@ assert.doesNotMatch(html,/functions\/v1\/sync-sheet/,"legacy client-trusting she
 for(const mode of ['"cron"','"dryrun"','"deployment"','"payroll"','"parity"','"sync"']) assert.ok(api.includes(mode),mode);
 assert.match(api,/SERVER_CLIENT_PARITY_MISMATCH/);
 assert.match(api,/SHEET_COLUMN_RESIZE_NOT_CONFIRMED/);
+assert.match(api,/proof\.column_width_readback_verified!==true/,'Production Edge must enforce Apps Script dimension readback');
+assert.match(api,/proof\.verified_month_tabs!==12/,'Production Edge must cover all 12 monthly sheets');
+assert.match(api,/proof\.verified_column_widths<proof\.resized_columns\*12/,'Production Edge must cover every resized column');
 assert.match(api,/SHEET_WRITE_LOCATION_UNCONFIRMED/);
 assert.match(api,/sheet_autosync_claim/);
 assert.match(api,/sheet_autosync_finish/);
