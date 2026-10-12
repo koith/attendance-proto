@@ -267,8 +267,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
       .setFontSize(13).setFontWeight('bold').setHorizontalAlignment('left');
     sh.setRowHeight(sr,30);
     sh.getRange(hr,1,1,s.data.header.length).setBackground(headerGreen).setFontColor('#ffffff')
-      .setFontWeight('bold').setHorizontalAlignment('center')
-      .setBorder(true,true,true,true,true,true,'#9fb2a6',SpreadsheetApp.BorderStyle.SOLID);
+      .setFontWeight('bold').setHorizontalAlignment('center');
     sh.setRowHeight(hr,30);
     if(dr.count){
       sh.getRange(dr.first,1,dr.count,s.data.header.length).setBackground(white)
@@ -281,6 +280,11 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     }
     sh.getRange(dr.last+1,1,1,width).setBackground(white);
     sh.setRowHeight(dr.last+1,18);
+    // Borders are shared between adjacent rows. Applying body borders after the
+    // header overwrote the header's lower edge on months with attendance data.
+    // Restore the approved header outline last for both populated and empty months.
+    sh.getRange(hr,1,1,s.data.header.length)
+      .setBorder(true,true,true,true,true,true,'#9fb2a6',SpreadsheetApp.BorderStyle.SOLID);
   });
 
   // Apply display formats by semantic header. Sheets stores dates/times as serial numbers;
