@@ -21,3 +21,5 @@ assert.ok(css.includes('.ops-stock-chart'));assert.ok(css.includes('.ops-modal')
 new Function(js);
 for(const m of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)) new Function(m[1]);
 console.log('operations navigation/inventory/recipe/HQ products: PASS');
+
+import './qa_operations_real_data_only_v1.mjs';
