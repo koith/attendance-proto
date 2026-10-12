@@ -275,3 +275,88 @@ BEGIN
  THEN RAISE EXCEPTION 'The failed close corrupted earlier immutable snapshots'; END IF;
 END $$;
 \echo PASS: PAY-01 close readback rejects drift atomically and preserves old snapshots
+
+
+-- Extra production-compatible two-person month-close verification: the
+-- snapshot, UI projection, and original one-person historic rows must agree.
+-- Synthetic fixture ONLY; never mutate the live payroll tables.
+INSERT INTO public.employees(id,name,store_id,is_active)
+VALUES(3,'Synthetic second',1,true);
+DO $qa_multi$
+DECLARE row2 jsonb; month_result jsonb; closed jsonb; duplicate_rejected boolean:=false;
+        denied_other_store boolean:=false;
+BEGIN
+ row2:=jsonb_build_object(
+   'employee_id',3,'employee_name','Synthetic second',
+   'hours',4,'wage',12000,'weeks',1,'base_pay',48000,
+   'juhyu_pay',22000,'adjust',0,'gross_pay',70000,
+   'tax_rate',0.025,'net_pay',68250,
+   'night_allowance_won',0,'break_compensation_won',0,
+   'substitution_pay_won',0,'night_allowance_label','없음',
+   'break_mode','PROVIDED');
+ month_result:=public.server_payroll_close_verified(
+   1,'2026-03',jsonb_build_array(public.test_salary_json(),row2),
+   repeat('e',64),'00000000-0000-4000-8000-000000000001'::uuid);
+ IF (month_result->>'count')::integer<>2 THEN
+   RAISE EXCEPTION 'TWO_EMPLOYEE_CLOSE_DID_NOT_ATOMICALLY_RETURN_2: %',month_result;
+ END IF;
+ closed:=public.admin_store_snapshot(1,'2026-03')::jsonb;
+ IF closed->>'status'<>'CLOSED' OR jsonb_array_length(closed->'rows')<>2 THEN
+   RAISE EXCEPTION 'TWO_EMPLOYEE_CLOSED_UI_MISMATCH: %',closed;
+ END IF;
+ IF (SELECT sum(gross_pay) FROM public.payroll_snapshot
+     WHERE store_id=1 AND ym='2026-03')<>870000
+ OR (SELECT sum(net_pay) FROM public.payroll_snapshot
+     WHERE store_id=1 AND ym='2026-03')<>841850 THEN
+   RAISE EXCEPTION 'TWO_EMPLOYEE_STORED_PAY_NOT_RECONCILED';
+ END IF;
+ BEGIN
+   PERFORM public.server_payroll_close_verified(
+     1,'2026-02',jsonb_build_array(row2,row2),
+     repeat('f',64),'00000000-0000-4000-8000-000000000001'::uuid);
+ EXCEPTION WHEN OTHERS THEN
+   IF SQLERRM='DUPLICATE_PAYROLL_EMPLOYEE' THEN duplicate_rejected:=true;
+   ELSE RAISE; END IF;
+ END;
+ IF NOT duplicate_rejected THEN RAISE EXCEPTION 'DUPLICATE_SNAPSHOT_ALLOWED'; END IF;
+ BEGIN
+   PERFORM public.server_payroll_close_verified(
+     1,'2026-02',jsonb_build_array(
+       jsonb_set(public.test_salary_json(),'{employee_id}','2'::jsonb)),
+     repeat('f',64),'00000000-0000-4000-8000-000000000001'::uuid);
+ EXCEPTION WHEN OTHERS THEN
+   IF SQLERRM='PAYROLL_EMPLOYEE_STORE_MISMATCH' THEN denied_other_store:=true;
+   ELSE RAISE; END IF;
+ END;
+ IF NOT denied_other_store THEN RAISE EXCEPTION 'CROSS_STORE_CLOSE_ALLOWED'; END IF;
+ IF EXISTS(SELECT 1 FROM public.payroll_period WHERE store_id=1 AND ym='2026-02')
+ OR EXISTS(SELECT 1 FROM public.payroll_snapshot WHERE store_id=1 AND ym='2026-02')
+ OR (SELECT count(*) FROM public.payroll_snapshot
+     WHERE store_id=1 AND ym='2026-03')<>2 THEN
+   RAISE EXCEPTION 'REJECTED_MULTI_CLOSE_MODIFIED_APPROVED_PAYROLL';
+ END IF;
+END $qa_multi$;
+
+-- A source-fingerprint-corrupting trigger must roll back every new row
+-- while retaining both employees from the prior valid close.
+CREATE FUNCTION public.qa_corrupt_fingerprint_before_insert()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN NEW.source_fingerprint:=repeat('0',64);RETURN NEW; END $$;
+CREATE TRIGGER qa_corrupt_fingerprint_before_insert
+BEFORE INSERT ON public.payroll_snapshot FOR EACH ROW
+EXECUTE FUNCTION public.qa_corrupt_fingerprint_before_insert();
+SELECT public.assert_payroll_close_error(
+ public.test_salary_json(),'PAYROLL_SNAPSHOT_READBACK_MISMATCH','2026-02');
+DROP TRIGGER qa_corrupt_fingerprint_before_insert ON public.payroll_snapshot;
+DROP FUNCTION public.qa_corrupt_fingerprint_before_insert();
+DO $qa_final$
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.payroll_period WHERE ym='2026-02')
+ OR EXISTS(SELECT 1 FROM public.payroll_snapshot WHERE ym='2026-02')
+ OR (SELECT count(*) FROM public.payroll_snapshot
+     WHERE store_id=1 AND ym='2026-03')<>2
+ OR (SELECT count(*) FROM public.payroll_snapshot WHERE store_id=2)<>0 THEN
+  RAISE EXCEPTION 'FINGERPRINT_CORRUPTION_DID_NOT_ROLL_BACK_SAFELY';
+ END IF;
+END $qa_final$;
+\echo PASS: PAY-01 multiemployee immutable month close/UI readback, cross-store/duplicate rejection, corrupt-fingerprint rollback
