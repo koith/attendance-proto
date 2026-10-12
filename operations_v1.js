@@ -7,10 +7,76 @@ function empty(t,s=""){return `<div class="ops-empty"><b>${esc(t)}</b>${s?`<smal
 // Do not invent stock quantities or recipe ingredients as a fallback for a missing backend row.
 const recipeComponents=r=>Array.isArray(r.components)?r.components:[];
 const withCatalog=rows=>(rows||[]).filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.name||""));
+// Real, confirmed transactions only. This export is intentionally separate from
+// the historical read-only inquiry (which may still display labeled demo rows).
+function operationsCsvCell(value,numeric=false){
+ const raw=String(value??"");
+ if(numeric){
+  if(!/^-?\d+$/.test(raw))throw Error("거래금액/ID 형식이 올바르지 않습니다.");
+  return raw;
+ }
+ const safe=/^\s*[=+\-@]/.test(raw)?"'"+raw:raw;
+ return '"'+safe.replace(/"/g,'""')+'"';
+}
+function operationsCsvRows(rows){
+ const columns=["거래ID","일자","구분","채널","거래처/메뉴","공급가액","부가세","합계","상태","원천","원천기록키"];
+ const output=[columns.map(x=>operationsCsvCell(x)).join(",")];
+ for(const row of rows){
+  if(row.is_demo!==false||row.status!=="CONFIRMED")throw Error("실거래가 아닌 기록은 내보낼 수 없습니다.");
+  output.push([
+   operationsCsvCell(row.id,true),operationsCsvCell(row.business_date),operationsCsvCell(row.transaction_type),
+   operationsCsvCell(row.channel),operationsCsvCell(row.counterparty),
+   operationsCsvCell(row.net_amount,true),operationsCsvCell(row.vat_amount,true),
+   operationsCsvCell(row.total_amount,true),operationsCsvCell(row.status),operationsCsvCell(row.source),
+   operationsCsvCell(row.source_record_key)
+  ].join(","));
+ }
+ return "\uFEFF"+output.join("\r\n")+"\r\n";
+}
+async function exportActualOperations(){
+ const button=document.getElementById("opsExportActual");
+ if(!button||button.disabled)return;
+ const [fallbackFrom,fallbackTo]=range();
+ const from=document.getElementById("opsFrom")?.value||fallbackFrom;
+ const to=document.getElementById("opsTo")?.value||fallbackTo;
+ const type=document.getElementById("opsType")?.value||null;
+ const channel=document.getElementById("opsChannel")?.value||null;
+ const previousText=button.textContent;
+ button.disabled=true;button.textContent="실거래 확인 중…";
+ try{
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||to<from)
+    throw Error("조회 기간을 확인하세요.");
+  const rows=[];let beforeId=null,completed=false,previousId=Number.MAX_SAFE_INTEGER;
+  // No partially exported finance files: 100,000-row cap requires a narrower range.
+  for(let pageNumber=0;pageNumber<200;pageNumber++){
+   const page=await BE.operationsExportPage(from,to,type,channel,beforeId,500);
+   if(!Array.isArray(page)||page.length>500)throw Error("거래 내보내기 응답 형식이 올바르지 않습니다.");
+   for(const row of page){
+    const id=Number(row.id);
+    if(!Number.isSafeInteger(id)||id<1||id>=previousId)throw Error("거래 순서가 잘못되어 내보내기를 중단했습니다.");
+    if(row.is_demo!==false||row.status!=="CONFIRMED")throw Error("서버에서 실제 거래가 아닌 자료를 반환했습니다.");
+    previousId=id;
+    rows.push(row);
+   }
+   if(page.length<500){completed=true;break;}
+   beforeId=previousId;
+  }
+  if(!completed)throw Error("거래가 너무 많습니다. 조회 기간을 줄여 다시 내보내세요.");
+  if(!rows.length)throw Error("해당 기간에 확인된 실제 거래가 없습니다. 데모 거래는 내보내지 않습니다.");
+  const blob=new Blob([operationsCsvRows(rows)],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob),link=document.createElement("a");
+  link.href=url;link.download="baekeok-real-operations-"+from+"-"+to+".csv";
+  document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  if(typeof window.toast==="function")window.toast("in","실거래 CSV",rows.length+"건을 내보냈습니다. 데모 거래는 제외했습니다.");
+ }catch(error){
+  alert("실거래 CSV 내보내기 실패: "+error.message);
+ }finally{button.disabled=false;button.textContent=previousText;}
+}
 function shell(tab){
  S.tab=tab||S.tab;
  const[f,t]=range(),titles={dashboard:["리포트","매출·매입·재고·원가 흐름을 요약합니다."],inquiry:["매출·매입","거래 데이터를 조회하고 원천 데이터를 관리합니다."],inventory:["재고","카테고리별 현재고와 발주 필요량을 확인합니다."],recipe:["레시피","메뉴별 표준 레시피와 원가 구조를 관리합니다."]},meta=titles[S.tab]||["매장운영",""];
- const salesActions=S.tab==="inquiry"?'<div class="ops-head-actions"><button class="btn btn-secondary btn-sm" id="opsCollectOpen">데이터 수집</button><button class="btn btn-secondary btn-sm" id="opsUploadOpen">파일 업로드</button></div>':"";
+ const salesActions=S.tab==="inquiry"?'<div class="ops-head-actions"><button class="btn btn-secondary btn-sm" id="opsCollectOpen">데이터 수집</button><button class="btn btn-secondary btn-sm" id="opsUploadOpen">파일 업로드</button><button class="btn btn-secondary btn-sm" id="opsExportActual">실거래 CSV</button></div>':"";
  const filter=(S.tab==="dashboard"||S.tab==="inquiry")?'<div class="ops-filter"><div><label>시작일</label><input id="opsFrom" type="date" value="'+f+'"></div><div><label>종료일</label><input id="opsTo" type="date" value="'+t+'"></div><button class="btn btn-primary" id="opsRefresh">조회</button></div>':"";
  view.innerHTML='<div class="ops-head page-title-row"><div><h2 class="page-title">'+meta[0]+'</h2></div>'+salesActions+'</div>'+filter+'<div id="opsBody"></div>';
  // Operations owns a full #view render. Restore the shared admin navigation immediately after every shell rebuild.
@@ -19,6 +85,7 @@ function shell(tab){
  if(document.getElementById("opsRefresh"))opsRefresh.onclick=draw;
  if(document.getElementById("opsCollectOpen"))opsCollectOpen.onclick=()=>openOpsModal("collect");
  if(document.getElementById("opsUploadOpen"))opsUploadOpen.onclick=()=>openOpsModal("upload");
+ if(document.getElementById("opsExportActual"))document.getElementById("opsExportActual").onclick=exportActualOperations;
  draw()
 }
 async function openOpsModal(kind){
