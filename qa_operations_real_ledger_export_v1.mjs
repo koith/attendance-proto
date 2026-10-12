@@ -20,7 +20,7 @@ assert.doesNotMatch(sql,/\b(?:INSERT|UPDATE|DELETE|TRUNCATE)\s+(?:INTO\s+|FROM\s
  'Export migration must be read-only');
 
 const a=source.indexOf('function operationsCsvCell(');
-const b=source.indexOf('function shell(tab){',a);
+const b=source.indexOf('async function openOpsModal(kind){',a);
 assert.ok(a>=0&&b>a,'use production CSV and export implementations');
 const extraction=source.slice(a,b);
 const input=Array.from({length:1007},(_,i)=>({
