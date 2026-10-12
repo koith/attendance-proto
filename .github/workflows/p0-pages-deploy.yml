@@ -190,6 +190,8 @@ jobs:
             }
             throw new Error('No successful production Edge receipt for commit ' + context.sha +
               '; refuse to publish Pages against an unverified server build.');
+      - name: Verify production Edge receipt gate behavior
+        run: node qa_pages_edge_receipt_gate_v1.mjs
       - name: boot-syntax-regression
         run: node qa_boot_syntax.mjs
       - name: Inventory renderer syntax and editor wiring guard
