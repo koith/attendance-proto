@@ -1,4 +1,5 @@
 // Canonical server-owned payroll and Google Sheet writer.
+// CI-01 native GitHub integration release proof, 2026-10-13; no behavior changes.
 // Manual admin sync and internal cron share the same report calculation and format contract.
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
 import {createRemoteJWKSet,jwtVerify} from "https://esm.sh/jose@5";
