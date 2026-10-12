@@ -24,7 +24,8 @@ function doPost(e){
       return _json({ok:false, error:'UNAUTHORIZED'});
     }
     // payload 기본 검증 (반쯤 지우는 사고 방지)
-    if(!body.ym || !/^\d{4}-\d{2}$/.test(body.ym)) return _json({ok:false, error:'BAD_YM'});
+    // Reject invalid calendar months before _annualBook can rename/create workbooks or tabs.
+    if(!body.ym || !/^20\d{2}-(?:0[1-9]|1[0-2])$/.test(body.ym)) return _json({ok:false, error:'BAD_YM'});
     if(!body.attendance || !body.sessions || !body.payroll) return _json({ok:false, error:'MISSING_SECTIONS'});
     if(!Array.isArray(body.attendance.rows) || !Array.isArray(body.sessions.rows) || !Array.isArray(body.payroll.rows)){
       return _json({ok:false, error:'BAD_ROWS'});
