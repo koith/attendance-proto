@@ -7,9 +7,8 @@
 // correctly shows 5:04. Allocate the four carried minutes to the shifts with
 // the largest sub-minute remainders, using stable row order for ties.
 // Each row differs by less than one minute from its true duration.
-const hhmm = m => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-
 export function reconcileSheetPayableMinutes(rows, metadata) {
+  const hhmm = m => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
   if (!Array.isArray(rows) || !Array.isArray(metadata) || rows.length !== metadata.length)
     throw new Error("SHEET_PAYABLE_RECONCILIATION_SHAPE");
   const groups = new Map();
