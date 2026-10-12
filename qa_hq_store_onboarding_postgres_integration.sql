@@ -169,3 +169,46 @@ BEGIN
 END $check_283$;
 
 \echo PASS: HQ store READY requires provenance, no demo, verified manager; INHA and other branches isolated
+
+
+-- Prove two independent store operators can be onboarded in sequence without
+-- opening unrelated branch data. These are fake Auth identities on disposable PG.
+INSERT INTO auth.users(id,email_confirmed_at,is_anonymous)
+VALUES ('00000000-0000-4000-8000-000000000012',now(),false);
+INSERT INTO public.admin_users(user_id,admin_role,store_id)
+VALUES ('00000000-0000-4000-8000-000000000012','STORE_MANAGER',3);
+SELECT set_config('fixture.hq','yes',false);
+SELECT public.assert_onboarding_error(3,'READY','PROVENANCE_VERIFICATION_REQUIRED');
+INSERT INTO public.store_provenance_reviews(store_id,decision)
+VALUES(3,'VERIFIED');
+DO $two_store$
+DECLARE result jsonb;
+BEGIN
+ result:=public.hq_store_onboarding_set(3,'READY');
+ IF result->>'status'<>'READY' OR
+    NOT EXISTS(SELECT 1 FROM public.stores
+       WHERE id=3 AND onboarding_status='READY' AND is_active) THEN
+    RAISE EXCEPTION 'SECOND_VERIFIED_BRANCH_COULD_NOT_ACTIVATE';
+ END IF;
+ IF (SELECT count(*) FROM public.stores WHERE onboarding_status='READY')<>2
+ OR (SELECT count(*) FROM public.stores WHERE onboarding_status='STAGED')<>280
+ OR (SELECT count(*) FROM public.stores WHERE onboarding_status='SUSPENDED')<>1
+ OR (SELECT count(*) FROM public.stores WHERE id BETWEEN 4 AND 283 AND is_active)<>0 THEN
+    RAISE EXCEPTION 'ACTIVATED_BRANCH_LEAKED_TO_OTHER_280_STORES';
+ END IF;
+ IF (SELECT onboarding_status FROM public.stores WHERE id=2)<>'SUSPENDED'
+ OR (SELECT onboarding_status FROM public.stores WHERE id=1)<>'READY' THEN
+    RAISE EXCEPTION 'EARLIER_STORE_STATUS_MODIFIED_ON_SECOND_BRANCH_ACTIVATION';
+ END IF;
+END $two_store$;
+-- A second branch's suspension cannot disable the first live branch.
+SELECT public.hq_store_onboarding_set(3,'SUSPENDED');
+DO $two_store$
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.stores WHERE id=3 AND is_active)
+ OR (SELECT count(*) FROM public.stores WHERE onboarding_status='READY')<>1
+ OR (SELECT count(*) FROM public.stores WHERE onboarding_status='SUSPENDED')<>2 THEN
+  RAISE EXCEPTION 'SECOND_STORE_SUSPENSION_CORRUPTED_OTHER_BRANCH';
+ END IF;
+END $two_store$;
+\echo PASS: 283 branch activation/suspension isolation with distinct verified synthetic store managers

@@ -220,6 +220,83 @@ BEGIN
  SELECT count(*) INTO n FROM public.admin_store_operations_export_page(1,'2026-10-01','2026-10-31');
  IF n<>5 THEN RAISE EXCEPTION 'STORE_1_EXPORT_LEAK_OR_MISSING_ROWS: %',n; END IF;
 END $test$;
+-- Negative CSV input acceptance tests: every rejection must leave the ledger intact.
+DO $negative_csv$
+DECLARE before_raw bigint;before_tx bigint;before_batch bigint;
+        bad jsonb; rejection boolean; label text;
+BEGIN
+ SELECT count(*) INTO before_raw FROM public.operations_raw_records;
+ SELECT count(*) INTO before_tx FROM public.operations_transactions;
+ SELECT count(*) INTO before_batch FROM public.operations_import_batches;
+ FOR label,bad IN
+  SELECT 'INVALID_SOURCE'::text,'{"source_record_key":"x","business_date":"2026-10-10","transaction_type":"SALE","total_amount":"1000"}'::jsonb
+  UNION ALL SELECT 'INVALID_DATE','{"source_record_key":"x","business_date":"not-a-date","transaction_type":"SALE","total_amount":"1000"}'::jsonb
+  UNION ALL SELECT 'INVALID_TYPE','{"source_record_key":"x","business_date":"2026-10-10","transaction_type":"GIFT","total_amount":"1000"}'::jsonb
+  UNION ALL SELECT 'NEGATIVE_TOTAL','{"source_record_key":"x","business_date":"2026-10-10","transaction_type":"SALE","total_amount":"-1"}'::jsonb
+ LOOP
+  rejection:=false;
+  BEGIN
+   PERFORM public.admin_store_operations_import_stage(
+     1, CASE WHEN label='INVALID_SOURCE' THEN 'UNLISTED_VENDOR' ELSE 'KIS_POS' END,
+     'negative-'||label||'.csv',jsonb_build_array(bad));
+  EXCEPTION WHEN OTHERS THEN rejection:=true; END;
+  IF NOT rejection THEN RAISE EXCEPTION 'INVALID_IMPORT_ACCEPTED_%',label; END IF;
+ END LOOP;
+ rejection:=false;
+ BEGIN
+  PERFORM public.admin_store_operations_import_stage(1,'KIS_POS','too_many.csv',
+    (SELECT jsonb_agg(jsonb_build_object(
+      'source_record_key','over-'||i,'business_date','2026-10-10',
+      'transaction_type','SALE','total_amount','100'))
+     FROM generate_series(1,1501) i));
+ EXCEPTION WHEN OTHERS THEN rejection:=true; END;
+ IF NOT rejection THEN RAISE EXCEPTION 'OVER_LIMIT_BATCH_ACCEPTED'; END IF;
+ IF (SELECT count(*) FROM public.operations_raw_records)<>before_raw
+ OR (SELECT count(*) FROM public.operations_transactions)<>before_tx
+ OR (SELECT count(*) FROM public.operations_import_batches)<>before_batch
+ THEN RAISE EXCEPTION 'REJECTED_CSV_PARTIALLY_WROTE_PRODUCTION_SHAPED_LEDGER'; END IF;
+END $negative_csv$;
+
+-- Real 1007-row POS source fixture exercises the full multi-page financial
+-- export, not merely the first 500 rows displayed on a web screen.
+DO $paging$
+DECLARE r jsonb; first_min bigint;second_min bigint;
+        first_n bigint;second_n bigint;third_n bigint;total_n bigint;
+BEGIN
+ r:=public.admin_store_operations_import_stage(1,'KIS_POS','large_pretend_pos.csv',
+   (SELECT jsonb_agg(jsonb_build_object(
+     'source_record_key','bulk-'||i,'business_date','2026-10-10',
+     'transaction_type','SALE','channel','KIS_POS',
+     'counterparty','가상 영수증','net_amount','90','vat_amount','10',
+     'total_amount','100'))
+     FROM generate_series(1,1007) i));
+ IF (r->>'row_count')::integer<>1007 THEN
+  RAISE EXCEPTION 'POS_LARGE_IMPORT_TRUNCATED: %',r;
+ END IF;
+ SELECT count(*),min(id) INTO first_n,first_min FROM
+   public.admin_store_operations_export_page(
+     1,'2026-10-01','2026-10-31',NULL,NULL,NULL,500);
+ SELECT count(*),min(id) INTO second_n,second_min FROM
+   public.admin_store_operations_export_page(
+     1,'2026-10-01','2026-10-31',NULL,NULL,first_min,500);
+ SELECT count(*) INTO third_n FROM
+   public.admin_store_operations_export_page(
+     1,'2026-10-01','2026-10-31',NULL,NULL,second_min,500);
+ total_n:=first_n+second_n+third_n;
+ IF first_n<>500 OR second_n<>500 OR third_n<>12 OR total_n<>1012 THEN
+  RAISE EXCEPTION 'CURSOR_PAGINATION_DATA_LOSS: %/%/% total %',
+    first_n,second_n,third_n,total_n;
+ END IF;
+ IF (SELECT count(*) FROM public.operations_transactions
+      WHERE store_id=1 AND is_demo=false AND status='CONFIRMED')<>1012 THEN
+  RAISE EXCEPTION '1007_IMPORTED_ROWS_DID_NOT_NORMALIZE_TO_REAL_LEDGER';
+ END IF;
+ IF (SELECT count(*) FROM public.admin_store_operations_export_page(
+        1,'2026-10-01','2026-10-31','PURCHASE',NULL,NULL,500))<>1 THEN
+  RAISE EXCEPTION 'FILTERED_REAL_PURCHASE_EXPORT_WRONG';
+ END IF;
+END $paging$;
+\echo PASS: negative POS CSV rejection and 1012-row paginated end-to-end ledger export
 RESET ROLE;
 ROLLBACK;
 SELECT 'PASS disposable REAL RPC dummy data round-trip: import -> raw -> normalize -> report -> reconciliation -> CSV export, idempotence, rollback, cross-store denial' result;
