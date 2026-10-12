@@ -1,0 +1,24 @@
+name: closed-payroll-immutable-ui
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'qa_closed_payroll_immutable_ui_v1.mjs'
+      - 'supabase/migrations/20261012152500_closed_payroll_immutable_ui_snapshot.sql'
+      - '.github/workflows/closed-payroll-immutable-ui.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'qa_closed_payroll_immutable_ui_v1.mjs'
+      - 'supabase/migrations/20261012152500_closed_payroll_immutable_ui_snapshot.sql'
+      - '.github/workflows/closed-payroll-immutable-ui.yml'
+jobs:
+  closed-snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node qa_closed_payroll_immutable_ui_v1.mjs
