@@ -1,0 +1,41 @@
+name: anon-pos-roster-store-scoped-event-qa
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261012195000_anon_pos_employee_store_scoped_events.sql'
+      - 'qa_anon_pos_roster_scoped_event_qa.sql'
+      - '.github/workflows/anon-pos-roster-store-scoped-event-qa.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20261012195000_anon_pos_employee_store_scoped_events.sql'
+      - 'qa_anon_pos_roster_scoped_event_qa.sql'
+      - '.github/workflows/anon-pos-roster-store-scoped-event-qa.yml'
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_fixture_only
+          POSTGRES_DB: roster_fixture
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d roster_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_fixture_only
+      PGDATABASE: roster_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Execute actual scoped roster migration against synthetic private data
+        run: psql -v ON_ERROR_STOP=1 -f qa_anon_pos_roster_scoped_event_qa.sql
