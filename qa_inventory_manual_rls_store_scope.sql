@@ -1,4 +1,4 @@
-\\set ON_ERROR_STOP on
+\set ON_ERROR_STOP on
 BEGIN;
 CREATE ROLE authenticated;
 CREATE TABLE public.inventory_manual_items (
@@ -16,7 +16,7 @@ CREATE FUNCTION public.can_manage_store(p_store_id bigint) RETURNS boolean
 CREATE POLICY inventory_manual_items_admin ON public.inventory_manual_items
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 INSERT INTO public.inventory_manual_items VALUES (1,1,'own'),(2,2,'other');
-\\ir supabase/migrations/20261012172500_inventory_manual_rls_store_scope.sql
+\ir supabase/migrations/20261012172500_inventory_manual_rls_store_scope.sql
 SET ROLE authenticated;
 SET test.allowed_store TO '1';
 DO $test$
