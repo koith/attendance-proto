@@ -2730,10 +2730,16 @@ async function drawPay(ym){
   }
   const active=R.active, weeks=R.weeks, overrides=R.overrides;
   if(!active.length){ el.innerHTML=`<div class="empty">등록된 급여 대상 직원이 없습니다.</div>`; return; }
-  // UI boundary invariant: an hourly row rendered as 0 completed work can never display pay.
+  // UI boundary invariant: no completed work means no hourly wages, EXCEPT a
+  // completed Monday-owned week may owe a settled holiday allowance in its
+  // own payroll month even when all shifts happened in the following month.
+  // Never erase the server-authoritative weekly-only amount during rendering.
   // Recalculate the summary from the exact row objects that will be rendered.
   for(const rec of R.rows){
-    if(Number(rec.sec||0)<=0 && rec.pay && rec.payrollType==="HOURLY"){
+    const weeklyOnly=!!rec.contract && rec.payrollType==="HOURLY" &&
+      Number(rec.sec||0)<=0 && Number(rec.pay?.juhyu||0)>0 &&
+      Number(rec.pay?.base||0)===0;
+    if(Number(rec.sec||0)<=0 && rec.pay && rec.payrollType==="HOURLY" && !weeklyOnly){
       rec.pay.base=0; rec.pay.weekly=0; rec.pay.juhyu=0; rec.pay.adjust=0;
       rec.pay.gross=0; rec.pay.net=0; rec.pay.jweeks=0;
     }
@@ -2799,7 +2805,9 @@ async function drawPay(ym){
         detailBtn.addEventListener("pointerenter",()=>{if(matchMedia("(hover:hover)").matches){closePayrollDetailPopovers(detail);detail.hidden=false;detailBtn.setAttribute("aria-expanded","true");}});
       }
     }
-    if(LIVE&&Number(CURRENT_STORE_ID)===1&&pay?.payrollType==="HOURLY"){
+    // Every activated store manager gets the same weekly review control.
+    // The server independently checks READY store, actor role and store scope.
+    if(LIVE&&pay?.payrollType==="HOURLY"){
       const detail=card.querySelector(".payroll-detail-popover");
       if(detail){
         const btn=document.createElement("button");
