@@ -10,3 +10,32 @@ jobs:
       - run: node --check substitution_v1.js
       - run: node qa_substitution_scoped_roster_v1.mjs
       - run: node qa_substitution_private_helpers_v1.mjs
+  postgres-private-helpers:
+    name: Execute real helper privilege migration in disposable PostgreSQL 16
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_fixture_only
+          POSTGRES_DB: substitution_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d substitution_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_fixture_only
+      PGDATABASE: substitution_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if unavailable
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Verify actual REVOKE behavior and trusted function owner calls
+        run: psql -v ON_ERROR_STOP=1 -f qa_substitution_private_helpers_postgres.sql
