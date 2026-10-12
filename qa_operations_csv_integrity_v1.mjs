@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const source=fs.readFileSync('operations_v1.js','utf8');
+const start=source.indexOf(' const parseCsv=text=>');
+const end=source.indexOf('\n input.onchange',start);
+assert.ok(start>0&&end>start,'test must evaluate the real CSV upload parser');
+const expr=source.slice(start,end).trim().replace(/^const parseCsv=/,'').replace(/;\s*$/,'');
+const parseCsv=Function('return ('+expr+')')();
+const normal=parseCsv('business_date,transaction_type,channel,total_amount,counterparty\n2026-10-12,SALE,STORE,4500,POS');
+assert.equal(normal.length,1);
+assert.equal(normal[0].total_amount,'4500');
+assert.equal(normal[0].source_record_key,'1');
+const quoted=parseCsv('\uFEFFdate,partner,note\r\n2026-10-12,"가맹점, 공급사","첫 줄\r\n둘째 ""인용"" 줄"\r\n');
+assert.deepEqual(quoted,[{source_record_key:'1',date:'2026-10-12',partner:'가맹점, 공급사',note:'첫 줄\r\n둘째 "인용" 줄'}]);
+const blank=parseCsv('a,b\n\n1,2\n \n3,4\n');
+assert.deepEqual(blank,[{source_record_key:'1',a:'1',b:'2'},{source_record_key:'2',a:'3',b:'4'}]);
+assert.throws(()=>parseCsv('a,b\n1,2,\n'),/열 개수/,'extra columns must be rejected');
+assert.throws(()=>parseCsv('a,b\n1\n'),/열 개수/,'missing columns must be rejected');
+assert.throws(()=>parseCsv('a,a\n1,2'),/중복된/,'duplicate headers must be rejected');
+assert.throws(()=>parseCsv('a,b\n"1,2'),/닫히지/,'unterminated quotes must be rejected');
+assert.throws(()=>parseCsv('a,b\n"bad"garbage,2'),/잘못된/,'malformed closing quote must fail');
+assert.throws(()=>parseCsv('a,b\n'),/데이터 행/,'empty imports must be rejected');
+new Function(source);
+console.log('PASS CSV import parser: quoted comma/newline/quotes/CRLF/BOM and strict row integrity');
+
