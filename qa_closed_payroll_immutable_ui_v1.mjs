@@ -48,10 +48,12 @@ assert.throws(()=>render({status:"CLOSED",rows:[{...originals[0],gross_pay:-1}]}
 assert.throws(()=>render({status:"CLOSED",rows:[{...originals[0],net_pay:999999}]}),/CLOSED_PAYROLL_SNAPSHOT_INVALID/);
 assert.throws(()=>render({status:"CLOSED",rows:[{...originals[0],night_allowance_won:-1}]}),/CLOSED_PAYROLL_SNAPSHOT_INVALID/);
 assert.match(html,/const saved=await BE\.snapshot\(ym\);[\s\S]*?if\(saved\?\.status==="CLOSED"\)\{[\s\S]*?R=payrollClosedSnapshotReport\(saved\);[\s\S]*?if\(!R\)R=await computeMonthPayroll\(ym\);/);
-assert.match(html,/if\(!closedSnapshot\)for\(const rec of R\.rows\)/,
+assert.match(html,/if\(rec\.closedSnapshot\)continue;/,
  "An immutable closed salary must not be reset by open-payroll zero-shift logic");
-assert.match(html,/if\(LIVE&&!closedSnapshot&&pay\?\.payrollType==="HOURLY"\)/,
- "A manager must reopen first to edit a closed monthly weekly allowance");
+assert.equal(frozen.rows[0].pay.payrollType,undefined,
+ "A closed salary row must never expose a weekly-approval mutation control");
+assert.match(html,/if\(LIVE&&pay\?\.payrollType==="HOURLY"\)/,
+ "Open months retain the existing weekly-approval UI");
 assert.match(html,/closedSnapshot\?"마감 확정 급여":"현재 급여"/);
 for(const name of ["night_allowance_won","break_compensation_won",
  "substitution_pay_won","night_allowance_label","break_mode"]){
