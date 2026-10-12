@@ -12,7 +12,7 @@ const makeRefresh=(responses)=>{
  const factory=new Function('rpc','render',
   'let stores=[],managers=[],proofs=[],sampleCounts=[],selected=1;'+
   storeSource.slice(storeStart,storeEnd)+
-  '\\nreturn {refresh, state:()=>({stores,managers,proofs,sampleCounts,selected})};');
+  '\nreturn {refresh, state:()=>({stores,managers,proofs,sampleCounts,selected})};');
  const result=factory(async name=>nextResponses[name],()=>renderCount++);
  return {...result,getRenderCount:()=>renderCount,setResponses:value=>{nextResponses=value;}};
 };
