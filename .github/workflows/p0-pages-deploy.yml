@@ -175,7 +175,7 @@ jobs:
               core.info('No server-sync-sheet source change; Edge deployment not required.');
               return;
             }
-            for (let attempt = 1; attempt <= 24; attempt++) {
+            for (let attempt = 1; attempt <= 48; attempt++) {
               const response = await github.rest.repos.getCombinedStatusForRef({
                 ...context.repo, ref:context.sha
               });
@@ -189,7 +189,7 @@ jobs:
                 throw new Error('Production Edge deployment failed; Pages release blocked: ' +
                   (receipt.target_url || 'missing details'));
               }
-              if (attempt < 24) await new Promise(resolve => setTimeout(resolve, 10000));
+              if (attempt < 48) await new Promise(resolve => setTimeout(resolve, 10000));
             }
             throw new Error('No successful production Edge receipt for commit ' + context.sha +
               '; refuse to publish Pages against an unverified server build.');
