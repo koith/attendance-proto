@@ -124,10 +124,23 @@ function _seniorPayrollLayout(section,attendance){
     payableByName[name].count++;
   });
   var h=section.header||[];
-  var keys=['직원명','급여형태','총근무','야간근무','급여산정시간','시급','기본급','야근수당적용여부','야근수당','주휴','휴게','휴게수당','조정','예상 세전급여'];
+  // Closed payroll comes from the immutable snapshot: "확정 세전급여", not
+  // the projected "예상 세전급여". Never erase the confirmed gross on export.
+  // Snapshot v1 does not preserve component-level night/break allowances;
+  // show "—" instead of making up a zero allowance or a disabled setting.
+  var closed=h.indexOf('확정 세전급여')>=0;
+  var grossKey=closed?'확정 세전급여':'예상 세전급여';
+  var keys=['직원명','급여형태','총근무','야간근무','급여산정시간','시급','기본급','야근수당적용여부','야근수당','주휴','휴게','휴게수당','조정',grossKey];
   return {header:keys,rows:(section.rows||[]).map(function(row){
     var get=function(key){var i=h.indexOf(key);return i<0?'':row[i];};
-    return [get('직원명'),get('시급')==='0원'?'월급제':'시급제',get('총근무'),get('야간근무'),(function(){var canonical=String(get('가산 포함 급여산정시간')||'');if(/^\d+:[0-5]\d(?::[0-5]\d)?$/.test(canonical))return canonical;var p=payableByName[String(get('직원명'))];return p&&p.count?Math.floor(p.minutes/60)+':'+String(p.minutes%60).padStart(2,'0'):'—';})(),get('시급'),get('기본급'),get('야근수당적용여부')||'미적용',get('야근수당')||'0원',get('주휴'),get('휴게 제공 여부'),get('휴게수당'),get('조정'),get('예상 세전급여')];
+    return [get('직원명'),get('시급')==='0원'?'월급제':'시급제',
+      get('총근무')||get('총 실근무시간'),get('야간근무'),
+      (function(){var canonical=String(get('가산 포함 급여산정시간')||'');if(/^\d+:[0-5]\d(?::[0-5]\d)?$/.test(canonical))return canonical;var p=payableByName[String(get('직원명'))];return p&&p.count?Math.floor(p.minutes/60)+':'+String(p.minutes%60).padStart(2,'0'):'—';})(),
+      get('시급'),get('기본급'),
+      get('야근수당적용여부')||(closed?'—':'미적용'),
+      get('야근수당')||(closed?'—':'0원'),
+      get('주휴'),get('휴게 제공 여부')||(closed?'—':''),
+      get('휴게수당')||(closed?'—':''),get('조정'),get(grossKey)];
   })};
 }
 function _seniorAttendanceLayout(section,payroll){
