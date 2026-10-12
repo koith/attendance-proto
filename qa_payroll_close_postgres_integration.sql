@@ -236,3 +236,42 @@ BEGIN
  END;
 END $$;
 \echo PASS: real closed payroll snapshot RPC returns immutable gross and allowances; legacy unknowns and store scope honored
+
+
+-- PAY-01: the production close routine must never report success without
+-- reading back the EXACT immutable payload in the same transaction.
+\i supabase/migrations/20261014001000_payroll_close_atomic_readback.sql
+SELECT public.server_payroll_close_verified(
+ 1,'2026-05',jsonb_build_array(public.test_salary_json()),
+ repeat('d',64),'00000000-0000-4000-8000-000000000001'::uuid);
+DO $$
+BEGIN
+ IF (SELECT count(*) FROM public.payroll_snapshot WHERE store_id=1 AND ym='2026-05'
+      AND gross_pay=800000 AND net_pay=773600 AND source_fingerprint=repeat('d',64))<>1
+ THEN RAISE EXCEPTION 'Verified legitimate close did not persist'; END IF;
+END $$;
+
+-- Synthetic trigger simulates a drift/corruption between the approved input
+-- and physical row. Must fail and roll back BOTH period and snapshot.
+CREATE FUNCTION public.qa_corrupt_snapshot_before_insert() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+ NEW.net_pay:=NEW.net_pay-1;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER qa_corrupt_snapshot_before_insert
+  BEFORE INSERT ON public.payroll_snapshot FOR EACH ROW
+  EXECUTE FUNCTION public.qa_corrupt_snapshot_before_insert();
+SELECT public.assert_payroll_close_error(
+ public.test_salary_json(),'PAYROLL_SNAPSHOT_READBACK_MISMATCH','2026-04');
+DROP TRIGGER qa_corrupt_snapshot_before_insert ON public.payroll_snapshot;
+DROP FUNCTION public.qa_corrupt_snapshot_before_insert();
+DO $$
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.payroll_period WHERE store_id=1 AND ym='2026-04')
+ OR EXISTS(SELECT 1 FROM public.payroll_snapshot WHERE store_id=1 AND ym='2026-04')
+ THEN RAISE EXCEPTION 'Failed readback MUST roll back every close write'; END IF;
+ IF (SELECT count(*) FROM public.payroll_snapshot)<>4
+ THEN RAISE EXCEPTION 'The failed close corrupted earlier immutable snapshots'; END IF;
+END $$;
+\echo PASS: PAY-01 close readback rejects drift atomically and preserves old snapshots
