@@ -16,5 +16,13 @@ assert.ok(recipe,'extract the recipe-component fallback');
 const recipeComponents=Function('return ('+recipe[1]+')')();
 assert.deepEqual(recipeComponents({menu_name:'카페라떼',components:[]}),[],'unknown recipe quantities are not guessed from menu names');
 assert.deepEqual(recipeComponents({menu_name:'카페라떼',components:[{item_name:'우유',quantity:230,unit:'ml'}]}),[{item_name:'우유',quantity:230,unit:'ml'}]);
+const unified=fs.readFileSync('operations_reference_ui_v208.js','utf8');
+for (const [label,code] of [['legacy',src],['unified',unified]]) {
+  assert.doesNotMatch(code,/BE\.(?:inventoryOverview|inventoryManualList|inventoryPurchaseOrders|recipeList)\(\)\.catch\(\(\)=>\[\]\)/,
+    label+' must not present a failed inventory or recipe API as an empty dataset');
+}
+assert.match(src,/catch\(e\)\{body\.innerHTML=empty\("불러오기 실패",e\.message\)/,
+  'a failed backend inventory call must be rendered as an explicit error');
+new Function(unified);
 new Function(src);
 console.log('PASS production inventory/recipe use only persisted data; no synthetic stock or ingredient quantities');
