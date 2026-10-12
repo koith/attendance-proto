@@ -1209,6 +1209,7 @@ const SupaBE = (()=>{
     async inventoryItems(){ return rpc("admin_store_inventory_items",{p_store_id:CURRENT_STORE_ID||1},true); },
     async inventoryStocktakeCatalog(){ return rpc("admin_store_stocktake_catalog",{p_store_id:CURRENT_STORE_ID||1},true); },
     async inventoryStocktakeList(){ return rpc("admin_store_stocktake_list",{p_store_id:CURRENT_STORE_ID||1},true); },
+    async inventoryStocktakeDetail(id){ return rpc("admin_store_stocktake_detail",{p_store_id:CURRENT_STORE_ID||1,p_stocktake_id:id},true); },
     async inventoryStocktakeDraft(lines,note=""){ return rpc("admin_store_stocktake_draft",{p_store_id:CURRENT_STORE_ID||1,p_lines:lines,p_note:note},true); },
     async inventoryStocktakePost(id){ return rpc("admin_store_stocktake_post",{p_store_id:CURRENT_STORE_ID||1,p_stocktake_id:id},true); },
     async adminContext(){ return rpc("admin_context",{},true); },
