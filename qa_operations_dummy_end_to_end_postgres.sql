@@ -54,6 +54,20 @@ AS $f$ SELECT true,false WHERE false $f$;
 \ir supabase/migrations/20261012221000_store_operations_reconciliation.sql
 \ir supabase/migrations/20261012200500_operations_real_ledger_export.sql
 
+-- Synthetic-only table readback RLS policies allow test assertions to inspect
+-- their own store. Production table grants/policies remain completely untouched.
+GRANT SELECT ON public.operations_transactions,public.operations_raw_records,
+ public.operations_import_batches TO authenticated;
+CREATE POLICY qa_tx_select ON public.operations_transactions
+ FOR SELECT TO authenticated USING
+ (store_id = nullif(current_setting('test.allowed_store',true),'')::bigint);
+CREATE POLICY qa_raw_select ON public.operations_raw_records
+ FOR SELECT TO authenticated USING
+ (store_id = nullif(current_setting('test.allowed_store',true),'')::bigint);
+CREATE POLICY qa_batch_select ON public.operations_import_batches
+ FOR SELECT TO authenticated USING
+ (store_id = nullif(current_setting('test.allowed_store',true),'')::bigint);
+
 -- The existing global demo ledger is deliberately not mapped to store 1/2.
 INSERT INTO public.operations_transactions(
  source,source_store_key,source_record_key,transaction_type,transacted_at,
@@ -157,12 +171,14 @@ BEGIN
 END $test$;
 
 -- Unmatched raw row + failed import are visible as two reconciliation issues.
+RESET ROLE; -- fixture-authorized injection of an unmatched external raw row
 INSERT INTO public.operations_raw_records(
  store_id,source,source_store_key,source_record_key,business_date,payload,payload_hash)
 VALUES(1,'KIS_POS','store:1','unmatched','2026-10-10','{}','mock');
 INSERT INTO public.operations_import_batches(
  store_id,source,source_store_key,idempotency_key,file_name,status,row_count,created_at)
 VALUES(1,'KIS_POS','store:1','failed-unique','failed.csv','FAILED',0,'2026-10-10 08:00:00+00');
+SET ROLE authenticated;
 DO $test$
 DECLARE n bigint;a json;
 BEGIN
