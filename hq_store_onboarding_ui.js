@@ -71,8 +71,10 @@ window.mountHqStoreOnboarding=async function(box){
   const message=(title,detail)=>{if(typeof toast==="function")toast("in",title,detail);};
   const err=error=>{if(typeof toast==="function")toast("err","지점 설정 실패",String(error?.message||error));};
   async function refresh(){
-    [stores,managers,proofs,sampleCounts]=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_provenance_list"),rpc("hq_store_sample_roster_counts")]);
-    if(!Array.isArray(sampleCounts))throw Error("SAMPLE_ROSTER_COUNTS_INVALID");
+    // Never render READY or export an eligible rollout from a partial/malformed HQ response.
+    const result=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_provenance_list"),rpc("hq_store_sample_roster_counts")]);
+    if(!result.every(Array.isArray))throw Error("HQ_ONBOARDING_INVALID_RESPONSE");
+    [stores,managers,proofs,sampleCounts]=result;
     if(!stores.some(s=>Number(s.id)===selected))selected=Number(stores[0]?.id||1);
     render();
   }
