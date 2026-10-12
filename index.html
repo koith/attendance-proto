@@ -2782,7 +2782,9 @@ async function drawPay(ym){
   // own payroll month even when all shifts happened in the following month.
   // Never erase the server-authoritative weekly-only amount during rendering.
   // Recalculate the summary from the exact row objects that will be rendered.
-  if(!closedSnapshot)for(const rec of R.rows){
+  for(const rec of R.rows){
+    // No open-month zero-shift mutations are allowed on closed snapshot rows.
+    if(rec.closedSnapshot)continue;
     const weeklyOnly=!!rec.contract && rec.payrollType==="HOURLY" &&
       Number(rec.sec||0)<=0 && Number(rec.pay?.juhyu||0)>0 &&
       Number(rec.pay?.base||0)===0;
@@ -2801,7 +2803,7 @@ async function drawPay(ym){
   const sum=document.createElement("div");
   sum.className="kpi-row payroll-total-summary";
   sum.style.cssText="padding:12px 18px 13px;margin:0;display:block";
-  sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">${closedSnapshot?"마감 확정 세전 합계":"세전 합계"}</div><div class="payroll-total-value" style="width:100%;text-align:center;font-size:1.50rem!important;line-height:1.12!important;font-weight:850!important;letter-spacing:-.02em;color:var(--ink)!important">${R.totalGross.toLocaleString()}원</div>`;
+  sum.innerHTML=`<div class="kpi-label" style="font-size:.82rem;color:var(--muted)">세전 합계</div><div class="payroll-total-value" style="width:100%;text-align:center;font-size:1.50rem!important;line-height:1.12!important;font-weight:850!important;letter-spacing:-.02em;color:var(--ink)!important">${R.totalGross.toLocaleString()}원</div>`;
   const summarySlot=document.getElementById("paySummarySlot"); if(summarySlot) summarySlot.replaceChildren(sum); else el.appendChild(sum);
   const payTitle=document.createElement("div");
   payTitle.className="payroll-list-title";
@@ -2863,7 +2865,8 @@ async function drawPay(ym){
     }
     // Every activated store manager gets the same weekly review control.
     // The server independently checks READY store, actor role and store scope.
-    if(LIVE&&!closedSnapshot&&pay?.payrollType==="HOURLY"){
+    if(LIVE&&pay?.payrollType==="HOURLY"){
+      // The immutable snapshot intentionally contains no editable pay.payrollType.
       const detail=card.querySelector(".payroll-detail-popover");
       if(detail){
         const btn=document.createElement("button");
