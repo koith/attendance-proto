@@ -41,10 +41,10 @@ function modal(title,content){
 }
 
 async function loadInventoryManagement(){
-  const [overview,manual]=await Promise.all([BE.inventoryOverview().catch(()=>[]),BE.inventoryManualList().catch(()=>[])]);
+  const [overview,manual]=await Promise.all([BE.inventoryOverview(),BE.inventoryManualList()]);
   const manualNames=new Set(manual.map(x=>x.name));
   const live=overview.filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.name||"")&&!manualNames.has(x.name));
-  purchaseOrders=await BE.inventoryPurchaseOrders().catch(()=>[]);
+  purchaseOrders=await BE.inventoryPurchaseOrders();
   managedInventory=[...manual.map(x=>({...x,on_hand:Number(x.on_hand||0),target_level:Number(x.target_level||0),reorder_point:Number(x.reorder_point||0),manual:true})),...live.map(x=>({...x,target_level:Number(x.reorder_level||0),reorder_point:Number(x.reorder_point||Number(x.reorder_level||0)*.65)}))];
 }
 function stockState(row){
@@ -112,7 +112,7 @@ async function renderInventory(refresh=false){
   document.getElementById("opsReferenceInventoryCat").onchange=e=>{inventoryCategory=e.target.value;renderInventory(true)};
 }
 
-async function loadRegisteredRecipes(){registeredRecipes=(await BE.recipeList().catch(()=>[])).map(row=>({...row,menu_name:cleanExample(row.menu_name)}))}
+async function loadRegisteredRecipes(){registeredRecipes=(await BE.recipeList()).map(row=>({...row,menu_name:cleanExample(row.menu_name)}))}
 function recipeThumbnail(row){
   const label=({"백억 시네마":"CINEMA","백억휴게소":"SNACK","디저트&베이커리":"DESSERT","커피&콜드브루":"COFFEE","라떼&버블티":"LATTE","스무디&에이드":"DRINK","티&주스":"TEA"}[row?.category]||"MENU"),url=String(row?.thumbnail_url||"").trim();
   return '<div class="ops-recipe-thumb">'+(url?'<img src="'+esc(url)+'" alt="'+esc(row?.menu_name||"")+'" loading="lazy" data-thumb-fallback="'+esc(label)+'">':'<span>'+esc(label)+'</span>')+'</div>';
@@ -145,7 +145,7 @@ async function fileToWebp(file){
 async function openRecipeEditor(recipe=null){
   await loadProtectedRecipes();
   const official=(protectedRecipes||[]).find(x=>x.menu_name===cleanExample(recipe?.menu_name||""));
-  const stock=await BE.inventoryOverview().catch(()=>[]),selected=new Map((recipe?.components||[]).map(x=>[Number(x.item_id),Number(x.quantity||0)]));
+  const stock=await BE.inventoryOverview(),selected=new Map((recipe?.components||[]).map(x=>[Number(x.item_id),Number(x.quantity||0)]));
   if(!stock.length)return alert("레시피 재료로 선택할 재고 품목이 없습니다.");
   const ingredients=stock.map(x=>{const checked=selected.has(Number(x.id));return '<label class="ops-ingredient-row"><input type="checkbox" data-item="'+x.id+'" '+(checked?'checked':'')+'><span class="ops-ingredient-name"><b>'+esc(x.name)+'</b><small>잔고 '+num(x.on_hand)+' '+esc(x.unit)+'</small></span><input class="ops-ingredient-qty" type="number" min="0" step="0.01" data-qty="'+x.id+'" value="'+(checked?selected.get(Number(x.id)):"")+'" placeholder="사용량" '+(checked?'':'disabled')+'><em>'+esc(x.unit)+'</em></label>'}).join("");
   const sourceRecipe=official?'<section class="ops-source-recipe"><div class="ops-ingredient-head"><b>공식 제조 기준</b><span>원본 '+esc(official.source_version)+' · '+official.variants.length+'종</span></div><div class="ops-recipe-variant-grid">'+official.variants.map(v=>'<section><h3>'+esc(v.label)+'</h3><div>'+esc(v.content).replace(/\\n/g,"<br>")+'</div></section>').join("")+'</div></section>':"";
@@ -178,7 +178,7 @@ async function openHqProductEditor(product=null){
   const m=modal(product?"상품 수정":"신제품 등록",'<div class="ops-hq-loading"><span></span><b>재고 목록을 불러오는 중입니다.</b></div>');
   m.wrap.classList.add("ops-hq-editor-modal");
   m.wrap.addEventListener("dragstart",event=>event.preventDefault());
-  if(!hqInventory.length)hqInventory=(await BE.inventoryOverview().catch(()=>[])).filter(x=>!x.is_demo).map(x=>({...x,name:cleanExample(x.name)}));
+  if(!hqInventory.length)hqInventory=(await BE.inventoryOverview()).filter(x=>!x.is_demo).map(x=>({...x,name:cleanExample(x.name)}));
   if(!hqInventory.length){m.body.innerHTML='<div class="ops-empty"><b>선택할 재고 품목이 없습니다.</b><span>재고를 먼저 등록한 뒤 다시 시도하세요.</span></div>';return}
   await loadProtectedRecipes();
   const source=Array.isArray(product?.component_blueprint)?product.component_blueprint:[],newItems=[],selected=new Map(),originalQuantity=new Map(),categories=[...new Set([...(protectedRecipes||[]).map(x=>x.category),...hqProducts.map(x=>x.category)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ko")),knownCategory=categories.includes(product?.category),categoryMode=product?.category&&!knownCategory?"new":"existing",scheduledDate=hqKstDate(product?.scheduled_at),isActive=product?.status==="ACTIVE",scheduleLabel=isActive?"수정 적용 예약일":"출시 예약일",scheduleHelp=isActive?"비워두면 변경사항만 저장하며, 지정하면 한국시간 해당 날짜 00:00에 전 지점에 자동 적용합니다.":"비워두면 즉시 출시하며, 지정하면 한국시간 해당 날짜 00:00에 자동 출시합니다.";
