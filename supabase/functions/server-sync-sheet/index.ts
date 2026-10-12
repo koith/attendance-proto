@@ -143,9 +143,19 @@ function payrollClosingRows(report){
       hours:Math.round(Number(r.hours||0)*100)/100,wage:Number(p.wage||0),
       weeks:Number(p.jweeks||0),base_pay:Number(p.base||0),juhyu_pay:Number(p.juhyu||0),
       adjust:Number(p.adjust||0),gross_pay:Number(p.gross||0),
+      // Preserve itemized allowances in the immutable snapshot. The previous
+      // close protocol kept gross but dropped the explanatory amounts.
+      night_allowance_won:Number(p.nightAllowance||0),
+      break_compensation_won:Number(p.breakCompPay||0),
+      substitution_pay_won:Number(p.substitutePay||0),
+      night_allowance_label:String(p.nightAllowanceLabel||"미적용"),
+      break_mode:String(r.breakMode||"IGNORED"),
       tax_rate:Number(p.rate||0),net_pay:Number(p.net||0),memo:String(r.memo||"")
     };
     if(!Number.isSafeInteger(row.employee_id)||row.employee_id<=0 ||
+       ["night_allowance_won","break_compensation_won","substitution_pay_won"].some(key=>
+         !Number.isSafeInteger(row[key])||row[key]<0) ||
+       !["PROVIDED","NOT_PROVIDED","IGNORED"].includes(row.break_mode) ||
        Object.entries(row).some(([key,value])=>typeof value==="number"&&!Number.isFinite(value)))
       throw new HttpError(409,"INVALID_CALCULATED_PAYROLL_ROW");
     return row;
@@ -185,8 +195,16 @@ function shouldWriteMonth(ym,current,data){
 }
 function snapshotRows(snap,ym){
   if(!snap.length)return null;
-  return {header:["직원명","총 실근무시간","시급","기본급","주휴","조정","확정 세전급여"],
-    rows:snap.map(s=>[s.employee_name,humanHours(s.hours),won(s.wage),won(s.base_pay),won(s.juhyu_pay),won(s.adjust),won(s.gross_pay)])};
+  // NULL means the historical snapshot had no itemized allowance evidence.
+  // It is not the same as 0원. Only post-migration closes preserve a value.
+  const knownWon=n=>n==null?"—":won(n);
+  const breakLabel={PROVIDED:"제공",NOT_PROVIDED:"미제공",IGNORED:"미고려"};
+  return {header:["직원명","총 실근무시간","시급","기본급","주휴","조정","확정 세전급여",
+      "야근수당적용여부","야근수당","휴게 제공 여부","휴게수당"],
+    rows:snap.map(s=>[s.employee_name,humanHours(s.hours),won(s.wage),won(s.base_pay),
+      won(s.juhyu_pay),won(s.adjust),won(s.gross_pay),
+      s.night_allowance_label??"—",knownWon(s.night_allowance_won),
+      breakLabel[s.break_mode]||"—",knownWon(s.break_compensation_won)])};
 }
 function humanHours(hours){const t=Number(hours)||0,H=Math.floor(t),M=Math.round((t-H)*60);return M?`${H}시간 ${M}분`:`${H}시간`;}
 function won(n){return (Number(n)||0).toLocaleString("ko-KR")+"원";}
@@ -197,7 +215,7 @@ async function buildReport(ym,storeId){
   // overlays the live shift seconds already present in authoritative payroll.
   const calculated=await engine.computeMonthPayroll(ym);
   const workingAttendance=attendanceWithWorkingPayable(report.attendance,calculated);
-  const {data:snap,error:snapError}=await client.from("payroll_snapshot").select("store_id,employee_id,employee_name,hours,wage,base_pay,juhyu_pay,adjust,gross_pay,closed_at").eq("store_id",storeId).eq("ym",ym);
+  const {data:snap,error:snapError}=await client.from("payroll_snapshot").select("store_id,employee_id,employee_name,hours,wage,base_pay,juhyu_pay,adjust,gross_pay,night_allowance_won,break_compensation_won,substitution_pay_won,night_allowance_label,break_mode,closed_at").eq("store_id",storeId).eq("ym",ym);
   if(snapError)throw new Error("SNAPSHOT_READ_FAILED");
   // Historical closed payroll belongs to its original store even after an employee transfers.
   // Keep a second explicit store check after the authoritative store+month DB filter.
