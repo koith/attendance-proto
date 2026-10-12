@@ -40,6 +40,14 @@ SET ROLE authenticated;
 SET test.uid TO '11111111-1111-4111-8111-111111111111';
 SET test.allowed_store TO '1';
 DO $test$
+DECLARE n integer; expected numeric;
+BEGIN
+ SELECT count(*) INTO n FROM public.admin_store_stocktake_catalog(1);
+ IF n<>2 THEN RAISE EXCEPTION 'catalog includes demo-based or demo catalog items: %',n; END IF;
+ SELECT expected_quantity INTO expected FROM public.admin_store_stocktake_catalog(1) WHERE id=11;
+ IF expected<>5 THEN RAISE EXCEPTION 'real opening balance was incorrect: %',expected; END IF;
+END $test$;
+DO $test$
 DECLARE draft jsonb;cid bigint;detail jsonb;posted jsonb;again jsonb;denied boolean:=false;
 BEGIN
  draft:=public.admin_store_stocktake_draft(1,'[{"item_id":11,"counted_quantity":7},{"item_id":12,"counted_quantity":0}]'::jsonb,'현장 확인');
