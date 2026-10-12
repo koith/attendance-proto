@@ -1,0 +1,8 @@
+# Native Supabase GitHub Integration deploy root. Select "edge-release" as
+# Working directory in the Supabase GitHub Integration. This tree deliberately
+# has NO migrations/ directory, to prevent replay of historical production SQL.
+project_id = "attendance-proto-edge-release"
+
+[functions.server-sync-sheet]
+# Existing live v50 uses custom JWT/PIN authorization in the handler.
+verify_jwt = false
