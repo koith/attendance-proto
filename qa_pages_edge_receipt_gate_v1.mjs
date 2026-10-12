@@ -3,9 +3,10 @@ import fs from 'node:fs';
 
 const yaml=fs.readFileSync('.github/workflows/p0-pages-deploy.yml','utf8');
 const start='      - name: Require matching production Edge deployment receipt for changed Edge source';
-const finish='      - name: boot-syntax-regression';
+const finish='      - name: Verify production Edge receipt gate behavior';
 const section=yaml.slice(yaml.indexOf(start),yaml.indexOf(finish));
-assert.ok(section.startsWith(start),'production Edge Pages guard must exist before boot gate');
+assert.ok(section.startsWith(start),'production Edge Pages guard must exist before its unit tests');
+assert.ok(yaml.indexOf(finish)<yaml.indexOf('      - name: boot-syntax-regression'),'gate unit tests must run before boot gate');
 assert.match(section,/if: github\.event_name == 'push'/);
 assert.match(section,/compareCommits/,'commit delta must be checked');
 assert.match(section,/server-sync-sheet\//,'canonical Edge source must trigger gate');
