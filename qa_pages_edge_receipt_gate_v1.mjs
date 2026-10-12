@@ -33,6 +33,10 @@ assert.equal(frontend.reads(),0,'frontend-only release cannot be blocked by an u
 const success=make(['supabase/functions/server-sync-sheet/index.ts'],[{context:'edge/server-sync-sheet-deploy',state:'success',target_url:'https://github.test/job'}]);
 await invoke(success.github,success.context,success.core);
 assert.equal(success.reads(),1,'canonical server-source changes must await their own deployment receipt');
+const mirrored=make(['edge-release/supabase/functions/server-sync-sheet/index.ts'],[{context:'edge/server-sync-sheet-deploy',state:'success'}]);
+await invoke(mirrored.github,mirrored.context,mirrored.core);
+assert.equal(mirrored.reads(),1,'mirrored server source also needs same-commit receipt');
+
 const failed=make(['supabase/functions/server-sync-sheet/index.ts'],[{context:'edge/server-sync-sheet-deploy',state:'failure'}]);
 await assert.rejects(invoke(failed.github,failed.context,failed.core),/Pages release blocked/);
 const errored=make(['supabase/functions/server-sync-sheet/engine.mjs'],[{context:'edge/server-sync-sheet-deploy',state:'error'}]);
