@@ -1,4 +1,5 @@
 import {assessWeeklyRest,approvedWeeklyAdjustment,truncateWon} from './payroll_policy.mjs';
+import {reconcileSheetPayableMinutes} from './sheet_minute_reconciliation.mjs';
 /* Server runtime mirrors the browser's payroll and sheet report algorithms.
    SOURCE SNAPSHOT: index.html v0.181, payroll_contract_authority_v1.js,
    payroll_night_allowance_v1.js. Never add independent payroll policy here.
@@ -519,18 +520,27 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     for(const [day,items] of days){
       const complete=items.filter(x=>x.status==="COMPLETE");
       const night=complete.reduce((n,x)=>n+nightSeconds(x.in,x.out),0);
-      detailLookup.set(day+"|"+rec.employee_name,{night:sheetDuration(night),breakSetting:rec.breakMode==="IGNORED"?"미고려":rec.breakTimeProvided?"제공":"미제공",
+      detailLookup.set(day+"|"+rec.employee_name,{employeeId:Number(rec.employee_id),
+        rawPayableSeconds:complete.reduce((n,x)=>n+payableSeconds(x,rec.breakMode),0),
+        rawSessionSeconds:items.map(x=>payableSeconds(x,rec.breakMode)),
+        night:sheetDuration(night),breakSetting:rec.breakMode==="IGNORED"?"미고려":rec.breakTimeProvided?"제공":"미제공",
         payable:sheetDuration(complete.reduce((n,x)=>n+payableSeconds(x,rec.breakMode),0)),sessions:items.map(x=>sheetDuration(x.status==="COMPLETE"?nightSeconds(x.in,x.out):0)),payableSessions:items.map(x=>sheetDuration(payableSeconds(x,rec.breakMode)))});
     }
   }
-  const detailIndexes=new Map();
-  const detailedAttendance=humanAttendance.map(row=>{
+  const detailIndexes=new Map(), minuteMetadata=[];
+  let detailedAttendance=humanAttendance.map(row=>{
     const key=row[0]+"|"+row[1],detail=detailLookup.get(key);
     const multi=(sessionCount.get(key)||0)>1;
     const idx=detailIndexes.get(key)||0;detailIndexes.set(key,idx+1);
     const night=multi?detail?.sessions?.[idx]:detail?.night;
+    minuteMetadata.push(detail?{
+      employeeId:detail.employeeId,seconds:multi?detail.rawSessionSeconds?.[idx]:detail.rawPayableSeconds,
+      isWorking:row[3]==="—"
+    }:null);
     return [...row,night||"00:00",detail?.breakSetting||"—",multi?detail?.payableSessions?.[idx]||"0:00":detail?.payable||"0:00"];
   });
+  // Reconcile only HH:MM display rounding; do not change the canonical payroll seconds.
+  detailedAttendance=reconcileSheetPayableMinutes(detailedAttendance,minuteMetadata);
   return {
     store_key:String(CURRENT_STORE_ID||1),
     store_name:STORE_NAME_BY_ID.get(Number(CURRENT_STORE_ID))||CONFIG.STORE_NAME,
