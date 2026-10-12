@@ -9,6 +9,7 @@ on:
       - apps_script.gs
       - qa_sheet_formula_literal_v1.mjs
       - qa_sheet_valid_month_v1.mjs
+      - qa_sheet_closed_snapshot_gross_v1.mjs
       - qa_apps_script_no_pr_deploy_v1.mjs
       - .github/workflows/apps-script-deploy.yml
   push:
@@ -17,6 +18,7 @@ on:
       - apps_script.gs
       - qa_sheet_formula_literal_v1.mjs
       - qa_sheet_valid_month_v1.mjs
+      - qa_sheet_closed_snapshot_gross_v1.mjs
       - appsscript.json
       - tools/deploy_apps_script.mjs
       - tools/apps_script_secret.mjs
@@ -46,6 +48,7 @@ jobs:
           node qa_sheet_new_month_format_contract.mjs
           node qa_sheet_formula_literal_v1.mjs
           node qa_sheet_valid_month_v1.mjs
+          node qa_sheet_closed_snapshot_gross_v1.mjs
           node qa_apps_script_deploy_secret.mjs
           node qa_apps_script_no_pr_deploy_v1.mjs
       - name: Push source and redeploy existing web app
