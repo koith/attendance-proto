@@ -12,7 +12,7 @@ window.openStoreOperationsReconciliation=async function(){
  if(trigger)trigger.disabled=true;
  let issues;
  try{
-  issues=await BE.reconciliationIssues(from,to);
+  issues=await BE.storeReconciliationIssues(from,to);
   if(!Array.isArray(issues)||issues.length>2000)throw Error("RECONCILIATION_INVALID_RESPONSE");
  }catch(error){
   if(trigger)trigger.disabled=false;
