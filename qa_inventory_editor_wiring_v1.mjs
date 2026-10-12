@@ -10,7 +10,7 @@ assert.match(unified,/const editor=window\.openInventoryEntryFromUnified/);
 assert.match(unified,/onclick=\(\)=>editor\("manual"\)/);
 assert.match(unified,/onclick=\(\)=>editor\("bulk"\)/);
 assert.doesNotMatch(unified,/onclick=openInventoryBulk/);
-assert.match(html,/operations_v1\.js\?v=20261011v202/);
+assert.match(html,/operations_v1\.js\?v=20261012v240/);
 assert.match(html,/operations_reference_ui_v208\.js\?v=20261011ui203/);
 assert.match(unified,/window\.renderOperations=async tab=>tab==="recipe"\?renderRecipes\(\):originalRender\(tab\)/);
 console.log('PASS inventory manual and CSV bulk dialogs wired; approved legacy cards retained');
