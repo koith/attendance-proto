@@ -10,7 +10,7 @@ const withCatalog=rows=>(rows||[]).filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.n
 function shell(tab){
  S.tab=tab||S.tab;
  const[f,t]=range(),titles={dashboard:["리포트","매출·매입·재고·원가 흐름을 요약합니다."],inquiry:["매출·매입","거래 데이터를 조회하고 원천 데이터를 관리합니다."],inventory:["재고","카테고리별 현재고와 발주 필요량을 확인합니다."],recipe:["레시피","메뉴별 표준 레시피와 원가 구조를 관리합니다."]},meta=titles[S.tab]||["매장운영",""];
- const salesActions=S.tab==="inquiry"?'<div class="ops-head-actions"><button class="btn btn-secondary btn-sm" id="opsCollectOpen">데이터 수집</button><button class="btn btn-secondary btn-sm" id="opsUploadOpen">파일 업로드</button><button class="btn btn-secondary btn-sm" id="opsExportActual">실거래 CSV</button></div>':S.tab==="inventory"?'<div class="ops-head-actions"><button type="button" class="btn btn-secondary btn-sm" id="opsStocktakeOpen">표준 품목 재고 실사</button></div>':"";
+ const salesActions=S.tab==="inquiry"?'<div class="ops-head-actions"><button class="btn btn-secondary btn-sm" id="opsCollectOpen">데이터 수집</button><button class="btn btn-secondary btn-sm" id="opsUploadOpen">파일 업로드</button><button class="btn btn-secondary btn-sm" id="opsExportActual">실거래 CSV</button></div>':S.tab==="inventory"?'<div class="ops-head-actions"><button type="button" class="btn btn-secondary btn-sm" id="opsStocktakeOpen">표준 품목 재고 실사</button></div>':S.tab==="dashboard"?'<div class="ops-head-actions"><button type="button" class="btn btn-secondary btn-sm" id="opsReconciliationOpen">미해결 대사 내역</button></div>':"";
  const filter=(S.tab==="dashboard"||S.tab==="inquiry")?'<div class="ops-filter"><div><label>시작일</label><input id="opsFrom" type="date" value="'+f+'"></div><div><label>종료일</label><input id="opsTo" type="date" value="'+t+'"></div><button class="btn btn-primary" id="opsRefresh">조회</button></div>':"";
  view.innerHTML='<div class="ops-head page-title-row"><div><h2 class="page-title">'+meta[0]+'</h2></div>'+salesActions+'</div>'+filter+'<div id="opsBody"></div>';
  // Operations owns a full #view render. Restore the shared admin navigation immediately after every shell rebuild.
@@ -21,6 +21,7 @@ function shell(tab){
  if(document.getElementById("opsUploadOpen"))opsUploadOpen.onclick=()=>openOpsModal("upload");
  if(document.getElementById("opsExportActual"))document.getElementById("opsExportActual").onclick=exportActualOperations;
  if(document.getElementById("opsStocktakeOpen"))document.getElementById("opsStocktakeOpen").onclick=()=>window.openStoreInventoryStocktake?.();
+ if(document.getElementById("opsReconciliationOpen"))document.getElementById("opsReconciliationOpen").onclick=()=>window.openStoreOperationsReconciliation?.();
  draw()
 }
 // Real, confirmed transactions only. This export is intentionally separate from

@@ -1,0 +1,41 @@
+name: store-operations-reconciliation-postgres
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261012221000_store_operations_reconciliation.sql'
+      - 'qa_store_operations_reconciliation_postgres.sql'
+      - '.github/workflows/store-operations-reconciliation-postgres.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20261012221000_store_operations_reconciliation.sql'
+      - 'qa_store_operations_reconciliation_postgres.sql'
+      - '.github/workflows/store-operations-reconciliation-postgres.yml'
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_fixture_only
+          POSTGRES_DB: reconciliation_fixture
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d reconciliation_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_fixture_only
+      PGDATABASE: reconciliation_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Test actual reconciliation RPC and report count against two synthetic stores
+        run: psql -v ON_ERROR_STOP=1 -f qa_store_operations_reconciliation_postgres.sql
