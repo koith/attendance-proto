@@ -148,6 +148,50 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # A merged Edge code change must never publish its dependent Pages client
+      # until the canonical server-sync-sheet deployment has an explicit receipt.
+      - name: Require matching production Edge deployment receipt for changed Edge source
+        if: github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const before = context.payload.before || '';
+            if (!/^[0-9a-f]{40}$/.test(before) || /^0+$/.test(before)) {
+              throw new Error('Cannot verify Edge deployment delta: push.before missing');
+            }
+            const comparison = await github.rest.repos.compareCommits({
+              ...context.repo, base:before, head:context.sha
+            });
+            const changed = comparison.data.files || [];
+            if (changed.length >= 300) {
+              throw new Error('Cannot safely assess Edge deployment: commit diff truncated');
+            }
+            const needsEdge = changed.some(file =>
+              file.filename.startsWith('supabase/functions/server-sync-sheet/'));
+            if (!needsEdge) {
+              core.info('No server-sync-sheet source change; Edge deployment not required.');
+              return;
+            }
+            for (let attempt = 1; attempt <= 24; attempt++) {
+              const response = await github.rest.repos.getCombinedStatusForRef({
+                ...context.repo, ref:context.sha
+              });
+              const receipt = response.data.statuses.find(status =>
+                status.context === 'edge/server-sync-sheet-deploy');
+              if (receipt?.state === 'success') {
+                core.info('Matching production Edge deployment receipt: ' + receipt.target_url);
+                return;
+              }
+              if (receipt?.state === 'failure' || receipt?.state === 'error') {
+                throw new Error('Production Edge deployment failed; Pages release blocked: ' +
+                  (receipt.target_url || 'missing details'));
+              }
+              if (attempt < 24) await new Promise(resolve => setTimeout(resolve, 10000));
+            }
+            throw new Error('No successful production Edge receipt for commit ' + context.sha +
+              '; refuse to publish Pages against an unverified server build.');
+      - name: Verify production Edge receipt gate behavior
+        run: node qa_pages_edge_receipt_gate_v1.mjs
       - name: boot-syntax-regression
         run: node qa_boot_syntax.mjs
       - name: Inventory renderer syntax and editor wiring guard
