@@ -16,6 +16,9 @@ assert.match(gas,/width_source:'measured_display_text'/,'Apps Script must report
 assert.match(gas,/column_width_readback_verified:true/,'Every sync must report actual post-write width verification');
 assert.match(gas,/getColumnWidth\(vc\+1\)/,'Width verification must query the persisted Google Sheet dimension');
 assert.match(edge,/SHEET_COLUMN_RESIZE_NOT_CONFIRMED/,'Edge sync must fail closed without resize proof');
+assert.match(edge,/resize\.column_width_readback_verified !== true/,'Edge must require persisted dimension readback');
+assert.match(edge,/resize\.verified_month_tabs !== 12/,'Edge must require all 12 month tabs');
+assert.match(edge,/resize\.verified_column_widths < resize\.resized_columns \* 12/,'Edge must require every used column of every month verified');
 assert.match(edge,/width_source:\s*"measured_display_text"/,'Edge request must declare the same measured-display width source as Apps Script');
 assert.match(edge,/resize\.width_source !== "measured_display_text"/,'Edge response validation must accept only the deployed measured-display proof token');
 assert.doesNotMatch(edge,/resize\.width_source !== "actual_cell_contents"/,'Edge must not reject the canonical measured-display response using the retired token');
