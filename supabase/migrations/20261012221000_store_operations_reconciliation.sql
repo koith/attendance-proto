@@ -39,7 +39,7 @@ BEGIN
  IF NOT public.can_manage_store(p_store_id) THEN RAISE EXCEPTION 'NOT_AUTHORIZED'; END IF;
  IF p_from IS NULL OR p_to IS NULL OR p_to<p_from THEN RAISE EXCEPTION 'INVALID_RANGE'; END IF;
  RETURN QUERY
- SELECT -r.id,r.business_date,'RAW_NOT_CONFIRMED'::text,
+ SELECT -r.id,COALESCE(r.business_date,(r.ingested_at AT TIME ZONE 'Asia/Seoul')::date),'RAW_NOT_CONFIRMED'::text,
         r.source,r.source_record_key,t.source,t.source_record_key,
         NULL::bigint,'OPEN'::text,
         jsonb_build_object('raw_id',r.id,'batch_id',r.batch_id,'transaction_status',t.status),
@@ -60,7 +60,7 @@ BEGIN
  FROM public.operations_import_batches b
  WHERE b.store_id=p_store_id AND b.status='FAILED'
    AND (b.created_at AT TIME ZONE 'Asia/Seoul')::date BETWEEN p_from AND p_to
- ORDER BY created_at DESC,id DESC LIMIT 2000;
+ ORDER BY 11 DESC,1 DESC LIMIT 2000;
 END $function$;
 
 -- Preserve every existing reporting field and replace the placeholder zero
