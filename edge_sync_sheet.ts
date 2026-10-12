@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
     // Column sizing is part of a successful sync contract, not best-effort formatting.
     // The Apps Script must resize all used columns from the rendered values after writing.
     const resize = gsJson?.sheet_format;
-    if (!resize || resize.column_resize_applied !== true || resize.resize_scope !== "all_used_columns_after_write" || resize.width_source !== "measured_display_text") {
+    if (!resize || resize.column_resize_applied !== true || resize.resize_scope !== "all_used_columns_after_write" || resize.width_source !== "measured_display_text" || resize.column_width_readback_verified !== true || resize.verified_month_tabs !== 12 || !Number.isInteger(resize.resized_columns) || resize.resized_columns < 1 || !Number.isInteger(resize.verified_column_widths) || resize.verified_column_widths < resize.resized_columns * 12) {
       return json({ ok: false, error: "SHEET_COLUMN_RESIZE_NOT_CONFIRMED", detail: resize ?? null }, 502);
     }
 
