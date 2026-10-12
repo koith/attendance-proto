@@ -3,18 +3,10 @@
 const S={tab:"dashboard",trend:"1m"},won=n=>Number(n||0).toLocaleString("ko-KR")+"원",num=n=>Number(n||0).toLocaleString("ko-KR"),esc=v=>window.safeHtml?window.safeHtml(v):String(v??"");
 function range(){const d=window.kstNow?window.kstNow():new Date(),p=n=>String(n).padStart(2,"0");return [`${d.getFullYear()}-${p(d.getMonth()+1)}-01`,`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(new Date(d.getFullYear(),d.getMonth()+1,0).getDate())}`]}
 function empty(t,s=""){return `<div class="ops-empty"><b>${esc(t)}</b>${s?`<small>${esc(s)}</small>`:""}</div>`}
-const estimatedRecipe=r=>{const n=String(r.menu_name||""),a=[];const put=(item_name,quantity,unit)=>a.push({item_name,quantity,unit,estimated:true});const oneL=/1L|1리터/i.test(n),drink=oneL?1000:500;
- if(/아메리카노|커피|라떼|모카|마끼아또/.test(n)&&!/콜드브루|디카페인/.test(n))put("백억 스페셜티 블렌드 원두",oneL?36:18,"g");
- if(/디카페인/.test(n))put("디카페인 원두",oneL?36:18,"g");if(/콜드브루/.test(n))put("콜드브루 원액",oneL?180:90,"ml");
- if(/라떼|우유|밀크|스무디|쉐이크|빙수/.test(n))put(/오트/.test(n)?"오트밀크":/코코넛/.test(n)?"코코넛밀크":"A+ 우유",oneL?650:260,"ml");
- if(/바닐라/.test(n))put("바닐라 시럽",oneL?60:25,"ml");if(/헤이즐넛/.test(n))put("헤이즐넛 시럽",oneL?60:25,"ml");if(/카라멜/.test(n))put("카라멜 시럽",25,"ml");if(/초코|모카/.test(n))put("초코 소스",30,"g");if(/연유/.test(n))put("연유",30,"g");if(/꿀/.test(n))put("꿀",25,"g");if(/미숫가루/.test(n))put("미숫가루 파우더",35,"g");if(/요거트/.test(n))put("요거트 베이스",120,"g");if(/치즈/.test(n))put("크림치즈 베이스",80,"g");if(/딸기/.test(n))put("딸기 과육/베이스",100,"g");if(/블루베리/.test(n))put("블루베리 과육/베이스",100,"g");if(/망고/.test(n))put("애플망고 과육/베이스",100,"g");if(/자몽/.test(n))put("자몽 과육/베이스",100,"g");if(/멜론/.test(n))put("멜론 베이스",100,"g");if(/레몬/.test(n))put("레몬 베이스",60,"ml");if(/에이드|소다/.test(n))put("탄산수",oneL?650:300,"ml");if(/팝콘/.test(n)){put("팝콘 옥수수",120,"g");put("카라멜 팝콘 코팅",80,"g")}if(/팥/.test(n))put("팥 베이스",100,"g");if(/인절미/.test(n))put("인절미 토핑",30,"g");
- if(/얼그레이|루이보스|히비스커스|페퍼민트|캐모마일/.test(n))put(n.match(/얼그레이|루이보스|히비스커스|페퍼민트|캐모마일/)[0]+" 티",6,"g");
- if(/아메리카노|티|주스/.test(n))put("정수",oneL?750:320,"ml");if(!/빵|베이글|카스테라|슈|무슈|떡|팝콘/.test(n)&&a.length)put("제빙 얼음",oneL?300:160,"g");if(!a.length)put("완제품/전용 베이스",1,"ea");return a};
-const recipeComponents=r=>(r.components&&r.components.length?r.components:estimatedRecipe(r));
-const inventoryCatalog=[["백억 스페셜티 블렌드 원두","g",2000],["디카페인 원두","g",1000],["A+ 우유","ml",6000],["오트밀크","ml",2000],["코코넛밀크","ml",1500],["콜드브루 원액","ml",2000],["바닐라 시럽","ml",1000],["헤이즐넛 시럽","ml",800],["카라멜 시럽","ml",1000],["초코 소스","g",1000],["연유","g",1000],["꿀","g",800],["미숫가루 파우더","g",1000],["요거트 베이스","g",1200],["크림치즈 베이스","g",800],["바닐라 아이스크림","g",1500],["딸기 과육/베이스","g",1200],["블루베리 과육/베이스","g",1000],["애플망고 과육/베이스","g",1200],["자몽 과육/베이스","g",1000],["멜론 베이스","g",1000],["레몬 베이스","ml",1000],["탄산수","ml",6000],["팝콘 옥수수","g",2000],["카라멜 팝콘 코팅","g",1500],["팥 베이스","g",1000],["인절미 토핑","g",500],["제빙 얼음","g",10000],["정수","ml",20000],["베이커리 완제품","ea",20]].map((x,i)=>({id:-1000-i,name:x[0],unit:x[1],reorder_level:x[2],on_hand:x[2],inventory_value:0,low_stock:false,category:/우유|원두|시럽|소스|연유|꿀|파우더|베이스|과육|아이스크림|탄산|팝콘|팥|인절미/.test(x[0])?"식재료":"기타",estimated:true}));
-const demoInventoryRatios=[1.42,.31,.78,1.08,.54,1.73,.92,.18,1.24,.67,1.55,.43,1.01,.84,.26,1.34,.59,1.12,.72,1.88,.37,.96,1.27,.63,1.47,.49,1.16,.81,.22,1.61];
-const catalogForStore=()=>{const store=Math.max(1,Number(window.CURRENT_STORE_ID||sessionStorage.getItem("baekeok_store_id"))||1);return inventoryCatalog.map((x,i)=>{const ratio=demoInventoryRatios[(i+(store-1)*7)%demoInventoryRatios.length];const on=Math.max(0,Math.round(Number(x.reorder_level||0)*ratio));return {...x,on_hand:on,low_stock:on<Number(x.reorder_level||0)};})};
-const withCatalog=rows=>{const real=(rows||[]).filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.name||"")),names=new Set(real.map(x=>x.name));return [...real,...catalogForStore().filter(x=>!names.has(x.name))]};
+// Only server-confirmed inventory and stored recipe components are operational data.
+// Do not invent stock quantities or recipe ingredients as a fallback for a missing backend row.
+const recipeComponents=r=>Array.isArray(r.components)?r.components:[];
+const withCatalog=rows=>(rows||[]).filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.name||""));
 function shell(tab){
  S.tab=tab||S.tab;
  const[f,t]=range(),titles={dashboard:["리포트","매출·매입·재고·원가 흐름을 요약합니다."],inquiry:["매출·매입","거래 데이터를 조회하고 원천 데이터를 관리합니다."],inventory:["재고","카테고리별 현재고와 발주 필요량을 확인합니다."],recipe:["레시피","메뉴별 표준 레시피와 원가 구조를 관리합니다."]},meta=titles[S.tab]||["매장운영",""];
