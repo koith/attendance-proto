@@ -189,3 +189,50 @@ BEGIN
  THEN RAISE EXCEPTION 'Unexpected extra/overwritten salary snapshots'; END IF;
 END $$;
 \echo PASS: itemized night/break/substitution amounts persist; historical absence remains NULL; malformed payloads rejected
+
+-- The actual manager-scoped snapshot projection now powers the closed UI.
+-- Use the same isolated PostgreSQL fixture; never read or write live salaries.
+CREATE OR REPLACE FUNCTION public.can_manage_store(p_store_id bigint)
+RETURNS boolean LANGUAGE sql STABLE AS $$
+  SELECT p_store_id=1 AND current_setting('request.jwt.claim.role',true)='service_role'
+$$;
+\i supabase/migrations/20261012152500_closed_payroll_immutable_ui_snapshot.sql
+DO $$
+DECLARE closed jsonb;
+BEGIN
+ closed:=public.admin_store_snapshot(1,'2026-07')::jsonb;
+ IF closed->>'status'<>'CLOSED' OR jsonb_array_length(closed->'rows')<>1 THEN
+   RAISE EXCEPTION 'Immutable closed month is unavailable to authorized UI'; END IF;
+ IF (closed->'rows'->0->>'gross_pay')::integer<>117000 OR
+    (closed->'rows'->0->>'night_allowance_won')::integer<>10000 OR
+    (closed->'rows'->0->>'break_compensation_won')::integer<>5000 OR
+    (closed->'rows'->0->>'substitution_pay_won')::integer<>2000 OR
+    closed->'rows'->0->>'night_allowance_label'<>'정률 50%' OR
+    closed->'rows'->0->>'break_mode'<>'NOT_PROVIDED' THEN
+   RAISE EXCEPTION 'Stored component evidence not available to manager UI'; END IF;
+ closed:=public.admin_store_snapshot(1,'2026-09')::jsonb;
+ IF closed->'rows'->0->>'night_allowance_won' IS NOT NULL OR
+    closed->'rows'->0->>'break_compensation_won' IS NOT NULL THEN
+   RAISE EXCEPTION 'Legacy missing allowance must remain unknown, not fabricated zero'; END IF;
+END $$;
+SELECT set_config('request.jwt.claim.role','anon',false);
+DO $$
+BEGIN
+ BEGIN
+  PERFORM public.admin_store_snapshot(1,'2026-07');
+  RAISE EXCEPTION 'UNAUTHORIZED_SNAPSHOT_EXPOSED';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM<>'NOT_AUTHORIZED' THEN RAISE; END IF;
+ END;
+END $$;
+SELECT set_config('request.jwt.claim.role','service_role',false);
+DO $$
+BEGIN
+ BEGIN
+  PERFORM public.admin_store_snapshot(2,'2026-07');
+  RAISE EXCEPTION 'CROSS_STORE_SNAPSHOT_EXPOSED';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM<>'NOT_AUTHORIZED' THEN RAISE; END IF;
+ END;
+END $$;
+\echo PASS: real closed payroll snapshot RPC returns immutable gross and allowances; legacy unknowns and store scope honored
