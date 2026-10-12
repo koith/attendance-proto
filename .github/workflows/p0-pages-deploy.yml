@@ -168,7 +168,8 @@ jobs:
               throw new Error('Cannot safely assess Edge deployment: commit diff truncated');
             }
             const needsEdge = changed.some(file =>
-              file.filename.startsWith('supabase/functions/server-sync-sheet/'));
+              file.filename.startsWith('supabase/functions/server-sync-sheet/') ||
+              file.filename.startsWith('edge-release/supabase/functions/server-sync-sheet/'));
             if (!needsEdge) {
               core.info('No server-sync-sheet source change; Edge deployment not required.');
               return;
