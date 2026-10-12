@@ -91,7 +91,16 @@ async function exportActualOperations(){
  }finally{button.disabled=false;button.textContent=previousText;}
 }
 async function openOpsModal(kind){
- let rows=[];try{rows=await BE.operationsImports()}catch(_){}
+ let rows=[];
+ if(kind==="collect"){
+  try{
+   rows=await BE.operationsImports();
+   if(!Array.isArray(rows))throw Error("IMPORT_HISTORY_INVALID_RESPONSE");
+  }catch(error){
+   alert("수집 작업 이력을 불러오지 못했습니다: "+String(error?.message||error));
+   return;
+  }
+ }
  const sources=[["KIS_POS","KIS POS","매출·결제"],["BAEMIN","배민","주문·정산"],["COUPANGEATS","쿠팡이츠","주문·정산"],["DDANGYO","땡겨요","주문·정산"],["ONLYONE","온리원푸드넷","매입·입고"]];
  const collect='<div class="ops-source-grid">'+sources.map(x=>'<button type="button" class="ops-source ops-source-action" data-source="'+x[0]+'"><b>'+x[1]+'</b><small>'+x[2]+'</small><span class="ops-status">수집 요청 준비</span></button>').join("")+'</div><div class="ops-card"><div class="ops-card-head"><b>수집 작업 이력</b><span class="ops-meta">'+rows.length+'건</span></div>'+(rows.length?rows.map(r=>'<div class="ops-row"><div class="ops-row-main"><b>'+esc(r.source)+'</b><small>'+esc(r.file_name||"직접 수집")+'</small></div><span class="ops-status '+(r.status==="COMPLETED"?"ok":"")+'">'+esc(r.status)+'</span></div>').join(""):empty("등록된 수집 작업이 없습니다."))+'</div>';
  const upload='<div class="ops-upload-box ops-import-form"><label>데이터 원천<select id="opsImportSource">'+sources.map(x=>'<option value="'+x[0]+'">'+x[1]+' · '+x[2]+'</option>').join("")+'</select></label><label>대상 파일<input id="opsImportFile" type="file" accept=".csv,.txt"></label><div id="opsImportPreview" class="ops-import-preview">CSV 파일을 선택하면 헤더와 행 수를 검사합니다.</div><div class="ops-upload-actions"><button class="btn btn-secondary" id="opsTemplate">표준서식 받기</button><button class="btn btn-primary" id="opsImportSubmit" disabled>검증 후 업로드</button></div></div>';
