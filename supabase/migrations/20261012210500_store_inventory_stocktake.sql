@@ -30,6 +30,26 @@ ALTER TABLE public.store_inventory_stocktake_lines ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.store_inventory_stocktakes FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON TABLE public.store_inventory_stocktake_lines FROM PUBLIC,anon,authenticated;
 
+CREATE OR REPLACE FUNCTION public.admin_store_stocktake_catalog(p_store_id bigint)
+RETURNS TABLE(id bigint,name text,unit text,expected_quantity numeric)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','pg_temp'
+AS $function$
+BEGIN
+ IF NOT public.can_manage_store(p_store_id) THEN RAISE EXCEPTION 'NOT_AUTHORIZED'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.stores s WHERE s.id=p_store_id AND s.is_active AND s.onboarding_status='READY')
+ THEN RAISE EXCEPTION 'STORE_NOT_READY'; END IF;
+ RETURN QUERY
+ SELECT i.id,i.name,i.unit,COALESCE(sum(m.quantity),0)::numeric
+ FROM public.inventory_items i
+ LEFT JOIN public.inventory_movements m ON m.item_id=i.id
+    AND (m.store_id=p_store_id OR (p_store_id=1 AND m.store_id IS NULL)) AND NOT m.is_demo
+ WHERE i.is_active AND NOT i.is_demo
+   AND NOT EXISTS(SELECT 1 FROM public.inventory_movements dm
+      WHERE dm.item_id=i.id AND (dm.store_id=p_store_id OR (p_store_id=1 AND dm.store_id IS NULL))
+        AND dm.is_demo)
+ GROUP BY i.id,i.name,i.unit ORDER BY i.name;
+END $function$;
+
 CREATE OR REPLACE FUNCTION public.admin_store_stocktake_list(p_store_id bigint)
 RETURNS TABLE(id bigint,counted_on date,status text,note text,created_at timestamptz,posted_at timestamptz,line_count bigint)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','pg_temp'
@@ -169,6 +189,8 @@ BEGIN
 END $function$;
 
 -- Database clients may only use authorized RPCs; direct mutation is never granted.
+REVOKE ALL ON FUNCTION public.admin_store_stocktake_catalog(bigint) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.admin_store_stocktake_catalog(bigint) TO authenticated;
 REVOKE ALL ON FUNCTION public.admin_store_stocktake_list(bigint) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.admin_store_stocktake_detail(bigint,bigint) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.admin_store_stocktake_draft(bigint,jsonb,text) FROM PUBLIC,anon;
