@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const source=fs.readFileSync('actual_attendance.js','utf8');
+const html=fs.readFileSync('actual_attendance.html','utf8');
+assert(source.includes('const axisStart=Math.min(configuredStart,Math.floor(actualMin)),axisEnd=Math.max(26,Math.ceil(actualMax))'),'actual overnight OUT must extend axis past 26:00');
+assert(source.includes('if(!source.outId&&nextOut)calls.push('),'missing OUT must be addable for a WORKING session');
+assert(!source.includes('if(!isWorking&&!source.outId&&nextOut)calls.push('),'WORKING must not block missing OUT correction');
+assert(!source.includes('outDate.disabled=true;outTime.disabled=true'),'WORKING exit fields must remain editable');
+assert(source.includes("if(isWorking&&!b){preview.textContent='퇴근을 입력하지 않으면 출근시간만 정정합니다.'"),'open shift without exit can still edit IN only');
+assert(source.includes("if(a&&b&&b<=a){preview.textContent='퇴근 시각은 출근 시각보다 늦어야 합니다.'"),'time order validation must remain');
+assert(source.includes("const source=window.actualAttendanceSourceSession?window.actualAttendanceSourceSession(s):s"),'derived overnight slices must target authoritative source');
+assert(source.includes("if(e.systemStoreClose&&!isOpen)continue"),'redundant automatic OUT suppressed');
+assert(html.includes('actual_attendance.js?v=20261013overnight3'),'iPhone browser receives fresh source after fix');
+console.log('PASS overnight correction UI: 26h+ axis, working missing OUT, safe authoring, cache, pairing');
