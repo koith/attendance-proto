@@ -1,0 +1,60 @@
+name: store-delegated-manager-postgres
+on:
+  pull_request:
+    paths:
+      - 'qa_store_delegated_manager_postgres.sql'
+      - 'qa_store_delegated_manager_v1.mjs'
+      - 'supabase/migrations/20261013212000_store_primary_owner_delegation.sql'
+      - 'store_manager_tab.js'
+      - 'hq_store_onboarding_ui.js'
+      - 'supabase/functions/server-sync-sheet/index.ts'
+      - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
+      - 'index.html'
+      - '.github/workflows/store-delegated-manager-postgres.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'qa_store_delegated_manager_postgres.sql'
+      - 'qa_store_delegated_manager_v1.mjs'
+      - 'supabase/migrations/20261013212000_store_primary_owner_delegation.sql'
+      - 'store_manager_tab.js'
+      - 'hq_store_onboarding_ui.js'
+      - 'supabase/functions/server-sync-sheet/index.ts'
+      - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
+      - 'index.html'
+      - '.github/workflows/store-delegated-manager-postgres.yml'
+jobs:
+  delegated-manager-qa:
+    name: Verify all-store tab, actual RPC ACL and cross-store isolation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_fixture_only
+          POSTGRES_DB: delegated_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d delegated_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_fixture_only
+      PGDATABASE: delegated_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if necessary
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Script syntax and UI, Edge mirrored source, rollout checks
+        run: |
+          node --check store_manager_tab.js
+          node --check hq_store_onboarding_ui.js
+          node qa_store_delegated_manager_v1.mjs
+      - name: Actual SQL function installation and adversarial synthetic tests
+        run: psql -v ON_ERROR_STOP=1 -f qa_store_delegated_manager_postgres.sql
