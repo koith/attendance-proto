@@ -78,7 +78,7 @@ window.mountStoreManagerTab=function(){
         '대표 점주와 본사는 추가 관리자를 등록·해임할 수 있습니다. 대표 점주 지정과 교체는 본사에서 관리합니다.</p>'+
         '<div style="display:grid;gap:8px;margin:12px 0">'+
         (names||'<div class="store-manager-empty"><strong>등록된 관리자 계정이 없습니다.</strong><p>본사에서 점주를 초대하고 대표 점주로 지정하면 추가 관리자 관리가 활성화됩니다.</p></div>')+'</div>'+
-        (canManage?'<form id="storeManagerExistingForm" style="display:grid;gap:7px;margin-top:15px">'+
+        (isPrimary?'<form id="storeManagerExistingForm" style="display:grid;gap:7px;margin-top:15px">'+
           '<label for="storeManagerExistingEmail">기존 가입·인증 계정에 관리자 권한 부여</label>'+
           '<input id="storeManagerExistingEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com">'+
           '<button type="submit" class="btn btn-secondary">기존 계정 연결</button></form>'+
