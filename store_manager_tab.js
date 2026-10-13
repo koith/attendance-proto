@@ -27,30 +27,19 @@ const invite=async(email,storeId)=>{
 window.mountStoreManagerTab=function(){
   const tabs=document.querySelector(".employee-tabs");
   const panel=document.querySelector(".employee-panel");
-  if(!tabs||!panel||tabs.querySelector("#empTabManagers"))return;
+  if(!tabs||!panel||document.getElementById("storeManagerPanel"))return;
   const storeId=Number(CURRENT_STORE_ID||1);
   if(!Number.isSafeInteger(storeId)||storeId<1)return;
-  const list=document.getElementById("adEmps");
-  const addEmployee=document.getElementById("adAdd");
-  const listDisplay=list?.style.display||"";
-  const tab=document.createElement("button");
-  tab.type="button";tab.id="empTabManagers";tab.setAttribute("role","tab");
-  tab.setAttribute("aria-selected","false");tab.textContent="관리자 관리";
-  const mount=document.createElement("div");
-  mount.id="storeManagerPanel";mount.hidden=true;
-  mount.style.cssText="padding:14px 0;display:none";
-  panel.appendChild(mount);
-  tabs.appendChild(tab);
-  // The employee tabs use a fixed two-column grid. Expand to three equal columns.
-  tabs.style.gridTemplateColumns="repeat(3,minmax(0,1fr))";
-  const employees=[...tabs.querySelectorAll("button:not(#empTabManagers)")];
-  const showEmployees=()=>{
-    mount.hidden=true;mount.style.display="none";
-    if(list){list.hidden=false;list.style.display=listDisplay;}
-    if(addEmployee)addEmployee.hidden=false;
-    tab.classList.remove("on");tab.setAttribute("aria-selected","false");
-  };
-  employees.forEach(button=>button.addEventListener("click",showEmployees));
+  const mount=document.createElement("section");
+  mount.id="storeManagerPanel";mount.className="store-manager-section";
+  mount.setAttribute("aria-label","지점 관리자 관리");
+  mount.innerHTML='<div class="store-manager-section-head"><div><h3>관리자 관리</h3>'+
+    '<p>대표 점주 및 추가 관리자 계정</p></div>'+
+    '<button type="button" class="btn btn-secondary" id="storeManagerReload">새로고침</button></div>'+
+    '<div id="storeManagerContent" class="store-manager-section-body" aria-live="polite">관리자 정보를 불러오는 중…</div>';
+  panel.insertAdjacentElement("afterend",mount);
+  const content=content.querySelector("#storeManagerContent");
+  content.querySelector("#storeManagerReload").addEventListener("click",()=>refresh());
   const notify=(message,error=false)=>{
     if(typeof toast==="function")toast(error?"err":"in",error?"관리자 관리 오류":"관리자 관리",message);
     else if(error)alert(message);
@@ -65,29 +54,31 @@ window.mountStoreManagerTab=function(){
     finally{busy=false;}
   };
   async function refresh(){
-    mount.textContent="관리자 계정을 불러오는 중…";
+    content.textContent="관리자 계정을 불러오는 중…";
     try{
-      const [rows,user]=await Promise.all([
+      const [rows,user,isHq]=await Promise.all([
         request("store_delegated_manager_list",{p_store_id:storeId}),
-        Auth.getUser()
+        Auth.getUser(),
+        request("is_hq_admin",{}).catch(()=>false)
       ]);
       if(!Array.isArray(rows))throw Error("관리자 목록 응답 오류");
       const self=rows.find(entry=>entry.user_id===user?.id);
       const isPrimary=self?.manager_role==="OWNER";
+      const canManage=isPrimary||isHq===true;
       const names=rows.map(entry=>{
         const primary=entry.manager_role==="OWNER";
-        const removable=isPrimary&&!primary&&entry.user_id!==user?.id;
+        const removable=canManage&&!primary&&entry.user_id!==user?.id;
         return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px;border:1px solid var(--border);border-radius:10px">'+
           '<div style="min-width:0;overflow-wrap:anywhere"><strong>'+esc(entry.email)+'</strong>'+
           '<div style="font-size:.8rem;color:var(--text-muted)">'+(primary?"대표 점주":"추가 관리자")+'</div></div>'+
           (removable?'<button class="btn btn-secondary btn-sm" type="button" data-manager-revoke="'+esc(entry.user_id)+'">권한 해제</button>':"")+
           '</div>';
       }).join("");
-      mount.innerHTML='<p style="font-size:.82rem;color:var(--text-muted);line-height:1.5">'+
-        '대표 점주만 추가 관리자를 초대·등록·해임할 수 있습니다. 대표 점주 지정과 교체는 본사에서 관리합니다.</p>'+
+      content.innerHTML='<p style="font-size:.82rem;color:var(--text-muted);line-height:1.5">'+
+        '대표 점주와 본사는 추가 관리자를 등록·해임할 수 있습니다. 대표 점주 지정과 교체는 본사에서 관리합니다.</p>'+
         '<div style="display:grid;gap:8px;margin:12px 0">'+
-        (names||'<div class="empty">등록된 관리자 계정이 없습니다.</div>')+'</div>'+
-        (isPrimary?'<form id="storeManagerExistingForm" style="display:grid;gap:7px;margin-top:15px">'+
+        (names||'<div class="store-manager-empty"><strong>등록된 관리자 계정이 없습니다.</strong><p>본사에서 점주를 초대하고 대표 점주로 지정하면 추가 관리자 관리가 활성화됩니다.</p></div>')+'</div>'+
+        (canManage?'<form id="storeManagerExistingForm" style="display:grid;gap:7px;margin-top:15px">'+
           '<label for="storeManagerExistingEmail">기존 가입·인증 계정에 관리자 권한 부여</label>'+
           '<input id="storeManagerExistingEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com">'+
           '<button type="submit" class="btn btn-secondary">기존 계정 연결</button></form>'+
@@ -96,10 +87,29 @@ window.mountStoreManagerTab=function(){
           '<input id="storeManagerInviteEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com">'+
           '<button type="submit" class="btn btn-primary">초대 이메일 발송</button>'+
           '<p style="font-size:.77rem;color:var(--text-muted)">초대받은 관리자는 이메일 인증을 완료한 뒤 로그인할 수 있습니다.</p></form>':
-          '<p style="font-size:.8rem;color:var(--text-muted)">추가 관리자 임명·해임 권한은 대표 점주에게만 있습니다.</p>');
-      mount.querySelector("#storeManagerExistingForm")?.addEventListener("submit",event=>{
+          '<p style="font-size:.8rem;color:var(--text-muted)">추가 관리자 등록·해임은 대표 점주에게만 허용됩니다.</p>')+
+        (isHq===true?'<form id="storeManagerHqInviteForm" style="display:grid;gap:7px;margin-top:15px">'+
+          '<label for="storeManagerHqEmail">본사: 신규 점주 초대</label>'+
+          '<input id="storeManagerHqEmail" type="email" class="form-control" required placeholder="owner@example.com">'+
+          '<button class="btn btn-primary" type="submit">점주 초대 발송</button>'+
+          '<p style="font-size:.78rem;color:var(--text-muted)">초대 후 전국 지점 관리에서 대표 점주로 지정하세요.</p></form>':'');
+      content.querySelector("#storeManagerHqInviteForm")?.addEventListener("submit",event=>{
         event.preventDefault();
-        const email=mount.querySelector("#storeManagerExistingEmail").value.trim().toLowerCase();
+        const email=content.querySelector("#storeManagerHqEmail").value.trim().toLowerCase();
+        if(!confirm(email+" 주소로 점주 초대장을 보내시겠습니까?"))return;
+        run(async()=>{
+          const response=await fetch(CONFIG.SUPABASE_URL+"/functions/v1/server-sync-sheet",{
+            method:"POST",headers:{Authorization:"Bearer "+Auth.token,"Content-Type":"application/json"},
+            body:JSON.stringify({mode:"invite_store_manager",email,store_id:storeId})
+          });
+          const data=await response.json().catch(()=>null);
+          if(!response.ok||data?.ok!==true)throw Error(data?.error||"점주 초대 실패");
+          notify("점주 초대 메일을 발송했습니다. 본사에서 대표 점주를 지정하세요.");
+        });
+      });
+      content.querySelector("#storeManagerExistingForm")?.addEventListener("submit",event=>{
+        event.preventDefault();
+        const email=content.querySelector("#storeManagerExistingEmail").value.trim().toLowerCase();
         if(!confirm(email+" 계정에 이 지점의 관리자 권한을 부여하시겠습니까?"))return;
         run(async()=>{
           const result=await request("store_delegated_manager_change",{
@@ -109,13 +119,13 @@ window.mountStoreManagerTab=function(){
           notify("관리자 권한이 부여됐습니다.");
         });
       });
-      mount.querySelector("#storeManagerInviteForm")?.addEventListener("submit",event=>{
+      content.querySelector("#storeManagerInviteForm")?.addEventListener("submit",event=>{
         event.preventDefault();
-        const email=mount.querySelector("#storeManagerInviteEmail").value.trim().toLowerCase();
+        const email=content.querySelector("#storeManagerInviteEmail").value.trim().toLowerCase();
         if(!confirm(email+" 주소로 이 지점 관리자 초대 메일을 보내시겠습니까?"))return;
         run(async()=>{await invite(email,storeId);notify("관리자 초대 메일을 발송했습니다.");});
       });
-      mount.querySelectorAll("[data-manager-revoke]").forEach(button=>button.addEventListener("click",()=>{
+      content.querySelectorAll("[data-manager-revoke]").forEach(button=>button.addEventListener("click",()=>{
         if(!confirm("이 관리자의 해당 지점 접근 권한을 해제하시겠습니까?"))return;
         run(async()=>{
           const result=await request("store_delegated_manager_change",{
@@ -126,16 +136,9 @@ window.mountStoreManagerTab=function(){
         });
       }));
     }catch(e){
-      mount.textContent="관리자 계정 조회 실패: "+String(e?.message||e);
+      content.textContent="관리자 계정 조회 실패: "+String(e?.message||e);
     }
   }
-  tab.onclick=()=>{
-    employees.forEach(b=>{b.classList.remove("on");b.setAttribute("aria-selected","false");});
-    tab.classList.add("on");tab.setAttribute("aria-selected","true");
-    if(list){list.hidden=true;list.style.display="none";}
-    if(addEmployee)addEmployee.hidden=true;
-    mount.hidden=false;mount.style.display="block";
-    refresh();
-  };
+  refresh();
 };
 })();
