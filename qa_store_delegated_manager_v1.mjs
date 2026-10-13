@@ -23,7 +23,7 @@ assert.match(ui,/store_delegated_manager_list/);
 assert.match(ui,/store_delegated_manager_change/);
 assert.match(ui,/store_delegated_permissions_set/);
 assert.match(ui,/store_delegated_permissions_list/);
-assert.match(app,/store_limited_manager\\.js\\?v=20261014v254/);
+assert.match(app,/store_limited_manager\.js\?v=20261014v254/);
 assert.match(ui,/invite_store_delegated_manager/);
 assert.match(ui,/CURRENT_STORE_ID/);
 assert.match(ui,/storeId=Number\(CURRENT_STORE_ID\|\|1\)/);
