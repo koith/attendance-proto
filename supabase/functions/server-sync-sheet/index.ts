@@ -402,8 +402,16 @@ Deno.serve(async req=>{
         .select("staff_edit,attendance_approve,payroll_view")
         .eq("store_id",storeId).eq("user_id",actor.userId).maybeSingle();
       if(grantsError)throw new HttpError(503,"DELEGATED_ACCESS_CHECK_FAILED");
-      if(grants && !(grants.staff_edit===true && grants.attendance_approve===true && grants.payroll_view===true))
-        throw new HttpError(403,"DELEGATED_RESTRICTED_EDGE_ACCESS");
+      if(grants){
+        // Even a delegate with all three scoped flags is NOT a full manager.
+        // A primary owner may have a default-deny profile from initial invitation,
+        // but HQ appointment supersedes it after server-side verification.
+        const {data:primary,error:primaryError}=await client.rpc("store_primary_owner_can_delegate",{
+          p_store_id:storeId,p_actor_id:actor.userId
+        });
+        if(primaryError)throw new HttpError(503,"DELEGATED_OWNER_CHECK_FAILED");
+        if(primary!==true)throw new HttpError(403,"DELEGATED_RESTRICTED_EDGE_ACCESS");
+      }
     }
     if(["payroll_close_preview","payroll_close","payroll_reopen"].includes(mode)){
       if(actor.internal||!actor.userId)
