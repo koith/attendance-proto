@@ -39,7 +39,7 @@ window.mountStoreManagerTab=function(){
     '<div id="storeManagerContent" class="store-manager-section-body" aria-live="polite">관리자 정보를 불러오는 중…</div>';
   panel.insertAdjacentElement("afterend",mount);
   const content=content.querySelector("#storeManagerContent");
-  content.querySelector("#storeManagerReload").addEventListener("click",()=>refresh());
+  mount.querySelector("#storeManagerReload").addEventListener("click",()=>refresh());
   const notify=(message,error=false)=>{
     if(typeof toast==="function")toast(error?"err":"in",error?"관리자 관리 오류":"관리자 관리",message);
     else if(error)alert(message);
