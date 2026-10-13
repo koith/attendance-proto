@@ -1688,19 +1688,32 @@ function fmtElapsed(sinceIso){
   const m=Math.max(0,Math.floor(sec/60)); const h=Math.floor(m/60), mm=m%60;
   if(h&&mm) return `${h}시간 ${mm}분`; if(h) return `${h}시간`; return `${mm}분`;
 }
+function withPosTimeout(promise,ms){
+  let timer;
+  return Promise.race([promise,new Promise((_,reject)=>{
+    timer=setTimeout(()=>reject(new Error("직원 목록 서버 응답 지연")),ms);
+  })]).finally(()=>clearTimeout(timer));
+}
 async function renderPos(){
-  view.innerHTML=`<div class="pos-screen"><div class="page-title-row pos-page-title"><h2 class="page-title">출퇴근</h2><span class="page-title-meta" id="empCount">총 0명</span></div><div class="grid employee-scroll-surface" id="empGrid"></div></div>`;
+  view.innerHTML=`<div class="pos-screen"><div class="page-title-row pos-page-title"><h2 class="page-title">출퇴근</h2><span class="page-title-meta" id="empCount">확인 중</span></div><div class="grid employee-scroll-surface" id="empGrid"><div class="empty" role="status">직원 목록 불러오는 중…</div></div></div>`;
   const grid=document.getElementById("empGrid");
-  let adminMode=false;
-  if(LIVE&&Auth.isLoggedIn()){try{adminMode=!!(await BE.isAdmin())}catch(_){adminMode=false}}
+  // POS employee lookup must not wait for an unused authenticated manager RPC.
   let emps=[];
-  try{ emps=await BE.listEmployeesState(); }catch(e){ if(grid.isConnected)grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
+  try{emps=await withPosTimeout(BE.listEmployeesState(),8000);}
+  catch(e){
+    if(grid.isConnected){
+      grid.innerHTML=`<div class="empty" role="alert"><b>직원 목록을 불러오지 못했습니다.</b><p>${safeHtml(e.message)}</p><button type="button" class="btn btn-primary" id="retryPosRoster">다시 불러오기</button></div>`;
+      document.getElementById("retryPosRoster")?.addEventListener("click",()=>{if(!location.hash||location.hash==="#pos")renderPos();});
+    }
+    return;
+  }
   // Route may have changed while listEmployeesState was in flight: never mutate
   // an obsolete POS view or dereference its already-removed counter element.
   if(!grid.isConnected || (location.hash && location.hash!=="#pos"))return;
   const count=document.getElementById("empCount");
   if(!count)return;
   count.textContent=`총 ${emps.length}명`;
+  grid.innerHTML="";
   if(!emps.length){ grid.innerHTML=`<div class="empty">등록된 직원이 없습니다.<br>관리자 탭에서 먼저 직원을 등록하세요.</div>`; return; }
   for(const e of emps){
     const card=document.createElement("div");
