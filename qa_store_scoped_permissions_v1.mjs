@@ -31,8 +31,8 @@ assert.match(portal,/store_limited_payroll_read/);
 assert.match(portal,/scope\.staff_edit/);
 assert.match(portal,/scope\.attendance_approve/);
 assert.match(portal,/scope\.payroll_view/);
-assert.match(app,/const APP_VERSION="v0\.255"/);
-assert.match(app,/id="appVersion">v0\.255<\/span>/);
+assert.match(app,/const APP_VERSION="v0\.256"/);
+assert.match(app,/id="appVersion">v0\.256<\/span>/);
 assert.match(app,/store_limited_manager\.js\?v=20261014v254/);
 assert.ok(app.includes("delegatedPermissionsSelf()"));
 const legacyGuard=read("supabase/migrations/20261014110000_restricted_admin_legacy_gate.sql");
@@ -43,7 +43,7 @@ assert.ok(app.includes("loginContext=await BE.adminContext()"));
 assert.ok(!app.includes("ok = await BE.isAdmin()"));
 assert.match(app,/scope\?\.limited===true/);
 assert.match(app,/mountScopedManagerPortal\(scope,ownStore\)/);
-console.log("PASS: scoped permissions are enforced by server RPC guards, limited portal never calls unrestricted RPCs, app version v0.254");
+console.log("PASS: scoped permissions are enforced by server RPC guards, limited portal never calls unrestricted RPCs, app version v0.256");
 
 const edge=read("supabase/functions/server-sync-sheet/index.ts");
 const edgeMirror=read("edge-release/supabase/functions/server-sync-sheet/index.ts");
@@ -58,10 +58,17 @@ assert.match(guard,/\.eq\("store_id",storeId\)\.eq\("user_id",actor\.userId\)/);
 const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
 const checkGuard=new AsyncFunction("actor","client","HttpError","storeId",guard);
 class HttpError extends Error{constructor(status,message){super(message);this.status=status;}}
-const makeClient=(grants,error=null)=>({from:table=>{
- assert.equal(table,"store_delegated_permissions");
- return {select:()=>({eq:()=>({eq:()=>({maybeSingle:async()=>({data:grants,error})})})})};
-}});
+const makeClient=(grants,error=null,owner=false,ownerError=null)=>({
+ from:table=>{
+   assert.equal(table,"store_delegated_permissions");
+   return {select:()=>({eq:()=>({eq:()=>({maybeSingle:async()=>({data:grants,error})})})})};
+ },
+ rpc:async(fn,args)=>{
+   assert.equal(fn,"store_primary_owner_can_delegate");
+   assert.equal(args.p_store_id,2);
+   return {data:owner,error:ownerError};
+ }
+});
 const actor={internal:false,adminRole:"STORE_MANAGER",userId:"synthetic-primary-or-delegate",storeId:2};
 for(const grants of [
  {staff_edit:false,attendance_approve:true,payroll_view:true},
@@ -73,11 +80,17 @@ for(const grants of [
 }
 await assert.rejects(()=>checkGuard(actor,makeClient(null,{message:"synthetic"}),HttpError,2),e=>e.status===503);
 await checkGuard(actor,makeClient(null),HttpError,2); // pre-existing full permission
-await checkGuard(actor,makeClient({staff_edit:true,attendance_approve:true,payroll_view:true}),HttpError,2);
+await assert.rejects(()=>checkGuard(actor,makeClient({staff_edit:true,attendance_approve:true,payroll_view:true}),HttpError,2),e=>e.status===403);
+await checkGuard(actor,makeClient({staff_edit:false,attendance_approve:false,payroll_view:false},null,true),HttpError,2);
+await assert.rejects(()=>checkGuard(actor,makeClient({staff_edit:true,attendance_approve:true,payroll_view:true},null,false,{message:"synthetic"}),HttpError,2),e=>e.status===503);
 await checkGuard({...actor,adminRole:"HQ"},makeClient(null),HttpError,2);
 await checkGuard({...actor,internal:true},makeClient(null),HttpError,2);
 console.log("PASS: real Edge branch denies every limited grant, fails closed on DB error, preserves HQ/full managers");
 
+const scopedNoEscalation=read("supabase/migrations/20261014113000_delegated_scopes_not_full_admin.sql");
+assert.ok(scopedNoEscalation.includes("'limited', NOT v_owner AND d.user_id IS NOT NULL"));
+assert.ok(!scopedNoEscalation.includes("AND NOT(d.staff_edit AND d.attendance_approve AND d.payroll_view)"));
+assert.ok(ui.includes("세 항목을 모두 체크해도 전체 관리자 권한"));
 const defaultDeny=read("supabase/migrations/20261014100000_delegated_default_deny.sql");
 assert.match(defaultDeny,/AFTER INSERT ON public\.admin_users/);
 assert.match(defaultDeny,/NEW\.admin_role='STORE_MANAGER'/);
