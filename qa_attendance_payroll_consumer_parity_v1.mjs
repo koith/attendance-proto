@@ -4,11 +4,15 @@ import vm from 'node:vm';
 
 function runtime(path){
   const src=fs.readFileSync(path,'utf8');
-  const start=src.indexOf('function fromIso(');
-  const end=src.indexOf('function calcPayroll(',start);
-  assert(start>=0 && end>start, 'shared payroll code must be present in '+path);
+  const functions=['fromIso','applyCorrections','pairEvents','idOrder'].map(name=>{
+    const start=src.indexOf('function '+name+'(');
+    assert(start>=0,'missing '+name+' in '+path);
+    const end=src.indexOf('\\n}',start);
+    assert(end>start,'unterminated '+name+' in '+path);
+    return src.slice(start,end+2);
+  });
   const context=vm.createContext({Date,Number,String,Math,Map,Set,isNaN,console});
-  vm.runInContext(src.slice(start,end)+'\nthis.apply=applyCorrections;this.pair=pairEvents;',context);
+  vm.runInContext(functions.join('\\n')+'\\nthis.apply=applyCorrections;this.pair=pairEvents;',context);
   return {apply:context.apply,pair:context.pair};
 }
 const html=runtime('index.html');
