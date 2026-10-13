@@ -71,7 +71,7 @@ window.mountStoreManagerTab=function(){
         const removable=canManage&&!primary&&entry.user_id!==user?.id;
         const rights=managerPermissions.find(p=>p.user_id===entry.user_id)||{staff_edit:true,attendance_approve:true,payroll_view:true};
         const rightControls=removable?'<div data-manager-rights="'+esc(entry.user_id)+'" style="margin-top:9px;padding:10px;border:1px solid var(--border);border-radius:10px">'+
-          '<p style="font-size:.77rem;color:var(--text-muted);margin:0 0 8px">허용 업무를 선택하세요. 전체 허용이면 기존 지점 관리 기능을 사용할 수 있습니다. 일부 제한 시 별도 업무 화면만 열립니다.</p>'+
+          '<p style="font-size:.77rem;color:var(--text-muted);margin:0 0 8px">허용 업무를 선택하세요. 체크한 세 가지 업무만 허용됩니다. 세 항목을 모두 체크해도 전체 관리자 권한이나 본사 권한은 부여되지 않습니다.</p>'+
           '<label style="display:block;margin:5px 0"><input data-allow="staff" type="checkbox" '+(rights.staff_edit?'checked':'')+'> 직원 기본정보 수정</label>'+
           '<label style="display:block;margin:5px 0"><input data-allow="attendance" type="checkbox" '+(rights.attendance_approve?'checked':'')+'> 근태 정정 승인</label>'+
           '<label style="display:block;margin:5px 0"><input data-allow="payroll" type="checkbox" '+(rights.payroll_view?'checked':'')+'> 확정 급여 열람</label>'+
