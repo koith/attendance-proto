@@ -65,8 +65,10 @@ function renderDay(day){
   // This prevents overnight/long sessions from being clipped at 25:00.
   const actualHours=daySessions.flatMap(s=>[s.in,s.out||(s.status==='WORKING'&&day===dayKey(kstToday())?kstToday():null)]).filter(Boolean).map(d=>toAxisHour(d,day)).filter(Number.isFinite);
   const configuredStart=(Number(S.storeHours?.open_minute??420)-60)/60,configuredEnd=26;
-  const actualMin=actualHours.length?Math.min(...actualHours):configuredStart,actualMax=actualHours.length?Math.min(26,Math.max(...actualHours)):configuredEnd;
-  const axisStart=Math.min(configuredStart,Math.floor(actualMin)),axisEnd=26,axisSpan=Math.max(1,axisEnd-axisStart),tickStep=axisSpan<=12?2:4;const ticks=[];for(let h=Math.ceil(axisStart/tickStep)*tickStep;h<axisEnd;h+=tickStep)ticks.push(h);if(!ticks.length||Math.abs(ticks[0]-axisStart)>.01)ticks.unshift(axisStart);if(Math.abs(ticks[ticks.length-1]-axisEnd)>.01)ticks.push(axisEnd);const labels=ticks.map(h=>`<span style="left:${Math.max(0,Math.min(100,(h-axisStart)/axisSpan*100))}%">${p2(Math.floor(h))}:${p2(Math.round((h%1)*60))}</span>`).join('');
+  const actualMin=actualHours.length?Math.min(...actualHours):configuredStart,actualMax=actualHours.length?Math.max(...actualHours):configuredEnd;
+  // Never clip an overnight shift at 26:00. The time axis expands to include
+  // the real clock-out (e.g. 26:10), without altering the authoritative events.
+  const axisStart=Math.min(configuredStart,Math.floor(actualMin)),axisEnd=Math.max(26,Math.ceil(actualMax)),axisSpan=Math.max(1,axisEnd-axisStart),tickStep=axisSpan<=12?2:4;const ticks=[];for(let h=Math.ceil(axisStart/tickStep)*tickStep;h<axisEnd;h+=tickStep)ticks.push(h);if(!ticks.length||Math.abs(ticks[0]-axisStart)>.01)ticks.unshift(axisStart);if(Math.abs(ticks[ticks.length-1]-axisEnd)>.01)ticks.push(axisEnd);const labels=ticks.map(h=>`<span style="left:${Math.max(0,Math.min(100,(h-axisStart)/axisSpan*100))}%">${p2(Math.floor(h))}:${p2(Math.round((h%1)*60))}</span>`).join('');
   let rows='';
   for(const [empId,list] of entries){
     const emp=S.employees.find(x=>Number(x.id)===Number(empId));let bars='';
@@ -268,9 +270,11 @@ init();
     const initialIn=splitDateTime(source.in),initialOut=splitDateTime(source.out);
     inDate.value=initialIn.date;inTime.value=initialIn.time;outDate.value=initialOut.date;outTime.value=initialOut.time;
     const isWorking=source.status==='WORKING'&&!source.outId;
-    if(isWorking){outDate.disabled=true;outTime.disabled=true;outDate.title='근무 진행 중에는 출근시간만 정정할 수 있습니다.';outTime.title=outDate.title;}
+    // A WORKING session can be completed by adding its missing OUT event. Do not
+    // disable the exit fields: this is the primary manager correction workflow.
+    if(isWorking){outDate.title='누락된 퇴근 날짜를 입력하세요.';outTime.title='누락된 퇴근 시각을 입력하세요.';}
     const combined=(dateEl,timeEl)=>dateEl.value&&timeEl.value?`${dateEl.value}T${timeEl.value}`:'';
-    const refresh=()=>{const av=combined(inDate,inTime),bv=combined(outDate,outTime),a=av?parseWall(av):null,b=bv?parseWall(bv):null;if(isWorking){preview.textContent='근무 진행 중 · 출근시간만 정정할 수 있습니다.';preview.classList.remove('bad');save.disabled=!a;return}if(a&&b&&b<=a){preview.textContent='퇴근 시각은 출근 시각보다 늦어야 합니다.';preview.classList.add('bad');save.disabled=true}else{preview.textContent=a&&b?`예상 근무 ${dur((b-a)/1000)}`:'날짜와 시간을 각각 선택하세요.';preview.classList.remove('bad');save.disabled=false}};
+    const refresh=()=>{const av=combined(inDate,inTime),bv=combined(outDate,outTime),a=av?parseWall(av):null,b=bv?parseWall(bv):null;if(isWorking&&!b){preview.textContent='퇴근을 입력하지 않으면 출근시간만 정정합니다.';preview.classList.remove('bad');save.disabled=!a;return}if(a&&b&&b<=a){preview.textContent='퇴근 시각은 출근 시각보다 늦어야 합니다.';preview.classList.add('bad');save.disabled=true}else{preview.textContent=a&&b?`예상 근무 ${dur((b-a)/1000)}`:'날짜와 시간을 각각 선택하세요.';preview.classList.remove('bad');save.disabled=false}};
     [inDate,inTime,outDate,outTime].forEach(x=>x.oninput=refresh);refresh();
     el('correctionClose').onclick=closeCorrection;veil.onclick=e=>{if(e.target===veil)closeCorrection()};
     reasonEl.oninput=()=>{reasonEl.classList.remove('input-error');reasonError.textContent=''};
@@ -284,7 +288,7 @@ init();
       if(source.inId&&nextIn&&dtValue(source.in)!==inLocal)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.inId),p_employee_id:Number(source.employee_id),p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
       if(!source.inId&&nextIn)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:Number(source.employee_id),p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
       if(source.outId&&nextOut&&dtValue(source.out)!==outLocal)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.outId),p_employee_id:Number(source.employee_id),p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
-      if(!isWorking&&!source.outId&&nextOut)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:Number(source.employee_id),p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
+      if(!source.outId&&nextOut)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:Number(source.employee_id),p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
       if(!calls.length)return toastCorrection('변경된 시각이 없습니다.',true);
       save.disabled=true;
       try{for(const args of calls)await rpc('admin_correct_event',args);closeCorrection();toastCorrection('근태 정정을 반영했습니다.');await loadMonth();renderDay(day)}catch(e){console.error('[actual-correction]',e);toastCorrection('정정을 저장하지 못했습니다.',true);save.disabled=false}
