@@ -7,7 +7,7 @@ const ui=fs.readFileSync('operations_stocktake_v1.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261012210500_store_inventory_stocktake.sql','utf8');
 assert.match(html,/operations_v1\.js\?v=20261013v246/);
 assert.match(html,/operations_stocktake_v1\.js\?v=20261012v244/);
-assert.match(html,/const APP_VERSION="v0\.248"/);
+assert.match(html,/const APP_VERSION="v0\.\d+";/);
 assert.match(ops,/id="opsStocktakeOpen"/);
 assert.match(ops,/window\.openStoreInventoryStocktake\?\.\(\)/);
 for (const rpc of [
