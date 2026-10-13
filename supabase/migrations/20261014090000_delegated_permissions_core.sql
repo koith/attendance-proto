@@ -16,17 +16,37 @@ REVOKE ALL ON public.store_delegated_permissions FROM PUBLIC,anon,authenticated;
 -- granular permissions by directly calling old RPCs with a valid admin JWT.
 CREATE OR REPLACE FUNCTION public.can_manage_store(p_store_id bigint)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public','pg_temp' AS $fn$
-SELECT EXISTS(
- SELECT 1 FROM public.admin_users a JOIN auth.users u ON u.id=a.user_id
+SELECT EXISTS (
+ SELECT 1
+ FROM public.admin_users a
+ JOIN auth.users u ON u.id=a.user_id
  WHERE a.user_id=auth.uid()
-  AND u.email_confirmed_at IS NOT NULL AND u.deleted_at IS NULL
-  AND NOT u.is_anonymous AND (u.banned_until IS NULL OR u.banned_until<now())
-  AND (a.admin_role='HQ' OR (a.admin_role='STORE_MANAGER' AND a.store_id=p_store_id
-   AND EXISTS(SELECT 1 FROM public.stores s WHERE s.id=p_store_id AND s.is_active AND s.onboarding_status='READY')
-   AND (EXISTS(SELECT 1 FROM public.store_primary_owners o WHERE o.store_id=p_store_id AND o.user_id=a.user_id)
-        OR NOT EXISTS(SELECT 1 FROM public.store_delegated_permissions d
-          WHERE d.store_id=p_store_id AND d.user_id=a.user_id
-          AND NOT(d.staff_edit AND d.attendance_approve AND d.payroll_view))))))
+   AND u.email_confirmed_at IS NOT NULL
+   AND u.deleted_at IS NULL AND NOT u.is_anonymous
+   AND (u.banned_until IS NULL OR u.banned_until<now())
+   AND (
+     a.admin_role='HQ'
+     OR (
+       a.admin_role='STORE_MANAGER'
+       AND a.store_id=p_store_id
+       AND EXISTS (
+         SELECT 1 FROM public.stores s
+         WHERE s.id=p_store_id AND s.is_active
+           AND s.onboarding_status='READY'
+       )
+       AND (
+         EXISTS (
+           SELECT 1 FROM public.store_primary_owners o
+           WHERE o.store_id=p_store_id AND o.user_id=a.user_id
+         )
+         OR NOT EXISTS (
+           SELECT 1 FROM public.store_delegated_permissions d
+           WHERE d.store_id=p_store_id AND d.user_id=a.user_id
+             AND NOT (d.staff_edit AND d.attendance_approve AND d.payroll_view)
+         )
+       )
+     )
+   )
 );
 $fn$;
 
