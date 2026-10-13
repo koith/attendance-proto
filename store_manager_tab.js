@@ -38,7 +38,7 @@ window.mountStoreManagerTab=function(){
     '<button type="button" class="btn btn-secondary" id="storeManagerReload">새로고침</button></div>'+
     '<div id="storeManagerContent" class="store-manager-section-body" aria-live="polite">관리자 정보를 불러오는 중…</div>';
   panel.insertAdjacentElement("afterend",mount);
-  const content=content.querySelector("#storeManagerContent");
+  const content=mount.querySelector("#storeManagerContent");
   mount.querySelector("#storeManagerReload").addEventListener("click",()=>refresh());
   const notify=(message,error=false)=>{
     if(typeof toast==="function")toast(error?"err":"in",error?"관리자 관리 오류":"관리자 관리",message);
