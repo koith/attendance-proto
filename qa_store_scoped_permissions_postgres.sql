@@ -226,3 +226,36 @@ DO $qa$ BEGIN
  THEN RAISE EXCEPTION 'UNKNOWN_ACCOUNT_LOGIN_LEAK'; END IF;
 END $qa$;
 \echo PASS: restricted manager legacy is_admin/storage denied, scoped login survives, full/HQ manager unchanged
+
+-- Granting all three scoped capabilities is NOT an implicit legacy/HQ admin grant.
+\i supabase/migrations/20261014113000_delegated_scopes_not_full_admin.sql
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000004',false);
+SELECT public.store_delegated_permissions_set(2,'00000000-0000-4000-8000-000000000010',true,true,true);
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000010',false);
+DO $qa$ DECLARE p jsonb; BEGIN
+ p:=public.store_delegated_permissions_self();
+ IF public.can_manage_store(2) OR public.is_admin()
+ OR NOT (p->>'limited')::boolean OR NOT public.store_scope_can(2,'STAFF_EDIT')
+ OR NOT public.store_scope_can(2,'ATTENDANCE_APPROVE')
+ OR NOT public.store_scope_can(2,'PAYROLL_VIEW')
+ THEN RAISE EXCEPTION 'ALL_THREE_GRANTED_LEGACY_ADMIN_ESCALATION'; END IF;
+END $qa$;
+SET ROLE authenticated;
+DO $qa$ BEGIN
+ IF (SELECT count(*) FROM storage.objects)<>0
+ THEN RAISE EXCEPTION 'THREE_SCOPE_MANAGER_CAN_READ_PRIVATE_DOCS'; END IF;
+END $qa$;
+RESET ROLE;
+-- The owner can use full legacy access despite the default-deny row on joining.
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000004',false);
+DO $qa$ BEGIN
+ IF NOT public.can_manage_store(2) OR NOT public.is_admin()
+ OR (public.store_delegated_permissions_self()->>'limited')::boolean
+ THEN RAISE EXCEPTION 'OWNER_DEFAULT_DENY_PROFILE_BLOCKS_OWNER'; END IF;
+END $qa$;
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000009',false);
+DO $qa$ BEGIN
+ IF NOT public.is_admin() OR NOT public.can_manage_store(4)
+ THEN RAISE EXCEPTION 'LEGACY_UNPROFILED_MANAGER_NO_LONGER_FULL'; END IF;
+END $qa$;
+\echo PASS: all three scoped flags do not elevate legacy/storage/Edge, owner and legacy preserved
