@@ -9,3 +9,17 @@
 .correction-modal input[type="date"],.correction-modal input[type="time"]{height:44px!important;min-height:44px!important;line-height:44px!important;padding-top:0!important;padding-bottom:0!important;box-sizing:border-box!important;text-align:center!important}
 .correction-modal input[type="date"]::-webkit-date-and-time-value,.correction-modal input[type="time"]::-webkit-date-and-time-value{height:44px;line-height:44px;text-align:center;margin:0}
 .correction-modal input[type="date"]::-webkit-datetime-edit,.correction-modal input[type="time"]::-webkit-datetime-edit{display:flex;align-items:center;justify-content:center;height:44px;line-height:44px;padding:0}
+
+/* Mobile-friendly manual shift creation form */
+.manual-attendance-modal{max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain}
+.manual-attendance-modal select{display:block;width:100%;min-height:46px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font-size:16px}
+.manual-attendance-row{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:8px}
+.manual-attendance-row input{min-width:0;width:100%}
+.manual-attendance-modal [hidden]{display:none!important}
+.manual-attendance-error{color:var(--danger);font-size:.8rem;font-weight:700;min-height:20px;margin-top:8px}
+.manual-attendance-actions{display:grid;grid-template-columns:1fr 2fr;gap:8px;margin:8px 0 12px}
+.manual-attendance-actions button{min-height:48px;border-radius:10px;font-weight:800}
+.manual-attendance-actions button:first-child{border:1px solid var(--line);background:#fff;color:var(--ink)}
+.manual-attendance-actions .correction-save{height:48px}
+.manual-attendance-modal .correction-note{margin-bottom:0}
+@media(max-width:390px){.manual-attendance-modal{padding:12px}.manual-attendance-row{grid-template-columns:1fr 1fr;gap:6px}}

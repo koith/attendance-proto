@@ -182,50 +182,69 @@ init();
   const wallValue=v=>String(v||'').replace('T',' ').slice(0,16)+':00';
   function closeCorrection(){document.getElementById('actualCorrectionVeil')?.remove()}
   function toastCorrection(msg,err=false){const t=el('toast');t.textContent=msg;t.className='toast show'+(err?' err':'');clearTimeout(toastCorrection.t);toastCorrection.t=setTimeout(()=>t.className='toast',2200)}
-  async function addAttendance(day){
-    if(S.staffMode){
-      document.querySelector('.records-group h3')?.insertAdjacentHTML('beforeend','<button id="staffCorrectionRequest" class="session-fix" style="margin-left:10px">정정 요청</button>');
-      const b=document.getElementById('staffCorrectionRequest');if(b)b.onclick=()=>{location.href='index.html#attendance-correction'};
-      return;
-    }
-    const emp=S.employees[0]; if(!emp)return toastCorrection('등록할 직원이 없습니다.',true);
-    const employeeId=Number(prompt('직원 ID를 입력하세요.\n'+S.employees.map(e=>e.name+' : '+e.id).join('\n'),emp.id)); if(!employeeId||!S.employees.some(e=>Number(e.id)===employeeId))return;
-    const validClock=t=>/^([01]\d|2[0-3]):[0-5]\d$/.test(t);
-    const inTime=prompt('출근 시각 (HH:MM)','09:00');
-    if(inTime===null)return;
-    if(!validClock(inTime)){toastCorrection('출근 시각은 HH:MM 형식으로 입력하세요.',true);return;}
-    const outTime=prompt('퇴근 시각 (HH:MM, 미퇴근이면 비움)','');
-    if(outTime===null)return;
-    if(outTime&&!validClock(outTime)){toastCorrection('퇴근 시각은 HH:MM 형식으로 입력하세요.',true);return;}
-    const reason=prompt('생성 사유','관리자 근무기록 생성');
-    if(!reason?.trim())return;
-    // Validate all fields before the first write. Midnight crossing is not
-    // inferred from a clock alone: ask the operator for the actual OUT date.
-    let outDay=day;
-    if(outTime&&outTime<inTime){
-      outDay=prompt('퇴근 날짜 (YYYY-MM-DD, 자정 이후 퇴근인 경우)',dayKey(new Date(+day.slice(0,4),+day.slice(5,7)-1,+day.slice(8,10)+1)));
-      if(outDay===null)return;
-      if(!/^\d{4}-\d{2}-\d{2}$/.test(outDay)||isNaN(new Date(outDay+'T00:00:00').getTime())||outDay<=day){
-        toastCorrection('퇴근 날짜를 정확하게 입력하세요.',true);return;
-      }
-    }
-    try{
-      const addedIn=await rpc('admin_correct_event',{p_action:'ADD',p_event_id:null,p_employee_id:employeeId,p_new_at:day+' '+inTime+':00',p_new_type:'IN',p_reason:reason.trim()});
-      if(addedIn?.ok===false)throw new Error(addedIn.error||'출근 기록 생성 거부');
-      if(outTime){
-        try{
-          const addedOut=await rpc('admin_correct_event',{p_action:'ADD',p_event_id:null,p_employee_id:employeeId,p_new_at:outDay+' '+outTime+':00',p_new_type:'OUT',p_reason:reason.trim()});
-          if(addedOut?.ok===false)throw new Error(addedOut.error||'퇴근 기록 생성 거부');
-        }catch(outError){
-          console.error('[manual-attendance-out]',outError);
-          toastCorrection('출근 기록만 저장됐습니다. 퇴근 기록 저장 실패: 중복 생성하지 말고 기록을 확인하세요.',true);
-          await loadMonth();renderDay(day);
-          return;
+  function addAttendance(day){
+    if(S.staffMode){toastCorrection('직원은 관리자에게 정정을 요청하세요.',true);return;}
+    if(!S.employees.length){toastCorrection('등록된 직원이 없습니다.',true);return;}
+    closeCorrection();
+    const veil=document.createElement('div');
+    veil.id='actualCorrectionVeil';
+    veil.className='correction-veil';
+    veil.innerHTML=`<div class="correction-modal manual-attendance-modal" role="dialog" aria-modal="true" aria-labelledby="manualAttendanceTitle">
+      <div class="correction-head"><div><b id="manualAttendanceTitle">근무 기록 생성</b><div>누락된 출퇴근 기록을 추가합니다</div></div><button type="button" id="manualAttendanceClose" aria-label="닫기">×</button></div>
+      <label for="manualAttendanceEmployee">직원 선택</label>
+      <select id="manualAttendanceEmployee" required><option value="">직원을 선택하세요</option>${S.employees.map(e=>`<option value="${Number(e.id)}">${escapeHtml(e.name)} (ID ${Number(e.id)})</option>`).join('')}</select>
+      <label for="manualAttendanceInDate">출근 날짜 및 시각</label>
+      <div class="manual-attendance-row"><input id="manualAttendanceInDate" type="date" required><input id="manualAttendanceInTime" type="time" step="60" required aria-label="출근 시각"></div>
+      <label for="manualAttendanceStatus">기록 상태</label>
+      <select id="manualAttendanceStatus"><option value="WORKING">근무 중 · 출근만 생성</option><option value="COMPLETE">퇴근 완료 · 출퇴근 모두 생성</option></select>
+      <div id="manualAttendanceOutFields" hidden><label for="manualAttendanceOutDate">퇴근 날짜 및 시각</label><div class="manual-attendance-row"><input id="manualAttendanceOutDate" type="date"><input id="manualAttendanceOutTime" type="time" step="60" aria-label="퇴근 시각"></div></div>
+      <label for="manualAttendanceReason">생성 사유</label><input id="manualAttendanceReason" maxlength="120" value="관리자 근무기록 생성" required>
+      <div class="manual-attendance-error" id="manualAttendanceError" role="alert" aria-live="polite"></div>
+      <div class="manual-attendance-actions"><button type="button" id="manualAttendanceCancel">취소</button><button type="button" id="manualAttendanceSave" class="correction-save">근무 기록 생성</button></div>
+      <div class="correction-note">실제 근무한 날짜와 시각만 입력하세요. 저장한 기록은 정정 이력에 남습니다.</div>
+    </div>`;
+    document.body.appendChild(veil);
+    const field=id=>veil.querySelector('#'+id);
+    field('manualAttendanceInDate').value=day;
+    field('manualAttendanceOutDate').value=day;
+    field('manualAttendanceInTime').value='09:00';
+    const status=field('manualAttendanceStatus'),outFields=field('manualAttendanceOutFields');
+    status.onchange=()=>{outFields.hidden=status.value!=='COMPLETE';};
+    status.onchange();
+    const close=()=>veil.remove();
+    field('manualAttendanceClose').onclick=close;
+    field('manualAttendanceCancel').onclick=close;
+    veil.onclick=e=>{if(e.target===veil)close();};
+    const error=message=>{field('manualAttendanceError').textContent=message;};
+    field('manualAttendanceSave').onclick=async()=>{
+      const employeeId=Number(field('manualAttendanceEmployee').value);
+      const inDay=field('manualAttendanceInDate').value,inTime=field('manualAttendanceInTime').value;
+      const complete=status.value==='COMPLETE',outDay=field('manualAttendanceOutDate').value,outTime=field('manualAttendanceOutTime').value;
+      const reason=field('manualAttendanceReason').value.trim();
+      if(!employeeId||!S.employees.some(e=>Number(e.id)===employeeId))return error('직원을 선택하세요.');
+      if(!inDay||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(inTime))return error('출근 날짜와 시각을 입력하세요.');
+      if(complete&&(!outDay||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(outTime)))return error('퇴근 날짜와 시각을 입력하세요.');
+      if(complete&&outDay+'T'+outTime<=inDay+'T'+inTime)return error('퇴근은 출근보다 늦어야 합니다. 익일 퇴근은 다음 날짜를 선택하세요.');
+      if(!reason)return error('생성 사유를 입력하세요.');
+      const save=field('manualAttendanceSave');save.disabled=true;error('');
+      try{
+        const addedIn=await rpc('admin_correct_event',{p_action:'ADD',p_event_id:null,p_employee_id:employeeId,p_new_at:inDay+' '+inTime+':00',p_new_type:'IN',p_reason:reason});
+        if(addedIn?.ok===false)throw new Error(addedIn.error||'출근 기록 생성 거부');
+        if(complete){
+          try{
+            const addedOut=await rpc('admin_correct_event',{p_action:'ADD',p_event_id:null,p_employee_id:employeeId,p_new_at:outDay+' '+outTime+':00',p_new_type:'OUT',p_reason:reason});
+            if(addedOut?.ok===false)throw new Error(addedOut.error||'퇴근 기록 생성 거부');
+          }catch(outError){
+            console.error('[manual-attendance-out]',outError);
+            close();await loadMonth();renderDay(inDay);
+            toastCorrection('출근만 저장됐습니다. 퇴근 기록을 확인하고 정정하세요.',true);return;
+          }
         }
-      }
-      await loadMonth();renderDay(day);
-      toastCorrection('근무 기록을 생성했습니다.');
-    }catch(e){console.error('[manual-attendance-add]',e);toastCorrection('근무 기록 생성 실패: '+String(e.message||e).slice(0,100),true)}
+        close();await loadMonth();renderDay(inDay);
+        toastCorrection(complete?'출퇴근 기록을 생성했습니다.':'출근 기록을 생성했습니다.');
+      }catch(e){console.error('[manual-attendance-add]',e);error('저장 실패: '+String(e.message||e).slice(0,160));save.disabled=false;}
+    };
+    field('manualAttendanceEmployee').focus();
   }
   function openCorrection(day,s){
     closeCorrection();
