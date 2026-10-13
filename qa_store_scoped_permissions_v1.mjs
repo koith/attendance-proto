@@ -71,3 +71,10 @@ await checkGuard(actor,makeClient({staff_edit:true,attendance_approve:true,payro
 await checkGuard({...actor,adminRole:"HQ"},makeClient(null),HttpError,2);
 await checkGuard({...actor,internal:true},makeClient(null),HttpError,2);
 console.log("PASS: real Edge branch denies every limited grant, fails closed on DB error, preserves HQ/full managers");
+
+const defaultDeny=read("supabase/migrations/20261014100000_delegated_default_deny.sql");
+assert.match(defaultDeny,/AFTER INSERT ON public\.admin_users/);
+assert.match(defaultDeny,/NEW\.admin_role='STORE_MANAGER'/);
+assert.match(defaultDeny,/VALUES\(NEW\.store_id,NEW\.user_id,false,false,false\)/);
+assert.match(defaultDeny,/ON CONFLICT \(store_id,user_id\) DO NOTHING/);
+console.log("PASS: new store-manager accounts start with an explicit deny-all profile");
