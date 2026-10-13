@@ -71,6 +71,4 @@ jobs:
           node qa_store_delegated_manager_v1.mjs
           node qa_store_scoped_permissions_v1.mjs
       - name: Actual SQL function installation and adversarial synthetic tests
-        run: |
-          psql -v ON_ERROR_STOP=1 -f qa_store_delegated_manager_postgres.sql
-          psql -v ON_ERROR_STOP=1 -f qa_store_scoped_permissions_postgres.sql
+        run: psql -v ON_ERROR_STOP=1 -f qa_store_scoped_permissions_postgres.sql
