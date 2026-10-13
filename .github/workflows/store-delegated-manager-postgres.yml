@@ -3,6 +3,11 @@ on:
   pull_request:
     paths:
       - 'qa_store_delegated_manager_postgres.sql'
+      - 'qa_store_scoped_permissions_v1.mjs'
+      - 'qa_store_scoped_permissions_postgres.sql'
+      - 'supabase/migrations/20261014091000_delegated_scoped_actions.sql'
+      - 'supabase/migrations/20261014090000_delegated_permissions_core.sql'
+      - 'store_limited_manager.js'
       - 'qa_store_delegated_manager_v1.mjs'
       - 'supabase/migrations/20261013212000_store_primary_owner_delegation.sql'
       - 'supabase/migrations/20261014074000_owner_replacement_revoke_access.sql'
@@ -16,6 +21,11 @@ on:
     branches: [main]
     paths:
       - 'qa_store_delegated_manager_postgres.sql'
+      - 'qa_store_scoped_permissions_v1.mjs'
+      - 'qa_store_scoped_permissions_postgres.sql'
+      - 'supabase/migrations/20261014091000_delegated_scoped_actions.sql'
+      - 'supabase/migrations/20261014090000_delegated_permissions_core.sql'
+      - 'store_limited_manager.js'
       - 'qa_store_delegated_manager_v1.mjs'
       - 'supabase/migrations/20261013212000_store_primary_owner_delegation.sql'
       - 'supabase/migrations/20261014074000_owner_replacement_revoke_access.sql'
