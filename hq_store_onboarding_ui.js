@@ -67,14 +67,14 @@ window.mountHqStoreOnboarding=async function(box){
     '<div id="hqOnboardingBody" aria-live="polite">지점 정보를 불러오는 중…</div>';
   box.appendChild(section);
   const body=section.querySelector("#hqOnboardingBody");
-  let stores=[],managers=[],proofs=[],sampleCounts=[],selected=1,busy=false,searchTerm="",statusFilter="ALL";
+  let stores=[],managers=[],proofs=[],sampleCounts=[],primaryOwners=[],selected=1,busy=false,searchTerm="",statusFilter="ALL";
   const message=(title,detail)=>{if(typeof toast==="function")toast("in",title,detail);};
   const err=error=>{if(typeof toast==="function")toast("err","지점 설정 실패",String(error?.message||error));};
   async function refresh(){
     // Never render READY or export an eligible rollout from a partial/malformed HQ response.
-    const result=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_provenance_list"),rpc("hq_store_sample_roster_counts")]);
+    const result=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_provenance_list"),rpc("hq_store_sample_roster_counts"),rpc("hq_store_primary_owner_list")]);
     if(!result.every(Array.isArray))throw Error("HQ_ONBOARDING_INVALID_RESPONSE");
-    [stores,managers,proofs,sampleCounts]=result;
+    [stores,managers,proofs,sampleCounts,primaryOwners]=result;
     if(!stores.some(s=>Number(s.id)===selected))selected=Number(stores[0]?.id||1);
     render();
   }
@@ -89,6 +89,7 @@ window.mountHqStoreOnboarding=async function(box){
     if(!section.isConnected)return;
     const store=stores.find(s=>Number(s.id)===selected);
     const list=managers.filter(m=>Number(m.store_id)===selected);
+    const primaryOwnerId=primaryOwners.find(o=>Number(o.store_id)===selected)?.user_id;
     const ready=store?.onboarding_status==="READY";
     const proof=proofs.find(p=>Number(p.store_id)===selected);
     const verified=selected===1||proof?.decision==="VERIFIED";
@@ -141,8 +142,10 @@ window.mountHqStoreOnboarding=async function(box){
       '<div style="font-size:.8rem;color:var(--text-muted)">기존 계정은 회원 가입이 완료된 이메일이어야 합니다. 신규 초대는 인증 이메일을 발송합니다.</div>'+
       '<div style="margin:10px 0">'+(list.length?list.map(m=>
         '<div class="row" style="padding:8px;margin:5px 0;gap:8px"><span style="flex:1;min-width:0;overflow-wrap:anywhere">'+
-        escapeHTML(m.email)+'</span><button type="button" class="btn btn-secondary btn-sm" data-owner-revoke="'+
-        escapeHTML(m.user_id)+'">권한 해제</button></div>').join(""):
+        escapeHTML(m.email)+(primaryOwnerId===m.user_id?' <strong style="color:var(--brand-700)">· 대표 점주</strong>':'')+'</span>'+
+        (primaryOwnerId!==m.user_id?'<button type="button" class="btn btn-secondary btn-sm" data-primary-assign="'+escapeHTML(m.user_id)+'">대표 지정</button>':'')+
+        (primaryOwnerId===m.user_id?'<span style="font-size:.72rem;color:var(--text-muted)">대표 교체 후 해제 가능</span>':
+          '<button type="button" class="btn btn-secondary btn-sm" data-owner-revoke="'+escapeHTML(m.user_id)+'">권한 해제</button>')+'</div>').join(""):
         '<div class="empty">이 지점에 배정된 점주 계정이 없습니다.</div>')+'</div>'+
       '<details style="margin-top:14px"><summary style="cursor:pointer;font-weight:600">새 지점 등록</summary>'+
       '<div style="display:grid;gap:8px;padding-top:10px">'+
@@ -222,6 +225,14 @@ window.mountHqStoreOnboarding=async function(box){
       if(!confirm(email+" 주소로 "+store.name+" 점주 초대 메일을 보내시겠습니까?"))return;
       act(()=>invite(email,selected),"점주 이메일 초대를 요청했습니다.");
     };
+    body.querySelectorAll("[data-primary-assign]").forEach(button=>{
+      button.onclick=()=>{
+        const id=button.getAttribute("data-primary-assign");
+        if(!confirm(store.name+" 지점의 대표 점주를 이 계정으로 지정하시겠습니까?"))return;
+        act(()=>rpc("hq_store_primary_owner_set",{p_store_id:selected,p_user_id:id}),
+          "대표 점주가 지정됐습니다.");
+      };
+    });
     body.querySelectorAll("[data-owner-revoke]").forEach(button=>{
       button.onclick=()=>{
         const id=button.getAttribute("data-owner-revoke");
