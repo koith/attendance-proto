@@ -38,3 +38,36 @@ assert.match(app,/delegatedPermissionsSelf\(\)/);
 assert.match(app,/scope\?\.limited===true/);
 assert.match(app,/mountScopedManagerPortal\(scope,ownStore\)/);
 console.log("PASS: scoped permissions are enforced by server RPC guards, limited portal never calls unrestricted RPCs, app version v0.254");
+
+const edge=read("supabase/functions/server-sync-sheet/index.ts");
+const edgeMirror=read("edge-release/supabase/functions/server-sync-sheet/index.ts");
+assert.equal(edge,edgeMirror,"Edge code deployed from mirror must match canonical exactly");
+const guardStart=edge.indexOf('    if(!actor.internal && actor.adminRole==="STORE_MANAGER"){');
+const guardEnd=edge.indexOf('    if(["payroll_close_preview","payroll_close","payroll_reopen"].includes(mode)){',guardStart);
+assert.ok(guardStart>0&&guardEnd>guardStart,"limited admin guard must precede ALL generic payroll/sync handling");
+const guard=edge.slice(guardStart,guardEnd);
+assert.match(guard,/DELEGATED_RESTRICTED_EDGE_ACCESS/);
+assert.match(guard,/DELEGATED_ACCESS_CHECK_FAILED/);
+assert.match(guard,/\.eq\("store_id",storeId\)\.eq\("user_id",actor\.userId\)/);
+const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
+const checkGuard=new AsyncFunction("actor","client","HttpError","storeId",guard);
+class HttpError extends Error{constructor(status,message){super(message);this.status=status;}}
+const makeClient=(grants,error=null)=>({from:table=>{
+ assert.equal(table,"store_delegated_permissions");
+ return {select:()=>({eq:()=>({eq:()=>({maybeSingle:async()=>({data:grants,error})})})})};
+}});
+const actor={internal:false,adminRole:"STORE_MANAGER",userId:"synthetic-primary-or-delegate",storeId:2};
+for(const grants of [
+ {staff_edit:false,attendance_approve:true,payroll_view:true},
+ {staff_edit:true,attendance_approve:false,payroll_view:true},
+ {staff_edit:true,attendance_approve:true,payroll_view:false},
+ {staff_edit:false,attendance_approve:false,payroll_view:false}
+]){
+ await assert.rejects(()=>checkGuard(actor,makeClient(grants),HttpError,2),e=>e.status===403&&e.message==="DELEGATED_RESTRICTED_EDGE_ACCESS");
+}
+await assert.rejects(()=>checkGuard(actor,makeClient(null,{message:"synthetic"}),HttpError,2),e=>e.status===503);
+await checkGuard(actor,makeClient(null),HttpError,2); // pre-existing full permission
+await checkGuard(actor,makeClient({staff_edit:true,attendance_approve:true,payroll_view:true}),HttpError,2);
+await checkGuard({...actor,adminRole:"HQ"},makeClient(null),HttpError,2);
+await checkGuard({...actor,internal:true},makeClient(null),HttpError,2);
+console.log("PASS: real Edge branch denies every limited grant, fails closed on DB error, preserves HQ/full managers");
