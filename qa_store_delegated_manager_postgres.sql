@@ -46,7 +46,7 @@ LANGUAGE sql STABLE SECURITY DEFINER AS $$
  AND s.is_active AND s.onboarding_status='READY'))))
 $$;
 INSERT INTO public.stores(id,name,onboarding_status,is_active)
-SELECT i,'Synthetic '+i,CASE WHEN i IN(1,2,4) THEN 'READY' ELSE 'STAGED' END,
+SELECT i,'Synthetic '||i,CASE WHEN i IN(1,2,4) THEN 'READY' ELSE 'STAGED' END,
  i IN(1,2,4) FROM generate_series(1,283)i;
 INSERT INTO auth.users(id,email,email_confirmed_at)
 SELECT ('00000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,
