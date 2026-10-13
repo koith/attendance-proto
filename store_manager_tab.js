@@ -65,14 +65,22 @@ window.mountStoreManagerTab=function(){
       const self=rows.find(entry=>entry.user_id===user?.id);
       const isPrimary=self?.manager_role==="OWNER";
       const canManage=isPrimary; // HQ appoints owners exclusively from the nationwide HQ dashboard.
+      const managerPermissions=isPrimary?await request("store_delegated_permissions_list",{p_store_id:storeId}):[];
       const names=rows.map(entry=>{
         const primary=entry.manager_role==="OWNER";
         const removable=canManage&&!primary&&entry.user_id!==user?.id;
+        const rights=managerPermissions.find(p=>p.user_id===entry.user_id)||{staff_edit:true,attendance_approve:true,payroll_view:true};
+        const rightControls=removable?'<div data-manager-rights="'+esc(entry.user_id)+'" style="margin-top:9px;padding:10px;border:1px solid var(--border);border-radius:10px">'+
+          '<p style="font-size:.77rem;color:var(--text-muted);margin:0 0 8px">허용 업무를 선택하세요. 전체 허용이면 기존 지점 관리 기능을 사용할 수 있습니다. 일부 제한 시 별도 업무 화면만 열립니다.</p>'+
+          '<label style="display:block;margin:5px 0"><input data-allow="staff" type="checkbox" '+(rights.staff_edit?'checked':'')+'> 직원 기본정보 수정</label>'+
+          '<label style="display:block;margin:5px 0"><input data-allow="attendance" type="checkbox" '+(rights.attendance_approve?'checked':'')+'> 근태 정정 승인</label>'+
+          '<label style="display:block;margin:5px 0"><input data-allow="payroll" type="checkbox" '+(rights.payroll_view?'checked':'')+'> 확정 급여 열람</label>'+
+          '<button type="button" class="btn btn-secondary btn-sm" data-permission-save="'+esc(entry.user_id)+'">권한 변경 저장</button></div>':'';
         return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px;border:1px solid var(--border);border-radius:10px">'+
           '<div style="min-width:0;overflow-wrap:anywhere"><strong>'+esc(entry.email)+'</strong>'+
           '<div style="font-size:.8rem;color:var(--text-muted)">'+(primary?"대표 점주":"추가 관리자")+'</div></div>'+
           (removable?'<button class="btn btn-secondary btn-sm" type="button" data-manager-revoke="'+esc(entry.user_id)+'">권한 해제</button>':"")+
-          '</div>';
+          '</div>'+rightControls;
       }).join("");
       content.innerHTML='<p style="font-size:.82rem;color:var(--text-muted);line-height:1.5">'+
         '대표 점주는 이 지점의 보조 관리자를 등록·해임합니다. 대표 점주 지정·교체 및 신규 점주 초대는 본사 대시보드에서만 관리합니다.</p>'+
@@ -107,6 +115,21 @@ window.mountStoreManagerTab=function(){
         if(!confirm(email+" 주소로 이 지점 관리자 초대 메일을 보내시겠습니까?"))return;
         run(async()=>{await invite(email,storeId);notify("관리자 초대 메일을 발송했습니다.");});
       });
+      content.querySelectorAll("[data-permission-save]").forEach(button=>button.addEventListener("click",()=>{
+        const id=button.dataset.permissionSave,section=button.closest("[data-manager-rights]");
+        if(!section)return;
+        const staff=section.querySelector('[data-allow="staff"]').checked;
+        const attendance=section.querySelector('[data-allow="attendance"]').checked;
+        const payroll=section.querySelector('[data-allow="payroll"]').checked;
+        if(!confirm("이 관리자의 허용 업무를 변경하시겠습니까? 권한 제한은 즉시 반영됩니다."))return;
+        run(async()=>{
+          const result=await request("store_delegated_permissions_set",{
+            p_store_id:storeId,p_user_id:id,p_staff_edit:staff,p_attendance_approve:attendance,p_payroll_view:payroll
+          });
+          if(result?.ok!==true)throw Error("권한 변경 결과 확인 실패");
+          notify("보조 관리자 권한이 변경됐습니다.");
+        });
+      }));
       content.querySelectorAll("[data-manager-revoke]").forEach(button=>button.addEventListener("click",()=>{
         if(!confirm("이 관리자의 해당 지점 접근 권한을 해제하시겠습니까?"))return;
         run(async()=>{
