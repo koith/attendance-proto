@@ -64,7 +64,7 @@ window.mountStoreManagerTab=function(){
       if(!Array.isArray(rows))throw Error("관리자 목록 응답 오류");
       const self=rows.find(entry=>entry.user_id===user?.id);
       const isPrimary=self?.manager_role==="OWNER";
-      const canManage=isPrimary||isHq===true;
+      const canManage=isPrimary; // HQ appoints owners exclusively from the nationwide HQ dashboard.
       const names=rows.map(entry=>{
         const primary=entry.manager_role==="OWNER";
         const removable=canManage&&!primary&&entry.user_id!==user?.id;
@@ -75,9 +75,9 @@ window.mountStoreManagerTab=function(){
           '</div>';
       }).join("");
       content.innerHTML='<p style="font-size:.82rem;color:var(--text-muted);line-height:1.5">'+
-        '대표 점주와 본사는 추가 관리자를 등록·해임할 수 있습니다. 대표 점주 지정과 교체는 본사에서 관리합니다.</p>'+
+        '대표 점주는 이 지점의 보조 관리자를 등록·해임합니다. 대표 점주 지정·교체 및 신규 점주 초대는 본사 대시보드에서만 관리합니다.</p>'+
         '<div style="display:grid;gap:8px;margin:12px 0">'+
-        (names||'<div class="store-manager-empty"><strong>등록된 관리자 계정이 없습니다.</strong><p>본사에서 점주를 초대하고 대표 점주로 지정하면 추가 관리자 관리가 활성화됩니다.</p></div>')+'</div>'+
+        (names||'<div class="store-manager-empty"><strong>등록된 관리자 계정이 없습니다.</strong><p>본사 대시보드에서 지점 점주를 초대하고 대표 점주로 지정하면 보조 관리자 관리가 활성화됩니다.</p></div>')+'</div>'+
         (isPrimary?'<form id="storeManagerExistingForm" style="display:grid;gap:7px;margin-top:15px">'+
           '<label for="storeManagerExistingEmail">기존 가입·인증 계정에 관리자 권한 부여</label>'+
           '<input id="storeManagerExistingEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com">'+
@@ -88,25 +88,7 @@ window.mountStoreManagerTab=function(){
           '<button type="submit" class="btn btn-primary">초대 이메일 발송</button>'+
           '<p style="font-size:.77rem;color:var(--text-muted)">초대받은 관리자는 이메일 인증을 완료한 뒤 로그인할 수 있습니다.</p></form>':
           '<p style="font-size:.8rem;color:var(--text-muted)">추가 관리자 등록·해임은 대표 점주에게만 허용됩니다.</p>')+
-        (isHq===true?'<form id="storeManagerHqInviteForm" style="display:grid;gap:7px;margin-top:15px">'+
-          '<label for="storeManagerHqEmail">본사: 신규 점주 초대</label>'+
-          '<input id="storeManagerHqEmail" type="email" class="form-control" required placeholder="owner@example.com">'+
-          '<button class="btn btn-primary" type="submit">점주 초대 발송</button>'+
-          '<p style="font-size:.78rem;color:var(--text-muted)">초대 후 전국 지점 관리에서 대표 점주로 지정하세요.</p></form>':'');
-      content.querySelector("#storeManagerHqInviteForm")?.addEventListener("submit",event=>{
-        event.preventDefault();
-        const email=content.querySelector("#storeManagerHqEmail").value.trim().toLowerCase();
-        if(!confirm(email+" 주소로 점주 초대장을 보내시겠습니까?"))return;
-        run(async()=>{
-          const response=await fetch(CONFIG.SUPABASE_URL+"/functions/v1/server-sync-sheet",{
-            method:"POST",headers:{Authorization:"Bearer "+Auth.token,"Content-Type":"application/json"},
-            body:JSON.stringify({mode:"invite_store_manager",email,store_id:storeId})
-          });
-          const data=await response.json().catch(()=>null);
-          if(!response.ok||data?.ok!==true)throw Error(data?.error||"점주 초대 실패");
-          notify("점주 초대 메일을 발송했습니다. 본사에서 대표 점주를 지정하세요.");
-        });
-      });
+        (isHq===true?'<p class="store-manager-hq-note">본사 관리자: 대표 점주 초대·지정·교체는 <strong>본사 대시보드 → 전국 지점 운영</strong>에서 처리합니다.</p>':'');
       content.querySelector("#storeManagerExistingForm")?.addEventListener("submit",event=>{
         event.preventDefault();
         const email=content.querySelector("#storeManagerExistingEmail").value.trim().toLowerCase();
