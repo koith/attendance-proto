@@ -190,9 +190,42 @@ init();
     }
     const emp=S.employees[0]; if(!emp)return toastCorrection('등록할 직원이 없습니다.',true);
     const employeeId=Number(prompt('직원 ID를 입력하세요.\n'+S.employees.map(e=>e.name+' : '+e.id).join('\n'),emp.id)); if(!employeeId||!S.employees.some(e=>Number(e.id)===employeeId))return;
-    const inTime=prompt('출근 시각 (HH:MM)','09:00'); if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(inTime||''))return;
-    const outTime=prompt('퇴근 시각 (HH:MM, 미퇴근이면 비움)',''); const reason=prompt('생성 사유','관리자 근무기록 생성'); if(!reason)return;
-    try{await rpc('admin_correct_event',{p_action:'ADD',p_event_id:null,p_employee_id:employeeId,p_new_at:day+' '+inTime+':00',p_new_type:'IN',p_reason:reason});if(outTime&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(outTime))await rpc('admin_correct_event',{p_action:'ADD',p_event_id:null,p_employee_id:employeeId,p_new_at:day+' '+outTime+':00',p_new_type:'OUT',p_reason:reason});toastCorrection('근무 기록을 생성했습니다.');await loadMonth();renderDay(day)}catch(e){console.error(e);toastCorrection('근무 기록 생성 실패',true)}
+    const validClock=t=>/^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+    const inTime=prompt('출근 시각 (HH:MM)','09:00');
+    if(inTime===null)return;
+    if(!validClock(inTime)){toastCorrection('출근 시각은 HH:MM 형식으로 입력하세요.',true);return;}
+    const outTime=prompt('퇴근 시각 (HH:MM, 미퇴근이면 비움)','');
+    if(outTime===null)return;
+    if(outTime&&!validClock(outTime)){toastCorrection('퇴근 시각은 HH:MM 형식으로 입력하세요.',true);return;}
+    const reason=prompt('생성 사유','관리자 근무기록 생성');
+    if(!reason?.trim())return;
+    // Validate all fields before the first write. Midnight crossing is not
+    // inferred from a clock alone: ask the operator for the actual OUT date.
+    let outDay=day;
+    if(outTime&&outTime<inTime){
+      outDay=prompt('퇴근 날짜 (YYYY-MM-DD, 자정 이후 퇴근인 경우)',dayKey(new Date(+day.slice(0,4),+day.slice(5,7)-1,+day.slice(8,10)+1)));
+      if(outDay===null)return;
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(outDay)||isNaN(new Date(outDay+'T00:00:00').getTime())||outDay<=day){
+        toastCorrection('퇴근 날짜를 정확하게 입력하세요.',true);return;
+      }
+    }
+    try{
+      const addedIn=await rpc('admin_correct_event',{p_action:'ADD',p_event_id:null,p_employee_id:employeeId,p_new_at:day+' '+inTime+':00',p_new_type:'IN',p_reason:reason.trim()});
+      if(addedIn?.ok===false)throw new Error(addedIn.error||'출근 기록 생성 거부');
+      if(outTime){
+        try{
+          const addedOut=await rpc('admin_correct_event',{p_action:'ADD',p_event_id:null,p_employee_id:employeeId,p_new_at:outDay+' '+outTime+':00',p_new_type:'OUT',p_reason:reason.trim()});
+          if(addedOut?.ok===false)throw new Error(addedOut.error||'퇴근 기록 생성 거부');
+        }catch(outError){
+          console.error('[manual-attendance-out]',outError);
+          toastCorrection('출근 기록만 저장됐습니다. 퇴근 기록 저장 실패: 중복 생성하지 말고 기록을 확인하세요.',true);
+          await loadMonth();renderDay(day);
+          return;
+        }
+      }
+      await loadMonth();renderDay(day);
+      toastCorrection('근무 기록을 생성했습니다.');
+    }catch(e){console.error('[manual-attendance-add]',e);toastCorrection('근무 기록 생성 실패: '+String(e.message||e).slice(0,100),true)}
   }
   function openCorrection(day,s){
     closeCorrection();

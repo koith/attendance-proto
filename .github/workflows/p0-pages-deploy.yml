@@ -5,6 +5,7 @@ on:
     paths:
       - 'index.html'
       - 'actual_attendance.js'
+      - 'qa_actual_attendance_manual_add_v1.mjs'
       - 'actual_attendance_test_mode_v1.js'
       - 'qa_actual_attendance_store_scope_v1.mjs'
       - 'qa_employee_contract_status_store_scope_v1.mjs'
@@ -207,6 +208,8 @@ jobs:
           node qa_inventory_editor_wiring_v1.mjs
       - name: POS asynchronous route guard
         run: node qa_pos_route_async_guard_v1.mjs
+      - name: Manual attendance creation and midnight/partial failure regression
+        run: node qa_actual_attendance_manual_add_v1.mjs
       - name: POS white screen and stalled mobile store lookup regression
         run: node qa_pos_startup_network_timeout_v1.mjs
       - name: index-startup-smoke-v1
