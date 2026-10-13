@@ -163,3 +163,66 @@ END $qa$;
 
 \echo PASS: limited manager scopes, default deny legacy, staff update, attendance decision, closed-payroll read, owner promotion, 283 stores intact
 \echo PASS: new manager default-deny until owner authorizes allowed scopes
+
+-- Legacy is_admin()-gated employee document and table access must honor scopes.
+-- Scoped users stay able to sign in via independently verified admin_context().
+\i supabase/migrations/20261014110000_restricted_admin_legacy_gate.sql
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000010',false);
+DO $qa$ DECLARE ctx jsonb; BEGIN
+ ctx:=public.admin_context();
+ IF public.is_admin() OR ctx->>'role'<>'STORE_MANAGER'
+   OR (ctx->>'store_id')::bigint<>2
+   OR NOT public.store_scope_can(2,'STAFF_EDIT')
+ THEN RAISE EXCEPTION 'LIMITED_LEGACY_ADMIN_OR_LOGIN_INCORRECT'; END IF;
+END $qa$;
+
+-- Real RLS expression for employee-docs uses is_admin(), so assert the role
+-- cannot query or insert protected objects through the storage API.
+CREATE SCHEMA IF NOT EXISTS storage;
+CREATE TABLE storage.objects(id bigint PRIMARY KEY,bucket_id text NOT NULL);
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+CREATE POLICY empdoc_admin_select ON storage.objects FOR SELECT TO authenticated
+ USING (bucket_id='employee-docs' AND public.is_admin());
+CREATE POLICY empdoc_admin_insert ON storage.objects FOR INSERT TO authenticated
+ WITH CHECK(bucket_id='employee-docs' AND public.is_admin());
+GRANT USAGE ON SCHEMA storage TO authenticated;
+GRANT SELECT,INSERT ON storage.objects TO authenticated;
+INSERT INTO storage.objects(id,bucket_id) VALUES(1,'employee-docs');
+SET ROLE authenticated;
+DO $qa$ BEGIN
+ IF (SELECT count(*) FROM storage.objects)<>0
+ THEN RAISE EXCEPTION 'LIMITED_MANAGER_STORAGE_READ_LEAK'; END IF;
+END $qa$;
+SELECT public.qa_expect_failure('limited manager cannot insert private doc',
+ $q$INSERT INTO storage.objects(id,bucket_id) VALUES(2,'employee-docs')$q$,
+ 'new row violates row-level security policy for table "objects"');
+RESET ROLE;
+
+-- Authenticated primary owner, original full manager, and HQ are unaffected.
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000004',false);
+DO $qa$ BEGIN
+ IF NOT public.is_admin() OR (public.admin_context()->>'role')<>'STORE_MANAGER'
+ THEN RAISE EXCEPTION 'PRIMARY_OWNER_LOGIN_REGRESSION'; END IF;
+END $qa$;
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000009',false);
+DO $qa$ BEGIN
+ IF NOT public.is_admin() OR (public.admin_context()->>'role')<>'STORE_MANAGER'
+ THEN RAISE EXCEPTION 'UNRESTRICTED_MANAGER_LOGIN_REGRESSION'; END IF;
+END $qa$;
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000001',false);
+DO $qa$ BEGIN
+ IF NOT public.is_admin() OR (public.admin_context()->>'role')<>'HQ'
+ THEN RAISE EXCEPTION 'HQ_LOGIN_REGRESSION'; END IF;
+END $qa$;
+SET ROLE authenticated;
+DO $qa$ BEGIN
+ IF (SELECT count(*) FROM storage.objects)<>1
+ THEN RAISE EXCEPTION 'HQ_EMPLOYEE_DOC_POLICY_REGRESSION'; END IF;
+END $qa$;
+RESET ROLE;
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000011',false);
+DO $qa$ BEGIN
+ IF public.is_admin() OR public.admin_context()->>'role' IS NOT NULL
+ THEN RAISE EXCEPTION 'UNKNOWN_ACCOUNT_LOGIN_LEAK'; END IF;
+END $qa$;
+\echo PASS: restricted manager legacy is_admin/storage denied, scoped login survives, full/HQ manager unchanged
