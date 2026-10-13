@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const source=fs.readFileSync('actual_attendance.js','utf8');
+assert(source.includes('const axisStart=Math.min(configuredStart,Math.floor(actualMin)),axisEnd=Math.max(26,Math.ceil(actualMax))'),'overnight timeline must not clip after 26:00');
+assert(source.includes('if(!source.outId&&nextOut)calls.push('),'missing OUT must be addable for WORKING session');
+assert(!source.includes('if(!isWorking&&!source.outId&&nextOut)calls.push('),'WORKING correction must not block OUT');
+assert(!source.includes('outDate.disabled=true;outTime.disabled=true'),'WORKING exit fields must remain editable');
+assert(source.includes('sessionsForDay=function(day){ return sourceSessionsForDay(day); }'),'overnight session anchored to clock-in day');
+assert(source.includes('const off=Math.max(0,Math.round((dm-am)/86400000))'),'next-day time displayed as 25:xx');
+assert(source.includes("if(s.status==='WORKING')return"),'working status preserved until exit');
+console.log('PASS overnight shift UI: 25-27h axis, add missing OUT, anchored session');
