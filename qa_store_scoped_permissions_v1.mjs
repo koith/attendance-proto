@@ -8,7 +8,7 @@ const portal=read("store_limited_manager.js");
 const app=read("index.html");
 assert.match(core,/CREATE TABLE IF NOT EXISTS public\.store_delegated_permissions/);
 assert.match(core,/ALTER TABLE public\.store_delegated_permissions ENABLE ROW LEVEL SECURITY/);
-assert.match(core,/NOT\(d\.staff_edit AND d\.attendance_approve AND d\.payroll_view\)/);
+assert.match(core,/NOT\s*\(d\.staff_edit AND d\.attendance_approve AND d\.payroll_view\)/);
 assert.match(actions,/OWNER_PERMISSIONS_IMMUTABLE/);
 assert.match(actions,/public\.store_primary_owner_can_delegate\(p_store_id,auth\.uid\(\)\)/);
 for(const [flag,scope,api] of [
