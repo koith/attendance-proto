@@ -397,6 +397,14 @@ Deno.serve(async req=>{
       throw new HttpError(403,"STORE_SHEET_SYNC_NOT_CONFIGURED");
     if(!actor.internal && actor.adminRole!=="HQ" && !(actor.adminRole==="STORE_MANAGER"&&Number(actor.storeId)===storeId))
       throw new HttpError(403,"STORE_NOT_AUTHORIZED");
+    if(!actor.internal && actor.adminRole==="STORE_MANAGER"){
+      const {data:grants,error:grantsError}=await client.from("store_delegated_permissions")
+        .select("staff_edit,attendance_approve,payroll_view")
+        .eq("store_id",storeId).eq("user_id",actor.userId).maybeSingle();
+      if(grantsError)throw new HttpError(503,"DELEGATED_ACCESS_CHECK_FAILED");
+      if(grants && !(grants.staff_edit===true && grants.attendance_approve===true && grants.payroll_view===true))
+        throw new HttpError(403,"DELEGATED_RESTRICTED_EDGE_ACCESS");
+    }
     if(["payroll_close_preview","payroll_close","payroll_reopen"].includes(mode)){
       if(actor.internal||!actor.userId)
         throw new HttpError(403,"HQ_APPROVAL_REQUIRED");
