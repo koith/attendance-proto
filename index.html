@@ -2189,6 +2189,7 @@ async function renderAdmin(){
       </div>
       <div id="adEmps" class="employee-list-mask"></div>
     </div>`;
+  if(typeof window.mountStoreManagerTab==="function") window.mountStoreManagerTab();
   // The view can be replaced while awaiting server data. Never bind controls on a stale view.
   const listMount=document.getElementById("adEmps");
   const t=kstNow(); const p=n=>String(n).padStart(2,"0");
@@ -3657,5 +3658,6 @@ loadStores().finally(()=>{STORE_ENTRY_LOADING=false;route();});
 </script>
 <script src="store_controls_v1.js?v=20260929v066"></script>
 <script src="hq_store_onboarding_ui.js?v=20261013v246"></script>
+<script src="store_manager_tab.js?v=20261013v251"></script>
 </body>
 </html>
