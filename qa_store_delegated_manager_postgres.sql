@@ -206,18 +206,18 @@ SELECT public.qa_expect_failure('owner FK on stale revoke',
  'update or delete on table "admin_users" violates foreign key constraint "store_primary_owners_user_id_fkey" on table "store_primary_owners"');
 -- HQ has a separate nationwide owner assignment path, not delegated self-service.
 SELECT public.qa_expect_failure('hq cannot use delegated grant',
- $SELECT public.store_delegated_manager_change(2,'test10@synthetic.invalid',NULL,'ADD')$,
+ $$SELECT public.store_delegated_manager_change(2,'test10@synthetic.invalid',NULL,'ADD')$$,
  'OWNER_ONLY');
 SELECT public.hq_store_primary_owner_set(2,'00000000-0000-4000-8000-000000000003');
 -- An outgoing owner no longer has any admin authorization, rather than silently
 -- retaining full access as a secondary manager. Existing other managers survive.
-DO $ BEGIN
+DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM public.admin_users
   WHERE user_id='00000000-0000-4000-8000-000000000002')
  OR NOT EXISTS(SELECT 1 FROM public.admin_users
   WHERE user_id='00000000-0000-4000-8000-000000000003')
  THEN RAISE EXCEPTION 'OWNER_REPLACEMENT_DID_NOT_REVOKE_OLD_ADMIN'; END IF;
-END $;
+END $$;
 
 SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000002',false);
 SELECT public.qa_expect_failure('old primary cannot delegate',
