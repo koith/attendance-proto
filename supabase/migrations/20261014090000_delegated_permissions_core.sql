@@ -32,7 +32,7 @@ $fn$;
 
 CREATE OR REPLACE FUNCTION public.store_delegated_permissions_self()
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public','pg_temp' AS $fn$
-DECLARE a record; d record; v_owner boolean;
+DECLARE a record; d public.store_delegated_permissions%ROWTYPE; v_owner boolean;
 BEGIN
  SELECT admin_role,store_id INTO a FROM public.admin_users WHERE user_id=auth.uid();
  IF NOT FOUND OR a.admin_role NOT IN ('HQ','STORE_MANAGER') THEN RAISE EXCEPTION 'NOT_AUTHORIZED'; END IF;
