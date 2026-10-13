@@ -144,8 +144,8 @@ window.mountHqStoreOnboarding=async function(box){
         '<div class="row" style="padding:8px;margin:5px 0;gap:8px"><span style="flex:1;min-width:0;overflow-wrap:anywhere">'+
         escapeHTML(m.email)+(primaryOwnerId===m.user_id?' <strong style="color:var(--brand-700)">· 대표 점주</strong>':'')+'</span>'+
         (primaryOwnerId!==m.user_id?'<button type="button" class="btn btn-secondary btn-sm" data-primary-assign="'+escapeHTML(m.user_id)+'">대표 지정</button>':'')+
-        '<button type="button" class="btn btn-secondary btn-sm" data-owner-revoke="'+
-        escapeHTML(m.user_id)+'">권한 해제</button></div>').join(""):
+        (primaryOwnerId===m.user_id?'<span style="font-size:.72rem;color:var(--text-muted)">대표 교체 후 해제 가능</span>':
+          '<button type="button" class="btn btn-secondary btn-sm" data-owner-revoke="'+escapeHTML(m.user_id)+'">권한 해제</button>')+'</div>').join(""):
         '<div class="empty">이 지점에 배정된 점주 계정이 없습니다.</div>')+'</div>'+
       '<details style="margin-top:14px"><summary style="cursor:pointer;font-weight:600">새 지점 등록</summary>'+
       '<div style="display:grid;gap:8px;padding-top:10px">'+
