@@ -1695,7 +1695,7 @@ function withPosTimeout(promise,ms){
   })]).finally(()=>clearTimeout(timer));
 }
 async function renderPos(){
-  view.innerHTML=`<div class="pos-screen"><div class="page-title-row pos-page-title"><h2 class="page-title">출퇴근</h2><span class="page-title-meta" id="empCount">확인 중</span></div><div class="grid employee-scroll-surface" id="empGrid"><div class="empty" role="status">직원 목록 불러오는 중…</div></div></div>`;
+  view.innerHTML=`<div class="pos-screen"><div class="page-title-row pos-page-title"><h2 class="page-title">출퇴근</h2><span class="page-title-meta" id="empCount">총 0명</span></div><div class="grid employee-scroll-surface" id="empGrid"><div class="empty" role="status">직원 목록 불러오는 중…</div></div></div>`;
   const grid=document.getElementById("empGrid");
   // POS employee lookup must not wait for an unused authenticated manager RPC.
   let emps=[];
