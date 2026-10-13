@@ -41,6 +41,8 @@ window.mountStoreManagerTab=function(){
   mount.style.cssText="padding:14px 0;display:none";
   panel.appendChild(mount);
   tabs.appendChild(tab);
+  // The employee tabs use a fixed two-column grid. Expand to three equal columns.
+  tabs.style.gridTemplateColumns="repeat(3,minmax(0,1fr))";
   const employees=[...tabs.querySelectorAll("button:not(#empTabManagers)")];
   const showEmployees=()=>{
     mount.hidden=true;mount.style.display="none";
