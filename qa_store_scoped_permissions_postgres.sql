@@ -131,4 +131,35 @@ DO $qa$ BEGIN
  OR (SELECT count(*) FROM public.admin_users WHERE admin_role='HQ')<>1
  THEN RAISE EXCEPTION 'ORIGINAL_FIXTURE_INTEGRITY'; END IF;
 END $qa$;
+
+-- New registrations start with absolutely no management rights until explicitly granted.
+\i supabase/migrations/20261014100000_delegated_default_deny.sql
+SELECT public.store_delegated_manager_change(2,'test10@synthetic.invalid',NULL,'ADD');
+DO $qa$ BEGIN
+ IF NOT EXISTS(
+   SELECT 1 FROM public.store_delegated_permissions p JOIN public.admin_users a ON a.user_id=p.user_id
+   WHERE a.email='test10@synthetic.invalid' AND p.store_id=2
+     AND NOT p.staff_edit AND NOT p.attendance_approve AND NOT p.payroll_view)
+ THEN RAISE EXCEPTION 'INVITED_MANAGER_NOT_DEFAULT_DENIED'; END IF;
+END $qa$;
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000010',false);
+DO $qa$ BEGIN
+ IF public.can_manage_store(2) OR public.store_scope_can(2,'STAFF_EDIT')
+ OR public.store_scope_can(2,'ATTENDANCE_APPROVE')
+ OR public.store_scope_can(2,'PAYROLL_VIEW')
+ THEN RAISE EXCEPTION 'NEW_MANAGER_UNEXPECTED_ACCESS'; END IF;
+END $qa$;
+SELECT public.qa_expect_failure('new manager cannot invite others',
+ $q$SELECT public.store_delegated_manager_change(2,'test11@synthetic.invalid',NULL,'ADD')$q$,
+ 'OWNER_ONLY');
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000004',false);
+SELECT public.store_delegated_permissions_set(2,'00000000-0000-4000-8000-000000000010',true,false,false);
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000010',false);
+DO $qa$ BEGIN
+ IF public.can_manage_store(2) OR NOT public.store_scope_can(2,'STAFF_EDIT')
+ OR public.store_scope_can(2,'PAYROLL_VIEW')
+ THEN RAISE EXCEPTION 'EXPLICIT_LIMITED_GRANT_FAILED'; END IF;
+END $qa$;
+
 \echo PASS: limited manager scopes, default deny legacy, staff update, attendance decision, closed-payroll read, owner promotion, 283 stores intact
+\echo PASS: new manager default-deny until owner authorizes allowed scopes
