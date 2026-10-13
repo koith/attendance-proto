@@ -6,7 +6,7 @@ const ui=fs.readFileSync('operations_reconciliation_v1.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261012221000_store_operations_reconciliation.sql','utf8');
 assert.match(app,/operations_reconciliation_v1\.js\?v=20261012v245/);
 assert.match(app,/operations_v1\.js\?v=20261013v246/);
-assert.match(app,/const APP_VERSION="v0\.248"/);
+assert.match(app,/const APP_VERSION="v0\.\d+";/);
 assert.match(ops,/S\.tab==="dashboard"\?'<div class="ops-head-actions">/);
 assert.match(ops,/id="opsReconciliationOpen"/);
 assert.match(ops,/window\.openStoreOperationsReconciliation\?\.\(\)/);

@@ -34,6 +34,8 @@ jobs:
         run: node qa_actual_attendance_day_slices_v1.mjs
       - name: Actual attendance correction V1 QA
         run: node qa_actual_attendance_correction_v1.mjs
+      - name: Overnight correction and 26h+ timeline QA
+        run: node qa_actual_attendance_overnight_fix_v1.mjs
       - name: Actual attendance anomaly V1 QA
         run: node qa_actual_attendance_anomaly_v1.mjs
       - name: Actual attendance anomaly correction V1 QA
