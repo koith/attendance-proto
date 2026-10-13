@@ -1,0 +1,45 @@
+name: substitution-correction-timezone-postgres
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261013200500_substitution_retirement_correction_clock.sql'
+      - 'qa_substitution_attendance_clock_parity_postgres.sql'
+      - 'qa_attendance_consumer_timezone_postgres.sql'
+      - 'qa_actual_attendance_overnight_timezone_postgres.sql'
+      - '.github/workflows/substitution-correction-timezone-postgres.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20261013200500_substitution_retirement_correction_clock.sql'
+      - 'qa_substitution_attendance_clock_parity_postgres.sql'
+      - '.github/workflows/substitution-correction-timezone-postgres.yml'
+permissions:
+  contents: read
+jobs:
+  substitution-correction-timezone:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_fixture_only
+          POSTGRES_DB: qa_substitution_clock
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qa_substitution_clock"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_fixture_only
+      PGDATABASE: qa_substitution_clock
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Execute actual production SQL in disposable synthetic PostgreSQL 16
+        run: psql -v ON_ERROR_STOP=1 -f qa_substitution_attendance_clock_parity_postgres.sql
