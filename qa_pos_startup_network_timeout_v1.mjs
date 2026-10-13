@@ -45,4 +45,10 @@ assert.match(html,/retryStoreConnect/,
  'Users need a visible reconnection button');
 assert.match(html,/if\(!grid\.isConnected \|\| \(location\.hash && location\.hash!=="#pos"\)\)return;/,
  'Direct links lacking #pos must populate the employee grid');
+assert.match(html,/withPosTimeout\(BE\.listEmployeesState\(\),8000\)/,
+ 'POS employee list network must also have bounded wait');
+assert.match(html,/retryPosRoster/,
+ 'POS employees must be reloadable after a stalled network query');
+assert.doesNotMatch(html.slice(html.indexOf('async function renderPos(){'),html.indexOf('\nfunction applyCardFlow(')),/await BE\.isAdmin\(\)/,
+ 'Public POS must not wait on unused admin authorization network call');
 console.log('PASS POS startup: bounded LTE store RPC, status, fail-closed retry, recovery, no-hash route');
