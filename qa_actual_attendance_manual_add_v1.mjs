@@ -29,7 +29,7 @@ r=await run(['928','25:00','18:30','invalid']);
 assert.equal(r.writes.length,0,'Invalid clock cannot write');
 r=await run(['928','09:00','25:30','invalid']);
 assert.equal(r.writes.length,0,'Invalid OUT cannot write partial IN');
-r=await run(['928','18:00','01:00','2026-10-13','overnight']);
+r=await run(['928','18:00','01:00','overnight','2026-10-13']);
 assert.equal(r.writes[1].p_new_at,'2026-10-13 01:00:00');
 r=await run(['928','09:00','18:30','reason'],{failOut:true});
 assert.equal(r.writes.length,2);
