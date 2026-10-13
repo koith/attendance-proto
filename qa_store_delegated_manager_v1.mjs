@@ -72,6 +72,7 @@ async function simulateStore(storeId){
    {user_id:"delegated-id",email:"delegate@synthetic.invalid",manager_role:"MANAGER"}]};},
   toast:()=>{},alert:()=>{},confirm:()=>true
  };
+ context.window=context;
  vm.runInNewContext(ui,context,{filename:"store_manager_tab.js"});
  context.window.mountStoreManagerTab();
  const tab=tabs.children.find(x=>x.id==="empTabManagers");
