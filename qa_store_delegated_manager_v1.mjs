@@ -28,7 +28,9 @@ assert.doesNotMatch(ui,/===1\s*\?\s*true|storeId===1/,"no single-store tab white
 assert.match(ui,/insertAdjacentElement\("afterend",mount\)/);
 assert.match(app,/\.store-manager-section\{/);
 assert.doesNotMatch(ui,/empTabManagers/);
-assert.match(ui,/storeManagerHqInviteForm/);
+assert.doesNotMatch(ui,/storeManagerHqInviteForm|invite_store_manager/,"HQ invitations must not be present on store manager screen");
+assert.match(ui,/본사 대시보드/);
+assert.match(ui,/const canManage=isPrimary/);
 assert.match(hq,/hq_store_primary_owner_set/);
 assert.match(hq,/hq_store_primary_owner_list/);
 assert.match(hq,/data-primary-assign/);
@@ -80,8 +82,11 @@ async function simulateStore(storeId,role){
  assert.ok(calls.some(x=>x.url.endsWith("store_delegated_manager_list")&&x.data.p_store_id===storeId));
  const html=panel.adjacent.content.innerHTML;
  if(role==="OWNER")assert.match(html,/storeManagerInviteForm/);
- if(role==="HQ")assert.match(html,/storeManagerHqInviteForm/);
- if(role==="MANAGER")assert.doesNotMatch(html,/storeManagerInviteForm/);
+ if(role==="HQ"){
+   assert.doesNotMatch(html,/storeManagerHqInviteForm|storeManagerExistingForm|storeManagerInviteForm|data-manager-revoke/);
+   assert.match(html,/본사 대시보드/);
+ }
+ if(role==="MANAGER")assert.doesNotMatch(html,/storeManagerInviteForm|storeManagerExistingForm|data-manager-revoke/);
 }
 for(const id of [1,2,283])for(const role of ["OWNER","HQ","MANAGER"])await simulateStore(id,role);
-console.log("PASS: independent manager card at stores 1/2/283, HQ/owner/manager permissions, employee roster preserved");
+console.log("PASS: HQ owner invite separated, owner-only delegation at stores 1/2/283, employee roster preserved");
