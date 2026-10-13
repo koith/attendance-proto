@@ -5,6 +5,12 @@ on:
       - 'actual_attendance.js'
       - 'qa_actual_attendance_overnight_pairing_v1.mjs'
       - 'qa_actual_attendance_overnight_timezone_postgres.sql'
+      - 'qa_attendance_consumer_timezone_postgres.sql'
+      - 'qa_attendance_payroll_consumer_parity_v1.mjs'
+      - 'supabase/migrations/20261013195000_attendance_consumer_timezone_parity.sql'
+      - 'supabase/functions/server-sync-sheet/engine.mjs'
+      - 'edge-release/supabase/functions/server-sync-sheet/engine.mjs'
+      - 'index.html'
       - 'supabase/migrations/20261013154500_attendance_correction_clock_boundary.sql'
       - '.github/workflows/actual-attendance-overnight-timezone-postgres.yml'
   push:
@@ -13,6 +19,12 @@ on:
       - 'actual_attendance.js'
       - 'qa_actual_attendance_overnight_pairing_v1.mjs'
       - 'qa_actual_attendance_overnight_timezone_postgres.sql'
+      - 'qa_attendance_consumer_timezone_postgres.sql'
+      - 'qa_attendance_payroll_consumer_parity_v1.mjs'
+      - 'supabase/migrations/20261013195000_attendance_consumer_timezone_parity.sql'
+      - 'supabase/functions/server-sync-sheet/engine.mjs'
+      - 'edge-release/supabase/functions/server-sync-sheet/engine.mjs'
+      - 'index.html'
       - 'supabase/migrations/20261013154500_attendance_correction_clock_boundary.sql'
       - '.github/workflows/actual-attendance-overnight-timezone-postgres.yml'
 permissions:
@@ -47,7 +59,9 @@ jobs:
           node-version: '22'
       - name: Verify midnight shift and redundant synthetic OUT are UI-safe
         run: node qa_actual_attendance_overnight_pairing_v1.mjs
+      - name: Verify browser and live/native Edge payroll pairing agreement
+        run: node qa_attendance_payroll_consumer_parity_v1.mjs
       - name: Install PostgreSQL client
         run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
       - name: Execute real production function definitions with synthetic employee fixtures
-        run: psql -v ON_ERROR_STOP=1 -f qa_actual_attendance_overnight_timezone_postgres.sql
+        run: psql -v ON_ERROR_STOP=1 -f qa_attendance_consumer_timezone_postgres.sql

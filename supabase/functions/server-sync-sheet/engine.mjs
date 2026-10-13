@@ -42,7 +42,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   function applyCorrections(events, corrections){
   const corrByEvent={}; const added=[];
   for(const c of (corrections||[])){
-    if(c.action==="ADD"){ added.push(c); continue; }
+    if(c.action==="ADD"){ if(!/\[VOID_ADD:\d+\]/.test(String(c.reason||""))) added.push(c); continue; }
     // 같은 event_id의 보정 중 최신만 유효
     if(c.event_id!=null){ const prev=corrByEvent[c.event_id];
       const at=new Date(c.created_at).getTime(),prior=prev?new Date(prev.created_at).getTime():-Infinity;
@@ -64,7 +64,8 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   // 관리자가 추가(ADD)한 누락분
   for(const c of added){
     eff.push({ id:"add_"+c.id, employee_id:c.employee_id, event_type:c.new_event_type,
-      event_at:c.new_event_at, corrected:true, correctionReason:String(c.reason||c.correction_reason||""), addedByAdmin:true });
+      event_at:c.new_event_at, corrected:true, correctionReason:String(c.reason||c.correction_reason||""), addedByAdmin:true,
+      systemStoreClose:c.created_by==="system:auto-close" && c.reason==="SYSTEM_STORE_CLOSE" });
   }
   return eff;
 }
@@ -86,6 +87,9 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"INCOMPLETE",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null,corrected:!!openInCorrected, correctionReason:openInReason});
       openIn=when; openInId=r.id; openInRaw=r.event_at; openInCorrected=!!r.corrected; openInReason=r.correctionReason||"";
     }else if(r.event_type==="OUT"){
+      // An automatic 26:00 OUT is a fallback only for a still-open IN.
+      // Never turn an already completed late shift into a phantom next-day orphan OUT.
+      if(r.systemStoreClose && openIn===null) continue;
       if(openIn!==null){
         // Invalid Date 방어: 어느 한쪽이라도 파싱 실패면 sec=null(합산 제외), status로 표시
         const sec=(isNaN(openIn)||isNaN(when))?null:(when-openIn)/1000;
