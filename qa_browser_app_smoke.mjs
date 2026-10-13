@@ -344,6 +344,43 @@ async function blockedStoreRoute(browser,label,viewport){
   await context.close();
   console.log('PASS blocked store routes '+label+': STAGED, unknown, malformed, no Inha fallback');
 }
+// Field incident 2026-10-13: test a real mobile dedicated link when LTE
+// request for list_stores fails. This uses intercepted fake RPCs ONLY.
+async function posNetworkRecovery(browser){
+  const context=await browser.newContext({viewport:{width:390,height:844},locale:'ko-KR',timezoneId:'Asia/Seoul'});
+  const page=await context.newPage();
+  const calls=[],errors=[];
+  page.on('pageerror',e=>errors.push(String(e.message||e)));
+  await configure(page,calls,'HQ');
+  let disconnected=true;
+  await page.route('**/rest/v1/rpc/list_stores',async route=>{
+    if(disconnected){
+      await new Promise(resolve=>setTimeout(resolve,750));
+      return route.abort('failed').catch(()=>{});
+    }
+    return reply(route,[{id:1,name:'인하대학교점',is_active:true,source_store_key:'official_demo'}]);
+  });
+  await page.goto(host+'/index.html?mode=store&store=1#pos',{waitUntil:'domcontentloaded'});
+  await page.getByText('지점 연결 확인 중…').waitFor({timeout:4500});
+  assert.equal(await page.locator('#empGrid .emp').count(),0,'Unverified dedicated store leaked POS cards');
+  await page.getByRole('button',{name:'다시 연결'}).waitFor({timeout:5000});
+  assert.equal(await page.locator('.tabwrap').isVisible(),false,
+   'Failed live verification must keep unverified store tabs hidden');
+  assert.match(await page.locator('#view').innerText(),/지점 서버 연결이 지연/);
+  disconnected=false;
+  await page.getByRole('button',{name:'다시 연결'}).click();
+  await page.locator('#empGrid .emp').first().waitFor({timeout:12000});
+  assert.match(await page.locator('#empGrid').innerText(),/김지수/,
+    'Retry must restore authorized store employee roster');
+  assert.equal(errors.length,0,'POS error recovery must not throw in browser '+JSON.stringify(errors));
+
+  // A direct URL without an explicit hash is common when staff share links.
+  await page.goto(host+'/index.html?mode=store&store=1',{waitUntil:'domcontentloaded'});
+  await page.locator('#empGrid .emp').first().waitFor({timeout:12000});
+  assert.equal(errors.length,0,'No-hash POS entry crashed '+JSON.stringify(errors));
+  await context.close();
+  console.log('PASS field LTE outage: visible pending and error, scoped retry, no-hash POS recovery');
+}
 const browser=await chromium.launch({headless:true});
 try{
   await smoke(browser,'mobile',{width:390,height:844});
@@ -352,6 +389,7 @@ try{
   await ownerScopedRoute(browser,'desktop',{width:1440,height:900});
   await blockedStoreRoute(browser,'mobile',{width:390,height:844});
   await blockedStoreRoute(browser,'desktop',{width:1440,height:900});
+  await posNetworkRecovery(browser);
 }finally{
   await browser.close();
 }

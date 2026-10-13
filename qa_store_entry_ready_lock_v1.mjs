@@ -10,7 +10,7 @@ q(/let STORE_ENTRY_UNAVAILABLE=STORE_ENTRY_LOCK&&LIVE/);
 q(/if\(STORE_ENTRY_INVALID\)return;/);
 q(/const active=rows\.find\(x=>Number\(x\.id\)===CURRENT_STORE_ID&&x\.is_active!==false\)/);
 q(/if\(!active\)\{STORE_ENTRY_UNAVAILABLE=true;return;\}/);
-q(/catch\(e\)\{STORE_ENTRY_UNAVAILABLE=true;console\.warn\("dedicated store not verified",e\)/);
+q(/catch\(e\)\{STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;console\.warn\("dedicated store not verified",e\)/);
 q(/if\(STORE_ENTRY_UNAVAILABLE\)\{[\s\S]*?지점 운영 준비 중[\s\S]*?return;\}/);
 q(/if\(STORE_ENTRY_LOCK&&\(!requested\|\|STORE_ENTRY_INVALID\)\)\{STORE_ENTRY_UNAVAILABLE=true;return;\}/);
 q(/const tabs=Number\(CURRENT_STORE_ID\)===1/);

@@ -740,7 +740,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.246</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.247</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -831,7 +831,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.246";
+const APP_VERSION="v0.247";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1233,11 +1233,19 @@ const SupaBE = (()=>{
   };
 })();
 
-const publicRpc=async(fn,args={})=>{
+const publicRpc=async(fn,args={},timeoutMs=0)=>{
   const headers={apikey:CONFIG.SUPABASE_ANON_KEY,"Content-Type":"application/json","Authorization":`Bearer ${CONFIG.SUPABASE_ANON_KEY}`};
-  const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:"POST",headers,body:JSON.stringify(args)});
-  if(!r.ok) throw new Error(await r.text());
-  const t=await r.text();return t?JSON.parse(t):null;
+  // An unreliable mobile connection must never leave the POS boot blank forever.
+  const controller=timeoutMs>0?new AbortController():null;
+  const timer=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
+  try{
+    const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:"POST",headers,body:JSON.stringify(args),...(controller?{signal:controller.signal}:{})});
+    if(!r.ok)throw new Error(await r.text());
+    const t=await r.text();return t?JSON.parse(t):null;
+  }catch(e){
+    if(controller?.signal.aborted)throw new Error("STORE_CONNECT_TIMEOUT");
+    throw e;
+  }finally{if(timer!==null)clearTimeout(timer);}
 };
 
 const BE = LIVE ? SupaBE : LocalBE;
@@ -1258,6 +1266,22 @@ const STORE_ENTRY_LOCK=STORE_ENTRY_MODE==="store"||STORE_ENTRY_ID>0||STORE_ENTRY
 const STORE_ENTRY_URL=(id)=>location.pathname+"?mode=store&store="+encodeURIComponent(id)+"#pos";
 // Dedicated links fail closed until list_stores confirms an active READY store.
 let STORE_ENTRY_UNAVAILABLE=STORE_ENTRY_LOCK&&LIVE;
+let STORE_ENTRY_LOADING=LIVE;
+let STORE_ENTRY_CONNECTION_FAILED=false;
+if(STORE_ENTRY_UNAVAILABLE)document.querySelector(".tabwrap")?.style.setProperty("display","none");
+// A visible, non-interactive waiting screen takes the place of the blank
+// #view while anonymous store authorization is being checked.
+function showStoreStartup(){
+  const main=document.getElementById("view");
+  if(main)main.innerHTML='<div class="empty" role="status" aria-live="polite"><b>지점 연결 확인 중…</b><p>출퇴근 서버에 연결하고 있습니다. 잠시만 기다려 주세요.</p></div>';
+}
+function retryStoreStartup(){
+  if(STORE_ENTRY_LOADING)return;
+  STORE_ENTRY_LOADING=true;
+  STORE_ENTRY_CONNECTION_FAILED=false;
+  showStoreStartup();
+  loadStores().finally(()=>{STORE_ENTRY_LOADING=false;route();});
+}
 if(STORE_ENTRY_UNAVAILABLE)document.querySelector(".tabwrap")?.style.setProperty("display","none");
 let CURRENT_STORE_ID=STORE_ENTRY_ID||1;
 if(STORE_ENTRY_ID){ try{sessionStorage.setItem("baekeok_store_id",String(STORE_ENTRY_ID))}catch(_){} }
@@ -1299,7 +1323,7 @@ async function loadStores(){
      CURRENT_STORE_ID=STORE_ENTRY_ID||1;
      sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));
      try{
-       const rows=await publicRpc("list_stores",{});
+       const rows=await publicRpc("list_stores",{},6500);
        if(!Array.isArray(rows))throw new Error("STORE_LIST_INVALID");
        STORE_NAME_BY_ID=new Map(rows.map(x=>[Number(x.id),String(x.name||"")]));
        const active=rows.find(x=>Number(x.id)===CURRENT_STORE_ID&&x.is_active!==false);
@@ -1307,7 +1331,7 @@ async function loadStores(){
        sessionStorage.setItem("baekeok_store_name",String(active.name||""));
        STORE_ENTRY_UNAVAILABLE=false;
        syncStoreContextUI();
-     }catch(e){STORE_ENTRY_UNAVAILABLE=true;console.warn("dedicated store not verified",e);}
+     }catch(e){STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;console.warn("dedicated store not verified",e);}
    }
    return;
  }
@@ -1315,7 +1339,7 @@ async function loadStores(){
  sel.onchange=()=>applyStore(sel.value);
  if(!LIVE){syncStoreSelectDisplay();return}
  try{
-  const rows=await publicRpc("list_stores",{});if(!Array.isArray(rows)||!rows.length)throw new Error("EMPTY_STORES");
+  const rows=await publicRpc("list_stores",{},6500);if(!Array.isArray(rows)||!rows.length)throw new Error("EMPTY_STORES");
   STORE_NAME_BY_ID=new Map(rows.map(x=>[Number(x.id),String(x.name||"")]));
   sel.innerHTML=rows.map(x=>'<option value="'+Number(x.id)+'">'+safeHtml(x.name)+'</option>').join("");
   const requested=STORE_ENTRY_ID&&rows.some(x=>Number(x.id)===STORE_ENTRY_ID)?STORE_ENTRY_ID:0;
@@ -1325,7 +1349,7 @@ async function loadStores(){
   sel.value=String(CURRENT_STORE_ID);sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));
   const name=STORE_NAME_BY_ID.get(CURRENT_STORE_ID);if(name)sessionStorage.setItem("baekeok_store_name",name);
   syncStoreContextUI();
- }catch(e){console.warn("store list load failed",e);if(STORE_ENTRY_LOCK)STORE_ENTRY_UNAVAILABLE=true;else syncStoreSelectDisplay()}
+ }catch(e){console.warn("store list load failed",e);if(STORE_ENTRY_LOCK){STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;}else syncStoreSelectDisplay()}
 }
 // Any database/user-controlled text inserted through innerHTML must pass this boundary.
 function safeHtml(value){
@@ -1553,12 +1577,18 @@ function upgradeLegacyPageTitle(selector,title){
 function route(){
   const h=(location.hash||"#pos").replace("#","");
   if(window._adminAccountMenuCleanup){window._adminAccountMenuCleanup();window._adminAccountMenuCleanup=null}
+  if(STORE_ENTRY_LOADING){showStoreStartup();return;}
   if(STORE_ENTRY_UNAVAILABLE){
     clearInterval(_posTimer);
     const tabbar=document.querySelector(".tabwrap");if(tabbar)tabbar.style.display="none";
     const label=document.getElementById("lockedStoreName");
     if(label){label.textContent="지점 확인 필요";label.hidden=false;label.classList.add("show");}
-    view.innerHTML='<div class="empty"><b>지점 운영 준비 중</b><p>해당 지점은 운영 승인이 완료되지 않았거나 상태를 확인할 수 없습니다. 본사에 문의하세요.</p></div>';
+    if(STORE_ENTRY_CONNECTION_FAILED){
+      view.innerHTML='<div class="empty" role="alert"><b>지점 서버 연결이 지연되고 있습니다.</b><p>네트워크를 확인한 뒤 다시 시도하세요. 출퇴근 기록은 연결되기 전까지 저장되지 않습니다.</p><button type="button" class="btn btn-primary" id="retryStoreConnect">다시 연결</button></div>';
+      document.getElementById("retryStoreConnect")?.addEventListener("click",retryStoreStartup);
+    }else{
+      view.innerHTML='<div class="empty"><b>지점 운영 준비 중</b><p>해당 지점은 운영 승인이 완료되지 않았거나 상태를 확인할 수 없습니다. 본사에 문의하세요.</p></div>';
+    }
     return;
   }
   syncStoreContextUI();
@@ -1658,19 +1688,32 @@ function fmtElapsed(sinceIso){
   const m=Math.max(0,Math.floor(sec/60)); const h=Math.floor(m/60), mm=m%60;
   if(h&&mm) return `${h}시간 ${mm}분`; if(h) return `${h}시간`; return `${mm}분`;
 }
+function withPosTimeout(promise,ms){
+  let timer;
+  return Promise.race([promise,new Promise((_,reject)=>{
+    timer=setTimeout(()=>reject(new Error("직원 목록 서버 응답 지연")),ms);
+  })]).finally(()=>clearTimeout(timer));
+}
 async function renderPos(){
-  view.innerHTML=`<div class="pos-screen"><div class="page-title-row pos-page-title"><h2 class="page-title">출퇴근</h2><span class="page-title-meta" id="empCount">총 0명</span></div><div class="grid employee-scroll-surface" id="empGrid"></div></div>`;
+  view.innerHTML=`<div class="pos-screen"><div class="page-title-row pos-page-title"><h2 class="page-title">출퇴근</h2><span class="page-title-meta" id="empCount">총 0명</span></div><div class="grid employee-scroll-surface" id="empGrid"><div class="empty" role="status">직원 목록 불러오는 중…</div></div></div>`;
   const grid=document.getElementById("empGrid");
-  let adminMode=false;
-  if(LIVE&&Auth.isLoggedIn()){try{adminMode=!!(await BE.isAdmin())}catch(_){adminMode=false}}
+  // POS employee lookup must not wait for an unused authenticated manager RPC.
   let emps=[];
-  try{ emps=await BE.listEmployeesState(); }catch(e){ if(grid.isConnected)grid.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; return; }
+  try{emps=await withPosTimeout(BE.listEmployeesState(),8000);}
+  catch(e){
+    if(grid.isConnected){
+      grid.innerHTML=`<div class="empty" role="alert"><b>직원 목록을 불러오지 못했습니다.</b><p>${safeHtml(e.message)}</p><button type="button" class="btn btn-primary" id="retryPosRoster">다시 불러오기</button></div>`;
+      document.getElementById("retryPosRoster")?.addEventListener("click",()=>{if(!location.hash||location.hash==="#pos")renderPos();});
+    }
+    return;
+  }
   // Route may have changed while listEmployeesState was in flight: never mutate
   // an obsolete POS view or dereference its already-removed counter element.
-  if(!grid.isConnected || location.hash!=="#pos")return;
+  if(!grid.isConnected || (location.hash && location.hash!=="#pos"))return;
   const count=document.getElementById("empCount");
   if(!count)return;
   count.textContent=`총 ${emps.length}명`;
+  grid.innerHTML="";
   if(!emps.length){ grid.innerHTML=`<div class="empty">등록된 직원이 없습니다.<br>관리자 탭에서 먼저 직원을 등록하세요.</div>`; return; }
   for(const e of emps){
     const card=document.createElement("div");
@@ -3605,7 +3648,8 @@ removeLegacySubstituteEntry();
 
 // Brand logo is decorative: store pages must never navigate to the HQ dashboard from it.
 if(LIVE) Auth.load();
-loadStores().finally(()=>route());
+if(LIVE)showStoreStartup();
+loadStores().finally(()=>{STORE_ENTRY_LOADING=false;route();});
 </script>
 <script src="store_controls_v1.js?v=20260929v066"></script>
 <script src="hq_store_onboarding_ui.js?v=20261013v246"></script>
