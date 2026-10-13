@@ -749,7 +749,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.254</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.255</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -840,7 +840,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.254";
+const APP_VERSION="v0.255";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1684,9 +1684,11 @@ function requireAuth(then){
     document.getElementById("loginBtn").textContent="로그인 중…";
     try{
       await Auth.login(email,pw);
-      // 로그인 성공 ≠ 관리자. 서버 is_admin()으로 권한 확인
-      let ok=false; try{ ok = await BE.isAdmin(); }catch(_){ ok=false; }
-      if(!ok){
+      // 로그인 허용 여부와 전체 관리자 권한은 다릅니다.
+      // 제한 관리자는 기존 is_admin()이 아닌 인증된 admin_context()로 검증합니다.
+      let loginContext=null;
+      try{ loginContext=await BE.adminContext(); }catch(_){ loginContext=null; }
+      if(!["HQ","STORE_MANAGER"].includes(loginContext?.role)){
         Auth.clear();
         errEl.textContent="이 계정은 관리자 권한이 없습니다. 관리자에게 문의하세요.";
         document.getElementById("loginBtn").textContent="로그인";
