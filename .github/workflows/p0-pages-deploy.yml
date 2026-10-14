@@ -16,6 +16,7 @@ on:
       - 'qa_boot_syntax.mjs'
       - 'hq_owner_console.js'
       - 'qa_hq_owner_browser_acceptance.mjs'
+      - 'qa_hq_quicknav_escape_contract_v1.mjs'
       - 'qa_pos_route_async_guard_v1.mjs'
       - 'qa_pos_startup_network_timeout_v1.mjs'
       - 'operations_reference_ui_v208.js'
@@ -251,7 +252,9 @@ jobs:
           npm install --no-save --no-audit --no-fund playwright@1.55.1
           npx playwright install --with-deps chromium
       - name: HQ owner real-browser acceptance (mobile and desktop)
-        run: node qa_hq_owner_browser_acceptance.mjs
+        run: |
+          node qa_hq_quicknav_escape_contract_v1.mjs
+          node qa_hq_owner_browser_acceptance.mjs
       - name: Actual attendance store isolation regression
         run: node qa_actual_attendance_store_scope_v1.mjs
       - name: Store employee contract status authorization regression
