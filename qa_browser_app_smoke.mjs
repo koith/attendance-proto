@@ -252,6 +252,8 @@ async function smoke(browser,label,viewport){
   await page.locator('#hqStoreStatusFilter').selectOption('STAGED');
   await page.locator('#hqOnboardingStore').selectOption('2');
   assert.match(await page.locator('#hqOnboardingBody').innerText(),/STAGED/);
+  assert.equal(await page.locator('#hqManagerCard').isVisible(),true,'Compact owner card must be prominent '+label);
+  assert.equal(await page.locator('#hqStoreOperations').evaluate(el=>el.open),false,'Operational controls should start collapsed '+label);
   assert.equal(await page.locator('#hqStoreReady').isDisabled(),true,'Unverified store must not activate '+label);
   await page.locator('#hqManagerEmail').fill('owner@example.invalid');
   await page.locator('#hqManagerInvite').click();
@@ -259,12 +261,15 @@ async function smoke(browser,label,viewport){
   assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='invite_store_manager'&&x.args.store_id===2),
     'HQ invite service not called '+label);
   assert.equal(await page.locator('#hqStoreReady').isDisabled(),true,'Invitation without verification must not activate '+label);
+  await page.locator('#hqStoreOperations summary').click();
+  assert.equal(await page.locator('#hqStoreOperations').evaluate(el=>el.open),true,'Operations details must expand '+label);
   await page.locator('#hqStoreEvidence').fill('QA verified official shop record');
   await page.locator('#hqStoreVerify').click();
   await page.waitForFunction(()=>document.querySelector('#hqOnboardingBody')?.innerText.includes('VERIFIED'),
     null,{timeout:12000});
   assert.equal(await page.locator('#hqStoreReady').isDisabled(),true,
     'Verified branch with an unconfirmed invite must remain inactive '+label);
+  assert.equal(await page.locator('#hqStoreOperations').evaluate(el=>el.open),true,'Operations details remain expanded after verified refresh '+label);
   assert.equal(calls.filter(x=>x.name==='hq_store_onboarding_set').length,0,
     'Unconfirmed owner must never activate a store '+label);
   ownerFixture.confirmOwner();
