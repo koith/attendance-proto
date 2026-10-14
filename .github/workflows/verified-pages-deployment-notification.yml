@@ -99,7 +99,13 @@ jobs:
                   !body.includes('GitHub Pages 배포 결과: 성공'))continue;
               const sha=body.match(/- (?:배포 )?커밋: ([a-f0-9]{40})/)?.[1];
               const priorId=Number(body.match(/\[deployment-run:(\d+)\]/)?.[1]);
-              if(!sha||sha===failedSha||!Number.isSafeInteger(priorId))continue;
+              const independentId=Number(body.match(/\[independent-verified-run:(\d+)\]/)?.[1]);
+              if(!sha||sha===failedSha||!Number.isSafeInteger(priorId)||
+                 !Number.isSafeInteger(independentId))continue;
+              const independent=await github.rest.actions.getWorkflowRun({
+                ...context.repo,run_id:independentId});
+              if(independent.data.name!=='verified-pages-deployment-notification'||
+                 independent.data.conclusion!=='success')continue;
               const previous=await github.rest.actions.getWorkflowRun({...context.repo,run_id:priorId});
               if(previous.data.head_sha!==sha||previous.data.conclusion!=='success')continue;
               const compare=await github.rest.repos.compareCommits({
@@ -218,12 +224,16 @@ jobs:
           script: |
             const runId = Number(process.env.DEPLOY_RUN);
             const marker = '[deployment-run:' + runId + ']';
-            const isSuccess = process.env.DEPLOY_CONCLUSION === 'success' &&
+            let isSuccess = process.env.DEPLOY_CONCLUSION === 'success' &&
               process.env.VERIFY_COMMIT === 'success' &&
               process.env.VERIFY_REQUEST_QA === 'success' &&
               process.env.VERIFY_CHANGED_ASSETS === 'success' &&
               process.env.VERIFY_PUBLIC === 'success' &&
               process.env.VERIFY_BROWSER === 'success';
+            // A superseded commit must never be announced as the active verified release.
+            const main=await github.rest.git.getRef({...context.repo,ref:'heads/main'});
+            const superseded=main.data.object.sha!==process.env.DEPLOY_SHA;
+            if(superseded)isSuccess=false;
             const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,{
               ...context.repo,run_id:runId,per_page:100
             });
@@ -231,8 +241,9 @@ jobs:
               jobs.some(job=>(job.steps||[]).some(step=>
                 step.name === 'Intentional gate failure proof' && step.conclusion === 'failure'));
             const state = isIntentionalQaFailure ? '실패(의도적 QA)' :
-              process.env.DEPLOY_CONCLUSION === 'cancelled' ? '취소' : isSuccess ? '성공' : '실패';
-            const stage = isIntentionalQaFailure ? '의도적인 P0 검사 실패 테스트 — 운영 배포를 실행하지 않음' :
+              process.env.DEPLOY_CONCLUSION === 'cancelled' ? '취소' : superseded ? '교체됨' : isSuccess ? '성공' : '실패';
+            const stage = superseded ? '더 최신 main 커밋이 있어 이전 배포의 최종 성공 알림을 차단함' :
+              isIntentionalQaFailure ? '의도적인 P0 검사 실패 테스트 — 운영 배포를 실행하지 않음' :
               process.env.DEPLOY_CONCLUSION !== 'success' ? 'GitHub Pages workflow: '+process.env.DEPLOY_CONCLUSION :
               process.env.VERIFY_COMMIT !== 'success' ? '배포 커밋/버전 검증' :
               process.env.VERIFY_REQUEST_QA !== 'success' ? '수정 요청 연결 및 사전 QA 검증' :
@@ -244,7 +255,9 @@ jobs:
             const runUrl = 'https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+runId;
             const sha = process.env.DEPLOY_SHA;
             const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({...context.repo,commit_sha:sha}).then(r=>r.data.map(p=>'#'+p.number).join(', ')||'없음').catch(()=>'조회 실패');
-            const body = [marker,'@'+context.repo.owner, '### GitHub Pages 배포 결과: '+state,
+            const receipt=isSuccess?'[independent-verified-run:'+context.runId+']':
+              '[independent-verification-non-success:'+context.runId+']';
+            const body = [marker,receipt,'@'+context.repo.owner, '### GitHub Pages 배포 결과: '+state,
               '- 앱 버전: **'+version+'**','- 시각(UTC): '+new Date().toISOString(),'- 커밋: '+sha,
               '- 관련 PR: '+prs,'- 운영 URL: '+process.env.PUBLISHED_URL,
               '- 검증 단계: '+stage, '- 복구 판정: '+(process.env.RECOVERY_REASON||'해당 없음'),'- 요청별 사전 QA: '+process.env.VERIFY_REQUEST_QA,
@@ -256,10 +269,17 @@ jobs:
             // Read all issue pages, including closed issues, to prevent duplicate alerts;
             // do not use eventually consistent issue search indexing.
             const issues = await github.paginate(github.rest.issues.listForRepo,{...context.repo,state:'all',per_page:100});
-            if (issues.some(i=>(i.body||'').includes(marker))) {core.info('Duplicate delivery suppressed '+marker);return;}
-            const created = await github.rest.issues.create({...context.repo,
-              title:'배포 '+state+' · '+version+' · run '+runId,body,assignees:[context.repo.owner]});
-            core.info('Notification issue created: '+created.data.html_url);
+            const previous=issues.find(i=>(i.body||'').includes(marker));
+            if(previous){
+              // Upgrade older same-run results to the real independent final result.
+              await github.rest.issues.update({...context.repo,issue_number:previous.number,
+                title:'배포 '+state+' · '+version+' · run '+runId,body});
+              core.info('Existing receipt finalized by independent verifier: '+previous.html_url);
+            }else{
+              const created=await github.rest.issues.create({...context.repo,
+                title:'배포 '+state+' · '+version+' · run '+runId,body,assignees:[context.repo.owner]});
+              core.info('Independent final verification notification: '+created.data.html_url);
+            }
             // Optional event-driven phone/email alert through a user-configured webhook.
             // Never log its URL or secret.
             if (process.env.OPTIONAL_ALERT_WEBHOOK) {

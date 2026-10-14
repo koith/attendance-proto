@@ -87,7 +87,11 @@ jobs:
             let receipt=false;
             for(const issue of verified){
               const priorId=Number((issue.body||'').match(/\[deployment-run:(\d+)\]/)?.[1]);
-              if(!Number.isSafeInteger(priorId))continue;
+              const independentId=Number((issue.body||'').match(/\[independent-verified-run:(\d+)\]/)?.[1]);
+              if(!Number.isSafeInteger(priorId)||!Number.isSafeInteger(independentId))continue;
+              const independent=await github.rest.actions.getWorkflowRun({...context.repo,run_id:independentId});
+              if(independent.data.name!=='verified-pages-deployment-notification'||
+                 independent.data.conclusion!=='success')continue;
               const prior=await github.rest.actions.getWorkflowRun({...context.repo,run_id:priorId});
               if(prior.data.head_sha===target&&prior.data.conclusion==='success')receipt=true;
             }
