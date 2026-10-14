@@ -41,12 +41,14 @@
     if(!Number.isFinite(rate)||rate<0||rate>=1)return null;
     const [year,month]=ym.split('-').map(Number);
     const daysInMonth=new Date(year,month,0).getDate();
+    const today=kstNow(),currentYm=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+    const payableDays=ym<currentYm?daysInMonth:ym>currentYm?0:Math.min(daysInMonth,today.getDate());
     const first=ym+'-01',last=ym+'-'+String(daysInMonth).padStart(2,'0');
     const spanFirst=contracts.map(c=>String(c.effective_from)).sort()[0];
     const spanLast=contracts.map(c=>c.effective_to?String(c.effective_to):last).sort().at(-1);
     const jobs=(periods||[]).filter(p=>Number(p.employee_id)===Number(employeeId));
     const allocation=new Map(contracts.map(c=>[c,0]));
-    for(let day=1;day<=daysInMonth;day++){
+    for(let day=1;day<=payableDays;day++){
       const date=ym+'-'+String(day).padStart(2,'0');
       const employed=jobs.length
         ?jobs.some(p=>String(p.started_on)<=date&&(!p.ended_on||String(p.ended_on)>=date))
@@ -142,9 +144,11 @@
   function alignMonthlyPay(row,c,periods,ym){
     if(!row.pay||!c||Number(c.monthly_salary)<=0)return;
     const [year,month]=ym.split('-').map(Number),daysInMonth=new Date(year,month,0).getDate();
+    const today=kstNow(),currentYm=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+    const payableDays=ym<currentYm?daysInMonth:ym>currentYm?0:Math.min(daysInMonth,today.getDate());
     const jobs=(periods||[]).filter(p=>Number(p.employee_id)===Number(row.employee_id));
     let accruedDays=0;
-    for(let day=1;day<=daysInMonth;day++){
+    for(let day=1;day<=payableDays;day++){
       const date=ym+'-'+String(day).padStart(2,'0');
       if(String(c.effective_from)>date||(c.effective_to&&String(c.effective_to)<date))continue;
       if(jobs.length&&!jobs.some(p=>String(p.started_on)<=date&&(!p.ended_on||String(p.ended_on)>=date)))continue;
