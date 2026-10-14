@@ -24,7 +24,7 @@ assert.match(sql,/CONFIRMED_STORE_MANAGER_REQUIRED/);
 assert.match(sql,/v_review IS DISTINCT FROM 'VERIFIED'/);
 assert.match(original,/PROVENANCE_VERIFICATION_REQUIRED/);
 assert.match(ui,/Number\(store\?\.manager_count\|\|0\)>0/);
-assert.match(ui,/이메일 확인 완료/);
+assert.match(ui,/인증 점주/,'Owner confirmation count must remain visible in store operations');
 assert.doesNotMatch(sql,/DELETE FROM public\.(?:employees|payroll_snapshot|attendance_events)/);
 assert.match(edge,/INACTIVE_ADMIN_ACCOUNT/);
 assert.match(edge,/authUser\.email_confirmed_at/);
