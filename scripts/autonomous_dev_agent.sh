@@ -173,6 +173,25 @@ git commit -m "agent: implement approved issue #$ISSUE_NUMBER"
 # the reviewed branch; no token is persisted during AI or test execution.
 gh auth setup-git
 git push -u origin "$branch"
-gh pr create --base main --head "$branch" \
-  --title "agent: $title (#$ISSUE_NUMBER)" \
-  --body "Automated development attempt for #$ISSUE_NUMBER. Bounded AI repair loop and local regression QA passed. **Requires PR review and CI. No automatic merge or production deployment.**"
+pr_message="Automated development attempt for #$ISSUE_NUMBER. Bounded AI repair loop and local regression QA passed. **Requires PR review and CI. No automatic merge or production deployment.**"
+if pr_out="$(gh pr create --base main --head "$branch" \
+  --title "agent: $title (#$ISSUE_NUMBER)" --body "$pr_message" 2>&1)"; then
+  printf '%s\n' "$pr_out"
+else
+  # GITHUB_TOKEN cannot create PRs in repos where the Actions PR creation
+  # setting is disabled. Do not misreport successful coding/QA as successful PR
+  # creation. Preserve the pushed branch and ask the connected GitHub bridge
+  # to open a reviewed PR using its own separately authorized app identity.
+  if grep -qi 'GitHub Actions is not permitted to create or approve pull requests' <<<"$pr_out"; then
+    marker="[agent-pr-bridge:${GITHUB_RUN_ID:-local}]"
+    gh issue comment "$ISSUE_NUMBER" --body "$marker
+AI 코드 생성·기능별 QA·브랜치 푸시는 통과했으나 GitHub Actions 기본 토큰은 PR 생성을 허용하지 않습니다.
+브랜치: $branch
+원본 작업: #$ISSUE_NUMBER
+실행: https://github.com/${GITHUB_REPOSITORY:-koith/attendance-proto}/actions/runs/${GITHUB_RUN_ID:-local}
+PR은 독립 GitHub 연결 권한으로 생성 후 전체 CI를 재검증해야 합니다. 아직 PR/병합/배포 성공이 아닙니다." || true
+    echo "::error::Review PR pending connector bridge: $branch"
+  fi
+  printf '%s\n' "$pr_out"
+  exit 1
+fi
