@@ -13,4 +13,16 @@ assert.match(ui,/addEventListener\("click",closeQuickPicker\)/,'Button and Escap
 assert.match(browser,/keyboard\.press\('Escape'\)/,'Browser QA must actually press Escape');
 assert.match(browser,/document\.activeElement===el/,'Browser QA must validate restored keyboard focus');
 assert.match(browser,/Escape must reset the region before reopen/,'Browser QA must validate initial state');
+const app=fs.readFileSync('index.html','utf8');
+const version=app.match(/const APP_VERSION="v0\.(\d+)";/);
+assert.ok(version&&Number(version[1])>=274,
+  'HQ quick picker keyboard fix must have a distinguishable published app version');
+assert.ok(app.includes('id="appVersion">v0.'+version[1]+'</span>'),
+  'Visible release badge and JS version must agree');
+const quickScripts=[...app.matchAll(/hq_owner_console\.js\?v=(\d{8}v\d+)/g)].map(m=>m[1]);
+assert.equal(quickScripts.length,2,'Both lazy and static HQ script loaders must bust browser cache');
+assert.equal(new Set(quickScripts).size,1,'Both HQ script loaders must use the same artifact revision');
+const [date,revision]=quickScripts[0].split('v').map(Number);
+assert.ok(date>=20261015&&revision>=274,
+  'Old v0.271 HQ script cache may not hide Escape and Tab accessibility changes');
 console.log('PASS HQ quick picker keyboard dismissal and acceptance wiring');
