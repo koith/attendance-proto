@@ -10,7 +10,7 @@ try {
   await page.route('**/rest/v1/rpc/**',route=>{
    const rpc=route.request().url().split('/').pop();
    const stores=Array.from({length:283},(_,i)=>({id:i+1,name:i===0?'강남역점':i===1?'송파역점':i===2?'주소미등록점':'테스트'+i+'점',code:'S'+i,region_group:i%2?'경기':'서울',road_address:i===0?'서울특별시 강남구 테헤란로 10':i===1?'서울특별시 송파구 올림픽로 20':i===3?'경기도 수원시 영통구 대학로 12':i===5?'경기도 수원시 팔달구 매산로 3':''}));
-   const locations=[{store_id:1,province:'서울특별시',district:'강남구',subdistrict:'',address:'서울 강남구 테헤란로 10'},{store_id:2,province:'서울특별시',district:'송파구',subdistrict:'',address:'서울 송파구 올림픽로 20'},{store_id:4,province:'경기도',district:'수원시',subdistrict:'영통구',address:'경기 수원시 영통구 대학로 12'},{store_id:6,province:'경기도',district:'수원시',subdistrict:'팔달구',address:'경기 수원시 팔달구 매산로 3'},...Array.from({length:30},(_,i)=>({store_id:i+20,province:'서울특별시',district:'종로구',subdistrict:'',address:'서울 종로구 테스트로 '+i}))];
+   const locations=[{store_id:1,province:'서울특별시',district:'강남구',subdistrict:'',address:'서울 강남구 테헤란로 10'},{store_id:2,province:'서울특별시',district:'송파구',subdistrict:'',address:'서울 송파구 올림픽로 20'},{store_id:4,province:'경기도',district:'수원시',subdistrict:'영통구',address:'경기 수원시 영통구 대학로 12'},{store_id:6,province:'경기도',district:'수원시',subdistrict:'팔달구',address:'경기 수원시 팔달구 매산로 3'},...Array.from({length:30},(_,i)=>({store_id:i+20,province:'서울특별시',district:'종로구',subdistrict:'',address:'서울 종로구 테스트로 '+i})),{store_id:7,province:'부산광역시',district:'금정구',subdistrict:'',address:'부산 금정구'},{store_id:8,province:'부산광역시',district:'동래구',subdistrict:'',address:'부산 동래구'},{store_id:9,province:'부산광역시',district:'기장군',subdistrict:'',address:'부산 기장군'}];
    const payload=rpc==='hq_stores_onboarding_list'?stores:rpc==='hq_store_locations_list'?locations:[];
    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(payload)});
   });
@@ -55,11 +55,19 @@ try {
   await snap();
   await page.locator('#hqQuickSubdistrict').selectOption('팔달구');
   assert.deepEqual(await page.locator('[data-quick-store] span').allTextContents(),['테스트5점'],'changing subdistrict must change stores');
+  await page.locator('#hqQuickProvince').selectOption('부산광역시');
+  assert.equal(await page.locator('[data-quick-store]').count(),3,'Busan all must include three located stores');
+  await page.locator('#hqQuickDistrict').selectOption('금정구');
+  assert.equal(await page.locator('[data-quick-store]').count(),1,'Busan Geumjeong district must have store');
+  await page.locator('#hqQuickDistrict').selectOption('동래구');
+  assert.equal(await page.locator('[data-quick-store]').count(),1,'Busan Dongnae district must have store');
+  await page.locator('#hqQuickDistrict').selectOption('기장군');
+  assert.equal(await page.locator('[data-quick-store]').count(),1,'Busan Gijang county must have store');
   await page.locator('#hqQuickClose').click();
   await page.locator('[data-quick-mode="region"]').click();
   assert.equal(await page.locator('#hqQuickProvince').inputValue(),'','province selection must reset');
   await page.locator('#hqQuickProvince').selectOption('주소 미확인');
-  assert.equal(await page.locator('[data-quick-store]').count(),249,'unmapped stores grouped exclusively in unknown');
+  assert.equal(await page.locator('[data-quick-store]').count(),246,'unmapped stores grouped exclusively in unknown');
   await page.locator('#hqQuickClose').click();
   await page.locator('[data-quick-mode="recent"]').click();
   await snap();
