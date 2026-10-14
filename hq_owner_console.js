@@ -53,7 +53,7 @@ window.mountHqOwnerConsole=async function(box){
    quickMode="";resetQuickFilters();render();
    if(originatingMode)body.querySelector('[data-quick-mode="'+originatingMode+'"]')?.focus();
  };
- document.addEventListener("keydown",event=>{
+ const handleQuickKey=event=>{
    if(!quickMode)return;
    const dialog=box.querySelector(".hq-quick-dialog");
    if(!dialog)return;
@@ -74,7 +74,22 @@ window.mountHqOwnerConsole=async function(box){
    }else if(!event.shiftKey&&active===last){
      event.preventDefault();first.focus();
    }
+ };
+ // Keep delegation on this stable owner console container, not transient
+ // dropdown nodes that are replaced whenever a province/district changes.
+ box.addEventListener("keydown",event=>{
+   if(event.key!=="Escape"&&event.key!=="Tab")return;
+   if(!event.target?.closest?.(".hq-quick-overlay"))return;
+   handleQuickKey(event);
  });
+ // A select rerender may briefly move focus to document.body. Recover
+ // Escape/Tab from that case without retaining a handler after unmount.
+ const outsideQuickKeys=event=>{
+   if(!box.isConnected){document.removeEventListener("keydown",outsideQuickKeys);return;}
+   if(box.contains(event.target))return;
+   handleQuickKey(event);
+ };
+ document.addEventListener("keydown",outsideQuickKeys);
  const chose=id=>{selected=Number(id);remember(selected);render()};
  box.innerHTML='<div class="hq-owner-console"><h2>지점 대표 관리자 관리</h2><p>지점별 대표 점주를 확인하고 초대·지정할 수 있습니다.</p><div id="hqOwnerBody">불러오는 중…</div></div>';
  const body=box.querySelector("#hqOwnerBody"); const summary=document.getElementById("hqOwnerPinnedSummary");
