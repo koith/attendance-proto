@@ -35,7 +35,7 @@ const BE={
   payrollEmploymentPeriods:async()=>[],
   employmentBundle:async id=>({contracts:[monthly,hourly].filter(c=>c.employee_id===id),periods:[],workdays:[]})
 };
-const report=await createPayrollEngine({BE,storeId:1,now:new Date('2026-10-20T05:00:00Z')}).computeMonthPayroll(ym);
+const report=await createPayrollEngine({BE,storeId:1,now:new Date('2026-11-20T05:00:00Z')}).computeMonthPayroll(ym);
 const month=report.rows.find(row=>row.employee_id===991)?.pay;
 const week=report.rows.find(row=>row.employee_id===993)?.pay;
 assert.ok(month&&week,'Expected both synthetic employee pays: '+JSON.stringify(report.rows.map(r=>({id:r.employee_id,name:r.employee_name,type:r.payrollType,hasPay:!!r.pay,sec:r.sec}))));
