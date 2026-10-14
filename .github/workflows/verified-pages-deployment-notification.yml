@@ -83,8 +83,16 @@ jobs:
               process.env.VERIFY_COMMIT === 'success' &&
               process.env.VERIFY_PUBLIC === 'success' &&
               process.env.VERIFY_BROWSER === 'success';
-            const state = process.env.DEPLOY_CONCLUSION === 'cancelled' ? '취소' : isSuccess ? '성공' : '실패';
-            const stage = process.env.DEPLOY_CONCLUSION !== 'success' ? 'GitHub Pages workflow: '+process.env.DEPLOY_CONCLUSION :
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,{
+              ...context.repo,run_id:runId,per_page:100
+            });
+            const isIntentionalQaFailure = process.env.DEPLOY_CONCLUSION === 'failure' &&
+              jobs.some(job=>(job.steps||[]).some(step=>
+                step.name === 'Intentional gate failure proof' && step.conclusion === 'failure'));
+            const state = isIntentionalQaFailure ? '실패(의도적 QA)' :
+              process.env.DEPLOY_CONCLUSION === 'cancelled' ? '취소' : isSuccess ? '성공' : '실패';
+            const stage = isIntentionalQaFailure ? '의도적인 P0 검사 실패 테스트 — 운영 배포를 실행하지 않음' :
+              process.env.DEPLOY_CONCLUSION !== 'success' ? 'GitHub Pages workflow: '+process.env.DEPLOY_CONCLUSION :
               process.env.VERIFY_COMMIT !== 'success' ? '배포 커밋/버전 검증' :
               process.env.VERIFY_PUBLIC !== 'success' ? '운영 URL·버전·API 검증' :
               process.env.VERIFY_BROWSER !== 'success' ? '모바일/데스크톱 운영 스모크 테스트' : '전체 검증 완료';
@@ -98,6 +106,7 @@ jobs:
               '- 관련 PR: '+prs,'- 운영 URL: '+process.env.PUBLISHED_URL,
               '- 검증 단계: '+stage,'- 운영 HTTP 및 버전: '+process.env.VERIFY_PUBLIC,
               '- 브라우저 스모크: '+process.env.VERIFY_BROWSER,'- [배포 실행 및 오류 로그]('+runUrl+')',
+              isIntentionalQaFailure?'**검증용 실패 이벤트입니다. 운영 웹앱 배포 실패가 아닙니다.**':
               !isSuccess?'**운영 배포 성공으로 판정하지 않습니다. 로그를 확인하세요.**':'**운영 검증 통과**'
             ].join('\n');
             // Read all issue pages, including closed issues, to prevent duplicate alerts;
