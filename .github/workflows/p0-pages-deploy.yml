@@ -137,6 +137,8 @@ on:
       - 'scripts/release_recovery_policy.cjs'
       - 'qa_release_recovery_policy.mjs'
       - 'qa_release_recovery_workflow_contract.mjs'
+      - 'qa_autonomous_structured_edits_v1.mjs'
+      - 'scripts/agent_apply_structured_edits.mjs'
   push:
     branches: [main]
   workflow_dispatch:
@@ -215,6 +217,7 @@ jobs:
         run: |
           node qa_release_recovery_policy.mjs
           node qa_release_recovery_workflow_contract.mjs
+          node qa_autonomous_structured_edits_v1.mjs
           bash -n scripts/autonomous_dev_agent.sh
       - name: boot-syntax-regression
         run: node qa_boot_syntax.mjs
