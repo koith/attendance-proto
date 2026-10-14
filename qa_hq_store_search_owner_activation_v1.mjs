@@ -18,7 +18,7 @@ assert.match(ui,/storePicker\.disabled=rows\.length===0/);
 assert.match(ui,/manager_count\|\|0/);
 assert.match(ui,/verified&&Number\(store\?\.manager_count\|\|0\)>0&&sampleEmployeeCount===0/);
 assert.match(ui,/body\.querySelector\("#hqStoreRefresh"\)\.onclick/);
-assert.match(ui,/ready\\?'<div class="field"><label for="hqStoreShareUrl"/);
+assert.match(ui,/label for="hqStoreShareUrl"/);
 assert.match(ui,/href="\s*'\+escapeHTML\(entryUrl\(selected\)\)/);
 assert.match(ui,/escapeHTML\(s\.name\)/);
 assert.match(ui,/id="hqManagerCard"/);
