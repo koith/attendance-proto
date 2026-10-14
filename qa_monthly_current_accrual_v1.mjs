@@ -75,7 +75,10 @@ assert.equal(revised.pay.monthlySegments.length,2);
 assert.equal((await payroll({when:'2026-11-01T00:00:00Z'})).pay.base,2600000,
   'After October ends, all 31 eligible days count');
 const ui=fs.readFileSync('index.html','utf8');
-assert.ok(ui.includes('const APP_VERSION="v0.272";'), 'New release version must be visible');
+const release=ui.match(/const APP_VERSION="(v0\.[0-9]+)";/);
+assert.ok(release && Number(release[1].split('.')[1])>=272, 'Monthly accrual requires v0.272 or newer');
+assert.ok(ui.includes('id="appVersion">'+release[1]+'</span>'),
+  'Rendered release badge must match current app version');
 assert.ok(ui.includes('재직 인정 ${Number(pay?.accruedDays||0)}'),
   'Monthly detail must use employment days, not completed shift count');
 assert.ok(!ui.includes('인정일 ${completedDays}'),

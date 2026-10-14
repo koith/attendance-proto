@@ -13,7 +13,7 @@ assert.equal(edge,mirror,"deployed Edge source must match canonical source byte 
 assert.match(app,/APP_VERSION="v0\.\d+"/);
 assert.match(app,/mountStoreManagerTab\(\)/);
 assert.match(app,/store_manager_tab\.js\?v=20261014v256/);
-assert.match(app,/hq_store_onboarding_ui\.js\?v=20261013v251/);
+assert.match(app,/hq_store_onboarding_ui\.js\?v=20261014v273/);
 assert.match(app,/id="empTabActive"/);
 assert.match(app,/id="empTabRetired"/);
 assert.match(app,/id="adEmps"/);
