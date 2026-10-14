@@ -136,6 +136,7 @@ on:
       - 'scripts/autonomous_dev_agent.sh'
       - 'scripts/release_recovery_policy.cjs'
       - 'qa_release_recovery_policy.mjs'
+      - 'qa_release_asset_selection_contract_v1.mjs'
       - 'qa_release_recovery_workflow_contract.mjs'
       - 'qa_autonomous_structured_edits_v1.mjs'
       - 'scripts/agent_apply_structured_edits.mjs'
@@ -217,6 +218,7 @@ jobs:
         run: |
           node qa_release_recovery_policy.mjs
           node qa_release_recovery_workflow_contract.mjs
+          node qa_release_asset_selection_contract_v1.mjs
           node qa_autonomous_structured_edits_v1.mjs
           bash -n scripts/autonomous_dev_agent.sh
       - name: boot-syntax-regression
@@ -430,8 +432,7 @@ jobs:
         env:
           DEPLOY_SHA: ${{ github.sha }}
         run: |
-          echo "CHANGED_RELEASE_FILES=$(cat /tmp/release-request-files.json)" >> "$GITHUB_ENV"
-          node qa_release_changed_assets_live.mjs
+          CHANGED_RELEASE_FILES="$(cat /tmp/release-request-files.json)" node qa_release_changed_assets_live.mjs
       - name: Double-check live Pages version and guarded payroll endpoint
         id: final_health
         if: steps.request_live.outcome == 'success'
