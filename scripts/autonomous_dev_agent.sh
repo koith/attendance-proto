@@ -51,6 +51,7 @@ for attempt in 1 2 3 4 5; do
   if [[ -n "${OPENAI_API_KEY:-}" ]]; then
     aider --yes-always --no-auto-commits --model openai/gpt-4.1 \
       --message-file "$task_file" >/tmp/agent-reports/provider.log 2>&1
+    provider_status=$?
   else
     # Copilot Actions inference exposes only read/search tools on this runner.
     # Ask for exact replacement proposals, apply via a host-side strict validator.
@@ -64,8 +65,8 @@ FINAL ANSWER. The GitHub Actions host will safely apply permitted edits after va
 FINAL ANSWER FORMAT, no extra explanation:
 AGENT_EDITS_BEGIN
 {"edits":[
-  {"path":"hq_owner_console.js","old":"literal exact unique text already in source","new":"actual replacement"},
-  {"path":"qa_hq_owner_browser_acceptance.mjs","old":"literal exact unique test text","new":"extended meaningful acceptance test"}
+  {"path":"example_app.js","old":"literal exact unique text already in source","new":"actual replacement"},
+  {"path":"qa_example_app.mjs","old":"literal exact unique test text","new":"extended meaningful acceptance test"}
 ]}
 AGENT_EDITS_END
 
@@ -74,14 +75,15 @@ For NEW qa_*.mjs tests use "old":null; otherwise exact existing old text
 that appears ONCE in the file. Include BOTH app and QA edits. JSON string
 values must use proper escaping for newlines and quotes. Max 12 edits. Do
 not invent nonexistent anchors. Full files must not be replaced.
+Use real filenames found during inspection, never the example paths above.
 Keep all current features, preserve the original requirements and fix
 test output failures without weakening tests.
 The output is data only: no commands, scripts or terminal instructions.
 EDIT_PROPOSAL_CONTRACT
     # No externally supplied OpenAI API key: GitHub Copilot bills the repository
     # owner's eligible Copilot seat using the short-lived Actions token.
-    # The model may only read, search and edit checkout files; shell/web/MCP
-    # tools are excluded so that issue text cannot execute repo token commands.
+    # The model may only inspect checkout files; host validates proposed edits.
+    # Shell/web/MCP tools are excluded so issue text cannot execute commands.
     env -u GH_TOKEN -u OPENAI_API_KEY \
       GITHUB_TOKEN="$GITHUB_TOKEN" copilot \
       -p "$(cat /tmp/agent-reports/proposal-contract.txt; cat "$task_file")" -s \
@@ -96,7 +98,6 @@ EDIT_PROPOSAL_CONTRACT
     fi
     cat /tmp/agent-reports/edits.log 2>/dev/null || true
   fi
-  provider_status=$?
   set -e
   if [[ "$provider_status" -ne 0 ]]; then
     echo "::warning::Coding provider exited $provider_status on attempt $attempt"
@@ -154,6 +155,8 @@ EDIT_PROPOSAL_CONTRACT
     cat /tmp/agent-reports/task.txt
     echo "Fix failing QA without weakening tests; create a meaningful qa_*.mjs acceptance test if missing."
     echo "Original approved task: $title"
+    echo "Latest safe structured edit validation results:"
+    tail -c 3500 /tmp/agent-reports/edits.log 2>/dev/null || true
     echo "Recent AI provider output:"
     tail -c 3500 /tmp/agent-reports/provider.log
     echo "Recent QA output:"
