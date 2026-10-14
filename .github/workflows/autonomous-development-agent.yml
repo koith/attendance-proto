@@ -72,6 +72,14 @@ jobs:
             const marker='[agent-run:'+context.runId+']';
             const old=await github.paginate(github.rest.issues.listComments,{
               ...context.repo,issue_number:number,per_page:100});
+            // Successful coding/QA followed by repository PR policy denial is
+            // reported separately with [agent-pr-pending:RUN_ID]. Never
+            // misclassify that verified code as an exhausted AI repair loop.
+            const prPending='[agent-pr-pending:'+context.runId+']';
+            if(old.some(c=>(c.body||'').includes(prPending))){
+              core.info('Agent code and QA passed; PR opening requires authorized broker');
+              return;
+            }
             if(old.some(c=>(c.body||'').includes(marker)))return;
             await github.rest.issues.createComment({...context.repo,issue_number:number,
               body:[marker,'AI 자동 개발 또는 최대 5회 자동 수정·QA가 실패했습니다.',
