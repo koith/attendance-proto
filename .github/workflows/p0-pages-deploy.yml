@@ -471,15 +471,15 @@ jobs:
           node-version: '22'
       - name: Double-check live Pages version and guarded payroll endpoint
         id: final_health
-        if: ${{ needs.p0-gate.result == 'success' && needs.build-pages.result == 'success' && needs.deploy-pages.result == 'success' }}
+        if: ${{ needs['p0-gate'].result == 'success' && needs['build-pages'].result == 'success' && needs['deploy-pages'].result == 'success' }}
         run: node qa_production_deployment_health_v1.mjs
       - name: Send one deduplicated report even if workflow_run event is suppressed
         if: ${{ always() }}
         uses: actions/github-script@v7
         env:
-          P0_GATE: ${{ needs.p0-gate.result }}
-          PAGES_BUILD: ${{ needs.build-pages.result }}
-          PAGES_DEPLOY: ${{ needs.deploy-pages.result }}
+          P0_GATE: ${{ needs['p0-gate'].result }}
+          PAGES_BUILD: ${{ needs['build-pages'].result }}
+          PAGES_DEPLOY: ${{ needs['deploy-pages'].result }}
           FINAL_HEALTH: ${{ steps.final_health.outcome }}
           INTENTIONAL_PROOF: ${{ inputs.prove_gate_failure || 'false' }}
           OPTIONAL_ALERT_WEBHOOK: ${{ secrets.DEPLOY_ALERT_WEBHOOK_URL }}
