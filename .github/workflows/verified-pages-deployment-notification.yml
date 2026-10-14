@@ -47,12 +47,21 @@ jobs:
             const decision=decideRecovery({
               conclusion:details.data.conclusion,sha:details.data.head_sha,
               mainSha:main.data.object.sha,attempt:details.data.run_attempt,jobs});
-            core.setOutput('action',decision.action);
             core.setOutput('reason',decision.reason);
             core.info('Release recovery: '+decision.action+' (attempt '+details.data.run_attempt+'/5): '+decision.reason);
             if(decision.action==='retry'){
-              await github.rest.actions.reRunWorkflowFailedJobs({...context.repo,run_id:runId});
-              core.info('GitHub Actions accepted a bounded failed-jobs rerun; no final alert before the last attempt.');
+              try{
+                await github.rest.actions.reRunWorkflowFailedJobs({...context.repo,run_id:runId});
+                // Never suppress final failure reporting until the API has accepted a retry.
+                core.setOutput('action','retry');
+                core.info('GitHub Actions accepted a bounded failed-jobs rerun.');
+              }catch(error){
+                core.setOutput('action','terminal');
+                core.setOutput('reason','GitHub retry API rejected recovery: '+String(error.message).slice(0,200));
+                core.warning('Retry could not be scheduled; final failure alert remains enabled.');
+              }
+            }else{
+              core.setOutput('action',decision.action);
             }
       - name: Dispatch guarded Pages-only rollback after production acceptance failure
         id: rollback
