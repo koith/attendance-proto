@@ -20,11 +20,13 @@ mkdir -p "$(dirname "$exclude_file")"
 printf '\n/node_modules/\n' >> "$exclude_file"
 mkdir -p /tmp/agent-reports
 cat >/tmp/agent-reports/task.txt <<EOF
-You are an autonomous CODE-EDITING AGENT executing an approved task in a
-disposable GitHub Actions checkout. You MUST actually EDIT repository files,
-not just describe code or offer advice. First inspect relevant source with
-view/grep/glob. Then use the edit tool to change an application file AND a
-meaningful qa_*.mjs regression test. Replies without both are failures.
+You are an autonomous CODE-IMPLEMENTATION AGENT executing an approved task in a
+disposable GitHub Actions checkout. You MUST produce actual valid application
+changes AND feature-specific QA, not a description or advice. First inspect
+relevant source with view/grep/glob. Follow the provider-specific contract:
+aider edits permitted files locally; read-only Copilot outputs AGENT_EDITS JSON
+that the trusted checkout host validates and applies. Never ask Copilot for a
+nonexistent edit tool. Replies without executable app changes AND QA fail.
 The user has approved these permitted local file edits: do not request further
 confirmation to make them.
 
@@ -47,6 +49,9 @@ for attempt in 1 2 3 4 5; do
   echo "::group::AI repair attempt $attempt"
   task_file=/tmp/agent-reports/task.txt
   [[ "$attempt" -gt 1 ]] && task_file=/tmp/agent-reports/repair.txt
+  # Each proposal attempt must have its own validation receipt. Never reuse
+  # an earlier attempt's successful validator log on a failed provider call.
+  : > /tmp/agent-reports/edits.log
   set +e
   if [[ -n "${OPENAI_API_KEY:-}" ]]; then
     aider --yes-always --no-auto-commits --model openai/gpt-4.1 \
@@ -138,6 +143,21 @@ EDIT_PROPOSAL_CONTRACT
     node qa_boot_syntax.mjs
     node qa_index_startup_smoke_v1.mjs
     node qa_runtime_wiring_v1.mjs
+    # CI contract parity matters: the first working agent run produced
+    # browser-tested focus code but missed the longstanding Escape contract,
+    # which then failed P0. Fail and repair BEFORE opening any review PR.
+    if grep -qx 'hq_owner_console.js' <<<"$changed_application"; then
+      node qa_hq_quicknav_escape_contract_v1.mjs
+      node qa_hq_dashboard_entry_auth.mjs
+    fi
+    if grep -qx 'hq_store_onboarding_ui.js' <<<"$changed_application"; then
+      node qa_hq_store_onboarding_v1.mjs
+      node qa_hq_store_search_owner_activation_v1.mjs
+    fi
+    if grep -qx 'store_manager_tab.js' <<<"$changed_application"; then
+      node qa_store_delegated_manager_v1.mjs
+      node qa_confirmed_owner_permission_v1.mjs
+    fi
     node qa_hq_owner_browser_acceptance.mjs
   ) >/tmp/agent-reports/qa.log 2>&1
   status=$?
@@ -153,7 +173,7 @@ EDIT_PROPOSAL_CONTRACT
   fi
   {
     echo "Your previous response did not produce a validated implementation."
-    echo "Use the edit tool now to modify permitted app source AND the feature QA test."
+    echo "Follow your provider's implementation contract: aider writes files; read-only Copilot outputs validated AGENT_EDITS JSON."
     echo "Do not just describe a plan. Preserve the approved task on each retry:"
     cat /tmp/agent-reports/task.txt
     echo "Fix failing QA without weakening tests; create a meaningful qa_*.mjs acceptance test if missing."
