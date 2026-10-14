@@ -57,6 +57,7 @@ window.mountHqOwnerConsole=async function(box){
  const currentList=body.querySelector(".hq-owner-list");if(currentList)currentList.scrollTop=listScroll;
  body.querySelector("#hqOwnerDismiss")?.addEventListener("click",()=>{notice=null;render()});
  body.querySelectorAll("[data-quick-mode]").forEach(b=>b.onclick=()=>{quickMode=quickMode===b.dataset.quickMode?"":b.dataset.quickMode;render()});
+ body.querySelector("#hqQuickClose")?.addEventListener("click",()=>{quickMode="";render()});
  body.querySelector("#hqQuickProvince")?.addEventListener("change",e=>{province=e.target.value;district="";render()});
  body.querySelector("#hqQuickDistrict")?.addEventListener("change",e=>{district=e.target.value;render()});
  body.querySelectorAll("[data-letter]").forEach(b=>b.onclick=()=>{quickLetter=b.dataset.letter;render()});
