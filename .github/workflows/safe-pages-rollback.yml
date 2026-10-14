@@ -83,7 +83,7 @@ jobs:
               ...context.repo,state:'all',per_page:100});
             const verified=issues.filter(i=>i.user?.login==='github-actions[bot]'&&
               (i.body||'').includes('GitHub Pages 배포 결과: 성공')&&
-              (i.body||'').includes('- 커밋: '+target));
+              /- (?:배포 )?커밋: ([a-f0-9]{40})/.exec(i.body||'')?.[1]===target);
             let receipt=false;
             for(const issue of verified){
               const priorId=Number((issue.body||'').match(/\[deployment-run:(\d+)\]/)?.[1]);
