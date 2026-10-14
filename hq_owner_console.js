@@ -15,7 +15,7 @@ window.mountHqOwnerConsole=async function(box){
  const RECENTS_KEY="hq_owner_recent_stores_v1";
  const readRecents=()=>{try{return JSON.parse(localStorage.getItem(RECENTS_KEY)||"[]").filter(Number.isFinite).slice(0,5)}catch{return []}};
  const remember=id=>{try{localStorage.setItem(RECENTS_KEY,JSON.stringify([id,...readRecents().filter(x=>x!==id)].slice(0,5)))}catch{}};
- const region=s=>{const raw=String(s.region_group||"").trim();const bits=raw.split(/[\\s/·>]+/).filter(Boolean);return {province:bits[0]||"지역 미분류",district:bits.slice(1).join(" ")||"기타"}};
+ const region=s=>{const raw=String(s.region_group||"").trim();const bits=raw.split(/[\s/·>]+/).filter(Boolean);return {province:bits[0]||"지역 미분류",district:bits.slice(1).join(" ")||"기타"}};
  const chose=id=>{selected=Number(id);remember(selected);render()};
  box.innerHTML='<div class="hq-owner-console"><h2>지점 대표 관리자 관리</h2><p>지점별 대표 점주를 확인하고 초대·지정할 수 있습니다.</p><div id="hqOwnerBody">불러오는 중…</div></div>';
  const body=box.querySelector("#hqOwnerBody"); const summary=document.getElementById("hqOwnerPinnedSummary");
