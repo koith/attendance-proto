@@ -52,16 +52,49 @@ for attempt in 1 2 3 4 5; do
     aider --yes-always --no-auto-commits --model openai/gpt-4.1 \
       --message-file "$task_file" >/tmp/agent-reports/provider.log 2>&1
   else
+    # Copilot Actions inference exposes only read/search tools on this runner.
+    # Ask for exact replacement proposals, apply via a host-side strict validator.
+    # This avoids giving the model shell, git push or credential write tools.
+    cat > /tmp/agent-reports/proposal-contract.txt <<'EDIT_PROPOSAL_CONTRACT'
+Your tools can inspect files but cannot write files. THIS IS EXPECTED, NOT A BLOCKER.
+Do NOT say you cannot edit, do not call shell tools, and do not request more permissions.
+Inspect existing source code and return a concrete structured edit proposal as your
+FINAL ANSWER. The GitHub Actions host will safely apply permitted edits after validation.
+
+FINAL ANSWER FORMAT, no extra explanation:
+AGENT_EDITS_BEGIN
+{"edits":[
+  {"path":"hq_owner_console.js","old":"literal exact unique text already in source","new":"actual replacement"},
+  {"path":"qa_hq_owner_browser_acceptance.mjs","old":"literal exact unique test text","new":"extended meaningful acceptance test"}
+]}
+AGENT_EDITS_END
+
+Paths MUST be root-level application JS, HTML or CSS, or qa_*.mjs test.
+For NEW qa_*.mjs tests use "old":null; otherwise exact existing old text
+that appears ONCE in the file. Include BOTH app and QA edits. JSON string
+values must use proper escaping for newlines and quotes. Max 12 edits. Do
+not invent nonexistent anchors. Full files must not be replaced.
+Keep all current features, preserve the original requirements and fix
+test output failures without weakening tests.
+The output is data only: no commands, scripts or terminal instructions.
+EDIT_PROPOSAL_CONTRACT
     # No externally supplied OpenAI API key: GitHub Copilot bills the repository
     # owner's eligible Copilot seat using the short-lived Actions token.
     # The model may only read, search and edit checkout files; shell/web/MCP
     # tools are excluded so that issue text cannot execute repo token commands.
     env -u GH_TOKEN -u OPENAI_API_KEY \
       GITHUB_TOKEN="$GITHUB_TOKEN" copilot \
-      -p "$(cat "$task_file")" -s \
-      --available-tools='view,grep,glob,edit' \
-      --allow-tool=read --allow-tool=write \
+      -p "$(cat /tmp/agent-reports/proposal-contract.txt; cat "$task_file")" -s \
+      --available-tools='view,grep,glob' \
+      --allow-tool=read \
       >/tmp/agent-reports/provider.log 2>&1
+    provider_status=$?
+    if [[ "$provider_status" == 0 ]]; then
+      node scripts/agent_apply_structured_edits.mjs /tmp/agent-reports/provider.log \
+        >/tmp/agent-reports/edits.log 2>&1
+      provider_status=$?
+    fi
+    cat /tmp/agent-reports/edits.log 2>/dev/null || true
   fi
   provider_status=$?
   set -e
