@@ -208,8 +208,70 @@ jobs:
         env:
           APP_SMOKE_HOST: https://koith.github.io/attendance-proto
         run: node qa_browser_app_smoke.mjs
+      - name: Guarded rollback after independent published-file or browser failure
+        id: independent_rollback
+        if: ${{ always() && env.DEPLOY_CONCLUSION == 'success' && steps.verify_commit.outcome == 'success' && steps.release_evidence.outcome == 'success' && (steps.changed_assets.outcome == 'failure' || steps.production_health.outcome == 'failure' || steps.browser_health.outcome == 'failure') }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {isStaticOnlyRelease}=require(process.cwd()+'/scripts/release_recovery_policy.cjs');
+            const failedSha=process.env.DEPLOY_SHA;
+            const main=await github.rest.git.getRef({...context.repo,ref:'heads/main'});
+            if(main.data.object.sha!==failedSha)
+              throw Error('New main exists; independent rollback forbidden');
+            const related=await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              ...context.repo,commit_sha:failedSha});
+            const prs=related.data.filter(p=>p.merged_at);
+            let changed=[];
+            if(prs.length){
+              for(const pr of prs){
+                const files=await github.paginate(github.rest.pulls.listFiles,{
+                  ...context.repo,pull_number:pr.number,per_page:100});
+                if(files.length>=300)throw Error('Truncated diff: rollback forbidden');
+                changed.push(...files.map(f=>f.filename));
+              }
+            }else{
+              const commit=await github.rest.repos.getCommit({...context.repo,ref:failedSha});
+              changed=(commit.data.files||[]).map(f=>f.filename);
+              if(changed.length>=300)throw Error('Truncated commit: rollback forbidden');
+            }
+            if(!isStaticOnlyRelease([...new Set(changed)]))
+              throw Error('Backend, data or no changed frontend assets: rollback forbidden');
+            const issues=await github.paginate(github.rest.issues.listForRepo,{
+              ...context.repo,state:'all',per_page:100});
+            let target=null;
+            for(const issue of issues){
+              const body=issue.body||'';
+              if(issue.user?.login!=='github-actions[bot]' ||
+                 !body.includes('GitHub Pages 배포 결과: 성공'))continue;
+              const sha=body.match(/- (?:배포 )?커밋: ([a-f0-9]{40})/)?.[1];
+              const pagesId=Number(body.match(/\[deployment-run:(\d+)\]/)?.[1]);
+              const independentId=Number(body.match(/\[independent-verified-run:(\d+)\]/)?.[1]);
+              if(!sha||sha===failedSha||!Number.isSafeInteger(pagesId)||
+                 !Number.isSafeInteger(independentId))continue;
+              const goodVerifier=await github.rest.actions.getWorkflowRun({
+                ...context.repo,run_id:independentId});
+              if(goodVerifier.data.name!=='verified-pages-deployment-notification'||
+                 goodVerifier.data.conclusion!=='success')continue;
+              const prior=await github.rest.actions.getWorkflowRun({
+                ...context.repo,run_id:pagesId});
+              if(prior.data.head_sha!==sha||prior.data.conclusion!=='success')continue;
+              const ancestry=await github.rest.repos.compareCommits({
+                ...context.repo,base:sha,head:failedSha});
+              if(ancestry.data.status!=='ahead')continue;
+              target=sha;break;
+            }
+            if(!target)throw Error('No independently verified previous Pages version');
+            await github.rest.actions.createWorkflowDispatch({
+              ...context.repo,workflow_id:'safe-pages-rollback.yml',ref:'main',
+              inputs:{failed_sha:failedSha,target_sha:target,
+                failed_run_id:String(process.env.DEPLOY_RUN),
+                failed_verification_run_id:String(context.runId)}
+            });
+            core.setOutput('dispatched','true');
+            core.info('Independent verification failed; guarded rollback dispatched to '+target);
       - name: Announce final verified result once by GitHub issue notification
-        if: ${{ always() && steps.recovery.outputs.action != 'retry' && steps.rollback.outputs.dispatched != 'true' }}
+        if: ${{ always() && steps.recovery.outputs.action != 'retry' && steps.rollback.outputs.dispatched != 'true' && steps.independent_rollback.outputs.dispatched != 'true' }}
         uses: actions/github-script@v7
         env:
           OPTIONAL_ALERT_WEBHOOK: ${{ secrets.DEPLOY_ALERT_WEBHOOK_URL }}

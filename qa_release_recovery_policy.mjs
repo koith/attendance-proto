@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
-const {MAX_ATTEMPTS,decideRecovery,isStaticOnlyRelease}=require('./scripts/release_recovery_policy.cjs');
+const {MAX_ATTEMPTS,decideRecovery,decideIndependentRecovery,isStaticOnlyRelease}=require('./scripts/release_recovery_policy.cjs');
 const sha='a'.repeat(40),other='b'.repeat(40);
 const job=(name,conclusion,step,stepConclusion='failure')=>({name,conclusion,steps:step?[{name:step,conclusion:stepConclusion}]:[]});
 const base={sha,mainSha:sha,attempt:1,conclusion:'failure',jobs:[
@@ -41,6 +41,17 @@ assert.equal(decideRecovery({...afterPublish('Compare changed public files again
 ]}).action,'terminal','A failing release QA gate must never authorize recovery');
 assert.equal(decideRecovery({...base,conclusion:'success'}).action,'none');
 assert.equal(decideRecovery({...base,attempt:0}).action,'terminal');
+const independentlyFailed={pagesConclusion:'success',verifierConclusion:'failure',sha,mainSha:sha,
+ failedSteps:['Check actual published mobile and desktop pages']};
+assert.equal(decideIndependentRecovery(independentlyFailed).action,'rollback_candidate');
+for(const step of ['Verify every changed public asset against live Pages bytes',
+  'Validate actual Pages response, displayed version and protected API'])
+  assert.equal(decideIndependentRecovery({...independentlyFailed,failedSteps:[step]}).action,'rollback_candidate');
+assert.equal(decideIndependentRecovery({...independentlyFailed,mainSha:other}).action,'terminal');
+assert.equal(decideIndependentRecovery({...independentlyFailed,pagesConclusion:'failure'}).action,'terminal');
+assert.equal(decideIndependentRecovery({...independentlyFailed,verifierConclusion:'in_progress'}).action,'terminal');
+assert.equal(decideIndependentRecovery({...independentlyFailed,failedSteps:['Install Chromium for actual live route smoke']}).action,'terminal');
+assert.equal(decideIndependentRecovery({...independentlyFailed,failedSteps:[]}).action,'terminal');
 assert.equal(isStaticOnlyRelease(['index.html','qa_foo.mjs']),true);
 assert.equal(isStaticOnlyRelease(['.github/workflows/p0-pages-deploy.yml']),false);
 assert.equal(isStaticOnlyRelease(['index.html','supabase/migrations/any.sql']),false);

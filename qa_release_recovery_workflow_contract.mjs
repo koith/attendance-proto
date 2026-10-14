@@ -32,6 +32,17 @@ assert.match(verifier,/independent\.data\.conclusion!=='success'/,
 assert.match(rollback,/independent\.data\.conclusion!=='success'/,
   'Rollback must recheck independent successful verification');
 assert.match(rollback,/independent-verified-run/,'No rollback to early same-run success');
+assert.match(verifier,/id: independent_rollback/,'Independent live acceptance must initiate guarded rollback');
+assert.match(verifier,/steps\.independent_rollback\.outputs\.dispatched != 'true'/,
+  'Do not send final report while a guarded independent rollback runs');
+assert.match(verifier,/failed_verification_run_id:String\(context\.runId\)/,
+  'Rollback dispatch must pass independent run identity');
+assert.match(rollback,/failed_verification_run_id:/,
+  'Rollback must support independent verifier failure');
+assert.match(rollback,/decideIndependentRecovery/,'Independent rollback is fail-closed');
+assert.match(rollback,/verifier\.data\.head_sha!==failed/,'Verifier commit must match published release');
+assert.match(rollback,/verifier\.data\.conclusion/,'Verifier must be terminally unsuccessful');
+assert.match(verifier,/isStaticOnlyRelease/,'Block independent rollback of data/backend releases');
 
 assert.doesNotMatch(rollback,/mode:\s*'deployment'/,'Rollback must not write Sheets');
 assert.match(agent,/for attempt in 1 2 3 4 5/,'Five bounded AI attempts');
