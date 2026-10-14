@@ -53,5 +53,27 @@ assert.match(app,/const APP_VERSION="v0\.276"/);
 assert.match(app,/id="appVersion">v0\.276<\/span>/);
 assert.match(app,/operations_v1\.js\?v=20261015v276/,
   'Real asset must bypass stale browser cache on the corrected release');
+// The inquiry intentionally retains labelled demo rows, but actual-money
+// cards (including filtered results) must not count them as store revenue.
+const calcStart=operations.indexOf('function inquiryTotals(rows){');
+const calcEnd=operations.indexOf('function updateInquirySummary(rows)',calcStart);
+assert.ok(calcStart>0&&calcEnd>calcStart,'Actual financial totals calculator exists');
+const inquiryTotals=Function(operations.slice(calcStart,calcEnd)+';return inquiryTotals;')();
+const sample=[
+ {is_demo:true,status:'CONFIRMED',net_amount:800000,vat_amount:100000,total_amount:900000},
+ {is_demo:false,status:'CONFIRMED',net_amount:4000,vat_amount:400,total_amount:4400},
+ {is_demo:false,status:'PENDING',net_amount:6000,vat_amount:600,total_amount:6600},
+ {is_demo:null,status:'CONFIRMED',net_amount:9000,vat_amount:900,total_amount:9900}
+];
+assert.deepEqual(inquiryTotals(sample),{displayed:4,actual:1,notVerified:3,net:4000,vat:400,total:4400},
+  'Demo, pending and provenance-unknown receipts cannot inflate actual sales');
+assert.deepEqual(inquiryTotals(sample.slice(0,1)),{displayed:1,actual:0,notVerified:1,net:0,vat:0,total:0});
+assert.deepEqual(inquiryTotals([]),{displayed:0,actual:0,notVerified:0,net:0,vat:0,total:0});
+assert.throws(()=>inquiryTotals(null),/INVALID_RESPONSE/);
+assert.match(operations,/updateInquirySummary\(rows\);opsType\.onchange/,
+  'Initial inquiry money summary must reflect verified data');
+assert.match(operations,/function drawInquiryRows\(rows\)\{updateInquirySummary\(rows\)/,
+  'Type/channel filters must refresh financial summary, not only row table');
+
 new Function(operations);
 console.log('PASS 6 HQ/store financial RPCs exclude demo with preserved scopes; template is header-only, v0.276 cache-busted');
