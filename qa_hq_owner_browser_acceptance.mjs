@@ -25,7 +25,7 @@ try {
   await page.locator('[data-quick-mode="initial"]').click();
   await page.getByRole('dialog').waitFor();
   assert.match(await page.getByRole('dialog').innerText(),/가나다순 찾기/);
-  assert.match(await page.locator('[data-letter="ㄱ"]').getAttribute('class'),/active/);
+  assert.doesNotMatch(await page.locator('[data-letter="ㄱ"]').getAttribute('class')||'',/active/);
   await page.locator('#hqQuickClose').click();
   await page.locator('[data-quick-mode="region"]').click();
   assert.match(await page.getByRole('dialog').innerText(),/지역별 찾기/);
