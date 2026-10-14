@@ -16,8 +16,13 @@ window.mountHqOwnerConsole=async function(box){
  const body=box.querySelector("#hqOwnerBody"); const summary=document.getElementById("hqOwnerPinnedSummary");
  const owner=id=>{const uid=owners.find(x=>Number(x.store_id)===Number(id))?.user_id;return managers.find(x=>Number(x.store_id)===Number(id)&&x.user_id===uid)};
  async function load(){const data=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_primary_owner_list"),BE.listAuthUsers()]);if(!data.every(Array.isArray))throw Error("INVALID_HQ_RESPONSE");[stores,managers,owners,accounts]=data;render();}
- async function run(fn){if(busy)return;busy=true;try{await fn();await load();}catch(e){alert("처리 실패: "+(e.message==="CANNOT_DOWNGRADE_HQ"?"본사 관리자 계정은 지점 점주로 연결할 수 없습니다. 일반 계정을 선택하세요.":e.message))}finally{busy=false}}
+ const friendlyError=e=>{const message=String(e?.message||e||"");if(/already been registered|already registered|user already exists|email_exists|INVITE_FAILED.*registered/i.test(message))return "이미 가입된 이메일입니다. 신규 초대 대신 기존 계정 목록에서 선택하세요. 본사 관리자 계정은 지점 점주로 연결할 수 없습니다.";if(/CANNOT_DOWNGRADE_HQ/i.test(message))return "본사 관리자 계정은 지점 점주로 연결할 수 없습니다. 일반 계정을 선택하세요.";return message;};
+ async function run(fn){if(busy)return;busy=true;try{await fn();await load();}catch(e){alert("처리 실패: "+friendlyError(e))}finally{busy=false}}
  function render(){
+ const scrollContainer=body.closest("#adAccount");
+ const modalScroll=scrollContainer?.scrollTop??0;
+ const previousList=body.querySelector(".hq-owner-list");
+ const listScroll=previousList?.scrollTop??0;
  const rows=stores.filter(s=>(filter==="ALL"||(filter==="ASSIGNED"?!!owner(s.id):!owner(s.id)))&&[s.name,s.code,s.region_group,s.id].some(v=>String(v??"").toLowerCase().includes(search.toLowerCase())));
  const store=stores.find(s=>Number(s.id)===selected),current=store?owner(selected):null,linked=managers.filter(x=>Number(x.store_id)===selected);
  if(summary)summary.innerHTML='<span>전체 '+stores.length+'곳</span><span>대표 배정 '+stores.filter(s=>owner(s.id)).length+'곳</span><span>미배정 '+stores.filter(s=>!owner(s.id)).length+'곳</span>';
@@ -29,13 +34,15 @@ window.mountHqOwnerConsole=async function(box){
  '<p class="hq-owner-help">이미 가입된 계정은 연결 후 대표로 지정할 수 있습니다.</p>'+
  '<div class="hq-owner-linked">'+linked.map(m=>'<div><span>'+h(m.email)+'</span>'+(current?.user_id===m.user_id?'<small>대표</small>':'<button class="btn btn-secondary btn-sm" data-primary="'+h(m.user_id)+'">대표 지정</button><button class="btn btn-secondary btn-sm" data-revoke="'+h(m.user_id)+'">해제</button>')+'</div>').join("")+'</div>':
  '<p class="hq-owner-help">왼쪽에서 지점을 선택하세요.</p>')+'</div></div>';
+ if(scrollContainer)scrollContainer.scrollTop=modalScroll;
+ const currentList=body.querySelector(".hq-owner-list");if(currentList)currentList.scrollTop=listScroll;
  body.querySelector("#hqOwnerFilter").value=filter;
  body.querySelector("#hqOwnerFilter").onchange=e=>{filter=e.target.value;render()};
  body.querySelector("#hqOwnerSearch").oninput=e=>{search=e.target.value;const pos=e.target.selectionStart;render();const input=body.querySelector("#hqOwnerSearch");input.focus();input.setSelectionRange(pos,pos)};
  body.querySelectorAll("[data-store]").forEach(b=>b.onclick=()=>{selected=Number(b.dataset.store);render()});
  if(!store)return;
  const email=()=>body.querySelector("#hqOwnerEmail").value.trim().toLowerCase();
- body.querySelector("#hqOwnerInvite").onclick=()=>{const v=email();if(!v||!body.querySelector("#hqOwnerEmail").checkValidity())return alert("올바른 이메일을 입력하세요.");if(confirm(v+" 주소로 초대하시겠습니까?"))run(()=>invite(v,selected))};
+ body.querySelector("#hqOwnerInvite").onclick=()=>{const v=email();if(!v||!body.querySelector("#hqOwnerEmail").checkValidity())return alert("올바른 이메일을 입력하세요.");if(accounts.some(a=>String(a.email||"").toLowerCase()===v))return alert("이미 가입된 이메일입니다. 신규 초대 대신 기존 계정 목록을 확인하세요. 본사 관리자 계정은 지점 점주로 연결할 수 없습니다.");if(confirm(v+" 주소로 초대하시겠습니까?"))run(()=>invite(v,selected))};
  body.querySelector("#hqOwnerAssign").onclick=()=>{const v=body.querySelector("#hqExistingAccount").value;if(!v)return alert("연결할 계정을 목록에서 선택하세요.");if(confirm(v+" 계정을 연결하시겠습니까?"))run(async()=>{const d=await rpc("hq_store_manager_assign",{p_email:v,p_store_id:selected});if(!d?.ok)throw Error(d?.error||"ASSIGN_FAILED")})};
  body.querySelectorAll("[data-primary]").forEach(b=>b.onclick=()=>{if(confirm("대표 점주로 지정하시겠습니까?"))run(()=>rpc("hq_store_primary_owner_set",{p_store_id:selected,p_user_id:b.dataset.primary}))});
  body.querySelectorAll("[data-revoke]").forEach(b=>b.onclick=()=>{if(confirm("점주 권한을 해제하시겠습니까?"))run(()=>rpc("hq_store_manager_revoke",{p_user_id:b.dataset.revoke}))});
