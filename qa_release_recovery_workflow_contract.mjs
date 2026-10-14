@@ -17,6 +17,8 @@ assert.match(rollback,/group: pages/,'Rollback and primary Pages publishing must
 assert.match(rollback,/steps\.approve\.outcome == 'success'/,'No rollback without verified approval');
 assert.match(rollback,/qa_production_deployment_health_v1\.mjs/,'Check restored real Pages');
 assert.match(rollback,/qa_release_changed_assets_live\.mjs/,'Verify restored file bytes');
+assert.match(rollback,/qa_browser_app_smoke\.mjs/,'Restored mobile and desktop routes require live browser QA');
+assert.match(verifier,/retry API rejected recovery/,'Re-run API failure must not suppress final report');
 assert.doesNotMatch(rollback,/mode:\s*'deployment'/,'Rollback must not write Sheets');
 assert.match(agent,/for attempt in 1 2 3 4 5/,'Five bounded AI attempts');
 assert.match(agent,/changed_tests=/,'Per-request changed feature QA is required');
