@@ -28,3 +28,16 @@ for(const asset of ['https://10billioncoffee.co.kr/assets/js/store.js?1783647174
   }
  }catch(e){console.log('OFFICIAL_ASSET_FAILED',asset,String(e));}
 }
+
+const sitemap=await (await fetch('https://10billioncoffee.co.kr/sitemap.xml')).text();
+const urls=sitemap.split('<loc>').slice(1).map(v=>v.split('</loc>')[0]).filter(v=>v.includes('/store/'));
+console.log('DIRECTORY_SITEMAP_STORE_COUNT',urls.length);
+const detailExamples=[...urls.slice(0,2),urls.find(u=>u.includes('/225-'))].filter(Boolean);
+for(const detailUrl of detailExamples){
+ const resp=await fetch(detailUrl,{signal:AbortSignal.timeout(12000)});
+ const source=await resp.text();
+ console.log('STORE_DETAIL',decodeURIComponent(detailUrl),resp.status,source.length);
+ for(const term of ['주소','address','<h1','<h2','제주연동점','용인양지점']){
+   let at=source.indexOf(term);if(at>=0)console.log('STORE_DETAIL_FRAGMENT',term,source.slice(Math.max(0,at-320),at+680).replace(/\s+/g,' ').slice(0,1000));
+ }
+}
