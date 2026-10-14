@@ -85,7 +85,19 @@ assert.match(agent,/gh issue comment "\$ISSUE_NUMBER"/,
 assert.match(agent,/exit 1\s+fi\s*$/,
   'Cannot falsely report PR success if connector bridge remains pending');
 
-assert.match(agent,/CODE-EDITING AGENT/,'Agent must produce code instead of text-only replies');
+assert.match(agent,/CODE-IMPLEMENTATION AGENT/,'Agent must produce validated source changes instead of text-only replies');
+assert.match(agent,/read-only Copilot outputs AGENT_EDITS JSON/,
+  'Prompt must describe the actual read-only provider and host-side edit path');
+assert.doesNotMatch(agent,/Use the edit tool now to modify/,
+  'Missing Copilot write tool must not be requested on repair attempts');
+assert.match(agent,/: > \/tmp\/agent-reports\/edits\.log/,
+  'Each repair attempt must clear stale edit-validation evidence');
+assert.match(agent,/node qa_hq_quicknav_escape_contract_v1\.mjs/,
+  'HQ quick picker AI patches must pass the exact P0 keyboard contract before PR');
+assert.match(agent,/node qa_hq_store_search_owner_activation_v1\.mjs/,
+  'Store onboarding AI patches must pass relevant P0 activation and owner constraints');
+assert.match(agent,/node qa_store_delegated_manager_v1\.mjs/,
+  'Manager tab AI patches must preserve delegated manager security contracts');
 assert.match(agent,/tail -c 5000 \/tmp\/agent-reports\/provider\.log/,
   'Coding provider output required for diagnosing zero-edit responses');
 assert.match(agent,/cat \/tmp\/agent-reports\/task\.txt/,
