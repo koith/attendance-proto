@@ -41,3 +41,15 @@ for(const detailUrl of detailExamples){
    let at=source.indexOf(term);if(at>=0)console.log('STORE_DETAIL_FRAGMENT',term,source.slice(Math.max(0,at-320),at+680).replace(/\s+/g,' ').slice(0,1000));
  }
 }
+
+for (const path of [
+ '/store/537-%EA%B4%91%EC%A3%BC%EC%A0%84%EB%82%A8%EB%8C%80%EC%A0%90',
+ '/store/535-%EB%AA%A9%ED%8F%AC%EB%82%A8%EC%95%85%EC%A0%90'
+]) {
+ const url='https://10billioncoffee.co.kr'+path;
+ try {
+  const html=await (await fetch(url,{signal:AbortSignal.timeout(10000)})).text();
+  const blocks=[...html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  console.log('UNPARSED_LOCATION_DETAIL',decodeURIComponent(path),JSON.stringify(blocks.slice(0,2).map(m=>m[1].slice(0,700))));
+ } catch(e){console.log('UNPARSED_LOCATION_ERROR',String(e));}
+}
