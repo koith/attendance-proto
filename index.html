@@ -761,6 +761,22 @@
 .hq-owner-row strong{font-size:1rem!important;line-height:1.4}.hq-owner-row small{font-size:.88rem!important;line-height:1.45;color:var(--text-muted)}
 .hq-owner-row{min-height:76px!important;padding:14px 16px!important}
 @media(max-width:640px){#accountVeil .hq-owner-modal{height:calc(100dvh - 120px)!important;max-height:calc(100dvh - 120px)!important}.hq-owner-row strong{font-size:1.05rem!important}.hq-owner-row small{font-size:.92rem!important}}
+
+/* HQ owner quick-navigation: compact, tactile and responsive */
+.hq-owner-quicknav{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 10px}
+.hq-owner-quicknav button{appearance:none;border:1px solid var(--border);background:var(--card,#fff);border-radius:999px;padding:10px 16px;color:var(--text);font-size:.9rem;font-weight:650;cursor:pointer;transition:background .15s,border-color .15s}
+.hq-owner-quicknav button.active,.hq-owner-quicknav button:focus-visible{border-color:var(--brand-700);background:#e8f5ed;color:#185a39}
+.hq-quick-panel{padding:14px;border:1px solid var(--border);border-radius:16px;background:var(--surface,#f8faf9);margin-bottom:14px}
+.hq-quick-selects{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.hq-quick-selects label{font-size:.82rem;font-weight:650;display:grid;gap:6px}
+.hq-quick-letters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.hq-quick-letters button{min-width:36px;min-height:36px;border-radius:9px;border:1px solid var(--border);background:var(--card,#fff);font-size:.92rem;font-weight:700;cursor:pointer}
+.hq-quick-letters button.active{background:#e8f5ed;border-color:var(--brand-700);color:#185a39}
+.hq-quick-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;max-height:200px;overflow:auto;overscroll-behavior:contain}
+.hq-quick-store{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;min-width:0;border:1px solid var(--border);border-radius:10px;background:var(--card,#fff);padding:11px 12px;color:var(--text);cursor:pointer;font-size:.9rem;font-weight:650}
+.hq-quick-store span{overflow-wrap:anywhere}.hq-quick-store small{font-size:.72rem;color:var(--text-muted);flex-shrink:0}
+.hq-quick-store.selected{border-color:var(--brand-700);background:#e8f5ed}
+@media(max-width:640px){.hq-owner-quicknav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.hq-owner-quicknav button{padding:10px 4px;font-size:.83rem}.hq-quick-results{grid-template-columns:1fr}.hq-quick-selects{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="operations_v1.css?v=20260930v083">
 <link rel="stylesheet" href="recipe_access_v220.css?v=20261001v096">
@@ -772,7 +788,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.264</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.265</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -864,7 +880,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.264";
+const APP_VERSION="v0.265";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -3713,7 +3729,7 @@ loadStores().finally(()=>{STORE_ENTRY_LOADING=false;route();});
 </script>
 <script src="store_controls_v1.js?v=20260929v066"></script>
 <script src="hq_store_onboarding_ui.js?v=20261013v251"></script>
-<script src="hq_owner_console.js?v=20261014v264"></script>
+<script src="hq_owner_console.js?v=20261014v265"></script>
 <script src="store_manager_tab.js?v=20261014v256"></script>
 <script src="store_limited_manager.js?v=20261014v254"></script>
 </body>
