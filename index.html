@@ -1532,7 +1532,7 @@ async function renderDashboard(){
   const regions=["전체 지역",...new Set(rows.map(r=>r.region_group||"기타"))];
   const dataNotice=rows.some(r=>Number(r.tx_count||0)>0)?'':'<p class="empty" role="status">연결된 실제 매출 데이터가 없습니다. 시연용 거래는 매출 집계에서 제외했습니다.</p>';
   view.innerHTML='<div class="hq-dashboard"><div class="hq-title"><div class="hq-title-row"><h2>지점 현황</h2><div class="hq-dashboard-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="btn btn-secondary btn-sm" id="hqOwnerManagement" aria-label="지점 대표 점주 관리 열기">지점 대표 점주 관리</button><button type="button" class="btn btn-secondary btn-sm hq-product-button" id="hqProductControl">상품 배포</button></div></div><div class="hq-filterbar"><label class="hq-store-search" aria-label="지점명 검색"><input id="hqStoreSearch" type="search" placeholder="지점명 검색" autocomplete="off"></label><label class="hq-region-filter" aria-label="지역 선택"><select id="hqRegionSelect">'+regions.map(x=>'<option value="'+safeHtml(x)+'">'+safeHtml(x)+'</option>').join("")+'</select></label><label class="hq-region-filter" aria-label="정렬 기준 선택"><select id="hqSortSelect"><option value="sales7">최근 7일 매출</option><option value="total">누적 매출</option><option value="tx">거래 건수</option><option value="name">지점명</option></select></label></div></div>'+dataNotice+summary+'<div class="hq-grid">'+cards+'</div><div class="empty" id="hqRegionEmpty" style="display:none">이 지역에 운영 중인 지점이 없습니다.</div></div>';
-  document.getElementById("hqOwnerManagement").onclick=()=>{ void openAccountMgmt(); };
+  document.getElementById("hqOwnerManagement").onclick=()=>{ void openAccountMgmt("owners"); };
   document.getElementById("hqProductControl").onclick=()=>window.openHqProductModal?.();
   const bindStoreButtons=()=>view.querySelectorAll(".hq-store-panel button").forEach(btn=>btn.onclick=()=>{const c=btn.closest(".hq-store-panel");location.assign(STORE_ENTRY_URL(Number(c.dataset.store)));});
   bindStoreButtons();
@@ -2132,16 +2132,16 @@ function setAccountTab(tab){
   document.querySelectorAll("[data-account-tab]").forEach(b=>b.classList.toggle("on",b.dataset.accountTab===tab));
   document.querySelectorAll("[data-account-pane]").forEach(p=>p.classList.toggle("on",p.dataset.accountPane===tab));
 }
-async function openAccountMgmt(){
+async function openAccountMgmt(mode="accounts"){
   const v=document.getElementById("accountVeil");
   document.getElementById("accountClose").innerHTML=ICON.close;
   document.getElementById("accountClose").onclick=()=>v.classList.remove("show");
   attachNoDoubleTapZoom(v); v.classList.add("show");
-  await renderAccountMgmt();
+  await renderAccountMgmt(mode);
 }
 
 /* ---------------------- 계정 관리 (V0 global admin) ---------------------- */
-async function renderAccountMgmt(){
+async function renderAccountMgmt(mode="accounts"){
   const box=document.getElementById("adAccount"); if(!box) return;
   box.innerHTML=`<div class="empty">불러오는 중…</div>`;
   try{
@@ -2151,6 +2151,12 @@ async function renderAccountMgmt(){
       return;
     }
   }catch(e){box.textContent="계정 권한을 확인할 수 없습니다.";return;}
+  if(mode==="owners"){
+    box.innerHTML='<div class="page-title-row"><h2 class="page-title">지점 대표 관리자 관리</h2></div><p class="page-desc">지점 검색 후 대표 점주를 초대·지정·교체하거나 기존 권한을 해제할 수 있습니다.</p>';
+    if(LIVE && typeof window.mountHqStoreOnboarding==="function") await window.mountHqStoreOnboarding(box);
+    else box.innerHTML+='<div class="empty">지점 관리 기능을 불러올 수 없습니다.</div>';
+    return;
+  }
   let me=null, admins=[], ownerIds=new Set();
   try{
     me=await Auth.getUser();
