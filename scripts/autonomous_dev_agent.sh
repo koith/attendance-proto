@@ -120,6 +120,9 @@ EDIT_PROPOSAL_CONTRACT
   set +e
   (
     set -e
+    # Model-generated QA may execute JavaScript in a disposable runner.
+    # Do not pass the GitHub write token or OpenAI secret into those processes.
+    unset GH_TOKEN GITHUB_TOKEN OPENAI_API_KEY
     if [[ -z "$changed_tests" ]]; then
       echo "QA FAIL: feature-specific qa_*.mjs regression test is mandatory"
       exit 1
@@ -166,6 +169,9 @@ done
 git add -A
 git diff --cached --quiet && { echo "::error::Agent produced no changes"; exit 1; }
 git commit -m "agent: implement approved issue #$ISSUE_NUMBER"
+# Only after safe QA passed, provision the git credential helper for pushing
+# the reviewed branch; no token is persisted during AI or test execution.
+gh auth setup-git
 git push -u origin "$branch"
 gh pr create --base main --head "$branch" \
   --title "agent: $title (#$ISSUE_NUMBER)" \
