@@ -173,6 +173,35 @@ git commit -m "agent: implement approved issue #$ISSUE_NUMBER"
 # the reviewed branch; no token is persisted during AI or test execution.
 gh auth setup-git
 git push -u origin "$branch"
-gh pr create --base main --head "$branch" \
+# Some repositories disable "Allow GitHub Actions to create and approve
+# pull requests". This policy affects even pull-requests:write GITHUB_TOKEN.
+# Preserve the validated branch and publish an explicit PR-broker request.
+# Never confuse an uncreated PR with successful completion or failed coding QA.
+if gh pr create --base main --head "$branch" \
   --title "agent: $title (#$ISSUE_NUMBER)" \
-  --body "Automated development attempt for #$ISSUE_NUMBER. Bounded AI repair loop and local regression QA passed. **Requires PR review and CI. No automatic merge or production deployment.**"
+  --body "Automated development attempt for #$ISSUE_NUMBER. Bounded AI repair loop and local regression QA passed. **Requires PR review and CI. No automatic merge or production deployment.**" \
+  >/tmp/agent-reports/pr-create.log 2>&1; then
+  cat /tmp/agent-reports/pr-create.log
+elif grep -Eq 'GitHub Actions is not permitted to create or approve pull requests|Resource not accessible by integration' /tmp/agent-reports/pr-create.log; then
+  # A connected, separately authorized GitHub app (never the runner token)
+  # can create a PR from this already pushed branch after scope validation.
+  branch_sha="$(git rev-parse HEAD)"
+  marker="[agent-pr-pending:${GITHUB_RUN_ID:-local}]"
+  gh issue comment "$ISSUE_NUMBER" --body "$marker
+자동 개발 코드 수정·격리 QA·브랜치 푸시는 성공했습니다. 다만 저장소 정책상 GitHub Actions 토큰이 PR을 만들 수 없습니다. **PR 생성과 독립 CI를 아직 완료하지 않았으며 운영에 배포하지 않았습니다.**
+[agent-branch:$branch]
+[agent-sha:$branch_sha]
+[agent-issue:$ISSUE_NUMBER]
+[agent-qa:passed]
+비교 링크: https://github.com/${GITHUB_REPOSITORY:-koith/attendance-proto}/compare/main...$branch
+PR은 별도로 승인된 GitHub 연결 경로로 생성해야 하며, 변경 파일 범위와 CI를 다시 확인해야 합니다." || {
+    echo "::error::PR permission fallback could not record the pending branch"
+    exit 1
+  }
+  echo "::error::Coding and QA passed, but PR creation denied by GitHub Actions repository policy; pending broker [agent-pr-pending:${GITHUB_RUN_ID:-local}]"
+  exit 1
+else
+  cat /tmp/agent-reports/pr-create.log
+  echo "::error::PR creation failed unexpectedly; reviewed branch remains available"
+  exit 1
+fi
