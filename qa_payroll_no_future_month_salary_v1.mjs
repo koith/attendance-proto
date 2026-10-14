@@ -33,6 +33,18 @@ const current=await report('2026-10');
 const currentMonthly=current.rows.find(r=>r.employee_id===monthly.id).pay;
 assert.equal(currentMonthly.base,Math.trunc(2600000*11/31),'current month accrues through October 11 KST, not October 31');
 assert.equal(currentMonthly.gross,Math.trunc(2600000*11/31)+5000,'current earned salary includes approved adjustments only');
+// Regression: current-month fixed salary is based on KST calendar days,
+// regardless of how few time punches are recorded, at both ends of the day.
+for(const iso of ['2026-10-13T15:10:00Z','2026-10-14T14:50:00Z']){
+ const snapshot=await report('2026-10',new Date(iso));
+ const monthlyPay=snapshot.rows.find(r=>r.employee_id===monthly.id).pay;
+ assert.equal(monthlyPay.accruedDays,14,'KST October 14 counts exactly 14 contract days');
+ assert.equal(monthlyPay.base,1174193,'2,600,000 won accrued for 14/31 calendar days');
+ assert.equal(monthlyPay.gross,1179193,'approved 5,000 won adjustment remains separate from fixed salary');
+}
+const oct15=await report('2026-10',new Date('2026-10-14T15:00:00Z'));
+assert.equal(oct15.rows.find(r=>r.employee_id===monthly.id).pay.accruedDays,15,
+ 'KST October 15 midnight starts the next fixed-salary accrual day');
 const future=await report('2026-11');
 assert.equal(future.totalGross,0,'future payroll cannot be pre-accrued');
 assert.equal(future.totalNet,0,'future payroll cannot be paid out');
