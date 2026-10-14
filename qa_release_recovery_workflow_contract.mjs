@@ -79,6 +79,12 @@ assert.match(agent,/gh auth setup-git\s+git push -u origin "\$branch"/,
   'Git push credential helper must be installed only after QA passed');
 
 assert.match(agent,/provider_status=\$\?/,'AI provider failures should flow into bounded repair loop');
+assert.match(agent,/agent-pr-bridge:/,'QA-passed branch must request independent GitHub PR bridge when Actions forbids PRs');
+assert.match(agent,/gh issue comment "\$ISSUE_NUMBER"/,
+  'Bridge request must attach to the approved issue');
+assert.match(agent,/exit 1\s+fi\s*$/,
+  'Cannot falsely report PR success if connector bridge remains pending');
+
 assert.match(agent,/CODE-EDITING AGENT/,'Agent must produce code instead of text-only replies');
 assert.match(agent,/tail -c 5000 \/tmp\/agent-reports\/provider\.log/,
   'Coding provider output required for diagnosing zero-edit responses');
