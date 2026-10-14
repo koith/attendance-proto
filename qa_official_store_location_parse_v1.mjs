@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {parseLocationAddress,parseOfficialDetail} from './scripts/official_store_location_parser.mjs';
+assert.deepEqual(parseLocationAddress('서울 강남구 삼성로 325'),{province:'서울특별시',district:'강남구',subdistrict:''});
+assert.deepEqual(parseLocationAddress('경기 수원시 팔달구 권광로 1'),{province:'경기도',district:'수원시',subdistrict:'팔달구'});
+assert.deepEqual(parseLocationAddress('경남 창원시 마산회원구 북성로 1'),{province:'경상남도',district:'창원시',subdistrict:'마산회원구'});
+assert.deepEqual(parseLocationAddress('세종 도움8로 1'),{province:'세종특별자치시',district:'',subdistrict:''});
+assert.equal(parseLocationAddress('미상시 잘못된군'),null);
+const url='https://10billioncoffee.co.kr/store/225-%EC%A0%9C%EC%A3%BC%EC%97%B0%EB%8F%99%EC%A0%90';
+const html='<script type="application/ld+json">'+JSON.stringify({'@type':'Restaurant',name:'제주연동점',url,address:{streetAddress:'제주 제주시 노연로 101'}})+'</script>';
+assert.deepEqual(parseOfficialDetail(html,url),{name:'제주연동점',address:'제주 제주시 노연로 101',province:'제주특별자치도',district:'제주시',subdistrict:'',source_url:url});
+assert.equal(parseOfficialDetail(html,url.replace('225-','226-')),null,'canonical mismatch');
+assert.equal(parseOfficialDetail(html.replace('제주연동점','다른지점'),url),null,'slug/name mismatch');
+console.log('PASS safe official store parsing and administrative hierarchy');
