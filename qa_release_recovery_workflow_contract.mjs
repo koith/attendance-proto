@@ -71,6 +71,13 @@ assert.match(agent,/env -u GH_TOKEN -u OPENAI_API_KEY/,
   'Copilot process must not inherit GitHub API write token from GH_TOKEN');
 assert.match(agent,/GITHUB_TOKEN="\$GITHUB_TOKEN" copilot/,
   'Copilot must use the built-in Actions inference token');
+assert.match(agentWorkflow,/persist-credentials: false/,
+  'Do not persist GitHub write credential into untrusted code checkout');
+assert.match(agent,/unset GH_TOKEN GITHUB_TOKEN OPENAI_API_KEY/,
+  'Agent-proposed JavaScript QA must not inherit cloud credentials');
+assert.match(agent,/gh auth setup-git\s+git push -u origin "\$branch"/,
+  'Git push credential helper must be installed only after QA passed');
+
 assert.match(agent,/provider_status=\$\?/,'AI provider failures should flow into bounded repair loop');
 assert.match(agent,/CODE-EDITING AGENT/,'Agent must produce code instead of text-only replies');
 assert.match(agent,/tail -c 5000 \/tmp\/agent-reports\/provider\.log/,
