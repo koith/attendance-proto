@@ -1,0 +1,24 @@
+name: HQ owner regional store browser QA
+on:
+  push:
+    branches: [main]
+    paths:
+      - hq_owner_console.js
+      - qa_hq_owner_browser_acceptance.mjs
+      - .github/workflows/hq-owner-region-browser-qa.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          npm install --no-save playwright
+          npx playwright install chromium --with-deps
+      - run: node qa_hq_owner_browser_acceptance.mjs
