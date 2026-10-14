@@ -68,5 +68,14 @@ assert.match(agent,/env -u GH_TOKEN -u OPENAI_API_KEY/,
 assert.match(agent,/GITHUB_TOKEN="\$GITHUB_TOKEN" copilot/,
   'Copilot must use the built-in Actions inference token');
 assert.match(agent,/provider_status=\$\?/,'AI provider failures should flow into bounded repair loop');
+assert.match(agent,/CODE-EDITING AGENT/,'Agent must produce code instead of text-only replies');
+assert.match(agent,/tail -c 5000 \/tmp\/agent-reports\/provider\.log/,
+  'Coding provider output required for diagnosing zero-edit responses');
+assert.match(agent,/cat \/tmp\/agent-reports\/task\.txt/,
+  'Every retry must preserve original approved issue instructions');
+assert.match(agent,/changed_application=/,'Source edit is required, not just a test');
+assert.match(agent,/no actual application JS\/HTML\/CSS file was changed/,
+  'Zero source edits must fail');
+
 
 console.log('PASS release safety workflow contract');
