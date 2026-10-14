@@ -15,7 +15,7 @@ assert.ok(files.every(p=>typeof p==='string'&&p.length>0),
  'Changed release paths must be nonempty strings');
 const sha=process.env.DEPLOY_SHA||'';
 assert.match(sha,/^[0-9a-f]{40}$/,'Deployment commit required');
-const relevant=files.filter(p=>/^(index\.html|[a-zA-Z0-9_-]+\.(?:js|html|css))$/.test(p));
+const relevant=files.filter(p=>/^[a-zA-Z0-9_-]+\.(?:js|html|css|jpg|jpeg|png|gif|webp|svg|ico|webmanifest|woff2?|ttf)$/i.test(p));
 const timeout=15000;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 for(const path of relevant){
