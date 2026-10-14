@@ -14,26 +14,42 @@ try {
    const payload=rpc==='hq_stores_onboarding_list'?stores:rpc==='hq_store_locations_list'?locations:[];
    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(payload)});
   });
-  await page.route('https://qa.invalid/',route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><div id="adAccount"></div>'}));
+  await page.route('https://qa.invalid/',route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><div id="accountVeil" class="show"><div id="adAccount"></div></div><input id="outsideQuickInput">'}));
   await page.goto('https://qa.invalid/');
   await page.addStyleTag({content:css});
   await page.evaluate(()=>{
    window.CONFIG={SUPABASE_URL:'https://qa.invalid',SUPABASE_ANON_KEY:'qa'};
    window.Auth={token:'qa-token'};
    window.BE={listAuthUsers:async()=>[]};
+   const originalAdd=document.addEventListener.bind(document);
+   const originalRemove=document.removeEventListener.bind(document);
+   const activeKeys=new Set();
+   document.addEventListener=(type,fn,...opts)=>{
+     if(type==='keydown')activeKeys.add(fn);
+     return originalAdd(type,fn,...opts);
+   };
+   document.removeEventListener=(type,fn,...opts)=>{
+     if(type==='keydown')activeKeys.delete(fn);
+     return originalRemove(type,fn,...opts);
+   };
+   window.__hqActiveDocKeys=activeKeys;
   });
   await page.addScriptTag({path:'hq_owner_console.js'});
   assert.equal(await page.evaluate(()=>typeof window.mountHqOwnerConsole),'function','HQ module failed to register');
   await page.evaluate(()=>window.mountHqOwnerConsole(document.getElementById('adAccount')));
   await page.locator('.hq-owner-row').first().waitFor();
   assert.equal(await page.locator('.hq-owner-row').count(),283);
+  const activeQuickListeners=()=>page.evaluate(()=>window.__hqActiveDocKeys.size);
+  assert.equal(await activeQuickListeners(),0,'Closed picker must not keep global keyboard listener');
   const dims=[];const snap=async()=>{const r=await page.getByRole('dialog').boundingBox();assert.ok(r);dims.push([Math.round(r.width),Math.round(r.height)])};
   await page.locator('[data-quick-mode="initial"]').click();
   await snap();
   await page.getByRole('dialog').waitFor();
   assert.match(await page.getByRole('dialog').innerText(),/가나다순 찾기/);
+  assert.equal(await activeQuickListeners(),1,'Open picker needs exactly one global fallback listener');
   assert.doesNotMatch(await page.locator('[data-letter="ㄱ"]').getAttribute('class')||'',/active/);
   await page.locator('#hqQuickClose').click();
+  assert.equal(await activeQuickListeners(),0,'Close must fully unregister fallback listener');
   await page.locator('[data-quick-mode="region"]').click();
   assert.match(await page.getByRole('dialog').innerText(),/지역별 찾기/);
   await page.locator('#hqQuickProvince').selectOption('서울특별시');
@@ -157,6 +173,34 @@ try {
   await page.locator('#hqQuickClose').click();
   assert.equal(await page.locator('[data-quick-mode="region"]').evaluate(el=>document.activeElement===el),true,
     'normal close must restore focus to its originating trigger');
+  // Escape from an unrelated field must not close an active picker.
+  await page.locator('[data-quick-mode="region"]').click();
+  assert.equal(await activeQuickListeners(),1);
+  await page.locator('#outsideQuickInput').focus();
+  await page.keyboard.press('Escape');
+  assert.equal(await page.getByRole('dialog').count(),1,'Unrelated focus must not be intercepted');
+  await page.evaluate(()=>document.activeElement?.blur());
+  await page.keyboard.press('Escape');
+  assert.equal(await page.getByRole('dialog').count(),0,'Blurred Escape must still dismiss the dialog');
+  assert.equal(await activeQuickListeners(),0,'Escape must unregister keyboard capture');
+
+  // Even if the outer modal closes first, the listener must not survive.
+  await page.locator('[data-quick-mode="region"]').click();
+  assert.equal(await activeQuickListeners(),1);
+  await page.evaluate(()=>document.querySelector('#accountVeil').classList.remove('show'));
+  await page.waitForFunction(()=>window.__hqActiveDocKeys.size===0);
+  await page.evaluate(()=>{
+    document.querySelector('#accountVeil').classList.add('show');
+    return window.mountHqOwnerConsole(document.querySelector('#adAccount'));
+  });
+  await page.locator('.hq-owner-row').first().waitFor();
+  assert.equal(await activeQuickListeners(),0,'Remount must not leak prior keyboard listeners');
+  assert.equal(await page.getByRole('dialog').count(),0,'Reopen must reset the quick picker');
+  await page.locator('[data-quick-mode="recent"]').click();
+  assert.equal(await activeQuickListeners(),1,'Remounted popup has exactly one listener');
+  await page.evaluate(()=>document.querySelector('#adAccount').remove());
+  await page.waitForFunction(()=>window.__hqActiveDocKeys.size===0);
+  assert.equal(await activeQuickListeners(),0,'Unmount must unregister keyboard capture');
   assert.deepEqual(errors,[],name+' console errors');
   await page.close();
   console.log('PASS HQ owner browser acceptance '+name);
