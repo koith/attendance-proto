@@ -131,6 +131,17 @@ jobs:
           DEPLOY_SHA: ${{ inputs.target_sha }}
           CHANGED_RELEASE_FILES: '["index.html"]'
         run: node qa_release_changed_assets_live.mjs
+      - name: Install browser for restored mobile and desktop smoke
+        if: steps.bytes.outcome == 'success'
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Verify restored mobile and desktop Pages routes
+        id: browser
+        if: steps.bytes.outcome == 'success'
+        env:
+          APP_SMOKE_HOST: https://koith.github.io/attendance-proto
+        run: node qa_browser_app_smoke.mjs
       - name: Report rollback result after verifiable completion
         if: always()
         uses: actions/github-script@v7
@@ -142,12 +153,14 @@ jobs:
           RESTORED: ${{ steps.restore.outcome }}
           HEALTH: ${{ steps.health.outcome }}
           BYTE_PARITY: ${{ steps.bytes.outcome }}
+          BROWSER: ${{ steps.browser.outcome }}
           ALERT_WEBHOOK: ${{ secrets.DEPLOY_ALERT_WEBHOOK_URL }}
         with:
           script: |
             const fs=require('fs'),runId=Number(process.env.FAILED_RUN);
             const safe=process.env.APPROVED==='success'&&process.env.RESTORED==='success'&&
-              process.env.HEALTH==='success'&&process.env.BYTE_PARITY==='success';
+              process.env.HEALTH==='success'&&process.env.BYTE_PARITY==='success'&&
+              process.env.BROWSER==='success';
             const marker='[deployment-run:'+runId+']';
             const title=safe?'배포 실패 · 자동 롤백 및 운영 복구 확인':'배포 실패 · 자동 롤백 검증 실패';
             const body=[marker,'@'+context.repo.owner,'### GitHub Pages 배포 결과: 실패',
@@ -157,6 +170,7 @@ jobs:
               '- 복구 실행: https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId,
               '- 롤백 승인: '+process.env.APPROVED,'- 이전 버전 배포: '+process.env.RESTORED,
               '- 운영 실제 응답: '+process.env.HEALTH,'- 배포 파일 SHA256 일치: '+process.env.BYTE_PARITY,
+              '- 모바일/데스크톱 브라우저: '+process.env.BROWSER,
               safe?'**이전 정상 Pages 버전으로 복구되었습니다. 신규 변경은 미적용이며 성공 보고하지 않습니다.**':
                 '**운영 복구를 확인하지 못했습니다. 관리자 점검이 필요합니다.**'].join('\n');
             const issues=await github.paginate(github.rest.issues.listForRepo,{
