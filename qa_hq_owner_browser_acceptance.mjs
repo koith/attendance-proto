@@ -29,7 +29,7 @@ try {
   await page.locator('#hqQuickClose').click();
   await page.locator('[data-quick-mode="region"]').click();
   assert.match(await page.getByRole('dialog').innerText(),/지역별 찾기/);
-  await page.locator('#hqQuickProvince').selectOption('서울');
+  await page.locator('#hqQuickProvince').selectOption('서울특별시');
   assert.ok(await page.locator('[data-quick-store]').count()>0);
   await page.locator('#hqQuickClose').click();
   await page.locator('[data-quick-mode="recent"]').click();
