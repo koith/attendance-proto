@@ -231,6 +231,8 @@ jobs:
         run: node qa_hq_dashboard_entry_auth.mjs
       - name: HQ to store dedicated navigation regression
         run: node qa_hq_store_dedicated_navigation.mjs
+      - name: Parse HQ owner console before any Pages publication
+        run: node --check hq_owner_console.js
       - name: Install HQ browser acceptance harness
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.55.1
