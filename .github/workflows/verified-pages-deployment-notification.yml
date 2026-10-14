@@ -49,10 +49,7 @@ jobs:
             const deployments = await github.rest.repos.listDeployments({...context.repo,environment:'github-pages',per_page:15});
             const matched = deployments.data.some(d=>d.sha === process.env.DEPLOY_SHA);
             if (!matched) throw new Error('No GitHub Pages deployment receipt for SHA ' + process.env.DEPLOY_SHA);
-            // Main may advance before workflow_run fires, even while this deployment
-            // remains live. The Pages receipt and live version/smoke prove release health.
-            // Do not mistake a queued later commit for a failed published deployment.
-            core.info('Verified Pages receipt '+process.env.DEPLOY_SHA+' version '+version);
+            core.info('Verified deployment commit '+process.env.DEPLOY_SHA+' version '+version);
       - name: Validate actual Pages response, displayed version and protected API
         id: production_health
         if: steps.verify_commit.outcome == 'success'
