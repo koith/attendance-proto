@@ -1,0 +1,53 @@
+name: autonomous-development-agent
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Existing GitHub issue number with approved development task'
+        required: true
+        type: string
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+concurrency:
+  group: autonomous-agent-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: false
+jobs:
+  develop:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'agent-approved'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate task and credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$OPENAI_API_KEY" || { echo "::error::OPENAI_API_KEY repository secret is required"; exit 1; }
+          gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name' | grep -qx 'agent-approved' || { echo "::error::Issue requires agent-approved label"; exit 1; }
+          gh issue view "$ISSUE_NUMBER" --json state --jq .state | grep -qx OPEN
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Install AI coding agent and browser QA dependencies
+        run: |
+          python -m pip install 'aider-chat==0.86.1'
+          npm install --no-save --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Run bounded repair loop and open review PR
+        shell: bash
+        run: bash scripts/autonomous_dev_agent.sh
