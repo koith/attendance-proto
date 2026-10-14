@@ -15,10 +15,17 @@ permissions:
 jobs:
   inspect-public-directory:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node scripts/probe_official_store_directory.mjs
+      - run: node qa_official_store_location_parse_v1.mjs
+      - run: node scripts/crawl_official_store_locations.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-store-location-snapshot
+          path: official-store-locations.json
+          if-no-files-found: warn
