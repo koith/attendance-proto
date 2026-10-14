@@ -31,6 +31,16 @@ window.mountHqOwnerConsole=async function(box){
   const district=/^(?:.+(?:시|군|구))$/.test(candidate)?candidate:"";
   return {province,district};
  };
+ const ADMIN_DISTRICTS={
+ "서울특별시":"종로구 중구 용산구 성동구 광진구 동대문구 중랑구 성북구 강북구 도봉구 노원구 은평구 서대문구 마포구 양천구 강서구 구로구 금천구 영등포구 동작구 관악구 서초구 강남구 송파구 강동구".split(" "),
+ "부산광역시":"중구 서구 동구 영도구 부산진구 동래구 남구 북구 해운대구 사하구 금정구 강서구 연제구 수영구 사상구 기장군".split(" "),
+ "대구광역시":"중구 동구 서구 남구 북구 수성구 달서구 달성군 군위군".split(" "),
+ "인천광역시":"중구 동구 미추홀구 연수구 남동구 부평구 계양구 서구 강화군 옹진군".split(" "),
+ "광주광역시":"동구 서구 남구 북구 광산구".split(" "),
+ "대전광역시":"동구 중구 서구 유성구 대덕구".split(" "),
+ "울산광역시":"중구 남구 동구 북구 울주군".split(" "),
+ "세종특별자치시":[]
+ };
  const chose=id=>{selected=Number(id);remember(selected);render()};
  box.innerHTML='<div class="hq-owner-console"><h2>지점 대표 관리자 관리</h2><p>지점별 대표 점주를 확인하고 초대·지정할 수 있습니다.</p><div id="hqOwnerBody">불러오는 중…</div></div>';
  const body=box.querySelector("#hqOwnerBody"); const summary=document.getElementById("hqOwnerPinnedSummary");
@@ -45,7 +55,7 @@ window.mountHqOwnerConsole=async function(box){
  const listScroll=previousList?.scrollTop??0;
  const rows=stores.filter(s=>(filter==="ALL"||(filter==="ASSIGNED"?!!owner(s.id):!owner(s.id)))&&[s.name,s.code,s.region_group,s.id].some(v=>String(v??"").toLowerCase().includes(search.toLowerCase())));
  const regions=[...new Set(stores.map(s=>region(s).province))].sort((a,b)=>a.localeCompare(b,"ko"));
- const districts=[...new Set(stores.filter(s=>region(s).province===province).map(s=>region(s).district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ko"));
+ const districts=ADMIN_DISTRICTS[province]||[...new Set(stores.filter(s=>region(s).province===province).map(s=>region(s).district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ko"));
  const regionStores=stores.filter(s=>region(s).province===province&&(!district||region(s).district===district)).sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"));
  const recentStores=readRecents().map(id=>stores.find(s=>Number(s.id)===id)).filter(Boolean);
  const letters=["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
@@ -53,7 +63,7 @@ window.mountHqOwnerConsole=async function(box){
  const letterStores=stores.filter(s=>initial(s.name)===quickLetter).sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"));
  const quickItem=s=>'<button type="button" class="hq-quick-store'+(Number(s.id)===selected?' selected':'')+'" data-quick-store="'+Number(s.id)+'"><span>'+h(s.name)+'</span><small>'+h(region(s).province)+'</small></button>';
  const quickTitle=quickMode==="region"?"지역별 찾기":quickMode==="initial"?"가나다순 찾기":"최근 지점";
- const quickPanel=quickMode==="region"?'<div class="hq-quick-panel"><div class="hq-quick-selects"><label>시·도<select id="hqQuickProvince" class="form-control"><option value="">지역 선택</option>'+regions.map(x=>'<option value="'+h(x)+'"'+(province===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label><label>시·군·구 (정보 제공 시)<select id="hqQuickDistrict" class="form-control" '+(province?'':'disabled')+'><option value="">전체 지역</option>'+districts.map(x=>'<option value="'+h(x)+'"'+(district===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label></div><div class="hq-quick-results">'+(province?'<p class="hq-owner-help">주소에 시·군·구가 등록된 지점만 행정구역별로 구분합니다. 주소가 없는 지점은 지역 미분류로 표시합니다.</p>'+regionStores.map(quickItem).join(""):'<p class="hq-owner-help">시·도를 선택하세요.</p>')+'</div></div>':
+ const quickPanel=quickMode==="region"?'<div class="hq-quick-panel"><div class="hq-quick-selects"><label>시·도<select id="hqQuickProvince" class="form-control"><option value="">지역 선택</option>'+regions.map(x=>'<option value="'+h(x)+'"'+(province===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label><label>시·군·구 (정보 제공 시)<select id="hqQuickDistrict" class="form-control" '+(province?'':'disabled')+'><option value="">전체 지역</option>'+districts.map(x=>'<option value="'+h(x)+'"'+(district===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label></div><div class="hq-quick-results">'+(province?'<p class="hq-owner-help">시·군·구는 실제 행정구역 목록입니다. 지점 주소에 구 정보가 없으면 선택한 구의 지점이 조회되지 않을 수 있습니다.</p>'+(regionStores.length?regionStores.map(quickItem).join(""):'<p class="hq-owner-help">해당 지역에 주소가 확인된 지점이 없습니다.</p>'):'<p class="hq-owner-help">시·도를 선택하세요.</p>')+'</div></div>':
  quickMode==="initial"?'<div class="hq-quick-panel"><div class="hq-quick-letters">'+letters.map(x=>'<button type="button" data-letter="'+x+'" class="'+(quickLetter===x?'active':'')+'">'+x+'</button>').join("")+'</div><div class="hq-quick-results">'+(quickLetter?letterStores.map(quickItem).join(""):'<p class="hq-owner-help">초성을 누르면 해당 지점이 나타납니다.</p>')+'</div></div>':
  quickMode==="recent"?'<div class="hq-quick-panel"><div class="hq-quick-results">'+(recentStores.length?recentStores.map(quickItem).join(""):'<p class="hq-owner-help">선택했던 지점이 여기에 최대 5개 표시됩니다.</p>')+'</div></div>':'';
  const store=stores.find(s=>Number(s.id)===selected),current=store?owner(selected):null,linked=managers.filter(x=>Number(x.store_id)===selected);
