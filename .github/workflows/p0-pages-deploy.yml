@@ -380,9 +380,42 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Resolve merged request changes for live verification
+        id: request_changes
+        if: ${{ needs['p0-gate'].result == 'success' && needs['build-pages'].result == 'success' && needs['deploy-pages'].result == 'success' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs=require('fs');
+            const prs=await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              ...context.repo,commit_sha:context.sha});
+            const merged=prs.data.filter(p=>p.merged_at);
+            let files=[];
+            if(merged.length){
+              for(const pr of merged){
+                const list=await github.paginate(github.rest.pulls.listFiles,{
+                  ...context.repo,pull_number:pr.number,per_page:100});
+                if(list.length>=300)throw Error('Truncated PR changed files');
+                files.push(...list.map(f=>f.filename));
+              }
+            }else{
+              const commit=await github.rest.repos.getCommit({...context.repo,ref:context.sha});
+              files=(commit.data.files||[]).map(f=>f.filename);
+            }
+            if(!files.length)throw Error('No request changes found');
+            fs.writeFileSync('/tmp/release-request-files.json',JSON.stringify([...new Set(files)]));
+            core.info('Request change evidence: '+files.join(', '));
+      - name: Compare changed public files against actual published bytes
+        id: request_live
+        if: steps.request_changes.outcome == 'success'
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          echo "CHANGED_RELEASE_FILES=$(cat /tmp/release-request-files.json)" >> "$GITHUB_ENV"
+          node qa_release_changed_assets_live.mjs
       - name: Double-check live Pages version and guarded payroll endpoint
         id: final_health
-        if: ${{ needs['p0-gate'].result == 'success' && needs['build-pages'].result == 'success' && needs['deploy-pages'].result == 'success' }}
+        if: steps.request_live.outcome == 'success'
         run: node qa_production_deployment_health_v1.mjs
       - name: Send one deduplicated report even if workflow_run event is suppressed
         if: ${{ always() }}
@@ -392,6 +425,8 @@ jobs:
           PAGES_BUILD: ${{ needs['build-pages'].result }}
           PAGES_DEPLOY: ${{ needs['deploy-pages'].result }}
           FINAL_HEALTH: ${{ steps.final_health.outcome }}
+          REQUEST_EVIDENCE: ${{ steps.request_changes.outcome }}
+          REQUEST_LIVE: ${{ steps.request_live.outcome }}
           INTENTIONAL_PROOF: ${{ inputs.prove_gate_failure || 'false' }}
           OPTIONAL_ALERT_WEBHOOK: ${{ secrets.DEPLOY_ALERT_WEBHOOK_URL }}
         with:
@@ -411,13 +446,16 @@ jobs:
             const success=process.env.P0_GATE==='success' &&
               process.env.PAGES_BUILD==='success' &&
               process.env.PAGES_DEPLOY==='success' &&
+              process.env.REQUEST_EVIDENCE==='success' &&
+              process.env.REQUEST_LIVE==='success' &&
               process.env.FINAL_HEALTH==='success';
             const canceled=[process.env.P0_GATE,process.env.PAGES_BUILD,process.env.PAGES_DEPLOY]
               .includes('cancelled');
             const state=proof?'실패(의도적 QA)':success?'성공':canceled?'취소':'실패';
             const stage=proof?'의도적인 P0 검사 실패 시험, Pages 배포 생략':
               !success?'P0 '+process.env.P0_GATE+', 빌드 '+process.env.PAGES_BUILD+
-              ', 배포 '+process.env.PAGES_DEPLOY+', 실서비스 검증 '+process.env.FINAL_HEALTH:
+              ', 배포 '+process.env.PAGES_DEPLOY+', 요청 검증 '+process.env.REQUEST_LIVE+
+              ', 실서비스 검증 '+process.env.FINAL_HEALTH:
               '실제 운영 URL·버전·API 검증 통과 및 배포 스모크 테스트 통과';
             const url='https://koith.github.io/attendance-proto/';
             const log='https://github.com/'+context.repo.owner+'/'+context.repo.repo+
@@ -430,7 +468,8 @@ jobs:
               '- 앱 버전: **'+version+'**',
               '- 시각(UTC): '+new Date().toISOString(),
               '- 배포 커밋: '+context.sha,'- PR: '+prs,'- 운영 URL: '+url,
-              '- 검증: '+stage,'- [Actions 로그]('+log+')',
+              '- 검증: '+stage,'- 수정 요청 추적: '+process.env.REQUEST_EVIDENCE,
+              '- 변경 파일 실서비스 일치: '+process.env.REQUEST_LIVE,'- [Actions 로그]('+log+')',
               proof?'**실제 운영 배포 실패가 아닌 의도적 QA 실패입니다.**':
               success?'**운영 배포 및 검증 완료**':
               '**운영 배포 성공이라고 판정하지 않습니다.**'].join('\n');
