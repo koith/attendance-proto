@@ -12,3 +12,19 @@ console.log('DIRECTORY_LINKS',JSON.stringify([...new Set(links)].slice(0,35)));
 const scripts=[...html.matchAll(/<script[^>]*src=["']([^"']+)["']/gi)].map(m=>m[1]);
 console.log('DIRECTORY_SCRIPTS',JSON.stringify(scripts.slice(-25)));
 if(!response.ok)process.exitCode=1;
+
+for(const asset of ['https://10billioncoffee.co.kr/assets/js/store.js?1783647174636.8','https://10billioncoffee.co.kr/sitemap.xml']){
+ try {
+  const res=await fetch(asset,{signal:AbortSignal.timeout(15000)});
+  const body=await res.text();
+  console.log('OFFICIAL_ASSET',asset,res.status,body.length);
+  if(asset.includes('store.js')){
+    for(const term of ['ajax','fetch(','api/','/store','/place','search','URL','url:','request','dataType','getJSON','place']){
+      let offset=0,found=0;while(found<4){let at=body.toLowerCase().indexOf(term.toLowerCase(),offset);if(at<0)break;console.log('OFFICIAL_JS_CONTEXT',term,body.slice(Math.max(0,at-220),at+380).replace(/\\s+/g,' '));offset=at+term.length;found++;}
+    }
+  }else{
+    console.log('SITEMAP_START',body.slice(0,1000));
+    console.log('SITEMAP_STORE_URLS',JSON.stringify([...body.matchAll(/<loc>([^<]*\\/store\\/[^<]+)<\\/loc>/g)].map(m=>m[1]).slice(0,15)));
+  }
+ }catch(e){console.log('OFFICIAL_ASSET_FAILED',asset,String(e));}
+}
