@@ -99,7 +99,13 @@ jobs:
                   !body.includes('GitHub Pages 배포 결과: 성공'))continue;
               const sha=body.match(/- (?:배포 )?커밋: ([a-f0-9]{40})/)?.[1];
               const priorId=Number(body.match(/\[deployment-run:(\d+)\]/)?.[1]);
-              if(!sha||sha===failedSha||!Number.isSafeInteger(priorId))continue;
+              const independentId=Number(body.match(/\[independent-verified-run:(\d+)\]/)?.[1]);
+              if(!sha||sha===failedSha||!Number.isSafeInteger(priorId)||
+                 !Number.isSafeInteger(independentId))continue;
+              const independent=await github.rest.actions.getWorkflowRun({
+                ...context.repo,run_id:independentId});
+              if(independent.data.name!=='verified-pages-deployment-notification'||
+                 independent.data.conclusion!=='success')continue;
               const previous=await github.rest.actions.getWorkflowRun({...context.repo,run_id:priorId});
               if(previous.data.head_sha!==sha||previous.data.conclusion!=='success')continue;
               const compare=await github.rest.repos.compareCommits({
