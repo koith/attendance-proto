@@ -12,6 +12,7 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  copilot-requests: write
 concurrency:
   group: autonomous-agent-${{ github.event.issue.number || inputs.issue_number }}
   cancel-in-progress: false
@@ -23,6 +24,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GITHUB_TOKEN: ${{ github.token }}
       ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
     steps:
       - uses: actions/checkout@v4
@@ -34,21 +36,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Validate task and credentials
+      - name: Validate approved task and available GitHub-token provider
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$OPENAI_API_KEY" || { echo "::error::OPENAI_API_KEY repository secret is required"; exit 1; }
+          test -n "$GH_TOKEN" && test -n "$GITHUB_TOKEN" || { echo "::error::GitHub Actions token missing"; exit 1; }
+          if [[ -n "$OPENAI_API_KEY" ]]; then echo "Using configured OpenAI aider provider"; else echo "No OpenAI secret: using GitHub Copilot CLI via GITHUB_TOKEN"; fi
           gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name' | grep -qx 'agent-approved' || { echo "::error::Issue requires agent-approved label"; exit 1; }
           gh issue view "$ISSUE_NUMBER" --json state --jq .state | grep -qx OPEN
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       - name: Install AI coding agent and browser QA dependencies
         run: |
-          python -m pip install 'aider-chat==0.86.1'
+          if [[ -n "$OPENAI_API_KEY" ]]; then
+            python -m pip install 'aider-chat==0.86.1'
+          else
+            npm install -g --no-audit --no-fund @github/copilot
+          fi
           npm install --no-save --no-audit --no-fund playwright@1.55.1
           npx playwright install --with-deps chromium
-      - name: Run bounded repair loop and open review PR
+      - name: Run bounded OpenAI or built-in GitHub Copilot repair loop and open review PR
         shell: bash
         run: bash scripts/autonomous_dev_agent.sh
       - name: Record bounded agent failure without claiming completion
@@ -67,6 +74,7 @@ jobs:
             await github.rest.issues.createComment({...context.repo,issue_number:number,
               body:[marker,'AI 자동 개발 또는 최대 5회 자동 수정·QA가 실패했습니다.',
                 '변경사항을 운영 환경에 배포하지 않았습니다.',
+                'API 키가 없으면 GitHub Actions 기본 토큰으로 Copilot CLI 대체 실행을 시도합니다.',
                 '원인 및 재시도 기록: https://github.com/'+context.repo.owner+'/'+
                   context.repo.repo+'/actions/runs/'+context.runId,
                 '자동 재시도 한계를 넘는 변경은 사람의 검토 또는 새로운 수정 전략이 필요합니다.'
