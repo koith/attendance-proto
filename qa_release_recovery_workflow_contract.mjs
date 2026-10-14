@@ -19,6 +19,20 @@ assert.match(rollback,/qa_production_deployment_health_v1\.mjs/,'Check restored 
 assert.match(rollback,/qa_release_changed_assets_live\.mjs/,'Verify restored file bytes');
 assert.match(rollback,/qa_browser_app_smoke\.mjs/,'Restored mobile and desktop routes require live browser QA');
 assert.match(verifier,/retry API rejected recovery/,'Re-run API failure must not suppress final report');
+// A same-run check must never publish a premature success receipt.
+assert.doesNotMatch(deploy,/Same-run deployment alert delivered|Send one deduplicated report even if workflow_run event is suppressed/);
+assert.doesNotMatch(deploy,/github\.rest\.issues\.create/,'No early success notification from Pages release job');
+assert.match(verifier,/let isSuccess = process\.env\.DEPLOY_CONCLUSION === 'success'/);
+assert.match(verifier,/if\(superseded\)isSuccess=false/,'Stale deployment cannot be called successful');
+assert.match(verifier,/const receipt=isSuccess\?'\[independent-verified-run:/,
+  'Only independently verified success earns a healthy receipt');
+assert.match(verifier,/github\.rest\.issues\.update/,'Existing same-run receipt must be corrected');
+assert.match(verifier,/independent\.data\.conclusion!=='success'/,
+  'Recovery dispatcher rejects unverified rollback target');
+assert.match(rollback,/independent\.data\.conclusion!=='success'/,
+  'Rollback must recheck independent successful verification');
+assert.match(rollback,/independent-verified-run/,'No rollback to early same-run success');
+
 assert.doesNotMatch(rollback,/mode:\s*'deployment'/,'Rollback must not write Sheets');
 assert.match(agent,/for attempt in 1 2 3 4 5/,'Five bounded AI attempts');
 assert.match(agent,/changed_tests=/,'Per-request changed feature QA is required');
