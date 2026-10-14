@@ -177,8 +177,7 @@ jobs:
         id: changed_assets
         if: steps.release_evidence.outcome == 'success'
         run: |
-          echo "CHANGED_RELEASE_FILES=$(cat /tmp/changed-release-files.json)" >> "$GITHUB_ENV"
-          node qa_release_changed_assets_live.mjs
+          CHANGED_RELEASE_FILES="$(cat /tmp/changed-release-files.json)" node qa_release_changed_assets_live.mjs
       - name: Validate actual Pages response, displayed version and protected API
         id: production_health
         if: steps.changed_assets.outcome == 'success'
