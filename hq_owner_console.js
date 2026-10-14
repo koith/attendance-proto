@@ -21,10 +21,10 @@ window.mountHqOwnerConsole=async function(box){
   // Only administrative address fields may establish a district. Sales regions like
   // "울산 경남" are NOT administrative districts and must never populate the selector.
   const address=String(s.road_address||s.road_addr||s.address||s.address_road||s.jibun_address||"").trim();
-  const tokens=address.split(/\\s+/).filter(Boolean);
+  const tokens=address.split(/\s+/).filter(Boolean);
   const fromAddress=normalizeProvince(tokens[0]||"");
   const raw=String(s.region_group||"").trim();
-  const groupTokens=raw.split(/[\\s/·>]+/).filter(Boolean);
+  const groupTokens=raw.split(/[\s/·>]+/).filter(Boolean);
   const fromGroup=groupTokens.length===1?normalizeProvince(groupTokens[0]):"";
   const province=fromAddress||fromGroup||"지역 미분류";
   const candidate=fromAddress?(tokens[1]||""):"";
