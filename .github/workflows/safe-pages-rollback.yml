@@ -1,0 +1,180 @@
+name: safe-pages-rollback
+on:
+  workflow_dispatch:
+    inputs:
+      failed_sha:
+        description: Failed live-release commit (40-character SHA)
+        required: true
+        type: string
+      target_sha:
+        description: Last independently verified healthy Pages commit
+        required: true
+        type: string
+      failed_run_id:
+        description: Failed p0-pages-deploy workflow run
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+  issues: write
+  deployments: read
+
+# Share the same lock as the primary Pages deployment; never race a rollout.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    name: Restore previously verified Pages artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: https://koith.github.io/attendance-proto/
+    steps:
+      - uses: actions/checkout@v4
+      - name: Revalidate source, static-only boundary and known-good receipt
+        id: approve
+        uses: actions/github-script@v7
+        env:
+          FAILED_SHA: ${{ inputs.failed_sha }}
+          TARGET_SHA: ${{ inputs.target_sha }}
+          FAILED_RUN: ${{ inputs.failed_run_id }}
+        with:
+          script: |
+            const {decideRecovery,isStaticOnlyRelease}=require(process.cwd()+'/scripts/release_recovery_policy.cjs');
+            const failed=process.env.FAILED_SHA,target=process.env.TARGET_SHA;
+            const runId=Number(process.env.FAILED_RUN);
+            if(!/^[a-f0-9]{40}$/.test(failed)||!/^[a-f0-9]{40}$/.test(target)||
+               !Number.isSafeInteger(runId)||runId<=0)throw Error('Invalid rollback parameters');
+            const ref=await github.rest.git.getRef({...context.repo,ref:'heads/main'});
+            if(ref.data.object.sha!==failed)throw Error('New main commit published; stale rollback rejected');
+            const run=await github.rest.actions.getWorkflowRun({...context.repo,run_id:runId});
+            if(run.data.head_sha!==failed||run.data.conclusion!=='failure'||
+               run.data.name!=='p0-pages-deploy')throw Error('Not a failed production Pages run');
+            const jobs=await github.paginate(github.rest.actions.listJobsForWorkflowRun,{
+              ...context.repo,run_id:runId,per_page:100});
+            const outcome=decideRecovery({conclusion:run.data.conclusion,sha:failed,
+              mainSha:failed,attempt:run.data.run_attempt,jobs});
+            if(outcome.action!=='rollback_candidate')throw Error('Failure is not proven post-deploy frontend regression');
+            const linked=await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              ...context.repo,commit_sha:failed});
+            const prs=linked.data.filter(p=>p.merged_at);
+            let changed=[];
+            if(prs.length){
+              for(const p of prs){
+                const files=await github.paginate(github.rest.pulls.listFiles,{
+                  ...context.repo,pull_number:p.number,per_page:100});
+                if(files.length>=300)throw Error('Diff too large to prove safety');
+                changed.push(...files.map(f=>f.filename));
+              }
+            }else{
+              const commit=await github.rest.repos.getCommit({...context.repo,ref:failed});
+              changed=(commit.data.files||[]).map(f=>f.filename);
+            }
+            if(!isStaticOnlyRelease([...new Set(changed)]))
+              throw Error('Release touches backend or unknown files; rollback requires manual coordination');
+            const issues=await github.paginate(github.rest.issues.listForRepo,{
+              ...context.repo,state:'all',per_page:100});
+            const verified=issues.filter(i=>i.user?.login==='github-actions[bot]'&&
+              (i.body||'').includes('GitHub Pages 배포 결과: 성공')&&
+              (i.body||'').includes('- 커밋: '+target));
+            let receipt=false;
+            for(const issue of verified){
+              const priorId=Number((issue.body||'').match(/\[deployment-run:(\d+)\]/)?.[1]);
+              if(!Number.isSafeInteger(priorId))continue;
+              const prior=await github.rest.actions.getWorkflowRun({...context.repo,run_id:priorId});
+              if(prior.data.head_sha===target&&prior.data.conclusion==='success')receipt=true;
+            }
+            if(!receipt)throw Error('Target was never independently verified healthy');
+            const ancestry=await github.rest.repos.compareCommits({
+              ...context.repo,base:target,head:failed});
+            if(ancestry.data.status!=='ahead')throw Error('Rollback target not an ancestor');
+            core.info('Authorized static-only rollback '+failed+' -> '+target);
+      - uses: actions/checkout@v4
+        if: steps.approve.outcome == 'success'
+        with:
+          ref: ${{ inputs.target_sha }}
+          persist-credentials: false
+      - uses: actions/configure-pages@v5
+        if: steps.approve.outcome == 'success'
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.approve.outcome == 'success'
+        with:
+          path: .
+      - name: Publish previously verified Pages snapshot
+        id: restore
+        if: steps.approve.outcome == 'success'
+        uses: actions/deploy-pages@v4
+      - uses: actions/setup-node@v4
+        if: steps.restore.outcome == 'success'
+        with:
+          node-version: '22'
+      - name: Check rollback production response and protected payroll endpoint
+        id: health
+        if: steps.restore.outcome == 'success'
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if node qa_production_deployment_health_v1.mjs; then exit 0; fi
+            if [ "$attempt" -eq 5 ]; then exit 1; fi
+            sleep $((attempt * 15))
+          done
+      - name: Validate rollback index exact published bytes
+        id: bytes
+        if: steps.health.outcome == 'success'
+        env:
+          DEPLOY_SHA: ${{ inputs.target_sha }}
+          CHANGED_RELEASE_FILES: '["index.html"]'
+        run: node qa_release_changed_assets_live.mjs
+      - name: Report rollback result after verifiable completion
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          FAILED_SHA: ${{ inputs.failed_sha }}
+          TARGET_SHA: ${{ inputs.target_sha }}
+          FAILED_RUN: ${{ inputs.failed_run_id }}
+          APPROVED: ${{ steps.approve.outcome }}
+          RESTORED: ${{ steps.restore.outcome }}
+          HEALTH: ${{ steps.health.outcome }}
+          BYTE_PARITY: ${{ steps.bytes.outcome }}
+          ALERT_WEBHOOK: ${{ secrets.DEPLOY_ALERT_WEBHOOK_URL }}
+        with:
+          script: |
+            const fs=require('fs'),runId=Number(process.env.FAILED_RUN);
+            const safe=process.env.APPROVED==='success'&&process.env.RESTORED==='success'&&
+              process.env.HEALTH==='success'&&process.env.BYTE_PARITY==='success';
+            const marker='[deployment-run:'+runId+']';
+            const title=safe?'배포 실패 · 자동 롤백 및 운영 복구 확인':'배포 실패 · 자동 롤백 검증 실패';
+            const body=[marker,'@'+context.repo.owner,'### GitHub Pages 배포 결과: 실패',
+              '- 원래 배포 커밋: '+process.env.FAILED_SHA,
+              '- 이전 정상 버전 복구 대상: '+process.env.TARGET_SHA,
+              '- 원래 배포 실행: https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+runId,
+              '- 복구 실행: https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId,
+              '- 롤백 승인: '+process.env.APPROVED,'- 이전 버전 배포: '+process.env.RESTORED,
+              '- 운영 실제 응답: '+process.env.HEALTH,'- 배포 파일 SHA256 일치: '+process.env.BYTE_PARITY,
+              safe?'**이전 정상 Pages 버전으로 복구되었습니다. 신규 변경은 미적용이며 성공 보고하지 않습니다.**':
+                '**운영 복구를 확인하지 못했습니다. 관리자 점검이 필요합니다.**'].join('\n');
+            const issues=await github.paginate(github.rest.issues.listForRepo,{
+              ...context.repo,state:'all',per_page:100});
+            const prior=issues.find(i=>(i.body||'').includes(marker));
+            if(prior){
+              await github.rest.issues.update({...context.repo,issue_number:prior.number,title,body});
+            }else{
+              await github.rest.issues.create({...context.repo,title,body,
+                assignees:[context.repo.owner]});
+            }
+            if(process.env.ALERT_WEBHOOK){
+              const response=await fetch(process.env.ALERT_WEBHOOK,{
+                method:'POST',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({text:title+' · '+(safe?'이전 정상 버전 복원':'복원 미확인'),
+                  run:runId,failed_sha:process.env.FAILED_SHA,
+                  restored_sha:process.env.TARGET_SHA,restored:safe}),
+                signal:AbortSignal.timeout(10000)
+              });
+              if(!response.ok)throw Error('Rollback report webhook HTTP '+response.status);
+            }
