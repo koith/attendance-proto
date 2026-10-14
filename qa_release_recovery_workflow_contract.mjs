@@ -49,4 +49,23 @@ assert.match(agent,/for attempt in 1 2 3 4 5/,'Five bounded AI attempts');
 assert.match(agent,/changed_tests=/,'Per-request changed feature QA is required');
 assert.match(agent,/Agent attempted restricted changes/,'Code editing restricted to app/test files');
 assert.match(agentWorkflow,/if: failure\(\)/,'Escalate agent failure without operating deployment');
+assert.match(agentWorkflow,/id: preflight/);
+assert.match(agentWorkflow,/id: dependencies/);
+assert.match(agentWorkflow,/id: implementation/);
+assert.match(agentWorkflow,/PREFLIGHT: \${{ steps.preflight.outcome }}/);
+assert.match(agentWorkflow,/DEPENDENCIES: \${{ steps.dependencies.outcome }}/);
+assert.match(agentWorkflow,/IMPLEMENTATION: \${{ steps.implementation.outcome }}/);
+assert.match(agentWorkflow,/classifyAgentFailure/,'Agent report must identify actual failed phase');
+assert.doesNotMatch(agentWorkflow,/AI 자동 개발 또는 최대 5회 자동 수정·QA가 실패했습니다/,
+  'Preflight failure must not be misreported as five attempted AI repairs');
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {classifyAgentFailure}=require('./scripts/autonomous_agent_failure_policy.cjs');
+const classify=(preflight,dependencies,implementation)=>classifyAgentFailure({preflight,dependencies,implementation}).stage;
+assert.equal(classify('failure','skipped','skipped'),'preflight');
+assert.equal(classify('success','failure','skipped'),'dependencies');
+assert.equal(classify('success','success','failure'),'implementation');
+assert.equal(classify('success','success','success'),'unexpected');
+assert.match(classifyAgentFailure({preflight:'failure'}).message,/시작되지 않았습니다/);
+
 console.log('PASS release safety workflow contract');
