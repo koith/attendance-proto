@@ -1,5 +1,11 @@
 name: official-store-address-markup-QA
-on: pull_request
+on:
+  pull_request:
+    paths:
+      - scripts/probe_official_store_markup.mjs
+      - scripts/export_official_store_addresses.mjs
+      - .github/workflows/official-store-address-markup.yml
+  workflow_dispatch:
 jobs:
   probe:
     runs-on: ubuntu-latest
