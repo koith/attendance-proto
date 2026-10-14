@@ -94,7 +94,20 @@ jobs:
       - name: Validate actual Pages response, displayed version and protected API
         id: production_health
         if: steps.changed_assets.outcome == 'success'
-        run: node qa_production_deployment_health_v1.mjs
+        run: |
+          # Retry only read-only verification to tolerate transient Pages CDN propagation.
+          # Never interpret a failed attempt as successful publication.
+          for attempt in 1 2 3 4 5; do
+            if node qa_production_deployment_health_v1.mjs; then
+              echo "Production health verified on attempt ${attempt}/5"
+              exit 0
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "::error::Production health verification exhausted five attempts"
+              exit 1
+            fi
+            sleep $((attempt * 15))
+          done
       - name: Install Chromium for actual live route smoke
         id: install_browser
         if: steps.production_health.outcome == 'success'
