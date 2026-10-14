@@ -29,7 +29,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          # Do not embed a repository-write credential into .git/config where
+          # model-proposed JavaScript QA could read it before PR review.
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
