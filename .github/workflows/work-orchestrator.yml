@@ -31,7 +31,9 @@ jobs:
         with:
           script: |
             const state=JSON.parse(process.env.NEXT_JSON);
-            if(state.status==='complete')return;
+            // Do not publish a false unfinished-work alert from in-memory example tasks.
+            // Only an explicitly initialized and persisted work-state is actionable.
+            if(state.status==='complete'||state.status==='uninitialized')return;
             const title='[자동 작업 추적] 미완료 개발 작업';
             const body=`미완료 작업: ${state.task}\n남은 검증: ${state.missing.join(', ')}\n\n이 워크플로는 작업을 추적하지만 AI 코드를 자동 생성하거나 배포하지 않습니다.`;
             const issues=await github.paginate(github.rest.issues.listForRepo,{...context.repo,state:'open',per_page:100});
