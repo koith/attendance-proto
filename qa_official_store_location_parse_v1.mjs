@@ -5,6 +5,8 @@ assert.deepEqual(parseLocationAddress('경기 수원시 팔달구 권광로 1'),
 assert.deepEqual(parseLocationAddress('경남 창원시 마산회원구 북성로 1'),{province:'경상남도',district:'창원시',subdistrict:'마산회원구'});
 assert.deepEqual(parseLocationAddress('세종 도움8로 1'),{province:'세종특별자치시',district:'',subdistrict:''});
 assert.equal(parseLocationAddress('미상시 잘못된군'),null);
+assert.deepEqual(parseLocationAddress('전남광주통합특별시 북구 서방로 7-1'),{province:'전남광주통합특별시',district:'북구',subdistrict:''});
+assert.deepEqual(parseLocationAddress('전남광주통합특별시 무안군 삼향읍 남악로 22'),{province:'전남광주통합특별시',district:'무안군',subdistrict:''});
 const url='https://10billioncoffee.co.kr/store/225-%EC%A0%9C%EC%A3%BC%EC%97%B0%EB%8F%99%EC%A0%90';
 const html='<script type="application/ld+json">'+JSON.stringify({'@type':'Restaurant',name:'제주연동점',url,address:{streetAddress:'제주 제주시 노연로 101'}})+'</script>';
 assert.deepEqual(parseOfficialDetail(html,url),{name:'제주연동점',address:'제주 제주시 노연로 101',province:'제주특별자치도',district:'제주시',subdistrict:'',source_url:url});
