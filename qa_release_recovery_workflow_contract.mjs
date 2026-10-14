@@ -8,7 +8,7 @@ const agent=read('scripts/autonomous_dev_agent.sh');
 const agentWorkflow=read('.github/workflows/autonomous-development-agent.yml');
 assert.match(deploy,/needs: \[p0-gate, build-pages\]/,'Pages must depend on QA and build');
 assert.match(deploy,/node qa_release_recovery_policy\.mjs/,'Safety decision tests must be P0 gate');
-assert.match(deploy,/steps\.final_health\.outcome == 'success'/,'Fallback must be fail-closed');
+assert.match(deploy,/id: final_health\s+if: steps\.request_live\.outcome == 'success'/,'Same-run live health must require matching published bytes');
 assert.match(verifier,/reRunWorkflowFailedJobs/,'Only failed jobs receive bounded automatic rerun');
 assert.match(verifier,/recovery\.outputs\.action != 'retry'/,'No intermediate retry alert');
 assert.match(verifier,/rollback\.outputs\.dispatched != 'true'/,'Defer report during rollback');
