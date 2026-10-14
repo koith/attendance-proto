@@ -11,8 +11,12 @@ on:
         required: true
         type: string
       failed_run_id:
-        description: Failed p0-pages-deploy workflow run
+        description: Source p0-pages-deploy workflow run
         required: true
+        type: string
+      failed_verification_run_id:
+        description: Optional independent live verifier run that failed after successful publication
+        required: false
         type: string
 
 permissions:
@@ -45,9 +49,10 @@ jobs:
           FAILED_SHA: ${{ inputs.failed_sha }}
           TARGET_SHA: ${{ inputs.target_sha }}
           FAILED_RUN: ${{ inputs.failed_run_id }}
+          FAILED_VERIFICATION_RUN: ${{ inputs.failed_verification_run_id }}
         with:
           script: |
-            const {decideRecovery,isStaticOnlyRelease}=require(process.cwd()+'/scripts/release_recovery_policy.cjs');
+            const {decideRecovery,decideIndependentRecovery,isStaticOnlyRelease}=require(process.cwd()+'/scripts/release_recovery_policy.cjs');
             const failed=process.env.FAILED_SHA,target=process.env.TARGET_SHA;
             const runId=Number(process.env.FAILED_RUN);
             if(!/^[a-f0-9]{40}$/.test(failed)||!/^[a-f0-9]{40}$/.test(target)||
@@ -55,13 +60,32 @@ jobs:
             const ref=await github.rest.git.getRef({...context.repo,ref:'heads/main'});
             if(ref.data.object.sha!==failed)throw Error('New main commit published; stale rollback rejected');
             const run=await github.rest.actions.getWorkflowRun({...context.repo,run_id:runId});
-            if(run.data.head_sha!==failed||run.data.conclusion!=='failure'||
-               run.data.name!=='p0-pages-deploy')throw Error('Not a failed production Pages run');
+            if(run.data.head_sha!==failed||run.data.name!=='p0-pages-deploy')
+              throw Error('Rollback source is not the expected production Pages run');
             const jobs=await github.paginate(github.rest.actions.listJobsForWorkflowRun,{
               ...context.repo,run_id:runId,per_page:100});
-            const outcome=decideRecovery({conclusion:run.data.conclusion,sha:failed,
-              mainSha:failed,attempt:run.data.run_attempt,jobs});
-            if(outcome.action!=='rollback_candidate')throw Error('Failure is not proven post-deploy frontend regression');
+            const independentId=Number(process.env.FAILED_VERIFICATION_RUN||0);
+            let outcome;
+            if(independentId){
+              if(!Number.isSafeInteger(independentId)||independentId<=0)
+                throw Error('Invalid independent verification run ID');
+              const verifier=await github.rest.actions.getWorkflowRun({...context.repo,run_id:independentId});
+              if(verifier.data.name!=='verified-pages-deployment-notification'||
+                 verifier.data.head_sha!==failed)
+                throw Error('Verifier workflow or SHA does not match failed release');
+              const verifyJobs=await github.paginate(github.rest.actions.listJobsForWorkflowRun,{
+                ...context.repo,run_id:independentId,per_page:100});
+              const failedSteps=verifyJobs.flatMap(job=>(job.steps||[]).
+                filter(step=>step.conclusion==='failure').map(step=>step.name));
+              outcome=decideIndependentRecovery({pagesConclusion:run.data.conclusion,
+                verifierConclusion:verifier.data.conclusion,
+                sha:failed,mainSha:ref.data.object.sha,failedSteps});
+            }else{
+              outcome=decideRecovery({conclusion:run.data.conclusion,sha:failed,
+                mainSha:ref.data.object.sha,attempt:run.data.run_attempt,jobs});
+            }
+            if(outcome.action!=='rollback_candidate')
+              throw Error('Unproven or unsafe rollback: '+outcome.reason);
             const linked=await github.rest.repos.listPullRequestsAssociatedWithCommit({
               ...context.repo,commit_sha:failed});
             const prs=linked.data.filter(p=>p.merged_at);
@@ -153,6 +177,7 @@ jobs:
           FAILED_SHA: ${{ inputs.failed_sha }}
           TARGET_SHA: ${{ inputs.target_sha }}
           FAILED_RUN: ${{ inputs.failed_run_id }}
+          FAILED_VERIFICATION_RUN: ${{ inputs.failed_verification_run_id }}
           APPROVED: ${{ steps.approve.outcome }}
           RESTORED: ${{ steps.restore.outcome }}
           HEALTH: ${{ steps.health.outcome }}
@@ -171,6 +196,7 @@ jobs:
               '- 원래 배포 커밋: '+process.env.FAILED_SHA,
               '- 이전 정상 버전 복구 대상: '+process.env.TARGET_SHA,
               '- 원래 배포 실행: https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+runId,
+              '- 독립 검증 실패 실행: '+(process.env.FAILED_VERIFICATION_RUN||'해당 없음'),
               '- 복구 실행: https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId,
               '- 롤백 승인: '+process.env.APPROVED,'- 이전 버전 배포: '+process.env.RESTORED,
               '- 운영 실제 응답: '+process.env.HEALTH,'- 배포 파일 SHA256 일치: '+process.env.BYTE_PARITY,
