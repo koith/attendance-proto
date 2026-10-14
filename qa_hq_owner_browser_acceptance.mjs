@@ -14,7 +14,8 @@ try {
    const payload=rpc==='hq_stores_onboarding_list'?stores:rpc==='hq_store_locations_list'?locations:[];
    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(payload)});
   });
-  await page.setContent('<div id="adAccount"></div>');
+  await page.route('https://qa.invalid/',route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><div id="adAccount"></div>'}));
+  await page.goto('https://qa.invalid/');
   await page.addStyleTag({content:css});
   await page.evaluate(()=>{
    window.CONFIG={SUPABASE_URL:'https://qa.invalid',SUPABASE_ANON_KEY:'qa'};
@@ -84,6 +85,78 @@ try {
   assert.match(await page.getByRole('dialog').innerText(),/최근 지점/);
   await page.locator('#hqQuickClose').click();
   assert.equal(await page.getByRole('dialog').count(),0);
+
+  await page.locator('[data-quick-mode="region"]').click();
+  assert.equal(await page.locator('#hqQuickClose').evaluate(el=>document.activeElement===el),true,
+    'region dialog must initially focus its close button');
+  await page.locator('#hqQuickProvince').selectOption('부산광역시');
+  await page.locator('#hqQuickDistrict').selectOption('기장군');
+  await page.locator('[data-quick-store="9"]').click();
+  assert.equal(await page.locator('.hq-owner-row.active').getAttribute('data-store'),'9',
+    'choosing a quick store must update the selected store');
+
+  const focusAt=index=>page.getByRole('dialog').evaluate((dialog,i)=>{
+    const controls=[...dialog.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')]
+      .filter(el=>el.tabIndex>=0&&!el.hidden&&el.getClientRects().length&&getComputedStyle(el).visibility!=='hidden');
+    return controls[i]===document.activeElement;
+  },index);
+  const controlCount=()=>page.getByRole('dialog').evaluate(dialog=>[...dialog.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')]
+    .filter(el=>el.tabIndex>=0&&!el.hidden&&el.getClientRects().length&&getComputedStyle(el).visibility!=='hidden').length);
+  for(const mode of ['region','initial','recent']){
+    const trigger=page.locator(`[data-quick-mode="${mode}"]`);
+    await trigger.click();
+    assert.equal(await page.locator('#hqQuickClose').evaluate(el=>document.activeElement===el),true,
+      mode+' dialog must initially focus its close button');
+    if(mode==='region'){
+      await page.locator('#hqQuickProvince').selectOption('서울특별시');
+      await page.locator('#hqQuickClose').focus();
+      assert.ok(await page.getByRole('dialog').locator('#hqQuickProvince').count()&&await page.getByRole('dialog').locator('#hqQuickDistrict').count(),
+        'region dialog must expose its enabled region selects');
+    }else if(mode==='initial'){
+      await page.locator('[data-letter="ㄱ"]').click();
+      await page.locator('#hqQuickClose').focus();
+      assert.ok(await page.locator('[data-letter]').count()>0,'initial dialog must expose letter selectors');
+      assert.ok(await page.locator('[data-quick-store]').count()>0,'initial dialog must expose matching store buttons');
+    }else{
+      assert.ok(await page.locator('[data-quick-store="9"]').count()>0,'recent dialog must expose the selected store');
+    }
+    const count=await controlCount();
+    assert.ok(count>=2,mode+' dialog must contain multiple keyboard controls');
+    assert.equal(await focusAt(0),true,mode+' close button must be the first keyboard control');
+    for(let i=1;i<count;i++){
+      await page.keyboard.press('Tab');
+      assert.equal(await focusAt(i),true,mode+' forward Tab must visit only dialog control '+i);
+    }
+    await page.keyboard.press('Tab');
+    assert.equal(await focusAt(0),true,mode+' forward Tab must wrap to the first dialog control');
+    for(let i=count-1;i>0;i--){
+      await page.keyboard.press('Shift+Tab');
+      assert.equal(await focusAt(i),true,mode+' reverse Tab must visit only dialog control '+i);
+    }
+    await page.keyboard.press('Shift+Tab');
+    assert.equal(await focusAt(0),true,mode+' reverse Tab must wrap to the first dialog control');
+    await page.locator('#hqQuickClose').click();
+    assert.equal(await trigger.evaluate(el=>document.activeElement===el),true,
+      mode+' close button must restore focus to its originating trigger');
+  }
+  await page.locator('[data-quick-mode="region"]').click();
+  await page.locator('#hqQuickProvince').selectOption('서울특별시');
+  await page.locator('#hqQuickDistrict').selectOption('강남구');
+  await page.evaluate(()=>document.activeElement?.blur());
+  assert.equal(await page.getByRole('dialog').evaluate(dialog=>dialog.contains(document.activeElement)),false,
+    'Escape regression must cover the dialog temporarily having no focused descendant');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.getByRole('dialog').count(),0,'Escape must close the quick-store dialog');
+  assert.equal(await page.locator('[data-quick-mode="region"]').evaluate(el=>document.activeElement===el),true,
+    'Escape must restore focus to the originating region trigger');
+  assert.equal(await page.locator('.hq-owner-row.active').getAttribute('data-store'),'9',
+    'Escape must preserve the previously selected store');
+  await page.locator('[data-quick-mode="region"]').click();
+  assert.equal(await page.locator('#hqQuickProvince').inputValue(),'','reopening after Escape must reset the province');
+  assert.equal(await page.locator('#hqQuickDistrict').isDisabled(),true,'reopening after Escape must reset dependent region controls');
+  await page.locator('#hqQuickClose').click();
+  assert.equal(await page.locator('[data-quick-mode="region"]').evaluate(el=>document.activeElement===el),true,
+    'normal close must restore focus to its originating trigger');
   assert.deepEqual(errors,[],name+' console errors');
   await page.close();
   console.log('PASS HQ owner browser acceptance '+name);
