@@ -48,6 +48,17 @@ window.mountHqOwnerConsole=async function(box){
  "경상남도":{"창원시":"의창구 성산구 마산합포구 마산회원구 진해구"}
  };
  const resetQuickFilters=()=>{province="";district="";subdistrict="";quickLetter=""};
+ const closeQuickPicker=()=>{
+   const originatingMode=quickMode;
+   quickMode="";resetQuickFilters();render();
+   if(originatingMode)body.querySelector('[data-quick-mode="'+originatingMode+'"]')?.focus();
+ };
+ // Handle Escape from within the dialog without changing selected store or staff.
+ box.addEventListener("keydown",event=>{
+   if(event.key!=="Escape"||!quickMode||!event.target?.closest?.(".hq-quick-overlay"))return;
+   event.preventDefault();event.stopPropagation();
+   closeQuickPicker();
+ });
  const chose=id=>{selected=Number(id);remember(selected);render()};
  box.innerHTML='<div class="hq-owner-console"><h2>지점 대표 관리자 관리</h2><p>지점별 대표 점주를 확인하고 초대·지정할 수 있습니다.</p><div id="hqOwnerBody">불러오는 중…</div></div>';
  const body=box.querySelector("#hqOwnerBody"); const summary=document.getElementById("hqOwnerPinnedSummary");
@@ -91,7 +102,7 @@ window.mountHqOwnerConsole=async function(box){
  const currentList=body.querySelector(".hq-owner-list");if(currentList)currentList.scrollTop=listScroll;
  body.querySelector("#hqOwnerDismiss")?.addEventListener("click",()=>{notice=null;render()});
  body.querySelectorAll("[data-quick-mode]").forEach(b=>b.onclick=()=>{quickMode=quickMode===b.dataset.quickMode?"":b.dataset.quickMode;resetQuickFilters();render()});
- body.querySelector("#hqQuickClose")?.addEventListener("click",()=>{quickMode="";resetQuickFilters();render()});
+ body.querySelector("#hqQuickClose")?.addEventListener("click",closeQuickPicker);
  body.querySelector("#hqQuickProvince")?.addEventListener("change",e=>{province=e.target.value;district="";subdistrict="";render()});
  body.querySelector("#hqQuickDistrict")?.addEventListener("change",e=>{district=e.target.value;subdistrict="";render()});
  body.querySelector("#hqQuickSubdistrict")?.addEventListener("change",e=>{subdistrict=e.target.value;render()});
