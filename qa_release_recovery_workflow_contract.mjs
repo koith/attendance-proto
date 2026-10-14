@@ -87,6 +87,24 @@ assert.match(agent,/cat \/tmp\/agent-reports\/task\.txt/,
 assert.match(agent,/changed_application=/,'Source edit is required, not just a test');
 assert.match(agent,/no actual application JS\/HTML\/CSS file was changed/,
   'Zero source edits must fail');
+
+assert.match(agent,/agent-pr-pending:/,
+  'Actions repository policy denial must create a broker-ready issue marker');
+assert.match(agent,/agent-branch:\$branch/,
+  'Pending branch identity must be recorded without leaking credentials');
+assert.match(agent,/agent-sha:\$branch_sha/,
+  'Broker must have an immutable pushed commit identity');
+assert.match(agent,/agent-qa:passed/,
+  'Distinguish actual code and test success from PR permission denial');
+assert.match(agent,/GitHub Actions is not permitted to create or approve pull requests/,
+  'Detect actual GitHub policy refusal; do not treat it as coding failure');
+assert.match(agent,/gh issue comment "\$ISSUE_NUMBER"/,
+  'Record pending PR for separately authorized broker');
+assert.match(agent,/exit 1\s+else\s+cat \/tmp\/agent-reports\/pr-create.log/,
+  'A missing PR must not be silently reported as a successful agent run');
+assert.match(agentWorkflow,/prPending='\[agent-pr-pending:'\+context.runId/,
+  'Avoid falsely marking successful code/QA as an exhausted repair loop');
+
 assert.match(read('.github/workflows/p0-pages-deploy.yml'),/node qa_autonomous_structured_edits_v1\.mjs/,
   'P0 gate runs host-side safe structured edit tests');
 assert.match(read('scripts/agent_apply_structured_edits.mjs'),/ROOT_APP=/,
