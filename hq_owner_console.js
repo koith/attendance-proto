@@ -11,6 +11,8 @@ async function invite(email,store_id){
  const d=await r.json().catch(()=>null);if(!r.ok||d?.ok!==true)throw Error(d?.error||"INVITE_FAILED");
 }
 window.mountHqOwnerConsole=async function(box){
+ // Reopening the HQ panel must clean up keyboard listeners from its prior mount.
+ box.__hqOwnerKeyboardCleanup?.();
  let stores=[],managers=[],owners=[],accounts=[],selected=0,search="",filter="ALL",busy=false,notice=null,quickMode="",province="",district="",subdistrict="",quickLetter="ㄱ";
  const RECENTS_KEY="hq_owner_recent_stores_v1";
  const readRecents=()=>{try{return JSON.parse(localStorage.getItem(RECENTS_KEY)||"[]").filter(Number.isFinite).slice(0,5)}catch{return []}};
@@ -50,7 +52,7 @@ window.mountHqOwnerConsole=async function(box){
  const resetQuickFilters=()=>{province="";district="";subdistrict="";quickLetter=""};
  const closeQuickPicker=()=>{
    const originatingMode=quickMode;
-   quickMode="";resetQuickFilters();render();
+   quickMode="";stopOutsideKeys();resetQuickFilters();render();
    if(originatingMode)body.querySelector('[data-quick-mode="'+originatingMode+'"]')?.focus();
  };
  const handleQuickKey=event=>{
@@ -77,19 +79,43 @@ window.mountHqOwnerConsole=async function(box){
  };
  // Keep delegation on this stable owner console container, not transient
  // dropdown nodes that are replaced whenever a province/district changes.
+ const keyboardController=new AbortController();
  box.addEventListener("keydown",event=>{
    if(event.key!=="Escape"&&event.key!=="Tab")return;
    if(!event.target?.closest?.(".hq-quick-overlay"))return;
    handleQuickKey(event);
+ },{signal:keyboardController.signal});
+ // Only capture keys outside this box while its quick picker is visible.
+ // If a native select rerender blurs focus to body, Escape still works.
+ // Unrelated inputs and overlays must not be hijacked.
+ const quickVeil=box.closest("#accountVeil");
+ let outsideListening=false;
+ const quickObserver=new MutationObserver(()=>{
+   if(!box.isConnected||(quickVeil&&!quickVeil.classList.contains("show"))){
+     quickMode="";resetQuickFilters();stopOutsideKeys();
+   }
  });
- // A select rerender may briefly move focus to document.body. Recover
- // Escape/Tab from that case without retaining a handler after unmount.
  const outsideQuickKeys=event=>{
-   if(!box.isConnected){document.removeEventListener("keydown",outsideQuickKeys);return;}
+   if(!box.isConnected||(quickVeil&&!quickVeil.classList.contains("show"))){
+     quickMode="";resetQuickFilters();stopOutsideKeys();return;
+   }
    if(box.contains(event.target))return;
+   if(event.target!==document.body&&event.target!==document.documentElement)return;
    handleQuickKey(event);
  };
- document.addEventListener("keydown",outsideQuickKeys);
+ const stopOutsideKeys=()=>{
+   if(outsideListening)document.removeEventListener("keydown",outsideQuickKeys);
+   outsideListening=false;
+   quickObserver.disconnect();
+ };
+ const startOutsideKeys=()=>{
+   if(outsideListening||!box.isConnected||(quickVeil&&!quickVeil.classList.contains("show")))return;
+   document.addEventListener("keydown",outsideQuickKeys);
+   outsideListening=true;
+   if(quickVeil)quickObserver.observe(quickVeil,{attributes:true,attributeFilter:["class"]});
+   quickObserver.observe(document.body,{childList:true,subtree:true});
+ };
+ box.__hqOwnerKeyboardCleanup=()=>{stopOutsideKeys();quickMode="";keyboardController.abort()};
  const chose=id=>{selected=Number(id);remember(selected);render()};
  box.innerHTML='<div class="hq-owner-console"><h2>지점 대표 관리자 관리</h2><p>지점별 대표 점주를 확인하고 초대·지정할 수 있습니다.</p><div id="hqOwnerBody">불러오는 중…</div></div>';
  const body=box.querySelector("#hqOwnerBody"); const summary=document.getElementById("hqOwnerPinnedSummary");
@@ -129,6 +155,7 @@ window.mountHqOwnerConsole=async function(box){
  '<p class="hq-owner-help">이미 가입된 계정은 연결 후 대표로 지정할 수 있습니다.</p>'+
  '<section class="hq-owner-tracking"><h4>계정 진행 상태</h4><p class="hq-owner-help">서버에서 확인된 지점 연결과 대표 지정 상태입니다. 메일 도착·열람 및 가입 인증 여부는 확인되지 않습니다.</p>'+ (inviteProgress.length?inviteProgress.map(m=>'<div class="hq-owner-track"><strong>'+h(m.email)+'</strong><ol><li>✓ 지점 계정 연결 완료</li><li>'+(m.representative?'✓ 대표 점주 지정 완료':'○ 대표 점주 지정 대기')+'</li></ol></div>').join(''):'<p>현재 연결된 계정이 없습니다. 이메일 초대 또는 기존 계정 연결을 진행하세요.</p>')+'</section><div class="hq-owner-linked">'+linked.map(m=>'<div><span>'+h(m.email)+'</span>'+(current?.user_id===m.user_id?'<small>대표</small>':'<button class="btn btn-secondary btn-sm" data-primary="'+h(m.user_id)+'">대표 지정</button><button class="btn btn-secondary btn-sm" data-revoke="'+h(m.user_id)+'">해제</button>')+'</div>').join("")+'</div>':
  '<p class="hq-owner-help">왼쪽에서 지점을 선택하세요.</p>')+'</div></div>';
+ if(quickMode)startOutsideKeys();else stopOutsideKeys();
  if(scrollContainer)scrollContainer.scrollTop=modalScroll;
  const currentList=body.querySelector(".hq-owner-list");if(currentList)currentList.scrollTop=listScroll;
  body.querySelector("#hqOwnerDismiss")?.addEventListener("click",()=>{notice=null;render()});
