@@ -40,10 +40,27 @@ function decideRecovery({conclusion, sha, mainSha, attempt, jobs, maxAttempts=MA
     return {action:'rollback_candidate',reason:'Published frontend failed production acceptance'};
   return {action:'terminal',reason:'Deterministic QA, data sync, permissions, or unknown failure; unsafe to retry'};
 }
+// Independent verification can fail *after* Pages reports success.
+// Only objective live-byte, protected HTTP or browser acceptance failures
+// qualify; a setup/config failure must not automatically roll back.
+function decideIndependentRecovery({pagesConclusion,verifierConclusion,sha,mainSha,failedSteps}) {
+  if (!/^[a-f0-9]{40}$/.test(sha||'') || mainSha!==sha)
+    return {action:'terminal',reason:'Superseded or invalid release SHA'};
+  if (pagesConclusion!=='success' || verifierConclusion!=='failure')
+    return {action:'terminal',reason:'No confirmed post-publish verifier failure'};
+  const proven=[
+    'Verify every changed public asset against live Pages bytes',
+    'Validate actual Pages response, displayed version and protected API',
+    'Check actual published mobile and desktop pages'
+  ];
+  if (!Array.isArray(failedSteps)||!failedSteps.some(step=>proven.includes(step)))
+    return {action:'terminal',reason:'No proven live acceptance failure'};
+  return {action:'rollback_candidate',reason:'Published release failed independent live acceptance'};
+}
 function isStaticOnlyRelease(files) {
   if (!Array.isArray(files) || !files.length || files.length>=300) return false;
   const publicAsset=/^[a-zA-Z0-9_-]+\.(?:html|js|css)$/;
   const harmless=/^(?:qa_[a-zA-Z0-9_-]+\.mjs|scripts\/[a-zA-Z0-9_/-]+\.(?:cjs|mjs|sh)|\.github\/workflows\/[a-zA-Z0-9_-]+\.yml|[A-Za-z0-9_-]+\.md)$/;
   return files.some(f=>publicAsset.test(f)) && files.every(f=>publicAsset.test(f)||harmless.test(f));
 }
-module.exports={MAX_ATTEMPTS,decideRecovery,isStaticOnlyRelease};
+module.exports={MAX_ATTEMPTS,decideRecovery,decideIndependentRecovery,isStaticOnlyRelease};
