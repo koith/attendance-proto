@@ -17,6 +17,28 @@ assert.equal(decideRecovery({...base,jobs:[job('P0 deployment gate','failure'),j
 assert.equal(decideRecovery({...base,jobs:[job('P0 deployment gate','success'),job('Build Pages artifact','failure'),job('Deploy GitHub Pages','skipped')]}).action,'retry');
 assert.equal(decideRecovery({...base,jobs:[job('P0 deployment gate','success'),job('Build Pages artifact','success'),job('Deploy GitHub Pages','failure','Confirm immediate Sheet refresh after Pages deployment')]}).action,'terminal');
 assert.equal(decideRecovery({...base,jobs:[job('P0 deployment gate','success'),job('Build Pages artifact','success'),job('Deploy GitHub Pages','failure','Exercise actual published mobile and desktop routes')]}).action,'rollback_candidate');
+// Mock the actual GitHub job/step conclusions without changing or failing
+// production. Successful publication followed by a bad public asset/health
+// must go through a guarded rollback, not an upload rerun or false success.
+const verifierName='Same-run Pages validation (final alert only after independent verification)';
+const afterPublish=(step)=>({...base,jobs:[
+  job('P0 deployment gate','success'),
+  job('Build Pages artifact','success'),
+  job('Deploy GitHub Pages','success'),
+  job(verifierName,'failure',step)
+]});
+assert.equal(decideRecovery(afterPublish('Compare changed public files against actual published bytes')).action,'rollback_candidate');
+assert.equal(decideRecovery(afterPublish('Double-check live Pages version and guarded payroll endpoint')).action,'rollback_candidate');
+assert.equal(decideRecovery(afterPublish('Resolve merged request changes for live verification')).action,'terminal',
+  'Unknown post-publish failure is not a confirmed frontend regression');
+assert.equal(decideRecovery({...afterPublish('Compare changed public files against actual published bytes'),mainSha:other}).action,'terminal',
+  'Newer main must block stale rollback');
+assert.equal(decideRecovery({...afterPublish('Compare changed public files against actual published bytes'),jobs:[
+  job('P0 deployment gate','failure'),
+  job('Build Pages artifact','success'),
+  job('Deploy GitHub Pages','success'),
+  job(verifierName,'failure','Compare changed public files against actual published bytes')
+]}).action,'terminal','A failing release QA gate must never authorize recovery');
 assert.equal(decideRecovery({...base,conclusion:'success'}).action,'none');
 assert.equal(decideRecovery({...base,attempt:0}).action,'terminal');
 assert.equal(isStaticOnlyRelease(['index.html','qa_foo.mjs']),true);
