@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'qa_operations_dummy_end_to_end_postgres.sql'
+      - 'qa_operations_demo_metrics_guard_v1.mjs'
+      - 'supabase/migrations/20261015082000_operations_real_metrics_exclude_demo.sql'
       - 'supabase/migrations/20261011092000_store_scoped_operations_ledger.sql'
       - 'supabase/migrations/20261012200500_operations_real_ledger_export.sql'
       - 'supabase/migrations/20261012221000_store_operations_reconciliation.sql'
@@ -11,6 +13,8 @@ on:
     branches: [main]
     paths:
       - 'qa_operations_dummy_end_to_end_postgres.sql'
+      - 'qa_operations_demo_metrics_guard_v1.mjs'
+      - 'supabase/migrations/20261015082000_operations_real_metrics_exclude_demo.sql'
       - 'supabase/migrations/20261011092000_store_scoped_operations_ledger.sql'
       - 'supabase/migrations/20261012200500_operations_real_ledger_export.sql'
       - 'supabase/migrations/20261012221000_store_operations_reconciliation.sql'
