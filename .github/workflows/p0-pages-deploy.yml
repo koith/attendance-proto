@@ -128,6 +128,12 @@ on:
       - 'qa_server_sheet_test_exclusion_v1.mjs'
       - 'supabase/functions/server-sync-sheet/**'
       - '.github/workflows/p0-pages-deploy.yml'
+      - '.github/workflows/verified-pages-deployment-notification.yml'
+      - '.github/workflows/safe-pages-rollback.yml'
+      - '.github/workflows/autonomous-development-agent.yml'
+      - 'scripts/autonomous_dev_agent.sh'
+      - 'scripts/release_recovery_policy.cjs'
+      - 'qa_release_recovery_policy.mjs'
   push:
     branches: [main]
   workflow_dispatch:
@@ -202,6 +208,10 @@ jobs:
               '; refuse to publish Pages against an unverified server build.');
       - name: Verify production Edge receipt gate behavior
         run: node qa_pages_edge_receipt_gate_v1.mjs
+      - name: Bounded release recovery policy and autonomous agent shell safety
+        run: |
+          node qa_release_recovery_policy.mjs
+          bash -n scripts/autonomous_dev_agent.sh
       - name: boot-syntax-regression
         run: node qa_boot_syntax.mjs
       - name: HQ readiness and operations failure integrity
@@ -431,7 +441,7 @@ jobs:
             sleep $((attempt * 15))
           done
       - name: Send one deduplicated report even if workflow_run event is suppressed
-        if: ${{ always() }}
+        if: ${{ always() && needs['p0-gate'].result == 'success' && needs['build-pages'].result == 'success' && needs['deploy-pages'].result == 'success' && steps.request_changes.outcome == 'success' && steps.request_live.outcome == 'success' && steps.final_health.outcome == 'success' }}
         uses: actions/github-script@v7
         env:
           P0_GATE: ${{ needs['p0-gate'].result }}
