@@ -24,6 +24,15 @@ function decideRecovery({conclusion, sha, mainSha, attempt, jobs, maxAttempts=MA
   if (safeRetry) return attempt < maxAttempts
     ? {action:'retry',reason:'Retryable artifact/upload failure before operational writes'}
     : {action:'terminal',reason:'Deployment attempts exhausted: '+attempt+'/'+maxAttempts};
+  // The Pages publish job can succeed while the independent same-run
+  // read-only acceptance job detects incorrect public bytes/health.
+  // This is a deployed frontend regression, not a retryable upload fault.
+  const verifier=name(jobs,'Same-run Pages validation (final alert only after independent verification)');
+  if (build?.conclusion==='success' && deploy?.conclusion==='success' &&
+      verifier?.conclusion==='failure' &&
+      ['Compare changed public files against actual published bytes',
+       'Double-check live Pages version and guarded payroll endpoint'].some(n=>failedAt(verifier,n)))
+    return {action:'rollback_candidate',reason:'Post-publish Pages bytes or health did not match tested release'};
   if (build?.conclusion==='success' && deploy?.conclusion==='failure' &&
       ['Validate live public deployment and payroll access boundary',
        'Exercise actual published mobile and desktop routes',
