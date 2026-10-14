@@ -25,7 +25,8 @@ window.mountHqOwnerConsole=async function(box){
   const fromAddress=normalizeProvince(tokens[0]||"");
   const raw=String(s.region_group||"").trim();
   const groupTokens=raw.split(/[\s/·>]+/).filter(Boolean);
-  const fromGroup=groupTokens.length===1?normalizeProvince(groupTokens[0]):"";
+  const groupProvinces=groupTokens.flatMap(t=>t==="충청"?["충청북도","충청남도"]:t==="전라"?["전북특별자치도","전라남도"]:t==="경남"?["경상남도"]:t==="경북"?["경상북도"]:t==="강원"?["강원특별자치도"]:t==="제주"?["제주특별자치도"]:[normalizeProvince(t)]).filter(Boolean);
+  const fromGroup=groupProvinces.length===1?groupProvinces[0]:"";
   const province=fromAddress||fromGroup||"지역 미분류";
   const candidate=fromAddress?(tokens[1]||""):"";
   const district=/^(?:.+(?:시|군|구))$/.test(candidate)?candidate:"";
@@ -58,6 +59,7 @@ window.mountHqOwnerConsole=async function(box){
  "경상북도":{"포항시":"남구 북구"},
  "경상남도":{"창원시":"의창구 성산구 마산합포구 마산회원구 진해구"}
  };
+ const resetQuickFilters=()=>{province="";district="";subdistrict="";quickLetter=""};
  const chose=id=>{selected=Number(id);remember(selected);render()};
  box.innerHTML='<div class="hq-owner-console"><h2>지점 대표 관리자 관리</h2><p>지점별 대표 점주를 확인하고 초대·지정할 수 있습니다.</p><div id="hqOwnerBody">불러오는 중…</div></div>';
  const body=box.querySelector("#hqOwnerBody"); const summary=document.getElementById("hqOwnerPinnedSummary");
@@ -73,7 +75,8 @@ window.mountHqOwnerConsole=async function(box){
  const rows=stores.filter(s=>(filter==="ALL"||(filter==="ASSIGNED"?!!owner(s.id):!owner(s.id)))&&[s.name,s.code,s.region_group,s.id].some(v=>String(v??"").toLowerCase().includes(search.toLowerCase())));
  const regions=Object.values(PROVINCES);
  const districts=ADMIN_DISTRICTS[province]||[...new Set(stores.filter(s=>region(s).province===province).map(s=>region(s).district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ko"));
- const regionStores=stores.filter(s=>region(s).province===province&&(!district||region(s).district===district)&&(!subdistrict||String(s.address||s.road_address||"").includes(subdistrict))).sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"));
+ const provinceMatches=s=>{const r=region(s);if(r.province===province)return true;const raw=String(s.region_group||"");const aliases=Object.entries(PROVINCES).filter(([,v])=>v===province).map(([k])=>k);return aliases.some(k=>raw.split(/[\\s/·>]+/).includes(k))||(province==="충청북도"||province==="충청남도")&&raw.includes("충청")||(province==="전북특별자치도"||province==="전라남도")&&raw.includes("전라")};
+ const regionStores=stores.filter(s=>provinceMatches(s)&&(!district||!region(s).district||region(s).district===district)&&(!subdistrict||!region(s).district||String(s.address||s.road_address||"").includes(subdistrict))).sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"));
  const subdivisions=(SUB_DISTRICTS[province]?.[district]||"").split(" ").filter(Boolean);
  const recentStores=readRecents().map(id=>stores.find(s=>Number(s.id)===id)).filter(Boolean);
  const letters=["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
@@ -81,7 +84,7 @@ window.mountHqOwnerConsole=async function(box){
  const letterStores=stores.filter(s=>initial(s.name)===quickLetter).sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"));
  const quickItem=s=>'<button type="button" class="hq-quick-store'+(Number(s.id)===selected?' selected':'')+'" data-quick-store="'+Number(s.id)+'"><span>'+h(s.name)+'</span><small>'+h(region(s).province)+'</small></button>';
  const quickTitle=quickMode==="region"?"지역별 찾기":quickMode==="initial"?"가나다순 찾기":"최근 지점";
- const quickPanel=quickMode==="region"?'<div class="hq-quick-panel"><div class="hq-quick-selects"><label>시·도<select id="hqQuickProvince" class="form-control"><option value="">지역 선택</option>'+regions.map(x=>'<option value="'+h(x)+'"'+(province===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label><label>시·군·구<select id="hqQuickDistrict" class="form-control" '+(province?'':'disabled')+'><option value="">전체 지역</option>'+districts.map(x=>'<option value="'+h(x)+'"'+(district===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label>'+(subdivisions.length?'<label>구<select id="hqQuickSubdistrict" class="form-control"><option value="">전체 구</option>'+subdivisions.map(x=>'<option value="'+h(x)+'"'+(subdistrict===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label>':'')+'</div><div class="hq-quick-results">'+(province?'<p class="hq-owner-help">시·군·구는 실제 행정구역 목록입니다. 지점 주소에 구 정보가 없으면 선택한 구의 지점이 조회되지 않을 수 있습니다.</p>'+(regionStores.length?regionStores.map(quickItem).join(""):'<p class="hq-owner-help">해당 지역에 주소가 확인된 지점이 없습니다.</p>'):'<p class="hq-owner-help">시·도를 선택하세요.</p>')+'</div></div>':
+ const quickPanel=quickMode==="region"?'<div class="hq-quick-panel"><div class="hq-quick-selects"><label>시·도<select id="hqQuickProvince" class="form-control"><option value="">지역 선택</option>'+regions.map(x=>'<option value="'+h(x)+'"'+(province===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label><label>시·군·구<select id="hqQuickDistrict" class="form-control" '+(province?'':'disabled')+'><option value="">전체 지역</option>'+districts.map(x=>'<option value="'+h(x)+'"'+(district===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label>'+(subdivisions.length?'<label>구<select id="hqQuickSubdistrict" class="form-control"><option value="">전체 구</option>'+subdivisions.map(x=>'<option value="'+h(x)+'"'+(subdistrict===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label>':'')+'</div><div class="hq-quick-results">'+(province?'<p class="hq-owner-help">시·군·구는 실제 행정구역 목록입니다. 주소가 등록되지 않은 지점은 정확한 구를 확인할 수 없어 권역 내 미분류 지점으로 함께 표시됩니다.</p>'+(regionStores.length?regionStores.map(quickItem).join(""):'<p class="hq-owner-help">해당 지역에 주소가 확인된 지점이 없습니다.</p>'):'<p class="hq-owner-help">시·도를 선택하세요.</p>')+'</div></div>':
  quickMode==="initial"?'<div class="hq-quick-panel"><div class="hq-quick-letters">'+letters.map(x=>'<button type="button" data-letter="'+x+'" class="'+(quickLetter===x?'active':'')+'">'+x+'</button>').join("")+'</div><div class="hq-quick-results">'+(quickLetter?letterStores.map(quickItem).join(""):'<p class="hq-owner-help">초성을 누르면 해당 지점이 나타납니다.</p>')+'</div></div>':
  quickMode==="recent"?'<div class="hq-quick-panel"><div class="hq-quick-results">'+(recentStores.length?recentStores.map(quickItem).join(""):'<p class="hq-owner-help">선택했던 지점이 여기에 최대 5개 표시됩니다.</p>')+'</div></div>':'';
  const store=stores.find(s=>Number(s.id)===selected),current=store?owner(selected):null,linked=managers.filter(x=>Number(x.store_id)===selected);
@@ -100,13 +103,13 @@ window.mountHqOwnerConsole=async function(box){
  if(scrollContainer)scrollContainer.scrollTop=modalScroll;
  const currentList=body.querySelector(".hq-owner-list");if(currentList)currentList.scrollTop=listScroll;
  body.querySelector("#hqOwnerDismiss")?.addEventListener("click",()=>{notice=null;render()});
- body.querySelectorAll("[data-quick-mode]").forEach(b=>b.onclick=()=>{quickMode=quickMode===b.dataset.quickMode?"":b.dataset.quickMode;if(quickMode==="initial")quickLetter="ㄱ";render()});
- body.querySelector("#hqQuickClose")?.addEventListener("click",()=>{quickMode="";render()});
+ body.querySelectorAll("[data-quick-mode]").forEach(b=>b.onclick=()=>{quickMode=quickMode===b.dataset.quickMode?"":b.dataset.quickMode;resetQuickFilters();render()});
+ body.querySelector("#hqQuickClose")?.addEventListener("click",()=>{quickMode="";resetQuickFilters();render()});
  body.querySelector("#hqQuickProvince")?.addEventListener("change",e=>{province=e.target.value;district="";subdistrict="";render()});
  body.querySelector("#hqQuickDistrict")?.addEventListener("change",e=>{district=e.target.value;subdistrict="";render()});
  body.querySelector("#hqQuickSubdistrict")?.addEventListener("change",e=>{subdistrict=e.target.value;render()});
  body.querySelectorAll("[data-letter]").forEach(b=>b.onclick=()=>{quickLetter=b.dataset.letter;render()});
- body.querySelectorAll("[data-quick-store]").forEach(b=>b.onclick=()=>{quickMode="";chose(b.dataset.quickStore)});
+ body.querySelectorAll("[data-quick-store]").forEach(b=>b.onclick=()=>{quickMode="";resetQuickFilters();chose(b.dataset.quickStore)});
  body.querySelector("#hqOwnerFilter").value=filter;
  body.querySelector("#hqOwnerFilter").onchange=e=>{filter=e.target.value;render()};
  body.querySelector("#hqOwnerSearch").oninput=e=>{search=e.target.value;const pos=e.target.selectionStart;render();const input=body.querySelector("#hqOwnerSearch");input.focus();input.setSelectionRange(pos,pos)};
