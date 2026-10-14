@@ -777,7 +777,7 @@
 .hq-quick-store span{overflow-wrap:anywhere}.hq-quick-store small{font-size:.72rem;color:var(--text-muted);flex-shrink:0}
 .hq-quick-store.selected{border-color:var(--brand-700);background:#e8f5ed}
 @media(max-width:640px){.hq-owner-quicknav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.hq-owner-quicknav button{padding:10px 4px;font-size:.83rem}.hq-quick-results{grid-template-columns:1fr}.hq-quick-selects{grid-template-columns:1fr}}
-</style>
+.hq-quick-overlay{position:fixed;inset:0;z-index:99999;background:rgba(15,23,20,.52);display:flex;align-items:center;justify-content:center;padding:18px}.hq-quick-dialog{width:min(92vw,560px);max-height:75vh;overflow:auto;background:#fff;color:#18241d;border-radius:20px;padding:20px;box-shadow:0 20px 70px #0005}.hq-quick-dialog-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;font-size:1.15rem}.hq-quick-dialog-head button{border:1px solid #dae3dd;background:#fff;border-radius:10px;padding:8px 12px;color:#243a2c;cursor:pointer}.hq-quick-dialog .hq-quick-panel{margin:0}.hq-quick-dialog .hq-quick-results{max-height:45vh}@media(max-width:640px){.hq-quick-dialog{padding:16px;max-height:78vh}}</style>
 <link rel="stylesheet" href="operations_v1.css?v=20260930v083">
 <link rel="stylesheet" href="recipe_access_v220.css?v=20261001v096">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -880,7 +880,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.265";
+const APP_VERSION="v0.266";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -3729,7 +3729,7 @@ loadStores().finally(()=>{STORE_ENTRY_LOADING=false;route();});
 </script>
 <script src="store_controls_v1.js?v=20260929v066"></script>
 <script src="hq_store_onboarding_ui.js?v=20261013v251"></script>
-<script src="hq_owner_console.js?v=20261014v265"></script>
+<script src="hq_owner_console.js?v=20261014v266"></script>
 <script src="store_manager_tab.js?v=20261014v256"></script>
 <script src="store_limited_manager.js?v=20261014v254"></script>
 </body>
