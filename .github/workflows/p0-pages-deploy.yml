@@ -378,7 +378,7 @@ jobs:
           path: .
 
   notify-deployment-result:
-    name: Notify verified Pages result (same-run fallback)
+    name: Same-run Pages validation (final alert only after independent verification)
     if: ${{ always() && github.event_name != 'pull_request' }}
     needs: [p0-gate, build-pages, deploy-pages]
     runs-on: ubuntu-latest
@@ -388,7 +388,6 @@ jobs:
     permissions:
       contents: read
       actions: read
-      issues: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -444,76 +443,6 @@ jobs:
             fi
             sleep $((attempt * 15))
           done
-      - name: Send one deduplicated report even if workflow_run event is suppressed
-        if: ${{ always() && needs['p0-gate'].result == 'success' && needs['build-pages'].result == 'success' && needs['deploy-pages'].result == 'success' && steps.request_changes.outcome == 'success' && steps.request_live.outcome == 'success' && steps.final_health.outcome == 'success' }}
-        uses: actions/github-script@v7
-        env:
-          P0_GATE: ${{ needs['p0-gate'].result }}
-          PAGES_BUILD: ${{ needs['build-pages'].result }}
-          PAGES_DEPLOY: ${{ needs['deploy-pages'].result }}
-          FINAL_HEALTH: ${{ steps.final_health.outcome }}
-          REQUEST_EVIDENCE: ${{ steps.request_changes.outcome }}
-          REQUEST_LIVE: ${{ steps.request_live.outcome }}
-          INTENTIONAL_PROOF: ${{ inputs.prove_gate_failure || 'false' }}
-          OPTIONAL_ALERT_WEBHOOK: ${{ secrets.DEPLOY_ALERT_WEBHOOK_URL }}
-        with:
-          script: |
-            const fs=require('fs');
-            const marker='[deployment-run:'+context.runId+']';
-            const old=await github.paginate(github.rest.issues.listForRepo,{
-              ...context.repo,state:'all',per_page:100
-            });
-            if(old.some(issue=>(issue.body||'').includes(marker))){
-              core.info('Duplicate deployment alert suppressed: '+context.runId);
-              return;
-            }
-            const version=fs.readFileSync('index.html','utf8')
-              .match(/const APP_VERSION="(v[0-9.]+)"/)?.[1]||'확인 불가';
-            const proof=process.env.INTENTIONAL_PROOF==='true';
-            const success=process.env.P0_GATE==='success' &&
-              process.env.PAGES_BUILD==='success' &&
-              process.env.PAGES_DEPLOY==='success' &&
-              process.env.REQUEST_EVIDENCE==='success' &&
-              process.env.REQUEST_LIVE==='success' &&
-              process.env.FINAL_HEALTH==='success';
-            const canceled=[process.env.P0_GATE,process.env.PAGES_BUILD,process.env.PAGES_DEPLOY]
-              .includes('cancelled');
-            const state=proof?'실패(의도적 QA)':success?'성공':canceled?'취소':'실패';
-            const stage=proof?'의도적인 P0 검사 실패 시험, Pages 배포 생략':
-              !success?'P0 '+process.env.P0_GATE+', 빌드 '+process.env.PAGES_BUILD+
-              ', 배포 '+process.env.PAGES_DEPLOY+', 요청 검증 '+process.env.REQUEST_LIVE+
-              ', 실서비스 검증 '+process.env.FINAL_HEALTH:
-              '실제 운영 URL·버전·API 검증 통과 및 배포 스모크 테스트 통과';
-            const url='https://koith.github.io/attendance-proto/';
-            const log='https://github.com/'+context.repo.owner+'/'+context.repo.repo+
-              '/actions/runs/'+context.runId;
-            const prs=await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              ...context.repo,commit_sha:context.sha
-            }).then(result=>result.data.map(p=>'#'+p.number).join(', ')||'없음')
-              .catch(()=>'조회 불가');
-            const body=[marker,'@'+context.repo.owner,'### GitHub Pages 배포 결과: '+state,
-              '- 앱 버전: **'+version+'**',
-              '- 시각(UTC): '+new Date().toISOString(),
-              '- 배포 커밋: '+context.sha,'- PR: '+prs,'- 운영 URL: '+url,
-              '- 검증: '+stage,'- 수정 요청 추적: '+process.env.REQUEST_EVIDENCE,
-              '- 변경 파일 실서비스 일치: '+process.env.REQUEST_LIVE,'- [Actions 로그]('+log+')',
-              proof?'**실제 운영 배포 실패가 아닌 의도적 QA 실패입니다.**':
-              success?'**운영 배포 및 검증 완료**':
-              '**운영 배포 성공이라고 판정하지 않습니다.**'].join('\n');
-            const created=await github.rest.issues.create({...context.repo,
-              title:'배포 '+state+' · '+version+' · run '+context.runId,
-              body,assignees:[context.repo.owner]});
-            core.info('Same-run deployment alert delivered: '+created.data.html_url);
-            if(process.env.OPTIONAL_ALERT_WEBHOOK){
-              const reply=await fetch(process.env.OPTIONAL_ALERT_WEBHOOK,{
-                method:'POST',headers:{'content-type':'application/json'},
-                body:JSON.stringify({text:'백억커피 배포 '+state+' '+version+' '+log,
-                  version,state,commit:context.sha,url}),
-                signal:AbortSignal.timeout(10000)
-              });
-              if(!reply.ok)throw Error('Optional webhook failed HTTP '+reply.status);
-              core.info('Optional webhook accepted HTTP '+reply.status);
-            }
 
 
   deploy-pages:
