@@ -171,7 +171,7 @@ jobs:
             if(!changed.length)throw new Error('No request change files linked to deployed SHA');
             fs.writeFileSync('/tmp/changed-release-files.json',JSON.stringify(changed));
             core.info('Passed predeploy gate; release files: '+JSON.stringify(changed));
-            const app=changed.filter(f=>/^(index\.html|[a-zA-Z0-9_-]+\.(?:js|html|css))$/.test(f));
+            const app=changed.filter(f=>/^[a-zA-Z0-9_-]+\.(?:js|html|css|jpg|jpeg|png|gif|webp|svg|ico|webmanifest|woff2?|ttf)$/i.test(f));
             if(!app.length)core.info('No public root assets changed; existing live smoke still required.');
       - name: Verify every changed public asset against live Pages bytes
         id: changed_assets
