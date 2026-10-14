@@ -27,4 +27,4 @@ jobs:
               ref: 'main',
               inputs: {prove_gate_failure:'true'}
             });
-            core.info('Dispatched intentional P0 QA failure; Pages build and deployment must remain skipped.');
+            core.info('Dispatched intentional P0 QA failure v2 to test same-run notification fallback; Pages publish must remain skipped.');
