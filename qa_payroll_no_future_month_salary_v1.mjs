@@ -31,8 +31,8 @@ async function report(ym,now=new Date('2026-10-11T08:00:00Z')){
 }
 const current=await report('2026-10');
 const currentMonthly=current.rows.find(r=>r.employee_id===monthly.id).pay;
-assert.equal(currentMonthly.base,2600000,'current month retains the contracted monthly salary');
-assert.equal(currentMonthly.gross,2605000,'current month still includes approved adjustments');
+assert.equal(currentMonthly.base,Math.trunc(2600000*11/31),'current month accrues through October 11 KST, not October 31');
+assert.equal(currentMonthly.gross,Math.trunc(2600000*11/31)+5000,'current earned salary includes approved adjustments only');
 const future=await report('2026-11');
 assert.equal(future.totalGross,0,'future payroll cannot be pre-accrued');
 assert.equal(future.totalNet,0,'future payroll cannot be paid out');
@@ -46,11 +46,11 @@ for(const row of future.rows){
 assert.equal(future.rows.find(r=>r.employee_id===monthly.id).pay.accruedDays,0);
 assert.equal(future.rows.find(r=>r.employee_id===hourly.id).sec,8*3600,'future attendance rows are preserved, only their pay is gated');
 const nextMonth=await report('2026-11',new Date('2026-11-11T08:00:00Z'));
-assert.equal(nextMonth.rows.find(r=>r.employee_id===monthly.id).pay.base,2600000,
- 'contract monthly base becomes available once that month begins');
+assert.equal(nextMonth.rows.find(r=>r.employee_id===monthly.id).pay.base,Math.trunc(2600000*11/30),
+ 'November monthly salary accrues through November 11 KST, not the month end');
 assert.equal(nextMonth.rows.find(r=>r.employee_id===hourly.id).pay.base,96000,
  'completed hourly shifts become payable in the selected current month');
 const browser=fs.readFileSync('payroll_night_allowance_v1.js','utf8');
 assert.match(browser,/if\(p&&ym>currentPayrollMonth\)/,
  'the final browser wrapper also blocks future pay');
-console.log('PASS zero future-month payroll, current-month fixed salary, hourly events, adjustments and browser parity');
+console.log('PASS zero future-month payroll, current-month elapsed salary, hourly events, adjustments and browser parity');
