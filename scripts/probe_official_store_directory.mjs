@@ -20,11 +20,11 @@ for(const asset of ['https://10billioncoffee.co.kr/assets/js/store.js?1783647174
   console.log('OFFICIAL_ASSET',asset,res.status,body.length);
   if(asset.includes('store.js')){
     for(const term of ['ajax','fetch(','api/','/store','/place','search','URL','url:','request','dataType','getJSON','place']){
-      let offset=0,found=0;while(found<4){let at=body.toLowerCase().indexOf(term.toLowerCase(),offset);if(at<0)break;console.log('OFFICIAL_JS_CONTEXT',term,body.slice(Math.max(0,at-220),at+380).replace(/\\s+/g,' '));offset=at+term.length;found++;}
+      let offset=0,found=0;while(found<4){let at=body.toLowerCase().indexOf(term.toLowerCase(),offset);if(at<0)break;console.log('OFFICIAL_JS_CONTEXT',term,body.slice(Math.max(0,at-220),at+380).replace(/\s+/g,' '));offset=at+term.length;found++;}
     }
   }else{
     console.log('SITEMAP_START',body.slice(0,1000));
-    console.log('SITEMAP_STORE_URLS',JSON.stringify([...body.matchAll(/<loc>([^<]*\\/store\\/[^<]+)<\\/loc>/g)].map(m=>m[1]).slice(0,15)));
+    console.log('SITEMAP_STORE_URLS',JSON.stringify([...body.matchAll(new RegExp('<loc>([^<]*store[^<]+)</loc>','g'))].map(m=>m[1]).slice(0,15)));
   }
  }catch(e){console.log('OFFICIAL_ASSET_FAILED',asset,String(e));}
 }
