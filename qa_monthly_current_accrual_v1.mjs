@@ -75,18 +75,23 @@ assert.equal(revised.pay.monthlySegments.length,2);
 assert.equal((await payroll({when:'2026-11-01T00:00:00Z'})).pay.base,2600000,
   'After October ends, all 31 eligible days count');
 const ui=fs.readFileSync('index.html','utf8');
-assert.match(ui,/const APP_VERSION="v0\\.272"/);
-assert.match(ui,/재직 인정 \\$\\{Number\\(pay\\?\\.accruedDays\\|\\|0\\)\\}/,
-  'Monthly detail must show employment days rather than attendance count');
-assert.doesNotMatch(ui,/인정일 \\$\\{completedDays\\}/,
-  'Old attendance-count salary badge must be removed');
+assert.ok(ui.includes('const APP_VERSION="v0.272";'), 'New release version must be visible');
+assert.ok(ui.includes('재직 인정 ${Number(pay?.accruedDays||0)}'),
+  'Monthly detail must use employment days, not completed shift count');
+assert.ok(!ui.includes('인정일 ${completedDays}'),
+  'Attendance day count must not be mislabeled as earned salary days');
 assert.match(ui,/SERVER_PAYROLL_ENGINE_OUTDATED/,
   'Missing or outdated canonical payroll engine must not silently present false salary');
 const canonical=fs.readFileSync('supabase/functions/server-sync-sheet/engine.mjs','utf8');
 const native=fs.readFileSync('edge-release/supabase/functions/server-sync-sheet/engine.mjs','utf8');
 assert.equal(native,canonical,'Native Supabase deployment and canonical payroll engine must be identical');
 const browser=fs.readFileSync('payroll_contract_authority_v1.js','utf8');
-const segment=src=>src.match(/  function monthlyContractSegments\\([\\s\\S]*?\\n  \\}/)?.[0];
+const segment=src=>{
+  const start=src.indexOf('  function monthlyContractSegments(');
+  if(start<0)return null;
+  const end=src.indexOf(String.fromCharCode(10)+'  }',start);
+  return end<0?null:src.slice(start,end+4);
+};
 assert.ok(segment(browser));
 assert.equal(segment(browser),segment(canonical),'Browser and Edge segment accrual rules must match');
 assert.match(browser,/day<=payableDays/);
