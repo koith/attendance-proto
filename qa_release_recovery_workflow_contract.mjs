@@ -48,6 +48,10 @@ assert.doesNotMatch(rollback,/mode:\s*'deployment'/,'Rollback must not write She
 assert.match(agent,/for attempt in 1 2 3 4 5/,'Five bounded AI attempts');
 assert.match(agent,/changed_tests=/,'Per-request changed feature QA is required');
 assert.match(agent,/Agent attempted restricted changes/,'Code editing restricted to app/test files');
+assert.match(agent,/git rev-parse --git-path info\/exclude/,'Agent must set up local-only exclusion for installed QA dependencies');
+assert.match(agent,/node_modules/,'NPM QA dependencies must never be treated as agent source changes');
+assert.match(agent,/git add -A/,'Agent PR staging still checks all nonignored source changes');
+
 assert.match(agentWorkflow,/if: failure\(\)/,'Escalate agent failure without operating deployment');
 assert.match(agentWorkflow,/copilot-requests: write/,'Token-only Copilot model access must be permitted');
 assert.match(agentWorkflow,/GITHUB_TOKEN: \$\{\{ github\.token \}\}/,

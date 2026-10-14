@@ -12,6 +12,12 @@ body="$(jq -r '.body // ""' <<<"$issue_json")"
 jq -e '.labels | any(.name == "agent-approved")' <<<"$issue_json" >/dev/null
 branch="agent/issue-${ISSUE_NUMBER}-run-${GITHUB_RUN_ID:-local}"
 git switch -c "$branch"
+# Browser QA dependencies are installed by Actions before the agent runs.
+# Keep those disposable npm artifacts out of git status and git add -A;
+# preserving strict guards on ALL real application and test source changes.
+exclude_file="$(git rev-parse --git-path info/exclude)"
+mkdir -p "$(dirname "$exclude_file")"
+printf '\n/node_modules/\n' >> "$exclude_file"
 mkdir -p /tmp/agent-reports
 cat >/tmp/agent-reports/task.txt <<EOF
 You are maintaining koith/attendance-proto, a live Korean franchise operations app.
