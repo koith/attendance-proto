@@ -1,0 +1,20 @@
+name: official-store-directory-probe
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/probe_official_store_directory.mjs
+      - .github/workflows/official-store-directory-probe.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect-public-directory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/probe_official_store_directory.mjs
