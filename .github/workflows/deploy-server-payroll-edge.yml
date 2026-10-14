@@ -11,6 +11,7 @@ on:
       - 'scripts/sync_supabase_native_edge_release.mjs'
       - 'payroll_contract_authority_v1.js'
       - 'qa_payroll_snapshot_components_v1.mjs'
+      - 'qa_monthly_current_accrual_v1.mjs'
       - '.github/workflows/deploy-server-payroll-edge.yml'
   pull_request:
     paths:
@@ -65,6 +66,7 @@ jobs:
           node qa_weekly_store_isolation_close_guard_v1.mjs
           node qa_payroll_month_boundary_v1.mjs
           node qa_monthly_contract_salary_authority_v1.mjs
+          node qa_monthly_current_accrual_v1.mjs
           node qa_payroll_no_future_month_salary_v1.mjs
           node qa_payroll_week_boundary_behavior_v1.mjs
           node qa_server_payroll_fixture_parity_v1.mjs
