@@ -50,9 +50,50 @@ jobs:
             const matched = deployments.data.some(d=>d.sha === process.env.DEPLOY_SHA);
             if (!matched) throw new Error('No GitHub Pages deployment receipt for SHA ' + process.env.DEPLOY_SHA);
             core.info('Verified deployment commit '+process.env.DEPLOY_SHA+' version '+version);
+      - name: Require passed predeploy QA and identify changed request files
+        id: release_evidence
+        if: steps.verify_commit.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs=require('fs');
+            const runId=Number(process.env.DEPLOY_RUN);
+            const jobs=await github.paginate(github.rest.actions.listJobsForWorkflowRun,{
+              ...context.repo,run_id:runId,per_page:100});
+            const gate=jobs.find(j=>j.name==='P0 deployment gate');
+            if(!gate||gate.conclusion!=='success')
+              throw new Error('Predeploy QA gate not successful for this deployment');
+            const pr=await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              ...context.repo,commit_sha:process.env.DEPLOY_SHA});
+            const mergePrs=pr.data.filter(p=>p.merged_at);
+            let changed=[];
+            if(mergePrs.length){
+              for(const p of mergePrs){
+                const files=await github.paginate(github.rest.pulls.listFiles,{
+                  ...context.repo,pull_number:p.number,per_page:100});
+                if(files.length>=300)throw new Error('PR change list truncated: refuse verification');
+                changed.push(...files.map(f=>f.filename));
+              }
+            }else{
+              const commit=await github.rest.repos.getCommit({
+                ...context.repo,ref:process.env.DEPLOY_SHA});
+              changed=(commit.data.files||[]).map(f=>f.filename);
+            }
+            changed=[...new Set(changed)];
+            if(!changed.length)throw new Error('No request change files linked to deployed SHA');
+            fs.writeFileSync('/tmp/changed-release-files.json',JSON.stringify(changed));
+            core.info('Passed predeploy gate; release files: '+JSON.stringify(changed));
+            const app=changed.filter(f=>/^(index\.html|[a-zA-Z0-9_-]+\.(?:js|html|css))$/.test(f));
+            if(!app.length)core.info('No public root assets changed; existing live smoke still required.');
+      - name: Verify every changed public asset against live Pages bytes
+        id: changed_assets
+        if: steps.release_evidence.outcome == 'success'
+        run: |
+          echo "CHANGED_RELEASE_FILES=$(cat /tmp/changed-release-files.json)" >> "$GITHUB_ENV"
+          node qa_release_changed_assets_live.mjs
       - name: Validate actual Pages response, displayed version and protected API
         id: production_health
-        if: steps.verify_commit.outcome == 'success'
+        if: steps.changed_assets.outcome == 'success'
         run: node qa_production_deployment_health_v1.mjs
       - name: Install Chromium for actual live route smoke
         id: install_browser
@@ -72,6 +113,8 @@ jobs:
         env:
           OPTIONAL_ALERT_WEBHOOK: ${{ secrets.DEPLOY_ALERT_WEBHOOK_URL }}
           VERIFY_COMMIT: ${{ steps.verify_commit.outcome }}
+          VERIFY_REQUEST_QA: ${{ steps.release_evidence.outcome }}
+          VERIFY_CHANGED_ASSETS: ${{ steps.changed_assets.outcome }}
           VERIFY_PUBLIC: ${{ steps.production_health.outcome }}
           VERIFY_BROWSER: ${{ steps.browser_health.outcome }}
           VERIFIED_VERSION: ${{ steps.verify_commit.outputs.version }}
@@ -81,6 +124,8 @@ jobs:
             const marker = '[deployment-run:' + runId + ']';
             const isSuccess = process.env.DEPLOY_CONCLUSION === 'success' &&
               process.env.VERIFY_COMMIT === 'success' &&
+              process.env.VERIFY_REQUEST_QA === 'success' &&
+              process.env.VERIFY_CHANGED_ASSETS === 'success' &&
               process.env.VERIFY_PUBLIC === 'success' &&
               process.env.VERIFY_BROWSER === 'success';
             const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,{
@@ -94,6 +139,8 @@ jobs:
             const stage = isIntentionalQaFailure ? '의도적인 P0 검사 실패 테스트 — 운영 배포를 실행하지 않음' :
               process.env.DEPLOY_CONCLUSION !== 'success' ? 'GitHub Pages workflow: '+process.env.DEPLOY_CONCLUSION :
               process.env.VERIFY_COMMIT !== 'success' ? '배포 커밋/버전 검증' :
+              process.env.VERIFY_REQUEST_QA !== 'success' ? '수정 요청 연결 및 사전 QA 검증' :
+              process.env.VERIFY_CHANGED_ASSETS !== 'success' ? '실제 배포된 수정 파일 일치 검증' :
               process.env.VERIFY_PUBLIC !== 'success' ? '운영 URL·버전·API 검증' :
               process.env.VERIFY_BROWSER !== 'success' ? '모바일/데스크톱 운영 스모크 테스트' : '전체 검증 완료';
             const version = process.env.VERIFIED_VERSION ||
@@ -104,7 +151,8 @@ jobs:
             const body = [marker,'@'+context.repo.owner, '### GitHub Pages 배포 결과: '+state,
               '- 앱 버전: **'+version+'**','- 시각(UTC): '+new Date().toISOString(),'- 커밋: '+sha,
               '- 관련 PR: '+prs,'- 운영 URL: '+process.env.PUBLISHED_URL,
-              '- 검증 단계: '+stage,'- 운영 HTTP 및 버전: '+process.env.VERIFY_PUBLIC,
+              '- 검증 단계: '+stage,'- 요청별 사전 QA: '+process.env.VERIFY_REQUEST_QA,
+              '- 수정 파일 운영 반영: '+process.env.VERIFY_CHANGED_ASSETS,'- 운영 HTTP 및 버전: '+process.env.VERIFY_PUBLIC,
               '- 브라우저 스모크: '+process.env.VERIFY_BROWSER,'- [배포 실행 및 오류 로그]('+runUrl+')',
               isIntentionalQaFailure?'**검증용 실패 이벤트입니다. 운영 웹앱 배포 실패가 아닙니다.**':
               !isSuccess?'**운영 배포 성공으로 판정하지 않습니다. 로그를 확인하세요.**':'**운영 검증 통과**'
