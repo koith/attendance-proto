@@ -61,9 +61,9 @@ window.mountHqStoreOnboarding=async function(box){
   if(!box||!box.isConnected)return;
   const section=document.createElement("section");
   section.id="hqStoreOnboarding";
-  section.style.cssText="margin-top:18px;padding-top:16px;border-top:1px solid var(--border)";
+  section.style.cssText="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)";
   section.innerHTML='<h3 style="font-size:1.05rem;margin:0 0 8px">백억커피 전국 지점 운영</h3>'+
-    '<p style="font-size:.8rem;color:var(--text-muted);margin:0 0 12px">지점을 준비(STAGED) 상태로 등록하고 점주 계정을 연결한 뒤 운영을 활성화합니다. 운영 승인 전에는 지점 급여 기능이 열리지 않습니다.</p>'+
+    '<p style="font-size:.8rem;color:var(--text-muted);margin:0 0 10px">지점을 선택해 점주와 운영 상태를 관리합니다.</p>'+
     '<div id="hqOnboardingBody" aria-live="polite">지점 정보를 불러오는 중…</div>';
   box.appendChild(section);
   const body=section.querySelector("#hqOnboardingBody");
@@ -101,9 +101,10 @@ window.mountHqStoreOnboarding=async function(box){
     const stagedCount=stores.filter(s=>s.onboarding_status==="STAGED").length;
     const suspendedCount=stores.filter(s=>s.onboarding_status==="SUSPENDED").length;
     body.innerHTML=
+      '<style>#hqStoreOnboarding .hq-compact-card{border:1px solid var(--border);border-radius:14px;padding:12px;margin:12px 0}#hqStoreOnboarding .hq-compact-card h4{font-size:.95rem;margin:0 0 10px}#hqStoreOnboarding .hq-compact-card .field{margin:8px 0}#hqStoreOnboarding .hq-actions{display:flex;gap:8px;flex-wrap:wrap}#hqStoreOnboarding .hq-actions .btn{min-height:40px}#hqStoreOnboarding .hq-hint{font-size:.75rem;color:var(--text-muted);margin:6px 0}#hqStoreOnboarding .hq-manager-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--border)}#hqStoreOnboarding .hq-manager-email{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}#hqStoreOnboarding .hq-manager-row .btn{flex:0 0 auto}@media(max-width:520px){#hqStoreOnboarding .hq-actions .btn{flex:1 1 130px}#hqStoreOnboarding .hq-compact-card{padding:10px}#hqStoreOnboarding .hq-manager-email{flex-basis:100%}}</style>'+
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:9px">'+
         '<div><div id="hqStoreCounts" style="font-size:.84rem">등록 '+stores.length+'곳 · 운영 '+readyCount+' · 준비 '+stagedCount+' · 중지 '+suspendedCount+'</div>'+ 
-        '<div id="hqSampleRosterSummary" style="font-size:.75rem;color:var(--text-muted)">초기 직원 자료 점검 필요 '+sampleStoreCount+'곳 · '+sampleTotal+'명</div></div>'+
+        '<div id="hqSampleRosterSummary" style="font-size:.75rem;color:var(--text-muted)">점검할 초기 직원 '+sampleTotal+'명 · '+sampleStoreCount+'개 지점</div></div>'+
         '<div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" id="hqStoreReadinessExport" class="btn btn-secondary btn-sm">개통 준비 현황 CSV</button><button type="button" id="hqStoreRefresh" class="btn btn-secondary btn-sm">정보 새로고침</button></div></div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">'+
         '<div class="field"><label for="hqOnboardingSearchInput">지점명·코드·지역 검색</label>'+
@@ -117,36 +118,33 @@ window.mountHqStoreOnboarding=async function(box){
           '</select></div></div>'+
       '<div class="field"><label for="hqOnboardingStore">대상 지점 <span id="hqStoreSearchCount"></span></label>'+
         '<select id="hqOnboardingStore" class="form-control"></select></div>'+
-      '<div style="font-size:.77rem;color:var(--text-muted);margin-bottom:8px">현재 선택: <strong>'+escapeHTML(store?.name||"없음")+
-        '</strong> · 검색 결과에서 새 지점을 선택하면 아래 관리 대상이 변경됩니다.</div>'+
-      '<div style="margin:8px 0;font-size:.85rem">상태: <strong>'+escapeHTML(store?.onboarding_status||"UNKNOWN")+
-      '</strong> · 배정된 점주 '+list.length+'명 · 이메일 확인 완료 '+Number(store?.manager_count||0)+'명 · 실재 확인 <strong>'+escapeHTML(selected===1?"기존 운영점":proof?.decision||"미확인")+'</strong></div>'+
-      '<div style="font-size:.77rem;color:var(--text-muted);margin:6px 0 8px">운영 활성화 전 공식 가맹점 확인과 이메일 인증을 완료한 점주 계정이 필요합니다. 기존 시연용 직원 자료는 별도 점검 후 정리해야 합니다.</div>'+ 
-      (sampleEmployeeCount>0?'<div id="hqSampleRosterBlocker" role="status" style="font-size:.8rem;color:var(--warning);margin:6px 0 10px">개통 차단: 이 지점에 확인이 필요한 샘플·데모 직원 '+sampleEmployeeCount+'명이 있습니다. 자료 출처를 검증하기 전에는 운영 활성화할 수 없습니다. 기존 직원 자료는 자동 삭제되지 않습니다.</div>':'')+
-      '<div class="field"><label for="hqStoreEvidence">확인 근거 (공식 가맹점 자료 URL·본사 확인 기록 등)</label><input class="form-control" id="hqStoreEvidence" type="text" maxlength="2000" placeholder="공식 출처와 확인 정보를 구체적으로 입력 (15자 이상)"></div>'+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px">'+
-      '<button type="button" class="btn btn-secondary btn-sm" id="hqStoreVerify"'+(selected===1?' disabled':'')+'>실재 확인 기록</button>'+
-      '<button type="button" class="btn btn-secondary btn-sm" id="hqStoreReject"'+(selected===1||ready?' disabled':'')+'>확인 반려 기록</button></div>'+
-      (proof?.evidence_reference?'<div style="font-size:.76rem;color:var(--text-muted);overflow-wrap:anywhere">최근 증빙: '+escapeHTML(proof.evidence_reference)+'</div>':'')+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">'+
-      '<button type="button" class="btn btn-primary btn-sm" id="hqStoreReady"'+(ready||!canActivate?' disabled':'')+'>운영 활성화</button>'+
-      '<button type="button" class="btn btn-secondary btn-sm" id="hqStoreSuspend"'+(Number(selected)===1?' disabled':'')+'>지점 일시중지</button>'+
-      (ready?'<a class="btn btn-secondary btn-sm" id="hqStoreLink" href="'+escapeHTML(entryUrl(selected))+
-        '" target="_blank" rel="noopener noreferrer">지점 전용 페이지 열기</a>':'')+'</div>'+
-      (ready?'<div class="field"><label for="hqStoreShareUrl">점주 공유용 지점 주소 (클릭하여 선택)</label>'+
-        '<input id="hqStoreShareUrl" class="form-control" type="text" readonly value="'+escapeHTML(entryUrl(selected))+'"></div>':'')+
+      '<div class="hq-hint">선택한 지점: <strong>'+escapeHTML(store?.name||"없음")+'</strong></div>'+
+      '<div class="hq-compact-card" id="hqManagerCard"><h4>점주 관리</h4>'+
+      '<div class="hq-hint">대표 점주: <strong>'+escapeHTML(list.find(m=>m.user_id===primaryOwnerId)?.email||"미지정")+'</strong> · 등록 '+list.length+'명</div>'+
       '<div class="field"><label for="hqManagerEmail">점주 로그인 이메일</label><input id="hqManagerEmail" class="form-control" type="email" autocomplete="off" placeholder="owner@example.com"></div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px">'+
       '<button type="button" class="btn btn-secondary btn-sm" id="hqManagerAssign">기존 계정에 점주 권한 부여</button>'+
       '<button type="button" class="btn btn-primary btn-sm" id="hqManagerInvite">신규 점주 이메일 초대</button></div>'+
-      '<div style="font-size:.8rem;color:var(--text-muted)">기존 계정은 회원 가입이 완료된 이메일이어야 합니다. 신규 초대는 인증 이메일을 발송합니다.</div>'+
+      '<div class="hq-hint">가입된 계정은 연결, 신규 계정은 초대 메일을 발송합니다.</div>'+
       '<div style="margin:10px 0">'+(list.length?list.map(m=>
-        '<div class="row" style="padding:8px;margin:5px 0;gap:8px"><span style="flex:1;min-width:0;overflow-wrap:anywhere">'+
+        '<div class="hq-manager-row"><span class="hq-manager-email">'+
         escapeHTML(m.email)+(primaryOwnerId===m.user_id?' <strong style="color:var(--brand-700)">· 대표 점주</strong>':'')+'</span>'+
         (primaryOwnerId!==m.user_id?'<button type="button" class="btn btn-secondary btn-sm" data-primary-assign="'+escapeHTML(m.user_id)+'">대표 지정</button>':'')+
         (primaryOwnerId===m.user_id?'<span style="font-size:.72rem;color:var(--text-muted)">대표 교체 후 해제 가능</span>':
           '<button type="button" class="btn btn-secondary btn-sm" data-owner-revoke="'+escapeHTML(m.user_id)+'">권한 해제</button>')+'</div>').join(""):
-        '<div class="empty">이 지점에 배정된 점주 계정이 없습니다.</div>')+'</div>'+
+        '<div class="hq-hint">등록된 점주가 없습니다. 이메일로 계정을 연결하거나 초대하세요.</div>')+'</div></div>'+
+      '<details class="hq-compact-card" id="hqStoreOperations"><summary style="cursor:pointer;font-weight:600">운영 상태 · 실재 확인 <span style="font-size:.75rem;color:var(--text-muted)">('+escapeHTML(store?.onboarding_status||"UNKNOWN")+')</span></summary>'+
+      '<div class="hq-hint">실재 확인: '+escapeHTML(selected===1?"기존 운영점":proof?.decision||"미확인")+' · 인증 점주 '+Number(store?.manager_count||0)+'명</div>'+
+      (sampleEmployeeCount>0?'<div id="hqSampleRosterBlocker" role="status" class="hq-hint">개통 전 샘플 직원 '+sampleEmployeeCount+'명 확인 필요 (자동 삭제하지 않음)</div>':'')+
+      '<div class="field"><label for="hqStoreEvidence">공식 확인 근거</label><input class="form-control" id="hqStoreEvidence" type="text" maxlength="2000" placeholder="확인 자료 URL 또는 본사 확인 기록 (15자 이상)"></div>'+
+      '<div class="hq-actions"><button type="button" class="btn btn-secondary btn-sm" id="hqStoreVerify"'+(selected===1?' disabled':'')+'>확인 승인</button>'+
+      '<button type="button" class="btn btn-secondary btn-sm" id="hqStoreReject"'+(selected===1||ready?' disabled':'')+'>확인 반려</button></div>'+
+      (proof?.evidence_reference?'<div class="hq-hint" style="overflow-wrap:anywhere">최근 근거: '+escapeHTML(proof.evidence_reference)+'</div>':'')+
+      '<div class="hq-actions" style="margin-top:10px"><button type="button" class="btn btn-primary btn-sm" id="hqStoreReady"'+(ready||!canActivate?' disabled':'')+'>운영 활성화</button>'+
+      '<button type="button" class="btn btn-secondary btn-sm" id="hqStoreSuspend"'+(Number(selected)===1?' disabled':'')+'>운영 일시중지</button>'+
+      (ready?'<a class="btn btn-secondary btn-sm" id="hqStoreLink" href="'+escapeHTML(entryUrl(selected))+'" target="_blank" rel="noopener noreferrer">지점 페이지 열기</a>':'')+'</div>'+
+      (ready?'<div class="field"><label for="hqStoreShareUrl">지점 공유 주소</label><input id="hqStoreShareUrl" class="form-control" type="text" readonly value="'+escapeHTML(entryUrl(selected))+'"></div>':'')+
+      '</details>'+
       '<details style="margin-top:14px"><summary style="cursor:pointer;font-weight:600">새 지점 등록</summary>'+
       '<div style="display:grid;gap:8px;padding-top:10px">'+
       '<input class="form-control" id="hqNewStoreName" placeholder="지점명 (예: 백억커피 ○○점)">'+
