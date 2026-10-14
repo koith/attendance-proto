@@ -1,0 +1,122 @@
+name: verified-pages-deployment-notification
+
+on:
+  workflow_run:
+    workflows: [p0-pages-deploy]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  deployments: read
+
+concurrency:
+  group: verified-deployment-alert-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  verify-and-notify:
+    # Never send success for a PR-only gate (no Pages publishing).
+    if: github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_RUN: ${{ github.event.workflow_run.id }}
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
+      DEPLOY_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+      PUBLISHED_URL: https://koith.github.io/attendance-proto/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check deployment event, Pages commit and expected version
+        id: verify_commit
+        if: env.DEPLOY_CONCLUSION == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const version = fs.readFileSync('index.html','utf8').match(/const APP_VERSION="(v[0-9.]+)"/)?.[1];
+            if (!version) throw new Error('APP_VERSION not found in exact deployed commit');
+            core.setOutput('version', version);
+            const runId = Number(process.env.DEPLOY_RUN);
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,{...context.repo,run_id:runId,per_page:100});
+            const job = jobs.find(j=>j.name === 'Deploy GitHub Pages');
+            if (!job || job.conclusion !== 'success') throw new Error('Pages deploy job did not succeed');
+            const deployments = await github.rest.repos.listDeployments({...context.repo,environment:'github-pages',per_page:15});
+            const matched = deployments.data.some(d=>d.sha === process.env.DEPLOY_SHA);
+            if (!matched) throw new Error('No GitHub Pages deployment receipt for SHA ' + process.env.DEPLOY_SHA);
+            const branch = await github.rest.repos.getBranch({...context.repo,branch:'main'});
+            if (branch.data.commit.sha !== process.env.DEPLOY_SHA) throw new Error('Deployment superseded by newer main: do not claim this is the live commit');
+            core.info('Verified deployment commit '+process.env.DEPLOY_SHA+' version '+version);
+      - name: Validate actual Pages response, displayed version and protected API
+        id: production_health
+        if: steps.verify_commit.outcome == 'success'
+        run: node qa_production_deployment_health_v1.mjs
+      - name: Install Chromium for actual live route smoke
+        id: install_browser
+        if: steps.production_health.outcome == 'success'
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Check actual published mobile and desktop pages
+        id: browser_health
+        if: steps.install_browser.outcome == 'success'
+        env:
+          APP_SMOKE_HOST: https://koith.github.io/attendance-proto
+        run: node qa_browser_app_smoke.mjs
+      - name: Announce final verified result once by GitHub issue notification
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          OPTIONAL_ALERT_WEBHOOK: ${{ secrets.DEPLOY_ALERT_WEBHOOK_URL }}
+          VERIFY_COMMIT: ${{ steps.verify_commit.outcome }}
+          VERIFY_PUBLIC: ${{ steps.production_health.outcome }}
+          VERIFY_BROWSER: ${{ steps.browser_health.outcome }}
+          VERIFIED_VERSION: ${{ steps.verify_commit.outputs.version }}
+        with:
+          script: |
+            const runId = Number(process.env.DEPLOY_RUN);
+            const marker = '[deployment-run:' + runId + ']';
+            const isSuccess = process.env.DEPLOY_CONCLUSION === 'success' &&
+              process.env.VERIFY_COMMIT === 'success' &&
+              process.env.VERIFY_PUBLIC === 'success' &&
+              process.env.VERIFY_BROWSER === 'success';
+            const state = process.env.DEPLOY_CONCLUSION === 'cancelled' ? '취소' : isSuccess ? '성공' : '실패';
+            const stage = process.env.DEPLOY_CONCLUSION !== 'success' ? 'GitHub Pages workflow: '+process.env.DEPLOY_CONCLUSION :
+              process.env.VERIFY_COMMIT !== 'success' ? '배포 커밋/버전 검증' :
+              process.env.VERIFY_PUBLIC !== 'success' ? '운영 URL·버전·API 검증' :
+              process.env.VERIFY_BROWSER !== 'success' ? '모바일/데스크톱 운영 스모크 테스트' : '전체 검증 완료';
+            const version = process.env.VERIFIED_VERSION ||
+              require('fs').readFileSync('index.html','utf8').match(/const APP_VERSION="(v[0-9.]+)"/)?.[1] || '확인 불가';
+            const runUrl = 'https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+runId;
+            const sha = process.env.DEPLOY_SHA;
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({...context.repo,commit_sha:sha}).then(r=>r.data.map(p=>'#'+p.number).join(', ')||'없음').catch(()=>'조회 실패');
+            const body = [marker,'@'+context.repo.owner, '### GitHub Pages 배포 결과: '+state,
+              '- 앱 버전: **'+version+'**','- 시각(UTC): '+new Date().toISOString(),'- 커밋: '+sha,
+              '- 관련 PR: '+prs,'- 운영 URL: '+process.env.PUBLISHED_URL,
+              '- 검증 단계: '+stage,'- 운영 HTTP 및 버전: '+process.env.VERIFY_PUBLIC,
+              '- 브라우저 스모크: '+process.env.VERIFY_BROWSER,'- [배포 실행 및 오류 로그]('+runUrl+')',
+              !isSuccess?'**운영 배포 성공으로 판정하지 않습니다. 로그를 확인하세요.**':'**운영 검증 통과**'
+            ].join('\n');
+            // Read all issue pages, including closed issues, to prevent duplicate alerts;
+            // do not use eventually consistent issue search indexing.
+            const issues = await github.paginate(github.rest.issues.listForRepo,{...context.repo,state:'all',per_page:100});
+            if (issues.some(i=>(i.body||'').includes(marker))) {core.info('Duplicate delivery suppressed '+marker);return;}
+            const created = await github.rest.issues.create({...context.repo,
+              title:'배포 '+state+' · '+version+' · run '+runId,body,assignees:[context.repo.owner]});
+            core.info('Notification issue created: '+created.data.html_url);
+            // Optional event-driven phone/email alert through a user-configured webhook.
+            // Never log its URL or secret.
+            if (process.env.OPTIONAL_ALERT_WEBHOOK) {
+              const response=await fetch(process.env.OPTIONAL_ALERT_WEBHOOK,{
+                method:'POST',headers:{'content-type':'application/json'},
+                body:JSON.stringify({text:'백억커피 배포 '+state+' '+version+' '+runUrl,version,state,commit:sha,url:process.env.PUBLISHED_URL}),
+                signal:AbortSignal.timeout(10000)
+              });
+              if(!response.ok) throw new Error('Optional external alert failed with HTTP '+response.status);
+              core.info('Optional webhook accepted status '+response.status);
+            }
