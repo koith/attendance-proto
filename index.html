@@ -738,6 +738,20 @@
 @media(max-width:620px){.recipe-v220-card:not(.is-open) .recipe-v220-thumb-placeholder i{font-size:2.45rem!important;line-height:1!important}}
 
 @media(min-width:900px){.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component{box-sizing:border-box!important;width:100%!important;max-width:none!important;display:grid!important;grid-template-columns:minmax(0,1fr) max-content!important;align-items:baseline!important;gap:16px!important}.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component>*:first-child{min-width:0!important;overflow-wrap:anywhere!important}.recipe-v220-card.is-open .recipe-v220-inline-detail .recipe-v220-component>*:last-child{justify-self:end!important;white-space:nowrap!important}}
+
+/* HQ representative owner console: searchable master/detail instead of onboarding form */
+.hq-owner-modal{width:min(94vw,980px)!important;max-width:980px!important}
+.hq-owner-console>h2{display:none}.hq-owner-console>p{display:none}
+.hq-owner-summary{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.hq-owner-summary span{padding:10px 14px;border:1px solid var(--border);border-radius:12px;font-size:.83rem}
+.hq-owner-filters{display:grid;grid-template-columns:minmax(0,1fr) 155px;gap:10px;margin:12px 0}
+.hq-owner-columns{display:grid;grid-template-columns:minmax(230px,.9fr) minmax(0,1.1fr);gap:14px;min-height:320px}
+.hq-owner-list{max-height:54vh;overflow-y:auto;border:1px solid var(--border);border-radius:12px}
+.hq-owner-row{display:flex;flex-direction:column;text-align:left;gap:5px;width:100%;padding:13px 15px;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer}
+.hq-owner-row.active{background:var(--surface,#e9f3ec);outline:2px solid var(--brand-700);outline-offset:-2px}.hq-owner-row small{color:var(--text-muted);overflow-wrap:anywhere}
+.hq-owner-detail{border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0}.hq-owner-detail h3{margin:0 0 12px}.hq-owner-detail label{display:block;margin:14px 0 6px}
+.hq-owner-buttons{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.hq-owner-help{font-size:.8rem;color:var(--text-muted);line-height:1.5}
+.hq-owner-linked>div{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--border);font-size:.82rem}.hq-owner-linked span{overflow-wrap:anywhere;flex:1;min-width:130px}
+@media(max-width:640px){.hq-owner-modal{width:calc(100vw - 28px)!important}.hq-owner-columns{grid-template-columns:1fr}.hq-owner-list{max-height:230px}.hq-owner-filters{grid-template-columns:1fr}.hq-owner-detail{padding:12px}}
 </style>
 <link rel="stylesheet" href="operations_v1.css?v=20260930v083">
 <link rel="stylesheet" href="recipe_access_v220.css?v=20261001v096">
@@ -786,8 +800,8 @@
 <div class="modal-veil" id="accountVeil">
   <div class="modal account-modal">
     <button type="button" class="btn-icon modal-x" id="accountClose" aria-label="닫기"></button>
-    <h3>계정 관리</h3>
-    <div style="font-size:.78rem;color:var(--text-muted);margin:-6px 0 12px">가입된 로그인 계정의 관리자 권한을 관리합니다.</div>
+    <h3 id="accountModalTitle">계정 관리</h3>
+    <div id="accountModalDescription" style="font-size:.78rem;color:var(--text-muted);margin:-6px 0 12px">가입된 로그인 계정의 관리자 권한을 관리합니다.</div>
     <div id="adAccount"></div>
   </div>
 </div>
@@ -840,7 +854,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.256";
+const APP_VERSION="v0.257";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -2136,6 +2150,9 @@ async function openAccountMgmt(mode="accounts"){
   const v=document.getElementById("accountVeil");
   document.getElementById("accountClose").innerHTML=ICON.close;
   document.getElementById("accountClose").onclick=()=>v.classList.remove("show");
+  document.getElementById("accountModalTitle").textContent=mode==="owners"?"지점 대표 관리자 관리":"계정 관리";
+  document.getElementById("accountModalDescription").textContent=mode==="owners"?"지점별 대표 점주를 검색하고 관리합니다.":"가입된 로그인 계정의 관리자 권한을 관리합니다.";
+  v.querySelector(".account-modal").classList.toggle("hq-owner-modal",mode==="owners");
   attachNoDoubleTapZoom(v); v.classList.add("show");
   await renderAccountMgmt(mode);
 }
@@ -2152,9 +2169,9 @@ async function renderAccountMgmt(mode="accounts"){
     }
   }catch(e){box.textContent="계정 권한을 확인할 수 없습니다.";return;}
   if(mode==="owners"){
-    box.innerHTML='<div class="page-title-row"><h2 class="page-title">지점 대표 관리자 관리</h2></div><p class="page-desc">지점 검색 후 대표 점주를 초대·지정·교체하거나 기존 권한을 해제할 수 있습니다.</p>';
-    if(LIVE && typeof window.mountHqStoreOnboarding==="function") await window.mountHqStoreOnboarding(box);
-    else box.innerHTML+='<div class="empty">지점 관리 기능을 불러올 수 없습니다.</div>';
+    box.innerHTML="";
+    if(LIVE && typeof window.mountHqOwnerConsole==="function") await window.mountHqOwnerConsole(box);
+    else box.innerHTML='<div class="empty">대표 관리자 관리 기능을 불러올 수 없습니다.</div>';
     return;
   }
   let me=null, admins=[], ownerIds=new Set();
@@ -3685,6 +3702,7 @@ loadStores().finally(()=>{STORE_ENTRY_LOADING=false;route();});
 </script>
 <script src="store_controls_v1.js?v=20260929v066"></script>
 <script src="hq_store_onboarding_ui.js?v=20261013v251"></script>
+<script src="hq_owner_console.js?v=20261014v257"></script>
 <script src="store_manager_tab.js?v=20261014v256"></script>
 <script src="store_limited_manager.js?v=20261014v254"></script>
 </body>

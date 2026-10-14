@@ -12,5 +12,6 @@ assert.ok(html.includes('id="appVersion">'+version+'</span>'),'header badge must
 assert.match(html,/id="hqOwnerManagement"[^>]*>지점 대표 점주 관리<\/button>/);
 assert.match(html,/getElementById\("hqOwnerManagement"\)\.onclick=\(\)=>\{ void openAccountMgmt\("owners"\); \}/);
 assert.match(html,/async function openAccountMgmt\(mode="accounts"\)/);
-assert.match(html,/if\(LIVE && typeof window\.mountHqStoreOnboarding==='function'\)/);
+assert.match(html,/window\.mountHqOwnerConsole/);
+assert.match(html,/hq_owner_console\.js\?v=/);
 console.log('PASS HQ store navigation always enters store-locked URL');
