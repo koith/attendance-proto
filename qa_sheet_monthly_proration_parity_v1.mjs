@@ -23,7 +23,7 @@ async function check({contract=standard,periods=[{employee_id:employee.id,
     payrollEmploymentPeriods:async()=>periods,
     employmentBundle:async()=>({contracts:[contract],workdays:[],periods})
   };
-  const engine=createPayrollEngine({BE,storeId:1,now:new Date('2026-10-25T05:00:00Z')});
+  const engine=createPayrollEngine({BE,storeId:1,now:new Date('2026-11-05T05:00:00Z')});
   const calculated=await engine.computeMonthPayroll('2026-10');
   const report=await engine.buildSheetSyncPayload('2026-10');
   const pay=calculated.rows[0]?.pay,row=report.payroll.rows[0];
