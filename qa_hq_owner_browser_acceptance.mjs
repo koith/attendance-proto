@@ -68,6 +68,14 @@ try {
   assert.equal(await page.locator('#hqQuickProvince').inputValue(),'','province selection must reset');
   await page.locator('#hqQuickProvince').selectOption('주소 미확인');
   assert.equal(await page.locator('[data-quick-store]').count(),246,'unmapped stores grouped exclusively in unknown');
+  await page.locator('#hqQuickProvince').focus();
+  await page.keyboard.press('Escape');
+  assert.equal(await page.getByRole('dialog').count(),0,'Escape must close the region dialog');
+  assert.equal(await page.locator('[data-quick-mode="region"]').evaluate(el=>document.activeElement===el),true,
+    'Escape must restore keyboard focus to the region trigger');
+  await page.locator('[data-quick-mode="region"]').click();
+  assert.equal(await page.locator('#hqQuickProvince').inputValue(),'','Escape must reset the region before reopen');
+  assert.equal(await page.locator('#hqQuickDistrict').isDisabled(),true,'No stale district after Escape');
   await page.locator('#hqQuickClose').click();
   await page.locator('[data-quick-mode="recent"]').click();
   await snap();
