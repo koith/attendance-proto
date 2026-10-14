@@ -5,6 +5,10 @@ on:
     paths:
       - scripts/probe_official_store_directory.mjs
       - .github/workflows/official-store-directory-probe.yml
+  pull_request:
+    paths:
+      - scripts/probe_official_store_directory.mjs
+      - .github/workflows/official-store-directory-probe.yml
   workflow_dispatch:
 permissions:
   contents: read
