@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {applyStructuredEdits} from './scripts/agent_apply_structured_edits.mjs';
+
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'baekeok-agent-edit-'));
+const app=path.join(root,'hq_owner_console.js');
+const qa=path.join(root,'qa_example_v1.mjs');
+const payload=edits=>'agent stdout metadata\nAGENT_EDITS_BEGIN\n'+JSON.stringify({edits})+'\nAGENT_EDITS_END\n';
+const file=filename=>fs.readFileSync(filename,'utf8');
+const setBase=()=>{fs.writeFileSync(app,'const value = 1;\n');fs.writeFileSync(qa,"assert.equal(1,1);\n")};
+const main={path:'hq_owner_console.js',old:'value = 1',new:'value = 2'};
+const test={path:'qa_example_v1.mjs',old:'assert.equal(1,1)',new:'assert.equal(2,2)'};
+try{
+  setBase();
+  const good=payload([main,test]);
+  assert.deepEqual(applyStructuredEdits({root,output:good,dryRun:true}),[main.path,test.path]);
+  assert.match(file(app),/value = 1/,'Dry run never writes');
+  assert.deepEqual(applyStructuredEdits({root,output:good}),[main.path,test.path]);
+  assert.match(file(app),/value = 2/);
+  assert.match(file(qa),/assert.equal\(2,2\)/);
+  setBase();
+  assert.throws(()=>applyStructuredEdits({root,output:'Invalid response'}),/AGENT_EDITS_BEGIN/);
+  assert.throws(()=>applyStructuredEdits({root,output:payload([main,{...test,path:'../secret.txt'}])}),/Forbidden edit path/);
+  assert.throws(()=>applyStructuredEdits({root,output:payload([main,{...test,path:'.github/workflows/p0-pages-deploy.yml'}])}),/Forbidden edit path/);
+  assert.throws(()=>applyStructuredEdits({root,output:payload([main,{...test,path:'scripts/autonomous_dev_agent.sh'}])}),/Forbidden edit path/);
+  assert.throws(()=>applyStructuredEdits({root,output:payload([main,{...test,old:'missing string'}])}),/exactly once/);
+  assert.match(file(app),/value = 1/,'Rejected whole transaction has zero partial writes');
+  assert.throws(()=>applyStructuredEdits({root,output:payload([main,{...test,new:''}])}),/Empty or oversized/);
+  assert.throws(()=>applyStructuredEdits({root,output:payload([main,{...test,old:'assert.equal(1,1)',new:'assert.equal(1,1)'}])}),/No real text change/);
+  assert.match(file(app),/value = 1/);
+  assert.throws(()=>applyStructuredEdits({root,output:payload([main,main])}),/both application code and feature QA/);
+  assert.throws(()=>applyStructuredEdits({root,output:payload([test,test])}),/both application code and feature QA/);
+  assert.throws(()=>applyStructuredEdits({root,output:payload([main,{path:'qa_new_v1.mjs',old:'missing',new:"console.log('test')"}])}),/Existing-file edit/);
+  assert.deepEqual(applyStructuredEdits({root,output:payload([main,{path:'qa_new_v1.mjs',old:null,new:"console.log('test')\n"}])}),['hq_owner_console.js','qa_new_v1.mjs']);
+  assert.equal(file(path.join(root,'qa_new_v1.mjs')),"console.log('test')\n");
+  setBase();
+  const link=path.join(root,'qa_link.mjs');fs.symlinkSync(qa,link);
+  assert.throws(()=>applyStructuredEdits({root,output:payload([main,{path:'qa_link.mjs',old:'assert.equal(1,1)',new:'assert.equal(3,3)'}])}),/Not a regular file/);
+  assert.match(file(app),/value = 1/);
+  const fence=String.fromCharCode(96).repeat(3);
+  assert.deepEqual(applyStructuredEdits({root,output:'AGENT_EDITS_BEGIN\n'+fence+'json\n'+JSON.stringify({edits:[main,test]})+'\n'+fence+'\nAGENT_EDITS_END'}),[main.path,test.path]);
+  console.log('PASS isolated structured edit application, no shell, whitelisted source + QA, no partial writes or symlink traversal');
+}finally{fs.rmSync(root,{recursive:true,force:true})}
