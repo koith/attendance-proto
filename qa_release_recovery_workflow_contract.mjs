@@ -60,9 +60,13 @@ assert.match(agentWorkflow,/npm install -g --no-audit --no-fund @github\/copilot
   'Install official GitHub Copilot CLI when OpenAI key absent');
 assert.doesNotMatch(agentWorkflow,/test -n "\$OPENAI_API_KEY"/,
   'Missing OpenAI key must never fail approval validation');
-assert.match(agent,/--available-tools='view,grep,glob,edit'/,
-  'AI must not be able to invoke arbitrary shell/network tools');
-assert.match(agent,/--allow-tool=read --allow-tool=write/,'AI editing is limited to file tools');
+assert.match(agent,/--available-tools='view,grep,glob'/,
+  'AI may only inspect checkout files; no shell, write or network tool');
+assert.match(agent,/--allow-tool=read/,'Copilot model has no write tool');
+assert.doesNotMatch(agent,/--allow-tool=read --allow-tool=write/,'No direct model file edit permissions');
+assert.match(agent,/node scripts\/agent_apply_structured_edits\.mjs/,
+  'Host must apply schema-constrained read-only model edit proposals');
+assert.match(agent,/AGENT_EDITS_BEGIN/,'Structured proposals are explicitly required');
 assert.match(agent,/env -u GH_TOKEN -u OPENAI_API_KEY/,
   'Copilot process must not inherit GitHub API write token from GH_TOKEN');
 assert.match(agent,/GITHUB_TOKEN="\$GITHUB_TOKEN" copilot/,
@@ -76,6 +80,10 @@ assert.match(agent,/cat \/tmp\/agent-reports\/task\.txt/,
 assert.match(agent,/changed_application=/,'Source edit is required, not just a test');
 assert.match(agent,/no actual application JS\/HTML\/CSS file was changed/,
   'Zero source edits must fail');
+assert.match(read('.github/workflows/p0-pages-deploy.yml'),/node qa_autonomous_structured_edits_v1\.mjs/,
+  'P0 gate runs host-side safe structured edit tests');
+assert.match(read('scripts/agent_apply_structured_edits.mjs'),/ROOT_APP=/,
+  'Host rejects writes outside allowed app/test files');
 
 
 console.log('PASS release safety workflow contract');
