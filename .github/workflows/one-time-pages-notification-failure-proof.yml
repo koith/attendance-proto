@@ -1,0 +1,30 @@
+name: one-time-pages-notification-failure-proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-time-pages-notification-failure-proof.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch-proof:
+    if: github.repository == 'koith/attendance-proto'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger deliberately failing P0 gate (no Pages publication)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const target='p0-pages-deploy.yml';
+            await github.rest.actions.createWorkflowDispatch({
+              ...context.repo,
+              workflow_id: target,
+              ref: 'main',
+              inputs: {prove_gate_failure:'true'}
+            });
+            core.info('Dispatched intentional P0 QA failure; Pages build and deployment must remain skipped.');
