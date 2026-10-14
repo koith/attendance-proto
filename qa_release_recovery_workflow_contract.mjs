@@ -49,4 +49,20 @@ assert.match(agent,/for attempt in 1 2 3 4 5/,'Five bounded AI attempts');
 assert.match(agent,/changed_tests=/,'Per-request changed feature QA is required');
 assert.match(agent,/Agent attempted restricted changes/,'Code editing restricted to app/test files');
 assert.match(agentWorkflow,/if: failure\(\)/,'Escalate agent failure without operating deployment');
+assert.match(agentWorkflow,/copilot-requests: write/,'Token-only Copilot model access must be permitted');
+assert.match(agentWorkflow,/GITHUB_TOKEN: \$\{\{ github\.token \}\}/,
+  'Issue agent uses ephemeral Actions token if no external OpenAI secret');
+assert.match(agentWorkflow,/npm install -g --no-audit --no-fund @github\/copilot/,
+  'Install official GitHub Copilot CLI when OpenAI key absent');
+assert.doesNotMatch(agentWorkflow,/test -n "\$OPENAI_API_KEY"/,
+  'Missing OpenAI key must never fail approval validation');
+assert.match(agent,/--available-tools='view,grep,glob,edit'/,
+  'AI must not be able to invoke arbitrary shell/network tools');
+assert.match(agent,/--allow-tool=read --allow-tool=write/,'AI editing is limited to file tools');
+assert.match(agent,/env -u GH_TOKEN -u OPENAI_API_KEY/,
+  'Copilot process must not inherit GitHub API write token from GH_TOKEN');
+assert.match(agent,/GITHUB_TOKEN="\$GITHUB_TOKEN" copilot/,
+  'Copilot must use the built-in Actions inference token');
+assert.match(agent,/provider_status=\$\?/,'AI provider failures should flow into bounded repair loop');
+
 console.log('PASS release safety workflow contract');
