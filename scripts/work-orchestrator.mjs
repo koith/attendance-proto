@@ -7,13 +7,22 @@ const definitions=[
  ['deploy','최종 운영 배포',['main-merged','edge-deployed','web-deployed','production-smoke']]
 ];
 const initial=()=>({version:1,tasks:definitions.map(([id,name,checks])=>({id,name,checks,status:'pending',evidence:{}})),history:[]});
-const state=fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):initial();
+const hasPersistedState=fs.existsSync(file);
+const state=hasPersistedState?JSON.parse(fs.readFileSync(file,'utf8')):initial();
 const save=()=>{fs.mkdirSync(file.slice(0,file.lastIndexOf('/'))||'.',{recursive:true});fs.writeFileSync(file,JSON.stringify(state,null,2)+'\n')};
 const [command='next',id,check,proof]=process.argv.slice(2);
 const task=state.tasks.find(t=>t.id===id);
 const event=(action,details)=>state.history.push({at:new Date().toISOString(),action,details});
 if(command==='init'){save();console.log(file)}
-else if(command==='next'){const t=state.tasks.find(x=>x.status!=='done');console.log(JSON.stringify(t?{task:t.id,status:t.status,missing:t.checks.filter(c=>!t.evidence[c])}:{status:'complete'}))}
+else if(command==='next'){
+ // The built-in initial state is a test fixture, not evidence of unfinished
+ // production work. The scheduled tracker must not turn it into a live Issue.
+ if(!hasPersistedState)console.log(JSON.stringify({status:'uninitialized'}));
+ else{
+  const t=state.tasks.find(x=>x.status!=='done');
+  console.log(JSON.stringify(t?{task:t.id,status:t.status,missing:t.checks.filter(c=>!t.evidence[c])}:{status:'complete'}));
+ }
+}
 else if(command==='record'){
  if(!task||!task.checks.includes(check)||!proof||proof.length<8)throw Error('Valid task, check and evidence required');
  task.evidence[check]={proof,at:new Date().toISOString()};task.status='in_progress';event('record',{id,check,proof});save();
