@@ -171,14 +171,13 @@ jobs:
             if(!changed.length)throw new Error('No request change files linked to deployed SHA');
             fs.writeFileSync('/tmp/changed-release-files.json',JSON.stringify(changed));
             core.info('Passed predeploy gate; release files: '+JSON.stringify(changed));
-            const app=changed.filter(f=>/^(index\.html|[a-zA-Z0-9_-]+\.(?:js|html|css))$/.test(f));
+            const app=changed.filter(f=>/^[a-zA-Z0-9_-]+\.(?:js|html|css|jpg|jpeg|png|gif|webp|svg|ico|webmanifest|woff2?|ttf)$/i.test(f));
             if(!app.length)core.info('No public root assets changed; existing live smoke still required.');
       - name: Verify every changed public asset against live Pages bytes
         id: changed_assets
         if: steps.release_evidence.outcome == 'success'
         run: |
-          echo "CHANGED_RELEASE_FILES=$(cat /tmp/changed-release-files.json)" >> "$GITHUB_ENV"
-          node qa_release_changed_assets_live.mjs
+          CHANGED_RELEASE_FILES="$(cat /tmp/changed-release-files.json)" node qa_release_changed_assets_live.mjs
       - name: Validate actual Pages response, displayed version and protected API
         id: production_health
         if: steps.changed_assets.outcome == 'success'
