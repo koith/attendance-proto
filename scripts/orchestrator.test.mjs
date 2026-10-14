@@ -5,7 +5,12 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 const file=path.join(fs.mkdtempSync(path.join(os.tmpdir(),'work-guard-')),'state.json');
 const run=(...args)=>execFileSync(process.execPath,['scripts/work-orchestrator.mjs',...args],{env:{...process.env,WORK_STATE_FILE:file},encoding:'utf8'});
-assert.equal(JSON.parse(run('next')).task,'payroll');
+assert.equal(JSON.parse(run('next')).status,'uninitialized',
+ 'missing persistent state must not produce a fake unfinished payroll task');
+assert.equal(fs.existsSync(file),false,'read-only next must not create fixture state');
+run('init');
+assert.equal(JSON.parse(run('next')).task,'payroll',
+ 'explicit initialization must preserve the task evidence workflow');
 assert.throws(()=>run('complete','payroll'));
 assert.throws(()=>run('record','payroll','payroll-scenarios','bad'));
 for(const check of ['payroll-scenarios','weekly-approval','payroll-production'])run('record','payroll',check,'https://github.com/example/evidence');
