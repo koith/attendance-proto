@@ -20,6 +20,14 @@ mkdir -p "$(dirname "$exclude_file")"
 printf '\n/node_modules/\n' >> "$exclude_file"
 mkdir -p /tmp/agent-reports
 cat >/tmp/agent-reports/task.txt <<EOF
+You are an autonomous CODE-EDITING AGENT executing an approved task in a
+disposable GitHub Actions checkout. You MUST actually EDIT repository files,
+not just describe code or offer advice. First inspect relevant source with
+view/grep/glob. Then use the edit tool to change an application file AND a
+meaningful qa_*.mjs regression test. Replies without both are failures.
+The user has approved these permitted local file edits: do not request further
+confirmation to make them.
+
 You are maintaining koith/attendance-proto, a live Korean franchise operations app.
 Task title: $title
 Task description:
@@ -59,8 +67,10 @@ for attempt in 1 2 3 4 5; do
   set -e
   if [[ "$provider_status" -ne 0 ]]; then
     echo "::warning::Coding provider exited $provider_status on attempt $attempt"
-    tail -c 4000 /tmp/agent-reports/provider.log || true
   fi
+  # Diagnostic excerpt: never execute model output. Actions masks token values.
+  echo "Provider response excerpt (attempt $attempt):"
+  tail -c 5000 /tmp/agent-reports/provider.log || true
   echo "::endgroup::"
   # The AI cannot change production data, workflow configuration or shell scripts.
   modified="$(git status --porcelain --untracked-files=all | cut -c4-)"
@@ -70,11 +80,18 @@ for attempt in 1 2 3 4 5; do
     exit 1
   fi
   changed_tests="$(printf '%s\n' "$modified" | grep -E '^qa_[a-zA-Z0-9_-]+\.mjs$' || true)"
+  changed_application="$(printf '%s\n' "$modified" | grep -E '^[a-zA-Z0-9_-]+\.(js|html|css)$' || true)"
+  echo "Changed source paths after attempt $attempt:"
+  printf '%s\n' "$modified" | sed '/^$/d' | head -n 30
   set +e
   (
     set -e
     if [[ -z "$changed_tests" ]]; then
       echo "QA FAIL: feature-specific qa_*.mjs regression test is mandatory"
+      exit 1
+    fi
+    if [[ -z "$changed_application" ]]; then
+      echo "QA FAIL: no actual application JS/HTML/CSS file was changed"
       exit 1
     fi
     while IFS= read -r test_path; do
@@ -98,6 +115,10 @@ for attempt in 1 2 3 4 5; do
     exit 1
   fi
   {
+    echo "Your previous response did not produce a validated implementation."
+    echo "Use the edit tool now to modify permitted app source AND the feature QA test."
+    echo "Do not just describe a plan. Preserve the approved task on each retry:"
+    cat /tmp/agent-reports/task.txt
     echo "Fix failing QA without weakening tests; create a meaningful qa_*.mjs acceptance test if missing."
     echo "Original approved task: $title"
     echo "Recent AI provider output:"
