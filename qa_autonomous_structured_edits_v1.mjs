@@ -30,8 +30,12 @@ try{
   assert.throws(()=>applyStructuredEdits({root,output:payload([main,{...test,new:''}])}),/Empty or oversized/);
   assert.throws(()=>applyStructuredEdits({root,output:payload([main,{...test,old:'assert.equal(1,1)',new:'assert.equal(1,1)'}])}),/No real text change/);
   assert.match(file(app),/value = 1/);
-  assert.throws(()=>applyStructuredEdits({root,output:payload([main,main])}),/both application code and feature QA/);
-  assert.throws(()=>applyStructuredEdits({root,output:payload([test,test])}),/both application code and feature QA/);
+  assert.throws(()=>applyStructuredEdits({root,output:payload([main,main])}),/exactly once/,
+    'Duplicate app-only replacement must be rejected');
+  assert.throws(()=>applyStructuredEdits({root,output:payload([test,test])}),/exactly once/,
+    'Duplicate QA-only replacement must be rejected');
+  assert.throws(()=>applyStructuredEdits({root,output:payload([test,{path:'qa_new_v1.mjs',old:null,new:'assert.ok(true);'}])}),/both application code and feature QA/,
+    'QA-only proposals may not bypass source requirement');
   assert.throws(()=>applyStructuredEdits({root,output:payload([main,{path:'qa_new_v1.mjs',old:'missing',new:"console.log('test')"}])}),/Existing-file edit/);
   assert.deepEqual(applyStructuredEdits({root,output:payload([main,{path:'qa_new_v1.mjs',old:null,new:"console.log('test')\n"}])}),['hq_owner_console.js','qa_new_v1.mjs']);
   assert.equal(file(path.join(root,'qa_new_v1.mjs')),"console.log('test')\n");
