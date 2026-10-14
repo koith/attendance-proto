@@ -15,7 +15,7 @@ window.mountHqOwnerConsole=async function(box){
  const RECENTS_KEY="hq_owner_recent_stores_v1";
  const readRecents=()=>{try{return JSON.parse(localStorage.getItem(RECENTS_KEY)||"[]").filter(Number.isFinite).slice(0,5)}catch{return []}};
  const remember=id=>{try{localStorage.setItem(RECENTS_KEY,JSON.stringify([id,...readRecents().filter(x=>x!==id)].slice(0,5)))}catch{}};
- const region=s=>{const raw=String(s.region_group||"").trim();const bits=raw.split(/[\s/·>]+/).filter(Boolean);return {province:bits[0]||"지역 미분류",district:bits.slice(1).join(" ")||"기타"}};
+ const region=s=>{const raw=String(s.region_group||"").trim();const bits=raw.split(/[\s/·>]+/).filter(Boolean);return {province:bits[0]||"지역 미분류",district:bits.slice(1).join(" ")||""}};
  const chose=id=>{selected=Number(id);remember(selected);render()};
  box.innerHTML='<div class="hq-owner-console"><h2>지점 대표 관리자 관리</h2><p>지점별 대표 점주를 확인하고 초대·지정할 수 있습니다.</p><div id="hqOwnerBody">불러오는 중…</div></div>';
  const body=box.querySelector("#hqOwnerBody"); const summary=document.getElementById("hqOwnerPinnedSummary");
@@ -30,14 +30,14 @@ window.mountHqOwnerConsole=async function(box){
  const listScroll=previousList?.scrollTop??0;
  const rows=stores.filter(s=>(filter==="ALL"||(filter==="ASSIGNED"?!!owner(s.id):!owner(s.id)))&&[s.name,s.code,s.region_group,s.id].some(v=>String(v??"").toLowerCase().includes(search.toLowerCase())));
  const regions=[...new Set(stores.map(s=>region(s).province))].sort((a,b)=>a.localeCompare(b,"ko"));
- const districts=[...new Set(stores.filter(s=>region(s).province===province).map(s=>region(s).district))].sort((a,b)=>a.localeCompare(b,"ko"));
- const regionStores=stores.filter(s=>region(s).province===province&&region(s).district===district).sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"));
+ const districts=[...new Set(stores.filter(s=>region(s).province===province).map(s=>region(s).district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ko"));
+ const regionStores=stores.filter(s=>region(s).province===province&&(!district||region(s).district===district)).sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"));
  const recentStores=readRecents().map(id=>stores.find(s=>Number(s.id)===id)).filter(Boolean);
  const letters=["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
  const initial=name=>{const c=String(name||"").trim().charCodeAt(0);return c>=0xAC00&&c<=0xD7A3?letters[Math.floor((c-0xAC00)/588)]:String(name||"").trim()[0]||"#"};
  const letterStores=stores.filter(s=>initial(s.name)===quickLetter).sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"));
  const quickItem=s=>'<button type="button" class="hq-quick-store'+(Number(s.id)===selected?' selected':'')+'" data-quick-store="'+Number(s.id)+'"><span>'+h(s.name)+'</span><small>'+h(region(s).province)+'</small></button>';
- const quickPanel=quickMode==="region"?'<div class="hq-quick-panel"><div class="hq-quick-selects"><label>시·도<select id="hqQuickProvince" class="form-control"><option value="">지역 선택</option>'+regions.map(x=>'<option value="'+h(x)+'"'+(province===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label><label>시·군·구<select id="hqQuickDistrict" class="form-control" '+(province?'':'disabled')+'><option value="">세부 지역 선택</option>'+districts.map(x=>'<option value="'+h(x)+'"'+(district===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label></div><div class="hq-quick-results">'+(district?regionStores.map(quickItem).join(""):'<p class="hq-owner-help">지역을 순서대로 선택하세요.</p>')+'</div></div>':
+ const quickPanel=quickMode==="region"?'<div class="hq-quick-panel"><div class="hq-quick-selects"><label>시·도<select id="hqQuickProvince" class="form-control"><option value="">지역 선택</option>'+regions.map(x=>'<option value="'+h(x)+'"'+(province===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label><label>시·군·구<select id="hqQuickDistrict" class="form-control" '+(province?'':'disabled')+'><option value="">전체 지역</option>'+districts.map(x=>'<option value="'+h(x)+'"'+(district===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label></div><div class="hq-quick-results">'+(province?regionStores.map(quickItem).join(""):'<p class="hq-owner-help">지역을 순서대로 선택하세요.</p>')+'</div></div>':
  quickMode==="initial"?'<div class="hq-quick-panel"><div class="hq-quick-letters">'+letters.map(x=>'<button type="button" data-letter="'+x+'" class="'+(quickLetter===x?'active':'')+'">'+x+'</button>').join("")+'</div><div class="hq-quick-results">'+(quickLetter?letterStores.map(quickItem).join(""):'<p class="hq-owner-help">초성을 누르면 해당 지점이 나타납니다.</p>')+'</div></div>':
  quickMode==="recent"?'<div class="hq-quick-panel"><div class="hq-quick-results">'+(recentStores.length?recentStores.map(quickItem).join(""):'<p class="hq-owner-help">선택했던 지점이 여기에 최대 5개 표시됩니다.</p>')+'</div></div>':'';
  const store=stores.find(s=>Number(s.id)===selected),current=store?owner(selected):null,linked=managers.filter(x=>Number(x.store_id)===selected);
