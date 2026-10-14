@@ -1,3 +1,5 @@
+import {execFileSync} from 'node:child_process';
+execFileSync(process.execPath,['--check','hq_owner_console.js'],{stdio:'inherit'});
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const html=fs.readFileSync('index.html','utf8');
