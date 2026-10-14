@@ -22,6 +22,10 @@ assert.match(parity,/files\.length>0/,
   'Missing and empty release request file selection must fail closed');
 assert.match(parity,/assert\.equal\(actual,expected/,
   'Each selected asset must still compare actual and expected SHA256 digests');
+assert.match(parity,/jpg\|jpeg\|png\|gif\|webp\|svg/,
+  'Changed published logos/images must be included in release SHA256 parity');
+assert.match(verifier,/jpg\|jpeg\|png\|gif\|webp\|svg/,
+  'Independent verification should classify changed published image files');
 
 // These invalid inputs must fail before ANY live HTTP request.
 for(const [name,raw] of [
