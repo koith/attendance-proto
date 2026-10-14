@@ -11,7 +11,7 @@ async function invite(email,store_id){
  const d=await r.json().catch(()=>null);if(!r.ok||d?.ok!==true)throw Error(d?.error||"INVITE_FAILED");
 }
 window.mountHqOwnerConsole=async function(box){
- let stores=[],managers=[],owners=[],accounts=[],selected=0,search="",filter="ALL",busy=false,notice=null,quickMode="",province="",district="",quickLetter="ㄱ";
+ let stores=[],managers=[],owners=[],accounts=[],selected=0,search="",filter="ALL",busy=false,notice=null,quickMode="",province="",district="",subdistrict="",quickLetter="ㄱ";
  const RECENTS_KEY="hq_owner_recent_stores_v1";
  const readRecents=()=>{try{return JSON.parse(localStorage.getItem(RECENTS_KEY)||"[]").filter(Number.isFinite).slice(0,5)}catch{return []}};
  const remember=id=>{try{localStorage.setItem(RECENTS_KEY,JSON.stringify([id,...readRecents().filter(x=>x!==id)].slice(0,5)))}catch{}};
@@ -50,6 +50,14 @@ window.mountHqOwnerConsole=async function(box){
  "경상남도":"창원시 진주시 통영시 사천시 김해시 밀양시 거제시 양산시 의령군 함안군 창녕군 고성군 남해군 하동군 산청군 함양군 거창군 합천군".split(" "),
  "제주특별자치도":"제주시 서귀포시".split(" ")
  };
+ const SUB_DISTRICTS={
+ "경기도":{"수원시":"장안구 권선구 팔달구 영통구","성남시":"수정구 중원구 분당구","안양시":"만안구 동안구","안산시":"상록구 단원구","고양시":"덕양구 일산동구 일산서구","용인시":"처인구 기흥구 수지구"},
+ "충청북도":{"청주시":"상당구 서원구 흥덕구 청원구"},
+ "충청남도":{"천안시":"동남구 서북구"},
+ "전북특별자치도":{"전주시":"완산구 덕진구"},
+ "경상북도":{"포항시":"남구 북구"},
+ "경상남도":{"창원시":"의창구 성산구 마산합포구 마산회원구 진해구"}
+ };
  const chose=id=>{selected=Number(id);remember(selected);render()};
  box.innerHTML='<div class="hq-owner-console"><h2>지점 대표 관리자 관리</h2><p>지점별 대표 점주를 확인하고 초대·지정할 수 있습니다.</p><div id="hqOwnerBody">불러오는 중…</div></div>';
  const body=box.querySelector("#hqOwnerBody"); const summary=document.getElementById("hqOwnerPinnedSummary");
@@ -65,14 +73,15 @@ window.mountHqOwnerConsole=async function(box){
  const rows=stores.filter(s=>(filter==="ALL"||(filter==="ASSIGNED"?!!owner(s.id):!owner(s.id)))&&[s.name,s.code,s.region_group,s.id].some(v=>String(v??"").toLowerCase().includes(search.toLowerCase())));
  const regions=Object.values(PROVINCES);
  const districts=ADMIN_DISTRICTS[province]||[...new Set(stores.filter(s=>region(s).province===province).map(s=>region(s).district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ko"));
- const regionStores=stores.filter(s=>region(s).province===province&&(!district||region(s).district===district)).sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"));
+ const regionStores=stores.filter(s=>region(s).province===province&&(!district||region(s).district===district)&&(!subdistrict||String(s.address||s.road_address||"").includes(subdistrict))).sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"));
+ const subdivisions=(SUB_DISTRICTS[province]?.[district]||"").split(" ").filter(Boolean);
  const recentStores=readRecents().map(id=>stores.find(s=>Number(s.id)===id)).filter(Boolean);
  const letters=["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
  const initial=name=>{const c=String(name||"").trim().charCodeAt(0);return c>=0xAC00&&c<=0xD7A3?letters[Math.floor((c-0xAC00)/588)]:String(name||"").trim()[0]||"#"};
  const letterStores=stores.filter(s=>initial(s.name)===quickLetter).sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"));
  const quickItem=s=>'<button type="button" class="hq-quick-store'+(Number(s.id)===selected?' selected':'')+'" data-quick-store="'+Number(s.id)+'"><span>'+h(s.name)+'</span><small>'+h(region(s).province)+'</small></button>';
  const quickTitle=quickMode==="region"?"지역별 찾기":quickMode==="initial"?"가나다순 찾기":"최근 지점";
- const quickPanel=quickMode==="region"?'<div class="hq-quick-panel"><div class="hq-quick-selects"><label>시·도<select id="hqQuickProvince" class="form-control"><option value="">지역 선택</option>'+regions.map(x=>'<option value="'+h(x)+'"'+(province===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label><label>시·군·구<select id="hqQuickDistrict" class="form-control" '+(province?'':'disabled')+'><option value="">전체 지역</option>'+districts.map(x=>'<option value="'+h(x)+'"'+(district===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label></div><div class="hq-quick-results">'+(province?'<p class="hq-owner-help">시·군·구는 실제 행정구역 목록입니다. 지점 주소에 구 정보가 없으면 선택한 구의 지점이 조회되지 않을 수 있습니다.</p>'+(regionStores.length?regionStores.map(quickItem).join(""):'<p class="hq-owner-help">해당 지역에 주소가 확인된 지점이 없습니다.</p>'):'<p class="hq-owner-help">시·도를 선택하세요.</p>')+'</div></div>':
+ const quickPanel=quickMode==="region"?'<div class="hq-quick-panel"><div class="hq-quick-selects"><label>시·도<select id="hqQuickProvince" class="form-control"><option value="">지역 선택</option>'+regions.map(x=>'<option value="'+h(x)+'"'+(province===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label><label>시·군·구<select id="hqQuickDistrict" class="form-control" '+(province?'':'disabled')+'><option value="">전체 지역</option>'+districts.map(x=>'<option value="'+h(x)+'"'+(district===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label>'+(subdivisions.length?'<label>구<select id="hqQuickSubdistrict" class="form-control"><option value="">전체 구</option>'+subdivisions.map(x=>'<option value="'+h(x)+'"'+(subdistrict===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label>':'')+'</div><div class="hq-quick-results">'+(province?'<p class="hq-owner-help">시·군·구는 실제 행정구역 목록입니다. 지점 주소에 구 정보가 없으면 선택한 구의 지점이 조회되지 않을 수 있습니다.</p>'+(regionStores.length?regionStores.map(quickItem).join(""):'<p class="hq-owner-help">해당 지역에 주소가 확인된 지점이 없습니다.</p>'):'<p class="hq-owner-help">시·도를 선택하세요.</p>')+'</div></div>':
  quickMode==="initial"?'<div class="hq-quick-panel"><div class="hq-quick-letters">'+letters.map(x=>'<button type="button" data-letter="'+x+'" class="'+(quickLetter===x?'active':'')+'">'+x+'</button>').join("")+'</div><div class="hq-quick-results">'+(quickLetter?letterStores.map(quickItem).join(""):'<p class="hq-owner-help">초성을 누르면 해당 지점이 나타납니다.</p>')+'</div></div>':
  quickMode==="recent"?'<div class="hq-quick-panel"><div class="hq-quick-results">'+(recentStores.length?recentStores.map(quickItem).join(""):'<p class="hq-owner-help">선택했던 지점이 여기에 최대 5개 표시됩니다.</p>')+'</div></div>':'';
  const store=stores.find(s=>Number(s.id)===selected),current=store?owner(selected):null,linked=managers.filter(x=>Number(x.store_id)===selected);
@@ -93,8 +102,9 @@ window.mountHqOwnerConsole=async function(box){
  body.querySelector("#hqOwnerDismiss")?.addEventListener("click",()=>{notice=null;render()});
  body.querySelectorAll("[data-quick-mode]").forEach(b=>b.onclick=()=>{quickMode=quickMode===b.dataset.quickMode?"":b.dataset.quickMode;if(quickMode==="initial")quickLetter="ㄱ";render()});
  body.querySelector("#hqQuickClose")?.addEventListener("click",()=>{quickMode="";render()});
- body.querySelector("#hqQuickProvince")?.addEventListener("change",e=>{province=e.target.value;district="";render()});
- body.querySelector("#hqQuickDistrict")?.addEventListener("change",e=>{district=e.target.value;render()});
+ body.querySelector("#hqQuickProvince")?.addEventListener("change",e=>{province=e.target.value;district="";subdistrict="";render()});
+ body.querySelector("#hqQuickDistrict")?.addEventListener("change",e=>{district=e.target.value;subdistrict="";render()});
+ body.querySelector("#hqQuickSubdistrict")?.addEventListener("change",e=>{subdistrict=e.target.value;render()});
  body.querySelectorAll("[data-letter]").forEach(b=>b.onclick=()=>{quickLetter=b.dataset.letter;render()});
  body.querySelectorAll("[data-quick-store]").forEach(b=>b.onclick=()=>{quickMode="";chose(b.dataset.quickStore)});
  body.querySelector("#hqOwnerFilter").value=filter;
