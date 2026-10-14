@@ -18,7 +18,7 @@ async function payroll({contract=defaultContract,periods=[{employee_id:employee.
   payrollWeeklyApprovals:async()=>[],payrollEmploymentPeriods:async()=>periods,
   employmentBundle:async()=>({contracts:[contract],periods,workdays:[]}),
  };
- const R=await createPayrollEngine({BE,storeId:1,now:new Date('2026-10-11T08:00:00Z')}).computeMonthPayroll('2026-10');
+ const R=await createPayrollEngine({BE,storeId:1,now:new Date('2026-11-11T08:00:00Z')}).computeMonthPayroll('2026-10');
  assert.equal(R.rows.length,1);assert.equal(R.rows[0].contractMode,'MONTHLY');
  return R.rows[0].pay;
 }

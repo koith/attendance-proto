@@ -264,10 +264,14 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       // Attendance day count must never turn a fixed salary into a daily wage.
       const [yy,mm]=ym.split("-").map(Number);
       const daysInMonth=new Date(yy,mm,0).getDate();
+      // For an open month, only employment through today in Seoul has accrued.
+      // For completed months retain the entire calendar-month entitlement.
+      const today=kstNow(),currentYm=`${today.getFullYear()}-${p2(today.getMonth()+1)}`;
+      const payableDays=ym<currentYm?daysInMonth:ym>currentYm?0:Math.min(daysInMonth,today.getDate());
       const monthlySalary=Number(contract.monthly_salary);
       const employeePeriods=employmentPeriods.filter(period=>Number(period.employee_id)===Number(e.id));
       let accruedDays=0;
-      for(let day=1;day<=daysInMonth;day++){
+      for(let day=1;day<=payableDays;day++){
         const date=`${ym}-${p2(day)}`;
         if(String(contract.effective_from)>date||(contract.effective_to&&String(contract.effective_to)<date))continue;
         if(employeePeriods.length&&!employeePeriods.some(period=>String(period.started_on)<=date&&(!period.ended_on||String(period.ended_on)>=date)))continue;
@@ -580,12 +584,14 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     if(!Number.isFinite(rate)||rate<0||rate>=1)return null;
     const [year,month]=ym.split('-').map(Number);
     const daysInMonth=new Date(year,month,0).getDate();
+    const today=kstNow(),currentYm=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+    const payableDays=ym<currentYm?daysInMonth:ym>currentYm?0:Math.min(daysInMonth,today.getDate());
     const first=ym+'-01',last=ym+'-'+String(daysInMonth).padStart(2,'0');
     const spanFirst=contracts.map(c=>String(c.effective_from)).sort()[0];
     const spanLast=contracts.map(c=>c.effective_to?String(c.effective_to):last).sort().at(-1);
     const jobs=(periods||[]).filter(p=>Number(p.employee_id)===Number(employeeId));
     const allocation=new Map(contracts.map(c=>[c,0]));
-    for(let day=1;day<=daysInMonth;day++){
+    for(let day=1;day<=payableDays;day++){
       const date=ym+'-'+String(day).padStart(2,'0');
       const employed=jobs.length
         ?jobs.some(p=>String(p.started_on)<=date&&(!p.ended_on||String(p.ended_on)>=date))

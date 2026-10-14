@@ -37,7 +37,7 @@ async function run({contracts,dates=[],periods=[]}){
     employmentBundle:async()=>({contracts,workdays:[],periods})
   };
   const calculated=await createPayrollEngine({BE,storeId:1,
-    now:new Date('2026-10-29T03:00:00Z')}).computeMonthPayroll('2026-10');
+    now:new Date('2026-11-03T03:00:00Z')}).computeMonthPayroll('2026-10');
   assert.equal(calculated.rows.length,1);
   return calculated.rows[0];
 }
