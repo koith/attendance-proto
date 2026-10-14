@@ -21,6 +21,8 @@ on:
       - 'qa_pos_startup_network_timeout_v1.mjs'
       - 'operations_reference_ui_v208.js'
       - 'operations_v1.js'
+      - 'qa_operations_demo_metrics_guard_v1.mjs'
+      - 'supabase/migrations/20261015082000_operations_real_metrics_exclude_demo.sql'
       - 'qa_inventory_editor_wiring_v1.mjs'
       - 'qa_operational_readiness_fail_closed_v1.mjs'
       - 'qa_index_startup_smoke_v1.mjs'
@@ -321,6 +323,7 @@ jobs:
           node qa_store_operations_isolation_v1.mjs
           node qa_store_operations_reconciliation_ui_v1.mjs
           node qa_operations_real_ledger_export_v1.mjs
+          node qa_operations_demo_metrics_guard_v1.mjs
       - name: Multi-store inventory ledger regression
         run: |
           node qa_store_inventory_isolation_v1.mjs

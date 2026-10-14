@@ -33,7 +33,7 @@ const milkLife=ref.shelf_life.find(x=>x.name==='우유');
 assert.equal(milkLife.expiry_after,'3일');
 
 const dataAt=html.indexOf('operations_reference_v208.js?v=20260927v220');
-const appAt=html.indexOf('operations_v1.js?v=20261013v246');
+const appAt=html.indexOf('operations_v1.js?v=20261015v276');
 const uiAt=html.indexOf('operations_reference_ui_v208.js?v=20261012ui241');
 assert.ok(dataAt>=0&&dataAt<appAt&&appAt<uiAt,'reference data, legacy operations, then reference UI must load in order');
 assert.ok(html.includes('const APP_VERSION="v0.245"'));
