@@ -13,6 +13,16 @@ assert.match(ui,/addEventListener\("click",closeQuickPicker\)/,'Button and Escap
 assert.match(browser,/keyboard\.press\('Escape'\)/,'Browser QA must actually press Escape');
 assert.match(browser,/document\.activeElement===el/,'Browser QA must validate restored keyboard focus');
 assert.match(browser,/Escape must reset the region before reopen/,'Browser QA must validate initial state');
+assert.match(ui,/box\.__hqOwnerKeyboardCleanup\?\.\(\)/,
+  'Reopening must release prior listeners');
+assert.match(ui,/const stopOutsideKeys=/,'Quick popup must support listener disposal');
+assert.match(ui,/if\(quickMode\)startOutsideKeys\(\);else stopOutsideKeys\(\);/,
+  'Only an open popup may capture document keyboard events');
+assert.match(ui,/new MutationObserver/,'Outer modal dismissal and unmount must be detected');
+assert.match(ui,/new AbortController\(\)/,'Remount must abort old delegated listener');
+assert.match(browser,/Remount must not leak prior keyboard listeners/);
+assert.match(browser,/Unrelated focus must not be intercepted/);
+assert.match(browser,/Unmount must unregister keyboard capture/);
 const app=fs.readFileSync('index.html','utf8');
 const version=app.match(/const APP_VERSION="v0\.(\d+)";/);
 assert.ok(version&&Number(version[1])>=274,
