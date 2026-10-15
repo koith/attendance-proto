@@ -48,6 +48,8 @@ jobs:
           gh issue view "$ISSUE_NUMBER" --json state --jq .state | grep -qx OPEN
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Preserve original approved issue before coding
+        run: node scripts/issue_intake_receipt.mjs
       - name: Install AI coding agent and browser QA dependencies
         run: |
           if [[ -n "$OPENAI_API_KEY" ]]; then
