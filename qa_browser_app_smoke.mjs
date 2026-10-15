@@ -98,6 +98,12 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
       admin_store_pending_requests:[],
       admin_store_schedule_list:[],
       hq_store_dashboard:dashboard,
+      hq_field_readiness_v1:{
+        schema_version:2,captured_at:'2026-10-15T08:18:00Z',
+        payroll:{closed_periods:0,closed_periods_with_snapshots:0,qualified_closed_periods:0,approved_weeks:0},
+        stores:{qualified_owner_links:0,staged_count:243},
+        operations:{completed_imports:0,confirmed_linked_real_transactions:0,unresolved_reconciliations:0,real_stock_movements:0}
+      },
       admin_store_payroll_period:{period:{weeks:4},overrides:[]}
     };
     return reply(route,Object.hasOwn(fixtures,name)?fixtures[name]:[]);
@@ -255,6 +261,15 @@ async function smoke(browser,label,viewport){
   await page.goto(host+'/index.html#dashboard',{waitUntil:'domcontentloaded'});
   await page.locator('.hq-store-panel').first().waitFor({timeout:20000});
   assert.equal(await page.locator('.hq-store-panel').count(),2,'HQ store cards '+label);
+  await page.locator('#hqReadinessOpen').click();
+  await page.locator('#hqReadinessPanel h3').waitFor({timeout:12000});
+  assert.match(await page.locator('#hqReadinessPanel').innerText(),/현장 검증 현황/);
+  assert.match(await page.locator('#hqReadinessPanel').innerText(),/실자료 검증대기/);
+  assert.ok(calls.some(x=>x.name==='hq_field_readiness_v1'),
+    'HQ page must request server-scoped field evidence '+label);
+  await page.locator('#hqReadinessRefresh').click();
+  await page.locator('#hqReadinessPanel h3').waitFor({timeout:12000});
+
   assert.match(await page.locator('#view').innerText(),/시연용 거래는 매출 집계에서 제외했습니다/);
   // HQ provisioning must not send a real email: mock Edge and SQL RPCs only.
   await page.evaluate(()=>openAccountMgmt());
