@@ -92,7 +92,7 @@ async function simulateStore(storeId,role){
  assert.match(html,/data-manager-kind="owner"/);
  assert.match(html,/data-manager-kind="delegate"/);
  assert.match(html,/delegate@synthetic.invalid/);
- assert.equal((html.match(/class="smt-entry"/g)||[]).length,2,"one row per owner/delegate");
+ assert.equal((html.match(/class="smt-entry"/g)||[]).length,role==="OWNER"?2:3,"one row per account; owner + each delegate");
  assert.doesNotMatch(html,/store-manager-person|store-manager-hq-note|현재 내 권한/,
   "verbose nested account explanation cards must be removed");
  if(role==="OWNER"){
