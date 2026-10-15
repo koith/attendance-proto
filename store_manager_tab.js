@@ -66,37 +66,44 @@ window.mountStoreManagerTab=function(){
       const isPrimary=self?.manager_role==="OWNER";
       const canManage=isPrimary; // HQ appoints owners exclusively from the nationwide HQ dashboard.
       const managerPermissions=isPrimary?await request("store_delegated_permissions_list",{p_store_id:storeId}):[];
-      const names=rows.map(entry=>{
-        const primary=entry.manager_role==="OWNER";
-        const removable=canManage&&!primary&&entry.user_id!==user?.id;
-        const rights=managerPermissions.find(p=>p.user_id===entry.user_id)||{staff_edit:true,attendance_approve:true,payroll_view:true};
-        const rightControls=removable?'<div data-manager-rights="'+esc(entry.user_id)+'" style="margin-top:9px;padding:10px;border:1px solid var(--border);border-radius:10px">'+
-          '<p style="font-size:.77rem;color:var(--text-muted);margin:0 0 8px">허용 업무를 선택하세요. 체크한 세 가지 업무만 허용됩니다. 세 항목을 모두 체크해도 전체 관리자 권한이나 본사 권한은 부여되지 않습니다.</p>'+
-          '<label style="display:block;margin:5px 0"><input data-allow="staff" type="checkbox" '+(rights.staff_edit?'checked':'')+'> 직원 기본정보 수정</label>'+
-          '<label style="display:block;margin:5px 0"><input data-allow="attendance" type="checkbox" '+(rights.attendance_approve?'checked':'')+'> 근태 정정 승인</label>'+
-          '<label style="display:block;margin:5px 0"><input data-allow="payroll" type="checkbox" '+(rights.payroll_view?'checked':'')+'> 확정 급여 열람</label>'+
-          '<button type="button" class="btn btn-secondary btn-sm" data-permission-save="'+esc(entry.user_id)+'">권한 변경 저장</button></div>':'';
-        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px;border:1px solid var(--border);border-radius:10px">'+
-          '<div style="min-width:0;overflow-wrap:anywhere"><strong>'+esc(entry.email)+'</strong>'+
-          '<div style="font-size:.8rem;color:var(--text-muted)">'+(primary?"대표 점주":"추가 관리자")+'</div></div>'+
-          (removable?'<button class="btn btn-secondary btn-sm" type="button" data-manager-revoke="'+esc(entry.user_id)+'">권한 해제</button>':"")+
-          '</div>'+rightControls;
+      const owner=rows.find(entry=>entry.manager_role==="OWNER");
+      const delegates=rows.filter(entry=>entry.manager_role!=="OWNER");
+      const currentRole=isHq===true?"본사 관리자":isPrimary?"대표 점주":self?"보조 관리자":"조회 권한";
+      const rightsLabel=entry=>{
+        const rights=managerPermissions.find(p=>p.user_id===entry.user_id);
+        if(!rights)return "권한 정보는 대표 점주가 확인할 수 있습니다.";
+        return ["직원 정보 수정","근태 정정 승인","확정 급여 열람"].filter((_,i)=>[rights.staff_edit,rights.attendance_approve,rights.payroll_view][i]).join(" · ")||"허용된 업무 없음";
+      };
+      const delegateCards=delegates.map(entry=>{
+        const removable=canManage&&entry.user_id!==user?.id;
+        const rights=managerPermissions.find(p=>p.user_id===entry.user_id)||{staff_edit:false,attendance_approve:false,payroll_view:false};
+        return '<article class="store-manager-person" style="border:1px solid var(--border);border-radius:12px;padding:13px;display:grid;gap:9px">'+
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px"><div style="min-width:0"><strong style="overflow-wrap:anywhere">'+esc(entry.email)+'</strong><div style="font-size:.8rem;color:var(--text-muted);margin-top:4px">보조 관리자'+(entry.user_id===user?.id?" · 나":"")+'</div></div><span style="border:1px solid var(--border);border-radius:999px;padding:4px 9px;font-size:.75rem;white-space:nowrap">보조</span></div>'+
+          '<div style="font-size:.8rem;color:var(--text-muted)">사용 가능한 업무: '+esc(rightsLabel(entry))+'</div>'+
+          (removable?'<details style="border-top:1px solid var(--border);padding-top:10px"><summary style="cursor:pointer;font-weight:600;color:var(--brand-700)">권한 및 계정 관리</summary>'+
+          '<div data-manager-rights="'+esc(entry.user_id)+'" style="display:grid;gap:10px;margin-top:12px">'+
+          '<p style="font-size:.77rem;color:var(--text-muted);margin:0">세 항목을 모두 체크해도 전체 관리자 권한이나 본사 권한은 부여되지 않습니다.</p>'+
+          '<label><input data-allow="staff" type="checkbox" '+(rights.staff_edit?'checked':'')+'> 직원 기본정보 수정</label>'+
+          '<label><input data-allow="attendance" type="checkbox" '+(rights.attendance_approve?'checked':'')+'> 근태 정정 승인</label>'+
+          '<label><input data-allow="payroll" type="checkbox" '+(rights.payroll_view?'checked':'')+'> 확정 급여 열람</label>'+
+          '<button type="button" class="btn btn-secondary btn-sm" data-permission-save="'+esc(entry.user_id)+'">권한 변경 저장</button>'+
+          '<button type="button" class="btn btn-secondary btn-sm" data-manager-revoke="'+esc(entry.user_id)+'">이 지점 관리자 해임</button></div></details>':'')+
+          '</article>';
       }).join("");
-      content.innerHTML='<p style="font-size:.82rem;color:var(--text-muted);line-height:1.5">'+
-        '대표 점주는 이 지점의 보조 관리자를 등록·해임합니다. 대표 점주 지정·교체 및 신규 점주 초대는 본사 대시보드에서만 관리합니다.</p>'+
-        '<div style="display:grid;gap:8px;margin:12px 0">'+
-        (names||'<div class="store-manager-empty"><strong>등록된 관리자 계정이 없습니다.</strong><p>본사 대시보드에서 지점 점주를 초대하고 대표 점주로 지정하면 보조 관리자 관리가 활성화됩니다.</p></div>')+'</div>'+
-        (isPrimary?'<form id="storeManagerExistingForm" style="display:grid;gap:7px;margin-top:15px">'+
-          '<label for="storeManagerExistingEmail">기존 가입·인증 계정에 관리자 권한 부여</label>'+
-          '<input id="storeManagerExistingEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com">'+
-          '<button type="submit" class="btn btn-secondary">기존 계정 연결</button></form>'+
-          '<form id="storeManagerInviteForm" style="display:grid;gap:7px;margin-top:15px">'+
-          '<label for="storeManagerInviteEmail">새 관리자 계정 이메일 초대</label>'+
-          '<input id="storeManagerInviteEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com">'+
-          '<button type="submit" class="btn btn-primary">초대 이메일 발송</button>'+
-          '<p style="font-size:.77rem;color:var(--text-muted)">초대받은 관리자는 이메일 인증을 완료한 뒤 로그인할 수 있습니다.</p></form>':
-          '<p style="font-size:.8rem;color:var(--text-muted)">추가 관리자 등록·해임은 대표 점주에게만 허용됩니다.</p>')+
-        (isHq===true?'<p class="store-manager-hq-note">본사 관리자: 대표 점주 초대·지정·교체는 <strong>본사 대시보드 → 전국 지점 운영</strong>에서 처리합니다.</p>':'');
+      const ownerCard=owner?'<article class="store-manager-person" style="border:1px solid var(--border);border-radius:12px;padding:13px;display:flex;justify-content:space-between;gap:10px"><div style="min-width:0"><strong style="overflow-wrap:anywhere">'+esc(owner.email)+'</strong><div style="font-size:.8rem;color:var(--text-muted);margin-top:5px">대표 점주'+(owner.user_id===user?.id?" · 나":"")+'</div></div><span style="border-radius:999px;background:var(--brand-050);color:var(--brand-700);padding:5px 10px;height:max-content;font-size:.75rem;white-space:nowrap">대표</span></article>':
+        '<div class="store-manager-empty"><strong>대표 점주가 아직 지정되지 않았습니다.</strong><p>본사 대시보드에서 대표 점주를 지정할 수 있습니다.</p></div>';
+      content.innerHTML=
+        '<section style="border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--surface-muted);margin-bottom:16px">'+
+        '<div style="font-size:.8rem;color:var(--text-muted)">현재 내 권한</div><strong style="display:block;font-size:1.06rem;margin:5px 0">'+esc(currentRole)+'</strong>'+
+        '<div style="font-size:.82rem;line-height:1.6">'+(isPrimary?"직원·근태·급여를 관리하고 보조 관리자를 초대하거나 해임할 수 있습니다.":isHq===true?"본사 관리자는 전국 지점 운영에서 대표 점주를 지정·교체합니다.":self?"대표 점주가 허용한 업무만 이용할 수 있습니다.":"이 지점의 관리자 권한이 확인되지 않았습니다.")+'</div></section>'+
+        '<section style="margin-bottom:18px"><h4 style="margin:0 0 9px">대표 점주</h4>'+ownerCard+
+        '<p style="font-size:.78rem;color:var(--text-muted);margin:9px 0 0">대표 점주 지정·교체는 본사 대시보드에서만 가능합니다.</p></section>'+
+        '<section><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px"><h4 style="margin:0">보조 관리자</h4><span style="font-size:.8rem;color:var(--text-muted)">'+delegates.length+'명</span></div>'+
+        '<div style="display:grid;gap:9px">'+(delegateCards||'<div class="store-manager-empty">등록된 보조 관리자가 없습니다.</div>')+'</div></section>'+
+        (isPrimary?'<details style="margin-top:18px;border:1px solid var(--border);border-radius:12px;padding:13px"><summary style="cursor:pointer;font-weight:600">+ 보조 관리자 추가</summary><div style="margin-top:13px;display:grid;gap:12px">'+
+          '<form id="storeManagerExistingForm" style="display:grid;gap:7px"><label for="storeManagerExistingEmail">이미 가입한 계정 연결</label><input id="storeManagerExistingEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com"><button type="submit" class="btn btn-secondary">기존 계정 연결</button></form>'+
+          '<form id="storeManagerInviteForm" style="display:grid;gap:7px"><label for="storeManagerInviteEmail">새 계정 이메일 초대</label><input id="storeManagerInviteEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com"><button type="submit" class="btn btn-primary">초대 이메일 발송</button><p style="font-size:.77rem;color:var(--text-muted)">초대받은 관리자는 이메일 인증 후 로그인할 수 있습니다.</p></form></div></details>':'')+
+        (isHq===true?'<p class="store-manager-hq-note" style="margin-top:14px">본사 관리자: 대표 점주 초대·지정·교체는 <strong>본사 대시보드 → 전국 지점 운영</strong>에서 처리합니다.</p>':'');
       content.querySelector("#storeManagerExistingForm")?.addEventListener("submit",event=>{
         event.preventDefault();
         const email=content.querySelector("#storeManagerExistingEmail").value.trim().toLowerCase();
