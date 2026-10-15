@@ -66,10 +66,17 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
       store_ready:true,period:{store_id:Number(args.p_store_id),ym:args.p_ym,weeks:4,status:payrollClosed?'CLOSED':'OPEN'},overrides:[]});
     if(name==='list_store_employees'&&role==='STORE_MANAGER')
       return reply(route,employees.map(e=>({...e,store_id:managerStoreId,name:'점주 지점 직원'})));
-    if(name==='list_employees_state'&&role==='STORE_MANAGER')
-      return reply(route,employees.map(e=>({...e,store_id:managerStoreId,name:'점주 지점 직원'})));
-    if(name==='list_employees_state'){
-      return reply(route,employees.map(e=>({...e,working,working_since:working?'2026-10-10T09:00:00':null})));
+    if(name==='pos_unlock_store'){
+      if(String(args.p_pin)!=='1234'||Number(args.p_employee_no)!==1||![1,2].includes(Number(args.p_store_id)))
+        return reply(route,{ok:false,error:'INVALID_CREDENTIALS'});
+      return reply(route,{ok:true,token:'a'.repeat(64),valid_for_seconds:28800});
+    }
+    if(name==='pos_employees_state'){
+      if(args.p_token!=='a'.repeat(64)||![1,2].includes(Number(args.p_store_id)))
+        return reply(route,{message:'POS_AUTH_REQUIRED'},401);
+      return reply(route,employees.map(e=>({...e,store_id:Number(args.p_store_id),
+        name:role==='STORE_MANAGER'?'점주 지점 직원':e.name,
+        working,working_since:working?'2026-10-10T09:00:00':null})));
     }
     if(name==='punch'){
       if(String(args.p_pin)!=='1234')return reply(route,{ok:false,error:'BAD_PIN'});
@@ -121,6 +128,16 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
   return {confirmOwner:()=>{if(!ownerInvited)throw Error('INVITE_NOT_SENT');ownerConfirmed=true;}};
 }
 async function check(condition,message){assert.ok(condition,message)}
+async function unlockPos(page,label){
+  await page.locator('#posUnlockForm').waitFor({timeout:20000});
+  assert.equal(await page.locator('#empGrid .emp').count(),0,
+    'Employee roster visible before PIN unlock '+label);
+  await page.locator('#posUnlockEmployeeNo').fill('1');
+  await page.locator('#posUnlockPin').fill('1234');
+  await page.locator('#posUnlockButton').click();
+  await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
+}
+
 
 async function smoke(browser,label,viewport){
   const context=await browser.newContext({viewport,locale:'ko-KR',timezoneId:'Asia/Seoul'});
@@ -133,7 +150,7 @@ async function smoke(browser,label,viewport){
   });
   const ownerFixture=await configure(page,calls);
   await page.goto(host+'/index.html?mode=store&store=1#pos',{waitUntil:'domcontentloaded'});
-  await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
+  await unlockPos(page,label);
   assert.equal((await page.locator('#appVersion').innerText()).trim(),expectedVersion,'Deployed app version mismatch '+label);
   assert.match(await page.locator('#empGrid').innerText(),/김지수/);
   await check(await page.locator('#lockedStoreName').isVisible(),'Store identity missing '+label);
@@ -307,7 +324,7 @@ async function ownerScopedRoute(browser,label,viewport){
   await configure(page,calls,'STORE_MANAGER',2);
   await page.goto(host+'/index.html?mode=store&store=1#admin',{waitUntil:'domcontentloaded'});
   await page.waitForURL(/mode=store&store=2#pos/,{timeout:20000});
-  await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
+  await unlockPos(page,label);
   assert.ok((await page.locator('#empGrid').innerText()).includes('점주 지점 직원'),'Store owner POS scope '+label);
   assert.equal(await page.locator('#storeSelect').count(),0,'Store owner must not have HQ store switcher '+label);
   await page.evaluate(()=>{location.hash='#admin'});
@@ -374,7 +391,7 @@ async function posNetworkRecovery(browser){
   assert.match(await page.locator('#view').innerText(),/지점 서버 연결이 지연/);
   disconnected=false;
   await page.getByRole('button',{name:'다시 연결'}).click();
-  await page.locator('#empGrid .emp').first().waitFor({timeout:12000});
+  await unlockPos(page,'offline-recovery');
   assert.match(await page.locator('#empGrid').innerText(),/김지수/,
     'Retry must restore authorized store employee roster');
   assert.equal(errors.length,0,'POS error recovery must not throw in browser '+JSON.stringify(errors));
