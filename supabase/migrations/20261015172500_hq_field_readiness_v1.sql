@@ -5,7 +5,7 @@ RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','pg_
 AS $func$
 DECLARE v_snapshot jsonb;
 BEGIN
- IF NOT public.is_hq_admin() THEN
+ IF public.is_hq_admin() IS NOT TRUE THEN
    RAISE EXCEPTION 'NOT_AUTHORIZED';
  END IF;
  WITH
