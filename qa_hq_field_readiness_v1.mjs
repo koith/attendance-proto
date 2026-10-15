@@ -29,15 +29,15 @@ assert.match(sql,/r\.source_record_key=t\.source_record_key/,'normalized transac
 
 assert.match(source,/qualifying_payroll_periods/,'read-only original must remain');
 assert.match(app,/async hqFieldReadiness\(\)\{ return rpc\("hq_field_readiness_v1",\{\},true\); \}/);
-assert.match(app,/id="hqReadinessOpen"/);
-assert.match(app,/id="hqReadinessPanel"/);
-assert.match(app,/renderHqReadinessPanel/);
+assert.doesNotMatch(app,/id="hqReadinessOpen"/,"internal readiness UI must not appear on HQ dashboard");
+assert.doesNotMatch(app,/id="hqReadinessOverlay"/,"internal readiness modal must not appear on HQ dashboard");
+assert.match(app,/renderHqReadinessPanel/,"read-only internal readiness logic remains available");
 assert.match(app,/if\(snap\?\.schema_version!==2/);
 assert.match(app,/const payCandidate=qualified>0&&approved>0/);
 assert.match(app,/const storeCandidate=owners>0/);
 assert.match(app,/const opsCandidate=imports>0&&linked>0&&openIssues===0/);
 assert.match(app,/실자료 발견 · 현장 검증 필요/);
-assert.match(app,/현장 검증 전에는 완료 처리하지 않음/);
+assert.match(app,/실자료를 임의 생성하지 않습니다/);
 assert.match(app,/권한이나 서버 연결을 확인하세요. 완료로 처리하지 않았습니다/);
 assert.match(app,/const APP_VERSION="v0\.292"/);
 assert.match(app,/id="appVersion">v0\.292<\/span>/);
