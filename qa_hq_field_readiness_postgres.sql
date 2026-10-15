@@ -112,7 +112,7 @@ UPDATE auth.users SET is_anonymous=false;
 
 -- FEATURE-01 must fail closed even if a failed/incomplete batch retains completed_at.
 UPDATE public.operations_import_batches SET status='FAILED' WHERE id=10;
-DO $
+DO $$
 DECLARE r jsonb;
 BEGIN
  PERFORM set_config('qa.hq','1',true);
@@ -120,64 +120,64 @@ BEGIN
  IF (r->'operations'->>'completed_imports')::int<>0
  OR (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
  THEN RAISE EXCEPTION 'FAILED_BATCH_COUNTED_AS_REAL_PROVENANCE'; END IF;
-END $;
+END $$;
 UPDATE public.operations_import_batches SET status='PROCESSING' WHERE id=10;
-DO $
+DO $$
 DECLARE r jsonb;
 BEGIN
  PERFORM set_config('qa.hq','1',true);
  r:=public.hq_field_readiness_v1();
  IF (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
  THEN RAISE EXCEPTION 'PROCESSING_BATCH_COUNTED_AS_REAL_PROVENANCE'; END IF;
-END $;
+END $$;
 UPDATE public.operations_import_batches SET status='COMPLETED',store_id=2 WHERE id=10;
-DO $
+DO $$
 DECLARE r jsonb;
 BEGIN
  PERFORM set_config('qa.hq','1',true);
  r:=public.hq_field_readiness_v1();
  IF (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
  THEN RAISE EXCEPTION 'CROSS_STORE_BATCH_COUNTED_AS_REAL_PROVENANCE'; END IF;
-END $;
+END $$;
 UPDATE public.operations_import_batches SET store_id=1,source='DELIVERY' WHERE id=10;
-DO $
+DO $$
 DECLARE r jsonb;
 BEGIN
  PERFORM set_config('qa.hq','1',true);
  r:=public.hq_field_readiness_v1();
  IF (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
  THEN RAISE EXCEPTION 'WRONG_BATCH_SOURCE_COUNTED_AS_REAL_PROVENANCE'; END IF;
-END $;
+END $$;
 UPDATE public.operations_import_batches SET source='POS',source_store_key='other-store' WHERE id=10;
-DO $
+DO $$
 DECLARE r jsonb;
 BEGIN
  PERFORM set_config('qa.hq','1',true);
  r:=public.hq_field_readiness_v1();
  IF (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
  THEN RAISE EXCEPTION 'WRONG_BATCH_SOURCE_STORE_COUNTED_AS_REAL_PROVENANCE'; END IF;
-END $;
+END $$;
 UPDATE public.operations_import_batches SET source_store_key='store-one' WHERE id=10;
 UPDATE public.operations_transactions SET source_record_key='wrong-receipt' WHERE id=32;
-DO $
+DO $$
 DECLARE r jsonb;
 BEGIN
  PERFORM set_config('qa.hq','1',true);
  r:=public.hq_field_readiness_v1();
  IF (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
  THEN RAISE EXCEPTION 'WRONG_TRANSACTION_RECORD_COUNTED_AS_REAL_PROVENANCE'; END IF;
-END $;
+END $$;
 UPDATE public.operations_transactions SET source_record_key='receipt-20',source='DELIVERY' WHERE id=32;
-DO $
+DO $$
 DECLARE r jsonb;
 BEGIN
  PERFORM set_config('qa.hq','1',true);
  r:=public.hq_field_readiness_v1();
  IF (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
  THEN RAISE EXCEPTION 'WRONG_TRANSACTION_SOURCE_COUNTED_AS_REAL_PROVENANCE'; END IF;
-END $;
+END $$;
 UPDATE public.operations_transactions SET source='POS' WHERE id=32;
-DO $
+DO $$
 DECLARE r jsonb;
 BEGIN
  PERFORM set_config('qa.hq','1',true);
@@ -187,5 +187,5 @@ BEGIN
  OR (r->'operations'->>'confirmed_linked_real_transactions')::int<>1
  THEN RAISE EXCEPTION 'VALID_MATCHED_EVIDENCE_WAS_NOT_COUNTED'; END IF;
  RAISE NOTICE 'PASS HQ-only confidential live readiness, matched payroll and latest owner, non-demo linked sources';
-END $;
+END $$;
 ROLLBACK;
