@@ -217,7 +217,7 @@ window.mountHqStoreOnboarding=async function(box){
       const included=rows.some(s=>Number(s.id)===selected);
       storePicker.innerHTML=(included?"":'<option value="" selected disabled>검색 결과에서 지점을 선택하세요</option>')+
         rows.map(s=>'<option value="'+Number(s.id)+'">'+escapeHTML(s.name)+' ('+Number(s.id)+', '+
-          escapeHTML(s.onboarding_status)+')</option>').join("");
+          escapeHTML(s.onboarding_status)+' · '+escapeHTML(managerStageLabel(managerStage(s,primaryOwners.find(o=>Number(o.store_id)===Number(s.id))?.user_id,managers.filter(m=>Number(m.store_id)===Number(s.id)))))+')</option>').join("");
       if(included)storePicker.value=String(selected);
       body.querySelector("#hqStoreSearchCount").textContent="("+rows.length+"곳)";
       storePicker.disabled=rows.length===0;
