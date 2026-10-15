@@ -70,15 +70,29 @@ jobs:
             const number=Number(process.env.ISSUE_NUMBER);
             if(!Number.isSafeInteger(number)||number<=0)throw Error('Invalid approved task number');
             const marker='[agent-run:'+context.runId+']';
-            const old=await github.paginate(github.rest.issues.listComments,{
+            const bridgeMarker='[agent-pr-bridge:'+context.runId+']';
+            const comments=await github.paginate(github.rest.issues.listComments,{
               ...context.repo,issue_number:number,per_page:100});
-            if(old.some(c=>(c.body||'').includes(marker)))return;
-            await github.rest.issues.createComment({...context.repo,issue_number:number,
-              body:[marker,'AI 자동 개발 전체 절차가 완료되지 않았습니다. 모델·QA·GitHub PR 생성 권한 중 실제 실패 지점을 실행 로그에서 확인하세요.',
-                '[agent-pr-bridge:RUN_ID] 댓글이 있으면 코드·QA·브랜치 푸시는 완료됐지만 PR 생성 권한만 제한된 경우입니다.',
-                '변경사항을 운영 환경에 배포하지 않았습니다.',
-                'API 키가 없으면 GitHub Actions 기본 토큰으로 Copilot CLI 대체 실행을 시도합니다.',
-                '원인 및 재시도 기록: https://github.com/'+context.repo.owner+'/'+
-                  context.repo.repo+'/actions/runs/'+context.runId,
-                '자동 재시도 한계를 넘는 변경은 사람의 검토 또는 새로운 수정 전략이 필요합니다.'
-              ].join('\\n')});
+            // Trust only GitHub Actions' own receipts, not user-supplied issue comments.
+            const trusted=comments.filter(c=>c.user?.login==='github-actions[bot]');
+            if(trusted.some(c=>(c.body||'').split(/\r?\n/).some(line=>line.trim()===marker)))return;
+            const bridgePending=trusted.some(c=>
+              (c.body||'').split(/\r?\n/).some(line=>line.trim()===bridgeMarker));
+            const runUrl='https://github.com/'+context.repo.owner+'/'+
+              context.repo.repo+'/actions/runs/'+context.runId;
+            const lines=bridgePending ? [
+              marker,
+              'AI 코드 변경·기능별 QA·브랜치 푸시까지 통과했습니다.',
+              'GitHub Actions의 PR 생성 정책으로 검토용 PR 생성만 제한되어 승인된 별도 연결 브리지를 기다립니다.',
+              'PR 생성·전체 CI·병합·운영 배포는 아직 완료되지 않았습니다.',
+              '확인된 인계 표시: '+bridgeMarker,
+              '실행: '+runUrl
+            ] : [
+              marker,
+              'AI 자동 개발 또는 QA 절차가 완료되지 않았습니다. 해당 실행 로그에서 실패 지점을 확인하세요.',
+              '모델·기능별 QA·브랜치 푸시·PR 권한 중 어떤 단계인지 로그를 확인해야 합니다.',
+              '변경사항을 운영 환경에 배포하지 않았습니다.',
+              '실행: '+runUrl
+            ];
+            await github.rest.issues.createComment({
+              ...context.repo,issue_number:number,body:lines.join('\n')});

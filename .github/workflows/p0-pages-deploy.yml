@@ -222,6 +222,7 @@ jobs:
           node qa_release_recovery_workflow_contract.mjs
           node qa_release_asset_selection_contract_v1.mjs
           node qa_autonomous_structured_edits_v1.mjs
+          node qa_autonomous_agent_bridge_receipt_v1.mjs
           bash -n scripts/autonomous_dev_agent.sh
       - name: boot-syntax-regression
         run: node qa_boot_syntax.mjs
