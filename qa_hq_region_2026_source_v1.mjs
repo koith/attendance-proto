@@ -36,7 +36,9 @@ assert.match(rpc,/auth\.uid\(\) is null or not public\.is_hq_admin\(\)/i,'HQ-onl
 assert.match(rpc,/revoke all on function public\.hq_store_sample_flags_list\(\) from public,anon/i,'not anon callable');
 assert.match(rpc,/source_store_key like 'demo_%'/i,'must classify by persisted seed source');
 assert(js.includes('rpc("hq_store_sample_flags_list").catch(()=>[])'),'optional protected source, older QA mocks unaffected');
-assert(js.includes('주소 확인 대기')&&js.includes('시연 지점'),'do not count demo as unverified physical store');
+assert(js.includes('stores.filter(s=>!samples.has(Number(s.id)))'),'exclude seeded stores from every HQ selector');
+assert(js.includes('상세주소 미확인')&&js.includes('지점명 기준'),'name-only geography must be explicit');
+assert(!js.includes('"주소 미확인","시연 지점"'),'synthetic region choice must not appear');
 const extra=fs.readFileSync('scripts/verified_store_locations_20261015_extra.sql','utf8');
 assert(extra.includes('부천신흥시장점')&&extra.includes('남양주다산점'));
 assert.match(extra,/on conflict \(store_id\) do nothing/i);
