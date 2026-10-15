@@ -804,7 +804,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.283</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.284</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -873,7 +873,7 @@
 </div>
 
 <script src="operations_reference_v208.js?v=20260928v022"></script>
-<script src="operations_v1.js?v=20261015v283"></script>
+<script src="operations_v1.js?v=20261015v284"></script>
 <script src="operations_reconciliation_v1.js?v=20261012v245"></script>
 <script src="operations_stocktake_v1.js?v=20261012v244"></script>
 <script src="operations_reference_ui_v208.js?v=20261012ui241"></script>
@@ -896,7 +896,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.283";
+const APP_VERSION="v0.284";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1132,6 +1132,7 @@ const SupaBE = (()=>{
     async listEmployeesState(){ return rpc("pos_employees_state",{p_store_id:CURRENT_STORE_ID||null,p_token:posAccessToken()}); },
     async posUnlockStore(employeeNo,pin){ return rpc("pos_unlock_store",{p_store_id:CURRENT_STORE_ID||null,p_employee_no:Number(employeeNo),p_pin:String(pin)}); },
     async dashboard(){ return rpc("hq_store_dashboard",{},true); },
+    async hqFieldReadiness(){ return rpc("hq_field_readiness_v1",{},true); },
     async isAdmin(){ return rpc("is_admin",{},true); },
     async scheduleList(fromDate,toDate){ return rpc("admin_store_schedule_list",{p_store_id:CURRENT_STORE_ID||1,p_from:fromDate,p_to:toDate},true); },
     async scheduleSet(empId,date,status,start,end,memo){ return rpc("admin_schedule_set",{p_employee_id:empId,p_work_date:date,p_status:status,p_start:start||null,p_end:end||null,p_memo:memo||null},true); },
@@ -1572,6 +1573,54 @@ function attachNoDoubleTapZoom(el){
     }
   }, {passive:false});
 }
+function hqReadinessStatus(label,count,details){
+ const ready=count>0;
+ return '<article class="hq-store-panel" style="padding:15px;min-height:auto;display:grid;gap:8px">'+
+  '<b>'+safeHtml(label)+'</b><span role="status">'+(ready?'실자료 발견 · 현장 검증 필요':'실자료 검증대기')+'</span>'+
+  '<small style="line-height:1.55;color:var(--sub)">'+safeHtml(details)+'</small>'+
+  '<strong style="font-size:.8rem">'+(ready?'실제 담당자 검증 전 — 완료 아님':'실자료를 임의 생성하지 않습니다')+'</strong></article>';
+}
+async function renderHqReadinessPanel(){
+ const el=document.getElementById("hqReadinessPanel");
+ if(!el)return;
+ el.style.display="block";
+ el.innerHTML='<p role="status">실자료 확인 상태를 읽어오는 중…</p>';
+ try{
+  const snap=await BE.hqFieldReadiness();
+  if(!el.isConnected)return;
+  if(snap?.schema_version!==2||!Number.isFinite(Date.parse(snap.captured_at||"")))throw Error("INVALID_READINESS_SNAPSHOT");
+  const cnt=(o,k)=>{
+   const n=o?.[k];
+   if(!Number.isSafeInteger(n)||n<0)throw Error("INVALID_READINESS_COUNT");
+   return n;
+  };
+  const p=snap.payroll,st=snap.stores,op=snap.operations;
+  const qualified=cnt(p,"qualified_closed_periods"),approved=cnt(p,"approved_weeks");
+  const closed=cnt(p,"closed_periods"),snapshots=cnt(p,"closed_periods_with_snapshots");
+  const owners=cnt(st,"qualified_owner_links"),staged=cnt(st,"staged_count");
+  const imports=cnt(op,"completed_imports"),linked=cnt(op,"confirmed_linked_real_transactions"),openIssues=cnt(op,"unresolved_reconciliations"),stock=cnt(op,"real_stock_movements");
+  if(qualified>snapshots||snapshots>closed)throw Error("INCONSISTENT_READINESS_SNAPSHOT");
+  const payCandidate=qualified>0&&approved>0;
+  const storeCandidate=owners>0;
+  const opsCandidate=imports>0&&linked>0&&openIssues===0;
+  el.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
+    '<div><h3 style="margin:0">현장 검증 현황</h3><p style="margin:4px 0;color:var(--sub);font-size:.8rem">실자료 유입 여부만 표시 · 현장 검증 전에는 완료 처리하지 않음</p></div>'+
+    '<button type="button" class="btn btn-secondary btn-sm" id="hqReadinessRefresh">새로 조회</button></div>'+
+    '<div class="hq-grid" style="margin-top:10px;gap:12px">'+
+    hqReadinessStatus("급여 마감 · PAY-01",payCandidate?1:0,
+      "마감 "+closed+"개 · 스냅샷 "+snapshots+"개 · 동일 기간 승인 포함 "+qualified+"개 · 주휴 승인 "+approved+"개")+
+    hqReadinessStatus("점주 인증 · STORE-01",storeCandidate?1:0,
+      "최신 심사 및 대표 권한이 일치하는 연결 "+owners+"건 · 개통대기 "+staged+"개 지점")+
+    hqReadinessStatus("실거래 연동 · FEATURE-01",opsCandidate?1:0,
+      "완료된 수집 "+imports+"건 · 원천에 연결된 실거래 "+linked+"건 · 미해결 대사 "+openIssues+"건 · 실재고 이동 "+stock+"건")+
+    '</div>';
+  el.querySelector("#hqReadinessRefresh").onclick=renderHqReadinessPanel;
+ }catch(err){
+   if(el.isConnected)el.innerHTML='<p role="alert">현장 검증 자료를 불러오지 못했습니다. 권한이나 서버 연결을 확인하세요. 완료로 처리하지 않았습니다.</p>'+
+     '<button type="button" class="btn btn-secondary btn-sm" id="hqReadinessRefresh">다시 시도</button>';
+   el.querySelector("#hqReadinessRefresh")?.addEventListener("click",renderHqReadinessPanel);
+ }
+}
 async function renderDashboard(){
   let rows=[];try{rows=LIVE?await BE.dashboard():[];}catch(e){view.innerHTML='<div class="empty">대시보드 데이터를 불러오지 못했습니다.</div>';return;}
   const money=n=>Number(n||0).toLocaleString("ko-KR")+"원";
@@ -1590,7 +1639,8 @@ async function renderDashboard(){
   }).join("");
   const regions=["전체 지역",...new Set(rows.map(r=>r.region_group||"기타"))];
   const dataNotice=rows.some(r=>Number(r.tx_count||0)>0)?'':'<p class="empty" role="status">연결된 실제 매출 데이터가 없습니다. 시연용 거래는 매출 집계에서 제외했습니다.</p>';
-  view.innerHTML='<div class="hq-dashboard"><div class="hq-title"><div class="hq-title-row"><h2>지점 현황</h2><div class="hq-dashboard-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="btn btn-secondary btn-sm" id="hqOwnerManagement" aria-label="지점 대표 점주 관리 열기">지점 대표 점주 관리</button><button type="button" class="btn btn-secondary btn-sm hq-product-button" id="hqProductControl">상품 배포</button></div></div><div class="hq-filterbar"><label class="hq-store-search" aria-label="지점명 검색"><input id="hqStoreSearch" type="search" placeholder="지점명 검색" autocomplete="off"></label><label class="hq-region-filter" aria-label="지역 선택"><select id="hqRegionSelect">'+regions.map(x=>'<option value="'+safeHtml(x)+'">'+safeHtml(x)+'</option>').join("")+'</select></label><label class="hq-region-filter" aria-label="정렬 기준 선택"><select id="hqSortSelect"><option value="sales7">최근 7일 매출</option><option value="total">누적 매출</option><option value="tx">거래 건수</option><option value="name">지점명</option></select></label></div></div>'+dataNotice+summary+'<div class="hq-grid">'+cards+'</div><div class="empty" id="hqRegionEmpty" style="display:none">이 지역에 운영 중인 지점이 없습니다.</div></div>';
+  view.innerHTML='<div class="hq-dashboard"><div class="hq-title"><div class="hq-title-row"><h2>지점 현황</h2><div class="hq-dashboard-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="btn btn-secondary btn-sm" id="hqReadinessOpen" aria-controls="hqReadinessPanel">현장 검증</button><button type="button" class="btn btn-secondary btn-sm" id="hqOwnerManagement" aria-label="지점 대표 점주 관리 열기">지점 대표 점주 관리</button><button type="button" class="btn btn-secondary btn-sm hq-product-button" id="hqProductControl">상품 배포</button></div></div><div class="hq-filterbar"><label class="hq-store-search" aria-label="지점명 검색"><input id="hqStoreSearch" type="search" placeholder="지점명 검색" autocomplete="off"></label><label class="hq-region-filter" aria-label="지역 선택"><select id="hqRegionSelect">'+regions.map(x=>'<option value="'+safeHtml(x)+'">'+safeHtml(x)+'</option>').join("")+'</select></label><label class="hq-region-filter" aria-label="정렬 기준 선택"><select id="hqSortSelect"><option value="sales7">최근 7일 매출</option><option value="total">누적 매출</option><option value="tx">거래 건수</option><option value="name">지점명</option></select></label></div></div>'+dataNotice+'<section id="hqReadinessPanel" class="ops-card" style="display:none;margin-bottom:16px;padding:16px" aria-live="polite"></section>'+summary+'<div class="hq-grid">'+cards+'</div><div class="empty" id="hqRegionEmpty" style="display:none">이 지역에 운영 중인 지점이 없습니다.</div></div>';
+  document.getElementById("hqReadinessOpen").onclick=()=>{ void renderHqReadinessPanel(); };
   document.getElementById("hqOwnerManagement").onclick=()=>{ void openAccountMgmt("owners"); };
   document.getElementById("hqProductControl").onclick=()=>window.openHqProductModal?.();
   const bindStoreButtons=()=>view.querySelectorAll(".hq-store-panel button").forEach(btn=>btn.onclick=()=>{const c=btn.closest(".hq-store-panel");location.assign(STORE_ENTRY_URL(Number(c.dataset.store)));});
