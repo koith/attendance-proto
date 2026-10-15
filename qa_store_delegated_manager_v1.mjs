@@ -101,7 +101,7 @@ async function simulateStore(storeId,role){
    assert.match(html,/직원 기본정보 수정/);
    assert.match(html,/세 항목을 모두 체크해도 전체 관리자 권한/);
  }
- if(role!=="OWNER")assert.match(html,/대표 점주 미지정/);
+ if(role!=="OWNER")assert.match(html,/대표 관리자 미지정/);
  if(role==="HQ"){
    assert.doesNotMatch(html,/storeManagerHqInviteForm|storeManagerExistingForm|storeManagerInviteForm|data-manager-revoke/);
    assert.match(html,/본사 대시보드/);
