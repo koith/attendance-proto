@@ -12,7 +12,7 @@ const mirror=read("edge-release/supabase/functions/server-sync-sheet/index.ts");
 assert.equal(edge,mirror,"deployed Edge source must match canonical source byte for byte");
 assert.match(app,/APP_VERSION="v0\.\d+"/);
 assert.match(app,/mountStoreManagerTab\(\)/);
-assert.match(app,/store_manager_tab\.js\?v=20261015v289/);
+assert.match(app,/store_manager_tab\.js\?v=20261015v290/);
 assert.match(app,/hq_store_onboarding_ui\.js\?v=20261014v273/);
 assert.match(app,/id="empTabActive"/);
 assert.match(app,/id="empTabRetired"/);
