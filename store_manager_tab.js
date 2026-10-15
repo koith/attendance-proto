@@ -33,7 +33,7 @@ window.mountStoreManagerTab=function(){
   const mount=document.createElement("section");
   mount.id="storeManagerPanel";mount.className="store-manager-section";
   mount.setAttribute("aria-label","지점 관리자 관리");
-  mount.innerHTML='<style>#storeManagerPanel .store-manager-section-body{min-height:0;padding:0 14px 12px}#storeManagerPanel .smt-who{padding:12px 2px;font-size:.8rem;color:var(--text-muted)}#storeManagerPanel .smt-table{border:1px solid var(--border);border-radius:12px;overflow:hidden}#storeManagerPanel .smt-columns,#storeManagerPanel .smt-summary{display:grid;grid-template-columns:minmax(0,1fr) 62px 14px;gap:7px;align-items:center}#storeManagerPanel .smt-columns{padding:9px 12px;background:var(--surface-muted);color:var(--text-muted);font-size:.75rem;border-bottom:1px solid var(--border)}#storeManagerPanel .smt-entry:not(:last-child){border-bottom:1px solid var(--border)}#storeManagerPanel .smt-summary{padding:10px 12px;min-height:58px;list-style:none;cursor:pointer}#storeManagerPanel .smt-summary::-webkit-details-marker{display:none}#storeManagerPanel .smt-summary:focus-visible,#storeManagerPanel .smt-add summary:focus-visible{outline:2px solid var(--brand-700);outline-offset:-2px}#storeManagerPanel .smt-name{font-weight:650;font-size:.85rem;overflow-wrap:anywhere}#storeManagerPanel .smt-name.muted{font-weight:500;color:var(--text-muted)}#storeManagerPanel .smt-role{text-align:right;color:var(--text-muted);font-size:.77rem}#storeManagerPanel .smt-arrow{font-size:1.18rem;color:var(--text-muted)}#storeManagerPanel .smt-entry[open] .smt-arrow{transform:rotate(90deg)}#storeManagerPanel .smt-detail{padding:12px;background:var(--surface-muted);border-top:1px solid var(--border);color:var(--text-muted);font-size:.82rem;line-height:1.55}#storeManagerPanel .smt-permissions{display:grid;gap:10px;color:var(--text)}#storeManagerPanel .smt-permissions label{display:flex;gap:8px;align-items:center}#storeManagerPanel .smt-permissions input{width:18px;height:18px;flex:none}#storeManagerPanel .smt-add{border:1px solid var(--border);border-radius:12px;margin-top:12px}#storeManagerPanel .smt-add>summary{list-style:none;cursor:pointer;padding:12px;color:var(--brand-700);font-weight:650}#storeManagerPanel .smt-add>summary::-webkit-details-marker{display:none}#storeManagerPanel .smt-add-body{padding:12px;border-top:1px solid var(--border);display:grid;gap:14px}#storeManagerPanel .smt-add-body form{display:grid;gap:7px}#storeManagerPanel .smt-small{font-size:.77rem;color:var(--text-muted);margin:0}@media(max-width:430px){#storeManagerPanel .smt-columns,#storeManagerPanel .smt-summary{grid-template-columns:minmax(0,1fr) 54px 12px}#storeManagerPanel .smt-name{font-size:.81rem}}</style>'+
+  mount.innerHTML='<style>#storeManagerPanel .store-manager-section-body{min-height:0;padding:0 14px 14px}#storeManagerPanel .smt-who{font-size:.78rem;color:var(--text-muted);padding:10px 2px 13px}#storeManagerPanel .smt-roster{display:grid;gap:8px}#storeManagerPanel .smt-member{border:1px solid var(--border);border-radius:12px;background:var(--surface);overflow:hidden}#storeManagerPanel .smt-member[open]{border-color:var(--brand-700)}#storeManagerPanel .smt-member>summary{list-style:none;display:flex;align-items:center;gap:11px;min-height:62px;padding:11px 12px;cursor:pointer}#storeManagerPanel .smt-member>summary::-webkit-details-marker{display:none}#storeManagerPanel .smt-member>summary:focus-visible,#storeManagerPanel .smt-add>summary:focus-visible{outline:2px solid var(--brand-700);outline-offset:-2px}#storeManagerPanel .smt-avatar{width:37px;height:37px;flex:none;display:grid;place-items:center;border-radius:11px;background:var(--surface-muted);font-size:1.15rem}#storeManagerPanel .smt-owner .smt-avatar{background:#fff5d9}#storeManagerPanel .smt-person{min-width:0;flex:1;display:grid;gap:3px}#storeManagerPanel .smt-person strong{font-size:.85rem;overflow-wrap:anywhere}#storeManagerPanel .smt-person small{font-size:.74rem;color:var(--text-muted)}#storeManagerPanel .smt-role{border:1px solid var(--border);border-radius:999px;padding:3px 9px;font-size:.72rem;white-space:nowrap;color:var(--text-muted)}#storeManagerPanel .smt-owner .smt-role{background:#fff5d9;color:#74531c;border-color:#e9d29a}#storeManagerPanel .smt-arrow{color:var(--text-muted);font-size:1.15rem}#storeManagerPanel .smt-member[open] .smt-arrow{transform:rotate(90deg)}#storeManagerPanel .smt-delegates{border-left:2px solid var(--border);margin-left:18px;padding-left:12px;display:grid;gap:8px}#storeManagerPanel .smt-delegate>summary{min-height:57px}#storeManagerPanel .smt-detail{padding:12px;border-top:1px solid var(--border);font-size:.82rem;line-height:1.5;color:var(--text-muted);background:var(--surface-muted)}#storeManagerPanel .smt-permissions{display:grid;gap:10px;color:var(--text)}#storeManagerPanel .smt-permissions label{display:flex;gap:8px;align-items:center}#storeManagerPanel .smt-permissions label input{flex:none;width:18px;height:18px}#storeManagerPanel .smt-add{margin-top:12px;border:1px solid var(--border);border-radius:11px}#storeManagerPanel .smt-add>summary{list-style:none;cursor:pointer;padding:12px;color:var(--brand-700);font-weight:650}#storeManagerPanel .smt-add>summary::-webkit-details-marker{display:none}#storeManagerPanel .smt-add-body{padding:12px;border-top:1px solid var(--border);display:grid;gap:14px}#storeManagerPanel .smt-add-body form{display:grid;gap:7px}#storeManagerPanel .smt-small{font-size:.77rem;color:var(--text-muted);margin:0}@media(max-width:430px){#storeManagerPanel .store-manager-section-body{padding:0 11px 12px}#storeManagerPanel .smt-member>summary{gap:8px;padding:9px}#storeManagerPanel .smt-person strong{font-size:.8rem}#storeManagerPanel .smt-role{padding:3px 7px}}</style>'+
     '<div class="store-manager-section-head"><h3>관리자 관리</h3>'+
     '<button type="button" class="btn btn-secondary" id="storeManagerReload">새로고침</button></div>'+
     '<div id="storeManagerContent" class="store-manager-section-body" aria-live="polite">관리자 정보를 불러오는 중…</div>';
@@ -69,34 +69,38 @@ window.mountStoreManagerTab=function(){
       const owner=rows.find(entry=>entry.manager_role==="OWNER");
       const delegates=rows.filter(entry=>entry.manager_role!=="OWNER");
       const currentRole=isHq===true?"본사 관리자":isPrimary?"대표 점주":self?"보조 관리자":"관리자 권한 없음";
-      // Square/Shopify pattern: compact user/role roster; select a person for their details.
-      const roleSummary='<div class="smt-who">내 계정 · '+esc(currentRole)+'</div>';
-      const ownerRow='<details class="smt-entry" data-manager-kind="owner">'+
-        '<summary class="smt-summary"><span class="smt-name'+(owner?'':' muted')+'">'+(owner?esc(owner.email)+(owner.user_id===user?.id?" · 나":""):"대표 점주 미지정")+'</span>'+
+      // Guilded/Discord-style roster: the owner leads; delegates nest below.
+      // The HQ role is only the viewing context, not a member of this store hierarchy.
+      const roleSummary='<div class="smt-who">현재 접속 · '+esc(currentRole)+'</div>';
+      const ownerRow='<details class="smt-member smt-owner" data-manager-kind="owner">'+
+        '<summary><span class="smt-avatar" aria-hidden="true">♛</span>'+
+        '<span class="smt-person"><strong>'+(owner?esc(owner.email)+(owner.user_id===user?.id?" · 나":""):"대표 관리자 미지정")+'</strong>'+
+        '<small>대표 관리자 · 지점 최고 관리자</small></span>'+
         '<span class="smt-role">대표</span><span class="smt-arrow" aria-hidden="true">›</span></summary>'+
-        '<div class="smt-detail">'+(owner?"매장 대표 관리자입니다. 대표 점주 지정·교체는 본사 대시보드에서만 가능합니다.":"대표 점주가 지정되면 이곳에 계정이 표시됩니다. 지정은 본사 대시보드에서 합니다.")+'</div></details>';
+        '<div class="smt-detail">'+(owner?"대표 관리자 지정·교체는 본사 대시보드에서만 가능합니다.":"대표 관리자가 아직 지정되지 않았습니다. 지정은 본사 대시보드에서 합니다.")+'</div></details>';
       const delegateRows=delegates.map(entry=>{
         const editable=canManage&&entry.user_id!==user?.id;
         const rights=managerPermissions.find(p=>p.user_id===entry.user_id)||{staff_edit:false,attendance_approve:false,payroll_view:false};
         const checks=editable?
           '<div data-manager-rights="'+esc(entry.user_id)+'" class="smt-permissions">'+
-          '<div style="font-weight:650">허용 업무</div>'+
+          '<strong>허용 업무</strong>'+
           '<label><input data-allow="staff" type="checkbox" '+(rights.staff_edit?'checked':'')+'> 직원 기본정보 수정</label>'+
           '<label><input data-allow="attendance" type="checkbox" '+(rights.attendance_approve?'checked':'')+'> 근태 정정 승인</label>'+
           '<label><input data-allow="payroll" type="checkbox" '+(rights.payroll_view?'checked':'')+'> 확정 급여 열람</label>'+
           '<p class="smt-small">세 항목을 모두 체크해도 전체 관리자 권한이나 본사 권한은 부여되지 않습니다.</p>'+
           '<button type="button" class="btn btn-secondary btn-sm" data-permission-save="'+esc(entry.user_id)+'">권한 변경 저장</button>'+
           '<button type="button" class="btn btn-secondary btn-sm" data-manager-revoke="'+esc(entry.user_id)+'">이 지점 관리자 해임</button></div>':
-          '보조 관리자의 업무 권한은 대표 점주가 설정합니다.';
-        return '<details class="smt-entry" data-manager-kind="delegate">'+
-          '<summary class="smt-summary"><span class="smt-name">'+esc(entry.email)+(entry.user_id===user?.id?" · 나":"")+'</span>'+
-          '<span class="smt-role">보조</span><span class="smt-arrow" aria-hidden="true">›</span></summary>'+
+          '보조 관리자의 허용 업무는 대표 관리자가 설정합니다.';
+        return '<details class="smt-member smt-delegate" data-manager-kind="delegate">'+
+          '<summary><span class="smt-avatar" aria-hidden="true">♙</span>'+
+          '<span class="smt-person"><strong>'+esc(entry.email)+(entry.user_id===user?.id?" · 나":"")+'</strong>'+
+          '<small>보조 관리자</small></span><span class="smt-role">보조</span>'+
+          '<span class="smt-arrow" aria-hidden="true">›</span></summary>'+
           '<div class="smt-detail">'+checks+'</div></details>';
       }).join("");
       content.innerHTML=roleSummary+
-        '<div class="smt-table" role="group" aria-label="매장 관리자 목록">'+
-        '<div class="smt-columns"><span>계정</span><span style="text-align:right">역할</span><span></span></div>'+
-        ownerRow+delegateRows+'</div>'+
+        '<div class="smt-roster" role="group" aria-label="지점 관리자 멤버 목록">'+
+        ownerRow+'<div class="smt-delegates">'+delegateRows+'</div></div>'+
         (isPrimary?'<details class="smt-add"><summary>+ 보조 관리자 추가</summary><div class="smt-add-body">'+
           '<form id="storeManagerExistingForm"><label for="storeManagerExistingEmail">기존 가입 계정 연결</label>'+
           '<input id="storeManagerExistingEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com">'+
