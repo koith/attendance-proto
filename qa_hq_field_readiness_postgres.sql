@@ -21,13 +21,14 @@ CREATE TABLE public.payroll_weekly_approvals(store_id bigint,week_start date,app
 CREATE TABLE public.store_primary_owners(store_id bigint,user_id uuid);
 CREATE TABLE public.store_admin_memberships(store_id bigint,user_id uuid);
 CREATE TABLE public.store_provenance_reviews(id bigint,store_id bigint,decision text,reviewed_at timestamptz);
-CREATE TABLE public.operations_import_batches(id bigint,completed_at timestamptz,error_message text);
-CREATE TABLE public.operations_raw_records(id bigint,store_id bigint,batch_id bigint);
-CREATE TABLE public.operations_transactions(id bigint,store_id bigint,raw_record_id bigint,is_demo boolean,status text);
+CREATE TABLE public.operations_import_batches(id bigint,store_id bigint,source text,source_store_key text,status text,completed_at timestamptz,error_message text);
+CREATE TABLE public.operations_raw_records(id bigint,store_id bigint,batch_id bigint,source text,source_store_key text,source_record_key text);
+CREATE TABLE public.operations_transactions(id bigint,store_id bigint,raw_record_id bigint,source text,source_store_key text,source_record_key text,is_demo boolean,status text);
 CREATE TABLE public.operations_reconciliation_issues(status text);
 CREATE TABLE public.inventory_movements(is_demo boolean,source_type text);
 \i supabase/migrations/20261015172500_hq_field_readiness_v1.sql
 \i supabase/migrations/20261015174500_hq_field_readiness_owner_auth_guard_v2.sql
+\i supabase/migrations/20261015181000_hq_field_readiness_real_source_chain_v3.sql
 DO $$
 DECLARE snapshot jsonb; denied boolean:=false;
 BEGIN
@@ -51,9 +52,9 @@ INSERT INTO public.payroll_weekly_approvals VALUES(2,'2026-09-07',now(),'0000000
 INSERT INTO public.store_primary_owners VALUES(1,'00000000-0000-4000-8000-000000000001');
 INSERT INTO public.store_admin_memberships VALUES(1,'00000000-0000-4000-8000-000000000001');
 INSERT INTO public.store_provenance_reviews VALUES(1,1,'VERIFIED',now()-interval '1 day'),(2,1,'REJECTED',now());
-INSERT INTO public.operations_import_batches VALUES(10,now(),null);
-INSERT INTO public.operations_raw_records VALUES(20,1,10);
-INSERT INTO public.operations_transactions VALUES(30,1,20,true,'CONFIRMED'),(31,1,20,false,'PENDING');
+INSERT INTO public.operations_import_batches VALUES(10,1,'POS','store-one','COMPLETED',now(),null);
+INSERT INTO public.operations_raw_records VALUES(20,1,10,'POS','store-one','receipt-20');
+INSERT INTO public.operations_transactions VALUES(30,1,20,'POS','store-one','receipt-20',true,'CONFIRMED'),(31,1,20,'POS','store-one','receipt-20',false,'PENDING');
 DO $$
 DECLARE r jsonb;
 BEGIN
@@ -65,7 +66,7 @@ BEGIN
 END $$;
 INSERT INTO public.payroll_weekly_approvals VALUES(1,'2026-09-07',now(),'00000000-0000-4000-8000-000000000001');
 INSERT INTO public.store_provenance_reviews VALUES(3,1,'VERIFIED',now()+interval '1 second');
-INSERT INTO public.operations_transactions VALUES(32,1,20,false,'CONFIRMED');
+INSERT INTO public.operations_transactions VALUES(32,1,20,'POS','store-one','receipt-20',false,'CONFIRMED');
 -- Owner row + latest VERIFIED review alone must never imply a usable account.
 DO $$
 DECLARE snapshot jsonb;
@@ -109,6 +110,73 @@ BEGIN
 END $$;
 UPDATE auth.users SET is_anonymous=false;
 
+-- FEATURE-01 must fail closed even if a failed/incomplete batch retains completed_at.
+UPDATE public.operations_import_batches SET status='FAILED' WHERE id=10;
+DO $$
+DECLARE r jsonb;
+BEGIN
+ PERFORM set_config('qa.hq','1',true);
+ r:=public.hq_field_readiness_v1();
+ IF (r->'operations'->>'completed_imports')::int<>0
+ OR (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
+ THEN RAISE EXCEPTION 'FAILED_BATCH_COUNTED_AS_REAL_PROVENANCE'; END IF;
+END $$;
+UPDATE public.operations_import_batches SET status='PROCESSING' WHERE id=10;
+DO $$
+DECLARE r jsonb;
+BEGIN
+ PERFORM set_config('qa.hq','1',true);
+ r:=public.hq_field_readiness_v1();
+ IF (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
+ THEN RAISE EXCEPTION 'PROCESSING_BATCH_COUNTED_AS_REAL_PROVENANCE'; END IF;
+END $$;
+UPDATE public.operations_import_batches SET status='COMPLETED',store_id=2 WHERE id=10;
+DO $$
+DECLARE r jsonb;
+BEGIN
+ PERFORM set_config('qa.hq','1',true);
+ r:=public.hq_field_readiness_v1();
+ IF (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
+ THEN RAISE EXCEPTION 'CROSS_STORE_BATCH_COUNTED_AS_REAL_PROVENANCE'; END IF;
+END $$;
+UPDATE public.operations_import_batches SET store_id=1,source='DELIVERY' WHERE id=10;
+DO $$
+DECLARE r jsonb;
+BEGIN
+ PERFORM set_config('qa.hq','1',true);
+ r:=public.hq_field_readiness_v1();
+ IF (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
+ THEN RAISE EXCEPTION 'WRONG_BATCH_SOURCE_COUNTED_AS_REAL_PROVENANCE'; END IF;
+END $$;
+UPDATE public.operations_import_batches SET source='POS',source_store_key='other-store' WHERE id=10;
+DO $$
+DECLARE r jsonb;
+BEGIN
+ PERFORM set_config('qa.hq','1',true);
+ r:=public.hq_field_readiness_v1();
+ IF (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
+ THEN RAISE EXCEPTION 'WRONG_BATCH_SOURCE_STORE_COUNTED_AS_REAL_PROVENANCE'; END IF;
+END $$;
+UPDATE public.operations_import_batches SET source_store_key='store-one' WHERE id=10;
+UPDATE public.operations_transactions SET source_record_key='wrong-receipt' WHERE id=32;
+DO $$
+DECLARE r jsonb;
+BEGIN
+ PERFORM set_config('qa.hq','1',true);
+ r:=public.hq_field_readiness_v1();
+ IF (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
+ THEN RAISE EXCEPTION 'WRONG_TRANSACTION_RECORD_COUNTED_AS_REAL_PROVENANCE'; END IF;
+END $$;
+UPDATE public.operations_transactions SET source_record_key='receipt-20',source='DELIVERY' WHERE id=32;
+DO $$
+DECLARE r jsonb;
+BEGIN
+ PERFORM set_config('qa.hq','1',true);
+ r:=public.hq_field_readiness_v1();
+ IF (r->'operations'->>'confirmed_linked_real_transactions')::int<>0
+ THEN RAISE EXCEPTION 'WRONG_TRANSACTION_SOURCE_COUNTED_AS_REAL_PROVENANCE'; END IF;
+END $$;
+UPDATE public.operations_transactions SET source='POS' WHERE id=32;
 DO $$
 DECLARE r jsonb;
 BEGIN

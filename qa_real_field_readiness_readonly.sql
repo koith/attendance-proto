@@ -50,14 +50,19 @@ qualified_owners AS (
    AND (u.banned_until IS NULL OR u.banned_until < clock_timestamp())
 ),
 valid_imports AS (
- SELECT b.id FROM public.operations_import_batches b
- WHERE b.completed_at IS NOT NULL AND b.error_message IS NULL
+ SELECT b.id,b.store_id,b.source,b.source_store_key FROM public.operations_import_batches b
+ WHERE b.status='COMPLETED' AND b.completed_at IS NOT NULL AND b.error_message IS NULL
+   AND b.store_id IS NOT NULL AND NULLIF(btrim(b.source),'') IS NOT NULL
+   AND NULLIF(btrim(b.source_store_key),'') IS NOT NULL
 ),
 linked_real_transactions AS (
  SELECT count(*)::int AS c
  FROM public.operations_transactions t
  JOIN public.operations_raw_records r ON r.id=t.raw_record_id AND r.store_id=t.store_id
- JOIN valid_imports b ON b.id=r.batch_id
+   AND r.source=t.source AND r.source_store_key=t.source_store_key
+   AND r.source_record_key=t.source_record_key
+ JOIN valid_imports b ON b.id=r.batch_id AND b.store_id=r.store_id
+   AND b.source=r.source AND b.source_store_key=r.source_store_key
  WHERE t.is_demo IS FALSE AND t.status='CONFIRMED'
 ),
 unresolved_real_reconciliation AS (

@@ -44,6 +44,14 @@ assert.match(sql,/u\.email_confirmed_at IS NOT NULL/);
 assert.match(sql,/u\.deleted_at IS NULL/);
 assert.match(sql,/u\.is_anonymous IS FALSE/);
 assert.match(sql,/r\.id=t\.raw_record_id/);
+assert.match(sql,/b\.status='COMPLETED'/);
+assert.match(sql,/b\.store_id=r\.store_id/);
+assert.match(sql,/b\.source=r\.source/);
+assert.match(sql,/b\.source_store_key=r\.source_store_key/);
+assert.match(sql,/r\.source=t\.source/);
+assert.match(sql,/r\.source_store_key=t\.source_store_key/);
+assert.match(sql,/r\.source_record_key=t\.source_record_key/);
+
 assert.match(sql,/s\.onboarding_status='READY'/);
 assert.match(sql,/latest_review\.decision='VERIFIED'/);
 assert.match(sql,/ORDER BY v\.reviewed_at DESC,v\.id DESC LIMIT 1/);
