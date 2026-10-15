@@ -82,6 +82,7 @@ window.mountStoreManagerTab=function(){
           '<div style="font-size:.8rem;color:var(--text-muted)">사용 가능한 업무: '+esc(rightsLabel(entry))+'</div>'+
           (removable?'<details style="border-top:1px solid var(--border);padding-top:10px"><summary style="cursor:pointer;font-weight:600;color:var(--brand-700)">권한 및 계정 관리</summary>'+
           '<div data-manager-rights="'+esc(entry.user_id)+'" style="display:grid;gap:10px;margin-top:12px">'+
+          '<p style="font-size:.77rem;color:var(--text-muted);margin:0">세 항목을 모두 체크해도 전체 관리자 권한이나 본사 권한은 부여되지 않습니다.</p>'+
           '<label><input data-allow="staff" type="checkbox" '+(rights.staff_edit?'checked':'')+'> 직원 기본정보 수정</label>'+
           '<label><input data-allow="attendance" type="checkbox" '+(rights.attendance_approve?'checked':'')+'> 근태 정정 승인</label>'+
           '<label><input data-allow="payroll" type="checkbox" '+(rights.payroll_view?'checked':'')+'> 확정 급여 열람</label>'+
