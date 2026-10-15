@@ -815,7 +815,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.291</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.292</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -907,7 +907,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.291";
+const APP_VERSION="v0.292";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1652,8 +1652,15 @@ async function renderDashboard(){
   }).join("");
   const regions=["전체 지역",...new Set(rows.map(r=>r.region_group||"기타"))];
   const dataNotice=rows.some(r=>Number(r.tx_count||0)>0)?'':'<p class="empty" role="status">연결된 실제 매출 데이터가 없습니다. 시연용 거래는 매출 집계에서 제외했습니다.</p>';
-  view.innerHTML='<div class="hq-dashboard"><div class="hq-title"><div class="hq-title-row"><h2>지점 현황</h2><div class="hq-dashboard-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="btn btn-secondary btn-sm" id="hqReadinessOpen" aria-controls="hqReadinessPanel">현장 검증</button><button type="button" class="btn btn-secondary btn-sm" id="hqOwnerManagement" aria-label="지점 대표 점주 관리 열기">지점 대표 점주 관리</button><button type="button" class="btn btn-secondary btn-sm hq-product-button" id="hqProductControl">상품 배포</button></div></div><div class="hq-filterbar"><label class="hq-store-search" aria-label="지점명 검색"><input id="hqStoreSearch" type="search" placeholder="지점명 검색" autocomplete="off"></label><label class="hq-region-filter" aria-label="지역 선택"><select id="hqRegionSelect">'+regions.map(x=>'<option value="'+safeHtml(x)+'">'+safeHtml(x)+'</option>').join("")+'</select></label><label class="hq-region-filter" aria-label="정렬 기준 선택"><select id="hqSortSelect"><option value="sales7">최근 7일 매출</option><option value="total">누적 매출</option><option value="tx">거래 건수</option><option value="name">지점명</option></select></label></div></div>'+dataNotice+'<section id="hqReadinessPanel" class="ops-card" style="display:none;margin-bottom:16px;padding:16px" aria-live="polite"></section>'+summary+'<div class="hq-grid">'+cards+'</div><div class="empty" id="hqRegionEmpty" style="display:none">이 지역에 운영 중인 지점이 없습니다.</div></div>';
-  document.getElementById("hqReadinessOpen").onclick=()=>{ void renderHqReadinessPanel(); };
+  view.innerHTML='<style id="hqReadinessUxStyle">.hq-readiness-overlay[hidden]{display:none!important}.hq-readiness-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);display:grid;place-items:center;padding:16px}.hq-readiness-dialog{width:min(100%,560px);max-height:min(85dvh,850px);overflow:auto;background:var(--surface,#fff);color:var(--text,#17251d);border-radius:18px;padding:18px;box-shadow:0 15px 55px #0003}.hq-readiness-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.hq-readiness-head h3{margin:0}.hq-readiness-head button{font-size:28px;background:transparent;border:0;cursor:pointer;min-width:44px;min-height:44px}.hq-readiness-dialog footer{display:flex;justify-content:flex-end;margin-top:12px}.hq-dashboard-actions .btn{box-sizing:border-box;min-height:44px;height:44px;padding:0 13px;font-size:.82rem;font-weight:600;line-height:1.1;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}.hq-dashboard-actions{align-items:center}@media(max-width:520px){.hq-dashboard-actions{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:6px!important}.hq-dashboard-actions .btn{width:100%;min-width:0;padding:0 5px;font-size:.78rem}.hq-readiness-dialog{padding:14px}}</style><div class="hq-dashboard"><div class="hq-title"><div class="hq-title-row"><h2>지점 현황</h2><div class="hq-dashboard-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="btn btn-secondary btn-sm" id="hqReadinessOpen" aria-haspopup="dialog" aria-controls="hqReadinessOverlay">현장 검증</button><button type="button" class="btn btn-secondary btn-sm" id="hqOwnerManagement" aria-label="대표 관리자 관리 열기">대표 관리</button><button type="button" class="btn btn-secondary btn-sm hq-product-button" id="hqProductControl">상품 배포</button></div></div><div class="hq-filterbar"><label class="hq-store-search" aria-label="지점명 검색"><input id="hqStoreSearch" type="search" placeholder="지점명 검색" autocomplete="off"></label><label class="hq-region-filter" aria-label="지역 선택"><select id="hqRegionSelect">'+regions.map(x=>'<option value="'+safeHtml(x)+'">'+safeHtml(x)+'</option>').join("")+'</select></label><label class="hq-region-filter" aria-label="정렬 기준 선택"><select id="hqSortSelect"><option value="sales7">최근 7일 매출</option><option value="total">누적 매출</option><option value="tx">거래 건수</option><option value="name">지점명</option></select></label></div></div>'+dataNotice+'<div id="hqReadinessOverlay" class="hq-readiness-overlay" hidden><section role="dialog" aria-modal="true" aria-labelledby="hqReadinessTitle" class="hq-readiness-dialog"><header class="hq-readiness-head"><h3 id="hqReadinessTitle">현장 검증 현황</h3><button type="button" id="hqReadinessClose" aria-label="현장 검증 닫기">×</button></header><div id="hqReadinessPanel" aria-live="polite"></div><footer><button type="button" class="btn btn-secondary" id="hqReadinessDone">닫기</button></footer></section></div>'+summary+'<div class="hq-grid">'+cards+'</div><div class="empty" id="hqRegionEmpty" style="display:none">이 지역에 운영 중인 지점이 없습니다.</div></div>';
+  const readinessOverlay=document.getElementById("hqReadinessOverlay");
+   const readinessOpen=document.getElementById("hqReadinessOpen");
+   const readinessEscape=event=>{if(event.key==="Escape"){event.preventDefault();readinessClose();}};
+   const readinessClose=()=>{readinessOverlay.hidden=true;document.removeEventListener("keydown",readinessEscape);readinessOpen.focus();};
+   document.getElementById("hqReadinessClose").onclick=readinessClose;
+   document.getElementById("hqReadinessDone").onclick=readinessClose;
+   readinessOverlay.addEventListener("click",event=>{if(event.target===readinessOverlay)readinessClose();});
+   readinessOpen.onclick=()=>{readinessOverlay.hidden=false;document.addEventListener("keydown",readinessEscape);document.getElementById("hqReadinessClose").focus();void renderHqReadinessPanel();};
   document.getElementById("hqOwnerManagement").onclick=()=>{ void openAccountMgmt("owners"); };
   document.getElementById("hqProductControl").onclick=()=>window.openHqProductModal?.();
   const bindStoreButtons=()=>view.querySelectorAll(".hq-store-panel button").forEach(btn=>btn.onclick=()=>{const c=btn.closest(".hq-store-panel");location.assign(STORE_ENTRY_URL(Number(c.dataset.store)));});
@@ -2319,7 +2326,7 @@ async function renderAccountMgmt(mode="accounts"){
       try{
         await new Promise((resolve,reject)=>{
           const script=document.createElement("script");
-          script.src="hq_owner_console.js?v=20261015v280";
+          script.src="hq_owner_console.js?v=20261015v292";
           script.onload=resolve;
           script.onerror=()=>reject(new Error("관리자 관리 모듈 다운로드 실패"));
           document.head.appendChild(script);
@@ -3872,9 +3879,9 @@ Promise.resolve(storeStartupPromise).catch(e=>console.warn("store startup failed
 });
 </script>
 <script src="store_controls_v1.js?v=20260929v066"></script>
-<script src="hq_store_onboarding_ui.js?v=20261015v291"></script>
-<script src="hq_owner_console.js?v=20261015v280"></script>
-<script src="store_manager_tab.js?v=20261015v291"></script>
+<script src="hq_store_onboarding_ui.js?v=20261015v292"></script>
+<script src="hq_owner_console.js?v=20261015v292"></script>
+<script src="store_manager_tab.js?v=20261015v292"></script>
 <script src="store_limited_manager.js?v=20261014v254"></script>
 </body>
 </html>

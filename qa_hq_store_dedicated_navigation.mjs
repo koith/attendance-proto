@@ -11,7 +11,7 @@ assert.match(html,/if\(h==="dashboard"\)\{if\(STORE_ENTRY_LOCK\)/);
 const version=html.match(/const APP_VERSION="(v[0-9.]+)"/)?.[1];
 assert.ok(version,'app version must exist');
 assert.ok(html.includes('id="appVersion">'+version+'</span>'),'header badge must match app version');
-assert.match(html,/id="hqOwnerManagement"[^>]*>지점 대표 점주 관리<\/button>/);
+assert.match(html,/id="hqOwnerManagement"[^>]*>대표 관리<\/button>/);
 assert.match(html,/getElementById\("hqOwnerManagement"\)\.onclick=\(\)=>\{ void openAccountMgmt\("owners"\); \}/);
 assert.match(html,/async function openAccountMgmt\(mode="accounts"\)/);
 assert.match(html,/window\.mountHqOwnerConsole/);
