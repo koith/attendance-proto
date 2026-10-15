@@ -301,17 +301,7 @@ async function smoke(browser,label,viewport){
   await page.goto(host+'/index.html#dashboard',{waitUntil:'domcontentloaded'});
   await page.locator('.hq-store-panel').first().waitFor({timeout:20000});
   assert.equal(await page.locator('.hq-store-panel').count(),2,'HQ store cards '+label);
-  await page.locator('#hqReadinessOpen').click();
-  await page.locator('#hqReadinessPanel h3').waitFor({timeout:12000});
-  assert.match(await page.locator('#hqReadinessPanel').innerText(),/현장 검증 현황/);
-  assert.match(await page.locator('#hqReadinessPanel').innerText(),/실자료 검증대기/);
-  assert.ok(calls.some(x=>x.name==='hq_field_readiness_v1'),
-    'HQ page must request server-scoped field evidence '+label);
-  await page.locator('#hqReadinessRefresh').click();
-  await page.locator('#hqReadinessPanel h3').waitFor({timeout:12000});
-  await page.locator('#hqReadinessClose').click();
-  assert.equal(await page.locator('#hqReadinessOverlay').isVisible(),false,'Readiness modal must close '+label);
-
+  assert.equal(await page.locator('#hqReadinessOpen').count(),0,'Internal QA control hidden from HQ dashboard '+label);
   assert.match(await page.locator('#view').innerText(),/시연용 거래는 매출 집계에서 제외했습니다/);
   // HQ provisioning must not send a real email: mock Edge and SQL RPCs only.
   await page.evaluate(()=>openAccountMgmt());
