@@ -2326,7 +2326,7 @@ async function renderAccountMgmt(mode="accounts"){
       try{
         await new Promise((resolve,reject)=>{
           const script=document.createElement("script");
-          script.src="hq_owner_console.js?v=20261015v280";
+          script.src="hq_owner_console.js?v=20261015v292";
           script.onload=resolve;
           script.onerror=()=>reject(new Error("관리자 관리 모듈 다운로드 실패"));
           document.head.appendChild(script);
