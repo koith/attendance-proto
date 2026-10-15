@@ -11,6 +11,9 @@ try{
    const rect=id=>{const e=document.querySelector(id);if(!e)return null;const r=e.getBoundingClientRect();return {x:r.x,w:r.width,c:r.x+r.width/2}};
    return {wrap:rect('.wrap'),nav:rect('.tabwrap'),view:rect('#view'),scrollWidth:document.documentElement.scrollWidth,scrollX:window.scrollX};
   });
+  // Startup intentionally hides the tab bar until store authorization settles.
+  // Geometry baseline must be taken from a fully routed screen, not its loading shell.
+  await page.waitForFunction(()=>!STORE_ENTRY_LOADING,{timeout:13000});
   const start=await measure();
   await page.evaluate(()=>{location.hash='#recipe'});
   await page.waitForTimeout(350);

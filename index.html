@@ -542,6 +542,17 @@
   .locked-store-name.show{display:block}
   @media(max-width:430px){.locked-store-name{max-width:118px;font-size:.82rem}}
 
+  /* v0.288: compact mobile header; never show both HQ selector and store title. */
+  @media(max-width:600px){
+    header{gap:7px!important;min-width:0}
+    header .brand{min-width:0!important;flex:1 1 auto!important;flex-wrap:nowrap!important;overflow:hidden}
+    header .brand #hqHome{flex:0 0 auto!important}
+    header .brand #hqHome img{max-width:108px!important;height:auto!important}
+    header .brand .store-select-shell{flex:0 1 130px!important;min-width:0!important;max-width:130px!important}
+    header .brand #lockedStoreName:not([hidden]){min-width:0!important;max-width:calc(100vw - 200px)!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+    header .clock{flex:0 0 auto!important;font-size:.7rem!important}
+  }
+  @media(max-width:390px){header .clock{display:none!important}}
   /* v0.171: store identity must remain visible beside the brand on all store pages. */
   header .brand #lockedStoreName:not([hidden]){display:block!important;flex:0 1 auto;min-width:0;color:#fff;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   @media(min-width:431px){header .brand #lockedStoreName:not([hidden]){max-width:240px}}
@@ -804,7 +815,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.287</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.288</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -896,7 +907,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.287";
+const APP_VERSION="v0.288";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1703,7 +1714,7 @@ function upgradeLegacyPageTitle(selector,title){
 function route(){
   const h=(location.hash||"#pos").replace("#","");
   if(window._adminAccountMenuCleanup){window._adminAccountMenuCleanup();window._adminAccountMenuCleanup=null}
-  if(STORE_ENTRY_LOADING){showStoreStartup();return;}
+  if(STORE_ENTRY_LOADING){syncStoreContextUI();showStoreStartup();document.querySelector(".tabwrap")?.style.setProperty("display","none");return;}
   if(STORE_ENTRY_UNAVAILABLE){
     clearInterval(_posTimer);
     const tabbar=document.querySelector(".tabwrap");if(tabbar)tabbar.style.display="none";
@@ -3841,8 +3852,24 @@ removeLegacySubstituteEntry();
 
 // Brand logo is decorative: store pages must never navigate to the HQ dashboard from it.
 if(LIVE) Auth.load();
-if(LIVE)showStoreStartup();
-loadStores().finally(()=>{STORE_ENTRY_LOADING=false;route();});
+// The initial loading shell must not expose a stale store selector or clipped header.
+syncStoreContextUI();
+if(LIVE){showStoreStartup();document.querySelector(".tabwrap")?.style.setProperty("display","none");}
+// Never leave the entire application on the startup shell if the store list stalls.
+// HQ entry can fall back to the selected store while public RPC is unavailable;
+// dedicated store links still fail closed until their store is verified.
+const storeStartupPromise=loadStores();
+let storeStartupSettled=false;
+const storeStartupWatchdog=setTimeout(()=>{
+ if(storeStartupSettled)return;
+ STORE_ENTRY_LOADING=false;
+ if(STORE_ENTRY_LOCK){STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;}
+ route();
+},9000);
+Promise.resolve(storeStartupPromise).catch(e=>console.warn("store startup failed",e)).finally(()=>{
+ storeStartupSettled=true;clearTimeout(storeStartupWatchdog);
+ STORE_ENTRY_LOADING=false;route();
+});
 </script>
 <script src="store_controls_v1.js?v=20260929v066"></script>
 <script src="hq_store_onboarding_ui.js?v=20261014v273"></script>

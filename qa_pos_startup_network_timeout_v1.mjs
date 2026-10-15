@@ -35,10 +35,10 @@ await assert.rejects(ctx.publicRpcForTest('list_stores',{},40),/STORE_DENIED/,
 
 assert.match(html,/publicRpc\("list_stores",\{\},6500\)/,
  'The dedicated store initialization must use the bounded network call');
-assert.match(html,/if\(STORE_ENTRY_LOADING\)\{showStoreStartup\(\);return;\}/,
- 'Loading route cannot bypass the POS authorization gate');
-assert.match(html,/if\(LIVE\)showStoreStartup\(\);\s*loadStores\(\)\.finally/,
- 'The pending banner must render before async startup begins');
+assert.match(html,/if\(STORE_ENTRY_LOADING\)\{syncStoreContextUI\(\);showStoreStartup\(\);document\.querySelector\("\.tabwrap"\)\?\.style\.setProperty\("display","none"\);return;\}/,
+ 'Loading route must sync header, hide store tabs, and preserve POS authorization gate');
+assert.match(html,/const storeStartupWatchdog=setTimeout\(\(\)=>\{/,
+ 'Startup watchdog must prevent an indefinite blank/loading shell');
 assert.match(html,/STORE_ENTRY_CONNECTION_FAILED=true/,
  'A temporary network failure must differ from an unapproved store');
 assert.match(html,/retryStoreConnect/,
