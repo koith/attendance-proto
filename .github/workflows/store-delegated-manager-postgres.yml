@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'qa_store_delegated_manager_postgres.sql'
+      - 'qa_store_manager_actions_v1.mjs'
       - 'qa_store_scoped_permissions_v1.mjs'
       - 'qa_store_scoped_permissions_postgres.sql'
       - 'supabase/migrations/20261014091000_delegated_scoped_actions.sql'
@@ -24,6 +25,7 @@ on:
     branches: [main]
     paths:
       - 'qa_store_delegated_manager_postgres.sql'
+      - 'qa_store_manager_actions_v1.mjs'
       - 'qa_store_scoped_permissions_v1.mjs'
       - 'qa_store_scoped_permissions_postgres.sql'
       - 'supabase/migrations/20261014091000_delegated_scoped_actions.sql'
@@ -75,6 +77,7 @@ jobs:
           node --check store_limited_manager.js
           node --check hq_store_onboarding_ui.js
           node qa_store_delegated_manager_v1.mjs
+          node qa_store_manager_actions_v1.mjs
           node qa_store_scoped_permissions_v1.mjs
       - name: Actual SQL function installation and adversarial synthetic tests
         run: psql -v ON_ERROR_STOP=1 -f qa_store_scoped_permissions_postgres.sql
