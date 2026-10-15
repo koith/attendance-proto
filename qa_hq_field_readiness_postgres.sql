@@ -3,6 +3,14 @@ BEGIN;
 DO $$ BEGIN CREATE ROLE anon; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE ROLE authenticated; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE ROLE service_role; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE SCHEMA auth;
+CREATE TABLE auth.users(
+ id uuid PRIMARY KEY,
+ email_confirmed_at timestamptz,
+ deleted_at timestamptz,
+ is_anonymous boolean NOT NULL DEFAULT false,
+ banned_until timestamptz
+);
 CREATE FUNCTION public.is_hq_admin() RETURNS boolean LANGUAGE sql STABLE AS $$
  SELECT current_setting('qa.hq',true)='1'
 $$;
@@ -19,6 +27,7 @@ CREATE TABLE public.operations_transactions(id bigint,store_id bigint,raw_record
 CREATE TABLE public.operations_reconciliation_issues(status text);
 CREATE TABLE public.inventory_movements(is_demo boolean,source_type text);
 \i supabase/migrations/20261015172500_hq_field_readiness_v1.sql
+\i supabase/migrations/20261015174500_hq_field_readiness_owner_auth_guard_v2.sql
 DO $$
 DECLARE snapshot jsonb; denied boolean:=false;
 BEGIN
@@ -57,6 +66,49 @@ END $$;
 INSERT INTO public.payroll_weekly_approvals VALUES(1,'2026-09-07',now(),'00000000-0000-4000-8000-000000000001');
 INSERT INTO public.store_provenance_reviews VALUES(3,1,'VERIFIED',now()+interval '1 second');
 INSERT INTO public.operations_transactions VALUES(32,1,20,false,'CONFIRMED');
+-- Owner row + latest VERIFIED review alone must never imply a usable account.
+DO $$
+DECLARE snapshot jsonb;
+BEGIN
+ PERFORM set_config('qa.hq','1',true);
+ snapshot:=public.hq_field_readiness_v1();
+ IF (snapshot->'stores'->>'qualified_owner_links')::int<>0 THEN RAISE EXCEPTION 'MISSING_AUTH_ACCOUNT_WAS_COUNTED'; END IF;
+END $$;
+INSERT INTO auth.users(id,email_confirmed_at,deleted_at,is_anonymous,banned_until)
+VALUES('00000000-0000-4000-8000-000000000001',NULL,NULL,false,NULL);
+DO $$
+DECLARE snapshot jsonb;
+BEGIN
+ PERFORM set_config('qa.hq','1',true);
+ snapshot:=public.hq_field_readiness_v1();
+ IF (snapshot->'stores'->>'qualified_owner_links')::int<>0 THEN RAISE EXCEPTION 'UNVERIFIED_AUTH_ACCOUNT_WAS_COUNTED'; END IF;
+END $$;
+UPDATE auth.users SET email_confirmed_at=clock_timestamp(),banned_until=clock_timestamp()+interval '2 days';
+DO $$
+DECLARE snapshot jsonb;
+BEGIN
+ PERFORM set_config('qa.hq','1',true);
+ snapshot:=public.hq_field_readiness_v1();
+ IF (snapshot->'stores'->>'qualified_owner_links')::int<>0 THEN RAISE EXCEPTION 'BANNED_OWNER_WAS_COUNTED'; END IF;
+END $$;
+UPDATE auth.users SET banned_until=NULL,deleted_at=clock_timestamp();
+DO $$
+DECLARE snapshot jsonb;
+BEGIN
+ PERFORM set_config('qa.hq','1',true);
+ snapshot:=public.hq_field_readiness_v1();
+ IF (snapshot->'stores'->>'qualified_owner_links')::int<>0 THEN RAISE EXCEPTION 'DELETED_OWNER_WAS_COUNTED'; END IF;
+END $$;
+UPDATE auth.users SET deleted_at=NULL,is_anonymous=true;
+DO $$
+DECLARE snapshot jsonb;
+BEGIN
+ PERFORM set_config('qa.hq','1',true);
+ snapshot:=public.hq_field_readiness_v1();
+ IF (snapshot->'stores'->>'qualified_owner_links')::int<>0 THEN RAISE EXCEPTION 'ANONYMOUS_OWNER_WAS_COUNTED'; END IF;
+END $$;
+UPDATE auth.users SET is_anonymous=false;
+
 DO $$
 DECLARE r jsonb;
 BEGIN

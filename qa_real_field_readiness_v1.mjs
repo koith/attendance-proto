@@ -39,6 +39,10 @@ for(const data of [null,{...zero,payroll:null},{...zero,stores:{}},{...zero,oper
 const sql=fs.readFileSync('qa_real_field_readiness_readonly.sql','utf8');
 assert.match(sql,/SELECT jsonb_build_object\(/);
 assert.match(sql,/t\.is_demo IS FALSE AND t\.status='CONFIRMED'/);
+assert.match(sql,/JOIN auth\.users u ON u\.id=o\.user_id/,'HQ report and read-only snapshot share owner identity gate');
+assert.match(sql,/u\.email_confirmed_at IS NOT NULL/);
+assert.match(sql,/u\.deleted_at IS NULL/);
+assert.match(sql,/u\.is_anonymous IS FALSE/);
 assert.match(sql,/r\.id=t\.raw_record_id/);
 assert.match(sql,/s\.onboarding_status='READY'/);
 assert.match(sql,/latest_review\.decision='VERIFIED'/);
