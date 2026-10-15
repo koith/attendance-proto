@@ -22,5 +22,7 @@ const agent=fs.readFileSync('.github/workflows/autonomous-development-agent.yml'
 assert.match(workflow,/types: \[opened, edited, reopened\]/);
 assert.match(workflow,/types: \[created\]/);
 assert.match(workflow,/cancel-in-progress: false/);
+assert.match(workflow,/pull-requests: write/,'PR discussion receipts need PR-specific permissions');
+assert.match(fs.readFileSync('scripts/issue_intake_receipt.mjs','utf8'),/const transient=rateLimited/,'rate-limit errors require bounded recovery');
 assert.match(agent,/node scripts\/issue_intake_receipt\.mjs/,'approved agent must archive issue before coding');
 console.log('PASS append-only GitHub instruction receipt: revisions, sources, bot-loop, secrets, agent gate');

@@ -44,10 +44,23 @@ async function main(){
  if(!src){console.log('SOURCE_NOT_APPLICABLE');return;}
  const base=(process.env.GITHUB_API_URL||'https://api.github.com')+'/repos/'+repo;
  const api=async(path,opts={})=>{
-  const res=await fetch(base+path,{...opts,headers:{Accept:'application/vnd.github+json',
-    Authorization:'Bearer '+token,'X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'}});
-  if(!res.ok)throw Error('GitHub intake request failed: '+res.status);
-  return {data:await res.json(),link:res.headers.get('link')||''};
+  for(let attempt=0;attempt<3;attempt++){
+   const res=await fetch(base+path,{...opts,headers:{Accept:'application/vnd.github+json',
+     Authorization:'Bearer '+token,'X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'}});
+   if(res.ok)return {data:await res.json(),link:res.headers.get('link')||''};
+   const errorBody=(await res.text()).slice(0,350);
+   const rateLimited=res.status===429||(res.status===403&&
+     (/secondary rate limit|rate limit|abuse detection/i.test(errorBody)||res.headers.has('retry-after')));
+   const transient=rateLimited||[502,503,504].includes(res.status);
+   if(transient&&attempt<2){
+     const hint=Number(res.headers.get('retry-after')||0);
+     await new Promise(resolve=>setTimeout(resolve,Math.max(1000,Math.min(10000,hint*1000||1500*(attempt+1)))));
+     continue;
+   }
+   throw Error('GitHub intake request failed: '+(opts.method||'GET')+' '+path+' HTTP_'+res.status+
+     ' '+errorBody.replace(/\s+/g,' ').slice(0,180));
+  }
+  throw Error('GitHub intake request did not complete after bounded retries');
  };
  if(src.readIssue){
   const r=await api('/issues/'+src.readIssue),i=r.data;
