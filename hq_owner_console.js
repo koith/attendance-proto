@@ -17,8 +17,8 @@ window.mountHqOwnerConsole=async function(box){
  const RECENTS_KEY="hq_owner_recent_stores_v1";
  const readRecents=()=>{try{return JSON.parse(localStorage.getItem(RECENTS_KEY)||"[]").filter(Number.isFinite).slice(0,5)}catch{return []}};
  const remember=id=>{try{localStorage.setItem(RECENTS_KEY,JSON.stringify([id,...readRecents().filter(x=>x!==id)].slice(0,5)))}catch{}};
- const PROVINCES={"서울":"서울특별시","부산":"부산광역시","대구":"대구광역시","인천":"인천광역시","광주":"광주광역시","대전":"대전광역시","울산":"울산광역시","세종":"세종특별자치시","경기":"경기도","강원":"강원특별자치도","충북":"충청북도","충남":"충청남도","전북":"전북특별자치도","전남":"전라남도","경북":"경상북도","경남":"경상남도","제주":"제주특별자치도"};
- const normalizeProvince=v=>PROVINCES[v]||Object.values(PROVINCES).find(p=>p===v)||"";
+ const PROVINCES={"서울":"서울특별시","부산":"부산광역시","대구":"대구광역시","인천":"인천광역시","광주":"전남광주통합특별시","대전":"대전광역시","울산":"울산광역시","세종":"세종특별자치시","경기":"경기도","강원":"강원특별자치도","충북":"충청북도","충남":"충청남도","전북":"전북특별자치도","전남":"전남광주통합특별시","경북":"경상북도","경남":"경상남도","제주":"제주특별자치도"};
+ const normalizeProvince=v=>({광주광역시:"전남광주통합특별시",전라남도:"전남광주통합특별시",전남광주:"전남광주통합특별시"}[v]||PROVINCES[v]||Object.values(PROVINCES).find(p=>p===v)||"");
  // Only HQ-verified physical addresses establish administrative geography.
  // 'region_group' is a sales territory and must NEVER be used as a province.
  const region=s=>({province:normalizeProvince(String(s.province||"").trim())||"주소 미확인",district:String(s.district||"").trim(),subdistrict:String(s.subdistrict||"").trim()});
@@ -41,6 +41,8 @@ window.mountHqOwnerConsole=async function(box){
  "경상남도":"창원시 진주시 통영시 사천시 김해시 밀양시 거제시 양산시 의령군 함안군 창녕군 고성군 남해군 하동군 산청군 함양군 거창군 합천군".split(" "),
  "제주특별자치도":"제주시 서귀포시".split(" ")
  };
+ // Effective 2026-07-01: Gwangju and Jeonnam share one province; keep legacy aliases for unchanged stored records.
+ ADMIN_DISTRICTS["전남광주통합특별시"]=[...new Set([...ADMIN_DISTRICTS["광주광역시"],...ADMIN_DISTRICTS["전라남도"]])];
  const SUB_DISTRICTS={
  "경기도":{"부천시":"원미구 소사구 오정구","수원시":"장안구 권선구 팔달구 영통구","성남시":"수정구 중원구 분당구","안양시":"만안구 동안구","안산시":"상록구 단원구","고양시":"덕양구 일산동구 일산서구","용인시":"처인구 기흥구 수지구"},
  "충청북도":{"청주시":"상당구 서원구 흥덕구 청원구"},
@@ -131,7 +133,7 @@ window.mountHqOwnerConsole=async function(box){
  const previousList=body.querySelector(".hq-owner-list");
  const listScroll=previousList?.scrollTop??0;
  const rows=stores.filter(s=>(filter==="ALL"||(filter==="ASSIGNED"?!!owner(s.id):!owner(s.id)))&&[s.name,s.code,s.region_group,s.id].some(v=>String(v??"").toLowerCase().includes(search.toLowerCase())));
- const regions=[...Object.values(PROVINCES),"주소 미확인"];
+ const regions=[...new Set(Object.values(PROVINCES)),"주소 미확인"];
  const districts=ADMIN_DISTRICTS[province]||[];
  const regionStores=stores.filter(s=>{const r=validRegion(s);return r&&r.province===province&&(!district||r.district===district)&&(!subdistrict||r.subdistrict===subdistrict)}).sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"));
  const subdivisions=(SUB_DISTRICTS[province]?.[district]||"").split(" ").filter(Boolean);
