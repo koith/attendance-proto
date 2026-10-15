@@ -13,7 +13,7 @@ const command=makeReceipt(extractSource('issue_comment',{...base,action:'created
  comment:{id:99,body:'추가 요청: UI 변경',user:{login:'koith',type:'User'},created_at:'2026-10-15T00:01:00Z'}}));
 assert.notEqual(command.id,first.id);
 assert.equal(extractSource('issue_comment',{...base,action:'created',
- comment:{id:100,body:'bot result',user:{login:'github-actions[bot]',type:'Bot'}}),null,'bot comments must not recursively capture');
+ comment:{id:100,body:'bot result',user:{login:'github-actions[bot]',type:'Bot'}}}),null,'bot comments must not recursively capture');
 assert.equal(extractSource('issues',{...base,action:'labeled'})?.origin,'GitHub issue labeled');
 assert.throws(()=>makeReceipt({...source,text:'sk-'+'x'.repeat(35)}),/Sensitive token/);
 assert.throws(()=>makeReceipt({...source,text:' '}),/Missing or oversized/);
