@@ -76,4 +76,4 @@ assert.match(operations,/BE\.operationsChannelsMode\(/,
   'Channel selectors must follow the current real or demo mode');
 
 new Function(operations);
-console.log('PASS 6 HQ/store financial RPCs exclude demo with preserved scopes; template is header-only, current v0.290 release');
+console.log('PASS 6 HQ/store financial RPCs exclude demo with preserved scopes; template is header-only, current v0.291 release');
