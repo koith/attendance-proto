@@ -13,7 +13,8 @@ for (const name of ['hq_stores_onboarding_list','hq_store_catalog','hq_store_loc
   assert(classify.slice(start,end).includes("coalesce(s.source_store_key,'') not like 'demo_%'"),name+' excludes fake shops server-side');
 }
 assert.match(classify,/s.name='김해부원점' and s.source_store_key='official_demo'/,'name-derived address must only touch exact genuine listing');
-assert.match(classify,/select s.id,null,'경상남도','김해시',null/,'no synthetic street address');
+assert.match(classify,/select s.id,'경상남도','김해시',null/,'city-only inference in separate table');
+assert.match(classify,/null::text as address/,'HQ RPC must return NULL instead of fake road address');
 assert(ui.includes('stores.filter(s=>!samples.has(Number(s.id)))'),'HQ picker hides seeded shops client-side');
 assert(ui.includes('상세주소 미확인')&&ui.includes('지점명 기준'),'name-derived geography must be disclosed');
 assert(!ui.includes(',"주소 미확인","시연 지점"'),'fake shop picker not exposed');
