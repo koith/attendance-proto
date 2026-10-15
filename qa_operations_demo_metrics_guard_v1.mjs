@@ -49,7 +49,7 @@ assert.deepEqual(csv.trim().split(/\r?\n/),
   'Template must contain headers ONLY; uploading it must not create fabricated financial transactions');
 assert.doesNotMatch(csv,/sample|DEMO|2026-\d\d-\d\d|4500/i);
 assert.match(operations,/실제 거래 파일만 업로드하세요/);
-assert.match(app,/const APP_VERSION="v0\.291"/);
+assert.match(app,/const APP_VERSION="v0\.292"/);
 assert.match(app,/id="appVersion">v0\.291<\/span>/);
 assert.match(app,/operations_v1\.js\?v=20261015v286/,
   'Real asset must bypass stale browser cache on the corrected release');
