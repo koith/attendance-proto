@@ -12,7 +12,9 @@ for(const fn of ['hq_stores_onboarding_list','hq_store_catalog','hq_store_locati
 assert(!/\b(delete\s+from|truncate\s+|drop\s+table)\b/i.test(sql),'no irreversible deletion of linked attendance data');
 assert.match(sql,/on conflict\s*\(store_id\) do nothing/i,'name-derived province does not overwrite real address');
 assert.match(sql,/s\.name='김해부원점' and s\.source_store_key='official_demo'/,'exact guarded name');
-assert.match(sql,/select s\.id,null,'경상남도','김해시',null/,'city only, no fabricated street');
+assert.match(sql,/select s\.id,'경상남도','김해시',null/,'city only, no fabricated street');
+assert.match(sql,/create table if not exists public\.store_inferred_regions/i,'inferred store regions are not fake addresses');
+assert.match(sql,/revoke all on table public\.store_inferred_regions from public,anon,authenticated/i);
 assert.match(sql,/event\/49/,'official evidence link');
 assert.match(sql,/from public\.store_locations l join public\.stores s/,'exclude orphan sample location rows');
 assert(js.includes('stores.filter(s=>!samples.has(Number(s.id)))'),'client defense-in-depth removes demo');
