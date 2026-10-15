@@ -234,6 +234,8 @@ jobs:
         run: node qa_operations_paged_real_v1.mjs
       - name: POS kiosk authentication and raw roster privacy gate
         run: node qa_pos_kiosk_gate_v1.mjs
+      - name: Preserve issue instruction source with fail-closed trace tests
+        run: node qa_issue_receipt_v1.mjs
       - name: Inventory renderer syntax and editor wiring guard
         run: |
           node --check operations_reference_ui_v208.js

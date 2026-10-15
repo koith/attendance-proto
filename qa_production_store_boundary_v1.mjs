@@ -39,13 +39,26 @@ for(const store of stores){
   seen.add(Number(store.id));
 }
 assert.ok(seen.has(1),'Existing live Inha branch disappeared');
-if(!seen.has(2)){
-  const employees=await rpc('list_employees_state',{p_store_id:2});
-  assert.ok(Array.isArray(employees)&&employees.length===0,
-    'STAGED store 2 must not expose employee attendance or PIN data');
+// #832: the legacy employee-state RPC must never be publicly executable,
+// for a READY store or a STAGED store. Never fall back to revealing names.
+for(const storeId of [1,2]){
+  const legacy=await fetch(url+'/rest/v1/rpc/list_employees_state',{
+    method:'POST',headers,body:JSON.stringify({p_store_id:storeId}),signal:AbortSignal.timeout(18000)
+  });
+  assert.ok([401,403,404].includes(legacy.status),
+    'Legacy roster must deny anonymous access to store '+storeId+': '+legacy.status);
+  const locked=await fetch(url+'/rest/v1/rpc/pos_employees_state',{
+    method:'POST',headers,body:JSON.stringify({p_store_id:storeId,p_token:'not-a-valid-token'}),
+    signal:AbortSignal.timeout(18000)
+  });
+  assert.ok(!locked.ok,
+    'POS roster must require a valid store-scoped kiosk token for store '+storeId);
+  const body=await locked.text();
+  assert.doesNotMatch(body,/working_since|today_first_in|today_last_out|employee_no/,
+    'Unauthenticated response must not contain staff attendance data');
 }
 const adminResponse=await fetch(url+'/rest/v1/rpc/hq_stores_onboarding_list',{
  method:'POST',headers,body:'{}',signal:AbortSignal.timeout(18000)});
 assert.ok(adminResponse.status===401||adminResponse.status===403,
  'Anonymous HQ onboarding list must deny, got '+adminResponse.status);
-console.log('PASS live anonymous boundaries: READY store picker, staged roster redacted, HQ onboarding denied');
+console.log('PASS live anonymous boundaries: READY picker, raw roster denied, kiosk token required and HQ denied');
