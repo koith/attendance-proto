@@ -66,6 +66,11 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
       store_ready:true,period:{store_id:Number(args.p_store_id),ym:args.p_ym,weeks:4,status:payrollClosed?'CLOSED':'OPEN'},overrides:[]});
     if(name==='list_store_employees'&&role==='STORE_MANAGER')
       return reply(route,employees.map(e=>({...e,store_id:managerStoreId,name:'점주 지점 직원'})));
+    if(name==='pos_public_staff_picker'){
+      if(![1,2].includes(Number(args.p_store_id)))return reply(route,[]);
+      return reply(route,employees.map(e=>({id:e.id,employee_no:e.employee_no,
+        name:role==='STORE_MANAGER'?'점주 지점 직원':e.name})));
+    }
     if(name==='pos_unlock_store'){
       if(String(args.p_pin)!=='1234'||Number(args.p_employee_no)!==1||![1,2].includes(Number(args.p_store_id)))
         return reply(route,{ok:false,error:'INVALID_CREDENTIALS'});
@@ -135,13 +140,29 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
 }
 async function check(condition,message){assert.ok(condition,message)}
 async function unlockPos(page,label){
-  await page.locator('#posUnlockForm').waitFor({timeout:20000});
-  assert.equal(await page.locator('#empGrid .emp').count(),0,
-    'Employee roster visible before PIN unlock '+label);
-  await page.locator('#posUnlockEmployeeNo').fill('1');
-  await page.locator('#posUnlockPin').fill('1234');
-  await page.locator('#posUnlockButton').click();
+  // First page must offer staff cards. Nobody should enter employee number
+  // in a new kiosk gate before their ordinary 4-digit punch PIN.
   await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
+  assert.equal(await page.locator('#posUnlockForm').count(),0,
+    'Extra kiosk unlock form reappeared '+label);
+  assert.equal(await page.locator('#empGrid .emp').first().getAttribute('role'),'button',
+    'Accessible original staff picker missing '+label);
+  await page.locator('#empGrid .emp').first().click();
+  await page.locator('#padVeil.show').waitFor({timeout:10000});
+  assert.match(await page.locator('#padWho').innerText(),/PIN 입력 후 출퇴근 처리/);
+  for(const d of ['1','2','3','4'])await page.locator('#padKeys').getByRole('button',{name:d,exact:true}).click();
+  await page.locator('#padKeys .ok-action').click();
+  await page.waitForFunction(()=>document.querySelector('#empGrid .emp')?.classList.contains('working'),null,{timeout:15000});
+  await page.locator('#success').click({force:true});
+  // Undo the first synthetic IN, so the rest of the long-standing smoke
+  // still tests its normal IN then OUT assertions from a clean state.
+  await page.locator('#empGrid .emp').first().click();
+  await page.locator('#padVeil.show').waitFor({timeout:10000});
+  for(const d of ['1','2','3','4'])await page.locator('#padKeys').getByRole('button',{name:d,exact:true}).click();
+  await page.locator('#padKeys .ok-action').click();
+  await page.waitForFunction(()=>!!document.querySelector('#empGrid .emp') &&
+    !document.querySelector('#empGrid .emp').classList.contains('working'),null,{timeout:15000});
+  await page.locator('#success').click({force:true});
 }
 
 
@@ -175,7 +196,7 @@ async function smoke(browser,label,viewport){
     },expectedWorking,{timeout:12000});
     await page.locator('#success').click({force:true});
   }
-  assert.deepEqual(calls.filter(x=>x.name==='punch').map(x=>x.args.p_employee_id),[123,123],'IN/OUT punch employee IDs '+label);
+  assert.deepEqual(calls.filter(x=>x.name==='punch').map(x=>x.args.p_employee_id),[123,123,123,123],'PIN-first and followup IN/OUT employee IDs '+label);
   await page.locator('#hqHome').click();
   assert.ok((new URL(page.url())).hash==='#pos','Brand logo must not open headquarters '+label);
   await page.evaluate(()=>{location.hash='#dashboard'});
