@@ -3,6 +3,8 @@ import fs from 'node:fs';
 const app=fs.readFileSync('index.html','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261015174500_hq_field_readiness_owner_auth_guard_v2.sql','utf8');
 const source=fs.readFileSync('qa_real_field_readiness_readonly.sql','utf8');
+const fixture=fs.readFileSync('qa_hq_field_readiness_postgres.sql','utf8');
+assert.doesNotMatch(fixture,/^(?:DO|END|CREATE FUNCTION[^\n]*AS) \$(?:;)?$/m,'PostgreSQL fixture must have paired $$ delimiters');
 assert.match(sql,/CREATE OR REPLACE FUNCTION public\.hq_field_readiness_v1\(\)/);
 assert.match(sql,/SECURITY DEFINER SET search_path TO 'public','pg_temp'/);
 assert.match(sql,/IF public\.is_hq_admin\(\) IS NOT TRUE THEN/,'NULL cannot authorize HQ');
