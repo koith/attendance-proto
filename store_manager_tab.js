@@ -51,7 +51,12 @@ window.mountStoreManagerTab=function(){
     mount.querySelectorAll("button").forEach(b=>b.disabled=true);
     try{await task();await refresh();}
     catch(e){notify(String(e?.message||e),true);await refresh().catch(()=>{});}
-    finally{busy=false;}
+    finally{
+      busy=false;
+      // The reload control is outside the refreshed content and must be restored
+      // after both successful and failed mutations.
+      mount.querySelectorAll("button").forEach(button=>{button.disabled=false;});
+    }
   };
   async function refresh(){
     content.textContent="관리자 계정을 불러오는 중…";
