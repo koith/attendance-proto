@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const app=fs.readFileSync('index.html','utf8');
-const sql=fs.readFileSync('supabase/migrations/20261015174500_hq_field_readiness_owner_auth_guard_v2.sql','utf8');
+const sql=fs.readFileSync('supabase/migrations/20261015181000_hq_field_readiness_real_source_chain_v3.sql','utf8');
 const source=fs.readFileSync('qa_real_field_readiness_readonly.sql','utf8');
 const fixture=fs.readFileSync('qa_hq_field_readiness_postgres.sql','utf8');
 assert.doesNotMatch(fixture,/^(?:DO|END|CREATE FUNCTION[^\n]*AS) \$(?:;)?$/m,'PostgreSQL fixture must have paired $$ delimiters');
@@ -19,6 +19,14 @@ assert.match(sql,/u\.is_anonymous IS FALSE/,'anonymous sign-in must not grant ow
 assert.match(sql,/u\.banned_until IS NULL OR u\.banned_until < clock_timestamp\(\)/,'banned owner must be rejected');
 assert.match(sql,/t\.is_demo IS FALSE AND t\.status='CONFIRMED'/,'exclude demo transactions');
 assert.match(sql,/r\.id=t\.raw_record_id AND r\.store_id=t\.store_id/,'source-to-transaction relationship');
+assert.match(sql,/b\.status='COMPLETED'/,'completed_at without COMPLETED state never counts');
+assert.match(sql,/b\.store_id=r\.store_id/,'batch and raw rows must share a store');
+assert.match(sql,/b\.source=r\.source/,'batch and raw rows must share a source');
+assert.match(sql,/b\.source_store_key=r\.source_store_key/,'batch and raw rows must share a source store');
+assert.match(sql,/r\.source=t\.source/,'normalized transaction must match source');
+assert.match(sql,/r\.source_store_key=t\.source_store_key/,'normalized transaction must match source store');
+assert.match(sql,/r\.source_record_key=t\.source_record_key/,'normalized transaction must match the original record');
+
 assert.match(source,/qualifying_payroll_periods/,'read-only original must remain');
 assert.match(app,/async hqFieldReadiness\(\)\{ return rpc\("hq_field_readiness_v1",\{\},true\); \}/);
 assert.match(app,/id="hqReadinessOpen"/);
