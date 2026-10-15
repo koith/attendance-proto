@@ -804,7 +804,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.277</span></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><span class="app-version-badge connection-version" id="appVersion">v0.278</span></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -896,7 +896,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.277";
+const APP_VERSION="v0.278";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -2217,7 +2217,7 @@ async function renderAccountMgmt(mode="accounts"){
       try{
         await new Promise((resolve,reject)=>{
           const script=document.createElement("script");
-          script.src="hq_owner_console.js?v=20261015v277";
+          script.src="hq_owner_console.js?v=20261015v278";
           script.onload=resolve;
           script.onerror=()=>reject(new Error("관리자 관리 모듈 다운로드 실패"));
           document.head.appendChild(script);
@@ -3755,7 +3755,7 @@ loadStores().finally(()=>{STORE_ENTRY_LOADING=false;route();});
 </script>
 <script src="store_controls_v1.js?v=20260929v066"></script>
 <script src="hq_store_onboarding_ui.js?v=20261014v273"></script>
-<script src="hq_owner_console.js?v=20261015v277"></script>
+<script src="hq_owner_console.js?v=20261015v278"></script>
 <script src="store_manager_tab.js?v=20261014v256"></script>
 <script src="store_limited_manager.js?v=20261014v254"></script>
 </body>
