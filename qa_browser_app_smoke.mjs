@@ -18,7 +18,7 @@ function reply(route,value,status=200){
 
 async function configure(page,calls,role='HQ',managerStoreId=null){
   let working=false, payrollClosed=false,ownerInvited=false,ownerConfirmed=false,storeVerified=false,stageActivated=false;
-  await page.addInitScript(()=>{
+  if(role!=='GUEST') await page.addInitScript(()=>{
     localStorage.setItem('baekeok_auth',JSON.stringify({
       access_token:'qa-local-token',refresh_token:'qa-refresh-token'
     }));
@@ -66,6 +66,14 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
       store_ready:true,period:{store_id:Number(args.p_store_id),ym:args.p_ym,weeks:4,status:payrollClosed?'CLOSED':'OPEN'},overrides:[]});
     if(name==='list_store_employees'&&role==='STORE_MANAGER')
       return reply(route,employees.map(e=>({...e,store_id:managerStoreId,name:'점주 지점 직원'})));
+    if(name==='pos_public_staff_cards'){
+      if(![1,2].includes(Number(args.p_store_id)))return reply(route,[]);
+      return reply(route,employees.map(e=>({
+        id:e.id,employee_no:e.employee_no,name:role==='STORE_MANAGER'?'점주 지점 직원':e.name,
+        working,working_since:working?'2026-10-10T09:00:00':null,
+        today_work_seconds:0,today_first_in:null,today_last_out:null
+      })));
+    }
     if(name==='pos_public_staff_picker'){
       if(![1,2].includes(Number(args.p_store_id)))return reply(route,[]);
       return reply(route,employees.map(e=>({id:e.id,employee_no:e.employee_no,
@@ -177,6 +185,17 @@ async function smoke(browser,label,viewport){
   });
   const ownerFixture=await configure(page,calls);
   await page.goto(host+'/index.html?mode=store&store=1#pos',{waitUntil:'domcontentloaded'});
+  await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
+  assert.match(await page.locator('#empGrid .emp').first().innerText(),/출근 전/);
+  assert.match(await page.locator('#empGrid .emp').first().innerText(),/출근 기록 없음/);
+  assert.equal(await page.locator('#empGrid .emp').first().locator('.pos-att-edit').count(),1,
+    'HQ authenticated administrator should see original pencil');
+  const pencilCalls=calls.length;
+  await page.locator('#empGrid .emp .pos-att-edit').first().click();
+  await page.getByText('김지수 · 근태 수정').waitFor({timeout:10000});
+  assert.ok(calls.slice(pencilCalls).some(x=>x.name==='admin_store_events_with_corrections'),
+    'Original edit button must request the scoped real correction API');
+  await page.locator('#addVeil').evaluate(el=>el.classList.remove('show'));
   await unlockPos(page,label);
   assert.equal((await page.locator('#appVersion').innerText()).trim(),expectedVersion,'Deployed app version mismatch '+label);
   assert.match(await page.locator('#empGrid').innerText(),/김지수/);
@@ -352,6 +371,21 @@ async function smoke(browser,label,viewport){
   await context.close();
   console.log('PASS browser smoke '+label+': POS IN/OUT / store lock / employees / server payroll / inventory / attendance / HQ navigation');
 }
+async function guestPosCards(browser){
+  const context=await browser.newContext({viewport:{width:390,height:844},locale:'ko-KR',timezoneId:'Asia/Seoul'});
+  const page=await context.newPage(),calls=[];
+  await configure(page,calls,'GUEST');
+  await page.goto(host+'/index.html?mode=store&store=1#pos',{waitUntil:'domcontentloaded'});
+  await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
+  assert.match(await page.locator('#empGrid .emp').first().innerText(),/출근 전/);
+  assert.match(await page.locator('#empGrid .emp').first().innerText(),/출근 기록 없음/);
+  assert.equal(await page.locator('.pos-att-edit').count(),0,'Non-authenticated staff must never see the edit pencil');
+  assert.equal(calls.filter(x=>x.name==='is_admin').length,0,'Public kiosk must not query admin permission');
+  assert.ok(calls.some(x=>x.name==='pos_public_staff_cards'),'Guest should receive limited status cards only');
+  assert.equal(calls.filter(x=>x.name==='list_employees_state').length,0,'Guest must never invoke direct staff private function');
+  await context.close();
+  console.log('PASS unauthenticated original POS card state and admin pencil denied');
+}
 async function ownerScopedRoute(browser,label,viewport){
   const context=await browser.newContext({viewport,locale:'ko-KR',timezoneId:'Asia/Seoul'});
   const page=await context.newPage();
@@ -360,6 +394,7 @@ async function ownerScopedRoute(browser,label,viewport){
   await configure(page,calls,'STORE_MANAGER',2);
   await page.goto(host+'/index.html?mode=store&store=1#admin',{waitUntil:'domcontentloaded'});
   await page.waitForURL(/mode=store&store=2#pos/,{timeout:20000});
+  await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
   await unlockPos(page,label);
   assert.ok((await page.locator('#empGrid').innerText()).includes('점주 지점 직원'),'Store owner POS scope '+label);
   assert.equal(await page.locator('#storeSelect').count(),0,'Store owner must not have HQ store switcher '+label);
@@ -443,6 +478,7 @@ const browser=await chromium.launch({headless:true});
 try{
   await smoke(browser,'mobile',{width:390,height:844});
   await smoke(browser,'desktop',{width:1440,height:900});
+  await guestPosCards(browser);
   await ownerScopedRoute(browser,'mobile',{width:390,height:844});
   await ownerScopedRoute(browser,'desktop',{width:1440,height:900});
   await blockedStoreRoute(browser,'mobile',{width:390,height:844});

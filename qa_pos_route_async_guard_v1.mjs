@@ -5,7 +5,7 @@ const start=s.indexOf('async function renderPos(');
 const end=s.indexOf('\n}',start);
 assert.ok(start>=0&&end>start,'renderPos missing');
 const body=s.slice(start,end);
-assert.match(body,/withPosTimeout\(BE\.listEmployeesState\(\),8000\)/);
+assert.match(body,/withPosTimeout\(pickerOnly\?BE\.posPublicStaffCards\(\):BE\.listEmployeesState\(\),8000\)/);
 assert.match(body,/if\(!grid\.isConnected \|\| \(location\.hash && location\.hash!=="#pos"\)\)return/);
 assert.match(body,/const count=document\.getElementById\("empCount"\)/);
 assert.match(body,/if\(!count\)return/);
