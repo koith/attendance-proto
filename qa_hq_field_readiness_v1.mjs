@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const app=fs.readFileSync('index.html','utf8');
-const sql=fs.readFileSync('supabase/migrations/20261015172500_hq_field_readiness_v1.sql','utf8');
+const sql=fs.readFileSync('supabase/migrations/20261015174500_hq_field_readiness_owner_auth_guard_v2.sql','utf8');
 const source=fs.readFileSync('qa_real_field_readiness_readonly.sql','utf8');
 assert.match(sql,/CREATE OR REPLACE FUNCTION public\.hq_field_readiness_v1\(\)/);
 assert.match(sql,/SECURITY DEFINER SET search_path TO 'public','pg_temp'/);
@@ -10,6 +10,11 @@ assert.match(sql,/REVOKE ALL ON FUNCTION public\.hq_field_readiness_v1\(\) FROM 
 assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.hq_field_readiness_v1\(\) TO authenticated, service_role/);
 assert.match(sql,/to_date\(p\.ym\|\|'-01'/,'same-period payroll approval required');
 assert.match(sql,/latest_review\.decision='VERIFIED'/,'store latest provenance review required');
+assert.match(sql,/JOIN auth\.users u ON u\.id=o\.user_id/,'owner must exist as auth identity');
+assert.match(sql,/u\.email_confirmed_at IS NOT NULL/,'owner identity must be email verified');
+assert.match(sql,/u\.deleted_at IS NULL/,'deleted account must be rejected');
+assert.match(sql,/u\.is_anonymous IS FALSE/,'anonymous sign-in must not grant owner readiness');
+assert.match(sql,/u\.banned_until IS NULL OR u\.banned_until < clock_timestamp\(\)/,'banned owner must be rejected');
 assert.match(sql,/t\.is_demo IS FALSE AND t\.status='CONFIRMED'/,'exclude demo transactions');
 assert.match(sql,/r\.id=t\.raw_record_id AND r\.store_id=t\.store_id/,'source-to-transaction relationship');
 assert.match(source,/qualifying_payroll_periods/,'read-only original must remain');

@@ -3,12 +3,14 @@ on:
   pull_request:
     paths:
       - 'supabase/migrations/20261015172500_hq_field_readiness_v1.sql'
+      - 'supabase/migrations/20261015174500_hq_field_readiness_owner_auth_guard_v2.sql'
       - 'qa_hq_field_readiness_postgres.sql'
       - '.github/workflows/hq-field-readiness-postgres.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/migrations/20261015172500_hq_field_readiness_v1.sql'
+      - 'supabase/migrations/20261015174500_hq_field_readiness_owner_auth_guard_v2.sql'
       - 'qa_hq_field_readiness_postgres.sql'
       - '.github/workflows/hq-field-readiness-postgres.yml'
 permissions:

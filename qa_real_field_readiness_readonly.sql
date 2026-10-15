@@ -37,12 +37,17 @@ qualified_owners AS (
  FROM public.store_primary_owners o
  JOIN public.store_admin_memberships m
    ON m.store_id=o.store_id AND m.user_id=o.user_id
+ JOIN auth.users u ON u.id=o.user_id
  JOIN public.stores s ON s.id=o.store_id
  JOIN LATERAL (
   SELECT v.decision FROM public.store_provenance_reviews v
   WHERE v.store_id=s.id ORDER BY v.reviewed_at DESC,v.id DESC LIMIT 1
  ) latest_review ON latest_review.decision='VERIFIED'
  WHERE s.is_active IS TRUE AND s.onboarding_status='READY'
+   AND u.email_confirmed_at IS NOT NULL
+   AND u.deleted_at IS NULL
+   AND u.is_anonymous IS FALSE
+   AND (u.banned_until IS NULL OR u.banned_until < clock_timestamp())
 ),
 valid_imports AS (
  SELECT b.id FROM public.operations_import_batches b
