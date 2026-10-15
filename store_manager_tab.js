@@ -73,7 +73,8 @@ window.mountStoreManagerTab=function(){
       const managerPermissions=isPrimary?await request("store_delegated_permissions_list",{p_store_id:storeId}):[];
       const owner=rows.find(entry=>entry.manager_role==="OWNER");
       const delegates=rows.filter(entry=>entry.manager_role!=="OWNER");
-      const currentRole=isHq===true?"본사 관리자":isPrimary?"대표 점주":self?"보조 관리자":"관리자 권한 없음";
+      // When HQ has not appointed an owner, these are linked accounts, not confirmed delegates.
+      const currentRole=isHq===true?"본사 관리자":isPrimary?"대표 점주":self?(owner?"보조 관리자":"지점 연결 계정 · 대표 미지정"):"관리자 권한 없음";
       // Guilded/Discord-style roster: the owner leads; delegates nest below.
       // The HQ role is only the viewing context, not a member of this store hierarchy.
       const roleSummary='<div class="smt-who">현재 접속 · '+esc(currentRole)+'</div>'+
@@ -112,7 +113,7 @@ window.mountStoreManagerTab=function(){
         return '<details class="smt-member smt-delegate" data-manager-kind="delegate">'+
           '<summary><span class="smt-avatar" aria-hidden="true">♙</span>'+
           '<span class="smt-person"><strong>'+esc(entry.email)+(entry.user_id===user?.id?" · 나":"")+'</strong>'+
-          '<small>보조 관리자</small></span><span class="smt-role">보조</span>'+
+          '<small>'+(owner?'보조 관리자':'지점 연결 계정 · 대표 지정 전')+'</small></span><span class="smt-role">'+(owner?'보조':'연결됨')+'</span>'+
           '<span class="smt-arrow" aria-hidden="true">›</span></summary>'+
           '<div class="smt-detail">'+checks+'</div></details>';
       }).join("");
