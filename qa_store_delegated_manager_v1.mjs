@@ -12,7 +12,7 @@ const mirror=read("edge-release/supabase/functions/server-sync-sheet/index.ts");
 assert.equal(edge,mirror,"deployed Edge source must match canonical source byte for byte");
 assert.match(app,/APP_VERSION="v0\.\d+"/);
 assert.match(app,/mountStoreManagerTab\(\)/);
-assert.match(app,/store_manager_tab\.js\?v=20261014v256/);
+assert.match(app,/store_manager_tab\.js\?v=20261015v287/);
 assert.match(app,/hq_store_onboarding_ui\.js\?v=20261014v273/);
 assert.match(app,/id="empTabActive"/);
 assert.match(app,/id="empTabRetired"/);
@@ -71,7 +71,10 @@ async function simulateStore(storeId,role){
  fetch:async(url,options)=>{
  const data=JSON.parse(options.body);calls.push({url,data});
  const result=url.endsWith("is_hq_admin")?role==="HQ":
- [{user_id:"primary-id",email:"primary@synthetic.invalid",manager_role:role==="OWNER"?"OWNER":"MANAGER"}];
+ url.endsWith("store_delegated_permissions_list")?
+ [{user_id:"delegate-id",staff_edit:true,attendance_approve:false,payroll_view:false}]:
+ [{user_id:"primary-id",email:"primary@synthetic.invalid",manager_role:role==="OWNER"?"OWNER":"MANAGER"},
+  {user_id:"delegate-id",email:"delegate@synthetic.invalid",manager_role:"MANAGER"}];
  return {ok:true,json:async()=>result};},toast:()=>{},alert:()=>{},confirm:()=>true};
  context.window=context;
  vm.runInNewContext(ui,context,{filename:"store_manager_tab.js"});
@@ -84,7 +87,21 @@ async function simulateStore(storeId,role){
  await new Promise(resolve=>setTimeout(resolve,0));
  assert.ok(calls.some(x=>x.url.endsWith("store_delegated_manager_list")&&x.data.p_store_id===storeId));
  const html=panel.adjacent.content.innerHTML;
- if(role==="OWNER")assert.match(html,/storeManagerInviteForm/);
+ assert.match(html,/smt-table/, "the default screen is a compact roster");
+ assert.match(html,/smt-columns/, "roster must show user/role column headings");
+ assert.match(html,/data-manager-kind="owner"/);
+ assert.match(html,/data-manager-kind="delegate"/);
+ assert.match(html,/delegate@synthetic.invalid/);
+ assert.equal((html.match(/class="smt-entry"/g)||[]).length,role==="OWNER"?2:3,"one row per account; owner + each delegate");
+ assert.doesNotMatch(html,/store-manager-person|store-manager-hq-note|현재 내 권한/,
+  "verbose nested account explanation cards must be removed");
+ if(role==="OWNER"){
+   assert.match(html,/storeManagerInviteForm/);
+   assert.match(html,/data-manager-rights="delegate-id"/);
+   assert.match(html,/직원 기본정보 수정/);
+   assert.match(html,/세 항목을 모두 체크해도 전체 관리자 권한/);
+ }
+ if(role!=="OWNER")assert.match(html,/대표 점주 미지정/);
  if(role==="HQ"){
    assert.doesNotMatch(html,/storeManagerHqInviteForm|storeManagerExistingForm|storeManagerInviteForm|data-manager-revoke/);
    assert.match(html,/본사 대시보드/);

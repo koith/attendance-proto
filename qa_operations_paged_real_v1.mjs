@@ -21,7 +21,7 @@ assert.match(ui,/totals=data\.totals\|\|\{\}/,'summaries are server-wide, not pa
 assert.match(ui,/q\.page\+\+;refresh\(false\)/,'next-page action');
 assert.match(ui,/q\.page--;refresh\(false\)/,'previous-page action');
 assert.match(app,/operations_v1\.js\?v=20261015v286/);
-assert.match(app,/const APP_VERSION="v0\.286"/);
+assert.match(app,/const APP_VERSION="v0\.287"/);
 assert(!ui.includes('BE.operationsInquiry(f,t,null,null)'),'legacy 2000-limited RPC must not render the inquiry');
 new Function(ui);
 console.log('PASS #833 paginated verified-real default, opt-in demo, server aggregates and full data controls');
