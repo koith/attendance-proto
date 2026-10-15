@@ -16,9 +16,21 @@ closed_with_snapshot AS (
     AND snap.source_fingerprint IS NOT NULL AND btrim(snap.source_fingerprint)<>''
  )
 ),
+qualifying_payroll_periods AS (
+ SELECT p.store_id,p.ym FROM closed_with_snapshot p
+ WHERE EXISTS (
+  SELECT 1 FROM public.payroll_weekly_approvals w
+  WHERE w.store_id=p.store_id AND w.approved_at IS NOT NULL AND w.approved_by IS NOT NULL
+    AND w.week_start >= (to_date(p.ym||'-01','YYYY-MM-DD') - interval '6 days')::date
+    AND w.week_start < (to_date(p.ym||'-01','YYYY-MM-DD') + interval '1 month')::date
+ )
+),
 real_weekly AS (
- SELECT count(*)::int AS c FROM public.payroll_weekly_approvals
- WHERE approved_at IS NOT NULL AND approved_by IS NOT NULL
+ SELECT count(*)::int AS c FROM public.payroll_weekly_approvals w
+ JOIN closed_with_snapshot p ON p.store_id=w.store_id
+ WHERE w.approved_at IS NOT NULL AND w.approved_by IS NOT NULL
+   AND w.week_start >= (to_date(p.ym||'-01','YYYY-MM-DD') - interval '6 days')::date
+   AND w.week_start < (to_date(p.ym||'-01','YYYY-MM-DD') + interval '1 month')::date
 ),
 qualified_owners AS (
  SELECT count(*)::int AS c
@@ -26,11 +38,11 @@ qualified_owners AS (
  JOIN public.store_admin_memberships m
    ON m.store_id=o.store_id AND m.user_id=o.user_id
  JOIN public.stores s ON s.id=o.store_id
+ JOIN LATERAL (
+  SELECT v.decision FROM public.store_provenance_reviews v
+  WHERE v.store_id=s.id ORDER BY v.reviewed_at DESC,v.id DESC LIMIT 1
+ ) latest_review ON latest_review.decision='VERIFIED'
  WHERE s.is_active IS TRUE AND s.onboarding_status='READY'
-   AND EXISTS (
-    SELECT 1 FROM public.store_provenance_reviews v
-    WHERE v.store_id=s.id AND v.decision='VERIFIED'
-   )
 ),
 valid_imports AS (
  SELECT b.id FROM public.operations_import_batches b
@@ -52,11 +64,12 @@ real_stock AS (
  WHERE is_demo IS FALSE AND source_type <> 'DEMO'
 )
 SELECT jsonb_build_object(
- 'schema_version',1,
+ 'schema_version',2,
  'captured_at',clock_timestamp(),
  'payroll',jsonb_build_object(
    'closed_periods',(SELECT count(*)::int FROM closed_periods),
    'closed_periods_with_snapshots',(SELECT count(*)::int FROM closed_with_snapshot),
+   'qualified_closed_periods',(SELECT count(*)::int FROM qualifying_payroll_periods),
    'approved_weeks',(SELECT c FROM real_weekly)),
  'stores',jsonb_build_object(
    'qualified_owner_links',(SELECT c FROM qualified_owners),
