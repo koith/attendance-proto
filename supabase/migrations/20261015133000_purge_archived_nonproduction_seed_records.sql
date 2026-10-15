@@ -37,9 +37,18 @@ BEGIN
  OR EXISTS (SELECT 1 FROM public.employment_contracts t FULL JOIN demo_cleanup_archive.employment_contracts_20261015 a USING(id)
    WHERE (a.id IS NOT NULL OR t.employment_period_id IN (SELECT id FROM demo_cleanup_archive.employment_periods_20261015))
      AND (t.id IS NULL OR a.id IS NULL OR to_jsonb(t) IS DISTINCT FROM to_jsonb(a)))
- OR EXISTS (SELECT 1 FROM public.employment_contract_workdays t FULL JOIN demo_cleanup_archive.employment_contract_workdays_20261015 a USING(id)
-   WHERE (a.id IS NOT NULL OR t.contract_id IN (SELECT id FROM demo_cleanup_archive.employment_contracts_20261015))
-     AND (t.id IS NULL OR a.id IS NULL OR to_jsonb(t) IS DISTINCT FROM to_jsonb(a)))
+ OR EXISTS (
+   (SELECT t.* FROM public.employment_contract_workdays t
+    WHERE t.contract_id IN (SELECT id FROM demo_cleanup_archive.employment_contracts_20261015))
+   EXCEPT ALL
+   SELECT a.* FROM demo_cleanup_archive.employment_contract_workdays_20261015 a
+  )
+ OR EXISTS (
+   SELECT a.* FROM demo_cleanup_archive.employment_contract_workdays_20261015 a
+   EXCEPT ALL
+   (SELECT t.* FROM public.employment_contract_workdays t
+    WHERE t.contract_id IN (SELECT id FROM demo_cleanup_archive.employment_contracts_20261015))
+  )
  OR EXISTS (SELECT 1 FROM public.store_locations t FULL JOIN demo_cleanup_archive.store_locations_20261015 a USING(store_id)
    WHERE (a.store_id IS NOT NULL OR t.store_id IN (SELECT id FROM demo_cleanup_archive.stores_20261015))
      AND (t.store_id IS NULL OR a.store_id IS NULL OR to_jsonb(t) IS DISTINCT FROM to_jsonb(a)))
@@ -58,7 +67,8 @@ BEGIN
 END;
 $pre$;
 
-DELETE FROM public.employment_contract_workdays t USING demo_cleanup_archive.employment_contract_workdays_20261015 a WHERE t.id=a.id;
+DELETE FROM public.employment_contract_workdays t
+WHERE t.contract_id IN (SELECT distinct contract_id FROM demo_cleanup_archive.employment_contract_workdays_20261015);
 DELETE FROM public.employment_contracts t USING demo_cleanup_archive.employment_contracts_20261015 a WHERE t.id=a.id;
 DELETE FROM public.employment_periods t USING demo_cleanup_archive.employment_periods_20261015 a WHERE t.id=a.id;
 DELETE FROM public.attendance_events t USING demo_cleanup_archive.attendance_events_20261015 a WHERE t.id=a.id;
