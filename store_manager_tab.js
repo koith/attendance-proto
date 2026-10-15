@@ -33,7 +33,40 @@ window.mountStoreManagerTab=function(){
   const mount=document.createElement("section");
   mount.id="storeManagerPanel";mount.className="store-manager-section";
   mount.setAttribute("aria-label","지점 관리자 관리");
-  mount.innerHTML='<style>#storeManagerPanel .store-manager-section-body{padding:0 15px 14px;min-height:0}#storeManagerPanel .smt-who{padding:12px 2px;font-size:.8rem;color:var(--text-muted)}#storeManagerPanel .smt-table{border:1px solid var(--border);border-radius:11px;overflow:hidden}#storeManagerPanel .smt-columns,#storeManagerPanel .smt-summary{display:grid;grid-template-columns:minmax(0,1fr) 65px 12px;gap:9px;align-items:center}#storeManagerPanel .smt-columns{padding:9px 12px;background:var(--surface-muted);font-size:.75rem;color:var(--text-muted);border-bottom:1px solid var(--border)}#storeManagerPanel .smt-entry:not(:last-child){border-bottom:1px solid var(--border)}#storeManagerPanel .smt-summary{min-height:58px;padding:10px 12px;list-style:none;cursor:pointer}#storeManagerPanel .smt-summary::-webkit-details-marker{display:none}#storeManagerPanel .smt-summary:focus-visible,#storeManagerPanel .smt-add summary:focus-visible{outline:2px solid var(--brand-700);outline-offset:-2px}#storeManagerPanel .smt-name{font-size:.86rem;font-weight:650;overflow-wrap:anywhere}#storeManagerPanel .smt-name.muted{font-weight:500;color:var(--text-muted)}#storeManagerPanel .smt-role{text-align:right;font-size:.77rem;color:var(--text-muted);white-space:nowrap}#storeManagerPanel .smt-arrow{color:var(--text-muted);font-size:1.2rem;line-height:1;transition:transform .12s ease}#storeManagerPanel .smt-entry[open] .smt-arrow{transform:rotate(90deg)}#storeManagerPanel .smt-detail{padding:12px;border-top:1px solid var(--border);background:var(--surface-muted);font-size:.81rem;line-height:1.55;color:var(--text-muted)}#storeManagerPanel .smt-permissions{display:gri      const owner=rows.find(entry=>entry.manager_role==="OWNER");
+  mount.innerHTML='<style>#storeManagerPanel .store-manager-section-body{min-height:0;padding:0 14px 12px}#storeManagerPanel .smt-who{padding:12px 2px;font-size:.8rem;color:var(--text-muted)}#storeManagerPanel .smt-table{border:1px solid var(--border);border-radius:12px;overflow:hidden}#storeManagerPanel .smt-columns,#storeManagerPanel .smt-summary{display:grid;grid-template-columns:minmax(0,1fr) 62px 14px;gap:7px;align-items:center}#storeManagerPanel .smt-columns{padding:9px 12px;background:var(--surface-muted);color:var(--text-muted);font-size:.75rem;border-bottom:1px solid var(--border)}#storeManagerPanel .smt-entry:not(:last-child){border-bottom:1px solid var(--border)}#storeManagerPanel .smt-summary{padding:10px 12px;min-height:58px;list-style:none;cursor:pointer}#storeManagerPanel .smt-summary::-webkit-details-marker{display:none}#storeManagerPanel .smt-summary:focus-visible,#storeManagerPanel .smt-add summary:focus-visible{outline:2px solid var(--brand-700);outline-offset:-2px}#storeManagerPanel .smt-name{font-weight:650;font-size:.85rem;overflow-wrap:anywhere}#storeManagerPanel .smt-name.muted{font-weight:500;color:var(--text-muted)}#storeManagerPanel .smt-role{text-align:right;color:var(--text-muted);font-size:.77rem}#storeManagerPanel .smt-arrow{font-size:1.18rem;color:var(--text-muted)}#storeManagerPanel .smt-entry[open] .smt-arrow{transform:rotate(90deg)}#storeManagerPanel .smt-detail{padding:12px;background:var(--surface-muted);border-top:1px solid var(--border);color:var(--text-muted);font-size:.82rem;line-height:1.55}#storeManagerPanel .smt-permissions{display:grid;gap:10px;color:var(--text)}#storeManagerPanel .smt-permissions label{display:flex;gap:8px;align-items:center}#storeManagerPanel .smt-permissions input{width:18px;height:18px;flex:none}#storeManagerPanel .smt-add{border:1px solid var(--border);border-radius:12px;margin-top:12px}#storeManagerPanel .smt-add>summary{list-style:none;cursor:pointer;padding:12px;color:var(--brand-700);font-weight:650}#storeManagerPanel .smt-add>summary::-webkit-details-marker{display:none}#storeManagerPanel .smt-add-body{padding:12px;border-top:1px solid var(--border);display:grid;gap:14px}#storeManagerPanel .smt-add-body form{display:grid;gap:7px}#storeManagerPanel .smt-small{font-size:.77rem;color:var(--text-muted);margin:0}@media(max-width:430px){#storeManagerPanel .smt-columns,#storeManagerPanel .smt-summary{grid-template-columns:minmax(0,1fr) 54px 12px}#storeManagerPanel .smt-name{font-size:.81rem}}</style>'+
+    '<div class="store-manager-section-head"><h3>관리자 관리</h3>'+
+    '<button type="button" class="btn btn-secondary" id="storeManagerReload">새로고침</button></div>'+
+    '<div id="storeManagerContent" class="store-manager-section-body" aria-live="polite">관리자 정보를 불러오는 중…</div>';
+  panel.insertAdjacentElement("afterend",mount);
+  const content=mount.querySelector("#storeManagerContent");
+  mount.querySelector("#storeManagerReload").addEventListener("click",()=>refresh());
+  const notify=(message,error=false)=>{
+    if(typeof toast==="function")toast(error?"err":"in",error?"관리자 관리 오류":"관리자 관리",message);
+    else if(error)alert(message);
+  };
+  let busy=false;
+  const run=async(task)=>{
+    if(busy)return;
+    busy=true;
+    mount.querySelectorAll("button").forEach(b=>b.disabled=true);
+    try{await task();await refresh();}
+    catch(e){notify(String(e?.message||e),true);await refresh().catch(()=>{});}
+    finally{busy=false;}
+  };
+  async function refresh(){
+    content.textContent="관리자 계정을 불러오는 중…";
+    try{
+      const [rows,user,isHq]=await Promise.all([
+        request("store_delegated_manager_list",{p_store_id:storeId}),
+        Auth.getUser(),
+        request("is_hq_admin",{}).catch(()=>false)
+      ]);
+      if(!Array.isArray(rows))throw Error("관리자 목록 응답 오류");
+      const self=rows.find(entry=>entry.user_id===user?.id);
+      const isPrimary=self?.manager_role==="OWNER";
+      const canManage=isPrimary; // HQ appoints owners exclusively from the nationwide HQ dashboard.
+      const managerPermissions=isPrimary?await request("store_delegated_permissions_list",{p_store_id:storeId}):[];
+      const owner=rows.find(entry=>entry.manager_role==="OWNER");
       const delegates=rows.filter(entry=>entry.manager_role!=="OWNER");
       const currentRole=isHq===true?"본사 관리자":isPrimary?"대표 점주":self?"보조 관리자":"관리자 권한 없음";
       // Square/Shopify pattern: compact user/role roster; select a person for their details.
@@ -72,20 +105,6 @@ window.mountStoreManagerTab=function(){
           '<input id="storeManagerInviteEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com">'+
           '<button type="submit" class="btn btn-primary">초대 이메일 발송</button>'+
           '<p class="smt-small">초대받은 관리자는 이메일 인증 후 로그인할 수 있습니다.</p></form></div></details>':'');
-);margin-top:5px">대표 점주'+(owner.user_id===user?.id?" · 나":"")+'</div></div><span style="border-radius:999px;background:var(--brand-050);color:var(--brand-700);padding:5px 10px;height:max-content;font-size:.75rem;white-space:nowrap">대표</span></article>':
-        '<div class="store-manager-empty"><strong>대표 점주가 아직 지정되지 않았습니다.</strong><p>본사 대시보드에서 대표 점주를 지정할 수 있습니다.</p></div>';
-      content.innerHTML=
-        '<section style="border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--surface-muted);margin-bottom:16px">'+
-        '<div style="font-size:.8rem;color:var(--text-muted)">현재 내 권한</div><strong style="display:block;font-size:1.06rem;margin:5px 0">'+esc(currentRole)+'</strong>'+
-        '<div style="font-size:.82rem;line-height:1.6">'+(isPrimary?"직원·근태·급여를 관리하고 보조 관리자를 초대하거나 해임할 수 있습니다.":isHq===true?"본사 관리자는 전국 지점 운영에서 대표 점주를 지정·교체합니다.":self?"대표 점주가 허용한 업무만 이용할 수 있습니다.":"이 지점의 관리자 권한이 확인되지 않았습니다.")+'</div></section>'+
-        '<section style="margin-bottom:18px"><h4 style="margin:0 0 9px">대표 점주</h4>'+ownerCard+
-        '<p style="font-size:.78rem;color:var(--text-muted);margin:9px 0 0">대표 점주 지정·교체는 본사 대시보드에서만 가능합니다.</p></section>'+
-        '<section><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px"><h4 style="margin:0">보조 관리자</h4><span style="font-size:.8rem;color:var(--text-muted)">'+delegates.length+'명</span></div>'+
-        '<div style="display:grid;gap:9px">'+(delegateCards||'<div class="store-manager-empty">등록된 보조 관리자가 없습니다.</div>')+'</div></section>'+
-        (isPrimary?'<details style="margin-top:18px;border:1px solid var(--border);border-radius:12px;padding:13px"><summary style="cursor:pointer;font-weight:600">+ 보조 관리자 추가</summary><div style="margin-top:13px;display:grid;gap:12px">'+
-          '<form id="storeManagerExistingForm" style="display:grid;gap:7px"><label for="storeManagerExistingEmail">이미 가입한 계정 연결</label><input id="storeManagerExistingEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com"><button type="submit" class="btn btn-secondary">기존 계정 연결</button></form>'+
-          '<form id="storeManagerInviteForm" style="display:grid;gap:7px"><label for="storeManagerInviteEmail">새 계정 이메일 초대</label><input id="storeManagerInviteEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com"><button type="submit" class="btn btn-primary">초대 이메일 발송</button><p style="font-size:.77rem;color:var(--text-muted)">초대받은 관리자는 이메일 인증 후 로그인할 수 있습니다.</p></form></div></details>':'')+
-        (isHq===true?'<p class="store-manager-hq-note" style="margin-top:14px">본사 관리자: 대표 점주 초대·지정·교체는 <strong>본사 대시보드 → 전국 지점 운영</strong>에서 처리합니다.</p>':'');
       content.querySelector("#storeManagerExistingForm")?.addEventListener("submit",event=>{
         event.preventDefault();
         const email=content.querySelector("#storeManagerExistingEmail").value.trim().toLowerCase();
