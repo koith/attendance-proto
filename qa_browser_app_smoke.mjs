@@ -66,6 +66,14 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
       store_ready:true,period:{store_id:Number(args.p_store_id),ym:args.p_ym,weeks:4,status:payrollClosed?'CLOSED':'OPEN'},overrides:[]});
     if(name==='list_store_employees'&&role==='STORE_MANAGER')
       return reply(route,employees.map(e=>({...e,store_id:managerStoreId,name:'점주 지점 직원'})));
+    if(name==='pos_public_staff_cards'){
+      if(![1,2].includes(Number(args.p_store_id)))return reply(route,[]);
+      return reply(route,employees.map(e=>({
+        id:e.id,employee_no:e.employee_no,name:role==='STORE_MANAGER'?'점주 지점 직원':e.name,
+        working,working_since:working?'2026-10-10T09:00:00':null,
+        today_work_seconds:0,today_first_in:null,today_last_out:null
+      })));
+    }
     if(name==='pos_public_staff_picker'){
       if(![1,2].includes(Number(args.p_store_id)))return reply(route,[]);
       return reply(route,employees.map(e=>({id:e.id,employee_no:e.employee_no,
@@ -89,7 +97,7 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
       return reply(route,{ok:true,type:working?'IN':'OUT',name:'김지수'});
     }
     const fixtures={
-      is_admin:true,
+      is_admin:role==='HQ',
       admin_context:{role,store_id:managerStoreId,email:'qa@example.invalid'},
       list_stores:stores,
       list_employees_state:employees,
@@ -177,6 +185,17 @@ async function smoke(browser,label,viewport){
   });
   const ownerFixture=await configure(page,calls);
   await page.goto(host+'/index.html?mode=store&store=1#pos',{waitUntil:'domcontentloaded'});
+  await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
+  assert.match(await page.locator('#empGrid .emp').first().innerText(),/출근 전/);
+  assert.match(await page.locator('#empGrid .emp').first().innerText(),/출근 기록 없음/);
+  assert.equal(await page.locator('#empGrid .emp').first().locator('.pos-att-edit').count(),1,
+    'HQ authenticated administrator should see original pencil');
+  const pencilCalls=calls.length;
+  await page.locator('#empGrid .emp .pos-att-edit').first().click();
+  await page.getByText('김지수 · 근태 수정').waitFor({timeout:10000});
+  assert.ok(calls.slice(pencilCalls).some(x=>x.name==='admin_store_events_with_corrections'),
+    'Original edit button must request the scoped real correction API');
+  await page.locator('#addVeil').evaluate(el=>el.classList.remove('show'));
   await unlockPos(page,label);
   assert.equal((await page.locator('#appVersion').innerText()).trim(),expectedVersion,'Deployed app version mismatch '+label);
   assert.match(await page.locator('#empGrid').innerText(),/김지수/);
@@ -360,6 +379,9 @@ async function ownerScopedRoute(browser,label,viewport){
   await configure(page,calls,'STORE_MANAGER',2);
   await page.goto(host+'/index.html?mode=store&store=1#admin',{waitUntil:'domcontentloaded'});
   await page.waitForURL(/mode=store&store=2#pos/,{timeout:20000});
+  await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
+  assert.equal(await page.locator('#empGrid .pos-att-edit').count(),0,
+    'Store manager must not inherit HQ-only v0.96 pencil through public POS');
   await unlockPos(page,label);
   assert.ok((await page.locator('#empGrid').innerText()).includes('점주 지점 직원'),'Store owner POS scope '+label);
   assert.equal(await page.locator('#storeSelect').count(),0,'Store owner must not have HQ store switcher '+label);

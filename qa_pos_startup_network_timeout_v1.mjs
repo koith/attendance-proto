@@ -45,7 +45,7 @@ assert.match(html,/retryStoreConnect/,
  'Users need a visible reconnection button');
 assert.match(html,/if\(!grid\.isConnected \|\| \(location\.hash && location\.hash!=="#pos"\)\)return;/,
  'Direct links lacking #pos must populate the employee grid');
-assert.match(html,/withPosTimeout\(BE\.listEmployeesState\(\),8000\)/,
+assert.match(html,/withPosTimeout\(pickerOnly\?BE\.posPublicStaffCards\(\):BE\.listEmployeesState\(\),8000\)/,
  'POS employee list network must also have bounded wait');
 assert.match(html,/retryPosRoster/,
  'POS employees must be reloadable after a stalled network query');

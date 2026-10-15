@@ -3,12 +3,16 @@ on:
   pull_request:
     paths:
       - 'supabase/migrations/20261015161000_pos_kiosk_session_gate_v1.sql'
+      - 'supabase/migrations/20261015194500_pos_v096_public_cards.sql'
+      - 'qa_pos_v096_card_restore_postgres.sql'
       - 'qa_pos_kiosk_auth_postgres.sql'
       - '.github/workflows/pos-kiosk-security-postgres.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/migrations/20261015161000_pos_kiosk_session_gate_v1.sql'
+      - 'supabase/migrations/20261015194500_pos_v096_public_cards.sql'
+      - 'qa_pos_v096_card_restore_postgres.sql'
       - 'qa_pos_kiosk_auth_postgres.sql'
       - '.github/workflows/pos-kiosk-security-postgres.yml'
 permissions:
@@ -41,3 +45,5 @@ jobs:
         run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
       - name: Test kiosk credential gate and isolation
         run: psql -v ON_ERROR_STOP=1 -f qa_pos_kiosk_auth_postgres.sql
+      - name: Verify public v0.96 card state, old private ACL and staged-store exclusion
+        run: psql -v ON_ERROR_STOP=1 -f qa_pos_v096_card_restore_postgres.sql
