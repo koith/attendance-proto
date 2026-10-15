@@ -49,8 +49,8 @@ assert.deepEqual(csv.trim().split(/\r?\n/),
   'Template must contain headers ONLY; uploading it must not create fabricated financial transactions');
 assert.doesNotMatch(csv,/sample|DEMO|2026-\d\d-\d\d|4500/i);
 assert.match(operations,/실제 거래 파일만 업로드하세요/);
-assert.match(app,/const APP_VERSION="v0\.279"/);
-assert.match(app,/id="appVersion">v0\.279<\/span>/);
+assert.match(app,/const APP_VERSION="v0\.280"/);
+assert.match(app,/id="appVersion">v0\.280<\/span>/);
 assert.match(app,/operations_v1\.js\?v=20261015v276/,
   'Real asset must bypass stale browser cache on the corrected release');
 // The inquiry intentionally retains labelled demo rows, but actual-money
@@ -76,4 +76,4 @@ assert.match(operations,/function drawInquiryRows\(rows\)\{updateInquirySummary\
   'Type/channel filters must refresh financial summary, not only row table');
 
 new Function(operations);
-console.log('PASS 6 HQ/store financial RPCs exclude demo with preserved scopes; template is header-only, current v0.279 release');
+console.log('PASS 6 HQ/store financial RPCs exclude demo with preserved scopes; template is header-only, current v0.280 release');
