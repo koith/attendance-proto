@@ -46,5 +46,5 @@ assert.match(html,/BE\.posUnlockStore\(employeeNumber\(padEmp\),pin\)/,'First PI
 assert.match(html,/sessionStorage\.setItem\(posAccessKey\(\),access\.token\)/);
 assert.match(section,/POS_AUTH_REQUIRED/);
 assert.match(html,/const APP_VERSION="v0\.292"/);
-assert.match(html,/id="appVersion">v0\.291<\/span>/);
+assert.match(html,/id="appVersion">v0\.292<\/span>/);
 console.log('PASS v0.96 card badges, conditional HQ pencil, PIN one-step and scoped card status');
