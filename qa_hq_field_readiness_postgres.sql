@@ -11,7 +11,7 @@ CREATE TABLE auth.users(
  is_anonymous boolean NOT NULL DEFAULT false,
  banned_until timestamptz
 );
-CREATE FUNCTION public.is_hq_admin() RETURNS boolean LANGUAGE sql STABLE AS $
+CREATE FUNCTION public.is_hq_admin() RETURNS boolean LANGUAGE sql STABLE AS $$
  SELECT current_setting('qa.hq',true)='1'
 $$;
 CREATE TABLE public.stores(id bigint PRIMARY KEY,is_active boolean,onboarding_status text);
