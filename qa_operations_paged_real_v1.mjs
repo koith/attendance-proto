@@ -20,8 +20,8 @@ assert.match(ui,/표시 '\+num\(rows\.length\)\+' \/ 전체 '\+num\(count\)/,'vi
 assert.match(ui,/totals=data\.totals\|\|\{\}/,'summaries are server-wide, not page sums');
 assert.match(ui,/q\.page\+\+;refresh\(false\)/,'next-page action');
 assert.match(ui,/q\.page--;refresh\(false\)/,'previous-page action');
-assert.match(app,/operations_v1\.js\?v=20261015v283/);
-assert.match(app,/const APP_VERSION="v0\.283"/);
+assert.match(app,/operations_v1\.js\?v=20261015v284/);
+assert.match(app,/const APP_VERSION="v0\.284"/);
 assert(!ui.includes('BE.operationsInquiry(f,t,null,null)'),'legacy 2000-limited RPC must not render the inquiry');
 new Function(ui);
 console.log('PASS #833 paginated verified-real default, opt-in demo, server aggregates and full data controls');

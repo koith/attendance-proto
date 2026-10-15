@@ -238,6 +238,8 @@ jobs:
         run: node qa_issue_receipt_v1.mjs
       - name: Field-data readiness never asserts acceptance without real evidence
         run: node qa_real_field_readiness_v1.mjs
+      - name: HQ-only live field readiness RPC and no-final-success UI gate
+        run: node qa_hq_field_readiness_v1.mjs
       - name: Inventory renderer syntax and editor wiring guard
         run: |
           node --check operations_reference_ui_v208.js

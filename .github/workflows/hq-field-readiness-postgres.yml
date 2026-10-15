@@ -1,0 +1,43 @@
+name: hq-field-readiness-postgres
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261015172500_hq_field_readiness_v1.sql'
+      - 'qa_hq_field_readiness_postgres.sql'
+      - '.github/workflows/hq-field-readiness-postgres.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20261015172500_hq_field_readiness_v1.sql'
+      - 'qa_hq_field_readiness_postgres.sql'
+      - '.github/workflows/hq-field-readiness-postgres.yml'
+permissions:
+  contents: read
+jobs:
+  sql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture_only
+          POSTGRES_DB: readiness_fixture
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d readiness_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: fixture_only
+      PGDATABASE: readiness_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Verify anonymous denial, HQ-only scoped evidence and stale approvals
+        run: psql -v ON_ERROR_STOP=1 -f qa_hq_field_readiness_postgres.sql

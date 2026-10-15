@@ -18,6 +18,6 @@ assert.match(section,/if\(LIVE&&!posAccessToken\(\)\)/);
 assert.match(section,/BE\.posUnlockStore\(staffNo,pin\)/);
 assert.match(section,/sessionStorage\.setItem\(posAccessKey\(\),result\.token\)/);
 assert.match(section,/POS_AUTH_REQUIRED/);
-assert.match(html,/const APP_VERSION="v0\.283"/);
-assert.match(html,/id="appVersion">v0\.283<\/span>/);
+assert.match(html,/const APP_VERSION="v0\.284"/);
+assert.match(html,/id="appVersion">v0\.284<\/span>/);
 console.log('PASS kiosk token auth and employee-list boundary');
