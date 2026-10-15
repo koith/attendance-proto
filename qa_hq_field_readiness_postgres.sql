@@ -67,46 +67,46 @@ INSERT INTO public.payroll_weekly_approvals VALUES(1,'2026-09-07',now(),'0000000
 INSERT INTO public.store_provenance_reviews VALUES(3,1,'VERIFIED',now()+interval '1 second');
 INSERT INTO public.operations_transactions VALUES(32,1,20,false,'CONFIRMED');
 -- Owner row + latest VERIFIED review alone must never imply a usable account.
-DO $
+DO $$
 DECLARE snapshot jsonb;
 BEGIN
  PERFORM set_config('qa.hq','1',true);
  snapshot:=public.hq_field_readiness_v1();
  IF (snapshot->'stores'->>'qualified_owner_links')::int<>0 THEN RAISE EXCEPTION 'MISSING_AUTH_ACCOUNT_WAS_COUNTED'; END IF;
-END $;
+END $$;
 INSERT INTO auth.users(id,email_confirmed_at,deleted_at,is_anonymous,banned_until)
 VALUES('00000000-0000-4000-8000-000000000001',NULL,NULL,false,NULL);
-DO $
+DO $$
 DECLARE snapshot jsonb;
 BEGIN
  PERFORM set_config('qa.hq','1',true);
  snapshot:=public.hq_field_readiness_v1();
  IF (snapshot->'stores'->>'qualified_owner_links')::int<>0 THEN RAISE EXCEPTION 'UNVERIFIED_AUTH_ACCOUNT_WAS_COUNTED'; END IF;
-END $;
+END $$;
 UPDATE auth.users SET email_confirmed_at=clock_timestamp(),banned_until=clock_timestamp()+interval '2 days';
-DO $
+DO $$
 DECLARE snapshot jsonb;
 BEGIN
  PERFORM set_config('qa.hq','1',true);
  snapshot:=public.hq_field_readiness_v1();
  IF (snapshot->'stores'->>'qualified_owner_links')::int<>0 THEN RAISE EXCEPTION 'BANNED_OWNER_WAS_COUNTED'; END IF;
-END $;
+END $$;
 UPDATE auth.users SET banned_until=NULL,deleted_at=clock_timestamp();
-DO $
+DO $$
 DECLARE snapshot jsonb;
 BEGIN
  PERFORM set_config('qa.hq','1',true);
  snapshot:=public.hq_field_readiness_v1();
  IF (snapshot->'stores'->>'qualified_owner_links')::int<>0 THEN RAISE EXCEPTION 'DELETED_OWNER_WAS_COUNTED'; END IF;
-END $;
+END $$;
 UPDATE auth.users SET deleted_at=NULL,is_anonymous=true;
-DO $
+DO $$
 DECLARE snapshot jsonb;
 BEGIN
  PERFORM set_config('qa.hq','1',true);
  snapshot:=public.hq_field_readiness_v1();
  IF (snapshot->'stores'->>'qualified_owner_links')::int<>0 THEN RAISE EXCEPTION 'ANONYMOUS_OWNER_WAS_COUNTED'; END IF;
-END $;
+END $$;
 UPDATE auth.users SET is_anonymous=false;
 
 DO $$
