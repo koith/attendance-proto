@@ -16,7 +16,7 @@ class Content extends Control {
   set innerHTML(html){
     this._html=html;
     this.controls=new Map();
-    this.save=[];this.revoke=[];this.buttons=[];
+    this.save=[];this.revoke=[];this.buttons=[];this.sections=new Map();
     if(html.includes('id="storeManagerExistingForm"')){
       for(const id of ["storeManagerExistingForm","storeManagerExistingEmail","storeManagerInviteForm","storeManagerInviteEmail"]){
         this.controls.set("#"+id,new Control());
@@ -36,7 +36,7 @@ class Content extends Control {
       button.dataset.permissionSave=uid;
       button.closest=selector=>selector==="[data-manager-rights]"?section:null;
       this.save.push(button);this.buttons.push(button);
-      this.rightsSection=section;
+      this.sections.set(uid,section);
     }
     for(const match of html.matchAll(/data-manager-revoke="([^"]+)"/g)){
       const button=new Control();button.dataset.managerRevoke=match[1];
@@ -157,9 +157,9 @@ async function scenario(role){
   // Owner grants just staff edit, then all three scoped capabilities.
   let save=content.save.find(button=>button.dataset.permissionSave==="delegate-id");
   assert.ok(save,"editable delegate must have save control");
-  content.rightsSection.checks.staff.checked=true;
-  content.rightsSection.checks.attendance.checked=false;
-  content.rightsSection.checks.payroll.checked=false;
+  content.sections.get("delegate-id").checks.staff.checked=true;
+  content.sections.get("delegate-id").checks.attendance.checked=false;
+  content.sections.get("delegate-id").checks.payroll.checked=false;
   save.trigger("click");
   await settle();
   assert.ok(calls.some(c=>c.fn==="store_delegated_permissions_set"&&c.data.p_user_id==="delegate-id"&&
