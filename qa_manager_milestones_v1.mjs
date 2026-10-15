@@ -1,0 +1,35 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import vm from "node:vm";
+const hq=fs.readFileSync("hq_store_onboarding_ui.js","utf8");
+const store=fs.readFileSync("store_manager_tab.js","utf8");
+const app=fs.readFileSync("index.html","utf8");
+for(const [name,source] of [["hq",hq],["store",store]]){
+  new vm.Script(source,{filename:name+".js"});
+}
+assert.match(app,/APP_VERSION="v0\.291"/);
+assert.match(app,/hq_store_onboarding_ui\.js\?v=20261015v291/);
+assert.match(app,/store_manager_tab\.js\?v=20261015v291/);
+assert.match(hq,/managerMilestones\(ownerStage,store\?\.name,ownerEmail\)/);
+assert.match(hq,/hq-owner-steps/);
+assert.match(hq,/data-owner-step/);
+assert.match(hq,/hqOwnerStepDetail/);
+assert.match(hq,/ownerId/);
+assert.match(hq,/OWNER_REQUIRED/);
+assert.match(hq,/OWNER_PENDING/);
+assert.match(hq,/OWNER_ACTIVE/);
+assert.match(hq,/SUSPENDED/);
+assert.match(hq,/hq_store_primary_owner_set/);
+assert.match(hq,/hq_store_primary_owner_list/);
+assert.match(hq,/hqStoreOperations/);
+assert.match(hq,/hqStoreReadinessExport/);
+assert.match(store,/smt-onboarding-steps/);
+assert.match(store,/smt-roster/);
+assert.match(store,/smt-delegates/);
+assert.match(store,/store_delegated_manager_change/);
+assert.match(store,/store_delegated_permissions_set/);
+assert.match(store,/invite_store_delegated_manager/);
+assert.match(store,/본사에서 대표 관리자를 지정/);
+assert.match(store,/보조 관리자를 추가하거나 권한을 관리/);
+assert.doesNotMatch(store,/storeManagerHqInviteForm/);
+console.log("PASS: HQ milestone, owner-specific next action, store roster and existing ACL routes retained");

@@ -28,6 +28,43 @@ async function invite(email,store_id){
 // Readiness export contains no PINs or owner emails. Keep all 283 registered
 // stores, regardless of the current filtered HQ picker, so a single CSV is
 // usable as a nationwide rollout checklist. Data comes only from HQ RPCs.
+// A store's owner onboarding is distinct from store operational readiness.
+// Never infer owner activation from a store's READY status or manager_count alone.
+const managerStage=(store,ownerId,managerRows)=>{
+  if(store?.onboarding_status==="SUSPENDED")return "SUSPENDED";
+  if(!ownerId)return "OWNER_REQUIRED";
+  const owner=managerRows.find(row=>row.user_id===ownerId);
+  return owner?"OWNER_ACTIVE":"OWNER_PENDING";
+};
+const managerStageLabel=stage=>({
+  SUSPENDED:"운영 중지",OWNER_REQUIRED:"대표 미지정",
+  OWNER_PENDING:"대표 계정 확인 필요",OWNER_ACTIVE:"대표 지정 완료"
+}[stage]||"상태 확인 필요");
+const managerMilestones=(stage,storeName,ownerEmail)=>{
+  const current=stage==="OWNER_REQUIRED"?1:stage==="OWNER_PENDING"?2:3;
+  const items=[
+    ["지점 등록","본사","등록된 지점 정보 확인"],
+    ["대표 지정","본사","본사에서 해당 지점의 대표 관리자를 지정"],
+    ["계정 확인","대표 관리자","지정된 계정이 이메일 인증 후 로그인"],
+    ["관리 시작","대표 관리자","보조 관리자 추가는 선택 사항"]
+  ];
+  return '<div class="hq-owner-journey" role="group" aria-label="대표 관리자 개통 단계">'+
+    '<div class="hq-owner-steps">'+items.map((item,i)=>
+      '<button type="button" class="hq-owner-step'+(i===current?' is-current':'')+
+      (i<current?' is-done':'')+'" data-owner-step="'+i+'" aria-current="'+(i===current?'step':'false')+'">'+
+      '<span class="hq-owner-step-dot">'+(i<current?'✓':i+1)+'</span>'+
+      '<span class="hq-owner-step-label">'+escapeHTML(item[0])+'</span></button>'
+    ).join("")+'</div>'+
+    '<div class="hq-owner-step-detail" id="hqOwnerStepDetail" role="status">'+
+    '<strong>'+escapeHTML(managerStageLabel(stage))+'</strong><div>'+
+    escapeHTML(stage==="SUSPENDED"?"지점 운영이 중지되어 있습니다. 운영 상태를 먼저 확인하세요.":
+      stage==="OWNER_REQUIRED"?"본사가 지점 대표를 지정해야 다음 단계로 진행됩니다.":
+      stage==="OWNER_PENDING"?"대표 지정 정보와 계정 상태를 확인하세요.":
+      "대표가 지정됐습니다. 지점 페이지에서 보조 관리자 권한을 관리할 수 있습니다.")+
+    '</div><small>담당: '+escapeHTML(items[current][1])+
+    ' · 지점: '+escapeHTML(storeName||"")+
+    (ownerEmail?' · 대표: '+escapeHTML(ownerEmail):'')+'</small></div></div>';
+};
 const readinessCsvCell=value=>{
   let text=String(value??"");
   // Excel/Sheets interpret leading = + - @ (also after whitespace) as
@@ -91,6 +128,8 @@ window.mountHqStoreOnboarding=async function(box){
     const list=managers.filter(m=>Number(m.store_id)===selected);
     const primaryOwnerId=primaryOwners.find(o=>Number(o.store_id)===selected)?.user_id;
     const ready=store?.onboarding_status==="READY";
+    const ownerEmail=list.find(m=>m.user_id===primaryOwnerId)?.email||"";
+    const ownerStage=managerStage(store,primaryOwnerId,list);
     const proof=proofs.find(p=>Number(p.store_id)===selected);
     const verified=selected===1||proof?.decision==="VERIFIED";
     const sampleEmployeeCount=Number(sampleCounts.find(x=>Number(x.store_id)===selected)?.sample_employee_count||0);
@@ -102,7 +141,7 @@ window.mountHqStoreOnboarding=async function(box){
     const suspendedCount=stores.filter(s=>s.onboarding_status==="SUSPENDED").length;
     const previousOperationsOpen=body.querySelector("#hqStoreOperations")?.open===true;
     body.innerHTML=
-      '<style>#hqStoreOnboarding .hq-compact-card{border:1px solid var(--border);border-radius:14px;padding:12px;margin:12px 0}#hqStoreOnboarding .hq-compact-card h4{font-size:.95rem;margin:0 0 10px}#hqStoreOnboarding .hq-compact-card .field{margin:8px 0}#hqStoreOnboarding .hq-actions{display:flex;gap:8px;flex-wrap:wrap}#hqStoreOnboarding .hq-actions .btn{min-height:40px}#hqStoreOnboarding .hq-hint{font-size:.75rem;color:var(--text-muted);margin:6px 0}#hqStoreOnboarding .hq-manager-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--border)}#hqStoreOnboarding .hq-manager-email{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}#hqStoreOnboarding .hq-manager-row .btn{flex:0 0 auto}@media(max-width:520px){#hqStoreOnboarding .hq-actions .btn{flex:1 1 130px}#hqStoreOnboarding .hq-compact-card{padding:10px}#hqStoreOnboarding .hq-manager-email{flex-basis:100%}}</style>'+
+      '<style>#hqStoreOnboarding .hq-owner-journey{border:1px solid var(--border);border-radius:14px;padding:12px;margin:10px 0}#hqStoreOnboarding .hq-owner-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px}#hqStoreOnboarding .hq-owner-step{border:0;background:transparent;color:var(--text-muted);display:grid;justify-items:center;align-content:start;gap:5px;cursor:pointer;padding:6px 2px;font-size:.7rem;min-width:0}#hqStoreOnboarding .hq-owner-step-dot{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--border);font-weight:700}#hqStoreOnboarding .hq-owner-step.is-done .hq-owner-step-dot{background:#dcfce7;color:#166534;border-color:#86efac}#hqStoreOnboarding .hq-owner-step.is-current .hq-owner-step-dot{background:var(--brand-700);color:#fff;border-color:var(--brand-700)}#hqStoreOnboarding .hq-owner-step.is-current .hq-owner-step-label{color:var(--text);font-weight:700}#hqStoreOnboarding .hq-owner-step-detail{margin-top:9px;padding:10px;border-radius:10px;background:var(--surface-muted);font-size:.81rem;line-height:1.6}#hqStoreOnboarding .hq-owner-step-detail small{display:block;color:var(--text-muted)}#hqStoreOnboarding .hq-compact-card{border:1px solid var(--border);border-radius:14px;padding:12px;margin:12px 0}#hqStoreOnboarding .hq-compact-card h4{font-size:.95rem;margin:0 0 10px}#hqStoreOnboarding .hq-compact-card .field{margin:8px 0}#hqStoreOnboarding .hq-actions{display:flex;gap:8px;flex-wrap:wrap}#hqStoreOnboarding .hq-actions .btn{min-height:40px}#hqStoreOnboarding .hq-hint{font-size:.75rem;color:var(--text-muted);margin:6px 0}#hqStoreOnboarding .hq-manager-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--border)}#hqStoreOnboarding .hq-manager-email{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}#hqStoreOnboarding .hq-manager-row .btn{flex:0 0 auto}@media(max-width:520px){#hqStoreOnboarding .hq-actions .btn{flex:1 1 130px}#hqStoreOnboarding .hq-compact-card{padding:10px}#hqStoreOnboarding .hq-manager-email{flex-basis:100%}}</style>'+
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:9px">'+
         '<div><div id="hqStoreCounts" style="font-size:.84rem">등록 '+stores.length+'곳 · 운영 '+readyCount+' · 준비 '+stagedCount+' · 중지 '+suspendedCount+'</div>'+ 
         '<div id="hqSampleRosterSummary" style="font-size:.75rem;color:var(--text-muted)">점검할 초기 직원 '+sampleTotal+'명 · '+sampleStoreCount+'개 지점</div></div>'+
@@ -120,7 +159,8 @@ window.mountHqStoreOnboarding=async function(box){
       '<div class="field"><label for="hqOnboardingStore">대상 지점 <span id="hqStoreSearchCount"></span></label>'+
         '<select id="hqOnboardingStore" class="form-control"></select></div>'+
       '<div class="hq-hint">선택한 지점: <strong>'+escapeHTML(store?.name||"없음")+'</strong></div>'+
-      '<div class="hq-compact-card" id="hqManagerCard"><h4>점주 관리</h4>'+
+      managerMilestones(ownerStage,store?.name,ownerEmail)+
+      '<div class="hq-compact-card" id="hqManagerCard"><h4>대표 관리자 지정 · 계정 관리</h4>'+
       '<div class="hq-hint">대표 점주: <strong>'+escapeHTML(list.find(m=>m.user_id===primaryOwnerId)?.email||"미지정")+'</strong> · 등록 '+list.length+'명</div>'+
       '<div class="field"><label for="hqManagerEmail">점주 로그인 이메일</label><input id="hqManagerEmail" class="form-control" type="email" autocomplete="off" placeholder="owner@example.com"></div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px">'+
@@ -153,6 +193,21 @@ window.mountHqStoreOnboarding=async function(box){
       '<input class="form-control" id="hqNewStoreRegion" placeholder="지역 (선택)">'+
       '<button type="button" class="btn btn-secondary btn-sm" id="hqNewStoreCreate">준비 상태로 등록</button>'+
       '</div></details>';
+    body.querySelectorAll("[data-owner-step]").forEach(button=>{
+      button.onclick=()=>{
+        const step=Number(button.getAttribute("data-owner-step"));
+        const stages=[
+          ["지점 등록","본사","등록된 지점의 정보와 운영 상태를 확인합니다."],
+          ["대표 지정","본사",ownerEmail?"현재 대표: "+ownerEmail:"아래에서 기존 계정을 연결하거나 신규 계정을 초대한 뒤 대표로 지정하세요."],
+          ["계정 확인","대표 관리자",ownerEmail?"대표 계정: "+ownerEmail+" · 실제 이메일 인증과 로그인은 계정 소유자가 진행합니다.":"대표를 먼저 지정해야 합니다."],
+          ["관리 시작","대표 관리자","대표가 지점 페이지에서 보조 관리자 추가·권한 변경·해임을 수행합니다. 보조 추가는 필수가 아닙니다."]
+        ];
+        const detail=body.querySelector("#hqOwnerStepDetail");
+        detail.innerHTML="<strong>"+escapeHTML(stages[step][0])+"</strong><div>"+
+          escapeHTML(stages[step][2])+"</div><small>담당: "+escapeHTML(stages[step][1])+"</small>";
+        body.querySelectorAll("[data-owner-step]").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));
+      };
+    });
     const storePicker=body.querySelector("#hqOnboardingStore");
     const updateChoices=()=>{
       const needle=searchTerm.trim().toLocaleLowerCase("ko-KR");
@@ -162,7 +217,7 @@ window.mountHqStoreOnboarding=async function(box){
       const included=rows.some(s=>Number(s.id)===selected);
       storePicker.innerHTML=(included?"":'<option value="" selected disabled>검색 결과에서 지점을 선택하세요</option>')+
         rows.map(s=>'<option value="'+Number(s.id)+'">'+escapeHTML(s.name)+' ('+Number(s.id)+', '+
-          escapeHTML(s.onboarding_status)+')</option>').join("");
+          escapeHTML(s.onboarding_status)+' · '+escapeHTML(managerStageLabel(managerStage(s,primaryOwners.find(o=>Number(o.store_id)===Number(s.id))?.user_id,managers.filter(m=>Number(m.store_id)===Number(s.id)))))+')</option>').join("");
       if(included)storePicker.value=String(selected);
       body.querySelector("#hqStoreSearchCount").textContent="("+rows.length+"곳)";
       storePicker.disabled=rows.length===0;
