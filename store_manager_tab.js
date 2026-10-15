@@ -33,64 +33,46 @@ window.mountStoreManagerTab=function(){
   const mount=document.createElement("section");
   mount.id="storeManagerPanel";mount.className="store-manager-section";
   mount.setAttribute("aria-label","지점 관리자 관리");
-  mount.innerHTML='<div class="store-manager-section-head"><div><h3>관리자 관리</h3>'+
-    '<p>대표 점주 및 추가 관리자 계정</p></div>'+
-    '<button type="button" class="btn btn-secondary" id="storeManagerReload">새로고침</button></div>'+
-    '<div id="storeManagerContent" class="store-manager-section-body" aria-live="polite">관리자 정보를 불러오는 중…</div>';
-  panel.insertAdjacentElement("afterend",mount);
-  const content=mount.querySelector("#storeManagerContent");
-  mount.querySelector("#storeManagerReload").addEventListener("click",()=>refresh());
-  const notify=(message,error=false)=>{
-    if(typeof toast==="function")toast(error?"err":"in",error?"관리자 관리 오류":"관리자 관리",message);
-    else if(error)alert(message);
-  };
-  let busy=false;
-  const run=async(task)=>{
-    if(busy)return;
-    busy=true;
-    mount.querySelectorAll("button").forEach(b=>b.disabled=true);
-    try{await task();await refresh();}
-    catch(e){notify(String(e?.message||e),true);await refresh().catch(()=>{});}
-    finally{busy=false;}
-  };
-  async function refresh(){
-    content.textContent="관리자 계정을 불러오는 중…";
-    try{
-      const [rows,user,isHq]=await Promise.all([
-        request("store_delegated_manager_list",{p_store_id:storeId}),
-        Auth.getUser(),
-        request("is_hq_admin",{}).catch(()=>false)
-      ]);
-      if(!Array.isArray(rows))throw Error("관리자 목록 응답 오류");
-      const self=rows.find(entry=>entry.user_id===user?.id);
-      const isPrimary=self?.manager_role==="OWNER";
-      const canManage=isPrimary; // HQ appoints owners exclusively from the nationwide HQ dashboard.
-      const managerPermissions=isPrimary?await request("store_delegated_permissions_list",{p_store_id:storeId}):[];
-      const owner=rows.find(entry=>entry.manager_role==="OWNER");
+  mount.innerHTML='<style>#storeManagerPanel .store-manager-section-body{padding:0 15px 14px;min-height:0}#storeManagerPanel .smt-who{padding:12px 2px;font-size:.8rem;color:var(--text-muted)}#storeManagerPanel .smt-table{border:1px solid var(--border);border-radius:11px;overflow:hidden}#storeManagerPanel .smt-columns,#storeManagerPanel .smt-summary{display:grid;grid-template-columns:minmax(0,1fr) 65px 12px;gap:9px;align-items:center}#storeManagerPanel .smt-columns{padding:9px 12px;background:var(--surface-muted);font-size:.75rem;color:var(--text-muted);border-bottom:1px solid var(--border)}#storeManagerPanel .smt-entry:not(:last-child){border-bottom:1px solid var(--border)}#storeManagerPanel .smt-summary{min-height:58px;padding:10px 12px;list-style:none;cursor:pointer}#storeManagerPanel .smt-summary::-webkit-details-marker{display:none}#storeManagerPanel .smt-summary:focus-visible,#storeManagerPanel .smt-add summary:focus-visible{outline:2px solid var(--brand-700);outline-offset:-2px}#storeManagerPanel .smt-name{font-size:.86rem;font-weight:650;overflow-wrap:anywhere}#storeManagerPanel .smt-name.muted{font-weight:500;color:var(--text-muted)}#storeManagerPanel .smt-role{text-align:right;font-size:.77rem;color:var(--text-muted);white-space:nowrap}#storeManagerPanel .smt-arrow{color:var(--text-muted);font-size:1.2rem;line-height:1;transition:transform .12s ease}#storeManagerPanel .smt-entry[open] .smt-arrow{transform:rotate(90deg)}#storeManagerPanel .smt-detail{padding:12px;border-top:1px solid var(--border);background:var(--surface-muted);font-size:.81rem;line-height:1.55;color:var(--text-muted)}#storeManagerPanel .smt-permissions{display:gri      const owner=rows.find(entry=>entry.manager_role==="OWNER");
       const delegates=rows.filter(entry=>entry.manager_role!=="OWNER");
-      const currentRole=isHq===true?"본사 관리자":isPrimary?"대표 점주":self?"보조 관리자":"조회 권한";
-      const rightsLabel=entry=>{
-        const rights=managerPermissions.find(p=>p.user_id===entry.user_id);
-        if(!rights)return "권한 정보는 대표 점주가 확인할 수 있습니다.";
-        return ["직원 정보 수정","근태 정정 승인","확정 급여 열람"].filter((_,i)=>[rights.staff_edit,rights.attendance_approve,rights.payroll_view][i]).join(" · ")||"허용된 업무 없음";
-      };
-      const delegateCards=delegates.map(entry=>{
-        const removable=canManage&&entry.user_id!==user?.id;
+      const currentRole=isHq===true?"본사 관리자":isPrimary?"대표 점주":self?"보조 관리자":"관리자 권한 없음";
+      // Square/Shopify pattern: compact user/role roster; select a person for their details.
+      const roleSummary='<div class="smt-who">내 계정 · '+esc(currentRole)+'</div>';
+      const ownerRow='<details class="smt-entry" data-manager-kind="owner">'+
+        '<summary class="smt-summary"><span class="smt-name'+(owner?'':' muted')+'">'+(owner?esc(owner.email)+(owner.user_id===user?.id?" · 나":""):"대표 점주 미지정")+'</span>'+
+        '<span class="smt-role">대표</span><span class="smt-arrow" aria-hidden="true">›</span></summary>'+
+        '<div class="smt-detail">'+(owner?"매장 대표 관리자입니다. 대표 점주 지정·교체는 본사 대시보드에서만 가능합니다.":"대표 점주가 지정되면 이곳에 계정이 표시됩니다. 지정은 본사 대시보드에서 합니다.")+'</div></details>';
+      const delegateRows=delegates.map(entry=>{
+        const editable=canManage&&entry.user_id!==user?.id;
         const rights=managerPermissions.find(p=>p.user_id===entry.user_id)||{staff_edit:false,attendance_approve:false,payroll_view:false};
-        return '<article class="store-manager-person" style="border:1px solid var(--border);border-radius:12px;padding:13px;display:grid;gap:9px">'+
-          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px"><div style="min-width:0"><strong style="overflow-wrap:anywhere">'+esc(entry.email)+'</strong><div style="font-size:.8rem;color:var(--text-muted);margin-top:4px">보조 관리자'+(entry.user_id===user?.id?" · 나":"")+'</div></div><span style="border:1px solid var(--border);border-radius:999px;padding:4px 9px;font-size:.75rem;white-space:nowrap">보조</span></div>'+
-          '<div style="font-size:.8rem;color:var(--text-muted)">사용 가능한 업무: '+esc(rightsLabel(entry))+'</div>'+
-          (removable?'<details style="border-top:1px solid var(--border);padding-top:10px"><summary style="cursor:pointer;font-weight:600;color:var(--brand-700)">권한 및 계정 관리</summary>'+
-          '<div data-manager-rights="'+esc(entry.user_id)+'" style="display:grid;gap:10px;margin-top:12px">'+
-          '<p style="font-size:.77rem;color:var(--text-muted);margin:0">세 항목을 모두 체크해도 전체 관리자 권한이나 본사 권한은 부여되지 않습니다.</p>'+
+        const checks=editable?
+          '<div data-manager-rights="'+esc(entry.user_id)+'" class="smt-permissions">'+
+          '<div style="font-weight:650">허용 업무</div>'+
           '<label><input data-allow="staff" type="checkbox" '+(rights.staff_edit?'checked':'')+'> 직원 기본정보 수정</label>'+
           '<label><input data-allow="attendance" type="checkbox" '+(rights.attendance_approve?'checked':'')+'> 근태 정정 승인</label>'+
           '<label><input data-allow="payroll" type="checkbox" '+(rights.payroll_view?'checked':'')+'> 확정 급여 열람</label>'+
+          '<p class="smt-small">세 항목을 모두 체크해도 전체 관리자 권한이나 본사 권한은 부여되지 않습니다.</p>'+
           '<button type="button" class="btn btn-secondary btn-sm" data-permission-save="'+esc(entry.user_id)+'">권한 변경 저장</button>'+
-          '<button type="button" class="btn btn-secondary btn-sm" data-manager-revoke="'+esc(entry.user_id)+'">이 지점 관리자 해임</button></div></details>':'')+
-          '</article>';
+          '<button type="button" class="btn btn-secondary btn-sm" data-manager-revoke="'+esc(entry.user_id)+'">이 지점 관리자 해임</button></div>':
+          '보조 관리자의 업무 권한은 대표 점주가 설정합니다.';
+        return '<details class="smt-entry" data-manager-kind="delegate">'+
+          '<summary class="smt-summary"><span class="smt-name">'+esc(entry.email)+(entry.user_id===user?.id?" · 나":"")+'</span>'+
+          '<span class="smt-role">보조</span><span class="smt-arrow" aria-hidden="true">›</span></summary>'+
+          '<div class="smt-detail">'+checks+'</div></details>';
       }).join("");
-      const ownerCard=owner?'<article class="store-manager-person" style="border:1px solid var(--border);border-radius:12px;padding:13px;display:flex;justify-content:space-between;gap:10px"><div style="min-width:0"><strong style="overflow-wrap:anywhere">'+esc(owner.email)+'</strong><div style="font-size:.8rem;color:var(--text-muted);margin-top:5px">대표 점주'+(owner.user_id===user?.id?" · 나":"")+'</div></div><span style="border-radius:999px;background:var(--brand-050);color:var(--brand-700);padding:5px 10px;height:max-content;font-size:.75rem;white-space:nowrap">대표</span></article>':
+      content.innerHTML=roleSummary+
+        '<div class="smt-table" role="group" aria-label="매장 관리자 목록">'+
+        '<div class="smt-columns"><span>계정</span><span style="text-align:right">역할</span><span></span></div>'+
+        ownerRow+delegateRows+'</div>'+
+        (isPrimary?'<details class="smt-add"><summary>+ 보조 관리자 추가</summary><div class="smt-add-body">'+
+          '<form id="storeManagerExistingForm"><label for="storeManagerExistingEmail">기존 가입 계정 연결</label>'+
+          '<input id="storeManagerExistingEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com">'+
+          '<button type="submit" class="btn btn-secondary">기존 계정 연결</button></form>'+
+          '<form id="storeManagerInviteForm"><label for="storeManagerInviteEmail">새 관리자 이메일 초대</label>'+
+          '<input id="storeManagerInviteEmail" type="email" class="form-control" autocomplete="off" required placeholder="manager@example.com">'+
+          '<button type="submit" class="btn btn-primary">초대 이메일 발송</button>'+
+          '<p class="smt-small">초대받은 관리자는 이메일 인증 후 로그인할 수 있습니다.</p></form></div></details>':'');
+);margin-top:5px">대표 점주'+(owner.user_id===user?.id?" · 나":"")+'</div></div><span style="border-radius:999px;background:var(--brand-050);color:var(--brand-700);padding:5px 10px;height:max-content;font-size:.75rem;white-space:nowrap">대표</span></article>':
         '<div class="store-manager-empty"><strong>대표 점주가 아직 지정되지 않았습니다.</strong><p>본사 대시보드에서 대표 점주를 지정할 수 있습니다.</p></div>';
       content.innerHTML=
         '<section style="border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--surface-muted);margin-bottom:16px">'+
