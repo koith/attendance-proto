@@ -51,7 +51,7 @@ assert.doesNotMatch(csv,/sample|DEMO|2026-\d\d-\d\d|4500/i);
 assert.match(operations,/실제 거래 파일만 업로드하세요/);
 assert.match(app,/const APP_VERSION="v0\.280"/);
 assert.match(app,/id="appVersion">v0\.280<\/span>/);
-assert.match(app,/operations_v1\.js\?v=20261015v276/,
+assert.match(app,/operations_v1\.js\?v=20261015v280/,
   'Real asset must bypass stale browser cache on the corrected release');
 // The inquiry intentionally retains labelled demo rows, but actual-money
 // cards (including filtered results) must not count them as store revenue.
