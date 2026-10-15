@@ -228,6 +228,8 @@ jobs:
         run: node qa_boot_syntax.mjs
       - name: HQ readiness and operations failure integrity
         run: node qa_operational_readiness_fail_closed_v1.mjs
+      - name: Exclude demo inventory from actual KPIs and guard unknown ledger
+        run: node qa_inventory_real_metrics_v1.mjs
       - name: Inventory renderer syntax and editor wiring guard
         run: |
           node --check operations_reference_ui_v208.js
