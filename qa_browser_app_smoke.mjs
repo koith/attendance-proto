@@ -309,6 +309,8 @@ async function smoke(browser,label,viewport){
     'HQ page must request server-scoped field evidence '+label);
   await page.locator('#hqReadinessRefresh').click();
   await page.locator('#hqReadinessPanel h3').waitFor({timeout:12000});
+  await page.locator('#hqReadinessClose').click();
+  assert.equal(await page.locator('#hqReadinessOverlay').isVisible(),false,'Readiness modal must close '+label);
 
   assert.match(await page.locator('#view').innerText(),/시연용 거래는 매출 집계에서 제외했습니다/);
   // HQ provisioning must not send a real email: mock Edge and SQL RPCs only.
