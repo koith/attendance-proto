@@ -29,7 +29,7 @@ assert.match(sql,/REVOKE ALL ON ALL TABLES IN SCHEMA pos_private/);
 assert.match(html,/async listEmployeesState\(\)\{ return rpc\("pos_employees_state"/);
 assert.doesNotMatch(html,/rpc\("list_employees_state"/);
 assert.match(html,/async posUnlockStore\(employeeNo,pin\)/);
-assert.match(section,/if\(LIVE&&!posAccessToken\(\)\)/);
+assert.match(section,/const pickerOnly=LIVE&&!posAccessToken\(\)/);
 assert.match(section,/pickerOnly\?BE\.posPublicStaffCards\(\):BE\.listEmployeesState\(\)/);
 assert.match(section,/adminMode=!!\(await BE\.isAdmin\(\)\)/);
 assert.match(section,/LIVE&&Auth\.isLoggedIn\(\)/,'Only authenticated admin may receive edit button');
