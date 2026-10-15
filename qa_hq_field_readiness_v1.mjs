@@ -5,7 +5,7 @@ const sql=fs.readFileSync('supabase/migrations/20261015172500_hq_field_readiness
 const source=fs.readFileSync('qa_real_field_readiness_readonly.sql','utf8');
 assert.match(sql,/CREATE OR REPLACE FUNCTION public\.hq_field_readiness_v1\(\)/);
 assert.match(sql,/SECURITY DEFINER SET search_path TO 'public','pg_temp'/);
-assert.match(sql,/IF NOT public\.is_hq_admin\(\) THEN/);
+assert.match(sql,/IF public\.is_hq_admin\(\) IS NOT TRUE THEN/,'NULL cannot authorize HQ');
 assert.match(sql,/REVOKE ALL ON FUNCTION public\.hq_field_readiness_v1\(\) FROM PUBLIC, anon, authenticated/);
 assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.hq_field_readiness_v1\(\) TO authenticated, service_role/);
 assert.match(sql,/to_date\(p\.ym\|\|'-01'/,'same-period payroll approval required');
