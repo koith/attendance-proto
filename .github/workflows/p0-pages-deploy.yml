@@ -236,6 +236,8 @@ jobs:
         run: node qa_pos_kiosk_gate_v1.mjs
       - name: Preserve issue instruction source with fail-closed trace tests
         run: node qa_issue_receipt_v1.mjs
+      - name: Field-data readiness never asserts acceptance without real evidence
+        run: node qa_real_field_readiness_v1.mjs
       - name: Inventory renderer syntax and editor wiring guard
         run: |
           node --check operations_reference_ui_v208.js
