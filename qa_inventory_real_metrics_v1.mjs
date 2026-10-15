@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const sql=fs.readFileSync('supabase/migrations/20261015122500_real_inventory_kpi_demo_exclusion_v1.sql','utf8');
+const ui=fs.readFileSync('operations_v1.js','utf8');
+assert.match(sql,/from public\.inventory_items where is_active and is_demo IS FALSE;/,'global active catalog excludes demo');
+assert.match(sql,/i\.is_demo IS FALSE and i\.reorder_level/,'low stock excludes demo items');
+assert.match(sql,/m\.is_demo IS FALSE/,'demo stock movements excluded');
+assert.match(sql,/having count\(m\.id\)>0 and coalesce\(sum\(m\.quantity\),0\)<=i\.reorder_level/,'unknown ledgers cannot produce false low stock');
+assert.match(sql,/CASE WHEN COUNT\(m\.id\)>0 THEN SUM\(m\.quantity\) ELSE NULL END/,'no movement is unknown not 0');
+assert.match(sql,/WHERE i\.is_demo IS FALSE\s+GROUP BY i\.id/,'store inventory item rows exclude demo');
+assert.match(sql,/CASE WHEN COUNT\(m\.id\)=0 THEN NULL ELSE/,'unknown low stock tri-state');
+assert.match(ui,/if\(r\.on_hand==null\)return \{key:"unknown",label:"재고 미확인"/,'unknown stock UI label');
+assert(ui.includes("r.on_hand==null?'미확인':num(on)"),'UI prints unknown rather than fake 0');
+assert(ui.includes('stateOf(r).rank<2'),'unknown cannot enter reorder-needed count');
+new Function(ui);
+console.log('PASS real-only inventory counts/movements, unknown ledger state and no simulated reorder warning');
