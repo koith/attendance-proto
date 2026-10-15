@@ -49,6 +49,7 @@ assert.match(html,/withPosTimeout\(pickerOnly\?BE\.posPublicStaffCards\(\):BE\.l
  'POS employee list network must also have bounded wait');
 assert.match(html,/retryPosRoster/,
  'POS employees must be reloadable after a stalled network query');
-assert.doesNotMatch(html.slice(html.indexOf('async function renderPos(){'),html.indexOf('\nfunction applyCardFlow(')),/await BE\.isAdmin\(\)/,
- 'Public POS must not wait on unused admin authorization network call');
+assert.match(html.slice(html.indexOf('async function renderPos(){'),html.indexOf('\nfunction applyCardFlow(')),
+ /if\(LIVE&&Auth\.isLoggedIn\(\)\)\{try\{adminMode=!!\(await BE\.isAdmin\(\)\)/,
+ 'Edit-button admin probe must be guarded by real authenticated login; anonymous POS never waits for admin auth');
 console.log('PASS POS startup: bounded LTE store RPC, status, fail-closed retry, recovery, no-hash route');
