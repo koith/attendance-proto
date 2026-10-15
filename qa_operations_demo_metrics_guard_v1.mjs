@@ -49,9 +49,9 @@ assert.deepEqual(csv.trim().split(/\r?\n/),
   'Template must contain headers ONLY; uploading it must not create fabricated financial transactions');
 assert.doesNotMatch(csv,/sample|DEMO|2026-\d\d-\d\d|4500/i);
 assert.match(operations,/실제 거래 파일만 업로드하세요/);
-assert.match(app,/const APP_VERSION="v0\.281"/);
-assert.match(app,/id="appVersion">v0\.281<\/span>/);
-assert.match(app,/operations_v1\.js\?v=20261015v281/,
+assert.match(app,/const APP_VERSION="v0\.282"/);
+assert.match(app,/id="appVersion">v0\.282<\/span>/);
+assert.match(app,/operations_v1\.js\?v=20261015v282/,
   'Real asset must bypass stale browser cache on the corrected release');
 // The inquiry intentionally retains labelled demo rows, but actual-money
 // cards (including filtered results) must not count them as store revenue.
@@ -70,10 +70,10 @@ assert.deepEqual(inquiryTotals(sample),{displayed:4,actual:1,notVerified:3,net:4
 assert.deepEqual(inquiryTotals(sample.slice(0,1)),{displayed:1,actual:0,notVerified:1,net:0,vat:0,total:0});
 assert.deepEqual(inquiryTotals([]),{displayed:0,actual:0,notVerified:0,net:0,vat:0,total:0});
 assert.throws(()=>inquiryTotals(null),/INVALID_RESPONSE/);
-assert.match(operations,/updateInquirySummary\(rows\);opsType\.onchange/,
-  'Initial inquiry money summary must reflect verified data');
-assert.match(operations,/function drawInquiryRows\(rows\)\{updateInquirySummary\(rows\)/,
-  'Type/channel filters must refresh financial summary, not only row table');
+assert.match(operations,/BE\.operationsInquiryPage\(/,
+  'Inquiry must use server-paginated default actual data');
+assert.match(operations,/BE\.operationsChannelsMode\(/,
+  'Channel selectors must follow the current real or demo mode');
 
 new Function(operations);
-console.log('PASS 6 HQ/store financial RPCs exclude demo with preserved scopes; template is header-only, current v0.281 release');
+console.log('PASS 6 HQ/store financial RPCs exclude demo with preserved scopes; template is header-only, current v0.282 release');
