@@ -41,5 +41,5 @@ assert.match(app,/현장 검증 전에는 완료 처리하지 않음/);
 assert.match(app,/권한이나 서버 연결을 확인하세요. 완료로 처리하지 않았습니다/);
 assert.match(app,/const APP_VERSION="v0\.285"/);
 assert.match(app,/id="appVersion">v0\.285<\/span>/);
-assert.match(app,/operations_v1\.js\?v=20261015v284/);
+assert.match(app,/operations_v1\.js\?v=20261015v285/);
 console.log('PASS HQ readiness: server HQ authorization, no anon grants, source proofs and non-final UI states');
