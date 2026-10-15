@@ -259,6 +259,8 @@ jobs:
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.55.1
           npx playwright install --with-deps chromium
+      - name: 2026 unified province and independently sourced store addresses
+        run: node qa_hq_region_2026_source_v1.mjs
       - name: HQ owner real-browser acceptance (mobile and desktop)
         run: |
           node qa_hq_quicknav_escape_contract_v1.mjs
