@@ -10,12 +10,13 @@ const num=(obj,key)=>{
  return obj[key];
 };
 export function evaluateReadiness(s){
- if(!s||s.schema_version!==1||typeof s.captured_at!=='string'||
+ if(!s||s.schema_version!==2||typeof s.captured_at!=='string'||
     !Number.isFinite(Date.parse(s.captured_at)))
    throw Error('INVALID_SNAPSHOT_METADATA');
  const p=s.payroll,st=s.stores,op=s.operations;
  const closed=num(p,'closed_periods');
  const snapshots=num(p,'closed_periods_with_snapshots');
+ const qualified=num(p,'qualified_closed_periods');
  const weeks=num(p,'approved_weeks');
  const owners=num(st,'qualified_owner_links');
  const staged=num(st,'staged_count');
@@ -23,7 +24,7 @@ export function evaluateReadiness(s){
  const linked=num(op,'confirmed_linked_real_transactions');
  const unresolved=num(op,'unresolved_reconciliations');
  const stock=num(op,'real_stock_movements');
- if(snapshots>closed)throw Error('IMPOSSIBLE_PAYROLL_COUNTS');
+ if(snapshots>closed||qualified>snapshots)throw Error('IMPOSSIBLE_PAYROLL_COUNTS');
  const status=(candidate,missing,checks)=>({
    state:candidate?'READY_FOR_AUTHORIZED_FIELD_QA':'WAITING_REAL_EVIDENCE',
    // Field QA requires the actual authorized owner/payroll/POS operator, not CI.
@@ -32,9 +33,9 @@ export function evaluateReadiness(s){
  return {
   source:'aggregate_read_only_snapshot',captured_at:s.captured_at,
   status:{
-   'PAY-01':status(closed>0&&snapshots>0&&weeks>0,
-     [closed===0&&'CLOSED_PAYROLL_PERIOD',snapshots===0&&'IMMUTABLE_SNAPSHOT',weeks===0&&'WEEKLY_APPROVAL'].filter(Boolean),
-     {closed_periods:closed,snapshot_periods:snapshots,approved_weeks:weeks}),
+   'PAY-01':status(qualified>0&&weeks>0,
+     [closed===0&&'CLOSED_PAYROLL_PERIOD',snapshots===0&&'IMMUTABLE_SNAPSHOT',(qualified===0||weeks===0)&&'MATCHED_WEEKLY_APPROVAL_AND_CLOSED_SNAPSHOT'].filter(Boolean),
+     {closed_periods:closed,snapshot_periods:snapshots,qualified_closed_periods:qualified,approved_weeks:weeks}),
    'STORE-01':status(owners>0,
      owners===0?['VERIFIED_READY_STORE_PRIMARY_OWNER_AND_MATCHING_MEMBERSHIP']:[],
      {qualified_owner_links:owners,staged_count:staged}),
