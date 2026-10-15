@@ -204,12 +204,19 @@ else
   # to open a reviewed PR using its own separately authorized app identity.
   if grep -qi 'GitHub Actions is not permitted to create or approve pull requests' <<<"$pr_out"; then
     marker="[agent-pr-bridge:${GITHUB_RUN_ID:-local}]"
-    gh issue comment "$ISSUE_NUMBER" --body "$marker
-AI 코드 생성·기능별 QA·브랜치 푸시는 통과했으나 GitHub Actions 기본 토큰은 PR 생성을 허용하지 않습니다.
-브랜치: $branch
-원본 작업: #$ISSUE_NUMBER
-실행: https://github.com/${GITHUB_REPOSITORY:-koith/attendance-proto}/actions/runs/${GITHUB_RUN_ID:-local}
-PR은 독립 GitHub 연결 권한으로 생성 후 전체 CI를 재검증해야 합니다. 아직 PR/병합/배포 성공이 아닙니다." || true
+    bridge_body="$(printf '%s\n' \
+      "$marker" \
+      "AI 코드 생성·기능별 QA·브랜치 푸시는 통과했으나 GitHub Actions 기본 토큰은 PR 생성을 허용하지 않습니다." \
+      "브랜치: $branch" \
+      "원본 작업: #$ISSUE_NUMBER" \
+      "실행: https://github.com/${GITHUB_REPOSITORY:-koith/attendance-proto}/actions/runs/${GITHUB_RUN_ID:-local}" \
+      "PR은 승인된 별도 연결 권한으로 생성한 뒤 전체 CI를 재검증해야 합니다. 아직 PR/병합/배포 성공이 아닙니다.")"
+    # If the handoff receipt cannot be posted, never silently pretend that
+    # a separately authorized bridge has a discoverable pending job.
+    if ! gh issue comment "$ISSUE_NUMBER" --body "$bridge_body"; then
+      echo "::error::PR bridge handoff receipt could not be posted: $branch"
+      exit 1
+    fi
     echo "::error::Review PR pending connector bridge: $branch"
   fi
   printf '%s\n' "$pr_out"
