@@ -12,8 +12,8 @@ for(const [name,source] of [["hq",hq],["store",store]]){
   new vm.Script(source,{filename:name+".js"});
 }
 assert.match(app,/APP_VERSION="v\d+\.\d+"/);
-assert.match(app,/hq_store_onboarding_ui\.js\?v=20261016v297/);
-assert.match(app,/store_manager_tab\.js\?v=20261016v297/);
+assert.match(app,/hq_store_onboarding_ui\.js\?v=20261017v299/);
+assert.match(app,/store_manager_tab\.js\?v=20261017v299/);
 assert.match(hq,/managerMilestones\(ownerStage,store\?\.name,ownerEmail\)/);
 assert.match(hq,/hq-owner-steps/);
 assert.match(hq,/data-owner-step/);
