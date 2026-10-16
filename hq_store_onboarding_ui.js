@@ -173,6 +173,7 @@ window.mountHqStoreOnboarding=async function(box){
         '<div class="hq-manager-row"><span class="hq-manager-email">'+
         escapeHTML(m.email)+(primaryOwnerId===m.user_id?' <strong style="color:var(--brand-700)">· 대표 점주</strong>':'')+'</span>'+
         (primaryOwnerId!==m.user_id?'<button type="button" class="btn btn-secondary btn-sm" data-primary-assign="'+escapeHTML(m.user_id)+'"'+(pendingOwnerId===m.user_id?' disabled title="계정 활성화 시 대표 자동 지정"':'')+'>'+(pendingOwnerId===m.user_id?'자동 지정 대기':'대표 지정')+'</button>':'')+
+        (pendingOwnerId===m.user_id?'<button type="button" class="btn btn-secondary btn-sm" data-owner-resend="'+escapeHTML(m.user_id)+'">초대 메일 재발송</button>':'')+
         (primaryOwnerId===m.user_id?'<span style="font-size:.72rem;color:var(--text-muted)">대표 교체 후 해제 가능</span>':
           '<button type="button" class="btn btn-secondary btn-sm" data-owner-revoke="'+escapeHTML(m.user_id)+'">권한 해제</button>')+'</div>').join(""):
         '<div class="hq-hint">등록된 점주가 없습니다. 이메일로 계정을 연결하거나 초대하세요.</div>')+'</div></div>'+
@@ -283,6 +284,15 @@ window.mountHqStoreOnboarding=async function(box){
       if(!confirm(email+" 주소로 "+store.name+" 점주 초대 메일을 보내시겠습니까?"))return;
       act(()=>invite(email,selected),"대표 관리자 초대가 접수됐습니다. 이메일 인증·비밀번호 설정을 완료하면 자동 지정됩니다.");
     };
+    body.querySelectorAll("[data-owner-resend]").forEach(button=>{
+      button.onclick=()=>{
+        const m=list.find(row=>row.user_id===button.dataset.ownerResend);
+        if(!m||m.user_id!==pendingOwnerId||primaryOwnerId)
+          return err("대표 초대 대기 상태가 바뀌었습니다. 새로고침 후 다시 시도하세요.");
+        if(!confirm(store.name+" 지점의 "+m.email+" 주소로 새 대표 인증 메일을 보내시겠습니까?"))return;
+        act(()=>invite(m.email,selected),"새 대표 인증 메일 재발송을 요청했습니다. 받는 사람이 초대 링크에서 비밀번호를 설정하면 자동으로 대표가 됩니다.");
+      };
+    });
     body.querySelectorAll("[data-primary-assign]").forEach(button=>{
       button.onclick=()=>{
         const id=button.getAttribute("data-primary-assign");
