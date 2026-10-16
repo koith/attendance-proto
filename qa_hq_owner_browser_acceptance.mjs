@@ -23,6 +23,57 @@ try {
   await page.route('https://qa.invalid/',route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><div id="accountVeil" class="show"><div id="adAccount"></div></div><input id="outsideQuickInput">'}));
   await page.goto('https://qa.invalid/');
   await page.addStyleTag({content:css});
+
+  // HQ dashboard screenshot contract: two green action buttons and one
+  // 2x2 summary frame with internal rules (mobile and desktop).
+  await page.evaluate(()=>{
+    const fixture=document.createElement('section');
+    fixture.id='qaHqSummary';
+    fixture.className='hq-dashboard';
+    fixture.style.cssText='position:absolute;left:-10000px;top:0;width:375px;pointer-events:none';
+    fixture.innerHTML='<div class="hq-title"><div class="hq-title-row"><h2>지점 현황</h2>'+
+      '<div class="hq-dashboard-actions"><button class="btn btn-primary btn-sm" id="qaManagerBtn">지점 관리</button>'+
+      '<button class="btn btn-primary btn-sm hq-product-button" id="qaProductBtn">상품 배포</button></div></div></div>'+
+      '<div class="hq-summary"><div><span>운영 지점</span><b>1개</b></div>'+
+      '<div><span>전체 최근 7일 매출</span><b>0원</b></div>'+
+      '<div><span>지점 평균 7일 매출</span><b>0원</b></div>'+
+      '<div><span>누적 거래</span><b>0건</b></div></div>';
+    document.body.append(fixture);
+  });
+  const summaryGeometry=await page.locator('#qaHqSummary').evaluate(f=>{
+    const outer=f.querySelector('.hq-summary'),kids=[...outer.children];
+    const cells=kids.map(n=>({rect:n.getBoundingClientRect().toJSON(),style:getComputedStyle(n)}));
+    const buttons=[...f.querySelectorAll('.hq-dashboard-actions button')];
+    return {
+      parentBorder:getComputedStyle(outer).borderTopWidth,
+      parentRadius:getComputedStyle(outer).borderTopLeftRadius,
+      parentBackground:getComputedStyle(outer).backgroundColor,
+      cellBorders:cells.map(c=>[c.style.borderTopWidth,c.style.borderRightWidth,c.style.borderBottomWidth,c.style.borderLeftWidth]),
+      cellRadii:cells.map(c=>c.style.borderRadius),
+      order:cells.map(c=>[c.rect.x,c.rect.y]),
+      buttonBackgrounds:buttons.map(b=>getComputedStyle(b).backgroundColor),
+      buttonColors:buttons.map(b=>getComputedStyle(b).color)
+    };
+  });
+  assert.equal(summaryGeometry.parentBorder,'1px',name+': one outer border on summary');
+  assert.notEqual(summaryGeometry.parentBackground,'rgba(0, 0, 0, 0)');
+  assert.equal(summaryGeometry.cellBorders[0][1],'1px',name+': top left vertical separator');
+  assert.equal(summaryGeometry.cellBorders[0][2],'1px',name+': first row horizontal separator');
+  assert.equal(summaryGeometry.cellBorders[1][2],'1px',name+': second cell horizontal separator');
+  assert.equal(summaryGeometry.cellBorders[2][1],'1px',name+': lower vertical separator');
+  assert.equal(summaryGeometry.cellBorders[3][1],'0px',name+': no extra border on bottom right');
+  assert.ok(summaryGeometry.cellRadii.every(x=>x==='0px'),'no four independent rounded cards');
+  assert.ok(summaryGeometry.order[0][1]===summaryGeometry.order[1][1] &&
+     summaryGeometry.order[2][1]===summaryGeometry.order[3][1] &&
+     summaryGeometry.order[2][1]>summaryGeometry.order[0][1],
+     name+': all four KPIs must remain a 2x2 grid');
+  assert.equal(summaryGeometry.buttonBackgrounds[0],summaryGeometry.buttonBackgrounds[1],
+     name+': both HQ actions use matching brand green');
+  assert.notEqual(summaryGeometry.buttonBackgrounds[0],summaryGeometry.parentBackground);
+  assert.ok(summaryGeometry.buttonColors.every(c=>c==='rgb(255, 255, 255)'),
+    name+': both green HQ actions have white text');
+  await page.locator('#qaHqSummary').evaluate(e=>e.remove());
+
   await page.evaluate(()=>{
    window.CONFIG={SUPABASE_URL:'https://qa.invalid',SUPABASE_ANON_KEY:'qa'};
    window.Auth={token:'qa-token'};
