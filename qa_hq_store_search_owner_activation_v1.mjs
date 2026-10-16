@@ -8,7 +8,7 @@ const evidence=fs.readFileSync('supabase/migrations/20261011102000_store_provena
 const confirmed=fs.readFileSync('supabase/migrations/20261011103500_confirmed_owner_activation_security.sql','utf8');
 
 for(const id of ['hqOnboardingSearchInput','hqStoreStatusFilter','hqOnboardingStore','hqStoreSearchCount',
- 'hqStoreCounts','hqStoreRefresh','hqStoreShareUrl'])
+ 'hqStoreCounts','hqStoreShareUrl'])
  assert.match(ui,new RegExp(id),'Missing scalable HQ store control '+id);
 assert.match(ui,/searchTerm\.trim\(\)\.toLocaleLowerCase\("ko-KR"\)/);
 assert.match(ui,/statusFilter==="ALL"\|\|s\.onboarding_status===statusFilter/);
@@ -17,7 +17,7 @@ assert.match(ui,/if\(included\)storePicker\.value=String\(selected\)/);
 assert.match(ui,/storePicker\.disabled=rows\.length===0/);
 assert.match(ui,/manager_count\|\|0/);
 assert.match(ui,/verified&&Number\(store\?\.manager_count\|\|0\)>0&&sampleEmployeeCount===0/);
-assert.match(ui,/body\.querySelector\("#hqStoreRefresh"\)\.onclick/);
+assert.doesNotMatch(ui,/id="hqStoreRefresh"/);
 assert.match(ui,/label for="hqStoreShareUrl"/);
 assert.match(ui,/href="\s*'\+escapeHTML\(entryUrl\(selected\)\)/);
 assert.match(ui,/escapeHTML\(s\.name\)/);
@@ -34,7 +34,7 @@ const renderedVersion=html.match(/const APP_VERSION="(v[0-9]+[.][0-9]+)";/);
 assert.ok(renderedVersion,'App must declare a parseable release version');
 assert.ok(html.includes('id="appVersion">'+renderedVersion[1]+'</span>'),
   'App badge must match the release version without hardcoded test literals');
-assert.match(html,/hq_store_onboarding_ui\.js\?v=20261016v297/);
+assert.match(html,/hq_store_onboarding_ui\.js\?v=20261017v299/);
 assert.match(html,/\["report","리포트"\]/,'Inha six management tabs must remain visible');
 assert.match(html,/STORE_ENTRY_UNAVAILABLE/,'Unapproved store URL must remain blocked');
 console.log('PASS searchable 283-store HQ onboarding, verified+confirmed activation, READY-only share links');

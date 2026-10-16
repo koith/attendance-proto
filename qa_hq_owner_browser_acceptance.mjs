@@ -53,12 +53,19 @@ try {
     'owner@synthetic.invalid','earlier@synthetic.invalid','later@synthetic.invalid'
   ]);
   assert.equal(await page.locator('.hq-manager-pending-row').count(),1);
+  assert.equal(await page.locator('.hq-manager-roster-tag').count(),4,'each manager and invite needs a compact role badge');
+  assert.match(await page.locator('.hq-manager-pending-row p').innerText(),/인증·비밀번호 설정 대기:/);
+  assert.equal(await page.locator('.hq-manager-empty').count(),0);
   assert.equal(await page.locator('[data-manager-remove]').count(),0,'read-only status must never offer removal controls');
   await page.locator('[data-manager-tab="invite"]').click();
   assert.equal(await page.locator('#hqInviteRole').count(),1);
   assert.equal(await page.locator('[data-manager-remove]').count(),0);
+  assert.equal(await page.locator('[data-invite-cancel]').count(),1,'pending invite cancellation must only be in invitation tab');
+  assert.equal(await page.locator('[data-owner-resend]').count(),1,'pending invite resend must be next to cancellation');
+  assert.equal(await page.locator('#hqInviteRole').locator('option').count(),2);
   await page.locator('[data-manager-tab="remove"]').click();
-  assert.equal(await page.locator('[data-manager-remove]').count(),4);
+  assert.equal(await page.locator('[data-manager-remove]').count(),3,'only confirmed managers may appear in removal tab');
+  assert.equal(await page.locator('[data-invite-cancel]').count(),0,'pending invite cancellation must not be in manager removal tab');
   await page.locator('.hq-owner-row').nth(1).click();
   assert.equal(await page.locator('[data-manager-tab="status"]').getAttribute('aria-selected'),'true',
     'switching selected store always resets to status');

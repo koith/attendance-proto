@@ -147,7 +147,7 @@ window.mountHqStoreOnboarding=async function(box){
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:9px">'+
         '<div><div id="hqStoreCounts" style="font-size:.84rem">등록 '+stores.length+'곳 · 운영 '+readyCount+' · 준비 '+stagedCount+' · 중지 '+suspendedCount+'</div>'+ 
         '<div id="hqSampleRosterSummary" style="font-size:.75rem;color:var(--text-muted)">점검할 초기 직원 '+sampleTotal+'명 · '+sampleStoreCount+'개 지점</div></div>'+
-        '<div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" id="hqStoreReadinessExport" class="btn btn-secondary btn-sm">개통 준비 현황 CSV</button><button type="button" id="hqStoreRefresh" class="btn btn-secondary btn-sm">정보 새로고침</button></div></div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" id="hqStoreReadinessExport" class="btn btn-secondary btn-sm">개통 준비 현황 CSV</button></div></div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">'+
         '<div class="field"><label for="hqOnboardingSearchInput">지점명·코드·지역 검색</label>'+
           '<input id="hqOnboardingSearchInput" class="form-control" type="search" autocomplete="off" placeholder="예: 송도점" value="'+escapeHTML(searchTerm)+'"></div>'+
@@ -229,10 +229,6 @@ window.mountHqStoreOnboarding=async function(box){
     body.querySelector("#hqOnboardingSearchInput").oninput=e=>{searchTerm=e.target.value;updateChoices();};
     body.querySelector("#hqStoreStatusFilter").onchange=e=>{statusFilter=e.target.value;updateChoices();};
     storePicker.onchange=e=>{if(!e.target.value)return;selected=Number(e.target.value);render();};
-    body.querySelector("#hqStoreRefresh").onclick=()=>{
-      if(busy)return;busy=true;
-      refresh().catch(err).finally(()=>{busy=false;});
-    };
     body.querySelector("#hqStoreReadinessExport").onclick=()=>{
       const text=readinessCsv(stores,proofs,sampleCounts);
       const blob=new Blob([text],{type:"text/csv;charset=utf-8"});
@@ -292,7 +288,7 @@ window.mountHqStoreOnboarding=async function(box){
       button.onclick=()=>{
         const m=list.find(row=>row.user_id===button.dataset.ownerResend);
         if(!m||m.user_id!==pendingOwnerId||primaryOwnerId)
-          return err("대표 초대 대기 상태가 바뀌었습니다. 새로고침 후 다시 시도하세요.");
+          return err("대표 초대 대기 상태가 바뀌었습니다. 페이지를 다시 열어 시도하세요.");
         if(!confirm(store.name+" 지점의 "+m.email+" 주소로 새 대표 인증 메일을 보내시겠습니까?"))return;
         act(()=>invite(m.email,selected),"새 대표 인증 메일 재발송을 요청했습니다. 받는 사람이 초대 링크에서 비밀번호를 설정하면 자동으로 대표가 됩니다.");
       };

@@ -337,7 +337,15 @@ async function smoke(browser,label,viewport){
   assert.equal(calls.filter(x=>x.name==='hq_store_onboarding_set').length,0,
     'Unconfirmed owner must never activate a store '+label);
   ownerFixture.confirmOwner();
-  await page.locator('#hqStoreRefresh').click();
+  // Owner status is refreshed when HQ reopens the panel, not by a dedicated button.
+  await page.evaluate(async()=>{
+    const current=document.getElementById('hqStoreOnboarding');
+    const parent=current.parentElement;
+    current.remove();
+    await window.mountHqStoreOnboarding(parent);
+  });
+  await page.locator('#hqOnboardingStore').selectOption('2');
+  await page.locator('#hqStoreOperations summary').click();
   await page.waitForFunction(()=>document.querySelector('#hqStoreReady')?.disabled===false,
     null,{timeout:12000});
   assert.ok(calls.some(x=>x.name==='hq_store_provenance_review'&&x.args.p_store_id===2&&

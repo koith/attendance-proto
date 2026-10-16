@@ -144,7 +144,7 @@ async function scenario(role){
   await settle();
   assert.ok(calls.some(c=>c.fn==="store_delegated_manager_change"&&
     c.data.p_action==="ADD"&&c.data.p_store_id===2&&c.data.p_email==="linked@synthetic.invalid"));
-  assert.equal(mount.reload.disabled,false,"reload must recover after successful link");
+  assert.equal(mount.reload.disabled,false,"synthetic controls must recover after successful link");
   assert.match(content.innerHTML,/linked@synthetic.invalid/,"roster refresh after link");
 
   // Owner invites a new manager through Edge, never via the HQ invitation mode.
@@ -153,7 +153,7 @@ async function scenario(role){
   await settle();
   assert.ok(calls.some(c=>c.fn==="server-sync-sheet"&&
     c.data.mode==="invite_store_delegated_manager"&&c.data.store_id===2));
-  assert.equal(mount.reload.disabled,false,"reload must recover after invite");
+  assert.equal(mount.reload.disabled,false,"synthetic controls must recover after invite");
 
   // Owner grants just staff edit, then all three scoped capabilities.
   let save=content.save.find(button=>button.dataset.permissionSave==="delegate-id");
@@ -165,7 +165,7 @@ async function scenario(role){
   await settle();
   assert.ok(calls.some(c=>c.fn==="store_delegated_permissions_set"&&c.data.p_user_id==="delegate-id"&&
     c.data.p_staff_edit===true&&c.data.p_attendance_approve===false&&c.data.p_payroll_view===false));
-  assert.equal(mount.reload.disabled,false,"reload must recover after permission save");
+  assert.equal(mount.reload.disabled,false,"synthetic controls must recover after permission save");
 
   // Permission update rejection must not leave the controls permanently disabled.
   failNextPermission=true;
@@ -173,12 +173,9 @@ async function scenario(role){
   save.trigger("click");
   await settle();
   assert.ok(notices.some(n=>n.kind==="err"&&String(n.message).includes("SYNTHETIC_WRITE_FAILED")));
-  assert.equal(mount.reload.disabled,false,"reload must recover after rejected permission change");
-  const beforeReload=calls.filter(c=>c.fn==="store_delegated_manager_list").length;
-  mount.reload.trigger("click");
-  await settle();
-  assert.ok(calls.filter(c=>c.fn==="store_delegated_manager_list").length>beforeReload,
-    "manual reload must work after an error");
+  assert.equal(mount.reload.disabled,false,"synthetic controls must recover after rejected permission change");
+  assert.ok(!mount.innerHTML.includes('id="storeManagerReload"'),"manual refresh button must not appear in store manager UI");
+  assert.match(content.innerHTML,/owner@synthetic.invalid/,"failure recovery automatically reloads roster");
 
   // Owner revokes only the selected delegated member, never the owner.
   const revoke=content.revoke.find(button=>button.dataset.managerRevoke==="delegate-id");
@@ -189,9 +186,9 @@ async function scenario(role){
     c.data.p_action==="REVOKE"&&c.data.p_user_id==="delegate-id"&&c.data.p_store_id===2));
   assert.ok(!content.innerHTML.includes("delegate@synthetic.invalid"));
   assert.ok(content.innerHTML.includes("owner@synthetic.invalid"));
-  assert.equal(mount.reload.disabled,false,"reload must recover after revoke");
+  assert.equal(mount.reload.disabled,false,"synthetic controls must recover after revoke");
   assert.ok(confirmations.length>=5,"sensitive mutations require user confirmation");
   assert.ok(notices.some(n=>n.kind==="in"),"successful mutations must provide feedback");
 }
 for(const role of ["OWNER","HQ","MANAGER"])await scenario(role);
-console.log("PASS: owner link/invite/set/revoke, failure recovery, reload controls, HQ/delegate read-only");
+console.log("PASS: owner link/invite/set/revoke, failure recovery, automatic reload, HQ/delegate read-only");
