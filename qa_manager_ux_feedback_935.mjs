@@ -29,7 +29,7 @@ assert.match(run,/catch\(e\)\{alert\("처리 실패:/);
 for(const name of ["초대 요청 처리됨","초대 메일 재발송 요청 완료","초대 취소 완료","관리자 해제 완료"])assert.ok(hq.includes(name),"feedback title missing "+name);
 assert.match(store,/현재 접속: /);
 assert.match(store,/esc\(user\?\.email\|\|self\?\.email\|\|"계정 확인 필요"\)/);
-assert.match(store,/\('<strong>관리자 현황<\/strong>/);
+assert.match(store,/<strong>관리자 현황<\/strong>/);
 assert.doesNotMatch(store,/관리자 운영 현황|대표 초대 수락 대기|대표 관리자 미지정|대표 관리자 · 지점 최고 관리자/);
 assert.doesNotMatch(store,/대표 관리자 초대를 수락하고 비밀번호를 설정하면 자동으로 대표가 됩니다/);
 assert.match(store,/\( 공석 \)/);
