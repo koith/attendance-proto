@@ -145,7 +145,13 @@ window.mountHqOwnerConsole=async function(box){
 .hq-manager-roster-row p{display:none}
 .hq-manager-pending-row p{font-size:.78rem;margin:9px 0 0}
 .hq-manager-empty{display:flex;min-height:108px;justify-content:center;align-items:center;text-align:center;color:var(--text-muted,#64766c);font-size:.85rem}
-.hq-manager-invite-row .hq-manager-invite-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.hq-manager-invite-row .hq-manager-invite-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;width:100%}
+.hq-manager-invite-panel .hq-manager-invite-row{display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:14px 12px}
+.hq-manager-invite-panel .hq-manager-invite-row>span{display:flex;flex-direction:column;align-items:stretch;width:100%;min-width:0}
+.hq-manager-invite-panel .hq-manager-invite-row strong{display:block;overflow-wrap:anywhere;word-break:break-word;font-size:.9rem;line-height:1.5}
+.hq-manager-invite-panel .hq-manager-invite-row small{display:block;margin-top:6px;font-size:.78rem}
+.hq-manager-invite-panel .hq-manager-invite-actions .btn{flex:1 1 0;min-width:0;white-space:normal;line-height:1.35;padding:9px 5px}
+@media(max-width:370px){.hq-manager-invite-panel .hq-manager-invite-actions .btn{font-size:.69rem;padding:8px 3px}}
 .hq-manager-invite-row .hq-manager-invite-actions .btn{font-size:.75rem}
 .hq-owner-detail .hq-manager-status-panel h4,.hq-owner-detail .hq-manager-invite-panel h4{margin:14px 0 9px}
 .hq-owner-detail .hq-manager-remove-row .btn{min-width:94px}
@@ -160,7 +166,19 @@ window.mountHqOwnerConsole=async function(box){
  async function load(){const data=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_primary_owner_list"),BE.listAuthUsers(),rpc("hq_store_locations_list"),rpc("hq_store_manager_eligibility_list"),rpc("hq_store_primary_owner_invitation_list"),rpc("hq_store_manager_directory")]);if(!data.every(Array.isArray))throw Error("INVALID_HQ_RESPONSE");[stores,managers,owners,accounts,,managerEligibility,ownerInvitations,directory]=data;const locations=new Map(data[4].map(l=>[Number(l.store_id),l]));const flagRows=await rpc("hq_store_sample_flags_list").catch(()=>[]);const samples=new Set((Array.isArray(flagRows)?flagRows:[]).filter(x=>x.is_sample===true).map(x=>Number(x.store_id)));stores=stores.filter(s=>!samples.has(Number(s.id))).map(s=>Object.assign({},s,locations.get(Number(s.id))||{},{is_sample:false}));render();}
  const friendlyError=e=>{const message=String(e?.message||e||"");if(/already been registered|already registered|user already exists|email_exists|INVITE_FAILED.*registered/i.test(message))return "이미 등록된 이메일입니다. 기존 연결 계정을 확인하세요. 이 계정이 다른 지점에 연결되어 있는지도 확인하세요.";
  if(/CONFIRMED_STORE_MANAGER_REQUIRED/i.test(message))return "대표로 지정하려면 계정 소유자가 초대 이메일 확인(이메일 인증)을 완료해야 합니다. 이메일 인증 후 다시 대표 지정을 누르세요.";if(/CANNOT_DOWNGRADE_HQ/i.test(message))return "본사 관리자 계정은 지점 점주로 연결할 수 없습니다. 일반 계정을 선택하세요.";return message;};
- async function run(fn,onSuccess){if(busy)return;busy=true;try{await fn();if(onSuccess)onSuccess();await load();}catch(e){alert("처리 실패: "+friendlyError(e))}finally{busy=false}}
+ async function run(fn,onSuccess){if(busy)return;busy=true;
+   try{
+     await fn();
+     if(onSuccess)onSuccess();
+     await load();
+     if(notice){
+       const title=notice.title,message=notice.message;
+       if(typeof toast==="function")toast("in",title,message);
+       else alert(title+"\n\n"+message);
+     }
+   }catch(e){alert("처리 실패: "+friendlyError(e))}
+   finally{busy=false}
+ }
  function render(){
  const scrollContainer=body.closest("#adAccount");
  const modalScroll=scrollContainer?.scrollTop??0;
@@ -201,9 +219,9 @@ window.mountHqOwnerConsole=async function(box){
  const pendingRow=m=>'<div class="hq-manager-pending-row">'+identity(m)+
    '<p>'+(m.account_state==="EXPIRED"?"초대 기한 만료: ":"인증·비밀번호 설정 대기: ")+h(dateLabel(m))+'</p></div>';
  const statusPanel='<div class="hq-manager-status-panel" role="tabpanel" aria-label="관리자 현황">'+
-   '<h4>관리자 등록 완료</h4>'+
+   '<h4>등록된 관리자</h4>'+
    (active.length?active.map(rosterRow).join(""):empty)+
-   '<h4>관리자 초대 대기중</h4>'+
+   '<h4>초대중인 관리자</h4>'+
    (waitingRows.length?waitingRows.map(pendingRow).join(""):empty)+
    (needsReview.length?'<h4>역할 확인 필요</h4>'+needsReview.map(rosterRow).join(""):'')+'</div>';
  const invitePanel='<div class="hq-manager-invite-panel" role="tabpanel" aria-label="관리자 초대">'+
