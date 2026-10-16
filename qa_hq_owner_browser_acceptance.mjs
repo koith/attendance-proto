@@ -62,6 +62,20 @@ try {
   assert.equal(await page.locator('[data-manager-remove]').count(),0);
   assert.equal(await page.locator('[data-invite-cancel]').count(),1,'pending invite cancellation must only be in invitation tab');
   assert.equal(await page.locator('[data-owner-resend]').count(),1,'pending invite resend must be next to cancellation');
+  assert.equal(await page.locator('.hq-manager-invite-row').count(),1);
+  assert.equal(await page.locator('.hq-manager-invite-row').evaluate(el=>getComputedStyle(el).flexDirection),'column',
+    'email, role/status, actions must stack on mobile and desktop');
+  assert.equal(await page.locator('.hq-manager-invite-row>span').evaluate(el=>getComputedStyle(el).flexDirection),'column');
+  assert.match(await page.locator('.hq-manager-invite-row strong').innerText(),/pending@synthetic.invalid/);
+  assert.match(await page.locator('.hq-manager-invite-row small').innerText(),/대표 관리자 · 인증 대기/);
+  const card=await page.locator('.hq-manager-invite-row').evaluate(el=>{
+    const email=el.querySelector('strong').getBoundingClientRect();
+    const state=el.querySelector('small').getBoundingClientRect();
+    const actions=el.querySelector('.hq-manager-invite-actions').getBoundingClientRect();
+    return {emailY:email.y,stateY:state.y,actionsY:actions.y}
+  });
+  assert.ok(card.emailY<card.stateY && card.stateY<card.actionsY,'pending invitation must be rendered in three lines');
+
   assert.equal(await page.locator('#hqInviteRole').locator('option').count(),2);
   await page.locator('[data-manager-tab="remove"]').click();
   assert.equal(await page.locator('[data-manager-remove]').count(),3,'only confirmed managers may appear in removal tab');
