@@ -155,6 +155,7 @@ window.mountHqOwnerConsole=async function(box){
 .hq-manager-invite-row .hq-manager-invite-actions .btn{font-size:.75rem}
 .hq-owner-detail .hq-manager-status-panel h4,.hq-owner-detail .hq-manager-invite-panel h4{margin:14px 0 9px}
 .hq-owner-detail .hq-manager-remove-row .btn{min-width:94px}
+.hq-owner-detail .hq-manager-panel-frame{display:flow-root;min-width:0;width:100%;overflow-y:auto;overscroll-behavior:contain;max-height:min(54dvh,560px);scrollbar-gutter:stable}
 @media(max-width:560px){.hq-owner-detail .hq-manager-tab{font-size:.74rem;padding:7px 2px}.hq-manager-remove-row,.hq-manager-invite-row{flex-wrap:wrap}.hq-manager-remove-row .btn,.hq-manager-invite-row .btn{margin-left:auto}}
 </style><div id="hqOwnerBody">불러오는 중…</div></div>`;
  const body=box.querySelector("#hqOwnerBody"); const summary=document.getElementById("hqOwnerPinnedSummary");
@@ -249,8 +250,23 @@ window.mountHqOwnerConsole=async function(box){
  '<div class="hq-owner-columns"><div class="hq-owner-list">'+rows.map(s=>
  '<button type="button" class="hq-owner-row'+(selected===Number(s.id)?" active":"")+'" data-store="'+Number(s.id)+'"><strong>'+h(s.name)+'</strong><span class="hq-owner-status '+(owner(s.id)?"assigned":"unassigned")+'">'+(owner(s.id)?"대표 배정":"미배정")+'</span></button>').join("")+'</div>'+
  '<div class="hq-owner-detail">'+(store?'<h3 class="hq-manager-store-head">'+h(store.name)+'</h3>'+tabs+
- (activeTab==="status"?statusPanel:activeTab==="invite"?invitePanel:removePanel):
+ '<div class="hq-manager-panel-frame">'+(activeTab==="status"?statusPanel:activeTab==="invite"?invitePanel:removePanel)+'</div>':
  '<p class="hq-owner-help">목록에서 지점을 선택하세요.</p>')+'</div></div>';
+ // Measure all three panels at the same width and reserve the tallest panel's
+ // height. Only the active panel stays mounted, so hidden mutation controls
+ // never become interactive or duplicate IDs in the live DOM.
+ const panelFrame=body.querySelector(".hq-manager-panel-frame");
+ if(panelFrame){
+   const currentMarkup=panelFrame.innerHTML;
+   const heights=[statusPanel,invitePanel,removePanel].map(markup=>{
+     panelFrame.style.height="auto";
+     panelFrame.innerHTML=markup;
+     return panelFrame.scrollHeight;
+   });
+   panelFrame.innerHTML=currentMarkup;
+   panelFrame.style.height=Math.ceil(Math.max(...heights)+2)+"px";
+   panelFrame.scrollTop=0;
+ }
  if(quickMode)startOutsideKeys();else stopOutsideKeys();
  if(scrollContainer)scrollContainer.scrollTop=modalScroll;
  const currentList=body.querySelector(".hq-owner-list");if(currentList)currentList.scrollTop=listScroll;
