@@ -15,11 +15,11 @@ async function rpc(fn,args={}){
   if(!response.ok)throw Error(data?.message||data?.error||fn+" "+response.status);
   return data;
 }
-async function invite(email,store_id){
+async function invite(email,store_id,invitationRole="OWNER"){
   if(!Auth.token)throw Error("LOGIN_REQUIRED");
   const response=await fetch(CONFIG.SUPABASE_URL+"/functions/v1/server-sync-sheet",{
     method:"POST",headers:{Authorization:"Bearer "+Auth.token,"Content-Type":"application/json"},
-    body:JSON.stringify({mode:"invite_store_manager",email,store_id})
+    body:JSON.stringify({mode:invitationRole==="ASSISTANT"?"invite_store_assistant_by_hq":"invite_store_manager",email,store_id})
   });
   const data=await response.json().catch(()=>null);
   if(!response.ok||data?.ok!==true)throw Error(data?.error||"INVITE_FAILED");
@@ -164,11 +164,12 @@ window.mountHqStoreOnboarding=async function(box){
       managerMilestones(ownerStage,store?.name,ownerEmail)+
       '<div class="hq-compact-card" id="hqManagerCard"><h4>대표 관리자 지정 · 계정 관리</h4>'+
       '<div class="hq-hint">대표 점주: <strong>'+escapeHTML(list.find(m=>m.user_id===primaryOwnerId)?.email||"미지정")+'</strong> · 등록 '+list.length+'명'+(pendingOwnerId?' · 대표 초대 대기: '+escapeHTML(list.find(m=>m.user_id===pendingOwnerId)?.email||"인증 대기 계정"):'')+'</div>'+
+      '<div class="field"><label for="hqManagerRole">초대할 관리자 역할</label><select id="hqManagerRole" class="form-control"><option value="OWNER">대표 관리자</option><option value="ASSISTANT">보조 관리자</option></select></div>'+ 
       '<div class="field"><label for="hqManagerEmail">점주 로그인 이메일</label><input id="hqManagerEmail" class="form-control" type="email" autocomplete="off" placeholder="owner@example.com"></div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px">'+
       '<button type="button" class="btn btn-secondary btn-sm" id="hqManagerAssign">기존 계정에 점주 권한 부여</button>'+
       '<button type="button" class="btn btn-primary btn-sm" id="hqManagerInvite">대표 관리자 이메일 초대</button></div>'+
-      '<div class="hq-hint">대표 이메일 초대는 상대방의 이메일 인증·비밀번호 설정이 끝나면 자동으로 대표 권한이 확정됩니다. 이미 가입한 계정 연결·대표 교체는 별도 관리합니다.</div>'+
+      '<div class="hq-hint">대표 초대는 계정 활성화 후 자동 대표 지정, 보조 초대는 대표가 지정된 지점에만 허용됩니다. 초대 역할은 먼저 선택합니다.</div>'+
       '<div style="margin:10px 0">'+(list.length?list.map(m=>
         '<div class="hq-manager-row"><span class="hq-manager-email">'+
         escapeHTML(m.email)+(primaryOwnerId===m.user_id?' <strong style="color:var(--brand-700)">· 대표 점주</strong>':'')+'</span>'+
@@ -277,12 +278,15 @@ window.mountHqStoreOnboarding=async function(box){
       },"기존 점주 계정이 연결됐습니다.");
     };
     body.querySelector("#hqManagerInvite").onclick=()=>{
-      if(primaryOwnerId)return err("이미 대표 관리자가 있습니다. 교체는 별도 대표 지정 절차를 사용하세요.");
-      if(pendingOwnerId)return err("이미 대표 초대가 대기 중입니다. 계정 활성화 또는 기존 초대 취소를 먼저 처리하세요.");
+      const role=body.querySelector("#hqManagerRole").value;
+      const assistant=role==="ASSISTANT";
+      if(!assistant&&primaryOwnerId)return err("이미 대표 관리자가 있습니다. 교체는 별도 대표 지정 절차를 사용하세요.");
+      if(!assistant&&pendingOwnerId)return err("이미 대표 초대가 대기 중입니다. 계정 활성화 또는 기존 초대 취소를 먼저 처리하세요.");
+      if(assistant&&!primaryOwnerId)return err("보조 관리자는 대표 관리자 활성화 후 초대할 수 있습니다.");
       const email=body.querySelector("#hqManagerEmail").value.trim().toLowerCase();
       if(!email)return;
-      if(!confirm(email+" 주소로 "+store.name+" 점주 초대 메일을 보내시겠습니까?"))return;
-      act(()=>invite(email,selected),"대표 관리자 초대가 접수됐습니다. 이메일 인증·비밀번호 설정을 완료하면 자동 지정됩니다.");
+      if(!confirm(email+" 주소로 "+store.name+" "+(assistant?"보조":"대표")+" 관리자 초대 메일을 보내시겠습니까?"))return;
+      act(()=>invite(email,selected,role),assistant?"보조 관리자 초대가 접수됐습니다. 계정 활성화 후 대표가 허용 업무를 설정합니다.":"대표 관리자 초대가 접수됐습니다. 이메일 인증·비밀번호 설정을 완료하면 자동 지정됩니다.");
     };
     body.querySelectorAll("[data-owner-resend]").forEach(button=>{
       button.onclick=()=>{
