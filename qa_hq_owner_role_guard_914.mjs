@@ -17,7 +17,7 @@ assert.match(index,/isOwner\?"지점 대표 관리자"/);
 assert.match(hq,/hq_store_manager_eligibility_list/);
 assert.match(hq,/isHqAccount=a=>a\?\.is_admin===true&&!managerIds\(\)\.has\(a\.user_id\)/);
 assert.match(hq,/linkedManager=managers\.find\(m=>m\.user_id===found\.user_id\)/);
-assert.match(hq,/이 계정은 이미 /);
+assert.match(hq,/이미 연결된 계정입니다/);
 assert.match(hq,/인증·비밀번호 설정 대기/);
 assert.match(hq,/activeTab===\"status\"\?statusPanel/);
 assert.doesNotMatch(hq,/if\(found\)return alert\(found\.is_admin/);
