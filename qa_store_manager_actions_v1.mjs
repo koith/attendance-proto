@@ -90,6 +90,7 @@ async function scenario(role){
       const data=JSON.parse(opts.body);const fn=url.split("/").pop();
       calls.push({fn,data});
       if(fn==="store_delegated_manager_list")return response(members);
+      if(fn==="store_manager_invitation_states")return response(members.map(m=>({user_id:m.user_id,email:m.email,intended_role:m.manager_role==="OWNER"?"OWNER":"ASSISTANT",account_state:m.user_id==="invited-id"?"PENDING":"ACTIVE"})));
       if(fn==="is_hq_admin")return response(role==="HQ");
       if(fn==="store_delegated_permissions_list")return response(
         [...rights.entries()].map(([user_id,p])=>({user_id,...p})));
