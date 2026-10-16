@@ -11,7 +11,13 @@ try {
    const rpc=route.request().url().split('/').pop();
    const stores=Array.from({length:283},(_,i)=>({id:i+1,name:i===0?'강남역점':i===1?'송파역점':i===2?'주소미등록점':'테스트'+i+'점',code:'S'+i,region_group:i%2?'경기':'서울',road_address:i===0?'서울특별시 강남구 테헤란로 10':i===1?'서울특별시 송파구 올림픽로 20':i===3?'경기도 수원시 영통구 대학로 12':i===5?'경기도 수원시 팔달구 매산로 3':''}));
    const locations=[{store_id:1,province:'서울특별시',district:'강남구',subdistrict:'',address:'서울 강남구 테헤란로 10'},{store_id:2,province:'서울특별시',district:'송파구',subdistrict:'',address:'서울 송파구 올림픽로 20'},{store_id:4,province:'경기도',district:'수원시',subdistrict:'영통구',address:'경기 수원시 영통구 대학로 12'},{store_id:6,province:'경기도',district:'수원시',subdistrict:'팔달구',address:'경기 수원시 팔달구 매산로 3'},...Array.from({length:30},(_,i)=>({store_id:i+20,province:'서울특별시',district:'종로구',subdistrict:'',address:'서울 종로구 테스트로 '+i})),{store_id:7,province:'부산광역시',district:'금정구',subdistrict:'',address:'부산 금정구'},{store_id:8,province:'부산광역시',district:'동래구',subdistrict:'',address:'부산 동래구'},{store_id:9,province:'부산광역시',district:'기장군',subdistrict:'',address:'부산 기장군'}];
-   const payload=rpc==='hq_stores_onboarding_list'?stores:rpc==='hq_store_locations_list'?locations:[];
+   const managers=[
+    {store_id:1,user_id:'owner-1',email:'owner@synthetic.invalid',intended_role:'OWNER',account_state:'ACTIVE',registered_at:'2026-10-16T09:00:00Z'},
+    {store_id:1,user_id:'delegate-later',email:'later@synthetic.invalid',intended_role:'ASSISTANT',account_state:'ACTIVE',registered_at:'2026-09-08T09:00:00Z'},
+    {store_id:1,user_id:'delegate-earlier',email:'earlier@synthetic.invalid',intended_role:'ASSISTANT',account_state:'ACTIVE',registered_at:'2026-07-01T09:00:00Z'},
+    {store_id:1,user_id:'pending-1',email:'pending@synthetic.invalid',intended_role:'OWNER',account_state:'PENDING',registered_at:'2026-06-01T09:00:00Z'}
+   ];
+   const payload=rpc==='hq_stores_onboarding_list'?stores:rpc==='hq_store_locations_list'?locations:rpc==='hq_store_manager_directory'?managers:[];
    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(payload)});
   });
   await page.route('https://qa.invalid/',route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><div id="accountVeil" class="show"><div id="adAccount"></div></div><input id="outsideQuickInput">'}));
@@ -39,6 +45,24 @@ try {
   await page.evaluate(()=>window.mountHqOwnerConsole(document.getElementById('adAccount')));
   await page.locator('.hq-owner-row').first().waitFor();
   assert.equal(await page.locator('.hq-owner-row').count(),283);
+  // HQ store-manager contract: default read-only status, separate invite/remove,
+  // representative first and assistants chronologically regardless of server array order.
+  await page.locator('.hq-owner-row').first().click();
+  assert.equal(await page.locator('[data-manager-tab="status"]').getAttribute('aria-selected'),'true');
+  assert.deepEqual(await page.locator('.hq-manager-roster-row strong').allTextContents(),[
+    'owner@synthetic.invalid','earlier@synthetic.invalid','later@synthetic.invalid'
+  ]);
+  assert.equal(await page.locator('.hq-manager-pending-row').count(),1);
+  assert.equal(await page.locator('[data-manager-remove]').count(),0,'read-only status must never offer removal controls');
+  await page.locator('[data-manager-tab="invite"]').click();
+  assert.equal(await page.locator('#hqInviteRole').count(),1);
+  assert.equal(await page.locator('[data-manager-remove]').count(),0);
+  await page.locator('[data-manager-tab="remove"]').click();
+  assert.equal(await page.locator('[data-manager-remove]').count(),4);
+  await page.locator('.hq-owner-row').nth(1).click();
+  assert.equal(await page.locator('[data-manager-tab="status"]').getAttribute('aria-selected'),'true',
+    'switching selected store always resets to status');
+
   const activeQuickListeners=()=>page.evaluate(()=>window.__hqActiveDocKeys.size);
   assert.equal(await activeQuickListeners(),0,'Closed picker must not keep global keyboard listener');
   const dims=[];const snap=async()=>{const r=await page.getByRole('dialog').boundingBox();assert.ok(r);dims.push([Math.round(r.width),Math.round(r.height)])};
