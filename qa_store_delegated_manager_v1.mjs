@@ -71,6 +71,9 @@ async function simulateStore(storeId,role){
  fetch:async(url,options)=>{
  const data=JSON.parse(options.body);calls.push({url,data});
  const result=url.endsWith("is_hq_admin")?role==="HQ":
+ url.endsWith("store_manager_invitation_states")?[
+  {user_id:"primary-id",email:"primary@synthetic.invalid",intended_role:role==="OWNER"?"OWNER":"ASSISTANT",account_state:"ACTIVE"},
+  {user_id:"delegate-id",email:"delegate@synthetic.invalid",intended_role:"ASSISTANT",account_state:"ACTIVE"}]:
  url.endsWith("store_delegated_permissions_list")?
  [{user_id:"delegate-id",staff_edit:true,attendance_approve:false,payroll_view:false}]:
  [{user_id:"primary-id",email:"primary@synthetic.invalid",manager_role:role==="OWNER"?"OWNER":"MANAGER"},
