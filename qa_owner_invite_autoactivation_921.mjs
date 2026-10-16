@@ -43,7 +43,7 @@ assert.match(page,/owner_activation\.js\?v=20261016v295/);
 // HQ must display pending vs appointed separately, with no second manual click.
 assert.match(hq,/rpc\("hq_store_primary_owner_invitation_list"\)/);
 assert.match(hq,/const pendingOwner=id=>/);
-assert.match(hq,/초대가 대기 중입니다/);
+assert.match(hq,/대표 관리자는 동시에 여러 계정을 초대할 수 없습니다/);
 assert.match(hq,/data-owner-resend/);
 assert.match(hq,/대표 초대 재발송/);
 assert.match(hq,/비밀번호 설정/);
