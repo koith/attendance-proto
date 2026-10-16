@@ -158,7 +158,7 @@ window.mountHqOwnerConsole=async function(box){
  '<label for="hqExistingAccount">기존 일반 계정 연결 ('+eligibleAccounts.length+'개)</label><select class="form-control" id="hqExistingAccount"><option value="">계정을 선택하세요</option>'+eligibleAccounts.map(a=>'<option value="'+h(a.email)+'">'+h(a.email)+'</option>').join("")+'</select><div class="hq-owner-buttons"><button class="btn btn-secondary btn-sm" id="hqOwnerAssign">선택 계정 연결</button></div>'+ 
  ''+
  '<section class="hq-owner-tracking"><h4>연결된 계정</h4>'+ (inviteProgress.length?inviteProgress.map(m=>'<div class="hq-owner-track"><strong>'+h(m.email)+'</strong><span> · '+(m.representative?'대표 지정 완료':'대표 미지정 · 지점 연결됨')+'</span></div>').join(''):'<p>현재 연결된 계정이 없습니다. 이메일 초대 또는 기존 계정 연결을 진행하세요.</p>')+'</section><div class="hq-owner-linked">'+linked.map(m=>'<div><span>'+h(m.email)+'</span>'+(current?.user_id===m.user_id?'<small>대표</small>':'<button class="btn btn-secondary btn-sm" data-primary="'+h(m.user_id)+'">대표 지정</button><button class="btn btn-secondary btn-sm" data-revoke="'+h(m.user_id)+'">해제</button>')+'</div>').join("")+'</div>':
- '<p class="hq-owner-help">왼쪽에서 지점을 선택하세요.</p>')+'</div></div>';
+ '<p class="hq-owner-help">목록에서 지점을 선택하세요.</p>')+'</div></div>';
  if(quickMode)startOutsideKeys();else stopOutsideKeys();
  if(scrollContainer)scrollContainer.scrollTop=modalScroll;
  const currentList=body.querySelector(".hq-owner-list");if(currentList)currentList.scrollTop=listScroll;
