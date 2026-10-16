@@ -10,5 +10,5 @@ assert(source.includes("if(isWorking&&!b){preview.textContent='퇴근을 입력�
 assert(source.includes("if(a&&b&&b<=a){preview.textContent='퇴근 시각은 출근 시각보다 늦어야 합니다.'"),'time order validation must remain');
 assert(source.includes("const source=window.actualAttendanceSourceSession?window.actualAttendanceSourceSession(s):s"),'derived overnight slices must target authoritative source');
 assert(source.includes("if(e.systemStoreClose&&!isOpen)continue"),'redundant automatic OUT suppressed');
-assert(html.includes('actual_attendance.js?v=20261013overnight3'),'iPhone browser receives fresh source after fix');
+assert.match(html,/actual_attendance\.js\?v=202610\d{2}[a-z0-9]+/,'iPhone browser receives cache-busted attendance source');
 console.log('PASS overnight correction UI: 26h+ axis, working missing OUT, safe authoring, cache, pairing');

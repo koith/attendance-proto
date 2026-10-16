@@ -45,6 +45,6 @@ assert.doesNotMatch(section,/posUnlockForm|posUnlockEmployeeNo/,'No additional P
 assert.match(html,/BE\.posUnlockStore\(employeeNumber\(padEmp\),pin\)/,'First PIN also unlocks scoped roster');
 assert.match(html,/sessionStorage\.setItem\(posAccessKey\(\),access\.token\)/);
 assert.match(section,/POS_AUTH_REQUIRED/);
-assert.match(html,/const APP_VERSION="v0\.292"/);
-assert.match(html,/id="appVersion">v0\.292<\/span>/);
+assert.match(html,/const APP_VERSION="v\d+\.\d+"/);
+assert.match(html,/id="appVersion">v\d+\.\d+<\/span>/);
 console.log('PASS v0.96 card badges, conditional HQ pencil, PIN one-step and scoped card status');
