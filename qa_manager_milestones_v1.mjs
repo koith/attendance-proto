@@ -35,7 +35,7 @@ assert.match(store,/smt-delegates/);
 assert.match(store,/store_delegated_manager_change/);
 assert.match(store,/store_delegated_permissions_set/);
 assert.match(store,/invite_store_delegated_manager/);
-assert.match(store,/대표 관리자 초대/);
+assert.match(store,/대표 초대/);
 assert.match(store,/보조 관리자를 추가하거나 권한을 관리/);
 assert.doesNotMatch(store,/storeManagerHqInviteForm/);
 console.log("PASS: HQ milestone, owner-specific next action, store roster and existing ACL routes retained");
