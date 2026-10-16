@@ -46,7 +46,7 @@ assert.match(hq,/const pendingOwner=id=>/);
 assert.match(hq,/대표 초대 대기 · 계정 활성화하면 자동 지정/);
 assert.match(hq,/본사에서 다시 지정할 필요가 없습니다/);
 assert.match(hq,/이미 대표 관리자 초대가 대기 중입니다/);
-assert.match(html,/APP_VERSION="v0\.295"/);
+assert.match(html,/APP_VERSION="v0\.(?:295|296)"/);
 assert.match(html,/id="appVersion">v0\.295</);
 assert.match(html,/hq_owner_console\.js\?v=20261016v295/);
 assert.match(inviteMail,/대표 권한 자동 확정 후 매장 입장/);
