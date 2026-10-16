@@ -121,7 +121,7 @@ window.mountHqOwnerConsole=async function(box){
  };
  box.__hqOwnerKeyboardCleanup=()=>{stopOutsideKeys();quickMode="";keyboardController.abort()};
  const chose=id=>{selected=Number(id);activeTab="status";notice=null;remember(selected);render()};
- box.innerHTML='<div class="hq-owner-console"><h2>지점 관리</h2><style id="hqManagerTabsStyle">
+ box.innerHTML=`<div class="hq-owner-console"><h2>지점 관리</h2><style id="hqManagerTabsStyle">
 .hq-owner-detail .hq-manager-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:14px 0}
 .hq-owner-detail .hq-manager-tab{min-height:43px;padding:8px 4px;border:1px solid var(--border,#d8e2db);border-radius:10px;background:var(--surface,#fff);color:var(--text,#203a29);font-size:.81rem;font-weight:650;cursor:pointer}
 .hq-owner-detail .hq-manager-tab.is-active{background:var(--brand-700,#205e3d);border-color:var(--brand-700,#205e3d);color:#fff}
@@ -137,7 +137,7 @@ window.mountHqOwnerConsole=async function(box){
 .hq-manager-remove-panel .btn[data-manager-remove]{color:#b42318;border-color:#ba483d}
 .hq-manager-invite-panel label{display:block;margin:12px 0 5px}
 @media(max-width:560px){.hq-owner-detail .hq-manager-tab{font-size:.74rem;padding:7px 2px}.hq-manager-remove-row,.hq-manager-invite-row{flex-wrap:wrap}.hq-manager-remove-row .btn,.hq-manager-invite-row .btn{margin-left:auto}}
-</style><div id="hqOwnerBody">불러오는 중…</div></div>';
+</style><div id="hqOwnerBody">불러오는 중…</div></div>`;
  const body=box.querySelector("#hqOwnerBody"); const summary=document.getElementById("hqOwnerPinnedSummary");
  const owner=id=>{const uid=owners.find(x=>Number(x.store_id)===Number(id))?.user_id;return managers.find(x=>Number(x.store_id)===Number(id)&&x.user_id===uid)};
  const pendingOwner=id=>ownerInvitations.find(x=>Number(x.store_id)===Number(id));
