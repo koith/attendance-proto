@@ -8,7 +8,7 @@ const hq=fs.readFileSync("hq_owner_console.js","utf8");
 const index=fs.readFileSync("index.html","utf8");
 const sql=fs.readFileSync("supabase/migrations/20261016_hq_store_manager_eligibility_safe_read.sql","utf8");
 new vm.Script(hq,{filename:"hq_owner_console.js"});
-assert.match(index,/APP_VERSION="v0\.(?:294|295|296|297|298|299|300)"/);
+assert.match(index,/APP_VERSION="v0\.(?:294|295|296|297|298|299|300|301)"/);
 assert.match(index,/hq_owner_console\.js\?v=20261017v301/);
 assert.match(index,/managerIds=new Set\(managerRows\.map\(x=>x\.user_id\)\)/);
 assert.match(index,/ownerIds=new Set\(ownerRows\.map\(x=>x\.user_id\)\)/);
