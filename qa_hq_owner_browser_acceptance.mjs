@@ -67,6 +67,8 @@ try {
   assert.equal(await page.locator('[data-manager-remove]').count(),0,'read-only status must never offer removal controls');
   await page.locator('[data-manager-tab="invite"]').click();
   const inviteFrame=await readManagerGeometry();
+  assert.ok(inviteFrame.scrollHeight<=inviteFrame.height+1 || inviteFrame.height<=inviteFrame.maxHeight+1,
+    name+': long invitation panel must remain scrollable within its bounded frame');
   assert.ok(Math.abs(inviteFrame.height-statusFrame.height)<=1,
     name+': status and invite must keep identical detail height');
 
