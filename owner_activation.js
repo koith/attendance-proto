@@ -43,13 +43,26 @@ form.onsubmit=async event=>{
   });
   const updated=await change.json().catch(()=>({}));
   if(!change.ok)throw Error(updated.msg||updated.message||"PASSWORD_SETUP_FAILED");
+  // HQ representative invites are bound to the signed-in user and confirmed email.
+  // The server atomically promotes the recipient only when HQ registered the intent.
+  // Delegated store-manager invitations have no owner intent and remain delegated.
+  const acceptedResponse=await fetch(config.url+"/rest/v1/rpc/store_primary_owner_accept_invitation",{
+   method:"POST",headers:{apikey:config.key,Authorization:"Bearer "+token,
+      "Content-Type":"application/json"},body:"{}"
+  });
+  const accepted=await acceptedResponse.json().catch(()=>({}));
+  if(!acceptedResponse.ok||accepted?.ok!==true)
+    throw Error("비밀번호 설정은 완료됐지만 대표 관리자 자동 지정 확인에 실패했습니다: "+
+      (accepted?.message||accepted?.error||"ACTIVATION_NOT_CONFIRMED")+
+      ". 이 페이지에서 다시 시도하거나 본사에 문의하세요.");
   const r=await fetch(config.url+"/rest/v1/rpc/admin_context",{
    method:"POST",headers:{apikey:config.key,Authorization:"Bearer "+token,
       "Content-Type":"application/json"},body:"{}"
   });
   const ctx=await r.json();
   const storeId=Number(ctx?.store_id);
-  if(!r.ok||ctx?.role!=="STORE_MANAGER"||!Number.isSafeInteger(storeId)||storeId<1)
+  if(!r.ok||ctx?.role!=="STORE_MANAGER"||!Number.isSafeInteger(storeId)||storeId<1||
+     Number(accepted.store_id)!==storeId)
     throw Error("점주 권한을 확인할 수 없습니다. 본사에 문의하세요.");
   localStorage.setItem("baekeok_auth",JSON.stringify({
     access_token:token,refresh_token:refresh||"",expires_in:Number(hash.get("expires_in"))||3600
