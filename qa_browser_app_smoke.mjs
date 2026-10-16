@@ -345,6 +345,7 @@ async function smoke(browser,label,viewport){
     await window.mountHqStoreOnboarding(parent);
   });
   await page.locator('#hqOnboardingStore').selectOption('2');
+  await page.locator('#hqStoreOperations summary').click();
   await page.waitForFunction(()=>document.querySelector('#hqStoreReady')?.disabled===false,
     null,{timeout:12000});
   assert.ok(calls.some(x=>x.name==='hq_store_provenance_review'&&x.args.p_store_id===2&&
