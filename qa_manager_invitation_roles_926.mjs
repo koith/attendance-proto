@@ -43,6 +43,6 @@ assert.match(edge,/service_hq_store_assistant_attach_invited_user/);
 assert.match(edge,/ACTIVE_PRIMARY_OWNER_REQUIRED/);
 assert.match(app,/APP_VERSION="v0\.(?:297|298|299|300)"/);
 assert.match(app,/store_manager_tab\.js\?v=20261017v300/);
-assert.match(app,/hq_owner_console\.js\?v=20261017v300/);
+assert.match(app,/hq_owner_console\.js\?v=20261017v301/);
 assert.match(app,/hq_store_onboarding_ui\.js\?v=20261017v299/);
 console.log('PASS #926: explicit OWNER / ASSISTANT invitation, pending roster isolation, HQ authorization, version and Edge parity');
