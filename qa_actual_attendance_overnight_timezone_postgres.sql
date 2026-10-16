@@ -82,7 +82,11 @@ BEGIN
   WHERE employee_id=932 AND action='ADD' AND created_by='system:auto-close'
   AND new_event_at='2026-10-12 17:00:00'::timestamp
  ) THEN RAISE EXCEPTION 'AUTO_CLOSE_WRONG_TARGET'; END IF;
- IF (SELECT (public.punch(931,'1234','synthetic',NULL::bigint)->>'type'))<>'IN'
+ -- The 25:00 close clock above verifies forced checkout. For the separate
+ -- successful punch assertion, use a fixture-only 24h interval so this QA
+ -- remains deterministic when CI starts during Seoul 01:00-06:00 closure.
+ UPDATE public.store_settings SET close_minute=1800 WHERE store_id=1;
+ IF (SELECT (public.punch(931,'1234','synthetic',NULL::bigint)->>'type')) IS DISTINCT FROM 'IN'
  THEN RAISE EXCEPTION 'NEW_CORRECTED_OUT_CAUSED_SPURIOUS_SECOND_OUT_PUNCH'; END IF;
  IF (SELECT working FROM public.list_employees_state(1) WHERE id=931) IS DISTINCT FROM true
  THEN RAISE EXCEPTION 'POS_STATE_WRONG_AFTER_NEW_PUNCH'; END IF;
