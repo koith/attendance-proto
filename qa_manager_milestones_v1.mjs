@@ -1,3 +1,4 @@
+import "./qa_owner_invite_autoactivation_921.mjs";
 import "./qa_hq_owner_role_guard_914.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
