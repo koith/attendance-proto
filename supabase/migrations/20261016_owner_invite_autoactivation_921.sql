@@ -93,7 +93,8 @@ BEGIN
     FROM public.admin_users a WHERE a.user_id=v_uid;
   IF v_role<>'STORE_MANAGER' OR v_store IS NULL
   THEN RAISE EXCEPTION 'STORE_MANAGER_REQUIRED'; END IF;
-  SELECT (u.email_confirmed_at IS NOT NULL AND u.deleted_at IS NULL AND NOT u.is_anonymous
+  SELECT (u.email_confirmed_at IS NOT NULL AND coalesce(length(u.encrypted_password),0)>0
+    AND u.deleted_at IS NULL AND NOT u.is_anonymous
     AND (u.banned_until IS NULL OR u.banned_until<now()))
     INTO v_confirmed FROM auth.users u WHERE u.id=v_uid;
   IF v_confirmed IS DISTINCT FROM true THEN RAISE EXCEPTION 'EMAIL_CONFIRMATION_REQUIRED'; END IF;
