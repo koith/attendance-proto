@@ -49,6 +49,14 @@ try {
   // representative first and assistants chronologically regardless of server array order.
   await page.locator('.hq-owner-row').first().click();
   assert.equal(await page.locator('[data-manager-tab="status"]').getAttribute('aria-selected'),'true');
+  // The tallest of status/invite/remove owns a single constant detail height.
+  const readManagerGeometry=()=>page.locator('.hq-manager-panel-frame').evaluate(el=>{
+    const rect=el.getBoundingClientRect();
+    return {height:rect.height,scrollHeight:el.scrollHeight,maxHeight:parseFloat(getComputedStyle(el).maxHeight)};
+  });
+  const statusFrame=await readManagerGeometry();
+  assert.ok(statusFrame.height>0 && statusFrame.height<=statusFrame.maxHeight+1,'tab frame must fit viewport');
+
   assert.deepEqual(await page.locator('.hq-manager-roster-row strong').allTextContents(),[
     'owner@synthetic.invalid','earlier@synthetic.invalid','later@synthetic.invalid'
   ]);
@@ -58,6 +66,12 @@ try {
   assert.equal(await page.locator('.hq-manager-empty').count(),0);
   assert.equal(await page.locator('[data-manager-remove]').count(),0,'read-only status must never offer removal controls');
   await page.locator('[data-manager-tab="invite"]').click();
+  const inviteFrame=await readManagerGeometry();
+  assert.ok(inviteFrame.scrollHeight<=inviteFrame.height+1 || inviteFrame.height<=inviteFrame.maxHeight+1,
+    name+': long invitation panel must remain scrollable within its bounded frame');
+  assert.ok(Math.abs(inviteFrame.height-statusFrame.height)<=1,
+    name+': status and invite must keep identical detail height');
+
   assert.equal(await page.locator('#hqInviteRole').count(),1);
   assert.equal(await page.locator('[data-manager-remove]').count(),0);
   assert.equal(await page.locator('[data-invite-cancel]').count(),1,'pending invite cancellation must only be in invitation tab');
@@ -78,6 +92,15 @@ try {
 
   assert.equal(await page.locator('#hqInviteRole').locator('option').count(),2);
   await page.locator('[data-manager-tab="remove"]').click();
+  const removeFrame=await readManagerGeometry();
+  assert.ok(Math.abs(removeFrame.height-statusFrame.height)<=1,
+    name+': status, invite and remove must keep identical detail height');
+  await page.locator('[data-manager-tab="status"]').click();
+  const revisitedFrame=await readManagerGeometry();
+  assert.ok(Math.abs(revisitedFrame.height-statusFrame.height)<=1,
+    name+': revisiting status must not resize the store detail');
+  await page.locator('[data-manager-tab="remove"]').click();
+
   assert.equal(await page.locator('[data-manager-remove]').count(),3,'only confirmed managers may appear in removal tab');
   assert.equal(await page.locator('[data-invite-cancel]').count(),0,'pending invite cancellation must not be in manager removal tab');
   await page.locator('.hq-owner-row').nth(1).click();
