@@ -34,12 +34,10 @@ window.mountStoreManagerTab=function(){
   mount.id="storeManagerPanel";mount.className="store-manager-section";
   mount.setAttribute("aria-label","지점 관리자 관리");
   mount.innerHTML='<style>#storeManagerPanel .store-manager-section-body{min-height:0;padding:0 14px 14px}#storeManagerPanel .smt-onboarding{border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;background:var(--surface)}#storeManagerPanel .smt-onboarding-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:.85rem}#storeManagerPanel .smt-onboarding-top span{color:var(--text-muted);font-size:.74rem}#storeManagerPanel .smt-onboarding-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:10px 0}#storeManagerPanel .smt-onboarding-steps span{font-size:.69rem;text-align:center;color:var(--text-muted);border-top:3px solid var(--border);padding-top:8px;overflow-wrap:anywhere}#storeManagerPanel .smt-onboarding-steps .is-done{border-color:#16a34a;color:var(--text)}#storeManagerPanel .smt-onboarding-steps .is-current{border-color:var(--brand-700);color:var(--text);font-weight:700}#storeManagerPanel .smt-who{font-size:.78rem;color:var(--text-muted);padding:10px 2px 13px}#storeManagerPanel .smt-roster{display:grid;gap:8px}#storeManagerPanel .smt-member{border:1px solid var(--border);border-radius:12px;background:var(--surface);overflow:hidden}#storeManagerPanel .smt-member[open]{border-color:var(--brand-700)}#storeManagerPanel .smt-member>summary{list-style:none;display:flex;align-items:center;gap:11px;min-height:62px;padding:11px 12px;cursor:pointer}#storeManagerPanel .smt-member>summary::-webkit-details-marker{display:none}#storeManagerPanel .smt-member>summary:focus-visible,#storeManagerPanel .smt-add>summary:focus-visible{outline:2px solid var(--brand-700);outline-offset:-2px}#storeManagerPanel .smt-avatar{width:37px;height:37px;flex:none;display:grid;place-items:center;border-radius:11px;background:var(--surface-muted);font-size:1.15rem}#storeManagerPanel .smt-owner .smt-avatar{background:#fff5d9}#storeManagerPanel .smt-person{min-width:0;flex:1;display:grid;gap:3px}#storeManagerPanel .smt-person strong{font-size:.85rem;overflow-wrap:anywhere}#storeManagerPanel .smt-person small{font-size:.74rem;color:var(--text-muted)}#storeManagerPanel .smt-role{border:1px solid var(--border);border-radius:999px;padding:3px 9px;font-size:.72rem;white-space:nowrap;color:var(--text-muted)}#storeManagerPanel .smt-owner .smt-role{background:#fff5d9;color:#74531c;border-color:#e9d29a}#storeManagerPanel .smt-arrow{color:var(--text-muted);font-size:1.15rem}#storeManagerPanel .smt-member[open] .smt-arrow{transform:rotate(90deg)}#storeManagerPanel .smt-delegates{border-left:2px solid var(--border);margin-left:18px;padding-left:12px;display:grid;gap:8px}#storeManagerPanel .smt-delegate>summary{min-height:57px}#storeManagerPanel .smt-detail{padding:12px;border-top:1px solid var(--border);font-size:.82rem;line-height:1.5;color:var(--text-muted);background:var(--surface-muted)}#storeManagerPanel .smt-permissions{display:grid;gap:10px;color:var(--text)}#storeManagerPanel .smt-permissions label{display:flex;gap:8px;align-items:center}#storeManagerPanel .smt-permissions label input{flex:none;width:18px;height:18px}#storeManagerPanel .smt-pending-section{margin-top:13px;border:1px solid var(--border);border-radius:12px;padding:13px;background:var(--surface-muted)}#storeManagerPanel .smt-pending-section h4{font-size:.9rem;margin:0 0 12px}#storeManagerPanel .smt-pending-section h4 small{color:var(--text-muted)}#storeManagerPanel .smt-pending-person{background:var(--surface);border:1px dashed var(--border);border-radius:10px;padding:10px 12px;display:grid;gap:5px;margin-bottom:7px;overflow-wrap:anywhere}#storeManagerPanel .smt-pending-person strong{font-size:.83rem}#storeManagerPanel .smt-pending-person span{font-size:.76rem;color:var(--text-muted)}#storeManagerPanel .smt-add{margin-top:12px;border:1px solid var(--border);border-radius:11px}#storeManagerPanel .smt-add>summary{list-style:none;cursor:pointer;padding:12px;color:var(--brand-700);font-weight:650}#storeManagerPanel .smt-add>summary::-webkit-details-marker{display:none}#storeManagerPanel .smt-add-body{padding:12px;border-top:1px solid var(--border);display:grid;gap:14px}#storeManagerPanel .smt-add-body form{display:grid;gap:7px}#storeManagerPanel .smt-small{font-size:.77rem;color:var(--text-muted);margin:0}@media(max-width:430px){#storeManagerPanel .store-manager-section-body{padding:0 11px 12px}#storeManagerPanel .smt-member>summary{gap:8px;padding:9px}#storeManagerPanel .smt-person strong{font-size:.8rem}#storeManagerPanel .smt-role{padding:3px 7px}}</style>'+
-    '<div class="store-manager-section-head"><h3>관리자 관리</h3>'+
-    '<button type="button" class="btn btn-secondary" id="storeManagerReload">새로고침</button></div>'+
+    '<div class="store-manager-section-head"><h3>관리자 관리</h3></div>'+
     '<div id="storeManagerContent" class="store-manager-section-body" aria-live="polite">관리자 정보를 불러오는 중…</div>';
   panel.insertAdjacentElement("afterend",mount);
   const content=mount.querySelector("#storeManagerContent");
-  mount.querySelector("#storeManagerReload").addEventListener("click",()=>refresh());
   const notify=(message,error=false)=>{
     if(typeof toast==="function")toast(error?"err":"in",error?"관리자 관리 오류":"관리자 관리",message);
     else if(error)alert(message);
@@ -53,8 +51,6 @@ window.mountStoreManagerTab=function(){
     catch(e){notify(String(e?.message||e),true);await refresh().catch(()=>{});}
     finally{
       busy=false;
-      // The reload control is outside the refreshed content and must be restored
-      // after both successful and failed mutations.
       mount.querySelectorAll("button").forEach(button=>{button.disabled=false;});
     }
   };
@@ -125,12 +121,12 @@ window.mountStoreManagerTab=function(){
           '<div class="smt-detail">'+checks+'</div></details>';
       }).join("");
       const pendingSection=(pendingInvites.length||unclassified.length)?
-        '<section class="smt-pending-section" role="group" aria-label="초대 대기 및 역할 확인 필요"><h4>초대 대기 · 역할 확인 <small>'+(pendingInvites.length+unclassified.length)+'명</small></h4>'+
+        '<section class="smt-pending-section" role="group" aria-label="초대 대기중"><h4>초대 대기중</h4>'+
         pendingInvites.map(entry=>{const st=stateOf(entry.user_id),role=st?.intended_role==="OWNER"?"대표 관리자":st?.intended_role==="ASSISTANT"?"보조 관리자":"역할 미확인";
           return '<div class="smt-pending-person" data-invite-role="'+esc(st?.intended_role)+'"><strong>'+esc(entry.email)+'</strong><span>'+esc(role)+' 초대 · '+(st?.account_state==="EXPIRED"?"링크 만료, 재발송 필요":"이메일 인증·비밀번호 설정 대기")+'</span></div>';
         }).join("")+
         unclassified.map(entry=>'<div class="smt-pending-person"><strong>'+esc(entry.email)+'</strong><span>활성 계정 · 역할 미확인 (본사에서 확인 필요)</span></div>').join("")+
-        '<p class="smt-small">초대 수락 전 계정은 대표·보조 관리자 목록에 포함되지 않습니다.</p></section>':'';
+        '</section>':'';
       content.innerHTML=roleSummary+
         '<div class="smt-roster" role="group" aria-label="인증 완료한 실제 지점 관리자">'+
         ownerRow+'<div class="smt-delegates">'+delegateRows+'</div></div>'+pendingSection+
