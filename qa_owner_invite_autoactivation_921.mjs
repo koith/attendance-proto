@@ -46,7 +46,7 @@ assert.match(hq,/const pendingOwner=id=>/);
 assert.match(hq,/초대가 대기 중입니다/);
 assert.match(hq,/data-owner-resend/);
 assert.match(hq,/대표 초대 재발송/);
-assert.match(hq,/계정 활성화/);
+assert.match(hq,/비밀번호 설정/);
 assert.match(hq,/대표 초대가 대기 중입니다/);
 assert.match(html,/APP_VERSION="v0\.(?:295|296|297|298)"/);
 assert.match(html,/id="appVersion">v0\.(?:295|296|297|298)</);
