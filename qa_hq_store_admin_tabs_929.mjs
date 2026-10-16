@@ -50,5 +50,5 @@ assert.match(hq,/rpc\("hq_store_manager_remove",\{p_store_id:selected,p_user_id:
 assert.match(index,/id="hqOwnerManagement" aria-label="지점 관리 열기">지점 관리/);
 assert.match(index,/mode==="owners"\?"지점 관리":"계정 관리"/);
 assert.match(index,/APP_VERSION="v0\.(?:298|299|300)"/);
-assert.match(index,/hq_owner_console\.js\?v=20261017v300/);
+assert.match(index,/hq_owner_console\.js\?v=20261017v301/);
 console.log("PASS #929 HQ store manager dashboard tabs, ordered read-only status, separate invite/remove and atomic revoke guard");
