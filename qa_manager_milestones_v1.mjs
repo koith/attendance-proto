@@ -1,3 +1,4 @@
+import "./qa_manager_ux_feedback_935.mjs";
 import "./qa_store_admin_ui_polish_932.mjs";
 import "./qa_hq_store_admin_tabs_929.mjs";
 import "./qa_manager_invitation_roles_926.mjs";
@@ -14,7 +15,7 @@ for(const [name,source] of [["hq",hq],["store",store]]){
 }
 assert.match(app,/APP_VERSION="v\d+\.\d+"/);
 assert.match(app,/hq_store_onboarding_ui\.js\?v=20261017v299/);
-assert.match(app,/store_manager_tab\.js\?v=20261017v299/);
+assert.match(app,/store_manager_tab\.js\?v=20261017v300/);
 assert.match(hq,/managerMilestones\(ownerStage,store\?\.name,ownerEmail\)/);
 assert.match(hq,/hq-owner-steps/);
 assert.match(hq,/data-owner-step/);
@@ -34,7 +35,7 @@ assert.match(store,/smt-delegates/);
 assert.match(store,/store_delegated_manager_change/);
 assert.match(store,/store_delegated_permissions_set/);
 assert.match(store,/invite_store_delegated_manager/);
-assert.match(store,/대표 관리자 초대/);
+assert.match(store,/대표 초대/);
 assert.match(store,/보조 관리자를 추가하거나 권한을 관리/);
 assert.doesNotMatch(store,/storeManagerHqInviteForm/);
 console.log("PASS: HQ milestone, owner-specific next action, store roster and existing ACL routes retained");
