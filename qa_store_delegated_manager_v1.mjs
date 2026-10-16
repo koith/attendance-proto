@@ -12,7 +12,7 @@ const mirror=read("edge-release/supabase/functions/server-sync-sheet/index.ts");
 assert.equal(edge,mirror,"deployed Edge source must match canonical source byte for byte");
 assert.match(app,/APP_VERSION="v0\.\d+"/);
 assert.match(app,/mountStoreManagerTab\(\)/);
-assert.match(app,/store_manager_tab\.js\?v=20261017v299/);
+assert.match(app,/store_manager_tab\.js\?v=20261017v300/);
 assert.match(app,/hq_store_onboarding_ui\.js\?v=20261017v299/);
 assert.match(app,/id="empTabActive"/);
 assert.match(app,/id="empTabRetired"/);
@@ -104,7 +104,7 @@ async function simulateStore(storeId,role){
    assert.match(html,/직원 기본정보 수정/);
    assert.match(html,/세 항목을 모두 체크해도 전체 관리자 권한/);
  }
- if(role!=="OWNER")assert.match(html,/대표 관리자 미지정/);
+ if(role!=="OWNER")assert.match(html,/\( 공석 \)/);
  if(role==="HQ"){
    assert.doesNotMatch(html,/storeManagerHqInviteForm|storeManagerExistingForm|storeManagerInviteForm|data-manager-revoke/);
    assert.match(html,/본사 대시보드/);
