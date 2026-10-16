@@ -34,7 +34,7 @@ const renderedVersion=html.match(/const APP_VERSION="(v[0-9]+[.][0-9]+)";/);
 assert.ok(renderedVersion,'App must declare a parseable release version');
 assert.ok(html.includes('id="appVersion">'+renderedVersion[1]+'</span>'),
   'App badge must match the release version without hardcoded test literals');
-assert.match(html,/hq_store_onboarding_ui\.js\?v=20261016v296/);
+assert.match(html,/hq_store_onboarding_ui\.js\?v=20261016v297/);
 assert.match(html,/\["report","리포트"\]/,'Inha six management tabs must remain visible');
 assert.match(html,/STORE_ENTRY_UNAVAILABLE/,'Unapproved store URL must remain blocked');
 console.log('PASS searchable 283-store HQ onboarding, verified+confirmed activation, READY-only share links');

@@ -30,6 +30,6 @@ assert.match(ui,/hqStoreReady.*disabled/);
 assert.match(ui,/canActivate=selected===1\|\|\(verified&&Number\(store\?\.manager_count\|\|0\)>0&&sampleEmployeeCount===0\)/);
 assert.match(ui,/id="hqStoreEvidence"/,'Official evidence entry must remain available in expanded operations panel');
 assert.match(ui,/실재 확인:/);
-assert.match(html,/hq_store_onboarding_ui\.js\?v=20261016v296/);
+assert.match(html,/hq_store_onboarding_ui\.js\?v=20261016v297/);
 assert.doesNotMatch(sql,/UPDATE public\.stores SET onboarding_status='READY' WHERE/);
 console.log('PASS audited HQ store provenance verification before owner activation, without mass-activating staged stores');

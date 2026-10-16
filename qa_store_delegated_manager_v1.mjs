@@ -12,8 +12,8 @@ const mirror=read("edge-release/supabase/functions/server-sync-sheet/index.ts");
 assert.equal(edge,mirror,"deployed Edge source must match canonical source byte for byte");
 assert.match(app,/APP_VERSION="v0\.\d+"/);
 assert.match(app,/mountStoreManagerTab\(\)/);
-assert.match(app,/store_manager_tab\.js\?v=20261015v292/);
-assert.match(app,/hq_store_onboarding_ui\.js\?v=20261016v296/);
+assert.match(app,/store_manager_tab\.js\?v=20261016v297/);
+assert.match(app,/hq_store_onboarding_ui\.js\?v=20261016v297/);
 assert.match(app,/id="empTabActive"/);
 assert.match(app,/id="empTabRetired"/);
 assert.match(app,/id="adEmps"/);
@@ -71,6 +71,9 @@ async function simulateStore(storeId,role){
  fetch:async(url,options)=>{
  const data=JSON.parse(options.body);calls.push({url,data});
  const result=url.endsWith("is_hq_admin")?role==="HQ":
+ url.endsWith("store_manager_invitation_states")?[
+  {user_id:"primary-id",email:"primary@synthetic.invalid",intended_role:role==="OWNER"?"OWNER":"ASSISTANT",account_state:"ACTIVE"},
+  {user_id:"delegate-id",email:"delegate@synthetic.invalid",intended_role:"ASSISTANT",account_state:"ACTIVE"}]:
  url.endsWith("store_delegated_permissions_list")?
  [{user_id:"delegate-id",staff_edit:true,attendance_approve:false,payroll_view:false}]:
  [{user_id:"primary-id",email:"primary@synthetic.invalid",manager_role:role==="OWNER"?"OWNER":"MANAGER"},
