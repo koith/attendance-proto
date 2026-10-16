@@ -1,3 +1,4 @@
+import "./qa_hq_owner_role_guard_914.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
