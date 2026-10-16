@@ -15,6 +15,8 @@ assert.match(html,/\.hq-summary>div\{background:transparent;border:0;border-radi
 assert.match(html,/\.hq-summary>div:nth-child\(odd\)\{border-right:1px solid var\(--border\)\}/);
 assert.match(html,/\.hq-summary>div:nth-child\(-n\+2\)\{border-bottom:1px solid var\(--border\)\}/);
 for(const label of ['운영 지점','전체 최근 7일 매출','지점 평균 7일 매출','누적 거래'])assert.ok(html.includes(label),label);
+assert.match(html,/\.btn-primary\{background:var\(--brand-700\); color:#fff; border-color:var\(--brand-700\);\}/);
+assert.match(html,/\.hq-summary>div:nth-child\(odd\)\{border-right:1px solid var\(--border\)\}/);
 assert.match(html,/const total7=rows\.reduce/);
 assert.match(html,/const avg=rows\.length\?Math\.round\(total7\/rows\.length\):0/);
 assert.match(html,/const summary='<div class="hq-summary"><div><span>운영 지점/);
