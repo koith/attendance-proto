@@ -13,7 +13,7 @@ async function invite(email,store_id,invitationRole="OWNER"){
 window.mountHqOwnerConsole=async function(box){
  // Reopening the HQ panel must clean up keyboard listeners from its prior mount.
  box.__hqOwnerKeyboardCleanup?.();
- let stores=[],managers=[],owners=[],accounts=[],managerEligibility=[],ownerInvitations=[],selected=0,search="",filter="ALL",busy=false,notice=null,quickMode="",province="",district="",subdistrict="",quickLetter="ㄱ";
+ let stores=[],managers=[],owners=[],accounts=[],managerEligibility=[],ownerInvitations=[],directory=[],selected=0,activeTab="status",search="",filter="ALL",busy=false,notice=null,quickMode="",province="",district="",subdistrict="",quickLetter="ㄱ";
  const RECENTS_KEY="hq_owner_recent_stores_v1";
  const readRecents=()=>{try{return JSON.parse(localStorage.getItem(RECENTS_KEY)||"[]").filter(Number.isFinite).slice(0,5)}catch{return []}};
  const remember=id=>{try{localStorage.setItem(RECENTS_KEY,JSON.stringify([id,...readRecents().filter(x=>x!==id)].slice(0,5)))}catch{}};
@@ -120,15 +120,31 @@ window.mountHqOwnerConsole=async function(box){
    quickObserver.observe(document.body,{childList:true,subtree:true});
  };
  box.__hqOwnerKeyboardCleanup=()=>{stopOutsideKeys();quickMode="";keyboardController.abort()};
- const chose=id=>{selected=Number(id);remember(selected);render()};
- box.innerHTML='<div class="hq-owner-console"><h2>지점 대표 관리자 관리</h2><div id="hqOwnerBody">불러오는 중…</div></div>';
+ const chose=id=>{selected=Number(id);activeTab="status";notice=null;remember(selected);render()};
+ box.innerHTML=`<div class="hq-owner-console"><h2>지점 관리</h2><style id="hqManagerTabsStyle">
+.hq-owner-detail .hq-manager-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:14px 0}
+.hq-owner-detail .hq-manager-tab{min-height:43px;padding:8px 4px;border:1px solid var(--border,#d8e2db);border-radius:10px;background:var(--surface,#fff);color:var(--text,#203a29);font-size:.81rem;font-weight:650;cursor:pointer}
+.hq-owner-detail .hq-manager-tab.is-active{background:var(--brand-700,#205e3d);border-color:var(--brand-700,#205e3d);color:#fff}
+.hq-manager-status-panel h4,.hq-manager-invite-panel h4{margin:17px 0 8px;font-size:.94rem}
+.hq-manager-status-panel h4 small{font-size:.73rem;color:var(--text-muted,#64766c);font-weight:400;display:inline}
+.hq-manager-roster-row,.hq-manager-pending-row,.hq-manager-remove-row,.hq-manager-invite-row{border:1px solid var(--border,#dce5dd);border-radius:11px;padding:12px;margin:7px 0;background:var(--surface,#fff);display:flex;align-items:center;gap:9px;justify-content:space-between;overflow-wrap:anywhere}
+.hq-manager-roster-row>div,.hq-manager-remove-row>span,.hq-manager-invite-row>span{min-width:0;flex:1}
+.hq-manager-roster-row strong,.hq-manager-pending-row strong,.hq-manager-remove-row strong,.hq-manager-invite-row strong{font-size:.83rem}
+.hq-manager-roster-row p,.hq-manager-pending-row p,.hq-manager-remove-row small,.hq-manager-invite-row small{display:block;margin:5px 0 0;font-size:.73rem;color:var(--text-muted,#64766c);line-height:1.5}
+.hq-manager-roster-tag{border-radius:18px;padding:5px 9px;background:#f4eace;font-size:.72rem;color:#6a521e;flex:none}
+.hq-manager-pending-row{display:block;background:var(--surface-muted,#f3f7f4);border-style:dashed}
+.hq-manager-remove-row .btn,.hq-manager-invite-row .btn{flex:none;min-height:38px}
+.hq-manager-remove-panel .btn[data-manager-remove]{color:#b42318;border-color:#ba483d}
+.hq-manager-invite-panel label{display:block;margin:12px 0 5px}
+@media(max-width:560px){.hq-owner-detail .hq-manager-tab{font-size:.74rem;padding:7px 2px}.hq-manager-remove-row,.hq-manager-invite-row{flex-wrap:wrap}.hq-manager-remove-row .btn,.hq-manager-invite-row .btn{margin-left:auto}}
+</style><div id="hqOwnerBody">불러오는 중…</div></div>`;
  const body=box.querySelector("#hqOwnerBody"); const summary=document.getElementById("hqOwnerPinnedSummary");
  const owner=id=>{const uid=owners.find(x=>Number(x.store_id)===Number(id))?.user_id;return managers.find(x=>Number(x.store_id)===Number(id)&&x.user_id===uid)};
  const pendingOwner=id=>ownerInvitations.find(x=>Number(x.store_id)===Number(id));
  const managerIds=()=>new Set(managers.map(m=>m.user_id));
  const isHqAccount=a=>a?.is_admin===true&&!managerIds().has(a.user_id);
  const canAppoint=m=>!!m&&managerEligibility.some(e=>e.user_id===m.user_id&&Number(e.store_id)===Number(m.store_id)&&e.eligible===true);
- async function load(){const data=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_primary_owner_list"),BE.listAuthUsers(),rpc("hq_store_locations_list"),rpc("hq_store_manager_eligibility_list"),rpc("hq_store_primary_owner_invitation_list")]);if(!data.every(Array.isArray))throw Error("INVALID_HQ_RESPONSE");[stores,managers,owners,accounts,,managerEligibility,ownerInvitations]=data;const locations=new Map(data[4].map(l=>[Number(l.store_id),l]));const flagRows=await rpc("hq_store_sample_flags_list").catch(()=>[]);const samples=new Set((Array.isArray(flagRows)?flagRows:[]).filter(x=>x.is_sample===true).map(x=>Number(x.store_id)));stores=stores.filter(s=>!samples.has(Number(s.id))).map(s=>Object.assign({},s,locations.get(Number(s.id))||{},{is_sample:false}));render();}
+ async function load(){const data=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_primary_owner_list"),BE.listAuthUsers(),rpc("hq_store_locations_list"),rpc("hq_store_manager_eligibility_list"),rpc("hq_store_primary_owner_invitation_list"),rpc("hq_store_manager_directory")]);if(!data.every(Array.isArray))throw Error("INVALID_HQ_RESPONSE");[stores,managers,owners,accounts,,managerEligibility,ownerInvitations,directory]=data;const locations=new Map(data[4].map(l=>[Number(l.store_id),l]));const flagRows=await rpc("hq_store_sample_flags_list").catch(()=>[]);const samples=new Set((Array.isArray(flagRows)?flagRows:[]).filter(x=>x.is_sample===true).map(x=>Number(x.store_id)));stores=stores.filter(s=>!samples.has(Number(s.id))).map(s=>Object.assign({},s,locations.get(Number(s.id))||{},{is_sample:false}));render();}
  const friendlyError=e=>{const message=String(e?.message||e||"");if(/already been registered|already registered|user already exists|email_exists|INVITE_FAILED.*registered/i.test(message))return "이미 등록된 이메일입니다. 기존 연결 계정을 확인하세요. 이 계정이 다른 지점에 연결되어 있는지도 확인하세요.";
  if(/CONFIRMED_STORE_MANAGER_REQUIRED/i.test(message))return "대표로 지정하려면 계정 소유자가 초대 이메일 확인(이메일 인증)을 완료해야 합니다. 이메일 인증 후 다시 대표 지정을 누르세요.";if(/CANNOT_DOWNGRADE_HQ/i.test(message))return "본사 관리자 계정은 지점 점주로 연결할 수 없습니다. 일반 계정을 선택하세요.";return message;};
  async function run(fn,onSuccess){if(busy)return;busy=true;try{await fn();if(onSuccess)onSuccess();await load();}catch(e){alert("처리 실패: "+friendlyError(e))}finally{busy=false}}
@@ -151,18 +167,55 @@ window.mountHqOwnerConsole=async function(box){
  const quickPanel=quickMode==="region"?'<div class="hq-quick-panel"><div class="hq-quick-selects"><label>시·도<select id="hqQuickProvince" class="form-control"><option value="">지역 선택</option>'+regions.map(x=>'<option value="'+h(x)+'"'+(province===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label><label>시·군·구<select id="hqQuickDistrict" class="form-control" '+(province?'':'disabled')+'><option value="">전체 지역</option>'+districts.map(x=>'<option value="'+h(x)+'"'+(district===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label>'+(subdivisions.length?'<label>구<select id="hqQuickSubdistrict" class="form-control"><option value="">전체 구</option>'+subdivisions.map(x=>'<option value="'+h(x)+'"'+(subdistrict===x?' selected':'')+'>'+h(x)+'</option>').join("")+'</select></label>':'')+'</div><div class="hq-quick-results">'+(province?'<p class="hq-owner-help">시·군·구는 실제 행정구역 목록입니다. 상세주소가 없는 지점은 지점명으로 확정 가능한 시·도 및 시·군·구까지만 검색하며 ‘지점명 기준 · 상세주소 미확인’으로 표시합니다.</p>'+(regionStores.length?regionStores.map(quickItem).join(""):'<p class="hq-owner-help">해당 지역에 연결 가능한 지점이 없습니다. 확실하지 않은 주소를 임의로 매핑하지 않습니다.</p>'):'<p class="hq-owner-help">시·도를 선택하세요.</p>')+'</div></div>':
  quickMode==="initial"?'<div class="hq-quick-panel"><div class="hq-quick-letters">'+letters.map(x=>'<button type="button" data-letter="'+x+'" class="'+(quickLetter===x?'active':'')+'">'+x+'</button>').join("")+'</div><div class="hq-quick-results">'+(quickLetter?letterStores.map(quickItem).join(""):'<p class="hq-owner-help">초성을 누르면 해당 지점이 나타납니다.</p>')+'</div></div>':
  quickMode==="recent"?'<div class="hq-quick-panel"><div class="hq-quick-results">'+(recentStores.length?recentStores.map(quickItem).join(""):'<p class="hq-owner-help">선택했던 지점이 여기에 최대 5개 표시됩니다.</p>')+'</div></div>':'';
- const store=stores.find(s=>Number(s.id)===selected),current=store?owner(selected):null,waiting=store?pendingOwner(selected):null,linked=managers.filter(x=>Number(x.store_id)===selected);
- const eligibleAccounts=accounts.filter(a=>!a.is_admin && a.email);
- const hqAccounts=accounts.filter(a=>isHqAccount(a) && a.email);
- const inviteProgress=linked.filter(m=>m.email).map(m=>({email:m.email,representative:!!(current&&current.user_id===m.user_id),pending:waiting?.user_id===m.user_id}));
+ const store=stores.find(s=>Number(s.id)===selected),current=store?owner(selected):null,waiting=store?pendingOwner(selected):null;
+ const linked=managers.filter(x=>Number(x.store_id)===selected);
+ const entries=directory.filter(x=>Number(x.store_id)===selected).slice().sort((a,b)=>{
+   const ownerPriority=x=>x.intended_role==="OWNER"&&x.account_state==="ACTIVE"?0:1;
+   return ownerPriority(a)-ownerPriority(b)||
+     new Date(a.registered_at).getTime()-new Date(b.registered_at).getTime()||
+     String(a.email||"").localeCompare(String(b.email||""));
+ });
+ const active=entries.filter(m=>m.account_state==="ACTIVE"&&(m.intended_role==="OWNER"||m.intended_role==="ASSISTANT"));
+ const waitingRows=entries.filter(m=>m.account_state!=="ACTIVE");
+ const needsReview=entries.filter(m=>m.account_state==="ACTIVE"&&m.intended_role==="UNCLASSIFIED");
+ const eligibleAccounts=accounts.filter(a=>!a.is_admin&&a.email);
+ const roleName=m=>m.intended_role==="OWNER"?"대표 관리자":m.intended_role==="ASSISTANT"?"보조 관리자":"역할 확인 필요";
+ const dateLabel=m=>m.registered_at?new Date(m.registered_at).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"}):"등록일 미상";
+ const rosterRow=m=>'<div class="hq-manager-roster-row"><div><strong>'+h(m.email)+'</strong><p>'+h(roleName(m))+' · 등록 '+h(dateLabel(m))+'</p></div><span class="hq-manager-roster-tag">'+(m.intended_role==="OWNER"?"대표":"보조")+'</span></div>';
+ const pendingRow=m=>'<div class="hq-manager-pending-row"><strong>'+h(m.email)+'</strong><p>'+h(roleName(m))+' 초대 · '+(m.account_state==="EXPIRED"?"초대 기한 만료":m.intended_role==="UNCLASSIFIED"?"계정·역할 확인 필요":"인증·비밀번호 설정 대기")+' · 등록 '+h(dateLabel(m))+'</p></div>';
+ const statusPanel='<div class="hq-manager-status-panel" role="tabpanel" aria-label="관리자 현황">'+
+   '<h4>등록된 관리자 <small>'+active.length+'명 · 대표 '+active.filter(m=>m.intended_role==="OWNER").length+'명 · 보조 '+active.filter(m=>m.intended_role==="ASSISTANT").length+'명</small></h4>'+
+   (active.length?active.map(rosterRow).join(""):'<p class="hq-owner-help">현재 인증 완료한 관리자가 없습니다.</p>')+
+   '<h4>초대 대기 <small>'+waitingRows.length+'명</small></h4>'+
+   (waitingRows.length?waitingRows.map(pendingRow).join(""):'<p class="hq-owner-help">초대 대기 계정이 없습니다.</p>')+
+   (needsReview.length?'<h4>역할 확인 필요</h4>'+needsReview.map(pendingRow).join(""):'')+
+   '<p class="hq-owner-help">대표 관리자가 맨 위, 보조 관리자는 등록일이 빠른 순으로 표시됩니다. 관리자 해제는 별도 탭에서만 가능합니다.</p></div>';
+ const invitePanel='<div class="hq-manager-invite-panel" role="tabpanel" aria-label="관리자 초대">'+
+   '<p class="hq-owner-help">본사에서 초대 역할을 먼저 지정합니다. 대표 초대는 이메일 인증·비밀번호 설정 완료 시 자동 확정됩니다. 보조는 대표가 활성화된 지점에만 초대할 수 있습니다.</p>'+
+   '<label for="hqInviteRole">초대할 역할</label><select class="form-control" id="hqInviteRole"><option value="OWNER">대표 관리자</option><option value="ASSISTANT">보조 관리자</option></select>'+
+   '<label for="hqOwnerEmail">초대할 이메일</label><input class="form-control" id="hqOwnerEmail" type="email" placeholder="manager@example.com" autocomplete="off">'+
+   '<div class="hq-owner-buttons"><button type="button" class="btn btn-primary btn-sm" id="hqOwnerInvite">초대 메일 발송</button></div>'+
+   (waitingRows.length?'<h4>기존 초대 대기</h4>'+waitingRows.map(m=>
+     '<div class="hq-manager-invite-row"><span><strong>'+h(m.email)+'</strong><small>'+h(roleName(m))+' · '+(m.account_state==="EXPIRED"?"기한 만료":"인증 대기")+'</small></span>'+
+     (m.intended_role==="OWNER"?'<button class="btn btn-secondary btn-sm" type="button" data-owner-resend="'+h(m.user_id)+'">대표 초대 재발송</button>':'<span>보조 초대 재발송은 본사에서 재초대</span>')+'</div>').join(""):'')+'</div>';
+ const removePanel='<div class="hq-manager-remove-panel" role="tabpanel" aria-label="관리자 해제">'+
+   '<p class="hq-owner-help">이 탭에서만 관리자 권한을 해제할 수 있습니다. 선택하면 지점·계정·역할을 다시 확인하며 해당 지점 권한이 즉시 철회됩니다.</p>'+
+   (entries.length?entries.map(m=>
+      '<div class="hq-manager-remove-row"><span><strong>'+h(m.email)+'</strong><small>'+h(roleName(m))+' · '+(m.account_state==="ACTIVE"?"등록 완료":m.account_state==="EXPIRED"?"초대 만료":"초대 대기")+'</small></span>'+
+      '<button type="button" class="btn btn-secondary btn-sm" data-manager-remove="'+h(m.user_id)+'">'+(m.account_state==="ACTIVE"?"관리자 해제":"초대 취소")+'</button></div>').join("")
+   :'<p class="hq-owner-help">해제하거나 취소할 관리자가 없습니다.</p>')+'</div>';
+ const tabs='<div class="hq-manager-tabs" role="tablist" aria-label="지점 관리자 작업">'+
+   [["status","관리자 현황"],["invite","관리자 초대"],["remove","관리자 해제"]].map(([key,title])=>
+   '<button type="button" class="hq-manager-tab'+(activeTab===key?' is-active':'')+'" data-manager-tab="'+key+'" role="tab" aria-selected="'+String(activeTab===key)+'">'+title+'</button>').join("")+'</div>';
  if(summary)summary.innerHTML='<span>전체 '+stores.length+'곳</span><span>대표 배정 '+stores.filter(s=>owner(s.id)).length+'곳</span><span>미배정 '+stores.filter(s=>!owner(s.id)).length+'곳</span>';
- body.innerHTML=(notice?'<div class="hq-owner-help" role="status" aria-live="polite" style="border:1px solid #91b9a0;border-radius:12px;padding:14px;margin-bottom:12px;background:#eef7f0;color:#214e32"><strong>'+h(notice.title)+'</strong><p>'+h(notice.message)+'</p><button type="button" class="btn btn-secondary btn-sm" id="hqOwnerDismiss">확인</button></div>':'')+'<div class="hq-owner-filters"><input class="form-control" id="hqOwnerSearch" type="search" placeholder="지점명·코드·지역 검색" value="'+h(search)+'"><select class="form-control" id="hqOwnerFilter"><option value="ALL">전체</option><option value="MISSING">대표 미배정</option><option value="ASSIGNED">배정 완료</option></select></div>'+
- '<div class="hq-owner-quicknav" aria-label="빠른 지점 선택"><button type="button" data-quick-mode="region" class="'+(quickMode==="region"?"active":"")+'">지역별 찾기</button><button type="button" data-quick-mode="initial" class="'+(quickMode==="initial"?"active":"")+'">가나다순</button><button type="button" data-quick-mode="recent" class="'+(quickMode==="recent"?"active":"")+'">최근 지점</button></div>'+(quickMode?'<div class="hq-quick-overlay"><section class="hq-quick-dialog" role="dialog" aria-modal="true" aria-label="빠른 지점 찾기"><div class="hq-quick-dialog-head"><strong>'+h(quickTitle)+'</strong><button id="hqQuickClose" type="button">닫기</button></div>'+quickPanel+'</section></div>':'')+'<div class="hq-owner-columns"><div class="hq-owner-list">'+rows.map(s=>'<button type="button" class="hq-owner-row'+(selected===Number(s.id)?' active':'')+'" data-store="'+Number(s.id)+'"><strong>'+h(s.name)+'</strong><span class="hq-owner-status '+(owner(s.id)?'assigned':'unassigned')+'">'+(owner(s.id)?'대표 배정':'미배정')+'</span></button>').join("")+'</div>'+
- '<div class="hq-owner-detail">'+(store?'<h3>'+h(store.name)+'</h3><p>대표 관리자: <strong>'+(current?h(current.email||"대표 지정됨"):"미배정")+'</strong></p>'+
- '<div class="hq-owner-help" role="status"><strong>관리자 역할 지정 초대</strong><p>대표는 초대 수락과 비밀번호 설정 시 자동 지정되고, 보조는 대표가 있는 지점에서 제한된 권한으로 활성화됩니다. 초대 대기 중에는 실제 관리자 목록에 포함되지 않습니다.</p></div><label for="hqInviteRole">초대할 권한</label><select class="form-control" id="hqInviteRole"><option value="OWNER">대표 관리자</option><option value="ASSISTANT">보조 관리자</option></select><label for="hqOwnerEmail">관리자 이메일 초대</label><input class="form-control" id="hqOwnerEmail" type="email" placeholder="owner@example.com"><div class="hq-owner-buttons"><button class="btn btn-primary btn-sm" id="hqOwnerInvite">이메일 초대</button></div>'+ 
- '<label for="hqExistingAccount">기존 일반 계정 연결 ('+eligibleAccounts.length+'개)</label><select class="form-control" id="hqExistingAccount"><option value="">계정을 선택하세요</option>'+eligibleAccounts.map(a=>'<option value="'+h(a.email)+'">'+h(a.email)+'</option>').join("")+'</select><div class="hq-owner-buttons"><button class="btn btn-secondary btn-sm" id="hqOwnerAssign">선택 계정 연결</button></div>'+ 
- ''+
- '<section class="hq-owner-tracking"><h4>연결된 계정</h4>'+ (inviteProgress.length?inviteProgress.map(m=>'<div class="hq-owner-track"><strong>'+h(m.email)+'</strong><span> · '+(m.representative?'대표 지정 완료':m.pending?'대표 초대 대기 · 계정 활성화하면 자동 지정':canAppoint(linked.find(x=>x.email===m.email))?'대표 미지정 · 지점 연결됨':'이메일 인증 대기 · 대표 미지정')+'</span></div>').join(''):'<p>현재 연결된 계정이 없습니다. 이메일 초대 또는 기존 계정 연결을 진행하세요.</p>')+'</section><div class="hq-owner-linked">'+linked.map(m=>'<div><span>'+h(m.email)+'</span>'+(current?.user_id===m.user_id?'<small>대표</small>':'<button class="btn btn-secondary btn-sm" data-primary="'+h(m.user_id)+'" '+(waiting?.user_id===m.user_id?'disabled title="대표 초대 수락 시 자동으로 지정됩니다"':canAppoint(m)?'':'disabled title="이메일 인증을 완료한 뒤 지정할 수 있습니다"')+'>'+(waiting?.user_id===m.user_id?'자동 지정 대기':canAppoint(m)?'대표 지정':'이메일 인증 대기')+'</button>'+(waiting?.user_id===m.user_id?'<button class="btn btn-secondary btn-sm" data-owner-resend="'+h(m.user_id)+'">초대 메일 재발송</button>':'')+'<button class="btn btn-secondary btn-sm" data-revoke="'+h(m.user_id)+'">해제</button>')+'</div>').join("")+'</div>':
+ body.innerHTML=(notice?'<div class="hq-owner-help" role="status" aria-live="polite" style="border:1px solid #91b9a0;border-radius:12px;padding:14px;margin-bottom:12px;background:#eef7f0;color:#214e32"><strong>'+h(notice.title)+'</strong><p>'+h(notice.message)+'</p><button type="button" class="btn btn-secondary btn-sm" id="hqOwnerDismiss">확인</button></div>':'')+
+ '<div class="hq-owner-filters"><input class="form-control" id="hqOwnerSearch" type="search" placeholder="지점명·코드·지역 검색" value="'+h(search)+'"><select class="form-control" id="hqOwnerFilter"><option value="ALL">전체</option><option value="MISSING">대표 미배정</option><option value="ASSIGNED">배정 완료</option></select></div>'+
+ '<div class="hq-owner-quicknav" aria-label="빠른 지점 선택"><button type="button" data-quick-mode="region" class="'+(quickMode==="region"?"active":"")+'">지역별 찾기</button><button type="button" data-quick-mode="initial" class="'+(quickMode==="initial"?"active":"")+'">가나다순</button><button type="button" data-quick-mode="recent" class="'+(quickMode==="recent"?"active":"")+'">최근 지점</button></div>'+
+ (quickMode?'<div class="hq-quick-overlay"><section class="hq-quick-dialog" role="dialog" aria-modal="true" aria-label="빠른 지점 찾기"><div class="hq-quick-dialog-head"><strong>'+h(quickTitle)+'</strong><button id="hqQuickClose" type="button">닫기</button></div>'+quickPanel+'</section></div>':'')+
+ '<div class="hq-owner-columns"><div class="hq-owner-list">'+rows.map(s=>
+ '<button type="button" class="hq-owner-row'+(selected===Number(s.id)?" active":"")+'" data-store="'+Number(s.id)+'"><strong>'+h(s.name)+'</strong><span class="hq-owner-status '+(owner(s.id)?"assigned":"unassigned")+'">'+(owner(s.id)?"대표 배정":"미배정")+'</span></button>').join("")+'</div>'+
+ '<div class="hq-owner-detail">'+(store?'<h3>'+h(store.name)+'</h3>'+tabs+
+ (activeTab==="status"?statusPanel:activeTab==="invite"?invitePanel:removePanel):
  '<p class="hq-owner-help">목록에서 지점을 선택하세요.</p>')+'</div></div>';
  if(quickMode)startOutsideKeys();else stopOutsideKeys();
  if(scrollContainer)scrollContainer.scrollTop=modalScroll;
@@ -180,12 +233,56 @@ window.mountHqOwnerConsole=async function(box){
  body.querySelector("#hqOwnerSearch").oninput=e=>{search=e.target.value;const pos=e.target.selectionStart;render();const input=body.querySelector("#hqOwnerSearch");input.focus();input.setSelectionRange(pos,pos)};
  body.querySelectorAll("[data-store]").forEach(b=>b.onclick=()=>{chose(b.dataset.store)});
  if(!store)return;
- const email=()=>body.querySelector("#hqOwnerEmail").value.trim().toLowerCase();
- body.querySelector("#hqOwnerInvite").onclick=()=>{const role=body.querySelector("#hqInviteRole").value;const assistant=role==="ASSISTANT";if(!assistant&&current)return alert("대표 관리자가 이미 지정된 지점입니다. 기존 대표 교체는 본사의 별도 대표 지정 절차를 이용하세요.");if(!assistant&&waiting)return alert("이미 대표 관리자 초대가 대기 중입니다. 먼저 초대 수락 상태를 확인하세요.");if(assistant&&!current)return alert("보조 관리자는 대표 관리자 활성화 후 초대할 수 있습니다.");const v=email();if(!v||!body.querySelector("#hqOwnerEmail").checkValidity())return alert("올바른 이메일을 입력하세요.");const found=accounts.find(a=>String(a.email||"").toLowerCase()===v);if(found){const linkedManager=managers.find(m=>m.user_id===found.user_id);if(linkedManager)return alert(Number(linkedManager.store_id)===Number(selected)?"이 계정은 이미 "+store.name+"에 지점 관리자로 연결되어 있습니다. 본사 관리자가 아닙니다. 이메일 인증을 완료한 뒤 아래 ‘연결된 계정’의 대표 지정 버튼을 이용하세요.":"이 계정은 다른 지점에 연결되어 있습니다. 기존 지점 연결 상태를 먼저 확인하세요.");return alert(isHqAccount(found)?"실제 본사 관리자 계정입니다. 지점 대표로 지정할 수 없습니다.":"이미 가입된 일반 계정입니다. 아래 ‘기존 일반 계정 연결’ 목록에서 선택하세요.");}if(confirm(h(store.name)+" 지점의 "+(assistant?"보조 관리자":"대표 관리자")+"로 "+v+" 주소를 초대하시겠습니까?")){const targetStore=store.name;run(()=>invite(v,selected,role),()=>{notice={title:"초대 요청이 접수되었습니다",message:targetStore+" · "+v+" 주소의 "+(assistant?"보조":"대표")+" 관리자 초대가 접수되었습니다. "+(assistant?"계정 활성화 후 대표자가 보조 권한을 설정할 수 있습니다.":"이메일 인증·비밀번호 설정 완료 시 대표 권한이 자동 지정됩니다.")};});}};
- body.querySelector("#hqOwnerAssign").onclick=()=>{const v=body.querySelector("#hqExistingAccount").value;if(!v)return alert("연결할 계정을 목록에서 선택하세요.");if(confirm(v+" 계정을 연결하시겠습니까?"))run(async()=>{const d=await rpc("hq_store_manager_assign",{p_email:v,p_store_id:selected});if(!d?.ok)throw Error(d?.error||"ASSIGN_FAILED")})};
- body.querySelectorAll("[data-owner-resend]").forEach(b=>b.onclick=()=>{const m=linked.find(x=>x.user_id===b.dataset.ownerResend);if(!m||!waiting||waiting.user_id!==m.user_id||current)return alert("대표 초대 대기 상태를 새로고침한 뒤 다시 시도하세요.");if(confirm(m.email+" 주소로 새로운 대표 관리자 인증 메일을 재발송하시겠습니까?"))run(()=>invite(m.email,selected),()=>{notice={title:"대표 초대 메일 재발송 요청 완료",message:"새 링크로 이메일 인증·비밀번호 설정을 진행하세요. 메일 수신과 실제 인증 완료 여부는 계정 소유자가 확인해야 합니다."};});});
- body.querySelectorAll("[data-primary]").forEach(b=>b.onclick=()=>{if(confirm("대표 점주로 지정하시겠습니까?"))run(()=>rpc("hq_store_primary_owner_set",{p_store_id:selected,p_user_id:b.dataset.primary}))});
- body.querySelectorAll("[data-revoke]").forEach(b=>b.onclick=()=>{if(confirm("점주 권한을 해제하시겠습니까?"))run(()=>rpc("hq_store_manager_revoke",{p_user_id:b.dataset.revoke}))});
+ body.querySelectorAll("[data-manager-tab]").forEach(button=>button.onclick=()=>{
+   activeTab=button.dataset.managerTab;notice=null;render();
+ });
+ if(activeTab==="invite"){
+   const email=()=>body.querySelector("#hqOwnerEmail").value.trim().toLowerCase();
+   body.querySelector("#hqOwnerInvite").onclick=()=>{
+     const role=body.querySelector("#hqInviteRole").value,assistant=role==="ASSISTANT";
+     if(!assistant&&current)return alert("이미 대표 관리자가 있습니다. 대표 교체는 별도 승인 후 진행하세요.");
+     if(!assistant&&waiting)return alert("대표 초대가 대기 중입니다. 아래 기존 초대 재발송을 이용하세요.");
+     if(assistant&&!current)return alert("대표 관리자 활성화 후 보조 관리자를 초대할 수 있습니다.");
+     const v=email();
+     if(!v||!body.querySelector("#hqOwnerEmail").checkValidity())return alert("올바른 이메일을 입력하세요.");
+     const found=accounts.find(a=>String(a.email||"").toLowerCase()===v);
+     if(found){
+       const linkedManager=managers.find(m=>m.user_id===found.user_id);
+       return alert(linkedManager?"이미 연결된 계정입니다. 관리자 현황 또는 해제 탭에서 상태를 확인하세요.":isHqAccount(found)?"본사 관리자 계정은 지점 관리자로 초대할 수 없습니다.":"이미 가입한 일반 계정입니다. 본사 계정 관리에서 연결 상태를 확인하세요.");
+     }
+     if(confirm(store.name+" · "+v+" · "+(assistant?"보조 관리자":"대표 관리자")+" 역할로 초대하시겠습니까?")){
+       run(()=>invite(v,selected,role),()=>{
+         activeTab="status";notice={title:"초대 요청 처리됨",message:"해당 지점 관리자 초대 상태를 갱신했습니다. 받는 사람의 실제 이메일 수신 및 인증을 확인해 주세요."};
+       });
+     }
+   };
+   body.querySelectorAll("[data-owner-resend]").forEach(b=>b.onclick=()=>{
+     const m=entries.find(x=>x.user_id===b.dataset.ownerResend);
+     if(!m||m.intended_role!=="OWNER"||current)return alert("현재 초대 상태가 변경됐습니다. 목록을 새로고침하세요.");
+     if(confirm(store.name+" · "+m.email+" · 대표 관리자 초대 링크를 재발송하시겠습니까?"))
+       run(()=>invite(m.email,selected,"OWNER"),()=>{
+         activeTab="status";notice={title:"재초대 요청 처리됨",message:"이메일 도착 여부를 계정 소유자가 확인해 주세요."};
+       });
+   });
+ }
+ if(activeTab==="remove"){
+   body.querySelectorAll("[data-manager-remove]").forEach(b=>b.onclick=()=>{
+     const target=entries.find(m=>m.user_id===b.dataset.managerRemove);
+     if(!target)return alert("관리자 목록을 다시 불러와 주세요.");
+     const pending=target.account_state!=="ACTIVE";
+     const operation=pending?"초대 취소":"관리자 해제";
+     const extra=target.intended_role==="OWNER"?"\n주의: 대표가 해제되면 보조 관리자 관리가 중단될 수 있습니다.":"";
+     if(!confirm("정말 "+operation+"하시겠습니까?\n지점: "+store.name+
+       "\n이메일: "+target.email+"\n역할: "+roleName(target)+
+       "\n\n진행 시 해당 지점의 관리자 권한이 즉시 철회됩니다."+extra))return;
+     run(async()=>{
+       const result=await rpc("hq_store_manager_remove",{p_store_id:selected,p_user_id:target.user_id});
+       if(result?.ok!==true)throw Error("MANAGER_REMOVE_UNCONFIRMED");
+     },()=>{
+       activeTab="status";notice={title:operation+" 완료",message:store.name+" · "+target.email+"의 지점 관리자 권한을 해제했습니다. 기존 로그인 세션으로도 해당 지점 관리자 작업이 거부됩니다."};
+     });
+   });
+ }
  }
  try{await load()}catch(e){body.textContent="관리자 목록을 불러오지 못했습니다: "+e.message}
 };
