@@ -16,6 +16,6 @@ assert.match(owner,/panelFrame\.scrollTop=0/);
 assert.match(owner,/if\(scrollContainer\)scrollContainer\.scrollTop=modalScroll/);
 assert.match(owner, /'<div class="hq-manager-panel-frame">'\+\(activeTab==="status"\?statusPanel:activeTab==="invite"\?invitePanel:removePanel\)/);
 assert.doesNotMatch(owner,/statusPanel\+invitePanel\+removePanel/);
-assert.match(index,/APP_VERSION="v0\.301"/);
+assert.match(index,/APP_VERSION="v0\.302"/);
 assert.match(index,/hq_owner_console\.js\?v=20261017v301/);
 console.log('PASS #938: stable tallest manager tab height, bounded scroll, single active panel and preserved modal scroll');
