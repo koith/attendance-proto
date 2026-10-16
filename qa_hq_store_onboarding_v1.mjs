@@ -26,7 +26,7 @@ const checks=[
 for(const [name,pattern] of checks)assert.match(sql,pattern,name);
 assert.match(edge,/mode==="invite_store_manager"/);
 assert.match(edge,/client\.auth\.admin\.inviteUserByEmail\(email,\{redirectTo:/);
-assert.match(edge,/client\.rpc\("service_store_manager_attach_invited_user"/);
+assert.match(edge,/client\.rpc\(isAssistant\?"service_hq_store_assistant_attach_invited_user":"service_store_manager_attach_invited_user"/);
 assert.match(edge,/actor\.adminRole!=="HQ"/);
 assert.match(ui,/hq_stores_onboarding_list/);
 assert.match(ui,/hq_store_manager_assign/);
@@ -37,7 +37,7 @@ assert.match(ui,/hq_store_provenance_review/);
 assert.match(ui,/hq_store_provenance_list/);
 assert.match(ui,/invite_store_manager/);
 assert.match(ui,/entryUrl=id=>location\.origin\+location\.pathname/);
-assert.match(app,/hq_store_onboarding_ui\.js\?v=20261016v296/);
+assert.match(app,/hq_store_onboarding_ui\.js\?v=20261016v297/);
 assert.match(edge,/owner_activation\.html/);
 const activation=fs.readFileSync('owner_activation.js','utf8');
 const demoGate=fs.readFileSync('supabase/migrations/20261011032000_block_demo_store_activation.sql','utf8');
