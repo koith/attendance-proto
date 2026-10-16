@@ -275,6 +275,7 @@ window.mountHqOwnerConsole=async function(box){
    body.querySelectorAll("[data-owner-resend]").forEach(b=>b.onclick=()=>{
      const m=waitingRows.find(x=>x.user_id===b.dataset.ownerResend);
      if(!m)return alert("초대 대기 상태가 변경됐습니다. 페이지를 다시 열어 확인해 주세요.");
+     if(m.intended_role!=="OWNER"&&m.intended_role!=="ASSISTANT")return alert("초대 역할이 확정되지 않았습니다. 기존 초대를 취소한 뒤 대표/보조 역할을 지정해 다시 초대하세요.");
      if(!confirm("초대 메일을 다시 발송하시겠습니까?\n\n지점: "+store.name+
        "\n이메일: "+m.email+"\n역할: "+roleName(m)+
        "\n\n새 초대 링크로 이메일 인증·비밀번호 설정을 진행하게 됩니다. 기존 링크는 사용하지 않도록 안내합니다.\n\n재발송할까요?"))return;
