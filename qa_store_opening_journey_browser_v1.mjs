@@ -249,7 +249,7 @@ try{
  await recipe.locator('.recipe-v220-card').first().waitFor();
  verify((await recipe.locator('.recipe-v220-card').first().innerText()).includes('QA 개통점 아메리카노'),'branch override persists across a real recipe UI reload');
  await recipe.close();
- verify(audits.some(a=>a.path.includes('invite_store_delegated_manager'))&&audits.some(a=>a.path.includes('admin_store_recipe_override_save')),'QA exercised actual UI network request paths');
+ verify(audits.some(a=>a.path.endsWith('/functions/v1/server-sync-sheet')&&a.body.mode==='invite_store_delegated_manager')&&audits.some(a=>a.path.endsWith('/rest/v1/rpc/admin_store_recipe_override_save')),'QA exercised actual UI network request paths');
  console.log('STORE OPENING ISOLATED BROWSER QA PASSED: '+steps+' assertions, '+mail.length+' synthetic invitations, '+audits.length+' intercepted API calls; no production writes.');
 }finally{
  await browser.close();
