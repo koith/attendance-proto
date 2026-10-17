@@ -20,7 +20,7 @@ assert.match(ui,/표시 '\+num\(rows\.length\)\+' \/ 전체 '\+num\(count\)/,'vi
 assert.match(ui,/totals=data\.totals\|\|\{\}/,'summaries are server-wide, not page sums');
 assert.match(ui,/q\.page\+\+;refresh\(false\)/,'next-page action');
 assert.match(ui,/q\.page--;refresh\(false\)/,'previous-page action');
-assert.match(app,/operations_v1\.js\?v=20261015v286/);
+assert.match(app,/<script src="operations_v1\\.js\\?v=[^"\\s]+"><\\/script>/,'operations asset must be referenced with cache-busting query');
 assert.match(app,/const APP_VERSION="v\d+\.\d+"/);
 assert(!ui.includes('BE.operationsInquiry(f,t,null,null)'),'legacy 2000-limited RPC must not render the inquiry');
 new Function(ui);
