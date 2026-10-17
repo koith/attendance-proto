@@ -15,6 +15,7 @@ const lanes=[
  ['주휴·미완결 근태/급여 정책','qa_payroll_policy_scenarios_v1.mjs'],
  ['급여 마감 서버 권한','qa_payroll_close_server_authority_v1.mjs'],
  ['지점간 급여 격리','qa_store_payroll_isolation_v1.mjs'],
+ ['실제 엔진 다직원 근태→급여→시트 페이로드','qa_store_opening_payroll_sheet_v1.mjs'],
  ['구글 시트 자동 동기화 제어','qa_sheet_auto_sync_v1.mjs'],
  ['마감 급여 지점별 시트 격리','qa_sheet_snapshot_store_scope_v1.mjs'],
  ['TEST 근태·급여 실운영 시트 격리','qa_server_sheet_test_exclusion_v1.mjs'],
