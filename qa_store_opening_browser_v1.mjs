@@ -143,12 +143,15 @@ async function activate(u,{password='SyntheticPassword-123!',confirm=password,
   ok((await page.evaluate(()=>JSON.parse(localStorage.getItem('baekeok_auth')||'null')))?.access_token===u.token,
     'Persist only the accepted account session');
  }else{
-  await page.waitForTimeout(180);
-  ok(page.url().includes('/owner_activation.html'),'Rejected invite must not redirect');
+  // Explicitly wait for the security rejection instead of passing merely
+  // because the request has not finished within a fixed 180ms delay.
   if(expectedError){
-   const reason=await page.locator('#status').textContent({timeout:1200}).catch(()=>null);
-   ok(String(reason||'').includes(expectedError),'Denied cross-store activation must show the actual store-identity rejection');
-  }
+   const observed=await page.waitForFunction(text=>
+     document.querySelector('#status')?.textContent?.includes(text),expectedError,
+     {timeout:5000}).then(()=>true).catch(()=>false);
+   ok(observed,'Denied cross-store activation must show the actual store-identity rejection');
+  }else await page.waitForTimeout(180);
+  ok(page.url().includes('/owner_activation.html'),'Rejected invite must not redirect');
   ok((await page.evaluate(()=>localStorage.getItem('baekeok_auth')))===null,'Rejected invite must not save token');
  }
  ok(errs.length===0,'No activation JavaScript errors: '+errs);
