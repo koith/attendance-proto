@@ -30,6 +30,10 @@ jobs:
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.55.1
           npx playwright install --with-deps chromium
+      - name: Gate Pages publishing on store-opening end-to-end regression (#1000)
+        run: |
+          node qa_store_opening_matrix_v1.mjs
+          node qa_store_opening_browser_v1.mjs
       - name: Verify real test UI toggle on mobile and desktop
         run: node qa_version_test_controls_browser_v1.mjs
   publish:
