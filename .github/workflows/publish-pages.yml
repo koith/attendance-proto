@@ -43,6 +43,25 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Require matching successful P0 gate for manual release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const main=await github.rest.git.getRef({...context.repo,ref:'heads/main'});
+            if(main.data.object.sha!==context.sha)throw Error('STALE_MANUAL_RELEASE');
+            const runs=await github.rest.actions.listWorkflowRuns({
+              ...context.repo,workflow_id:'p0-pages-deploy.yml',head_sha:context.sha,per_page:50
+            });
+            let verified=false;
+            for(const run of runs.data.workflow_runs){
+              if(run.head_sha!==context.sha||run.event!=='push')continue;
+              const jobs=await github.paginate(github.rest.actions.listJobsForWorkflowRun,{
+                ...context.repo,run_id:run.id,per_page:100
+              });
+              const pass=name=>jobs.some(j=>j.name===name&&j.conclusion==='success');
+              if(pass('P0 deployment gate')&&pass('Build Pages artifact'))verified=true;
+            }
+            if(!verified)throw Error('MANUAL_PAGES_P0_GATE_MISSING');
       - name: Verify release version
         shell: bash
         run: |
