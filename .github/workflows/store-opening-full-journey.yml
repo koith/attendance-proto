@@ -122,6 +122,7 @@ jobs:
           fixtures=(
             qa_hq_store_onboarding_postgres_integration.sql
             qa_store_delegated_manager_postgres.sql
+            qa_store_opening_owner_activation_postgres.sql
             qa_payroll_close_postgres_integration.sql
             qa_payroll_weekly_postgres_integration.sql
           )
@@ -140,4 +141,4 @@ jobs:
             psql -d postgres -v ON_ERROR_STOP=1 -c "DROP ROLE IF EXISTS anon, authenticated, service_role;"
             echo "::endgroup::"
           done
-          echo "PASS: 4 real SQL migration fixtures on 4 ephemeral databases"
+          echo "PASS: 5 real SQL migration fixtures on 5 ephemeral databases"
