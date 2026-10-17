@@ -80,6 +80,8 @@ try{
     await assertDisplay(page,'#testModeBanner','visible','test mode default banner');
     await page.locator('#testClockButton').click();
     assert.equal(await page.locator('#testTimeModal').count(),1);checks++;
+    await page.locator('#testTimeCancel').click();
+    assert.equal(await page.locator('#testTimeModal').count(),0,'user closes blocking modal before using version button');checks++;
     await clickVersion(page);
     await assertDisplay(page,'#testModeControls','hidden','test mode hide controls');
     await assertDisplay(page,'#testModeBanner','hidden','test mode hide banner');
