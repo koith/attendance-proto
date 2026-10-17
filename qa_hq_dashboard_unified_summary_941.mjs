@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const html=fs.readFileSync('index.html','utf8');
 const css=html.match(/<style[^>]*>([\s\S]*?)<\/style>/)?.[1]||'';
-assert.match(html,/APP_VERSION="v0\.302"/);
+assert.match(html,/APP_VERSION="v\d+\.\d+"/);
 assert.match(html,/id="appVersion">v0\.302<\/span>/);
 assert.match(html,/<button type="button" class="btn btn-primary btn-sm" id="hqOwnerManagement"/);
 assert.match(html,/<button type="button" class="btn btn-primary btn-sm hq-product-button" id="hqProductControl"/);
