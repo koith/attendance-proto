@@ -18,3 +18,15 @@
 .modal-veil .modal>.modal-x{top:13px!important;right:14px!important}
 .modal-veil .modal.has-back>h3{padding-left:58px!important}
 .modal-veil .modal>.modal-x,.modal-veil .modal>.modal-back{z-index:4!important}
+
+/* Custom HQ 가나다순 picker uses its own dialog instead of .modal. */
+.hq-quick-dialog .hq-quick-dialog-head{background:#e5eee8!important;color:#284637!important;margin:-20px -20px 16px!important;padding:14px 18px 14px 20px!important;min-height:64px!important;border-bottom:1px solid #d2e1d7!important;border-radius:19px 19px 0 0!important;flex-shrink:0!important}
+.hq-quick-dialog .hq-quick-dialog-head button{background:#fff!important;color:#284637!important}
+@media(max-width:640px){.hq-quick-dialog .hq-quick-dialog-head{margin:-16px -16px 16px!important}}
+/* Other dialog families with explicit header wrappers. */
+[role="dialog"]:not(.tooltip):not([role="tooltip"])>.dialog-header,
+[role="dialog"]:not(.tooltip):not([role="tooltip"])>.modal-header,
+.hq-readiness-dialog>.dialog-header{
+ background:#e5eee8!important;color:#284637!important;
+ padding:16px 20px!important;border-bottom:1px solid #d2e1d7!important
+}
