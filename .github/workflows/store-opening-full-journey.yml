@@ -142,3 +142,46 @@ jobs:
             echo "::endgroup::"
           done
           echo "PASS: 5 real SQL migration fixtures on 5 ephemeral databases"
+
+  notify-on-failure:
+    name: File actionable QA failure to tracking issue #1000
+    if: always()
+    needs: [source-and-policy, real-browser-sandbox, disposable-postgres]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      SOURCE_RESULT: ${{ needs.source-and-policy.result }}
+      BROWSER_RESULT: ${{ needs.real-browser-sandbox.result }}
+      POSTGRES_RESULT: ${{ needs.disposable-postgres.result }}
+    steps:
+      - name: Notify owner only when a QA lane failed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const lanes = {
+              source: process.env.SOURCE_RESULT,
+              browser: process.env.BROWSER_RESULT,
+              postgres: process.env.POSTGRES_RESULT
+            };
+            const failed=Object.entries(lanes).filter(([_,status])=>status!=='success');
+            if(!failed.length){core.info('All isolated store-opening QA lanes passed.');return;}
+            const sha=context.payload.pull_request?.head?.sha||context.sha;
+            const marker='[store-opening-qa:'+sha+']';
+            const run='https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId;
+            const comments=await github.paginate(github.rest.issues.listComments,{
+              ...context.repo,issue_number:1000,per_page:100
+            });
+            if(comments.some(c=>String(c.body||'').includes(marker))){
+              core.info('Already reported QA failure for this SHA.');return;
+            }
+            await github.rest.issues.createComment({...context.repo,issue_number:1000,body:[
+              marker,'@'+context.repo.owner,
+              '## 자동 지점 개통 QA 실패 — 수정 필요',
+              '- 커밋: '+sha,
+              '- 검증 결과: '+JSON.stringify(lanes),
+              '- [실패 단계와 로그]('+run+')',
+              '- 운영 데이터·실제 계정·실제 구글 시트를 변경하는 테스트는 실행하지 않았음',
+              '**QA 실패 상태를 성공으로 보고하지 마세요. 실패 단계 수정 후 전 시나리오 재실행이 필요합니다.**'
+            ].join('\n')});
