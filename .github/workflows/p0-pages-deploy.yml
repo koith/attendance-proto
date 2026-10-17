@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'index.html'
+      - 'version_test_toggle_982.js'
+      - 'qa_version_test_controls_browser_v1.mjs'
+      - 'test_mode_ui_v1.js'
       - 'actual_attendance.js'
       - 'qa_actual_attendance_manual_add_v1.mjs'
       - 'qa_actual_attendance_overnight_pairing_v1.mjs'
@@ -271,6 +274,8 @@ jobs:
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.55.1
           npx playwright install --with-deps chromium
+      - name: Actual test UI version-button toggle (Chromium mobile and desktop)
+        run: node qa_version_test_controls_browser_v1.mjs
       - name: Preproduction synthetic roster cleanup must preserve real payroll and attendance
         run: node qa_hq_preproduction_cleanup_v1.mjs
       - name: 2026 unified province and independently sourced store addresses
