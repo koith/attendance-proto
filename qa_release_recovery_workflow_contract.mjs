@@ -3,6 +3,14 @@ import fs from 'node:fs';
 const read=p=>fs.readFileSync(p,'utf8');
 const deploy=read('.github/workflows/p0-pages-deploy.yml');
 const verifier=read('.github/workflows/verified-pages-deployment-notification.yml');
+const secondary=read('.github/workflows/publish-pages.yml');
+// Only the guaranteed P0 workflow publishes automatically for main pushes.
+// The secondary publisher can be explicitly dispatched for recovery after P0 QA.
+assert.doesNotMatch(secondary,/^\\s*push:\\s*$/m,'No second automatic Pages writer');
+assert.match(secondary,/workflow_dispatch:/,'Manual recovery remains available');
+assert.match(secondary,/MANUAL_PAGES_P0_GATE_MISSING/,'Manual recovery requires a matching successful P0 gate');
+assert.match(secondary,/STALE_MANUAL_RELEASE/,'Manual recovery must reject obsolete commit');
+
 const rollback=read('.github/workflows/safe-pages-rollback.yml');
 const agent=read('scripts/autonomous_dev_agent.sh');
 const agentWorkflow=read('.github/workflows/autonomous-development-agent.yml');
@@ -112,3 +120,5 @@ assert.match(read('scripts/agent_apply_structured_edits.mjs'),/ROOT_APP=/,
 
 
 console.log('PASS release safety workflow contract');
+
+// QA ensures one production Pages publisher per main commit.
