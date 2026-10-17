@@ -1,0 +1,10 @@
+/* #944 B KPI layout */
+.ops-kpis,.hq-summary{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:0!important;padding:12px!important;margin-bottom:14px!important;border:1px solid var(--border,#dbe4de)!important;border-radius:20px!important;background:#fff!important;overflow:hidden!important;min-width:0!important}
+.ops-kpis>.ops-kpi,.hq-summary>div{min-width:0!important;min-height:0!important;border:0!important;border-radius:0!important;background:transparent!important;padding:12px 5px!important;text-align:center!important}
+.ops-kpis>.ops-kpi:first-child,.hq-summary>div:nth-child(2){grid-column:1/-1!important;grid-row:1!important;background:var(--brand-700,#1d5d3a)!important;border-radius:15px!important;text-align:left!important;padding:20px 18px!important;margin-bottom:9px!important}
+.ops-kpis>.ops-kpi:not(:first-child)+.ops-kpi,.hq-summary>div:nth-child(3),.hq-summary>div:nth-child(4){border-left:1px solid var(--border,#dbe4de)!important}
+.ops-kpis>.ops-kpi span,.hq-summary>div span{display:block!important;font-size:clamp(10px,2.5vw,12px)!important;color:var(--text-muted,#66736a)!important;overflow-wrap:anywhere!important;white-space:normal!important;min-height:28px!important}
+.ops-kpis>.ops-kpi:first-child span,.hq-summary>div:nth-child(2) span{font-size:13px!important;color:#d6e9dd!important;min-height:0!important}
+.ops-kpis>.ops-kpi b,.hq-summary>div b{display:block!important;max-width:100%!important;min-width:0!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:clip!important;font-size:var(--kpi-fit-font,clamp(11px,3.6vw,19px))!important;font-weight:800!important;font-variant-numeric:tabular-nums!important;color:var(--text,#172019)!important}
+.ops-kpis>.ops-kpi:first-child b,.hq-summary>div:nth-child(2) b{font-size:var(--kpi-fit-font,clamp(18px,7vw,34px))!important;color:#fff!important}
+.hq-summary>div:first-child{grid-column:1;grid-row:2}.hq-summary>div:nth-child(3){grid-column:2;grid-row:2}.hq-summary>div:nth-child(4){grid-column:3;grid-row:2}
