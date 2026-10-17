@@ -112,3 +112,5 @@ assert.match(read('scripts/agent_apply_structured_edits.mjs'),/ROOT_APP=/,
 
 
 console.log('PASS release safety workflow contract');
+
+// QA ensures one production Pages publisher per main commit.
