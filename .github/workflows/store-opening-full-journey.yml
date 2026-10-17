@@ -91,6 +91,7 @@ jobs:
           node --check owner_activation.js
           node --check recipe_access_v220.js
           node --check qa_store_opening_browser_v1.mjs
+          node --check qa_store_opening_journey_browser_v1.mjs
           node qa_runtime_asset_syntax_v1.mjs
       - name: Install browser
         run: |
@@ -98,6 +99,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Execute owner and assistant activation + recipe UI scenarios
         run: node qa_store_opening_browser_v1.mjs
+      - name: Connected HQ invite, owner activation, assistant activation, delegated staff and recipe isolation
+        run: node qa_store_opening_journey_browser_v1.mjs
       - name: Prove real activation browser QA catches weak password and cross-store authorization
         run: node qa_store_opening_mutation_proof_v1.mjs browser
       - name: Start isolated static preview for real main-app workflow
