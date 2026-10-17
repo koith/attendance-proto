@@ -116,6 +116,16 @@ jobs:
         run: node qa_browser_app_smoke.mjs
       - name: Execute HQ representative directory and invitation browser QA
         run: node qa_hq_owner_browser_acceptance.mjs
+      - name: Retain browser failure images and stack reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-opening-browser-failure-evidence
+          path: |
+            qa-results/*.png
+            qa-results/*failure.txt
+          if-no-files-found: ignore
+          retention-days: 30
 
   disposable-postgres:
     name: Real migrations in separate disposable PostgreSQL databases
@@ -184,6 +194,18 @@ jobs:
       BROWSER_RESULT: ${{ needs.real-browser-sandbox.result }}
       POSTGRES_RESULT: ${{ needs.disposable-postgres.result }}
     steps:
+      - name: Build per-run status evidence
+        if: always()
+        run: |
+          mkdir -p qa-results
+          printf '{"source":"%s","browser":"%s","postgres":"%s","run":"%s","sha":"%s"}\n' "$SOURCE_RESULT" "$BROWSER_RESULT" "$POSTGRES_RESULT" "$GITHUB_RUN_ID" "$GITHUB_SHA" > qa-results/store-opening-lane-status.json
+      - name: Upload run-status evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-opening-lane-status
+          path: qa-results/store-opening-lane-status.json
+          if-no-files-found: error
       - name: Notify owner only when a QA lane failed
         uses: actions/github-script@v7
         with:
