@@ -78,3 +78,15 @@ jobs:
           done
           echo "::error::GitHub Pages did not serve expected version $expected after 10 minutes"
           exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser for actual published-page acceptance
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Verify live published test controls by real pointer clicks
+        env:
+          APP_SMOKE_HOST: https://koith.github.io/attendance-proto
+        run: node qa_live_version_test_controls_v1.mjs
+
