@@ -30,3 +30,29 @@ jobs:
           path: .
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify live Pages version (not merely artifact)
+        shell: bash
+        env:
+          PAGES_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          expected=$(sed -n 's/.*const APP_VERSION="\(v[0-9][0-9.]*\)".*/\1/p' index.html | head -1)
+          test -n "$expected"
+          url="${PAGES_URL%/}/index.html"
+          echo "Expected version: $expected"
+          echo "Live URL: $url"
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --location --max-time 20 \
+              -H 'Cache-Control: no-cache' \
+              "$url?release=${GITHUB_SHA}&attempt=$attempt" -o /tmp/live-pages.html; then
+              actual=$(sed -n 's/.*const APP_VERSION="\(v[0-9][0-9.]*\)".*/\1/p' /tmp/live-pages.html | head -1)
+              echo "Attempt $attempt: live=${actual:-missing} expected=$expected"
+              if [[ "$actual" == "$expected" ]]; then
+                echo "Verified deployed version $expected at $url"
+                exit 0
+              fi
+            fi
+            sleep 20
+          done
+          echo "::error::GitHub Pages did not serve expected version $expected after 10 minutes"
+          exit 1
