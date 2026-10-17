@@ -840,7 +840,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.316">v0.316</button></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.317">v0.317</button></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -932,7 +932,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.316";
+const APP_VERSION="v0.317";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -2057,7 +2057,13 @@ function showSuccess(type, name, now, res){
 // 다른 직원으로 바꾸려면 STEP1에서 PIN 재입력 필수 → 인증 우회 불가.
 async function openMyRecord(){
   let emps=[];
-  try{ emps=await BE.listEmployeesState(); }catch(e){ toast("err","오류",e.message); return; }
+  // Employee self-service must open on a shared POS without an HQ/manager
+  // session or kiosk unlock token. Private pos_employees_state deliberately
+  // rejects that state with P0001 POS_AUTH_REQUIRED. The public READY-store
+  // roster already used by the POS cards exposes no PIN or payroll secrets.
+  // Individual attendance is still gated by my_events(employee_id, PIN).
+  try{ emps=LIVE?await BE.posPublicStaffCards():await BE.listEmployeesState(); }
+  catch(e){ toast("err","직원 목록 조회 실패","잠시 후 다시 시도해 주세요."); return; }
   if(!emps.length){ toast("err","직원 없음",""); return; }
   // 근무현황 탭은 진입할 때마다 반드시 직원 PIN을 다시 확인한다.
   // 출퇴근 타각 때 사용한 인증/이전 근무현황 인증을 재사용하지 않는다.

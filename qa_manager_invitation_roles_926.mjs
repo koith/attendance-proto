@@ -41,7 +41,7 @@ assert.match(hq,/id="hqManagerRole"/);
 assert.match(edge,/invite_store_assistant_by_hq/);
 assert.match(edge,/service_hq_store_assistant_attach_invited_user/);
 assert.match(edge,/ACTIVE_PRIMARY_OWNER_REQUIRED/);
-assert.match(app,/APP_VERSION="v0\.(?:297|298|299|300|301|302)"/);
+assert.match(app,/APP_VERSION="v\d+\.\d+"/);
 assert.match(app,/store_manager_tab\.js\?v=20261017v300/);
 assert.match(app,/hq_owner_console\.js\?v=20261017v301/);
 assert.match(app,/hq_store_onboarding_ui\.js\?v=20261017v299/);

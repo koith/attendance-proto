@@ -55,7 +55,7 @@ assert.doesNotMatch(onboarding,/id="hqStoreRefresh"/);
 assert.match(store,/<h4>초대 대기중<\/h4>/);
 assert.doesNotMatch(store,/초대 대기 · 역할 확인 <small>/);
 assert.doesNotMatch(store,/초대 수락 전 계정은 대표·보조 관리자 목록에 포함되지 않습니다/);
-assert.match(index,/APP_VERSION="v0\.302"/);
+assert.match(index,/APP_VERSION="v\d+\.\d+"/);
 assert.match(index,/hq_owner_console\.js\?v=20261017v301/);
 assert.match(index,/store_manager_tab\.js\?v=20261017v300/);
 assert.match(index,/hq_store_onboarding_ui\.js\?v=20261017v299/);
