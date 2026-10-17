@@ -24,3 +24,14 @@
 .ops-filter label{font-size:11px!important;margin-bottom:4px!important}
 .ops-filter .btn{grid-column:3!important;grid-row:1!important;width:70px!important;min-width:0!important;height:40px!important;min-height:40px!important;padding:0 4px!important;font-size:13px!important;white-space:nowrap!important}
 @media(max-width:360px){.ops-filter{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 60px!important;gap:4px!important}.ops-filter .btn{width:60px!important}.ops-filter input[type=date]{font-size:11px!important}}
+
+/* #950: subdued sage hero + Safari date vertical alignment */
+.ops-kpis>.ops-kpi:first-child,.hq-summary>div:nth-child(2){background:#e5eee8!important;color:#284637!important;border:1px solid #d6e3da!important}
+.ops-kpis>.ops-kpi:first-child span,.hq-summary>div:nth-child(2) span{color:#587565!important}
+.ops-kpis>.ops-kpi:first-child b,.hq-summary>div:nth-child(2) b{color:#284637!important}
+.ops-filter input[type=date]{height:42px!important;min-height:42px!important;line-height:normal!important;text-align:center!important;padding:0 4px!important;border-radius:10px!important;display:flex!important;align-items:center!important;justify-content:center!important}
+.ops-filter input[type=date]::-webkit-date-and-time-value{display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;min-height:100%!important;width:100%!important;line-height:42px!important}
+.ops-filter input[type=date]::-webkit-datetime-edit{display:inline-flex!important;align-items:center!important;justify-content:center!important;height:100%!important;min-height:42px!important;line-height:42px!important;padding:0!important}
+.ops-filter input[type=date]::-webkit-datetime-edit-fields-wrapper{display:inline-flex!important;align-items:center!important;justify-content:center!important;height:100%!important;padding:0!important}
+.ops-filter input[type=date]::-webkit-calendar-picker-indicator{margin:0!important;align-self:center!important}
+.ops-filter .btn{height:42px!important;min-height:42px!important}
