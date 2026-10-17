@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'qa_store_opening_*'
+      - 'qa_store_opening_mutation_proof_v1.mjs'
       - 'owner_activation.*'
       - 'recipe_access_v220.js'
       - 'store_manager_tab.js'
@@ -16,6 +17,7 @@ on:
     branches: [main]
     paths:
       - 'qa_store_opening_*'
+      - 'qa_store_opening_mutation_proof_v1.mjs'
       - 'owner_activation.*'
       - 'recipe_access_v220.js'
       - 'store_manager_tab.js'
@@ -47,6 +49,8 @@ jobs:
           node-version: '22'
       - name: Run every isolated store-opening contract lane
         run: node qa_store_opening_matrix_v1.mjs
+      - name: Prove payroll/Sheet QA detects a deliberately injected TEST data leak
+        run: node qa_store_opening_mutation_proof_v1.mjs engine
       - name: Upload per-lane pass/fail evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -76,6 +80,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Execute owner and assistant activation + recipe UI scenarios
         run: node qa_store_opening_browser_v1.mjs
+      - name: Prove real activation browser QA catches weak password and cross-store authorization
+        run: node qa_store_opening_mutation_proof_v1.mjs browser
       - name: Start isolated static preview for real main-app workflow
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/store-opening-web.log 2>&1 &
@@ -123,6 +129,7 @@ jobs:
             qa_hq_store_onboarding_postgres_integration.sql
             qa_store_delegated_manager_postgres.sql
             qa_store_opening_owner_activation_postgres.sql
+            qa_store_opening_recipe_postgres_v1.sql
             qa_payroll_close_postgres_integration.sql
             qa_payroll_weekly_postgres_integration.sql
           )
@@ -141,7 +148,7 @@ jobs:
             psql -d postgres -v ON_ERROR_STOP=1 -c "DROP ROLE IF EXISTS anon, authenticated, service_role;"
             echo "::endgroup::"
           done
-          echo "PASS: 5 real SQL migration fixtures on 5 ephemeral databases"
+          echo "PASS: 6 real SQL migration fixtures on 6 ephemeral databases"
 
   notify-on-failure:
     name: File actionable QA failure to tracking issue #1000
