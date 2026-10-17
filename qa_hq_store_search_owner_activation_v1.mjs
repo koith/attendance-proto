@@ -32,7 +32,7 @@ assert.match(evidence,/PROVENANCE_VERIFICATION_REQUIRED/);
 assert.match(confirmed,/CONFIRMED_STORE_MANAGER_REQUIRED/);
 const renderedVersion=html.match(/const APP_VERSION="(v[0-9]+[.][0-9]+)";/);
 assert.ok(renderedVersion,'App must declare a parseable release version');
-assert.ok(html.includes('id="appVersion">'+renderedVersion[1]+'</span>'),
+assert.ok(new RegExp('id="appVersion"[^>]*>'+renderedVersion[1].replace(/[.]/g,'[.]')+'</button>').test(html),
   'App badge must match the release version without hardcoded test literals');
 assert.match(html,/hq_store_onboarding_ui\.js\?v=20261017v299/);
 assert.match(html,/\["report","리포트"\]/,'Inha six management tabs must remain visible');

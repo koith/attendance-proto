@@ -77,7 +77,7 @@ assert.equal((await payroll({when:'2026-11-01T00:00:00Z'})).pay.base,2600000,
 const ui=fs.readFileSync('index.html','utf8');
 const release=ui.match(/const APP_VERSION="(v0\.[0-9]+)";/);
 assert.ok(release && Number(release[1].split('.')[1])>=272, 'Monthly accrual requires v0.272 or newer');
-assert.ok(ui.includes('id="appVersion">'+release[1]+'</span>'),
+assert.ok(new RegExp('id="appVersion"[^>]*>'+release[1].replace(/[.]/g,'[.]')+'</button>').test(ui),
   'Rendered release badge must match current app version');
 assert.ok(ui.includes('재직 인정 ${Number(pay?.accruedDays||0)}'),
   'Monthly detail must use employment days, not completed shift count');

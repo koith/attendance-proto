@@ -10,7 +10,7 @@ assert.match(html,/if\(STORE_ENTRY_LOCK\)return;/);
 assert.match(html,/if\(h==="dashboard"\)\{if\(STORE_ENTRY_LOCK\)/);
 const version=html.match(/const APP_VERSION="(v[0-9.]+)"/)?.[1];
 assert.ok(version,'app version must exist');
-assert.ok(html.includes('id="appVersion">'+version+'</span>'),'header badge must match app version');
+assert.ok(new RegExp('id="appVersion"[^>]*>'+version.replace(/[.]/g,'[.]')+'</button>').test(html),'header version button must match app version');
 assert.match(html,/id="hqOwnerManagement"[^>]*>지점 관리<\/button>/);
 assert.match(html,/getElementById\("hqOwnerManagement"\)\.onclick=\(\)=>\{ void openAccountMgmt\("owners"\); \}/);
 assert.match(html,/async function openAccountMgmt\(mode="accounts"\)/);
