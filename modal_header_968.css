@@ -1,0 +1,32 @@
+/* #968 shared modal header system: excludes tooltip/popover surfaces */
+.hq-dashboard .hq-dashboard-actions{display:flex!important;justify-content:flex-end!important;align-items:center!important;gap:6px!important;width:auto!important;max-width:none!important;min-width:0!important;margin-left:auto!important;flex-wrap:nowrap!important}
+.hq-dashboard .hq-dashboard-actions .btn{flex:0 0 auto!important;width:auto!important;min-width:0!important;min-height:34px!important;height:34px!important;padding:0 12px!important;font-size:12px!important;white-space:nowrap!important;border-radius:9px!important}
+@media(max-width:390px){.hq-dashboard .hq-dashboard-actions .btn{padding:0 9px!important;font-size:11px!important}}
+/* Use one visual rule for dialog title bands, without touching tooltip popups. */
+.modal-veil .modal:not(.tooltip):not(.popover)>h3,
+.modal-veil .modal:not(.tooltip):not(.popover)>h2,
+.hq-readiness-dialog>h2,
+.hq-readiness-dialog>h3{
+  background:#e5eee8!important;color:#284637!important;
+  margin:-20px -20px 18px!important;
+  padding:19px 58px 19px 20px!important;
+  border-radius:19px 19px 0 0!important;
+  border-bottom:1px solid #d2e1d7!important;
+  min-height:64px!important;display:flex!important;align-items:center!important;
+  line-height:1.35!important
+}
+.modal-veil .modal>.modal-x{top:13px!important;right:14px!important}
+.modal-veil .modal.has-back>h3{padding-left:58px!important}
+.modal-veil .modal>.modal-x,.modal-veil .modal>.modal-back{z-index:4!important}
+
+/* Custom HQ 가나다순 picker uses its own dialog instead of .modal. */
+.hq-quick-dialog .hq-quick-dialog-head{background:#e5eee8!important;color:#284637!important;margin:-20px -20px 16px!important;padding:14px 18px 14px 20px!important;min-height:64px!important;border-bottom:1px solid #d2e1d7!important;border-radius:19px 19px 0 0!important;flex-shrink:0!important}
+.hq-quick-dialog .hq-quick-dialog-head button{background:#fff!important;color:#284637!important}
+@media(max-width:640px){.hq-quick-dialog .hq-quick-dialog-head{margin:-16px -16px 16px!important}}
+/* Other dialog families with explicit header wrappers. */
+[role="dialog"]:not(.tooltip):not([role="tooltip"])>.dialog-header,
+[role="dialog"]:not(.tooltip):not([role="tooltip"])>.modal-header,
+.hq-readiness-dialog>.dialog-header{
+ background:#e5eee8!important;color:#284637!important;
+ padding:16px 20px!important;border-bottom:1px solid #d2e1d7!important
+}
