@@ -1,20 +1,31 @@
-/* #987: Explicit toggle for test_mode_ui_v1.js #testModeControls. */
-(function(){
+/* #987: exact version-button toggle for the test UI created by test_mode_ui_v1.js.
+ * Hide only the test UI, never change BaekeokTest.enabled() or production data.
+ * A root class with !important CSS also covers controls inserted after this script.
+ */
+(()=>{
   const button=document.getElementById('appVersion');
   if(!button)return;
-  let hidden=false;
-  const TARGET_ID='testModeControls';
+  const KEY='baekeok_test_controls_visible_v1';
+  const HIDDEN_CLASS='test-controls-hidden-v1';
+  const style=document.createElement('style');
+  style.id='testControlsVisibility987';
+  style.textContent=`html.${HIDDEN_CLASS} #testModeControls,
+html.${HIDDEN_CLASS} #testModeBanner,
+html.${HIDDEN_CLASS} #testTimeModal{display:none!important}`;
+  document.head.appendChild(style);
+  let visible=true;
+  try{visible=localStorage.getItem(KEY)!=='false'}catch(_){}
   function sync(){
-    const controls=document.getElementById(TARGET_ID);
-    if(controls)controls.style.setProperty('display',hidden?'none':'flex','important');
-    button.setAttribute('aria-pressed',String(hidden));
-    button.setAttribute('aria-label',hidden?'테스트 도구 표시':'테스트 도구 숨기기');
-    button.title=hidden?'테스트 도구 표시':'테스트 도구 숨기기';
+    document.documentElement.classList.toggle(HIDDEN_CLASS,!visible);
+    button.setAttribute('aria-pressed',String(visible));
+    button.setAttribute('aria-label',visible?'테스트 UI 숨기기':'테스트 UI 표시');
+    button.title=visible?'테스트 UI 숨기기':'테스트 UI 표시';
   }
-  button.addEventListener('click',()=>{hidden=!hidden;sync()});
-  const observer=new MutationObserver(records=>{
-    if(records.some(r=>Array.from(r.addedNodes).some(n=>n.nodeType===1&&(n.id===TARGET_ID||n.querySelector?.('#'+TARGET_ID)))))sync();
+  button.addEventListener('click',()=>{
+    visible=!visible;
+    try{localStorage.setItem(KEY,String(visible))}catch(_){}
+    if(!visible)document.getElementById('testTimeModal')?.remove();
+    sync();
   });
-  observer.observe(document.body,{childList:true,subtree:true});
   sync();
 })();
