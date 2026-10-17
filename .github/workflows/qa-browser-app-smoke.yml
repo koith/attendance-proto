@@ -6,6 +6,9 @@ on:
       - 'actual_attendance.js'
       - 'actual_attendance.html'
       - 'qa_browser_app_smoke.mjs'
+      - 'qa_version_test_controls_browser_v1.mjs'
+      - 'version_test_toggle_982.js'
+      - 'test_mode_ui_v1.js'
       - 'qa_runtime_asset_syntax_v1.mjs'
       - '.github/workflows/qa-browser-app-smoke.yml'
   push:
@@ -37,6 +40,8 @@ jobs:
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.55.1
           npx playwright install --with-deps chromium
+      - name: Real test-mode overlay version-button regression (mobile/desktop)
+        run: node qa_version_test_controls_browser_v1.mjs
       - name: Start isolated static preview
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/attendance-preview.log 2>&1 &
