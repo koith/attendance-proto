@@ -4,6 +4,15 @@ on:
   pull_request:
     paths:
       - 'qa_store_opening_*'
+      - 'index.html'
+      - 'actual_attendance.js'
+      - 'recipe_access_v220.css'
+      - 'apps_script.gs'
+      - 'supabase/email-templates/**'
+      - 'qa_substitution_scoped_roster_v1.mjs'
+      - 'qa_hq_store_scope_v1.mjs'
+      - 'qa_v095_recipe_cache_focus.mjs'
+      - 'qa_v096_search_clear.mjs'
       - 'qa_store_opening_mutation_proof_v1.mjs'
       - 'owner_activation.*'
       - 'recipe_access_v220.js'
@@ -17,6 +26,15 @@ on:
     branches: [main]
     paths:
       - 'qa_store_opening_*'
+      - 'index.html'
+      - 'actual_attendance.js'
+      - 'recipe_access_v220.css'
+      - 'apps_script.gs'
+      - 'supabase/email-templates/**'
+      - 'qa_substitution_scoped_roster_v1.mjs'
+      - 'qa_hq_store_scope_v1.mjs'
+      - 'qa_v095_recipe_cache_focus.mjs'
+      - 'qa_v096_search_clear.mjs'
       - 'qa_store_opening_mutation_proof_v1.mjs'
       - 'owner_activation.*'
       - 'recipe_access_v220.js'
