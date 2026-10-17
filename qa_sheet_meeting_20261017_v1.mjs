@@ -60,9 +60,32 @@ assert.match(source,/sectionHeading\[1\]=payrollTotal\.label/,
  'immediately visible salary total must appear alongside payroll table heading');
 assert.match(source,/if\(narrative\.col===pc&&pr>narrative\.row\)continue;/,
  'narrative body must be excluded from annual shared-width measurement');
-assert.match(source,/setWrapStrategy\(SpreadsheetApp\.WrapStrategy\.CLIP\)/,
- 'memo text must be clipped visually, not deleted');
+assert.match(source,/setWrapStrategy\(SpreadsheetApp\.WrapStrategy\.OVERFLOW\)/,
+ 'correction reasons should overflow into blank space without widening the payroll gross column');
 assert.match(source,/for\(var sm=1;sm<=12;sm\+\+\)/,
  'year-wide shared width normalization must still be applied');
 assert.match(source,/getColumnWidth\(vc\+1\)/,'persisted width readback must remain mandatory');
 console.log('PASS 2026-10-17 payroll gross totals (estimated/closed/invalid) and memo width exclusion');
+
+// The actual Apps Script right-side review-space helper is exercised with
+// synthetic 12-month tabs. These checks never write to production Sheets.
+const tabs=Array.from({length:12},(_,i)=>({
+  title:(i+1)+'월', columns:i===0?26:14, inserts:[],clearCalls:[],
+  getMaxColumns(){return this.columns;},
+  insertColumnsAfter(after,count){
+    assert.equal(after,this.columns);
+    this.columns+=count;this.inserts.push({after,count});
+  },
+  getMaxRows(){return 100;},
+  getRange(row,col,rows,cols){return {clearFormat:()=>this.clearCalls.push({row,col,rows,cols})};}
+}));
+const fakeBook={getSheetByName(name){return tabs.find(t=>t.title===name)||null;}};
+context._ensureReportRightReviewSpace(fakeBook,14);
+assert.ok(tabs.every(t=>t.columns===26));
+assert.equal(tabs[0].inserts.length,0);
+assert.ok(tabs.slice(1).every(t=>t.inserts.length===1&&t.inserts[0].count===12));
+assert.ok(tabs.slice(1).every(t=>t.clearCalls.length===1&&t.clearCalls[0].col===15));
+context._ensureReportRightReviewSpace(fakeBook,14);
+assert.ok(tabs.every(t=>t.inserts.length<=1&&t.clearCalls.length<=1),
+  'second refresh must not duplicate columns or clear existing user formatting');
+console.log('PASS 12-tab horizontal review area, idempotent, and rightmost correction overflow');
