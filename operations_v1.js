@@ -2,7 +2,7 @@
 (function(){
 const S={tab:"dashboard",trend:"1m"},won=n=>Number(n||0).toLocaleString("ko-KR")+"원",num=n=>Number(n||0).toLocaleString("ko-KR"),esc=v=>window.safeHtml?window.safeHtml(v):String(v??"");
 function range(){const d=window.kstNow?window.kstNow():new Date(),p=n=>String(n).padStart(2,"0");return [`${d.getFullYear()}-${p(d.getMonth()+1)}-01`,`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(new Date(d.getFullYear(),d.getMonth()+1,0).getDate())}`]}
-function empty(t,s=""){return `<div class="ops-empty"><b>${esc(t)}</b>${s?`<small>${esc(s)}</small>`:""}</div>`}
+function empty(t,s=""){const guide=esc(s).replace('예시 데이터는 최근 30일 기준입니다. 1달을 선택하거나 예시 데이터를 다시 채워보세요.','예시 데이터는 최근 30일 기준입니다.<br>1달을 선택하거나 예시 데이터를 다시 채워보세요.');return `<div class="ops-empty"><b>${esc(t)}</b>${s?`<small>${guide}</small>`:""}</div>`}
 // Only server-confirmed inventory and stored recipe components are operational data.
 // Do not invent stock quantities or recipe ingredients as a fallback for a missing backend row.
 const recipeComponents=r=>Array.isArray(r.components)?r.components:[];
