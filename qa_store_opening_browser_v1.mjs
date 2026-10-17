@@ -160,8 +160,7 @@ async function recipes(){
  };
  await visit(701,'OWNER');
  ok((await page.locator('#view').innerText()).includes(baseRecipe.menu_name),'Source recipe initially shown');
- await page.locator('.recipe-v220-open').click();
- await page.locator('[data-edit]').click();
+ await page.locator('.recipe-v220-edit').click();
  await page.locator('#rvName').fill('지점 전용 테스트 라떼');
  await page.locator('[data-variant] textarea').first().fill('우유 220ml');
  await page.locator('#rvSave').click();
@@ -185,8 +184,8 @@ async function recipes(){
  ok((await page.locator('#view').innerText()).includes('지점 전용 테스트 라떼'),'Shift-verified employee reads local recipe');
  ok((await page.locator('[data-edit]').count())===0,'Staff has no editor');
  await visit(701,'OWNER');
- await page.locator('.recipe-v220-open').click();
- await page.locator('[data-reset]').click();
+ await page.locator('.recipe-v220-edit').click();
+ await page.locator('#rvReset').click();
  await page.waitForFunction(()=>document.querySelector('#view')?.textContent?.includes('본사 테스트 라떼'),null,{timeout:6000});
  ok(!overrides.has(701)&&!overrides.has(702),'Reset restores canonical recipe without leaking stores');
  ok(errs.length===0,'No recipe JS error: '+errs);
