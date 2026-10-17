@@ -116,6 +116,16 @@ jobs:
         run: node qa_browser_app_smoke.mjs
       - name: Execute HQ representative directory and invitation browser QA
         run: node qa_hq_owner_browser_acceptance.mjs
+      - name: Retain browser failure images and stack reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-opening-browser-failure-evidence
+          path: |
+            qa-results/*.png
+            qa-results/*failure.txt
+          if-no-files-found: ignore
+          retention-days: 30
 
   disposable-postgres:
     name: Real migrations in separate disposable PostgreSQL databases
