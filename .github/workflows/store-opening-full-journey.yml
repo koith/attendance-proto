@@ -134,6 +134,10 @@ jobs:
               exit 1
             }
             tail -n 4 "/tmp/${db}.log"
+            # PostgreSQL roles are cluster-global, unlike per-fixture databases.
+            # Drop each disposable DB first, then its fixture-created roles.
+            psql -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE ${db} WITH (FORCE);"
+            psql -d postgres -v ON_ERROR_STOP=1 -c "DROP ROLE IF EXISTS anon, authenticated, service_role;"
             echo "::endgroup::"
           done
           echo "PASS: 4 real SQL migration fixtures on 4 ephemeral databases"
