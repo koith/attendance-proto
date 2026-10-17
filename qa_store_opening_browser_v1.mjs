@@ -215,6 +215,17 @@ try{
  await activate(reject,{fail:true,success:false});
  await recipes();
  console.log('PASS #1000 sandbox browser: invite/accept/password/owner/assistant/error/recipe edit/reset/employee access; assertions='+checks);
+}catch(error){
+ fs.mkdirSync('qa-results',{recursive:true});
+ fs.writeFileSync('qa-results/store-opening-browser-v1-failure.txt',String(error&&error.stack||error));
+ for(const [ci,ctx] of browser.contexts().entries()){
+  for(const [pi,page] of ctx.pages().entries()){
+   try{
+    await page.screenshot({path:'qa-results/store-opening-browser-v1-'+ci+'-'+pi+'.png',fullPage:true,timeout:3000});
+   }catch(_){/* Preserve the original test failure even if capture fails. */}
+  }
+ }
+ throw error;
 }finally{
  await browser.close();
  await new Promise(r=>server.close(r));
