@@ -26,6 +26,6 @@ for(const name of ['admin_correct_event','admin_update_employee','admin_retire_e
 }
 assert.match(guards,/EVENT_EMPLOYEE_MISMATCH/);
 const version=html.match(/const APP_VERSION="(v[0-9.]+)"/)?.[1];
-assert.ok(version&&html.includes('id="appVersion">'+version+'</span>'),'app header/version mismatch');
+assert.ok(version&&new RegExp('id="appVersion"[^>]*>'+version.replace(/[.]/g,'[.]')+'</button>').test(html),'app header/version mismatch');
 assert.match(html,/id="hqHome" aria-label="백억커피" style=/);
 console.log('PASS: HQ dashboard shows attributable actual sales and store attendance remains scoped');

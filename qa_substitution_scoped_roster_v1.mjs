@@ -38,7 +38,7 @@ const app=fs.readFileSync('index.html','utf8');
 assert.match(html,/substitution_v2\.js\?v=20261012v236/);
 const version=app.match(/const APP_VERSION="(v0\.\d+)"/);
 assert.ok(version,'Main app version must be defined');
-assert.ok(app.includes('id="appVersion">'+version[1]+'</span>'),
+assert.ok(new RegExp('id="appVersion"[^>]*>'+version[1].replace(/[.]/g,'[.]')+'</button>').test(app),
   'Visible version badge must match the deployed app version');
 assert.match(fs.readFileSync('substitution_v2.js','utf8'),
   /back\.href='index\.html\?mode=store&store='\+SUB_STORE_ID\+'#pos'/,
