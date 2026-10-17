@@ -1,0 +1,24 @@
+name: Version test controls toggle QA
+on:
+  pull_request:
+    paths:
+      - 'version_test_toggle_982.js'
+      - 'test_mode_ui_v1.js'
+      - 'qa_version_test_toggle_987.mjs'
+      - '.github/workflows/version-test-controls-toggle-qa.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'version_test_toggle_982.js'
+      - 'test_mode_ui_v1.js'
+      - 'qa_version_test_toggle_987.mjs'
+      - '.github/workflows/version-test-controls-toggle-qa.yml'
+jobs:
+  toggle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check version_test_toggle_982.js && node qa_version_test_toggle_987.mjs
