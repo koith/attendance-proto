@@ -1,0 +1,31 @@
+name: Live version-controls QA
+on:
+  pull_request:
+    paths:
+      - 'qa_live_version_test_controls_v1.mjs'
+      - '.github/workflows/publish-pages.yml'
+      - '.github/workflows/qa-live-test-controls-v1.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live-controls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Script syntax and source version
+        run: |
+          node --check qa_live_version_test_controls_v1.mjs
+          node --check version_test_toggle_982.js
+      - name: Install Chromium
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Test actual published Pages LIVE/clock toggle
+        env:
+          APP_SMOKE_HOST: https://koith.github.io/attendance-proto
+        run: node qa_live_version_test_controls_v1.mjs
