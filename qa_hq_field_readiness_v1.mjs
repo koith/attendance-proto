@@ -41,5 +41,5 @@ assert.match(app,/실자료를 임의 생성하지 않습니다/);
 assert.match(app,/권한이나 서버 연결을 확인하세요. 완료로 처리하지 않았습니다/);
 assert.match(app,/const APP_VERSION="v\d+\.\d+"/);
 assert.match(app,/id="appVersion"[^>]*>v\d+\.\d+<\/button>/,"Version badge is a button, not a span");
-assert.match(app,/operations_v1\.js\?v=[^"\s]+/,"Versioned operations script is loaded");
+assert.match(app,new RegExp('<script src="operations_v1[.]js[?]v=[^" ]+"></script>'),'Operational asset must be cache-busted');
 console.log('PASS HQ readiness: server HQ authorization, no anon grants, source proofs and non-final UI states');
