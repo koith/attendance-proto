@@ -230,6 +230,23 @@ function _sheetLiteralValue(value){
   return value;
 }
 
+// Reserve a blank horizontal review area to the right of the 14-column report.
+// Without it mobile Sheets stops at column N and long correction reasons cannot
+// overflow or be scrolled into view. Add only missing columns; leave existing
+// values and all A:N report data untouched. Sheets copies the last column style
+// when inserting, so reset formatting only on newly created blank columns.
+function _ensureReportRightReviewSpace(ss, reportWidth){
+  var requiredColumns=Math.max(26,reportWidth+12);
+  for(var month=1;month<=12;month++){
+    var tab=ss.getSheetByName(month+'월');
+    if(!tab)continue;
+    var existing=tab.getMaxColumns();
+    if(existing>=requiredColumns)continue;
+    tab.insertColumnsAfter(existing,requiredColumns-existing);
+    tab.getRange(1,existing+1,tab.getMaxRows(),requiredColumns-existing).clearFormat();
+  }
+}
+
 function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   // TEST is an operational test employee, not a payroll/reporting employee.
   // Filter both sections on every sync, including old cached client payloads.
@@ -261,6 +278,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     {title:'근태 현황',data:attendance}
   ];
   var width=1; sections.forEach(function(s){width=Math.max(width,s.data.header.length);});
+  _ensureReportRightReviewSpace(ss,width);
   var out=[[reportTitle],[meta],[]], sectionRows=[],headerRows=[],dataRanges=[];
   sections.forEach(function(s){
     sectionRows.push(out.length+1);
@@ -312,11 +330,12 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
         .setBorder(true,true,true,true,true,true,line,SpreadsheetApp.BorderStyle.SOLID)
         .setVerticalAlignment('middle');
       for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,28);
-      // CLIP only the narrative cells (not the stored text), leaving whole
-      // reasons selectable/editable without expanding the monthly sheet width.
+      // Overflow the narrative to blank columns O+: the full correction reason
+      // stays readable by horizontal scrolling, without widening the shared
+      // N column or growing every attendance row. Source text is unchanged.
       var narrativeColumn=s.title==='근태 현황'?s.data.header.indexOf('정정사유'):-1;
       if(narrativeColumn>=0)sh.getRange(dr.first,narrativeColumn+1,dr.count,1)
-        .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+        .setWrapStrategy(SpreadsheetApp.WrapStrategy.OVERFLOW);
     }else{
       // Preserve an intentionally empty section without inventing content.
       sh.setRowHeight(dr.first,18);
