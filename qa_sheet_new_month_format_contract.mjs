@@ -13,8 +13,9 @@ ok('annual book ensures all 12 month tabs', /for\(var m=1;m<=12;m\+\+\)[\s\S]*in
 ok('doPost always routes target month through _writeMonth', /_writeMonth\(ss, month \+ '월', meta, body\.attendance, body\.sessions, body\.payroll\)/.test(src));
 ok('_writeMonth creates missing target tab', /getSheetByName\(name\); if\(!sh\) sh=ss\.insertSheet\(name\)/.test(src));
 
-// Both first-write and later refreshes must fully replace stale formatting before applying one design path.
-ok('every refresh clears full grid including stale formats', /getRange\(1,1,sh\.getMaxRows\(\),sh\.getMaxColumns\(\)\)\.clear\(\{contentsOnly:false\}\)/.test(src));
+// First write and later refresh must clear only the authored A:N report,
+// retaining right-side blank review columns and any existing user material.
+ok('refresh clears report formatting but preserves right-side grid', /getRange\(1,1,sh\.getMaxRows\(\),width\)\.clear\(\{contentsOnly:false\}\)/.test(src)&&!/getRange\(1,1,sh\.getMaxRows\(\),sh\.getMaxColumns\(\)\)\.clear\(\{contentsOnly:false\}\)/.test(src));
 ok('canonical writer applies report title style', /getRange\(1,1,1,width\)\.setBackground\(green\)\.setFontColor\(white\)/.test(src));
 ok('canonical writer applies section style', /setBackground\(pale\)\.setFontColor\(headerGreen\)/.test(src));
 ok('canonical writer applies dark table headers', /setBackground\(headerGreen\)\.setFontColor\('#ffffff'\)/.test(src));
