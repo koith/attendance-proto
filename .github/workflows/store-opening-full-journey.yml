@@ -194,6 +194,18 @@ jobs:
       BROWSER_RESULT: ${{ needs.real-browser-sandbox.result }}
       POSTGRES_RESULT: ${{ needs.disposable-postgres.result }}
     steps:
+      - name: Build per-run status evidence
+        if: always()
+        run: |
+          mkdir -p qa-results
+          printf '{"source":"%s","browser":"%s","postgres":"%s","run":"%s","sha":"%s"}\n' "$SOURCE_RESULT" "$BROWSER_RESULT" "$POSTGRES_RESULT" "$GITHUB_RUN_ID" "$GITHUB_SHA" > qa-results/store-opening-lane-status.json
+      - name: Upload run-status evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-opening-lane-status
+          path: qa-results/store-opening-lane-status.json
+          if-no-files-found: error
       - name: Notify owner only when a QA lane failed
         uses: actions/github-script@v7
         with:
