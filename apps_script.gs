@@ -143,6 +143,37 @@ function _seniorPayrollLayout(section,attendance){
       get('휴게수당')||(closed?'—':''),get('조정'),get(grossKey)];
   })};
 }
+// Presentation-only aggregate: do not change source payroll rows, live payroll policy,
+// or the immutable CLOSED snapshot. Malformed amounts must never silently count as zero.
+function _payrollGrossTotal(section){
+  var header=section.header||[];
+  var grossIndex=header.indexOf('확정 세전급여');
+  if(grossIndex<0)grossIndex=header.indexOf('예상 세전급여');
+  if(grossIndex<0)return {valid:false,amount:null,label:'세전 합계 확인 필요'};
+  var amount=0,valid=true;
+  (section.rows||[]).forEach(function(row){
+    var raw=row[grossIndex];
+    var text=typeof raw==='number'?String(raw):String(raw==null?'':raw).trim().replace(/,/g,'').replace(/원$/,'').trim();
+    if(!/^-?\d+$/.test(text)){valid=false;return;}
+    var value=Number(text);
+    if(!Number.isSafeInteger(value)||!Number.isSafeInteger(amount+value)){valid=false;return;}
+    amount+=value;
+  });
+  return {valid:valid,amount:valid?amount:null,
+    label:valid?'세전 합계 '+amount.toLocaleString('ko-KR')+'원':'세전 합계 확인 필요'};
+}
+
+// The last attendance narrative column may coincide with the payroll gross column.
+// Preserve the full cell value while excluding free-form notes from shared width sizing.
+function _attendanceMemoColumn(displayRows){
+  for(var rowIndex=0;rowIndex<displayRows.length;rowIndex++){
+    var row=displayRows[rowIndex]||[];
+    if(String(row[0]||'').trim()!=='날짜')continue;
+    var colIndex=row.indexOf('정정사유');
+    if(colIndex>=0)return {row:rowIndex,col:colIndex};
+  }
+  return {row:-1,col:-1};
+}
 function _seniorAttendanceLayout(section,payroll){
   var payTypeByName={};
   (payroll.rows||[]).forEach(function(r){payTypeByName[String(r[0])]=r[1];});
@@ -218,6 +249,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   payroll=_withoutPayrollStatusColumns(payroll);
   payroll=_seniorPayrollLayout(payroll,attendance);
   attendance=_sortAttendanceByDate(_seniorAttendanceLayout(attendance,payroll));
+  var payrollTotal=_payrollGrossTotal(payroll);
   var sh=ss.getSheetByName(name); if(!sh) sh=ss.insertSheet(name);
   var monthNum=Number(String(name).replace(/[^0-9]/g,''))||0;
   var ym=String(ss.getName()).match(/(20\d{2})/);
@@ -231,7 +263,12 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   var width=1; sections.forEach(function(s){width=Math.max(width,s.data.header.length);});
   var out=[[reportTitle],[meta],[]], sectionRows=[],headerRows=[],dataRanges=[];
   sections.forEach(function(s){
-    sectionRows.push(out.length+1); out.push([s.title]);
+    sectionRows.push(out.length+1);
+    // Keep the section heading in column A; show the gross total in adjacent B
+    // so it is visible immediately on mobile without horizontal scrolling.
+    var sectionHeading=[s.title];
+    if(s.title==='급여 집계')sectionHeading[1]=payrollTotal.label;
+    out.push(sectionHeading);
     headerRows.push(out.length+1); out.push(s.data.header);
     var first=out.length+1;
     s.data.rows.forEach(function(row){out.push(row);});
@@ -265,6 +302,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     var sr=sectionRows[i], hr=headerRows[i], dr=dataRanges[i];
     sh.getRange(sr,1,1,width).setBackground(pale).setFontColor(headerGreen)
       .setFontSize(13).setFontWeight('bold').setHorizontalAlignment('left');
+    if(s.title==='급여 집계')sh.getRange(sr,2,1,1).setHorizontalAlignment('left');
     sh.setRowHeight(sr,30);
     sh.getRange(hr,1,1,s.data.header.length).setBackground(headerGreen).setFontColor('#ffffff')
       .setFontWeight('bold').setHorizontalAlignment('center');
@@ -274,6 +312,11 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
         .setBorder(true,true,true,true,true,true,line,SpreadsheetApp.BorderStyle.SOLID)
         .setVerticalAlignment('middle');
       for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,28);
+      // CLIP only the narrative cells (not the stored text), leaving whole
+      // reasons selectable/editable without expanding the monthly sheet width.
+      var narrativeColumn=s.title==='근태 현황'?s.data.header.indexOf('정정사유'):-1;
+      if(narrativeColumn>=0)sh.getRange(dr.first,narrativeColumn+1,dr.count,1)
+        .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
     }else{
       // Preserve an intentionally empty section without inventing content.
       sh.setRowHeight(dr.first,18);
@@ -360,12 +403,20 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     var peerDisplay=peerRange.getDisplayValues();
     var peerSizes=peerRange.getFontSizes();
     var peerWeights=peerRange.getFontWeights();
+    var narrative=_attendanceMemoColumn(peerDisplay);
     for(var pc=0;pc<width;pc++){
       for(var pr=2;pr<peerDisplay.length;pr++){
         // Report title/subtitle and full-width section labels are presentation,
         // not column data. Exclude them even when a peer tab has older layout.
         var first=String(peerDisplay[pr][0]||'').trim();
-        if(first==='급여 집계'||first==='근태 현황'||first==='세션 상세')continue;
+        // Measure the new salary-total label in the heading's B column, but
+        // never let a section title widen the employee-name column.
+        if(first==='급여 집계'||first==='근태 현황'||first==='세션 상세'){
+          if(first!=='급여 집계'||pc===0)continue;
+        }
+        // The narrative cell still contains its full text. It simply cannot
+        // dictate the shared width of the payroll gross column (also column N).
+        if(narrative.col===pc&&pr>narrative.row)continue;
         if(/^(?:20\d{2}년\s*)?\d{1,2}월\s+근태\s*[·ㆍ]\s*급여\s*보고서$/.test(first))continue;
         if(/^마지막 동기화\s*:/.test(first))continue;
         sharedWidths[pc]=Math.max(sharedWidths[pc]||0,textWidthPx(peerDisplay[pr][pc],peerSizes[pr][pc]||10,peerWeights[pr][pc]==='bold'));
