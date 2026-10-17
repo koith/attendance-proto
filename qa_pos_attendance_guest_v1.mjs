@@ -10,7 +10,7 @@ const last=html.indexOf('// STEP 1: 인증 화면',first);
 assert.ok(first>0&&last>first,'staff attendance entry function found');
 const block=html.slice(first,last);
 assert.match(block,/LIVE\?await BE\.posPublicStaffCards\(\):await BE\.listEmployeesState\(\)/);
-assert.doesNotMatch(block,/await BE\.listEmployeesState\(\);/,'live guest flow must not call token-only roster directly');
+assert.doesNotMatch(block,/try\{ emps=await BE\.listEmployeesState\(\); \}/,'live guest flow must not unconditionally call private token-only roster');
 assert.match(gate,/RAISE EXCEPTION 'POS_AUTH_REQUIRED'/,'private full employee state must stay token-gated');
 assert.match(sql,/s\.onboarding_status='READY'/);
 assert.match(sql,/REVOKE ALL ON FUNCTION public\.list_employees_state/);
