@@ -101,7 +101,7 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const base='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch({headless:true});
 async function activate(u,{password='SyntheticPassword-123!',confirm=password,
- fail=false,ctxStore=u.store,success=true}={}){
+ fail=false,ctxStore=u.store,success=true,forceSubmit=false}={}){
  const page=await browser.newPage({viewport:{width:390,height:844}}),calls=[],errs=[];
  page.on('pageerror',e=>errs.push(e.message));
  await page.route('**/*',route=>{
@@ -130,7 +130,11 @@ async function activate(u,{password='SyntheticPassword-123!',confirm=password,
  await page.locator('#activateForm').waitFor({state:'visible',timeout:8000});
  await page.locator('#password').fill(password);
  await page.locator('#repeat').fill(confirm);
- await page.locator('#confirm').click();
+ // HTML minlength is only one layer. Also invoke the real submit handler
+ // directly to verify the JS guard cannot be bypassed by a crafted submit.
+ if(forceSubmit)await page.locator('#activateForm').evaluate(form=>
+   form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
+ else await page.locator('#confirm').click();
  if(success){
   await page.waitForURL(new RegExp('/index[.]html[?]mode=store&store='+u.store+'#pos'),{timeout:8000});
   ok(calls.indexOf('user')>=0&&calls.indexOf('user')<calls.indexOf('store_primary_owner_accept_invitation'),
@@ -199,7 +203,8 @@ try{
  await activate(owner);ok(owner.ownerAssigned,'Representative promotion from real activation page');
  await activate(assistant);ok(!assistant.ownerAssigned,'Assistant must not be promoted to owner');
  await activate(mismatch,{ctxStore:701,success:false});
- await activate(invalid,{password:'short',success:false});
+ await activate(invalid,{password:'short',success:false}); // Native HTML validity
+ await activate(invalid,{password:'short',forceSubmit:true,success:false}); // JS handler security
  await activate(reject,{fail:true,success:false});
  await recipes();
  console.log('PASS #1000 sandbox browser: invite/accept/password/owner/assistant/error/recipe edit/reset/employee access; assertions='+checks);
