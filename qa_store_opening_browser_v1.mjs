@@ -101,7 +101,7 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const base='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch({headless:true});
 async function activate(u,{password='SyntheticPassword-123!',confirm=password,
- fail=false,ctxStore=u.store,success=true,forceSubmit=false}={}){
+ fail=false,ctxStore=u.store,success=true,forceSubmit=false,expectedError=null}={}){
  const page=await browser.newPage({viewport:{width:390,height:844}}),calls=[],errs=[];
  page.on('pageerror',e=>errs.push(e.message));
  await page.route('**/*',route=>{
@@ -145,6 +145,10 @@ async function activate(u,{password='SyntheticPassword-123!',confirm=password,
  }else{
   await page.waitForTimeout(180);
   ok(page.url().includes('/owner_activation.html'),'Rejected invite must not redirect');
+  if(expectedError){
+   const reason=await page.locator('#status').textContent({timeout:1200}).catch(()=>null);
+   ok(String(reason||'').includes(expectedError),'Denied cross-store activation must show the actual store-identity rejection');
+  }
   ok((await page.evaluate(()=>localStorage.getItem('baekeok_auth')))===null,'Rejected invite must not save token');
  }
  ok(errs.length===0,'No activation JavaScript errors: '+errs);
@@ -202,7 +206,7 @@ try{
  ok(mail.length===5,'Mailbox contains five fake invitations, no SMTP');
  await activate(owner);ok(owner.ownerAssigned,'Representative promotion from real activation page');
  await activate(assistant);ok(!assistant.ownerAssigned,'Assistant must not be promoted to owner');
- await activate(mismatch,{ctxStore:701,success:false});
+ await activate(mismatch,{ctxStore:701,success:false,expectedError:'점주 권한을 확인할 수 없습니다'});
  await activate(invalid,{password:'short',success:false}); // Native HTML validity
  await activate(invalid,{password:'short',forceSubmit:true,success:false}); // JS handler security
  await activate(reject,{fail:true,success:false});
