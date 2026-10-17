@@ -1,7 +1,6 @@
 name: Publish GitHub Pages
+# Recovery publisher only; main commits use the P0 Pages release workflow.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
