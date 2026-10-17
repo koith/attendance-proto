@@ -110,7 +110,7 @@
       <div class="recipe-v220-section-head"><b>필요 재료와 1회 사용량</b><span>현재 본사 재고품목에서 선택</span></div>
       <input id="rvStockSearch" type="search" placeholder="재료 검색">
       <div id="rvStock" class="recipe-v220-stock">${stock.map(s=>stockRow(s,selected)).join("")}</div>
-      <div class="recipe-v220-editor-actions"><button class="btn btn-secondary" id="rvCancel">취소</button><button class="btn btn-primary" id="rvSave">저장</button></div>
+      <div class="recipe-v220-editor-actions"><button class="btn btn-secondary" id="rvCancel">취소</button>${row.is_overridden?'<button type="button" class="btn btn-secondary" id="rvReset">본사 레시피로 복원</button>':""}<button class="btn btn-primary" id="rvSave">저장</button></div>
     </div>`;
     function variantEditor(v,i){return `<div class="recipe-v220-variant-edit" data-variant><input aria-label="규격" placeholder="예: ICED(16oz)" value="${esc(v.label||"")}"><textarea aria-label="제조 방법" rows="4" placeholder="제조 순서와 용량을 입력하세요">${esc(v.content||"")}</textarea><button type="button" aria-label="단계 삭제" data-remove>×</button></div>`}
     function stockRow(s,map){const on=map.has(Number(s.id)),qty=map.get(Number(s.id))||"";return `<label class="recipe-v220-stock-row" data-name="${esc(String(s.name).toLocaleLowerCase("ko-KR"))}"><input type="checkbox" data-item="${s.id}" ${on?"checked":""}><span><b>${esc(s.name)}</b><small>${esc(s.sku||"")} · ${esc(s.unit)}</small></span><input type="number" min="0.01" step="0.01" data-qty="${s.id}" value="${qty}" ${on?"":"disabled"} placeholder="사용량"><em>${esc(s.unit)}</em></label>`}
@@ -119,6 +119,18 @@
     m.body.querySelectorAll("[data-item]").forEach(c=>c.onchange=()=>{const q=m.body.querySelector(`[data-qty="${c.dataset.item}"]`);q.disabled=!c.checked;if(c.checked&&!q.value)q.value="1"});
     m.body.querySelector("#rvStockSearch").oninput=e=>{const q=e.target.value.trim().toLocaleLowerCase("ko-KR");m.body.querySelectorAll(".recipe-v220-stock-row").forEach(x=>x.hidden=!!q&&!x.dataset.name.includes(q))};
     m.body.querySelector("#rvCancel").onclick=m.close;
+    const restore=m.body.querySelector("#rvReset");
+    if(restore)restore.onclick=async()=>{
+      if(!confirm("이 지점의 수정사항을 지우고 본사 레시피로 복원할까요?"))return;
+      restore.disabled=true;
+      try{
+        await BE.storeRecipeOverrideClear(CURRENT_STORE_ID,row.menu_key);
+        m.close();await refresh();
+      }catch(e){
+        alert("복원 실패: "+e.message);
+        restore.disabled=false;
+      }
+    };
     m.body.querySelector("#rvSave").onclick=async()=>{
       const btn=m.body.querySelector("#rvSave");
       const components=[...m.body.querySelectorAll("[data-item]:checked")].map(c=>({item_id:Number(c.dataset.item),quantity:Number(m.body.querySelector(`[data-qty="${c.dataset.item}"]`).value||0)})).filter(x=>x.quantity>0);

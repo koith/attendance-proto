@@ -1,0 +1,187 @@
+name: Store opening full journey QA
+
+on:
+  pull_request:
+    paths:
+      - 'qa_store_opening_*'
+      - 'owner_activation.*'
+      - 'recipe_access_v220.js'
+      - 'store_manager_tab.js'
+      - 'hq_store_onboarding_ui.js'
+      - 'qa_browser_app_smoke.mjs'
+      - 'supabase/migrations/**'
+      - 'supabase/functions/server-sync-sheet/**'
+      - '.github/workflows/store-opening-full-journey.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'qa_store_opening_*'
+      - 'owner_activation.*'
+      - 'recipe_access_v220.js'
+      - 'store_manager_tab.js'
+      - 'hq_store_onboarding_ui.js'
+      - 'qa_browser_app_smoke.mjs'
+      - 'supabase/migrations/**'
+      - 'supabase/functions/server-sync-sheet/**'
+      - '.github/workflows/store-opening-full-journey.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '15 17 * * *' # 02:15 KST daily
+
+permissions:
+  contents: read
+
+concurrency:
+  group: store-opening-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-and-policy:
+    name: Staff, payroll, sheet and recipe source/policy QA
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run every isolated store-opening contract lane
+        run: node qa_store_opening_matrix_v1.mjs
+      - name: Upload per-lane pass/fail evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-opening-contract-results
+          path: qa-results/store-opening-matrix.json
+          if-no-files-found: warn
+
+  real-browser-sandbox:
+    name: Real application code + fake inbox/roles/recipes (mobile, desktop)
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check runtime JavaScript syntax
+        run: |
+          node --check owner_activation.js
+          node --check recipe_access_v220.js
+          node --check qa_store_opening_browser_v1.mjs
+          node qa_runtime_asset_syntax_v1.mjs
+      - name: Install browser
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Execute owner and assistant activation + recipe UI scenarios
+        run: node qa_store_opening_browser_v1.mjs
+      - name: Start isolated static preview for real main-app workflow
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/store-opening-web.log 2>&1 &
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:4173/index.html -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/store-opening-web.log
+          exit 1
+      - name: Execute HQ activation, employee attendance and role-scoped route regression
+        run: node qa_browser_app_smoke.mjs
+      - name: Execute HQ representative directory and invitation browser QA
+        run: node qa_hq_owner_browser_acceptance.mjs
+
+  disposable-postgres:
+    name: Real migrations in separate disposable PostgreSQL databases
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-local-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic-local-only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run isolated SQL fixtures; never connect to Supabase production
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixtures=(
+            qa_hq_store_onboarding_postgres_integration.sql
+            qa_store_delegated_manager_postgres.sql
+            qa_store_opening_owner_activation_postgres.sql
+            qa_payroll_close_postgres_integration.sql
+            qa_payroll_weekly_postgres_integration.sql
+          )
+          for i in "${!fixtures[@]}"; do
+            db="qa_open_${i}"
+            echo "::group::${fixtures[$i]} on local ${db}"
+            psql -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${db};"
+            psql -d "$db" -v ON_ERROR_STOP=1 -f "${fixtures[$i]}" > "/tmp/${db}.log" 2>&1 || {
+              tail -n 120 "/tmp/${db}.log"
+              exit 1
+            }
+            tail -n 4 "/tmp/${db}.log"
+            # PostgreSQL roles are cluster-global, unlike per-fixture databases.
+            # Drop each disposable DB first, then its fixture-created roles.
+            psql -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE ${db} WITH (FORCE);"
+            psql -d postgres -v ON_ERROR_STOP=1 -c "DROP ROLE IF EXISTS anon, authenticated, service_role;"
+            echo "::endgroup::"
+          done
+          echo "PASS: 5 real SQL migration fixtures on 5 ephemeral databases"
+
+  notify-on-failure:
+    name: File actionable QA failure to tracking issue #1000
+    if: always()
+    needs: [source-and-policy, real-browser-sandbox, disposable-postgres]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      SOURCE_RESULT: ${{ needs.source-and-policy.result }}
+      BROWSER_RESULT: ${{ needs.real-browser-sandbox.result }}
+      POSTGRES_RESULT: ${{ needs.disposable-postgres.result }}
+    steps:
+      - name: Notify owner only when a QA lane failed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const lanes = {
+              source: process.env.SOURCE_RESULT,
+              browser: process.env.BROWSER_RESULT,
+              postgres: process.env.POSTGRES_RESULT
+            };
+            const failed=Object.entries(lanes).filter(([_,status])=>status!=='success');
+            if(!failed.length){core.info('All isolated store-opening QA lanes passed.');return;}
+            const sha=context.payload.pull_request?.head?.sha||context.sha;
+            const marker='[store-opening-qa:'+sha+']';
+            const run='https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId;
+            const comments=await github.paginate(github.rest.issues.listComments,{
+              ...context.repo,issue_number:1000,per_page:100
+            });
+            if(comments.some(c=>String(c.body||'').includes(marker))){
+              core.info('Already reported QA failure for this SHA.');return;
+            }
+            await github.rest.issues.createComment({...context.repo,issue_number:1000,body:[
+              marker,'@'+context.repo.owner,
+              '## 자동 지점 개통 QA 실패 — 수정 필요',
+              '- 커밋: '+sha,
+              '- 검증 결과: '+JSON.stringify(lanes),
+              '- [실패 단계와 로그]('+run+')',
+              '- 운영 데이터·실제 계정·실제 구글 시트를 변경하는 테스트는 실행하지 않았음',
+              '**QA 실패 상태를 성공으로 보고하지 마세요. 실패 단계 수정 후 전 시나리오 재실행이 필요합니다.**'
+            ].join('\n')});
