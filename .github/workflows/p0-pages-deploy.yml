@@ -21,6 +21,7 @@ on:
       - 'qa_hq_owner_browser_acceptance.mjs'
       - 'qa_hq_quicknav_escape_contract_v1.mjs'
       - 'qa_pos_route_async_guard_v1.mjs'
+      - 'qa_pos_attendance_guest_v1.mjs'
       - 'qa_pos_startup_network_timeout_v1.mjs'
       - 'operations_reference_ui_v208.js'
       - 'operations_v1.js'
@@ -237,6 +238,8 @@ jobs:
         run: node qa_operations_paged_real_v1.mjs
       - name: POS kiosk authentication and raw roster privacy gate
         run: node qa_pos_kiosk_gate_v1.mjs
+      - name: POS non-admin staff attendance with independent PIN security (#1028)
+        run: node qa_pos_attendance_guest_v1.mjs
       - name: Preserve issue instruction source with fail-closed trace tests
         run: node qa_issue_receipt_v1.mjs
       - name: Field-data readiness never asserts acceptance without real evidence
