@@ -11,7 +11,8 @@ GitHub Actions **Store opening full journey QA**: PR 변경, main 반영, 수동
 3. **실제 운영 앱 Chromium 스모크**: 기존 `qa_browser_app_smoke.mjs`, `qa_hq_owner_browser_acceptance.mjs`로 HQ→지점 READY, 직원 출퇴근, 로그인·역할별 화면, 다중 지점 라우팅을 검증한다. 네트워크 RPC는 모의 응답으로 격리한다.
 4. **17개 이상 도메인 회귀 검사**: `qa_store_opening_matrix_v1.mjs`이 개별 QA를 모두 실행하고 실패해도 다음 테스트로 넘어가, `qa-results/store-opening-matrix.json`에 파일별 결과와 오류를 기록한다.
 5. **실제 계산 엔진·시트 페이로드**: `qa_store_opening_payroll_sheet_v1.mjs`이 가상 직원 4명과 일반/야간/정정 근태를 실 엔진에 공급해 급여·시트 생성 결과를 비교한다. 테스트 직원 및 다른 지점 정보가 전송 데이터에 포함되지 않아야 한다.
-6. **실제 PostgreSQL 함수 테스트**: 일회용 PostgreSQL 16 데이터베이스마다 저장소의 실제 마이그레이션을 실행해 점주 초대·수락, 보조 관리자 권한, READY 개통, 급여 마감 및 주휴 승인의 저장·권한·지점 격리를 검증한다. 사용한 DB는 테스트 종료 후 삭제한다.
+6. **QA 신뢰성 자체검증(고의 오류 주입)**: 원본 저장소를 변경하지 않는 임시 복사본에서 실제 서버 급여 엔진의 `TEST` 직원 시트 제외 조건을 고의로 깨뜨리고 기존 검사에서 실패로 검출하는지 확인한다. 또한 Chromium에서 실제 활성화 페이지의 비밀번호 길이 검사와 지점 ID 일치 검사를 각각 고의로 무력화해, 기존 통합 브라우저 QA가 실패하는지 확인한다. QA가 오류를 놓치면 전체 검사를 실패 처리한다.
+7. **실제 PostgreSQL 함수 테스트**: 일회용 PostgreSQL 16 데이터베이스마다 저장소의 실제 마이그레이션을 실행해 점주 초대·수락, 보조 관리자 권한, READY 개통, 급여 마감 및 주휴 승인의 저장·권한·지점 격리를 검증한다. 또한 실제 레시피 마이그레이션을 임시 DB에 적용하여 본사 원문 불변, 지점별 저장·조회·복원, 타 지점 변경 거부, 직원 PIN·출근·READY 게이트를 검증한다. 사용한 DB는 테스트 종료 후 삭제한다.
 
 ## QA 증거와 완료 기준
 세 작업 `source-and-policy`, `real-browser-sandbox`, `disposable-postgres`가 모두 성공해야 자동 QA 성공이다. 실패 테스트 로그를 숨기거나 기존 검증을 삭제하여 통과 처리하지 않는다. 워크플로 실행 URL과 검증 결과를 PR 및 릴리스 결과에 연결한다.
@@ -23,3 +24,10 @@ GitHub Actions **Store opening full journey QA**: PR 변경, main 반영, 수동
 - 실제 iOS Safari 앱의 모든 기기별 동작: Chromium 모바일/데스크톱과 구분한다.
 
 이 단계들을 **실사용 현장 검증 완료**로 혼동하지 않는다. 부족한 단계가 있으면 결과에 '실자료/외부 연동 검증 미실시'로 표시한다.
+
+## 자동 QA도 스스로 검증하는 기준
+- `qa_store_opening_mutation_proof_v1.mjs engine`: 실서버 급여 엔진의 TEST 시트 제외 정책을 임시 코드에서 역전시켰을 때 기존 QA가 **실패**해야 한다.
+- `qa_store_opening_mutation_proof_v1.mjs browser`: 실제 `owner_activation.js`의 12자 비밀번호 제한 및 지점 ID 일치 검사를 임시 코드에서 우회했을 때, 각각 Chromium 통합 QA가 **실패**해야 한다.
+- `qa_store_opening_recipe_postgres_v1.sql`: 합성 DB에서 저장소의 실제 레시피 SQL 마이그레이션을 적용해, 지점 701만 수정되며 702와 본사 원문은 변하지 않음을 검증한다.
+- 고의 오류 주입은 임시 폴더·임시 DB에서만 실행하고 자동 삭제하며 GitHub 메인 소스와 실사용 데이터에 쓰지 않는다.
+- 각 단계 자체가 정상 통과하고 고의 결함을 실패로 식별했다는 실행 증거가 있어야 성공으로 표시한다.
