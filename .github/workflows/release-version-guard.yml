@@ -1,0 +1,30 @@
+name: Release version guard
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  version-guard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check user-visible releases bump APP_VERSION
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          changed="$(git diff --name-only "origin/${{ github.base_ref }}" HEAD)"
+          if ! printf '%s\n' "$changed" | grep -Eq '^(index\.html|operations_v1\.(js|css)|kpi_b_.*\.(js|css)|store_manager_tab\.(js|css))$'; then
+            echo "No watched user-facing changes; skipping."
+            exit 0
+          fi
+          old="$(git show "origin/${{ github.base_ref }}:index.html" | grep -oE 'const APP_VERSION="v[0-9]+\.[0-9]+";' | head -1)"
+          new="$(grep -oE 'const APP_VERSION="v[0-9]+\.[0-9]+";' index.html | head -1)"
+          if [ -z "$old" ] || [ -z "$new" ] || [ "$old" = "$new" ]; then
+            echo "::error::User-visible change requires an APP_VERSION bump in index.html"
+            exit 1
+          fi
+          echo "Version changed: $old -> $new"
