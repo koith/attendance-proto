@@ -4,14 +4,14 @@ on:
     paths:
       - 'version_test_toggle_982.js'
       - 'test_mode_ui_v1.js'
-      - 'qa_version_test_toggle_987.mjs'
+      - 'qa_version_test_controls_browser_v1.mjs'
       - '.github/workflows/version-test-controls-toggle-qa.yml'
   push:
     branches: [main]
     paths:
       - 'version_test_toggle_982.js'
       - 'test_mode_ui_v1.js'
-      - 'qa_version_test_toggle_987.mjs'
+      - 'qa_version_test_controls_browser_v1.mjs'
       - '.github/workflows/version-test-controls-toggle-qa.yml'
 jobs:
   toggle:
@@ -21,4 +21,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --check version_test_toggle_982.js && node qa_version_test_toggle_987.mjs
+      - run: node --check version_test_toggle_982.js && node --check test_mode_ui_v1.js
+      - name: Install Chromium and Playwright
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Verify actual LIVE/clock UI toggle in real browser
+        run: node qa_version_test_controls_browser_v1.mjs

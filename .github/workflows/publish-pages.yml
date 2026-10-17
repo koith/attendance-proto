@@ -11,7 +11,29 @@ concurrency:
   group: pages
   cancel-in-progress: false
 jobs:
+  browser-qa:
+    name: Browser QA before Pages publication
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate startup and runtime JavaScript
+        run: |
+          node qa_boot_syntax.mjs
+          node qa_runtime_asset_syntax_v1.mjs
+          node --check version_test_toggle_982.js
+          node --check test_mode_ui_v1.js
+      - name: Install real Chromium
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Verify real test UI toggle on mobile and desktop
+        run: node qa_version_test_controls_browser_v1.mjs
   publish:
+    needs: browser-qa
     runs-on: ubuntu-latest
     environment:
       name: github-pages
