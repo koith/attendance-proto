@@ -33,7 +33,7 @@
 - [ ] **QA-05 (P0)** 독립 테스트용 Google Sheet에 Apps Script 실제 쓰기·재조회·정정 재동기화·중복 방지·월별 형식·장애 재시도·지점 격리·안전 정리. **실제 테스트 시트 왕복 미검증**. 후속 #1005. 운영 `2026 근태` 손상 금지.
 - [ ] **QA-06 (P1)** 지점 등록의 중복/잘못된 주소·READY 전후 경계, 보조 관리자 권한 변경 직후 구세션, 직원 근태 정상/지각/조퇴/휴게/야간/자정/월말/입퇴사/정정/재입사, 계약 변경, 급여 독립 기대값·마감·취소·중복 방어의 누락 커버리지 **시나리오별 증거 행렬** 보완. 기존 CI 통과와 별개로 요구 목록 전체 완료 판정.
 - [ ] **QA-07 (P1)** 실제 신규 지점 시나리오에서 재고·발주·입출고·POS·대시보드·권한별 메뉴 노출·해임 후 접근까지 연결되는 확장 통합 QA 및 음성 테스트 자동화.
-- [ ] **QA-08 (P1)** CI마다 시나리오별 PASS/FAIL/미검증·스크린샷/로그·실패 재현 정보·변경 코드 기준 결과 요약을 추적 가능한 증거로 자동 집계. 기존 CI 아티팩트 재사용 여부 확인 후 보강.
+- [x] **QA-08 (P1)** 신규 지점 개통 자동 QA의 **시나리오별 PASS/FAIL 표·CI 실행/커밋 상태·브라우저 실패 스크린샷 및 예외 스택** 영구 증거 수집. **지점 개통 CI 범위 완료**. 기존 `qa_store_opening_matrix_v1.mjs`는 세부 시나리오/종료코드를 `qa-results/store-opening-matrix.json`으로 생성, [PR #1031](https://github.com/koith/attendance-proto/pull/1031) main `bc0b046e9f0e93dd1c8153b7caa674abfdb0897b`에서 브라우저 실패 이미지/stack 및 source/browser/Postgres 결과 JSON을 `if:always()` 업로드(수집 실패도 로그 보존). PR CI 53/53 PASS, [main 통합 QA #39047895923](https://github.com/koith/attendance-proto/actions/runs/39047895923) SUCCESS, `store-opening-contract-results`, `store-opening-lane-status` 실제 아티팩트 readback, [P0 Pages #39047895833](https://github.com/koith/attendance-proto/actions/runs/39047895833) SUCCESS. 비현장 Gmail·Google Sheets 실연동 성공은 별도 QA-04/05 항목으로 남김.
 - [ ] **SEC-01 (P0)** 한 관리자 계정의 새 장치 로그인 시 기존 장치의 **서버측 관리자 RPC** 접근을 실제 거부, 새 계정/지점/직원/익명 경로 정상, 복구/롤백/실기기 통합 QA 후 배포. [#998](https://github.com/koith/attendance-proto/issues/998), WIP [PR #999](https://github.com/koith/attendance-proto/pull/999).
 - [ ] **AUTH-01 (P1)** 한국어 브랜드 초대 메일 템플릿이 운영 Auth 설정에 실제 적용됐는지 읽기 확인, 안전한 실제 초대 발송 및 도달성·스팸 원인 검증. 코드 템플릿 병합됨([#919](https://github.com/koith/attendance-proto/pull/919)), **운영 적용·실수신 미확인**([#918](https://github.com/koith/attendance-proto/issues/918)).
 - [ ] **FIELD-01 (실인원 검증대기)** 인증된 실제 대표·보조 점주 계정의 지점별 활성화/권한·근태·레시피 격리. [#916](https://github.com/koith/attendance-proto/issues/916), [#921](https://github.com/koith/attendance-proto/issues/921). 합성 QA로 실인원 인증을 대신하지 않음.
@@ -100,3 +100,8 @@
 ## 9. 2026-10-18 현장 오류 — 비로그인 매장 PC 근무현황 (이슈 #1028)
 
 - [ ] **BUG-01 (P0, 현장 장애)** 인하대학교점 POS 공용 PC에서 관리자 비로그인 상태로 **근무현황**을 누를 때 `P0001 POS_AUTH_REQUIRED` 오류 없이 직원 본인 선택/PIN 인증 화면이 표시되어야 함. 실제 근태 조회는 본인 PIN 인증 뒤에만 허용해야 하며, READY 지점/활성 직원 외 노출과 임금·PIN 유출이 없어야 함. 현장 스크린샷 2026-10-18, [이슈 #1028](https://github.com/koith/attendance-proto/issues/1028). **기존 원인:** `openMyRecord`가 토큰 필요 `pos_employees_state`를 첫 목록에 사용. **수정:** 공용 POS 출퇴근에서 이미 쓰는 `pos_public_staff_cards`를 근무현황 선택에 사용; `my_events` PIN 검증 유지. [QA](qa_pos_attendance_guest_v1.mjs) 및 P0 Pages 배포 게이트 추가. **완료 조건:** PR 필수 QA 통과→main 병합→앱 버전 증가→보장 배포/운영 버전 read-back→현장 POS 실제 확인. 현장 확인이 아직 없다면 별도 대기 표시.
+
+## 10. 2026-10-18 근무현황 장애 및 QA 증거 완료 업데이트
+
+- 현장 제보: 비로그인 인하대점 매장 PC에서 근무현황 클릭시 P0001 POS_AUTH_REQUIRED. [#1028](https://github.com/koith/attendance-proto/issues/1028), [PR #1029](https://github.com/koith/attendance-proto/pull/1029), 버전 v0.317, main `4318ba2c2c917472cd24cab5323cc0da6266e6c4`; PR 77/77 PASS, P0 배포·실제 모바일/데스크톱 공개 웹앱 검사 [run 39047320348](https://github.com/koith/attendance-proto/actions/runs/39047320348) SUCCESS, [독립 배포 알림 39047596725](https://github.com/koith/attendance-proto/actions/runs/39047596725) SUCCESS. 실제 매장 물리 PC 결과는 추가 검증대기이므로 BUG-01 [ ] 유지.
+- QA-08: 기존 충돌된 #1026 보존·통합 후 PR #1031로 main 반영. 지점 개통 샌드박스 CI의 상세 시나리오 결과 JSON, 브라우저 실패 PNG/예외 텍스트, 각 워크플로 레인 상태·SHA/Run ID 아티팩트를 확보. run #39047895923 SUCCESS 및 두 개 업로드 아티팩트 readback 완료. QA-08 [x].
