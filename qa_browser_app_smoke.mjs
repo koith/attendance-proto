@@ -394,6 +394,34 @@ async function guestPosCards(browser){
   await context.close();
   console.log('PASS unauthenticated original POS card state and admin pencil denied');
 }
+// Field regression #1028: employee self-service entry must work on a store
+// shared terminal with NO manager login and NO kiosk-unlock token. The public
+// roster is for selecting an employee, not a substitute for PIN authentication.
+async function guestAttendance(browser){
+  const context=await browser.newContext({viewport:{width:1366,height:768},locale:'ko-KR',timezoneId:'Asia/Seoul'});
+  const page=await context.newPage(),calls=[],errors=[];
+  page.on('pageerror',e=>errors.push(String(e?.message||e)));
+  await configure(page,calls,'GUEST');
+  await page.goto(host+'/index.html?mode=store&store=1#attendance',{waitUntil:'domcontentloaded'});
+  await page.locator('#mrEmp').waitFor({timeout:20000});
+  assert.ok((await page.locator('#mrEmp').innerText()).includes('김지수'),
+    'Public staff picker must populate the unauthenticated attendance modal');
+  assert.equal(await page.locator('#mrPin').count(),1,
+    'The employee PIN prompt must remain mandatory');
+  assert.ok(calls.some(x=>x.name==='pos_public_staff_cards'&&Number(x.args.p_store_id)===1),
+    'Guest attendance must call READY-only public staff cards');
+  assert.equal(calls.filter(x=>x.name==='pos_employees_state').length,0,
+    'No protected POS session RPC before employee PIN');
+  assert.equal(calls.filter(x=>x.name==='my_events').length,0,
+    'Private attendance events must not be read before employee PIN');
+  await page.locator('#mrView').click();
+  assert.match(await page.locator('#mrHint').innerText(),/비밀번호 4자리/);
+  assert.equal(calls.filter(x=>x.name==='my_events').length,0,
+    'An empty PIN must not cause an attendance RPC');
+  assert.deepEqual(errors,[],'Guest attendance JS errors '+JSON.stringify(errors));
+  await context.close();
+  console.log('PASS live deployed shared POS: unauthenticated staff picker, PIN required, private roster/events never leaked');
+}
 async function ownerScopedRoute(browser,label,viewport){
   const context=await browser.newContext({viewport,locale:'ko-KR',timezoneId:'Asia/Seoul'});
   const page=await context.newPage();
@@ -487,6 +515,7 @@ try{
   await smoke(browser,'mobile',{width:390,height:844});
   await smoke(browser,'desktop',{width:1440,height:900});
   await guestPosCards(browser);
+  await guestAttendance(browser);
   await ownerScopedRoute(browser,'mobile',{width:390,height:844});
   await ownerScopedRoute(browser,'desktop',{width:1440,height:900});
   await blockedStoreRoute(browser,'mobile',{width:390,height:844});
