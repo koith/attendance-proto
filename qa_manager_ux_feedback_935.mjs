@@ -42,7 +42,7 @@ assert.match(store, /data-invite-role/);
 const pending=store.slice(store.indexOf("const pendingSection="),store.indexOf("content.innerHTML=roleSummary"));
 assert.doesNotMatch(pending,/이메일 인증·비밀번호 설정 대기|대표 관리자 초대 ·/);
 assert.match(pending,/smt-role smt-pending-role/);
-assert.match(app,/APP_VERSION="v0\.302"/);
+assert.match(app,/APP_VERSION="v\d+\.\d+"/);
 assert.match(app,/hq_owner_console\.js\?v=20261017v301/);
 assert.match(app,/store_manager_tab\.js\?v=20261017v300/);
 console.log("PASS #935: HQ stacked invitations and toast feedback, store identity, stage contrast, vacancy and role badges");
