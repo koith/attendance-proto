@@ -48,7 +48,7 @@ const rows=[
  [],
  ['근태 현황'],
  ['날짜','직원명',...Array.from({length:11},(_,i)=>'항목'+i),'정정사유'],
- ['2026-10-10','직원A',...Array(11).fill(''),'긴 근태 정정사유 '.repeat(100)]
+ ['2026-10-10','직원A',...Array(11).fill(''),'긴 근태 정정사유 '.repeat(200)]
 ];
 const memo=context._attendanceMemoColumn(rows);
 assert.equal(memo.row,8);
