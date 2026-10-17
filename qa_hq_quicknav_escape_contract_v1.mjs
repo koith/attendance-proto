@@ -27,7 +27,7 @@ const app=fs.readFileSync('index.html','utf8');
 const version=app.match(/const APP_VERSION="v0\.(\d+)";/);
 assert.ok(version&&Number(version[1])>=274,
   'HQ quick picker keyboard fix must have a distinguishable published app version');
-assert.ok(app.includes('id="appVersion">v0.'+version[1]+'</span>'),
+assert.ok(new RegExp('id="appVersion"[^>]*>v0[.]'+version[1]+'</button>').test(app),
   'Visible release badge and JS version must agree');
 const quickScripts=[...app.matchAll(/hq_owner_console\.js\?v=(\d{8}v\d+)/g)].map(m=>m[1]);
 assert.equal(quickScripts.length,2,'Both lazy and static HQ script loaders must bust browser cache');
