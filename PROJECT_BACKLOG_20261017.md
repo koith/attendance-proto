@@ -45,7 +45,7 @@
 회의 약속의 *목표 일정*: **10월 매출·재고 개발, 11월 말까지 최소 현장 검토·테스트, 12월 말 정확한 재고 기준 확보**. 이 날짜는 사용자 요청/회의 목표이며 달성 기록이 아님.
 
 - [x] **MTG-01 (P0)** 월별 Google Sheet `급여 집계`의 **예상/확정 세전급여 합계** 계산·표시, TEST 제외·마감 원본 보존. **2026-10-17 운영 확인 완료**: [PR #1012](https://github.com/koith/attendance-proto/pull/1012), SHA `51f814ede2a744f4eeb5486c137ac80ac4997222`, PR CI 54/54 PASS, [Apps Script 배포·시트 자동갱신 PASS](https://github.com/koith/attendance-proto/actions/runs/39034718083), 운영 원본 `2026 근태` 10월 `B4=세전 합계 4,978,561원`, N6:N14 급여 9건 독립 재합산 4,978,561원 동일. **초기 '테스트 시트 read-back' 기준은 운영 시트의 실제 writer→read-back으로 기능 검증을 대체해 근거를 공개하며, 격리 테스트 시트 전체 E2E는 QA-05에 별도 미완료로 남김.** 회의 02:29~03:25.
-- [ ] **MTG-02 (P0)** `예상 세전급여` 열 과대 너비와 긴 `정정사유` 표시 개선. **코드/운영 API 검증 완료, 실제 iPhone 화면 검증대기**: PR #1012(공유 폭 계산에서 긴 사유 제외), 후속 [#1016](https://github.com/koith/attendance-proto/issues/1016)/[PR #1017](https://github.com/koith/attendance-proto/pull/1017)에서 12개월 전부 O:Z 빈 열 확보, N열 정정사유 OVERFLOW 표시로 변경. [Apps Script 배포 #39039845269](https://github.com/koith/attendance-proto/actions/runs/39039845269) 성공, 12/12월 columnCount=26 readback, 1·9·10월 정정사유 OVERFLOW_CELL, 10월 O:Z 값 없음, 급여 합계 재검산 일치. **체크대기**: 실제 iPhone 오른쪽 스크롤·긴 사유 가독성 확인. 회의 03:25~04:57.
+- [ ] **MTG-02 (P0)** 예산 세전급여 N열/정정사유의 모바일 우측 경계·읽기 불편 개선. **코드 개발·QA·Apps Script 운영 배포·실제 Sheet 재동기화 데이터 검증 완료, 아이폰 화면 검증대기**: 기존 #1016/#1017의 26열/OVERFLOW가 실제 사용자에게 불충분함을 확인. [#1020](https://github.com/koith/attendance-proto/issues/1020), [PR #1022](https://github.com/koith/attendance-proto/pull/1022) main `c03d0d6424cf036b94a666f518cb89a5d5fe65db`: 12개월 A:AZ 52열, N열 WRAP, 긴 정정사유 행 높이 자동 확장, 원문은 셀 note/운영 DB 보존, 보고용 기술 로그/중복/단독점(.) 제거, A:N 외 빈 공간은 동기화 시 지우지 않음. PR 55/55 CI PASS, [Apps Script deploy #39043266512](https://github.com/koith/attendance-proto/actions/runs/39043266512) PASS. 2026-10-18 00:04 KST 자동동기화 후 10월 N65 정리한 두 줄 텍스트·원문 note/WRAP 및 9월 WRAP, 12/12 탭 52열 readback 확인. **남은 완료 조건:** 실물 iPhone 구글 시트 가로 스크롤·행 높이 시각 확인; 현장 직접 확인 없으므로 [ ] 유지. 회의 03:25~04:57.
 - [ ] **MTG-03 (P1)** 직원 기록 vs 점주/관리자 확인 vs 급여 예상값 검산·사유 기록·최종 승인 프로세스. 주휴 적용 주수, 야간, 휴게, 수기 예외 계산의 고정 검산식과 승인 정책을 문서화·QA. 회의 00:07~02:29.
 - [ ] **MTG-04 (P0, 현장 검증 포함)** 신대방삼거리점과 구로고척점 정보·공식 개통 증빙·기존 계정 안전 확보→근태 시트/대표 관리자 개통 플로우 준비. 실제 점주 인증 전 READY 강행 금지. 회의 24:09~25:16. QA-04·FIELD-01과 연계.
 - [ ] **MTG-05 (P1)** POS 시스템의 1/2번 단말 의미·키오스크·배달 경유 구조를 **실제 원천 자료로 검증**. 영수증 번호만으로 결합하지 않고 원천키·시간·금액·채널·메뉴를 사용한 거래 정규화. 회의 24:45~32:29.
@@ -88,3 +88,11 @@
 - Apps Script에서 새 월 탭도 부족할 때만 O:Z를 생성하고 재실행 시 중복 확장하지 않도록 보호. 정정사유 서식 CLIP을 OVERFLOW로 변경해 빈 O:Z 영역으로 글자가 이어지도록 표시하며 N열 자체의 폭은 늘리지 않음.
 - [운영 Apps Script 배포 및 자동 재동기화](https://github.com/koith/attendance-proto/actions/runs/39039845269) success. 실측 12개 월 탭 columnCount=26, 1·9·10월 note wrap=OVERFLOW_CELL. 운영 10월 샘플에서 O:Z 값 없음, 9개 급여 원천 표시 금액 합계와 세전 합계 동일.
 - 실제 iPhone 구글 시트 화면의 가로 스크롤/긴 사유 가독성은 별도 직접 시각 검증 불가. MTG-02는 체크 전 유지.
+
+## 8. 2026-10-17~18 시트 사용자 피드백 #1020 — 자동동기화 후 유지 증거
+- 사용자 재지적: 26열 오른쪽 끝이 다시 막히고 긴 정정사유에서 읽을 가치가 없는 내부 ID가 보임. 직접 구글시트 데이터 확인에서 10월 N65 157자, N59/N60 단독 점, N62 중복 문장 실측.
+- [Issue #1020](https://github.com/koith/attendance-proto/issues/1020)에 사용자 원문 접수. 일반 GitHub 파일/PR 경로 일시 실패 뒤 공식 Git objects create_blob/create_tree/create_commit/update_ref 경로로 저장, 병합 충돌된 PR #1021 닫고 main 기반 PR #1022로 교체. 이전 정상 기능의 후퇴 없이 CI 오류를 2회 수정.
+- [PR #1022](https://github.com/koith/attendance-proto/pull/1022) squash `c03d0d6424cf036b94a666f518cb89a5d5fe65db` 55/55 PR CI 통과. Apps Script canonical deploy [run #39043266512](https://github.com/koith/attendance-proto/actions/runs/39043266512) PASS (검사·배포·운영 시트 갱신).
+- 운영 `2026 근태` readback: 12개 월 탭 52개 열(A:AZ); 10월 N65 본문 두 줄 및 수정 전 157자 전문 셀 note 유지; 10월 N62 '출근 미등록', 원문 메모 보존; N59/N60 단독 마침표는 빈 셀과 원문 노트로 대체. 9월/10월 N열 wrapStrategy=WRAP. 실제 데이터의 출퇴근·급여 자체는 변경하지 않음.
+- 10월 동기화 2026-10-18 00:04 KST 기록, 예상 세전 합계 5,088,300원은 당시 시트 readback 값(계속 변동 가능). 이전 시점 금액을 고정된 상수로 사용하지 말 것.
+- 실 iPhone Google Sheets UI 가로 스크롤·행 높이 최종 렌더링은 원격 API만으로 단정 불가. MTG-02를 운영 QA 대기로 유지하고 새 대화에서 실제 모바일 시각 검증/시트 개선을 이어간다.
