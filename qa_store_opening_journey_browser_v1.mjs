@@ -251,6 +251,17 @@ try{
  await recipe.close();
  verify(audits.some(a=>a.path.endsWith('/functions/v1/server-sync-sheet')&&a.body.mode==='invite_store_delegated_manager')&&audits.some(a=>a.path.endsWith('/rest/v1/rpc/admin_store_recipe_override_save')),'QA exercised actual UI network request paths');
  console.log('STORE OPENING ISOLATED BROWSER QA PASSED: '+steps+' assertions, '+mail.length+' synthetic invitations, '+audits.length+' intercepted API calls; no production writes.');
+}catch(error){
+ fs.mkdirSync('qa-results',{recursive:true});
+ fs.writeFileSync('qa-results/store-opening-journey-browser-v1-failure.txt',String(error&&error.stack||error));
+ for(const [ci,ctx] of browser.contexts().entries()){
+  for(const [pi,page] of ctx.pages().entries()){
+   try{
+    await page.screenshot({path:'qa-results/store-opening-journey-browser-v1-'+ci+'-'+pi+'.png',fullPage:true,timeout:3000});
+   }catch(_){/* Preserve the original test failure even if capture fails. */}
+  }
+ }
+ throw error;
 }finally{
  await browser.close();
  await new Promise(resolve=>server.close(resolve));

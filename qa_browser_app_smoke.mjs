@@ -492,6 +492,16 @@ try{
   await blockedStoreRoute(browser,'mobile',{width:390,height:844});
   await blockedStoreRoute(browser,'desktop',{width:1440,height:900});
   await posNetworkRecovery(browser);
+}catch(error){
+  fs.mkdirSync('qa-results',{recursive:true});
+  fs.writeFileSync('qa-results/store-opening-app-smoke-failure.txt',String(error&&error.stack||error));
+  for(const [ci,ctx] of browser.contexts().entries()){
+    for(const [pi,page] of ctx.pages().entries()){
+      try{await page.screenshot({path:'qa-results/store-opening-app-smoke-'+ci+'-'+pi+'.png',fullPage:true,timeout:3000});}
+      catch(_){} // Never replace the original failing assertion.
+    }
+  }
+  throw error;
 }finally{
   await browser.close();
 }
