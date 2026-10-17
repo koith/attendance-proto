@@ -186,6 +186,14 @@ async function smoke(browser,label,viewport){
   const ownerFixture=await configure(page,calls);
   await page.goto(host+'/index.html?mode=store&store=1#pos',{waitUntil:'domcontentloaded'});
   await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
+  // The actual production HTML asynchronously injects test_mode_ui_v1.js.
+  // Validate the version button against those REAL controls, not a synthetic fixture.
+  await page.locator('#testModeControls').waitFor({timeout:20000});
+  assert.equal(await page.locator('#testModeControls').isVisible(),true,'LIVE test controls must start visible');
+  await page.locator('#appVersion').click();
+  assert.equal(await page.locator('#testModeControls').isVisible(),false,'Version button must hide real LIVE/clock controls');
+  await page.locator('#appVersion').click();
+  assert.equal(await page.locator('#testModeControls').isVisible(),true,'Version button must restore real LIVE/clock controls');
   assert.match(await page.locator('#empGrid .emp').first().innerText(),/출근 전/);
   assert.match(await page.locator('#empGrid .emp').first().innerText(),/출근 기록 없음/);
   assert.equal(await page.locator('#empGrid .emp').first().locator('.pos-att-edit').count(),1,
