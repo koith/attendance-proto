@@ -174,10 +174,38 @@ function _attendanceMemoColumn(displayRows){
   }
   return {row:-1,col:-1};
 }
+// The user-visible report must not expose internal audit IDs, but original
+// correction reasons remain intact in DB and in per-cell Google Sheets notes.
+function _readableCorrectionReason(value){
+  var raw=String(value==null?'':value);
+  var text=raw.trim();
+  if(text==='.'||text==='—')return '';
+  var dup=text.match(/^(.+?)\s*\/\s*\1$/);
+  if(dup)return dup[1];
+  // Only remove this exact technical appendix; preserve substantive shift times.
+  text=text.replace(/\s*원본\s*#\d+,\s*후속\s*VOID\s*#\d+\s*보존\.\s*GitHub\s*#\d+/g,'');
+  text=text.replace(/\s*\/\s*(?=점주 카톡 요청:)/g,'\n');
+  return text.trim();
+}
+function _correctionRowHeight(text,width){
+  var s=String(text==null?'':text);
+  if(!s.trim())return 28;
+  var maxLineWidth=Math.max(68,Number(width||130)-20),lines=0;
+  s.split('\n').forEach(function(part){
+    var measured=0;
+    for(var i=0;i<part.length;i++){
+      var point=part.charCodeAt(i);
+      measured+=point>=0x2e80?11:point===32?4:7;
+    }
+    lines+=Math.max(1,Math.ceil(measured/maxLineWidth));
+  });
+  return Math.max(28,Math.min(900,Math.ceil(lines*17+12)));
+}
 function _seniorAttendanceLayout(section,payroll){
   var payTypeByName={};
   (payroll.rows||[]).forEach(function(r){payTypeByName[String(r[0])]=r[1];});
   var h=section.header||[];
+  var originalReasonNotes=[];
   var keys=['날짜','직원명','급여형태','출근','퇴근','총근무','야간근무','휴게시간제공여부','법정휴게시간','실제휴게시간','급여산정시간','상태','정정','정정사유'];
   return {header:keys,rows:(section.rows||[]).map(function(row){
     var get=function(key){var i=h.indexOf(key);return i<0?'':row[i];};
@@ -187,15 +215,18 @@ function _seniorAttendanceLayout(section,payroll){
     // Reference-only statutory break duration; never change source payable time.
     var deduct=seconds>=28800?3600:seconds>=14400?1800:0;
     var dur=function(n){var v=Math.floor(n/60);return Math.floor(v/60)+':'+String(v%60).padStart(2,'0');};
-    return [get('날짜'),get('직원명'),payTypeByName[String(get('직원명'))]||'미설정',get('출근'),get('퇴근'),raw,get('야간근무'),get('휴게 제공 여부'),dur(deduct),'—',get('급여산정시간')||'0:00',(get('상태')==='정상'&&get('출근')&&get('출근')!=='—'&&(!get('퇴근')||get('퇴근')==='—'))?'근무중':get('상태'),get('정정'),get('정정사유')];
-  })};
+    var originalReason=String(get('정정사유')==null?'':get('정정사유'));
+    var displayedReason=_readableCorrectionReason(originalReason);
+    originalReasonNotes.push(originalReason!==displayedReason?'정정사유 원문(감사 기록):\n'+originalReason:'');
+    return [get('날짜'),get('직원명'),payTypeByName[String(get('직원명'))]||'미설정',get('출근'),get('퇴근'),raw,get('야간근무'),get('휴게 제공 여부'),dur(deduct),'—',get('급여산정시간')||'0:00',(get('상태')==='정상'&&get('출근')&&get('출근')!=='—'&&(!get('퇴근')||get('퇴근')==='—'))?'근무중':get('상태'),get('정정'),displayedReason];
+  }),originalReasonNotes:originalReasonNotes};
 }
 // Keep attendance in chronological order on every refresh, independently of
 // the source payload's employee-grouped order. Preserve order within a date.
 function _sortAttendanceByDate(section){
   var dateCol=(section.header||[]).indexOf('날짜');
   if(dateCol<0)return section;
-  var rows=(section.rows||[]).map(function(row,index){return {row:row,index:index};});
+  var rows=(section.rows||[]).map(function(row,index){return {row:row,index:index,reasonNote:(section.originalReasonNotes||[])[index]||''};});
   function dateKey(value){
     if(value instanceof Date)return value.getFullYear()*10000+(value.getMonth()+1)*100+value.getDate();
     if(typeof value==='number'){var d=new Date(Math.round(value*86400000)+Date.UTC(1899,11,30));return d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate();}
@@ -217,7 +248,7 @@ function _sortAttendanceByDate(section){
       ||(clockCol<0?0:clockKey(a.row[clockCol])-clockKey(b.row[clockCol]))
       ||a.index-b.index;
   });
-  return {header:section.header,rows:rows.map(function(item){return item.row;})};
+  return {header:section.header,rows:rows.map(function(item){return item.row;}),originalReasonNotes:rows.map(function(item){return item.reasonNote;})};
 }
 // Treat all external report strings as literal data, never as spreadsheet formulas.
 // Google Apps Script setValues interprets strings starting with "=" as formulas.
@@ -236,14 +267,14 @@ function _sheetLiteralValue(value){
 // values and all A:N report data untouched. Sheets copies the last column style
 // when inserting, so reset formatting only on newly created blank columns.
 function _ensureReportRightReviewSpace(ss, reportWidth){
-  var requiredColumns=Math.max(26,reportWidth+12);
+  var requiredColumns=Math.max(52,reportWidth+38);
   for(var month=1;month<=12;month++){
     var tab=ss.getSheetByName(month+'월');
     if(!tab)continue;
     var existing=tab.getMaxColumns();
     if(existing>=requiredColumns)continue;
     tab.insertColumnsAfter(existing,requiredColumns-existing);
-    tab.getRange(1,existing+1,tab.getMaxRows(),requiredColumns-existing).clearFormat();
+    tab.getRange(1,existing+1,Math.min(tab.getMaxRows(),Math.max(200,tab.getLastRow()+30)),requiredColumns-existing).clearFormat();
   }
 }
 
@@ -295,9 +326,9 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   });
   out.forEach(function(row){while(row.length<width)row.push(''); if(row.length>width)row.length=width;});
 
-  // Clear the entire grid, not only the current report width. Old report versions styled
-  // columns beyond the current data range; those stale fills must not survive a rewrite.
-  sh.getRange(1,1,sh.getMaxRows(),sh.getMaxColumns()).clear({contentsOnly:false});
+  // Clear only the authored A:N report. Unused columns on the right remain
+  // accessible, and no previous user additions there are deleted by refresh.
+  sh.getRange(1,1,sh.getMaxRows(),width).clear({contentsOnly:false});
   sh.getRange(1,1,out.length,width).setValues(out.map(function(row){return row.map(_sheetLiteralValue);}));
   sh.setHiddenGridlines(true);
   sh.setFrozenRows(headerRows[0]);
@@ -330,12 +361,15 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
         .setBorder(true,true,true,true,true,true,line,SpreadsheetApp.BorderStyle.SOLID)
         .setVerticalAlignment('middle');
       for(var rr=dr.first;rr<=dr.last;rr++) sh.setRowHeight(rr,28);
-      // Overflow the narrative to blank columns O+: the full correction reason
-      // stays readable by horizontal scrolling, without widening the shared
-      // N column or growing every attendance row. Source text is unchanged.
+      // WRAP in N, not OVERFLOW to other columns. Attach the unabridged
+      // original correction reason to this cell as a searchable/editable note.
       var narrativeColumn=s.title==='근태 현황'?s.data.header.indexOf('정정사유'):-1;
-      if(narrativeColumn>=0)sh.getRange(dr.first,narrativeColumn+1,dr.count,1)
-        .setWrapStrategy(SpreadsheetApp.WrapStrategy.OVERFLOW);
+      if(narrativeColumn>=0){
+        var reasons=sh.getRange(dr.first,narrativeColumn+1,dr.count,1);
+        reasons.setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
+        reasons.setVerticalAlignment('top');
+        if(s.data.originalReasonNotes) reasons.setNotes(s.data.originalReasonNotes.map(function(note){return [note];}));
+      }
     }else{
       // Preserve an intentionally empty section without inventing content.
       sh.setRowHeight(dr.first,18);
@@ -447,6 +481,23 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
     if(!target)continue;
     for(var sc=0;sc<width;sc++)if(sharedWidths[sc]>0)target.setColumnWidth(sc+1,sharedWidths[sc]);
   }
+  // Row heights are measured AFTER column widths are finalized. Expand only
+  // rows with human-readable correction notes; leave ordinary rows compact.
+  var reasonIdx=attendance.header.indexOf('정정사유'),expandedReasonRows=0;
+  if(reasonIdx>=0&&dataRanges[attendanceSectionIndex].count){
+    var reasonWidth=sh.getColumnWidth(reasonIdx+1);
+    attendance.rows.forEach(function(row,i){
+      var text=String(row[reasonIdx]||'');
+      if(!text.trim())return;
+      var height=_correctionRowHeight(text,reasonWidth);
+      if(height<=28)return;
+      var sheetRow=dataRanges[attendanceSectionIndex].first+i;
+      sh.setRowHeight(sheetRow,height);
+      if(sh.getRowHeight(sheetRow)<height)
+        throw new Error('CORRECTION_REASON_HEIGHT_READBACK_MISMATCH: '+sheetRow);
+      expandedReasonRows++;
+    });
+  }
   SpreadsheetApp.flush();
 
   // Verify the actual persisted column widths after the annual cross-month
@@ -472,7 +523,7 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
     width_source:'measured_display_text',resized_columns:width,
     column_width_readback_verified:true,verified_month_tabs:widthVerifiedMonths,
-    verified_column_widths:widthVerifiedColumns,
+    verified_column_widths:widthVerifiedColumns,expanded_reason_rows:expandedReasonRows,
     report_design_applied:true,report_design_version:'sheet-report-v8'};
 }
 

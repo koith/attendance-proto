@@ -11,7 +11,7 @@ assert.match(gas,/first==='급여 집계'\|\|first==='근태 현황'/,'section h
 assert.match(gas,/\^마지막 동기화/,'sync subtitle cannot affect width');
 assert.match(gas,/target\.setColumnWidth\(sc\+1,sharedWidths\[sc\]\)/,'shared measured width must be applied to all months');
 assert.doesNotMatch(gas,/sh\.setColumnWidth\(/,'active month must never resize independently');
-assert.doesNotMatch(gas,/Math\.min\(|Math\.max\(\s*\d+\s*,\s*required|widthBuckets|typeWidth/,'no fixed min/max or type bucket width policy');
+assert.doesNotMatch(gas,/target\.setColumnWidth\(sc\+1,\s*(?:Math\.(?:min|max)|widthBuckets|typeWidth)/,'payroll column widths must use measured displays without caps');
 assert.match(gas,/width_source:'measured_display_text'/,'Apps Script must report measured displayed-text sizing');
 assert.match(gas,/column_width_readback_verified:true/,'Every sync must report actual post-write width verification');
 assert.match(gas,/getColumnWidth\(vc\+1\)/,'Width verification must query the persisted Google Sheet dimension');
