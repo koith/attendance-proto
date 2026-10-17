@@ -32,7 +32,7 @@ assert.match(portal,/scope\.staff_edit/);
 assert.match(portal,/scope\.attendance_approve/);
 assert.match(portal,/scope\.payroll_view/);
 assert.match(app,/const APP_VERSION="v0\.\d+"/);
-assert.match(app,/id="appVersion">v0\.\d+<\/span>/);
+assert.match(app,/<button[^>]*id="appVersion"[^>]*>v\d+\.\d+<\/button>/);
 assert.match(app,/store_limited_manager\.js\?v=20261014v254/);
 assert.ok(app.includes("delegatedPermissionsSelf()"));
 const legacyGuard=read("supabase/migrations/20261014110000_restricted_admin_legacy_gate.sql");
