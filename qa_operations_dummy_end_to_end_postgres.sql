@@ -210,6 +210,12 @@ BEGIN
  IF n<>4 THEN RAISE EXCEPTION 'RAW_IDEMPOTENCY_BROKEN'; END IF;
  s:=public.admin_store_operations_summary(1,'2026-10-01','2026-10-31');
  IF (s->>'sales')::bigint<>12600 THEN RAISE EXCEPTION 'UPDATED_RECEIPT_NOT_REFLECTED: %',s; END IF;
+ -- Updated POS menu label does not inherit prior approved item id by receipt key.
+ IF (SELECT p.match_status FROM public.admin_store_sale_sku_preview(1,
+   ARRAY[(SELECT t.counterparty FROM public.operations_transactions t
+     WHERE t.store_id=1 AND t.source='KIS_POS'
+       AND t.source_record_key='pos-sale')]) p LIMIT 1)<>'UNMAPPED'
+ THEN RAISE EXCEPTION 'EDITED_POS_ALIAS_WRONGLY_AUTO_APPROVED'; END IF;
 END $test$;
 
 -- Atomic failure: malformed amounts must leave no batch, raw or transaction
