@@ -45,9 +45,12 @@ for(const [tab,markup] of Object.entries(markups)){
   'actions must follow heading');
 }
 assert.equal((markups.inquiry.match(/id="ops(?:CollectOpen|UploadOpen|ExportActual|SaleSkuPreview)"/g)||[]).length,4);
-assert.match(html,/const APP_VERSION="v0\.330"/);
-assert.match(html,/operations_v1\.css\?v=20261018v330/);
-assert.match(html,/operations_v1\.js\?v=20261018v330/);
+const publishedVersion=html.match(/const APP_VERSION="(v\d+\.\d+)"/)?.[1];
+assert.ok(publishedVersion,'application version should be explicit');
+assert.ok(html.includes('aria-label="현재 앱 버전 '+publishedVersion+'"'),
+ 'visible badge and runtime version must agree');
+assert.match(html,/operations_v1\.css\?v=[a-zA-Z0-9.-]+/,'layout stylesheet must be cache-busted');
+assert.match(html,/operations_v1\.js\?v=[a-zA-Z0-9.-]+/,'operations script must be cache-busted');
 
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 try{
