@@ -6,7 +6,7 @@ const js=fs.readFileSync('operations_inventory_age_v1.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const view=fs.readFileSync('operations_reference_ui_v208.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261018180500_store_inventory_age_review.sql','utf8');
-assert.match(html,/operations_inventory_age_v1\.js\?v=20261018v325/);
+assert.match(html,/operations_inventory_age_v1\.js\?v=20261018v326/);
 assert.match(html,/async inventoryAgeReview\(days=60\)\{ return rpc\("admin_store_inventory_age_review",\{p_store_id:CURRENT_STORE_ID\|\|1,p_days_threshold:Number\(days\)\},true\); \}/);
 assert.match(view,/id="opsInventoryAgeReview"/);
 assert.match(view,/window\.openStoreInventoryAgeReview\?\.\(\)/);
@@ -34,6 +34,8 @@ const to=js.indexOf('let ageReviewCache=',from);
 assert.ok(from>0&&to>from);
 const parser=Function(js.slice(from,to)+'\nreturn ageReviewRows')();
 const row={item_id:7,item_name:'장기 입고 원두',unit:'g',on_hand:20,last_receipt_on:'2026-06-01',last_usage_on:'2026-07-03',days_since_receipt:139};
+assert.throws(()=>parser([{...row,on_hand:null}]),/AGE_REVIEW_INVALID_ROW/,'null must not become zero');
+assert.throws(()=>parser([{...row,days_since_receipt:' '}]),/AGE_REVIEW_INVALID_ROW/,'blank days must not become zero');
 assert.deepEqual(parser([row]),[{id:7,days:139,balance:20,unit:'g',name:'장기 입고 원두',receipt:'2026-06-01',usage:'2026-07-03'}]);
 assert.deepEqual(parser([]),[],'empty verified ledger is not expired/unsafe stock');
 for(const patch of [{on_hand:null},{on_hand:0},{item_id:-1},{days_since_receipt:-1},{last_receipt_on:'unknown'}]){
