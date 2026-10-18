@@ -72,6 +72,7 @@ window.openStoreInventoryStocktake=async function(){
   '<label>실사 메모 (선택)<textarea id="opsStocktakeNote" class="form-control" maxlength="500" rows="2"></textarea></label>'+
   '<button type="button" class="btn btn-primary" id="opsStocktakeDraft" disabled>실사 초안 저장 (재고 변경 없음)</button>'+
   '<div id="opsStocktakeReview"></div>'+
+  '<div><b>직원 실사 제출 대기 · 점주 승인</b><div id="opsStaffStocktakeProposals"></div></div>'+ 
   '<div><b>최근 실사 기록</b><div id="opsStocktakeHistory"></div></div>'+
   '</div></div>';
  document.body.appendChild(modal);
@@ -117,6 +118,51 @@ window.openStoreInventoryStocktake=async function(){
    else find("#opsStocktakeEntryStatus").textContent="품목이 추가되었습니다. 다음 품목을 검색하세요.";
   }catch(error){alert(error.message);}
  };
+ async function refreshStaffProposals(){
+  const rows=await BE.staffStocktakeProposals();
+  if(!Array.isArray(rows)||rows.length>50)throw Error("STAFF_PROPOSALS_INVALID");
+  const box=find("#opsStaffStocktakeProposals");
+  const pending=rows.filter(p=>p.status==="SUBMITTED");
+  box.innerHTML=pending.length?'<div style="display:grid;gap:10px;margin-top:8px">'+pending.map(p=>{
+   const id=Number(p.id),lines=Array.isArray(p.lines)?p.lines:[];
+   if(!Number.isSafeInteger(id)||id<=0||lines.length<1||lines.length>100||
+      !lines.every(line=>Number.isSafeInteger(Number(line.item_id))&&Number.isFinite(Number(line.counted_quantity))&&
+       Number(line.counted_quantity)>=0&&Number(line.counted_quantity)<=1e9))
+    throw Error("STAFF_PROPOSAL_UNVERIFIED");
+   return '<section class="ops-card" style="display:grid;gap:8px">'+
+    '<b>#'+id+' · '+esc(p.employee_name)+' · '+esc(p.counted_on)+'</b>'+
+    (p.note?'<small>'+esc(p.note)+'</small>':'')+
+    lines.map(line=>'<div style="display:flex;justify-content:space-between;gap:10px"><span>'+esc(line.item_name)+
+      '</span><b>'+qty(line.counted_quantity)+' '+esc(line.unit)+'</b></div>').join("")+
+    '<small>직원 실사 제안만 접수된 상태입니다. 수락하면 별도 관리자 초안이 생성되며 재고는 변경되지 않습니다.</small>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-primary btn-sm" data-accept-staff="'+id+'">내용 확인하고 초안 수락</button>'+
+    '<button type="button" class="btn btn-secondary btn-sm" data-reject-staff="'+id+'">반려</button></div></section>';
+  }).join("")+'</div>':
+   '<div class="ops-empty">직원이 제출한 미승인 실사가 없습니다.</div>';
+  box.querySelectorAll("[data-accept-staff],[data-reject-staff]").forEach(button=>{
+   button.onclick=async()=>{
+    const id=Number(button.dataset.acceptStaff||button.dataset.rejectStaff);
+    const accept=button.hasAttribute("data-accept-staff");
+    const message=accept?
+      "직원 실사 #"+id+"를 검토하고 관리자 실사 초안으로 수락할까요? 아직 실제 재고는 변경되지 않습니다.":
+      "직원 실사 #"+id+"를 반려할까요? 이 결정은 되돌릴 수 없습니다.";
+    if(!confirm(message))return;
+    button.disabled=true;
+    try{
+     const result=await BE.staffStocktakeDecide(id,accept);
+     if(!result||result.status!==(accept?"ACCEPTED":"REJECTED")||result.stock_changed!==false)
+      throw Error("STAFF_REVIEW_RESPONSE_INVALID");
+     await refreshStaffProposals();
+     if(accept){
+      const draftId=Number(result.draft_id);
+      if(!Number.isSafeInteger(draftId)||draftId<=0)throw Error("STAFF_REVIEW_DRAFT_MISSING");
+      await refreshHistory();await showDetails(draftId);
+      alert("실사 초안을 수락했습니다. 수량·차이를 최종 검토한 뒤 '검토한 실사 확정 반영'을 별도로 눌러야 재고가 변경됩니다.");
+     }else alert("직원 실사 제안을 반려했습니다. 재고는 변경되지 않았습니다.");
+    }catch(e){alert("직원 실사 처리 실패: "+String(e.message||e));button.disabled=false}
+   };
+  });
+ }
  async function refreshHistory(){
   const rows=await BE.inventoryStocktakeList();
   if(!Array.isArray(rows))throw Error("STOCKTAKE_LIST_INVALID");
@@ -168,5 +214,6 @@ window.openStoreInventoryStocktake=async function(){
  };
  renderSelected();
  await refreshHistory().catch(error=>{find("#opsStocktakeHistory").textContent="실사 기록 조회 실패: "+error.message;});
+ await refreshStaffProposals().catch(error=>{find("#opsStaffStocktakeProposals").textContent="직원 실사 조회 실패: "+error.message;});
 };
 })();

@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const app=fs.readFileSync('index.html','utf8');
+const staff=fs.readFileSync('operations_staff_stocktake_v1.js','utf8');
+const manager=fs.readFileSync('operations_stocktake_v1.js','utf8');
+const sql=fs.readFileSync('supabase/migrations/20261019082000_staff_stocktake_proposals.sql','utf8');
+assert.match(app,/const APP_VERSION="v0\.339"/);
+assert.match(app,/operations_staff_stocktake_v1\.js\?v=20261019v339/);
+assert.match(app,/operations_stocktake_v1\.js\?v=20261019v339/);
+assert.match(app,/id="staffCountOpen"/);
+assert.match(app,/window\.openStaffStocktake\?\.\(\)/);
+for(const rpc of ['staff_stocktake_catalog','staff_stocktake_submit','admin_store_staff_stocktake_list','admin_store_staff_stocktake_decide']){
+ assert.ok(app.includes('rpc("'+rpc+'"'),rpc+' BE adapter missing');
+}
+assert.match(staff,/window\.openStaffStocktake=async function/);
+assert.match(staff,/BE\.staffStocktakeCatalog\(id,pin\)/);
+assert.match(staff,/BE\.staffStocktakeSubmit\(verifiedEmployee,el\("staffCountPin"\)\.value/);
+assert.match(staff,/el\("staffCountPin"\)\.value=""/);
+assert.match(staff,/LIVE/);
+assert.match(staff,/working===true/);
+assert.match(staff,/확정해야 장부에 반영/);
+assert.doesNotMatch(staff,/localStorage\.setItem\(|sessionStorage\.setItem\(/);
+assert.match(manager,/직원 실사 제출 대기/);
+assert.match(manager,/BE\.staffStocktakeProposals\(\)/);
+assert.match(manager,/BE\.staffStocktakeDecide\(id,accept\)/);
+assert.match(manager,/await showDetails\(draftId\)/);
+assert.match(manager,/별도로 눌러야 재고가 변경/);
+assert.match(sql,/PERFORM public\.staff_stocktake_verify\(p_store_id,p_employee_id,p_pin\)/);
+assert.match(sql,/public\.substitution_is_working\(p_employee_id\)/);
+assert.match(sql,/p\.counted_on<>\(now\(\) AT TIME ZONE 'Asia\/Seoul'\)::date/);
+assert.match(sql,/RETURN jsonb_build_object\('status','ACCEPTED','draft_id',draft->'id'/);
+assert.match(sql,/REVOKE ALL ON public\.store_staff_stocktake_proposals FROM PUBLIC,anon,authenticated/);
+assert.doesNotMatch(sql,/INSERT INTO public\.inventory_movements|UPDATE public\.inventory_movements/);
+const section=staff.slice(staff.indexOf('function staffCountUpsert'),staff.indexOf('window.openStaffStocktake='));
+const upsert=new Function(section+'\nreturn staffCountUpsert')();
+const selected=new Map();const item={id:11,name:'원두',unit:'g'};
+assert.equal(upsert(selected,item,'0'),1,'measured physical zero valid');
+assert.equal(selected.get(11).counted_quantity,0);
+assert.equal(upsert(selected,item,'12.125'),1,'unsaved count update not duplicate');
+for(const bad of ['',' ','-1','12.1234','Infinity','NaN','1e4','1000000001']){
+ assert.throws(()=>upsert(selected,item,bad),/실사 수량/);
+ assert.equal(selected.get(11).counted_quantity,12.125);
+}
+assert.throws(()=>upsert(selected,undefined,'2'),/표준 품목/);
+for(let i=12;i<111;i++)upsert(selected,{id:i,name:'fixture',unit:'ea'},'2');
+assert.equal(selected.size,100);
+assert.throws(()=>upsert(selected,{id:111},'2'),/100개/);
+new Function(staff);
+new Function(manager);
+console.log('PASS MTG-09 real shipped JS: POS PIN on-shift, verified staff proposals, manager two-step approval and safe numeric count');

@@ -33,5 +33,5 @@ assert.match(src,/await BE\.inventoryStocktakeDraft/);
 assert.match(src,/if\(!confirm\("실사 #"/);
 const version=html.match(/const APP_VERSION="v0\.(\d+)"/)?.[1];
 assert.ok(Number(version)>=329,"fast stocktake must remain present in later releases");
-assert.match(html,/operations_stocktake_v1\.js\?v=20261019v337/);
+assert.match(html,/operations_stocktake_v1\.js\?v=20261019v339/);
 console.log('PASS MTG-16: measured zero, unsaved duplicate recount, boundary rejection, 100-line mobile fast-entry');
