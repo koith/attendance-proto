@@ -23,6 +23,10 @@ assert.equal(fn({...row,manual:true},[o(300)]).pending,0,'manual and catalog IDs
 assert.equal(fn({...row,manual:true},[o(300,0,{manual_item_id:20,item_id:null})]).pending,300);
 assert.equal(fn(row,[o(100,0,{unit:'mystery'})]).valid,false,'unknown units fail closed');
 assert.equal(fn(row,[o(100,120)]).valid,false,'overreceived orders fail closed');
+for(const invalid of [null,undefined,'',false,NaN,Infinity]){
+ assert.equal(fn(row,[o(100,0,{received_quantity:invalid})]).valid,false,'missing/invalid received count must fail closed: '+String(invalid));
+}
+assert.equal(fn(row,[o(100,0)]).valid,true,'database-confirmed zero received quantity remains valid');
 assert.equal(fn({...row,conversion_quantity:0},[]).valid,false,'zero conversion must not permit order-unit conversion');
 assert.equal(fn({...row,conversion_quantity:null},[]).valid,false);
 assert.equal(fn({...row,stock_unit:'g',order_unit:'g',conversion_quantity:null},[]).valid,true);
