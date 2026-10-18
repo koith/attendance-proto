@@ -10,14 +10,14 @@ const secondary=read('.github/workflows/publish-pages.yml');
 // incorrectly looked for a literal backslash followed by "s". Reject an
 // accidental second automatic Pages publisher before merging or deploying.
 function automaticPagePublishEvents(workflow){
-  const events=workflow.match(/^on:\\s*\\n((?:[ \\t]+[^\\n]*\\n|[ \\t]*\\n)*)/m)?.[1]||'';
-  return events.split('\\n').map(line=>line.match(/^[ \\t]{2}(push|pull_request|workflow_run|schedule)\\s*:/)?.[1]).filter(Boolean);
+  const events=workflow.match(/^on:\s*\n((?:[ \t]+[^\n]*\n|[ \t]*\n)*)/m)?.[1]||'';
+  return events.split('\n').map(line=>line.match(/^[ \t]{2}(push|pull_request|workflow_run|schedule)\s*:/)?.[1]).filter(Boolean);
 }
 assert.deepEqual(automaticPagePublishEvents(secondary),[],'No second automatic Pages writer');
-const badSecondary=secondary.replace('  workflow_dispatch:', '  push:\\n    branches: [main]\\n  workflow_dispatch:');
+const badSecondary=secondary.replace('  workflow_dispatch:', '  push:\n    branches: [main]\n  workflow_dispatch:');
 assert.deepEqual(automaticPagePublishEvents(badSecondary),['push'],
   'Mutation proof: detect a duplicate main push publisher');
-const badScheduled=secondary.replace('  workflow_dispatch:', '  schedule:\\n    - cron: \"0 1 * * *\"\\n  workflow_dispatch:');
+const badScheduled=secondary.replace('  workflow_dispatch:', '  schedule:\n    - cron: "0 1 * * *"\n  workflow_dispatch:');
 assert.deepEqual(automaticPagePublishEvents(badScheduled),['schedule'],
   'Mutation proof: catch scheduled independent publisher');
 
