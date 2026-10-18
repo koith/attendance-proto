@@ -74,8 +74,13 @@ function stockOrderSuggestion(row,orders=purchaseOrders){
  const key=Number(row.manual?row.id:(row.source_item_id??row.id));
  if(!Number.isSafeInteger(key)||key<=0)return fail("품목 식별자를 확인하세요.");
  const stockUnit=String(row.stock_unit||row.unit||"").trim(),orderUnit=String(row.order_unit||stockUnit).trim();
- const pack=finite(row.conversion_quantity||1);
- if(!stockUnit||!orderUnit||!(pack>0))return fail("재고 및 발주 단위를 확인하세요.");
+ // A missing/zero conversion is never one package when stock and order
+ // units differ (e.g. g vs box). Unknown ratios must not create orders.
+ const rawPack=row.conversion_quantity;
+ const pack=(rawPack===null||rawPack===undefined||rawPack==="")&&stockUnit===orderUnit?
+   1:finite(rawPack);
+ if(!stockUnit||!orderUnit||!(pack>0))
+  return fail(stockUnit!==orderUnit?"재고·발주 단위 환산 수량을 등록하세요.":"재고 및 발주 단위를 확인하세요.");
  let pending=0;
  for(const o of orders||[]){
   const match=row.manual?Number(o.manual_item_id)===key:Number(o.item_id)===key;
@@ -87,7 +92,7 @@ function stockOrderSuggestion(row,orders=purchaseOrders){
   pending+=(qty-received)*(u===stockUnit?1:pack);
   if(!Number.isFinite(pending))return fail("미입고 합계를 확인하세요.");
  }
- const shortage=Math.max(0,target-on-pending),packSize=stockUnit!==orderUnit&&pack>1?pack:1;
+ const shortage=Math.max(0,target-on-pending),packSize=stockUnit!==orderUnit?pack:1;
  const packs=shortage>0?Math.ceil(shortage/packSize-1e-10):0;
  return {valid:true,on,target,pending,shortage,packSize,suggest:packs*packSize,reason:""};
 }
