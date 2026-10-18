@@ -23,8 +23,8 @@ assert.doesNotMatch(ops,/REF\.recipes/,'manager UI cannot rely on static manufac
 const staff=fs.readFileSync('recipe_access_v220.js','utf8');
 assert.match(staff,/const instructionsFor=row=>Array\.isArray\(row\.instructions\)/);
 assert.doesNotMatch(staff,/referenceFor\(|OPERATIONS_REFERENCE_V208\?\.recipes/);
-assert.match(staff,/BE\.staffRecipeList\(id,pin,CURRENT_STORE_ID\)/);
-assert.doesNotMatch(staff,/BE\.publicStoreRecipeList\(/);
+assert.match(staff,/BE\.publicStoreRecipeList\(CURRENT_STORE_ID\)/);
+assert.doesNotMatch(staff,/BE\.staffRecipeList\(id,pin,CURRENT_STORE_ID\)/);
 const sql=fs.readFileSync('supabase/migrations/20261011172000_revoke_public_recipe_instructions.sql','utf8');
 assert.match(sql,/REVOKE ALL ON FUNCTION public\.store_recipe_list_public/);
 const helperGrants=fs.readFileSync('supabase/migrations/20261011183000_lock_source_recipe_helpers.sql','utf8');
@@ -34,4 +34,4 @@ for(const fn of ['source_recipe_instructions','source_recipe_components']){
  assert.ok(helperGrants.includes('GRANT EXECUTE ON FUNCTION public.'+fn+'(text) TO service_role'),
    fn+' remains available to approved server-owned RPCs');
 }
-console.log('PASS public recipe content absent; manager and PIN-verified staff fetch source only after authentication');
+console.log('PASS no static recipe data leak; guests use scoped public RPC and managers retain authenticated edits');
