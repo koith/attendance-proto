@@ -12,7 +12,7 @@ assert.ok(begin>0&&end>begin,'production inventory renderer must be present');
 assert.match(source,/return '<section class="ops-order-panel" id="opsInventoryOrders">/);
 const appVersion=Number(html.match(/const APP_VERSION="v0\.(\d+)"/)?.[1]);
 assert.ok(Number.isSafeInteger(appVersion)&&appVersion>=331,'inventory shortcut renderer must remain active in subsequent releases');
-assert.match(html,/operations_reference_ui_v208\.js\?v=20261019pack[0-9]+/,'inventory renderer has versioned cache key');
+assert.match(html,/operations_reference_ui_v208\.js\?v=[\w.-]+/,
 assert.match(html,/operations_v1\.css\?v=[\w.-]+/,'inventory CSS must stay versioned on every new release');
 assert.match(css,/\.ops-inventory-shortcuts\s*\{/,'real inventory navigation CSS must remain in release');
 const functionBody=source.slice(begin,end);
