@@ -278,6 +278,34 @@ function _ensureReportRightReviewSpace(ss, reportWidth){
   }
 }
 
+// Historical month tabs can retain a large, value-free, bordered white table
+// from an older report layout. Refreshing October does not rewrite September,
+// so clean the unused A:N tail of each OTHER month once per annual workbook.
+// Never touch its actual rows, cell values, notes, or the right-side O:AZ area.
+// This is a one-time guarded migration, not 12 large formatting writes per sync.
+function _clearLegacyMonthGhostFormats(ss,activeName,reportWidth){
+  var props=PropertiesService.getScriptProperties();
+  var key='ATTENDANCE_LEGACY_GHOST_CLEAN_V1_'+ss.getId();
+  if(props.getProperty(key)==='done')return {already_cleaned:true,cleared_tabs:0};
+  var cleaned=0,unsafe=0;
+  for(var month=1;month<=12;month++){
+    var tab=ss.getSheetByName(month+'월');
+    if(!tab||tab.getName()===activeName)continue;
+    var last=tab.getLastRow();
+    if(last<1||last>=tab.getMaxRows())continue;
+    var blankRows=Math.min(320,tab.getMaxRows()-last);
+    var dataColumns=Math.min(reportWidth,tab.getMaxColumns());
+    if(blankRows<=0||dataColumns<=0)continue;
+    var unused=tab.getRange(last+1,1,blankRows,dataColumns);
+    if(!unused.isBlank()){unsafe++;continue;}
+    unused.clearFormat();
+    cleaned++;
+  }
+  // A nonempty candidate is not force-cleared. Retry on a later sync instead.
+  if(!unsafe)props.setProperty(key,'done');
+  return {already_cleaned:false,cleared_tabs:cleaned,skipped_nonblank_tabs:unsafe};
+}
+
 function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   // TEST is an operational test employee, not a payroll/reporting employee.
   // Filter both sections on every sync, including old cached client payloads.
@@ -520,7 +548,9 @@ function _writeMonth(ss, name, meta, attendance, sessions, payroll){
   }
   if(widthVerifiedMonths!==12)throw new Error('COLUMN_WIDTH_MONTH_SCOPE_INCOMPLETE');
 
+  var legacyFormatCleanup=_clearLegacyMonthGhostFormats(ss,name,width);
   return {column_resize_applied:true,resize_scope:'all_used_columns_after_write',
+    legacy_ghost_format_cleanup:legacyFormatCleanup,
     width_source:'measured_display_text',resized_columns:width,
     column_width_readback_verified:true,verified_month_tabs:widthVerifiedMonths,
     verified_column_widths:widthVerifiedColumns,expanded_reason_rows:expandedReasonRows,
