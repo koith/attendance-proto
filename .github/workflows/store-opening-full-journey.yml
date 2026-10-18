@@ -185,6 +185,7 @@ jobs:
             qa_payroll_weekly_postgres_integration.sql
             qa_inventory_manual_rls_store_scope.sql
             qa_store_stocktake_postgres_integration.sql
+            qa_store_inventory_age_postgres.sql
             qa_store_operations_reconciliation_postgres.sql
             qa_operations_dummy_end_to_end_postgres.sql
           )
