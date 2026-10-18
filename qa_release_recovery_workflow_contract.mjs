@@ -6,7 +6,21 @@ const verifier=read('.github/workflows/verified-pages-deployment-notification.ym
 const secondary=read('.github/workflows/publish-pages.yml');
 // Only the guaranteed P0 workflow publishes automatically for main pushes.
 // The secondary publisher can be explicitly dispatched for recovery after P0 QA.
-assert.doesNotMatch(secondary,/^\\s*push:\\s*$/m,'No second automatic Pages writer');
+// Inspect the YAML top-level event block, not a double-escaped regex that
+// incorrectly looked for a literal backslash followed by "s". Reject an
+// accidental second automatic Pages publisher before merging or deploying.
+function automaticPagePublishEvents(workflow){
+  const events=workflow.match(/^on:\\s*\\n((?:[ \\t]+[^\\n]*\\n|[ \\t]*\\n)*)/m)?.[1]||'';
+  return events.split('\\n').map(line=>line.match(/^[ \\t]{2}(push|pull_request|workflow_run|schedule)\\s*:/)?.[1]).filter(Boolean);
+}
+assert.deepEqual(automaticPagePublishEvents(secondary),[],'No second automatic Pages writer');
+const badSecondary=secondary.replace('  workflow_dispatch:', '  push:\\n    branches: [main]\\n  workflow_dispatch:');
+assert.deepEqual(automaticPagePublishEvents(badSecondary),['push'],
+  'Mutation proof: detect a duplicate main push publisher');
+const badScheduled=secondary.replace('  workflow_dispatch:', '  schedule:\\n    - cron: \"0 1 * * *\"\\n  workflow_dispatch:');
+assert.deepEqual(automaticPagePublishEvents(badScheduled),['schedule'],
+  'Mutation proof: catch scheduled independent publisher');
+
 assert.match(secondary,/workflow_dispatch:/,'Manual recovery remains available');
 assert.match(secondary,/MANUAL_PAGES_P0_GATE_MISSING/,'Manual recovery requires a matching successful P0 gate');
 assert.match(secondary,/STALE_MANUAL_RELEASE/,'Manual recovery must reject obsolete commit');
