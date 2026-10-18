@@ -275,11 +275,16 @@ BEGIN
 END $test$;
 INSERT INTO public.inventory_movements(store_id,item_id,business_date,movement_type,quantity,source_type,source_key,note,is_demo)
  VALUES(1,11,current_date,'SALE',-1,'POS','sale-after-staff','actual ledger changed after staff count',false);
+-- Inspect protected tables as fixture owner, never grant employees table SELECT.
+DO $test$
+BEGIN
+ PERFORM set_config('test.stocktake_count_before',
+   (SELECT count(*) FROM public.store_inventory_stocktakes WHERE store_id=1)::text,false);
+END $test$;
 SET ROLE authenticated;
 DO $test$
-DECLARE denied bool:=false;before_count int;after_count int;reason text;
+DECLARE denied bool:=false; reason text;
 BEGIN
- SELECT count(*) INTO before_count FROM public.store_inventory_stocktakes WHERE store_id=1;
  BEGIN
   PERFORM public.admin_store_staff_stocktake_decide(1,current_setting('test.stale_proposal')::bigint,true);
  EXCEPTION WHEN raise_exception THEN
@@ -287,13 +292,18 @@ BEGIN
   denied:=reason='STOCK_CHANGED_RECOUNT';
  END;
  IF NOT denied THEN RAISE EXCEPTION 'stale staff count accepted after ledger movement'; END IF;
- SELECT count(*) INTO after_count FROM public.store_inventory_stocktakes WHERE store_id=1;
- IF before_count<>after_count THEN RAISE EXCEPTION 'rejected stale count created a stocktake draft'; END IF;
+END $test$;
+RESET ROLE;
+-- Privilege isolation remains intact: only the test owner checks state after RPC.
+DO $test$
+BEGIN
+ IF (SELECT count(*) FROM public.store_inventory_stocktakes WHERE store_id=1)
+    <>current_setting('test.stocktake_count_before')::int
+ THEN RAISE EXCEPTION 'rejected stale count created a stocktake draft'; END IF;
  IF NOT EXISTS(SELECT 1 FROM public.store_staff_stocktake_proposals
    WHERE id=current_setting('test.stale_proposal')::bigint AND status='SUBMITTED')
  THEN RAISE EXCEPTION 'rejected stale count changed proposal status'; END IF;
 END $test$;
-RESET ROLE;
 DO $test$
 BEGIN
  IF (SELECT sum(quantity) FROM public.inventory_movements WHERE item_id=11 AND store_id=1)<>9
