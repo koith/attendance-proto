@@ -117,3 +117,51 @@ assert.match(source,/sh\.getRange\(1,1,sh\.getMaxRows\(\),width\)\.clear/,
 assert.match(source,/sh\.setRowHeight\(sheetRow,height\)/,
  'row height must expand as needed for wrapped note');
 console.log('PASS original audit preservation, human-readable reason and row-height layout');
+
+
+// Regression for #1042: an old 170-row white/bordered block must be removed
+// from inactive August/September without affecting real content or right-side
+// review columns. Properties marker makes cleanup a one-time migration.
+const props=new Map();
+context.PropertiesService={getScriptProperties(){return {
+ getProperty:key=>props.get(key)||null,
+ setProperty:(key,value)=>{props.set(key,value);}
+};}};
+const cleared=[];
+const ghostTab=(name,last,total,blank=true)=>({
+  getName(){return name;},getLastRow(){return last;},getMaxRows(){return total;},getMaxColumns(){return 52;},
+  getRange(row,col,count,width){
+    assert.equal(col,1);assert.equal(width,14,'only the report area may be formatted');
+    assert.equal(row,last+1,'the first existing content row must be protected');
+    assert.equal(count,Math.min(320,total-last),'clear only bounded trailing rows');
+    return {
+      isBlank(){return blank;},
+      clearFormat(){cleared.push({name,row,count,width});}
+    };
+  }
+});
+const historical={
+  '8월':ghostTab('8월',22,8000),
+  '9월':ghostTab('9월',31,7998),
+  '10월':ghostTab('10월',55,8000),
+  '11월':ghostTab('11월',0,8000),
+};
+const oldBook={getId(){return 'isolated-annual-fixture';},
+  getSheetByName(name){return historical[name]||null;}};
+const initial=context._clearLegacyMonthGhostFormats(oldBook,'10월',14);
+assert.equal(initial.cleared_tabs,2);
+assert.deepEqual(cleared.map(x=>x.name),['8월','9월']);
+assert.deepEqual(cleared.map(x=>x.row),[23,32]);
+assert.ok(cleared.every(x=>x.width===14));
+const second=context._clearLegacyMonthGhostFormats(oldBook,'10월',14);
+assert.equal(second.already_cleaned,true);
+assert.equal(cleared.length,2,'later minute-sync runs must not rewrite historical month styles');
+// Refuse any range that has newly entered values, and do not set the marker.
+const unsafeBook={getId(){return 'fixture-with-new-input';},getSheetByName(n){
+ return n==='9월'?ghostTab('9월',31,7998,false):null;
+}};
+const blocked=context._clearLegacyMonthGhostFormats(unsafeBook,'10월',14);
+assert.equal(blocked.skipped_nonblank_tabs,1);
+assert.equal(blocked.cleared_tabs,0);
+assert.ok(!props.has('ATTENDANCE_LEGACY_GHOST_CLEAN_V1_fixture-with-new-input'));
+console.log('PASS #1042 historical blank ghost formatting safely removed once');
