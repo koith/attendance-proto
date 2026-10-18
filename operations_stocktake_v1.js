@@ -10,6 +10,19 @@ function stocktakeMatchingCatalog(rows,term){
  const q=String(term||"").trim().toLocaleLowerCase("ko-KR");
  return q?rows.filter(x=>String(x.name||"").toLocaleLowerCase("ko-KR").includes(q)):rows;
 }
+// Local-only draft editing; always revalidates the authorized catalog item.
+// Recounting the same item replaces its unsaved count, never writes to DB.
+function upsertStocktakeSelection(selected,item,raw){
+ const id=Number(item?.id),text=String(raw??"").trim();
+ if(!item||!Number.isSafeInteger(id)||id<=0)throw Error("실사 가능한 품목을 선택하세요.");
+ if(!/^(?:0|[1-9]\d*)(?:\.\d{1,3})?$/.test(text)||
+    !Number.isFinite(Number(text))||Number(text)>1000000000)
+  throw Error("실제 수량은 0 이상 10억 이하, 소수 셋째 자리까지 입력하세요.");
+ if(!selected.has(id)&&selected.size>=100)throw Error("한 번에 최대 100개 품목만 실사할 수 있습니다.");
+ const updated=selected.has(id);
+ selected.set(id,{item_id:id,name:String(item.name),unit:String(item.unit),counted_quantity:Number(text)});
+ return {updated,count:selected.size};
+}
 window.openStoreInventoryStocktake=async function(){
  let catalog=[],history=[];
  try{
@@ -26,7 +39,7 @@ window.openStoreInventoryStocktake=async function(){
   '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,160px);gap:8px">'+
   '<label>실사할 품목<select id="opsStocktakeItem" class="form-control"></select></label>'+
   '<label>실제 수량<input id="opsStocktakeQty" class="form-control" type="number" min="0" max="1000000000" step="0.001" placeholder="0"></label></div>'+
-  '<button type="button" class="btn btn-secondary" id="opsStocktakeAdd">실사 품목 추가</button>'+
+  '<button type="button" class="btn btn-secondary" id="opsStocktakeAdd">실사 품목 추가</button><small id="opsStocktakeEntryStatus" role="status" aria-live="polite">수량 입력 후 추가하세요. 같은 품목은 다시 입력해 수정할 수 있습니다.</small>'+
   '<div id="opsStocktakeSelection"></div>'+
   '<label>실사 메모 (선택)<textarea id="opsStocktakeNote" class="form-control" maxlength="500" rows="2"></textarea></label>'+
   '<button type="button" class="btn btn-primary" id="opsStocktakeDraft" disabled>실사 초안 저장 (재고 변경 없음)</button>'+
@@ -45,8 +58,10 @@ window.openStoreInventoryStocktake=async function(){
   picker.disabled=matches.length===0;
   find("#opsStocktakeAdd").disabled=matches.length===0;
   if(matches.some(x=>String(x.id)===previous))picker.value=previous;
+  find("#opsStocktakeAdd").textContent=selected.has(Number(picker.value))?"선택 품목 실사 수량 수정":"실사 품목 추가";
  }
  search.addEventListener("input",renderPicker);
+ picker.addEventListener("change",renderPicker);
  renderPicker();
  const busy=(value)=>{find("#opsStocktakeAdd").disabled=value||picker.disabled;find("#opsStocktakeDraft").disabled=value||selected.size===0;};
  function renderSelected(){
@@ -61,17 +76,18 @@ window.openStoreInventoryStocktake=async function(){
   find("#opsStocktakeSelection").querySelectorAll("[data-remove]").forEach(button=>
    button.onclick=()=>{selected.delete(Number(button.dataset.remove));renderSelected()});
  }
+ quantity.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();find("#opsStocktakeAdd").click();}});
  find("#opsStocktakeAdd").onclick=()=>{
   const itemId=Number(picker.value),item=catalog.find(x=>Number(x.id)===itemId);
   const raw=String(quantity.value??"").trim();
-  if(!item){alert("실사 가능한 품목을 선택하세요.");return;}
-  if(!/^(?:0|[1-9]\d*)(?:\.\d{1,3})?$/.test(raw)||!Number.isFinite(Number(raw))||Number(raw)>1000000000){
-   alert("실제 수량은 0 이상 10억 이하, 소수 셋째 자리까지 입력하세요.");return;
-  }
-  if(selected.has(itemId)){alert("이미 추가한 품목입니다. 먼저 제외한 뒤 다시 입력하세요.");return;}
-  if(selected.size>=100){alert("한 번에 최대 100개 품목만 실사할 수 있습니다.");return;}
-  selected.set(itemId,{item_id:itemId,name:String(item.name),unit:String(item.unit),counted_quantity:Number(raw)});
-  quantity.value="";renderSelected();
+  try{
+   const result=upsertStocktakeSelection(selected,item,raw);
+   quantity.value="";search.value="";renderPicker();renderSelected();
+   // Mobile next-item workflow: return to search without revisiting the dropdown.
+   search.focus();
+   if(result.updated)find("#opsStocktakeEntryStatus").textContent="실사 수량을 수정했습니다. 초안 저장 전까지 장부는 변경되지 않습니다.";
+   else find("#opsStocktakeEntryStatus").textContent="품목이 추가되었습니다. 다음 품목을 검색하세요.";
+  }catch(error){alert(error.message);}
  };
  async function refreshHistory(){
   const rows=await BE.inventoryStocktakeList();

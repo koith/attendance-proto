@@ -39,6 +39,7 @@ const lanes=[
  ['판매명·행사명·1L 지점 SKU 매핑 경계','qa_store_sale_sku_preview_v1.mjs'],
  ['재고 수기·대량 등록 실제 UI 연결','qa_inventory_editor_wiring_v1.mjs'],
  ['모바일 재고실사 초안/확정 UI 안전성','qa_store_stocktake_ui_v1.mjs'],
+ ['모바일 재실사 빠른 수정·다음 품목 입력','qa_stocktake_fast_mobile_entry_v1.mjs'],
  ['미입고/부분입고 발주·포장단위 중복 차단','qa_stock_reorder_net_pending_v1.mjs'],
  ['재고 미확인·데모 수량 제외','qa_inventory_real_metrics_v1.mjs'],
  ['지점별 POS/배달/매출 접근 경계','qa_store_operations_isolation_v1.mjs'],
