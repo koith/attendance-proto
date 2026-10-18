@@ -15,7 +15,7 @@ BEGIN
   RAISE EXCEPTION 'STORE_NOT_READY' USING ERRCODE='42501';
  END IF;
  IF p_from IS NULL OR p_to IS NULL OR p_to<p_from OR
-    p_to-p_from>366 OR p_to>(now() AT TIME ZONE 'Asia/Seoul')::date OR
+    p_to-p_from>366 OR
     p_limit IS NULL OR p_limit NOT BETWEEN 1 AND 100 THEN
   RAISE EXCEPTION 'INVALID_CANDIDATE_RANGE' USING ERRCODE='22023';
  END IF;
@@ -26,6 +26,7 @@ BEGIN
  WHERE t.store_id=p_store_id AND t.is_demo IS FALSE
    AND t.transaction_type='SALE' AND t.status='CONFIRMED'
    AND t.business_date BETWEEN p_from AND p_to
+   AND t.business_date<=(now() AT TIME ZONE 'Asia/Seoul')::date
    -- These are documented sale-menu sources; do not extract purchase supplier,
    -- unknown source customer fields or demo labels as menu names.
    AND t.source IN ('KIS_POS','BAEMIN','COUPANG_EATS','COUPANGEATS')
