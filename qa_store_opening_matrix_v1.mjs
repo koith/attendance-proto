@@ -36,6 +36,7 @@ const lanes=[
  // scope executes with the store-opening report, not as unobserved separate CI.
  ['지점별 재고 원장/단위/관리권한 격리','qa_store_inventory_isolation_v1.mjs'],
  ['재고 장기체류 안전성·입고/사용·개인정보 경계','qa_store_inventory_age_v1.mjs'],
+ ['판매명·행사명·1L 지점 SKU 매핑 경계','qa_store_sale_sku_preview_v1.mjs'],
  ['재고 수기·대량 등록 실제 UI 연결','qa_inventory_editor_wiring_v1.mjs'],
  ['모바일 재고실사 초안/확정 UI 안전성','qa_store_stocktake_ui_v1.mjs'],
  ['미입고/부분입고 발주·포장단위 중복 차단','qa_stock_reorder_net_pending_v1.mjs'],
