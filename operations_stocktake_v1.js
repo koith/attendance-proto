@@ -58,16 +58,16 @@ function stocktakeAuditCsv(detail,expectedStore){
     Number(detail.store_id)!==Number(expectedStore))
   throw Error("STOCKTAKE_AUDIT_INVALID_SCOPE");
  const checked=verifiedStocktakeDetail(detail,Number(detail.id));
- const cell=v=>{
+ const cell=(v,isNumber=false)=>{
   const text=String(v??"");
-  const safe=/^\s*[=+\-@\t\r]/.test(text)?"'"+text:text;
+  const safe=!isNumber&&/^\s*[=+\-@\t\r]/.test(text)?"'"+text:text;
   return '"'+safe.replace(/"/g,'""')+'"';
  };
  const header=["실사ID","지점ID","실사일","상태","품목ID","품목명","단위","장부 예상수량","실물 실사수량","차이","자료용도"];
  const rows=checked.lines.map(x=>[
   checked.id,expectedStore,checked.counted_on,checked.status,x.item_id,x.name,x.unit,
   x.expected_quantity,x.counted_quantity,x.variance,"매장 재고 실사 검토용 · 실사 상태 확인 필수"
- ].map(cell).join(","));
+ ].map((v,i)=>cell(v,[0,1,4,7,8,9].includes(i))).join(","));
  return "\ufeff"+[header.map(cell).join(","),...rows].join("\r\n")+"\r\n";
 }
 
