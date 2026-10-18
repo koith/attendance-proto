@@ -44,11 +44,19 @@ declare
   sid uuid;
   latest uuid;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'authenticated' then
+  -- Current PostgREST publishes the role in signed request.jwt.claims.
+  -- The legacy request.jwt.claim.role GUC is not guaranteed to exist.
+  claims := nullif(current_setting('request.jwt.claims',true),'')::jsonb;
+  if coalesce(claims->>'role',nullif(current_setting('request.jwt.claim.role',true),''))
+       is distinct from 'authenticated' then
+    return; -- Anon POS and public recipes remain usable.
+  end if;
+  uid := nullif(claims->>'sub','')::uuid;
+  -- Staff and other non-admin authenticated users are not subject to the
+  -- single-admin-session policy. Do not silently invalidate their devices.
+  if not exists (select 1 from public.admin_users a where a.user_id=uid) then
     return;
   end if;
-  claims := nullif(current_setting('request.jwt.claims',true),'')::jsonb;
-  uid := nullif(claims->>'sub','')::uuid;
   sid := nullif(claims->>'session_id','')::uuid;
   if uid is null or sid is null then
     raise exception 'SESSION_SUPERSEDED' using errcode='P0001';
@@ -59,8 +67,10 @@ begin
   end if;
 end $$;
 revoke all on function session_guard.require_latest_session() from public,anon;
-grant usage on schema session_guard to authenticator;
-grant execute on function session_guard.require_latest_session() to authenticated,authenticator;
+-- PostgREST calls db_pre_request AFTER switching to anon/authenticated role.
+-- Both need schema USAGE and function EXECUTE. Not table access.
+grant usage on schema session_guard to anon,authenticated,authenticator;
+grant execute on function session_guard.require_latest_session() to anon,authenticated,authenticator;
 -- IMPORTANT: activation in separate migration after QA:
 -- ALTER ROLE authenticator SET pgrst.db_pre_request = 'session_guard.require_latest_session';
 -- NOTIFY pgrst, 'reload config';
