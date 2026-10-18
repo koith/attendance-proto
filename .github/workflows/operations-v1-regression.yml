@@ -12,3 +12,4 @@ jobs:
         with: { node-version: 20 }
       - run: node qa_boot_syntax.mjs
       - run: node qa_operations_v1.mjs
+      - run: node qa_operations_sales_quick_filters_v1.mjs
