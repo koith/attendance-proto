@@ -34,9 +34,8 @@ try {
       window.CURRENT_STORE_ID=1;
       window.Auth={isLoggedIn:()=>false};
       window.BE={
-        listEmployeesState:async()=>[{id:17,name:'QA 출근 직원',working:true}],
-        staffRecipeList:async(id,pin,storeId)=>{
-          if(id!==17||pin!=='4321'||storeId!==1)throw Error('BAD_PIN');
+        publicStoreRecipeList:async(storeId)=>{
+          assert.equal(storeId,1);
           return Array.from({length:75},(_,i)=>({
             menu_key:'regression_'+i,menu_name:'메뉴 '+i,category:'커피',
             components:[],instructions:[],thumbnail_url:null
@@ -46,8 +45,6 @@ try {
     });
     await page.addScriptTag({content:fs.readFileSync('recipe_access_v220.js','utf8')});
     await page.evaluate(()=>window.renderRecipeHub());
-    await page.locator('#rvStaffPin').fill('4321');
-    await page.locator('#rvStaffRead').click();
     await page.locator('.recipe-v220-card').first().waitFor();
     const actual=await page.evaluate(()=>{
       const rect=sel=>{const r=document.querySelector(sel).getBoundingClientRect();return {x:r.x,width:r.width,center:r.x+r.width/2}};
