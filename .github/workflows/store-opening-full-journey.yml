@@ -189,6 +189,7 @@ jobs:
             qa_store_sale_sku_preview_postgres.sql
             qa_store_real_sale_name_candidates_postgres.sql
             qa_store_operations_reconciliation_postgres.sql
+            qa_store_cross_source_sale_suspects_postgres.sql
             qa_operations_dummy_end_to_end_postgres.sql
           )
           mkdir -p qa-results
