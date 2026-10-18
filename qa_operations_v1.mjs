@@ -31,3 +31,5 @@ import './qa_operations_real_ledger_export_v1.mjs';
 import './qa_store_stocktake_ui_v1.mjs';
 
 import './qa_store_operations_reconciliation_ui_v1.mjs';
+
+import './qa_operations_material_cost_safe_v1.mjs';
