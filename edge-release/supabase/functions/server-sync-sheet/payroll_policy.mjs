@@ -53,3 +53,20 @@ export function assessWeeklyRest({weeklyMinutes,workdays,sessions,substitutions=
   return {completed:planned.length>0&&missing.length===0&&!unresolved,automaticEligible:Number(weeklyMinutes)>=900&&planned.length>0&&!missing.length&&!unresolved&&!substitutions.length&&!departureDate,
     requiresReview:!!reasons.length,reasons,missingDays:missing};
 }
+
+// MTG-03: a missing weekly calculation is UNKNOWN, not an earned zero.
+// Explicit 0 supported by the engine, or a dated server review reason on a
+// closed but ineligible week, is a legitimate manager-review starting point.
+export function verifiedWeeklySource(pay,weekStart){
+ if(!/^20\d{2}-(?:0[1-9]|1[0-2])-[0-3]\d$/.test(String(weekStart||'')))return null;
+ const amounts=pay?.weeklyCalculatedAmounts;
+ if(amounts&&Object.prototype.hasOwnProperty.call(amounts,weekStart)){
+  const raw=amounts[weekStart];
+  if(raw===null||raw===undefined||typeof raw==='boolean'||
+     (typeof raw==='string'&&!/^\d+$/.test(raw)))return null;
+  const amount=Number(raw);
+  return Number.isSafeInteger(amount)&&amount>=0?amount:null;
+ }
+ const reasons=Array.isArray(pay?.weeklyReviewComments)?pay.weeklyReviewComments:[];
+ return reasons.some(reason=>String(reason).startsWith(weekStart+':'))?0:null;
+}
