@@ -20,6 +20,9 @@ async function loadProtectedRecipes(force=false){
 const esc=value=>window.safeHtml?window.safeHtml(value):String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const icon=name=>/원두|커피/.test(name)?"☕":/우유|밀크|크림/.test(name)?"🥛":/시럽|소스|청|베이스/.test(name)?"🧴":/과일|딸기|망고|자몽|멜론|레몬|라임/.test(name)?"🍓":/컵|뚜껑|빨대|봉투|포장|용기/.test(name)?"🥤":/팝콘/.test(name)?"🍿":/빵|베이글|케이크|떡|슈/.test(name)?"🥐":"📦";
 const num=value=>Number(value||0).toLocaleString("ko-KR");
+// A missing inventory count is UNKNOWN, never zero. Explicit numeric zero remains valid.
+const hasMeasuredStock=value=>value!==null&&value!==undefined&&typeof value!=="boolean"&&
+ (typeof value!=="string"||value.trim()!=="")&&Number.isFinite(Number(value));
 const cleanExample=value=>String(value||"").replace(/^\s*\[예시\]\s*/,"");
 let inventoryCategory="전체",inventoryQuery="",purchaseOrders=[],recipeCategory="전체",recipeQuery="",managedInventory=[],registeredRecipes=[],hqProducts=[],hqInventory=[],hqRemovalMode=false,hqRemovalCategory="전체",hqRemovalSort="name";
 const hqRemovalSelection=new Set();
@@ -45,9 +48,10 @@ async function loadInventoryManagement(){
   const manualNames=new Set(manual.map(x=>x.name));
   const live=overview.filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.name||"")&&!manualNames.has(x.name));
   purchaseOrders=await BE.inventoryPurchaseOrders();
-  managedInventory=[...manual.map(x=>({...x,on_hand:Number(x.on_hand||0),target_level:Number(x.target_level||0),reorder_point:Number(x.reorder_point||0),manual:true})),...live.map(x=>({...x,target_level:Number(x.reorder_level||0),reorder_point:Number(x.reorder_point||Number(x.reorder_level||0)*.65)}))];
+  managedInventory=[...manual.map(x=>({...x,on_hand:hasMeasuredStock(x.on_hand)?Number(x.on_hand):null,target_level:Number(x.target_level||0),reorder_point:Number(x.reorder_point||0),manual:true})),...live.map(x=>({...x,target_level:Number(x.reorder_level||0),reorder_point:Number(x.reorder_point||Number(x.reorder_level||0)*.65)}))];
 }
 function stockState(row){
+  if(!hasMeasuredStock(row.on_hand))return {key:"unknown",label:"재고 미확인",rank:2};
   const on=Number(row.on_hand||0),target=Number(row.target_level||row.reorder_level||0),point=Number(row.reorder_point||0);
   if(point>0&&on<point*.5)return {key:"critical",label:"긴급 부족",rank:0};
   if(point>0&&on<=point)return {key:"low",label:"발주 필요",rank:1};
@@ -62,7 +66,8 @@ async function openReceiveOrder(order){
  m.body.querySelector("#opsReceiveSave").onclick=async()=>{const qty=Number(m.body.querySelector("#opsReceiveQty").value||0);if(qty<=0||qty>remain)return alert("입고 수량을 확인하세요.");try{await BE.inventoryReceive(order.id,qty);m.close();await loadInventoryManagement();renderInventory(true)}catch(e){alert("입고 처리 실패: "+e.message)}};
 }
 function stockOrderSuggestion(row,orders=purchaseOrders){
- const finite=v=>Number.isFinite(Number(v))?Number(v):NaN;
+ const finite=v=>v!==null&&v!==undefined&&typeof v!=="boolean"&&
+   (typeof v!=="string"||v.trim()!=="")&&Number.isFinite(Number(v))?Number(v):NaN;
  const on=finite(row.on_hand),target=finite(row.target_level??row.reorder_level??0);
  const fail=reason=>({valid:false,on,target,pending:0,shortage:0,suggest:0,packSize:1,reason});
  if(!Number.isFinite(on)||!Number.isFinite(target)||target<0)return fail("재고 수량을 확인하세요.");
@@ -98,6 +103,7 @@ function orderPanel(){
   return '<section class="ops-order-panel"><div class="ops-unified-section-head"><div><b>발주 필요</b><span>'+low.length+'개 품목</span></div><div><button type="button" class="btn btn-secondary btn-sm" id="opsInventoryBulk">일괄 등록</button><button type="button" class="btn btn-primary btn-sm" id="opsInventoryAdd">+ 재고 등록</button></div></div><div class="ops-order-bars">'+bars+'</div></section>';
 }
 function inventoryState(row){
+  if(!hasMeasuredStock(row.on_hand))return {key:"unknown",label:"재고 미확인",rank:2};
   const target=Number(row.target_level||row.reorder_level||0),point=Number(row.reorder_point||target*.65),on=Number(row.on_hand||0),ratio=target>0?on/target:1;
   if(point>0&&on<point*.5)return {key:"critical",label:"긴급 부족",rank:0};
   if(point>0&&on<=point)return {key:"low",label:"발주 필요",rank:1};
@@ -116,8 +122,10 @@ function inventoryCard(row){
       const current=live.source_current_text||row.current_text||"-",minimum=live.source_minimum_text||row.minimum_text||"-",order=live.source_order_text||row.order_text||"-",unit=live.source_unit_system||live.unit||row.unit||"";
       return '<article class="ops-stock-bar ops-stock-reference state-reference">'+title+'<span class="ops-stock-info-btn reference">현재고</span><div class="ops-stock-footer ops-stock-reference-footer"><span><b>'+esc(current)+'</b><small>현재고 · '+esc(unit)+'</small></span><span><b>'+esc(minimum)+'</b><small>최소재고</small></span></div><div class="ops-stock-reference-order"><span>주문 기준</span><b>'+esc(order)+'</b></div>'+(live.source_note||row.note?'<p>'+esc(live.source_note||row.note)+'</p>':"")+(expiry?'<small class="ops-stock-expiry">'+esc(expiry)+'</small>':"")+'</article>';
     }
-    const target=Number(live.target_level||live.reorder_level||0),on=Number(live.on_hand||0),pct=target?Math.min(100,Math.max(0,on/target*100)):0,need=Math.max(0,target-on),st=inventoryState(live),unit=live.unit||"";
-    return '<article class="ops-stock-bar ops-stock-reference state-'+st.key+'">'+title+'<span class="ops-stock-info-btn">'+st.label+'</span><div class="ops-stock-level"><i><em style="width:'+pct+'%"></em></i></div><div class="ops-stock-footer"><span class="ops-stock-count"><b class="stock-now '+st.key+'">'+num(on)+'</b><span> / '+num(target)+' '+esc(unit)+'</span></span><strong class="ops-stock-order '+st.key+'">'+(st.rank<2&&need>0?'발주 필요: '+num(need)+' '+esc(unit):"")+'</strong></div>'+(row.note?'<p>'+esc(row.note)+'</p>':"")+(expiry?'<small class="ops-stock-expiry">'+esc(expiry)+'</small>':"")+'</article>';
+    const known=hasMeasuredStock(live.on_hand),target=Number(live.target_level||live.reorder_level||0),
+       on=known?Number(live.on_hand):0,pct=known&&target?Math.min(100,Math.max(0,on/target*100)):0,
+       need=known?Math.max(0,target-on):0,st=inventoryState(live),unit=live.unit||"";
+    return '<article class="ops-stock-bar ops-stock-reference state-'+st.key+'">'+title+'<span class="ops-stock-info-btn">'+st.label+'</span><div class="ops-stock-level"><i><em style="width:'+pct+'%"></em></i></div><div class="ops-stock-footer"><span class="ops-stock-count"><b class="stock-now '+st.key+'">'+(known?num(on):"미확인")+'</b><span> / '+num(target)+' '+esc(unit)+'</span></span><strong class="ops-stock-order '+st.key+'">'+(st.rank<2&&need>0?'발주 필요: '+num(need)+' '+esc(unit):"")+'</strong></div>'+(row.note?'<p>'+esc(row.note)+'</p>':"")+(expiry?'<small class="ops-stock-expiry">'+esc(expiry)+'</small>':"")+'</article>';
   }
   return '<article class="ops-stock-bar ops-stock-reference state-reference">'+title+'<span class="ops-stock-info-btn reference">기준 재고</span><div class="ops-stock-level reference"><i><em style="width:65%"></em></i></div><div class="ops-stock-footer ops-stock-reference-footer"><span><b>'+esc(row.current_text||"-")+'</b><small>현재 기준</small></span><span><b>'+esc(row.minimum_text||"-")+'</b><small>발주 기준</small></span></div><div class="ops-stock-reference-order"><span>주문</span><b>'+esc(row.order_text||"-")+'</b></div>'+(row.note?'<p>'+esc(row.note)+'</p>':"")+(expiry?'<small class="ops-stock-expiry">'+esc(expiry)+'</small>':"")+'</article>';
 }

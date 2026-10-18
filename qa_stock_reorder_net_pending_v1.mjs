@@ -25,6 +25,25 @@ assert.equal(fn(row,[o(100,0,{unit:'mystery'})]).valid,false,'unknown units fail
 assert.equal(fn(row,[o(100,120)]).valid,false,'overreceived orders fail closed');
 assert.equal(fn({...row,conversion_quantity:0},[]).valid,true,'missing conversion falls back to item native unit');
 assert.equal(fn({...row,on_hand:NaN},[]).valid,false);
+for(const count of [null,undefined,'','  ',NaN,Infinity]){
+ const out=fn({...row,on_hand:count},[]);
+ assert.equal(out.valid,false,'unknown stock must never be considered measured zero: '+String(count));
+ assert.equal(out.suggest,0,'unknown stock must not prompt purchase');
+}
+assert.equal(fn({...row,on_hand:0},[]).valid,true,'actual measured zero remains valid');
+assert.equal(fn({...row,on_hand:0},[]).suggest,2000,'real measured zero must calculate target shortage');
+const beginKnown=src.indexOf('const hasMeasuredStock=');
+const endKnown=src.indexOf('const cleanExample=',beginKnown);
+assert.ok(beginKnown>=0&&endKnown>beginKnown,'unified stock has independent unknown-state predicate');
+const hasMeasuredStock=Function(src.slice(beginKnown,endKnown)+'\nreturn hasMeasuredStock;')();
+assert.equal(hasMeasuredStock(null),false);
+assert.equal(hasMeasuredStock(''),false);
+assert.equal(hasMeasuredStock('  '),false);
+assert.equal(hasMeasuredStock(NaN),false);
+assert.equal(hasMeasuredStock(0),true);
+assert.equal(hasMeasuredStock('0'),true);
+assert.match(src,/if\(!hasMeasuredStock\(row\.on_hand\)\)return \{key:"unknown",label:"재고 미확인",rank:2\}/);
+assert.match(src,/known\?num\(on\):"미확인"/,'source inventory card must show unknown instead of fake zero');
 assert.match(src,/rec=stockOrderSuggestion\(row\)/,'purchase dialog and stock card must use validated recommendation');
 assert.doesNotMatch(src,/suggest=Math\.max\(1,target-on\)/,'never default to an unnecessary unit of purchase');
 assert.match(src,/rec\.valid\?'':'disabled'/,'invalid suggestion must disable order creation control');
