@@ -1,0 +1,31 @@
+# 백억커피 업무자동화 — 2026-10-19 개발 실행 증거
+
+**기준:** `PROJECT_BACKLOG_20261017.md`의 37건 중 17건 완료, 20건 미완료. 아래 신규 개발은 전체 요구 완료 증거가 아닌 부분 이행 증거다. 실사용 레시피/근태/급여/재고 수량은 직접 수정하지 않았다.
+
+## MTG-07 (#1137): 판매명↔지점 SKU 매핑 결과 보존
+- [PR #1138](https://github.com/koith/attendance-proto/pull/1138) / main `f243d32d75ea74b18a8264f30be40dd6e4dacec4`, 운영 v0.336.
+- 승인된 지점 SKU 검사 결과를 별도의 감사용 CSV로 내보내기; 원문·EXACT/PROMOTION/AMBIGUOUS/UNMAPPED·SKU·별칭·검토 상태 보존.
+- 1L 메뉴의 개별 SKU 보존, Excel 수식 악용 문자열 이스케이프, 검증 이후 입력 변경 시 다운로드 차단, 판매수량을 임의 생성하지 않음.
+- PR CI **78/78 PASS**; [운영 Pages 성공 #39173980492](https://github.com/koith/attendance-proto/actions/runs/39173980492), [동일 바이트 독립 검증 #39174228943](https://github.com/koith/attendance-proto/actions/runs/39174228943) 성공.
+- **미완료:** 실제 POS/배달 개별 상품 판매수량 정규화와 지점별 판매수량 검산.
+
+## QA-07 (#1139): 서로 다른 모듈 연결형 DB 통합 QA
+- [PR #1140](https://github.com/koith/attendance-proto/pull/1140) / main `215d3f2f88ecbba549072cfd7f69329475a38ea6`.
+- **하나의 격리 PostgreSQL**에서 KIS_POS/BAEMIN/ONLYONE 원천 수집→실제 정규화 RPC→확인된 매출 거래 판매명→지점 승인 SKU 검사 RPC 연결.
+- 환불/매입의 판매 SKU 오집계, 다른 지점 SKU 유출, 1L 합산, 수정 영수증의 구별칭 승계 금지; 기존 대사·페이징·취소·오류 주입 회귀 보존.
+- **CI 51/51 PASS.** 실제 신규 점주 개통/실원천 POS 자동수집/현장 실기기는 별도 미완료.
+
+## SEC-01 (#998): 운영 세션 가드 준비, 차단 미활성
+- [PR #1142](https://github.com/koith/attendance-proto/pull/1142) / main `3c879a5624f742b80b7f2a7363307e17e6887c6e`. **CI 52/52 PASS.**
+- 이전 WIP #999의 검증된 SQL 및 격리 PostgreSQL/실제 테스트 PostgREST JWT HTTP 검증을 최신 main으로 안전하게 옮김.
+- 운영 Supabase migration `single_admin_session_guard_prepare_20261019` **적용 성공**: guard 세션 기록/trigger/검사 함수 설치, 82개 auth.sessions 기록 중 고유 최근 세션 소유자 3명으로 backfill. 세션 기록 테이블에 anon/authenticated 직접 SELECT 권한 없음.
+- 운영 **`pgrst.db_pre_request` 활성 설정은 없음**; 따라서 기존 로그인/익명 POS 지속. 익명 POS 직원 선택 10건 정상 readback.
+- **미완료:** 운영 관리자 실제 인증 세션 검증, 단계적 강제 차단 적용, 롤백/기기 QA. 이를 완료했다고 주장하지 않음.
+
+## 실원천 및 연결 가용성 점검
+- Supabase 실제 비시연 `operations_transactions` **0건**, 실제 비시연 재고 이동 **0건**, 승인 판매명 별칭 **136건**, READY+활성 지점 **1곳**.
+- 연결된 사용자 Drive/Gmail에서 백억커피 POS·온리원 공급사 실제 파일 또는 거래 첨부 후보를 찾지 못함. 검색 부재만으로 외부 공급사 API가 불가능하다고 단정하지 않음.
+- 따라서 MTG-05/08/12/13/16, FIELD-03의 실자료 단계는 완료로 표시하지 않음.
+
+## 상태
+정본 원장과 비교해 **완료 17 / 미완료 20**, 세 신규 PR은 모두 병합 완료. 개발 코드 및 독립 QA는 진전됐으나 아직 나머지 20건을 전부 완료하지 못했다. 실제 인증 메일 송수신, 별도 Apps Script 종단 검증, 지점 점주 개통과 급여 검산은 명시적 검증대기다.
