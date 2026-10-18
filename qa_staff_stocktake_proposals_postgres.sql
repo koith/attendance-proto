@@ -3,8 +3,8 @@ BEGIN;
 CREATE SCHEMA auth;
 CREATE SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
-CREATE TABLE public.employees(id bigint PRIMARY KEY,store_id bigint,is_active boolean,pin_bcrypt text);
-INSERT INTO public.employees VALUES (101,1,true,extensions.crypt('1234',extensions.gen_salt('bf'))),(102,2,true,extensions.crypt('5678',extensions.gen_salt('bf')));
+CREATE TABLE public.employees(id bigint PRIMARY KEY,store_id bigint,name text,is_active boolean,pin_bcrypt text);
+INSERT INTO public.employees VALUES (101,1,'실사 직원',true,extensions.crypt('1234',extensions.gen_salt('bf'))),(102,2,'다른 지점',true,extensions.crypt('5678',extensions.gen_salt('bf')));
 CREATE FUNCTION public.substitution_is_working(p_employee_id bigint) RETURNS boolean LANGUAGE sql STABLE AS $fn$ SELECT p_employee_id=101 AND current_setting('test.clocked',true)='on' $fn$;
 SET test.clocked TO 'on';
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE
