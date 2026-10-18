@@ -50,6 +50,52 @@ function saleSkuAuditCsv(rows){
  }
  return "\ufeff"+lines.join("\r\n")+"\r\n";
 }
+// MTG-13: MANAGER-ENTERED quantity forecast, NOT real POS sales / inventory usage.
+// Refuse to calculate partial or assumed-zero results for ambiguous names, absent
+// sales counts, unverified recipes, or conflicting ingredient units.
+function computeScopedRecipeUsage(preview,recipes,quantities){
+ if(!Array.isArray(preview)||!preview.length||preview.length>100||
+    !Array.isArray(recipes)||!Array.isArray(quantities)||
+    quantities.length!==preview.length)throw Error("USAGE_INPUT_INCOMPLETE");
+ const byProduct=new Map();
+ for(const row of recipes){
+  const id=Number(row?.product_id);
+  if(!Number.isSafeInteger(id)||id<=0||byProduct.has(id))throw Error("USAGE_RECIPE_INVALID");
+  byProduct.set(id,row);
+ }
+ const totals=new Map(),details=[];
+ for(let i=0;i<preview.length;i++){
+  const sale=preview[i],raw=String(quantities[i]??"").trim();
+  if(sale?.status!=="EXACT"||!Number.isSafeInteger(sale.product)||sale.product<=0)
+   throw Error("USAGE_SKU_UNVERIFIED");
+  if(!/^[1-9]\d{0,5}$/.test(raw))throw Error("USAGE_QUANTITY_REQUIRED");
+  const units=Number(raw),recipe=byProduct.get(sale.product);
+  if(!recipe||!["ACTIVE","RETIRING"].includes(recipe.assignment_status)||
+     !Array.isArray(recipe.components)||recipe.components.length===0||
+     recipe.components.length>100)throw Error("USAGE_RECIPE_MISSING");
+  const usedInRecipe=new Set();
+  for(const part of recipe.components){
+   const id=Number(part?.item_id),q=Number(part?.quantity),
+    name=String(part?.item_name||"").trim(),unit=String(part?.unit||"").trim();
+   if(!Number.isSafeInteger(id)||id<=0||usedInRecipe.has(id)||
+      part.quantity==null||part.quantity===""||
+      !Number.isFinite(q)||q<=0||!name||!unit)
+    throw Error("USAGE_COMPONENT_INVALID");
+   usedInRecipe.add(id);
+   const next=q*units;
+   if(!Number.isFinite(next)||next>1e12)throw Error("USAGE_QUANTITY_OVERFLOW");
+   const known=totals.get(id);
+   if(known&&(known.unit!==unit||known.name!==name))
+    throw Error("USAGE_UNIT_CONFLICT");
+   const amount=(known?.amount||0)+next;
+   if(!Number.isFinite(amount)||amount>1e12)throw Error("USAGE_QUANTITY_OVERFLOW");
+   totals.set(id,{id,name,unit,amount});
+  }
+  details.push({sale:sale.name,product:sale.product,units,override:recipe.is_overridden===true});
+ }
+ return {details,ingredients:[...totals.values()].sort((a,b)=>a.name.localeCompare(b.name,"ko-KR"))};
+}
+
 window.openStoreSaleSkuPreview=function(){
  const modal=document.createElement("div");
  modal.className="ops-modal";
@@ -62,6 +108,8 @@ window.openStoreSaleSkuPreview=function(){
  '<textarea id="opsSaleNames" rows="6" placeholder="아메리카노&#10;행사 아메리카노&#10;아메리카노 1L"></textarea>'+
  '<button type="button" class="btn btn-primary" id="opsSaleSkuRun">지점 품목 매핑 검사</button>'+
  '<button type="button" class="btn btn-secondary" id="opsSaleSkuExport" disabled>검토 결과 CSV 내보내기</button>'+
+ '<button type="button" class="btn btn-secondary" id="opsSaleRecipeUsage" disabled>입력 판매수량 × 지점 레시피 예상 사용량</button>'+
+ '<p id="opsSaleRecipeUsageResult" role="status" aria-live="polite">승인 별칭 일치 후 각 메뉴의 판매수량을 직접 입력하면 계산할 수 있습니다. 실제 POS 수량이 아닙니다.</p>'+
  '<small>검토용 내보내기는 원본 판매명·분류·승인 SKU만 기록하며 실제 메뉴 판매수량이나 자동 승인 결과를 의미하지 않습니다.</small>'+
  '<div role="status" aria-live="polite" id="opsSaleSkuResult">조회 전 · 미확인 메뉴는 자동 연결하지 않습니다.</div>'+
  '</div></div>';
@@ -71,10 +119,10 @@ window.openStoreSaleSkuPreview=function(){
  modal.onclick=e=>{if(e.target===modal)close()};
  const run=modal.querySelector("#opsSaleSkuRun"),output=modal.querySelector("#opsSaleSkuResult");
  const load=modal.querySelector("#opsLoadRealSaleNames");
- const save=modal.querySelector("#opsSaleSkuExport");
+ const save=modal.querySelector("#opsSaleSkuExport"),usage=modal.querySelector("#opsSaleRecipeUsage");
  let verifiedPreview=null,verifiedInput="";
  modal.querySelector("#opsSaleNames").addEventListener("input",()=>{
-  verifiedPreview=null;verifiedInput="";save.disabled=true;
+  verifiedPreview=null;verifiedInput="";save.disabled=true;usage.disabled=true;
  });
  save.onclick=()=>{
   if(!verifiedPreview||modal.querySelector("#opsSaleNames").value!==verifiedInput){
@@ -89,6 +137,29 @@ window.openStoreSaleSkuPreview=function(){
    setTimeout(()=>URL.revokeObjectURL(url),1000);
   }catch(e){output.textContent="검토 파일 생성 실패: "+String(e.message||e)}
  };
+ usage.onclick=async()=>{
+  const area=modal.querySelector("#opsSaleNames");
+  if(!verifiedPreview||area.value!==verifiedInput||usage.disabled)return;
+  const store=Number(CURRENT_STORE_ID)||1;
+  const amounts=[...modal.querySelectorAll("[data-sale-units]")].map(el=>el.value);
+  const display=modal.querySelector("#opsSaleRecipeUsageResult");
+  usage.disabled=true;display.textContent="지점별 현재 적용 레시피를 조회해 예상 사용량 계산 중…";
+  try{
+   const recipes=await BE.storeRecipeList(store);
+   if(!modal.isConnected||area.value!==verifiedInput||
+      (Number(CURRENT_STORE_ID)||1)!==store)return;
+   const result=computeScopedRecipeUsage(verifiedPreview,recipes,amounts);
+   const pretty=n=>n.toLocaleString("ko-KR",{maximumFractionDigits:6});
+   display.innerHTML="<b>예상 재료 사용량 · 수동 입력 기준</b>"+
+     "<p>지점에 적용된 레시피(지점 변경분 우선)를 사용했습니다. 실제 판매·폐기·시식·서비스·손실 수량, 단가와 재고 차감은 반영되지 않았습니다.</p>"+
+     "<div style=\"display:grid;gap:6px\">"+result.ingredients.map(x=>
+       '<div class="ops-card">'+escapeText(x.name)+" · <b>"+pretty(x.amount)+" "+
+        escapeText(x.unit)+"</b></div>").join("")+"</div>"+
+     "<small>계산한 판매명 "+result.details.length+"개 · 지점 수정 레시피 사용 "+
+       result.details.filter(x=>x.override).length+"개 · 실제 사용량 확정 아님</small>";
+  }catch(e){if(modal.isConnected)display.textContent="계산 불가 · 실제 수량이나 레시피 근거를 확인하세요: "+String(e.message||e);}
+  finally{if(modal.isConnected)usage.disabled=false}
+ };
  load.onclick=async()=>{
   const from=document.getElementById("opsFrom")?.value,to=document.getElementById("opsTo")?.value;
   const note=modal.querySelector("#opsSaleNameLoadStatus"),area=modal.querySelector("#opsSaleNames");
@@ -96,7 +167,7 @@ window.openStoreSaleSkuPreview=function(){
    note.textContent="매출·매입 조회 기간을 먼저 설정해 주세요.";return;
   }
   if(area.value.trim()&&!window.confirm("현재 입력한 판매명을 확인된 실거래 메뉴명으로 바꾸시겠습니까?"))return;
-  load.disabled=true;save.disabled=true;verifiedPreview=null;verifiedInput="";
+  load.disabled=true;save.disabled=true;usage.disabled=true;verifiedPreview=null;verifiedInput="";
   note.textContent="확인된 실매출 메뉴명을 조회 중…";
   try{
    const rows=parseSaleNameCandidates(await BE.saleNameCandidates(from,to));
@@ -116,19 +187,21 @@ window.openStoreSaleSkuPreview=function(){
   if(!names.length||names.length>100||names.some(x=>x.length>120)){
    output.textContent="판매명 1~100개를 입력하고 항목별 120자 이내로 제한해 주세요.";return;
   }
-  save.disabled=true;verifiedPreview=null;verifiedInput="";
+  save.disabled=true;usage.disabled=true;verifiedPreview=null;verifiedInput="";
   run.disabled=true;output.textContent="승인된 지점 품목 매핑 확인 중…";
   try{
    const original=modal.querySelector("#opsSaleNames").value;
    const rows=parseSkuPreview(await BE.saleSkuPreview(names),names);
    if(!modal.isConnected||modal.querySelector("#opsSaleNames").value!==original)return;
-   verifiedPreview=rows;verifiedInput=original;save.disabled=false;
+   verifiedPreview=rows;verifiedInput=original;save.disabled=false;usage.disabled=rows.some(x=>x.status!=="EXACT");
+   modal.querySelector("#opsSaleRecipeUsageResult").textContent=usage.disabled?"자동 소모량 계산 불가: 모든 판매명이 EXACT(지점 승인 별칭 일치)여야 합니다. 행사명 후보·미확인 SKU는 계산하지 않습니다.":"각 판매명의 실제 판매수량을 직접 입력해야만 예상 사용량을 계산합니다. 현재 POS 거래건수는 판매수량이 아닙니다.";
    const labels={EXACT:"지점 승인 별칭 일치",PROMOTION:"행사명 후보 (확인 필요)",
     AMBIGUOUS:"복수 품목 충돌 · 수동 검토",UNMAPPED:"매핑 미확인 · 판매량 반영 금지"};
    output.innerHTML='<div style="display:grid;gap:8px">'+rows.map(x=>
      '<div class="ops-card" style="display:grid;gap:4px"><b>'+escapeText(x.name)+'</b>'+
      '<span>'+labels[x.status]+'</span>'+
      (x.product?'<small>SKU #'+x.product+' · '+escapeText(x.productName)+' (별칭: '+escapeText(x.alias)+')</small>':'')+
+     (x.status==="EXACT"?'<label>입력 판매수량 (실제 POS 수량 자동확인 아님)<input type="number" min="1" max="999999" step="1" inputmode="numeric" data-sale-units="'+rows.indexOf(x)+'" class="form-control" placeholder="수량을 직접 입력"></label>':'')+
      '</div>').join("")+'</div>';
   }catch(e){
    if(modal.isConnected)output.textContent="품목 매핑 조회 실패 · 원본 거래를 수정하지 않았습니다: "+String(e.message||e);
