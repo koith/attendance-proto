@@ -25,9 +25,9 @@ function render(tab){
  const exportActualOperations=()=>clicked.push('export');
  const draw=()=>clicked.push('draw');
  const factory=new Function('S','range','view','window','document','draw',
-  'opsRefresh','openOpsModal','exportActualOperations',source+';return shell;');
+  'opsRefresh','opsCollectOpen','opsUploadOpen','openOpsModal','exportActualOperations',source+';return shell;');
  factory(S,()=>['2026-10-01','2026-10-31'],view,window,document,draw,
-  opsRefresh,openOpsModal,exportActualOperations)(tab);
+  opsRefresh,map.get('opsCollectOpen'),map.get('opsUploadOpen'),openOpsModal,exportActualOperations)(tab);
  if(tab==='inquiry'){
   for(const id of actionIds)assert.equal(typeof map.get(id).onclick,'function',id+' lost handler');
   actionIds.forEach(id=>map.get(id).onclick());
@@ -59,6 +59,10 @@ try{
    '<main id="view"></main></html>');
   for(const [tab,markup] of Object.entries(markups)){
    await page.locator('#view').evaluate((node,content)=>node.innerHTML=content,markup);
+   if(width===414&&tab==='inquiry'){
+    fs.mkdirSync('qa-results',{recursive:true});
+    await page.screenshot({path:'qa-results/ops-header-414-mobile.png',fullPage:true});
+   }
    const result=await page.evaluate(()=>{
     const header=document.querySelector('.ops-page-header');
     const title=document.querySelector('.ops-page-heading');
