@@ -6,6 +6,9 @@ on:
       - 'actual_attendance.js'
       - 'actual_attendance.html'
       - 'qa_browser_app_smoke.mjs'
+      - 'qa_operations_header_mobile_browser_v1.mjs'
+      - 'operations_v1.js'
+      - 'operations_v1.css'
       - 'qa_version_test_controls_browser_v1.mjs'
       - 'version_test_toggle_982.js'
       - 'test_mode_ui_v1.js'
@@ -18,6 +21,9 @@ on:
       - 'actual_attendance.js'
       - 'actual_attendance.html'
       - 'qa_browser_app_smoke.mjs'
+      - 'qa_operations_header_mobile_browser_v1.mjs'
+      - 'operations_v1.js'
+      - 'operations_v1.css'
       - '.github/workflows/qa-browser-app-smoke.yml'
   workflow_dispatch:
 
@@ -40,6 +46,15 @@ jobs:
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.55.1
           npx playwright install --with-deps chromium
+      - name: Verify operations title and one-line toolbar in six Chromium viewports
+        run: node qa_operations_header_mobile_browser_v1.mjs
+      - name: Upload isolated mobile layout screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ops-mobile-title-toolbar-v330
+          path: qa-results/ops-header-414-mobile.png
+          if-no-files-found: warn
       - name: Real test-mode overlay version-button regression (mobile/desktop)
         run: node qa_version_test_controls_browser_v1.mjs
       - name: Start isolated static preview
