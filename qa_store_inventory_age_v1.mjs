@@ -30,7 +30,7 @@ assert.match(sql,/a\.last_receipt IS NOT NULL/);
 assert.match(sql,/REVOKE ALL ON FUNCTION public\.admin_store_inventory_age_review\(bigint,integer\) FROM PUBLIC,anon/);
 assert.doesNotMatch(sql,/\bUPDATE\s+public\.inventory_movements\b|\bDELETE\s+FROM\s+public\.inventory_movements\b|\bINSERT\s+INTO\s+public\.inventory_movements\b/i);
 const from=js.indexOf('function ageReviewRows(');
-const to=js.indexOf('window.openStoreInventoryAgeReview=',from);
+const to=js.indexOf('let ageReviewCache=',from);
 assert.ok(from>0&&to>from);
 const parser=Function(js.slice(from,to)+'\nreturn ageReviewRows')();
 const row={item_id:7,item_name:'장기 입고 원두',unit:'g',on_hand:20,last_receipt_on:'2026-06-01',last_usage_on:'2026-07-03',days_since_receipt:139};
