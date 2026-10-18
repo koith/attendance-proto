@@ -85,7 +85,7 @@ function stockOrderSuggestion(row,orders=purchaseOrders){
  for(const o of orders||[]){
   const match=row.manual?Number(o.manual_item_id)===key:Number(o.item_id)===key;
   if(!match||["CANCELLED","VOID","RECEIVED","CLOSED"].includes(String(o.status).toUpperCase()))continue;
-  const qty=finite(o.ordered_quantity),received=finite(o.received_quantity||0);
+  const qty=finite(o.ordered_quantity),received=finite(o.received_quantity);
   if(!Number.isFinite(qty)||!Number.isFinite(received)||qty<0||received<0||received>qty)return fail("미입고 수량을 확인하세요.");
   const u=String(o.unit||"").trim();
   if(u!==stockUnit&&u!==orderUnit)return fail("기존 발주의 단위가 현재 재고와 다릅니다.");
