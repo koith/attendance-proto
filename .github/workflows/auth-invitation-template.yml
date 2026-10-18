@@ -1,3 +1,6 @@
+# 2026-10-18 revalidate hosted Auth invitation after field rollout.
+# Main push executes remote GET/PATCH/GET when Management API permission exists;
+# otherwise records PENDING_AUTH_WRITE_ACCESS, never a false deployment claim.
 name: Auth invitation Korean template QA and publication
 
 on:
