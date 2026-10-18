@@ -100,7 +100,7 @@ async function openPurchaseOrder(row){
 function orderPanel(){
   const low=managedInventory.filter(x=>stockState(x).rank<2).sort((a,b)=>stockState(a).rank-stockState(b).rank||Number(a.on_hand)-Number(b.on_hand));
   const bars=low.length?low.map((row,index)=>{const target=Number(row.target_level||row.reorder_level||0),on=Number(row.on_hand||0),rec=stockOrderSuggestion(row),need=rec.valid?rec.suggest:0,pct=target?Math.min(100,on/target*100):0,st=stockState(row);return '<button type="button" class="ops-order-row '+st.key+'" data-managed-stock="'+managedInventory.indexOf(row)+'"><span><b>'+esc(row.name)+'</b><small>'+st.label+' · 현재 '+num(on)+' / 목표 '+num(target)+' '+esc(row.unit||"")+'</small></span><i><em style="width:'+pct+'%"></em></i><strong>'+(rec.valid?(need>0?'권장 발주 '+num(need)+' '+esc(row.stock_unit||row.unit||""):'입고 대기 · 추가 0'):'단위 확인 필요')+'</strong></button>'}).join(""):'<div class="ops-order-empty">현재 발주점에 도달한 등록 품목이 없습니다.</div>';
-  return '<section class="ops-order-panel"><div class="ops-unified-section-head"><div><b>발주 필요</b><span>'+low.length+'개 품목</span></div><div><button type="button" class="btn btn-secondary btn-sm" id="opsInventoryBulk">일괄 등록</button><button type="button" class="btn btn-primary btn-sm" id="opsInventoryAdd">+ 재고 등록</button></div></div><div class="ops-order-bars">'+bars+'</div></section>';
+  return '<section class="ops-order-panel" id="opsInventoryOrders"><div class="ops-unified-section-head"><div><b>발주 필요</b><span>'+low.length+'개 품목</span></div><div><button type="button" class="btn btn-secondary btn-sm" id="opsInventoryBulk">일괄 등록</button><button type="button" class="btn btn-primary btn-sm" id="opsInventoryAdd">+ 재고 등록</button></div></div><div class="ops-order-bars">'+bars+'</div></section>';
 }
 function inventoryState(row){
   if(!hasMeasuredStock(row.on_hand))return {key:"unknown",label:"재고 미확인",rank:2};
@@ -135,12 +135,26 @@ async function renderInventory(refresh=false){
   if(!refresh)await loadInventoryManagement();
   const all=REF.inventory||[],categories=["전체",...new Set(all.map(x=>x.category))];let rows=inventoryCategory==="전체"?all:all.filter(x=>x.category===inventoryCategory);
   if(inventoryQuery)rows=rows.filter(x=>[x.name,x.current_text,x.minimum_text,x.order_text,x.note].some(v=>String(v||"").toLowerCase().includes(inventoryQuery)));
-  body.innerHTML=orderPanel()+receivingPanel()+'<div class="ops-head-actions" style="margin:12px 0"><button type="button" class="btn btn-secondary" id="opsInventoryAgeReview">장기 체류 가능 재고 점검</button></div><div class="ops-note" id="opsInventoryAgeAlert" role="status" aria-live="polite">입고·사용 이력 점검 중…</div><div class="ops-unified-section-title"><b>재고 기준</b><span>'+rows.length+'개</span></div><div class="ops-inventory-toolbar ops-reference-toolbar"><label>검색<input id="opsReferenceInventorySearch" type="search" value="'+esc(inventoryQuery)+'" placeholder="품목명·현재고·발주기준"></label><label>카테고리<select id="opsReferenceInventoryCat">'+categories.map(x=>'<option '+(x===inventoryCategory?'selected':'')+'>'+esc(x)+'</option>').join("")+'</select></label></div><div class="ops-stock-chart ops-stock-grid">'+(rows.length?rows.map(inventoryCard).join(""):'<div class="ops-empty"><b>검색 결과가 없습니다.</b></div>')+'</div>';
+  // Reversible, role-neutral navigation. Keep all live actions mounted and
+  // visible; only scroll the current page instead of changing route/hash.
+  const reorderCount=managedInventory.filter(x=>stockState(x).rank<2).length;
+  const nav='<nav class="ops-inventory-shortcuts" aria-label="재고 업무 바로가기">'+
+   '<button type="button" data-inventory-jump="opsInventoryOrders">발주 '+reorderCount+' · 입고 '+purchaseOrders.length+'</button>'+
+   '<button type="button" data-inventory-jump="opsInventoryAgeSection">재고 점검</button>'+
+   '<button type="button" data-inventory-jump="opsInventoryCatalog">전체 품목 '+rows.length+'</button></nav>';
+  body.innerHTML=nav+orderPanel()+receivingPanel()+'<div id="opsInventoryAgeSection" class="ops-inventory-age-section"><div class="ops-head-actions" style="margin:12px 0"><button type="button" class="btn btn-secondary" id="opsInventoryAgeReview">장기 체류 가능 재고 점검</button></div><div class="ops-note" id="opsInventoryAgeAlert" role="status" aria-live="polite">입고·사용 이력 점검 중…</div></div><div class="ops-unified-section-title" id="opsInventoryCatalog"><b>재고 기준</b><span>'+rows.length+'개</span></div><div class="ops-inventory-toolbar ops-reference-toolbar"><label>검색<input id="opsReferenceInventorySearch" type="search" value="'+esc(inventoryQuery)+'" placeholder="품목명·현재고·발주기준"></label><label>카테고리<select id="opsReferenceInventoryCat">'+categories.map(x=>'<option '+(x===inventoryCategory?'selected':'')+'>'+esc(x)+'</option>').join("")+'</select></label></div><div class="ops-stock-chart ops-stock-grid">'+(rows.length?rows.map(inventoryCard).join(""):'<div class="ops-empty"><b>검색 결과가 없습니다.</b></div>')+'</div>';
   // Use the already-implemented and authorized inventory editors in operations_v1.
   const editor=window.openInventoryEntryFromUnified;
   if(typeof editor!=="function")throw new Error("INVENTORY_EDITOR_NOT_READY");
   document.getElementById("opsInventoryAdd").onclick=()=>editor("manual");
   document.getElementById("opsInventoryBulk").onclick=()=>editor("bulk");
+  body.querySelectorAll("[data-inventory-jump]").forEach(button=>{
+    button.onclick=()=>{
+      const id=button.dataset.inventoryJump;
+      if(!["opsInventoryOrders","opsInventoryAgeSection","opsInventoryCatalog"].includes(id))return;
+      body.querySelector("#"+id)?.scrollIntoView({behavior:"smooth",block:"start"});
+    };
+  });
   document.getElementById("opsInventoryAgeReview").onclick=()=>window.openStoreInventoryAgeReview?.();
   void window.refreshStoreInventoryAgeAlert?.();
   body.querySelectorAll("[data-managed-stock]").forEach(button=>button.onclick=()=>openPurchaseOrder(managedInventory[Number(button.dataset.managedStock)]));
