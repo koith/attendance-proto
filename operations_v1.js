@@ -23,7 +23,7 @@ const withCatalog=rows=>(rows||[]).filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.n
 function shell(tab){
  S.tab=tab||S.tab;
  const[f,t]=range(),titles={dashboard:["리포트","매출·매입·재고·원가 흐름을 요약합니다."],inquiry:["매출·매입","거래 데이터를 조회하고 원천 데이터를 관리합니다."],inventory:["재고","카테고리별 현재고와 발주 필요량을 확인합니다."],recipe:["레시피","메뉴별 표준 레시피와 원가 구조를 관리합니다."]},meta=titles[S.tab]||["매장운영",""];
- const salesActions=S.tab==="inquiry"?'<div class="ops-head-actions"><button class="btn btn-secondary btn-sm" id="opsCollectOpen">데이터 수집</button><button class="btn btn-secondary btn-sm" id="opsUploadOpen">파일 업로드</button><button class="btn btn-secondary btn-sm" id="opsExportActual">실거래 CSV</button></div>':S.tab==="inventory"?'<div class="ops-head-actions"><button type="button" class="btn btn-secondary btn-sm" id="opsStocktakeOpen">표준 품목 재고 실사</button></div>':S.tab==="dashboard"?'<div class="ops-head-actions"><button type="button" class="btn btn-secondary btn-sm" id="opsReconciliationOpen">미해결 대사 내역</button></div>':"";
+ const salesActions=S.tab==="inquiry"?'<div class="ops-head-actions"><button class="btn btn-secondary btn-sm" id="opsCollectOpen">데이터 수집</button><button class="btn btn-secondary btn-sm" id="opsUploadOpen">파일 업로드</button><button class="btn btn-secondary btn-sm" id="opsExportActual" title="내부 참고용 거래 원장 · 세무신고용 아님">내부관리 CSV</button></div>':S.tab==="inventory"?'<div class="ops-head-actions"><button type="button" class="btn btn-secondary btn-sm" id="opsStocktakeOpen">표준 품목 재고 실사</button></div>':S.tab==="dashboard"?'<div class="ops-head-actions"><button type="button" class="btn btn-secondary btn-sm" id="opsReconciliationOpen">미해결 대사 내역</button></div>':"";
  const filter=(S.tab==="dashboard"||S.tab==="inquiry")?'<div class="ops-filter"><div><label>시작일</label><input id="opsFrom" type="date" value="'+f+'"></div><div><label>종료일</label><input id="opsTo" type="date" value="'+t+'"></div><button class="btn btn-primary" id="opsRefresh">조회</button></div>':"";
  view.innerHTML='<div class="ops-head page-title-row"><div><h2 class="page-title">'+meta[0]+'</h2></div>'+salesActions+'</div>'+filter+'<div id="opsBody"></div>';
  // Operations owns a full #view render. Restore the shared admin navigation immediately after every shell rebuild.
@@ -49,7 +49,7 @@ function operationsCsvCell(value,numeric=false){
  return '"'+safe.replace(/"/g,'""')+'"';
 }
 function operationsCsvRows(rows){
- const columns=["거래ID","일자","구분","채널","거래처/메뉴","공급가액","부가세","합계","상태","원천","원천기록키"];
+ const columns=["거래ID","일자","구분","채널","거래처/메뉴","공급가액","부가세","합계","상태","원천","원천기록키","자료용도"];
  const output=[columns.map(x=>operationsCsvCell(x)).join(",")];
  for(const row of rows){
   if(row.is_demo!==false||row.status!=="CONFIRMED")throw Error("실거래가 아닌 기록은 내보낼 수 없습니다.");
@@ -58,7 +58,7 @@ function operationsCsvRows(rows){
    operationsCsvCell(row.channel),operationsCsvCell(row.counterparty),
    operationsCsvCell(row.net_amount,true),operationsCsvCell(row.vat_amount,true),
    operationsCsvCell(row.total_amount,true),operationsCsvCell(row.status),operationsCsvCell(row.source),
-   operationsCsvCell(row.source_record_key)
+   operationsCsvCell(row.source_record_key),operationsCsvCell("내부 운영 참고용 · 세무신고 자료 아님")
   ].join(","));
  }
  return "\uFEFF"+output.join("\r\n")+"\r\n";
@@ -95,10 +95,10 @@ async function exportActualOperations(){
   if(!rows.length)throw Error("해당 기간에 확인된 실제 거래가 없습니다. 데모 거래는 내보내지 않습니다.");
   const blob=new Blob([operationsCsvRows(rows)],{type:"text/csv;charset=utf-8"});
   const url=URL.createObjectURL(blob),link=document.createElement("a");
-  link.href=url;link.download="baekeok-real-operations-"+from+"-"+to+".csv";
+  link.href=url;link.download="baekeok-internal-operations-"+from+"-"+to+".csv";
   document.body.appendChild(link);link.click();link.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
-  if(typeof window.toast==="function")window.toast("in","실거래 CSV",rows.length+"건을 내보냈습니다. 데모 거래는 제외했습니다.");
+  if(typeof window.toast==="function")window.toast("in","내부 관리 CSV",rows.length+"건을 내보냈습니다. 세무신고 자료가 아니며 데모 거래는 제외했습니다.");
  }catch(error){
   alert("실거래 CSV 내보내기 실패: "+error.message);
  }finally{button.disabled=false;button.textContent=previousText;}
@@ -176,7 +176,7 @@ if(S.tab==="dashboard"){const[s,a,tr]=await Promise.all([BE.operationsSummary(f,
 else if(S.tab==="inquiry"){
  const q={mode:"actual",page:1,size:100,type:null,channel:null,from:f,to:t};
  let request=0;
- body.innerHTML='<div class="ops-inquiry-filter">'+
+ body.innerHTML='<div class="ops-note" role="note">내부 운영 관리용 장부입니다. 세무 신고용 원천 증빙이나 법정 신고서를 대신하지 않습니다. 정산·취소·누락 여부는 별도 확인이 필요합니다.</div><div class="ops-inquiry-filter">'+
   '<label>자료 구분<select id="opsMode"><option value="actual">확인된 실거래</option><option value="demo">시연 예시 (실적 제외)</option></select></label>'+
   '<label>거래 구분<select id="opsType"><option value="">전체</option><option value="SALE">매출</option><option value="PURCHASE">매입</option><option value="REFUND">환불</option></select></label>'+
   '<label>채널<select id="opsChannel"><option value="">전체</option></select></label></div>'+
