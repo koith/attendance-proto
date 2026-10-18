@@ -4,12 +4,20 @@ on:
     paths:
       - 'supabase/migrations/20261012210500_store_inventory_stocktake.sql'
       - 'qa_store_stocktake_postgres_integration.sql'
+      - 'supabase/migrations/20261019082000_staff_stocktake_proposals.sql'
+      - 'qa_staff_stocktake_proposals_postgres.sql'
+      - 'qa_staff_stocktake_ui_v1.mjs'
+      - 'operations_staff_stocktake_v1.js'
       - '.github/workflows/store-stocktake-postgres-integration.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/migrations/20261012210500_store_inventory_stocktake.sql'
       - 'qa_store_stocktake_postgres_integration.sql'
+      - 'supabase/migrations/20261019082000_staff_stocktake_proposals.sql'
+      - 'qa_staff_stocktake_proposals_postgres.sql'
+      - 'qa_staff_stocktake_ui_v1.mjs'
+      - 'operations_staff_stocktake_v1.js'
       - '.github/workflows/store-stocktake-postgres-integration.yml'
 jobs:
   postgres:
@@ -39,3 +47,7 @@ jobs:
         run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
       - name: Run the production SQL stocktake migration against an isolated inventory ledger
         run: psql -v ON_ERROR_STOP=1 -f qa_store_stocktake_postgres_integration.sql
+      - name: Run actual employee proposal and manager approval migration against isolated PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f qa_staff_stocktake_proposals_postgres.sql
+      - name: Validate shipped staff/manager stocktake JavaScript and adapters
+        run: node qa_staff_stocktake_ui_v1.mjs
