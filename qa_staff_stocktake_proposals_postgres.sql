@@ -35,6 +35,7 @@ VALUES (1,11,current_date,'PURCHASE',5,'ORDER','original-one','original physical
        (1,13,current_date,'PURCHASE',999,'DEMO','demo-ledger','demo balance',true);
 \ir supabase/migrations/20261012210500_store_inventory_stocktake.sql
 \ir supabase/migrations/20261019082000_staff_stocktake_proposals.sql
+\ir supabase/migrations/20261019084500_staff_stocktake_proposal_baseline.sql
 DO $test$
 BEGIN
  IF has_table_privilege('authenticated','public.store_inventory_stocktakes','SELECT')
@@ -254,5 +255,49 @@ BEGIN
  SELECT sum(quantity) INTO total FROM public.inventory_movements WHERE store_id=1 AND item_id=11;
  IF total<>10 THEN RAISE EXCEPTION 'manager final count was not 10: %',total; END IF;
 END $t$;
+-- Stale proposal: record real measured stock then change ledger before approval.
+-- Do not turn a previous count into a false current stock adjustment.
+SET ROLE anon;
+DO $test$
+DECLARE r jsonb;stored jsonb;
+BEGIN
+ r:=public.staff_stocktake_submit(1,101,'1234',
+   '[{"item_id":11,"counted_quantity":3}]'::jsonb,'기준 시각 실사');
+ PERFORM set_config('test.stale_proposal',r->>'id',false);
+END $test$;
+RESET ROLE;
+DO $test$
+DECLARE n integer;v numeric;
+BEGIN
+ SELECT lines->0->>'expected_quantity' INTO v
+   FROM public.store_staff_stocktake_proposals WHERE id=current_setting('test.stale_proposal')::bigint;
+ IF v<>10 THEN RAISE EXCEPTION 'staff submission did not save current verified balance: %',v; END IF;
+END $test$;
+INSERT INTO public.inventory_movements(store_id,item_id,business_date,movement_type,quantity,source_type,source_key,note,is_demo)
+ VALUES(1,11,current_date,'SALE',-1,'POS','sale-after-staff','actual ledger changed after staff count',false);
+SET ROLE authenticated;
+DO $test$
+DECLARE denied bool:=false;before_count int;after_count int;reason text;
+BEGIN
+ SELECT count(*) INTO before_count FROM public.store_inventory_stocktakes WHERE store_id=1;
+ BEGIN
+  PERFORM public.admin_store_staff_stocktake_decide(1,current_setting('test.stale_proposal')::bigint,true);
+ EXCEPTION WHEN raise_exception THEN
+  GET STACKED DIAGNOSTICS reason=message_text;
+  denied:=reason='STOCK_CHANGED_RECOUNT';
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'stale staff count accepted after ledger movement'; END IF;
+ SELECT count(*) INTO after_count FROM public.store_inventory_stocktakes WHERE store_id=1;
+ IF before_count<>after_count THEN RAISE EXCEPTION 'rejected stale count created a stocktake draft'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.store_staff_stocktake_proposals
+   WHERE id=current_setting('test.stale_proposal')::bigint AND status='SUBMITTED')
+ THEN RAISE EXCEPTION 'rejected stale count changed proposal status'; END IF;
+END $test$;
+RESET ROLE;
+DO $test$
+BEGIN
+ IF (SELECT sum(quantity) FROM public.inventory_movements WHERE item_id=11 AND store_id=1)<>9
+ THEN RAISE EXCEPTION 'rejected proposal changed stock ledger'; END IF;
+END $test$;
 ROLLBACK;
 SELECT 'PASS MTG-09: PIN, clock-in, cross-store, no demo, proposal-only, approve-to-draft, final manager POST' result;
