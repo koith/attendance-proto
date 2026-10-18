@@ -8,6 +8,7 @@ on:
       - 'qa_payroll_monday_month_no_local_work_v1.mjs'
       - 'qa_payroll_inactive_monday_month_v1.mjs'
       - 'qa_payroll_approval_engine_fixture_v1.mjs'
+      - 'qa_payroll_weekly_verified_source_v1.mjs'
       - 'qa_payroll_close_server_authority_v1.mjs'
       - 'qa_payroll_close_nonnull_snapshot_fields_v1.mjs'
       - 'supabase/migrations/20261012063000_payroll_close_require_nonnull_amounts.sql'
@@ -49,6 +50,7 @@ jobs:
       - run: node qa_payroll_monday_month_no_local_work_v1.mjs
       - run: node qa_payroll_inactive_monday_month_v1.mjs
       - run: node qa_payroll_approval_engine_fixture_v1.mjs
+      - run: node qa_payroll_weekly_verified_source_v1.mjs
       - run: node qa_payroll_close_server_authority_v1.mjs
       - run: node qa_payroll_close_nonnull_snapshot_fields_v1.mjs
       - run: node qa_payroll_no_local_punch_close_v1.mjs
