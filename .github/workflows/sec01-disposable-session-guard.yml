@@ -1,0 +1,57 @@
+name: SEC-01 disposable session-guard integration
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261017050000_single_admin_session_guard_prepare.sql'
+      - 'qa_admin_single_session_postgres.sql'
+      - '.github/workflows/sec01-disposable-session-guard.yml'
+  push:
+    branches: [feat/admin-single-device-session-992]
+    paths:
+      - 'supabase/migrations/20261017050000_single_admin_session_guard_prepare.sql'
+      - 'qa_admin_single_session_postgres.sql'
+      - '.github/workflows/sec01-disposable-session-guard.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-postgrest-session-guard:
+    name: PostgREST pre-request sessions, POS guest, safe rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-fixture-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: local-fixture-only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute migration and synthetic auth claims in throwaway DB
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -d postgres -v ON_ERROR_STOP=1 -f qa_admin_single_session_postgres.sql > /tmp/session-guard-fixture.log 2>&1 || {
+            tail -n 100 /tmp/session-guard-fixture.log
+            exit 1
+          }
+          tail -n 10 /tmp/session-guard-fixture.log
+      - name: Preserve anonymous/admin session test outcome
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sec01-disposable-postgres
+          path: /tmp/session-guard-fixture.log
+          if-no-files-found: warn
