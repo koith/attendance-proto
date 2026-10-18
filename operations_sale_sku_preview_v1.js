@@ -78,7 +78,7 @@ function computeScopedRecipeUsage(preview,recipes,quantities){
    const id=Number(part?.item_id),q=Number(part?.quantity),
     name=String(part?.item_name||"").trim(),unit=String(part?.unit||"").trim();
    if(!Number.isSafeInteger(id)||id<=0||usedInRecipe.has(id)||
-      part.quantity==null||part.quantity===""||
+      part?.quantity==null||part?.quantity===""||
       !Number.isFinite(q)||q<=0||!name||!unit)
     throw Error("USAGE_COMPONENT_INVALID");
    usedInRecipe.add(id);
