@@ -9,4 +9,15 @@ assert.ok(src.includes('if(!keep[name] && /^(?:근태|세션|급여)-20'));
 assert.ok(!src.includes('if(!keep[sh.getName()]) ss.deleteSheet(sh);'));
 const ctx=vm.createContext({});
 vm.runInContext(src,ctx);
+let tabs=['1월','근태-2026-10','세션-2026-10','급여-2026-10','QA-05_TMP','검토용'];
+let deleted=[];
+const get=n=>tabs.includes(n)?{getName:()=>n}:null;
+const book={
+ getSheetByName:get,
+ insertSheet:n=>{tabs.push(n);return get(n)},
+ getSheets:()=>tabs.map(get),
+ deleteSheet:sh=>{deleted.push(sh.getName());tabs=tabs.filter(n=>n!==sh.getName())},
+ setActiveSheet:()=>{},moveActiveSheet:()=>{}
+};
+ctx._ensureMonthTabs(book);
 console.log('PASS annual Sheet cleanup is limited to legacy names');
