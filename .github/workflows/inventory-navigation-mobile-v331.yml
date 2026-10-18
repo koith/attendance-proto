@@ -1,0 +1,38 @@
+name: Inventory mobile task navigation regression
+on:
+  pull_request:
+    paths:
+      - 'operations_reference_ui_v208.js'
+      - 'operations_v1.css'
+      - 'index.html'
+      - 'qa_inventory_nav_mobile_browser_v331.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'operations_reference_ui_v208.js'
+      - 'operations_v1.css'
+      - 'index.html'
+      - 'qa_inventory_nav_mobile_browser_v331.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mobile-shortcuts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          npm install --no-save --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Execute actual inventory renderer across six viewports
+        run: node qa_inventory_nav_mobile_browser_v331.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: inventory-nav-390px
+          path: qa-results/inventory-shortcuts-390.png
+          if-no-files-found: warn
