@@ -51,6 +51,26 @@ function verifiedStocktakeDetail(data,requestedId){
  });
  return {...data,lines};
 }
+function stocktakeAuditCsv(detail,expectedStore){
+ if(!detail||!Number.isSafeInteger(Number(detail.id))||Number(detail.id)<1||
+    !["DRAFT","POSTED","CANCELLED"].includes(detail.status)||
+    !/^\d{4}-\d{2}-\d{2}$/.test(detail.counted_on||"")||
+    Number(detail.store_id)!==Number(expectedStore))
+  throw Error("STOCKTAKE_AUDIT_INVALID_SCOPE");
+ const checked=verifiedStocktakeDetail(detail,Number(detail.id));
+ const cell=v=>{
+  const text=String(v??"");
+  const safe=/^\s*[=+\-@\t\r]/.test(text)?"'"+text:text;
+  return '"'+safe.replace(/"/g,'""')+'"';
+ };
+ const header=["실사ID","지점ID","실사일","상태","품목ID","품목명","단위","장부 예상수량","실물 실사수량","차이","자료용도"];
+ const rows=checked.lines.map(x=>[
+  checked.id,expectedStore,checked.counted_on,checked.status,x.item_id,x.name,x.unit,
+  x.expected_quantity,x.counted_quantity,x.variance,"매장 재고 실사 검토용 · 실사 상태 확인 필수"
+ ].map(cell).join(","));
+ return "\ufeff"+[header.map(cell).join(","),...rows].join("\r\n")+"\r\n";
+}
+
 window.openStoreInventoryStocktake=async function(){
  let catalog=[],history=[];
  try{
@@ -186,8 +206,23 @@ window.openStoreInventoryStocktake=async function(){
      esc(line.name)+' · 예상 '+qty(line.expected_quantity)+' '+esc(line.unit)+'</span><b>실사 '+
      qty(line.counted_quantity)+' · 차이 '+qty(line.variance)+'</b></div>').join("")+
    '<div>조정 대상 '+changes.length+'개 / 전체 '+data.lines.length+'개</div>'+
+   '<button type="button" class="btn btn-secondary btn-sm" id="opsStocktakeAuditExport">검증된 실사내역 CSV</button>'+
    (data.status==="DRAFT"?'<button type="button" class="btn btn-primary" id="opsStocktakeConfirm">검토한 실사 확정 반영</button>':'')+
    '</div>';
+  const exportButton=find("#opsStocktakeAuditExport");
+  if(exportButton)exportButton.onclick=()=>{
+   try{
+    const store=Number(CURRENT_STORE_ID)||1;
+    if(Number(data.store_id)!==store)throw Error("STOCKTAKE_STORE_CHANGED");
+    const csv=stocktakeAuditCsv(data,store);
+    const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+    const link=document.createElement("a");
+    link.href=url;
+    link.download="baekeok-stocktake-review-store"+store+"-"+data.id+".csv";
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+   }catch(error){alert("검증된 실사 내역을 내보낼 수 없습니다: "+String(error.message||error))}
+  };
   const confirmButton=find("#opsStocktakeConfirm");
   if(confirmButton)confirmButton.onclick=async()=>{
    if(!confirm("실사 #"+id+"의 수량을 확인했습니까? 확정하면 재고 장부에 조정 이력이 추가되며 되돌릴 수 없습니다."))return;
