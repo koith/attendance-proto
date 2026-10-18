@@ -6,7 +6,7 @@ const ops=fs.readFileSync('operations_v1.js','utf8');
 const ui=fs.readFileSync('operations_stocktake_v1.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261012210500_store_inventory_stocktake.sql','utf8');
 assert.match(html,/operations_v1\.js\?v=[\w.-]+/,'Operations asset must be cache-busted');
-const stocktakeAsset=html.match(/operations_stocktake_v1\.js\?v=20261018v(\d+)/)?.[1];
+const stocktakeAsset=html.match(/operations_stocktake_v1\.js\?v=20261019v(\d+)/)?.[1];
 assert.ok(Number(stocktakeAsset)>=320,'mobile stocktake asset must never revert to before searchable catalog');
 assert.match(html,/const APP_VERSION="v0\.\d+";/);
 assert.match(ops,/id="opsStocktakeOpen"/);
@@ -28,6 +28,25 @@ assert.deepEqual(filter(sample,' 원두 ').map(x=>x.id),[1,3],'Korean stock-name
 assert.deepEqual(filter(sample,'없는 품목'),[],'empty results must not fall back to another item');
 assert.deepEqual(filter(sample,'').map(x=>x.id),[1,2,3],'empty search preserves the complete authorized catalog');
 assert.deepEqual(sample.map(x=>x.id),[1,2,3],'search does not mutate catalog or store data');
+// Run the actual shipped detail parser: never coerce absent inventory to zero.
+const verified=(new Function(ui.slice(from,to)+'\nreturn verifiedStocktakeDetail;'))();
+const stockLines=[
+ {item_id:10,name:'원두',unit:'g',expected_quantity:12.5,counted_quantity:0,variance:-12.5},
+ {item_id:11,name:'우유',unit:'ml',expected_quantity:'15.2',counted_quantity:'18.2',variance:'3'}
+];
+const sampleDetail={id:701,status:'DRAFT',lines:stockLines};
+assert.deepEqual(verified(sampleDetail,701).lines.map(x=>x.variance),[-12.5,3]);
+assert.equal(verified({id:701,status:'POSTED',lines:[stockLines[0]]},701).lines[0].counted_quantity,0,
+ 'verified measured zero is still a physical observation');
+assert.throws(()=>verified({id:701,status:'DRAFT',lines:[{...stockLines[0],expected_quantity:null}]},701),/STOCKTAKE_UNVERIFIED_VARIANCE/);
+assert.throws(()=>verified({id:701,status:'DRAFT',lines:[{...stockLines[0],counted_quantity:''}]},701),/STOCKTAKE_UNVERIFIED_VARIANCE/);
+assert.throws(()=>verified({id:701,status:'DRAFT',lines:[{...stockLines[0],variance:null}]},701),/STOCKTAKE_UNVERIFIED_VARIANCE/);
+assert.throws(()=>verified({id:701,status:'DRAFT',lines:[{...stockLines[0],variance:0}]},701),/STOCKTAKE_UNVERIFIED_VARIANCE/);
+assert.throws(()=>verified({id:701,status:'DRAFT',lines:[...stockLines,stockLines[1]]},701),/STOCKTAKE_UNVERIFIED_VARIANCE/);
+assert.throws(()=>verified({id:701,status:'DRAFT',lines:[]},701),/STOCKTAKE_DETAIL_INVALID/);
+assert.throws(()=>verified({id:702,status:'DRAFT',lines:stockLines},701),/STOCKTAKE_DETAIL_INVALID/);
+assert.throws(()=>verified({id:701,status:'BOGUS',lines:stockLines},701),/STOCKTAKE_DETAIL_INVALID/);
+assert.match(ui,/const data=verifiedStocktakeDetail\(await BE\.inventoryStocktakeDetail\(id\),id\)/);
 assert.match(ui,/await Promise\.all\(\[BE\.inventoryStocktakeCatalog\(\),BE\.inventoryStocktakeList\(\)\]\)/);
 assert.match(ui,/const draft=await BE\.inventoryStocktakeDraft\(/);
 assert.match(ui,/if\(!confirm\("실사 #"/,'explicit human confirmation required before stock mutation');
