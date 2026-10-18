@@ -172,3 +172,62 @@
 /* v0.83 purchase receiving */
 .ops-receiving-panel{margin-top:12px}.ops-receiving-panel .ops-order-row strong{white-space:nowrap}.ops-receiving-panel .ops-order-row{cursor:pointer}
 \n/* v0.88 inventory unit conversion */\n.ops-unit-pending{display:inline-flex;align-items:center;margin-left:6px;padding:2px 7px;border-radius:999px;background:#fff4db;color:#8a5b00;border:1px solid #ead7a1;font-size:.65rem;font-weight:800;white-space:nowrap}.ops-unit-config-btn{border:1px solid var(--line);background:#fff;color:var(--brand);border-radius:8px;min-height:30px;padding:0 9px;font-size:.7rem;font-weight:800;cursor:pointer}.ops-unit-editor{display:grid;gap:12px}.ops-unit-editor label{display:grid;gap:6px;font-size:.78rem;font-weight:800}.ops-unit-editor input{height:44px;border:1px solid var(--line);border-radius:10px;padding:0 10px;font-size:16px}.ops-unit-equation{display:grid;grid-template-columns:auto minmax(90px,1fr) auto;gap:8px;align-items:center}.ops-unit-equation span,.ops-unit-equation>b{font-size:.82rem;white-space:nowrap}@media(max-width:520px){.ops-stock-footer{flex-wrap:wrap}.ops-unit-config-btn{margin-left:auto}.ops-unit-pending{margin-left:0}}\n
+
+/* #1113 — Operations header: protect the page title from the action strip.
+ * One full-width title row + one independently scrollable button row on phones.
+ * Do not turn the entire page into a horizontal-scroll surface. */
+.ops-head.page-title-row.ops-page-header{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:flex-start;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  gap:10px;
+}
+.ops-page-header .ops-page-heading{
+  display:block;
+  flex:0 0 auto;
+  width:100%;
+  min-width:0;
+}
+.ops-page-header .ops-page-heading .page-title{
+  display:block;
+  max-width:100%;
+  margin:0;
+  white-space:normal;
+  overflow-wrap:normal;
+  word-break:keep-all;
+  line-break:strict;
+}
+.ops-page-header .ops-head-actions{
+  display:flex;
+  flex:0 0 auto;
+  flex-wrap:nowrap;
+  align-items:stretch;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  gap:8px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:2px 2px 7px;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+}
+.ops-page-header .ops-head-actions > .btn{
+  flex:0 0 auto;
+  white-space:nowrap;
+  word-break:keep-all;
+  min-height:40px;
+}
+@media (max-width:430px){
+  .ops-head.page-title-row.ops-page-header{gap:9px}
+  .ops-page-header .ops-head-actions{gap:7px}
+  .ops-page-header .ops-head-actions > .btn{
+    padding-inline:11px;
+    min-height:42px;
+  }
+}
