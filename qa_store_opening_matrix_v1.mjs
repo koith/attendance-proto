@@ -31,7 +31,20 @@ const lanes=[
  ['TEST 근태·급여 실운영 시트 격리','qa_server_sheet_test_exclusion_v1.mjs'],
  ['직원 출근/PIN/레시피 권한','qa_staff_recipe_ready_guard_v1.mjs'],
  ['레시피 본사 원문 유출 차단','qa_recipe_no_static_instruction_leak_v1.mjs'],
- ['레시피 검증된 원본 순서 보존','qa_recipe_verified_passorder_four_v1.mjs']
+ ['레시피 검증된 원본 순서 보존','qa_recipe_verified_passorder_four_v1.mjs'],
+ // #1060 / QA-07: entire inventory → purchasing → sales/reconciliation
+ // scope executes with the store-opening report, not as unobserved separate CI.
+ ['지점별 재고 원장/단위/관리권한 격리','qa_store_inventory_isolation_v1.mjs'],
+ ['재고 수기·대량 등록 실제 UI 연결','qa_inventory_editor_wiring_v1.mjs'],
+ ['모바일 재고실사 초안/확정 UI 안전성','qa_store_stocktake_ui_v1.mjs'],
+ ['미입고/부분입고 발주·포장단위 중복 차단','qa_stock_reorder_net_pending_v1.mjs'],
+ ['재고 미확인·데모 수량 제외','qa_inventory_real_metrics_v1.mjs'],
+ ['지점별 POS/배달/매출 접근 경계','qa_store_operations_isolation_v1.mjs'],
+ ['POS/매출 CSV 형식·주입 오류 거부','qa_operations_csv_integrity_v1.mjs'],
+ ['매출·매입 데모의 실제 보고서 유입 차단','qa_operations_demo_metrics_guard_v1.mjs'],
+ ['미정산·누락 거래 대사 화면 연결','qa_store_operations_reconciliation_ui_v1.mjs'],
+ ['POS/배달 실제 장부 페이징·시연 분리','qa_operations_paged_real_v1.mjs'],
+ ['지점 진입 잠금 및 재고 원문 단위 보존','qa_store_entry_inventory_units_v021.mjs']
 ];
 const started=new Date().toISOString(),results=[];
 for(const [label,file] of lanes){
@@ -43,7 +56,7 @@ for(const [label,file] of lanes){
  if(!passed)console.error(output.slice(-2000));
 }
 fs.mkdirSync('qa-results',{recursive:true});
-const record={issue:1000,runStartedAt:started,endedAt:new Date().toISOString(),
+const record={issue:1000,extensionIssue:1060,runStartedAt:started,endedAt:new Date().toISOString(),
  environment:'isolated synthetic & source-contract checks, no live writes',
  status:results.every(r=>r.passed)?'PASS':'FAIL',results};
 fs.writeFileSync('qa-results/store-opening-matrix.json',JSON.stringify(record,null,2));

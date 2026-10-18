@@ -4,6 +4,15 @@ on:
   pull_request:
     paths:
       - 'qa_store_opening_*'
+      - 'operations_*.js'
+      - 'qa_inventory_*.mjs'
+      - 'qa_operations_*.mjs'
+      - 'qa_stock_reorder_net_pending_v1.mjs'
+      - 'qa_store_stocktake_*'
+      - 'qa_store_operations_*'
+      - 'qa_store_inventory_*'
+      - 'qa_inventory_manual_rls_store_scope.sql'
+      - 'qa_operations_dummy_end_to_end_postgres.sql'
       - 'index.html'
       - 'actual_attendance.js'
       - 'recipe_access_v220.css'
@@ -26,6 +35,15 @@ on:
     branches: [main]
     paths:
       - 'qa_store_opening_*'
+      - 'operations_*.js'
+      - 'qa_inventory_*.mjs'
+      - 'qa_operations_*.mjs'
+      - 'qa_stock_reorder_net_pending_v1.mjs'
+      - 'qa_store_stocktake_*'
+      - 'qa_store_operations_*'
+      - 'qa_store_inventory_*'
+      - 'qa_inventory_manual_rls_store_scope.sql'
+      - 'qa_operations_dummy_end_to_end_postgres.sql'
       - 'index.html'
       - 'actual_attendance.js'
       - 'recipe_access_v220.css'
@@ -67,6 +85,8 @@ jobs:
           node-version: '22'
       - name: Run every isolated store-opening contract lane
         run: node qa_store_opening_matrix_v1.mjs
+      - name: Prove safe replenishment QA catches duplicate and cancelled purchase regressions
+        run: node qa_store_opening_stock_mutation_proof_v1.mjs
       - name: Prove payroll/Sheet QA detects a deliberately injected TEST data leak
         run: node qa_store_opening_mutation_proof_v1.mjs engine
       - name: Upload per-lane pass/fail evidence
@@ -130,7 +150,7 @@ jobs:
   disposable-postgres:
     name: Real migrations in separate disposable PostgreSQL databases
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 22
     services:
       postgres:
         image: postgres:16
@@ -163,15 +183,24 @@ jobs:
             qa_store_opening_recipe_postgres_v1.sql
             qa_payroll_close_postgres_integration.sql
             qa_payroll_weekly_postgres_integration.sql
+            qa_inventory_manual_rls_store_scope.sql
+            qa_store_stocktake_postgres_integration.sql
+            qa_store_operations_reconciliation_postgres.sql
+            qa_operations_dummy_end_to_end_postgres.sql
           )
+          mkdir -p qa-results
+          : > qa-results/store-opening-postgres-results.jsonl
           for i in "${!fixtures[@]}"; do
             db="qa_open_${i}"
             echo "::group::${fixtures[$i]} on local ${db}"
             psql -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${db};"
-            psql -d "$db" -v ON_ERROR_STOP=1 -f "${fixtures[$i]}" > "/tmp/${db}.log" 2>&1 || {
+            if psql -d "$db" -v ON_ERROR_STOP=1 -f "${fixtures[$i]}" > "/tmp/${db}.log" 2>&1; then
+              printf '{"fixture":"%s","result":"PASS"}\n' "${fixtures[$i]}" >> qa-results/store-opening-postgres-results.jsonl
+            else
+              printf '{"fixture":"%s","result":"FAIL"}\n' "${fixtures[$i]}" >> qa-results/store-opening-postgres-results.jsonl
               tail -n 120 "/tmp/${db}.log"
               exit 1
-            }
+            fi
             tail -n 4 "/tmp/${db}.log"
             # PostgreSQL roles are cluster-global, unlike per-fixture databases.
             # Drop each disposable DB first, then its fixture-created roles.
@@ -179,7 +208,14 @@ jobs:
             psql -d postgres -v ON_ERROR_STOP=1 -c "DROP ROLE IF EXISTS anon, authenticated, service_role;"
             echo "::endgroup::"
           done
-          echo "PASS: 6 real SQL migration fixtures on 6 ephemeral databases"
+          echo "PASS: ${#fixtures[@]} real SQL migration fixtures on ${#fixtures[@]} ephemeral databases"
+      - name: Upload each isolated PostgreSQL fixture verdict even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-opening-postgres-results
+          path: qa-results/store-opening-postgres-results.jsonl
+          if-no-files-found: warn
 
   notify-on-failure:
     name: File actionable QA failure to tracking issue #1000
