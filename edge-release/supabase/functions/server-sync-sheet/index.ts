@@ -4,6 +4,7 @@
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
 import {createRemoteJWKSet,jwtVerify} from "https://esm.sh/jose@5";
 import {createPayrollEngine} from "./engine.mjs";
+import {verifiedWeeklySource} from "./payroll_policy.mjs";
 import {attendanceWithWorkingPayable} from "./sheet_working_payable.mjs";
 
 const CORS={
@@ -451,6 +452,10 @@ Deno.serve(async req=>{
       const calculatedWon=Number(body.calculated_won),approvedWon=Number(body.approved_won);
       const requestedDecision=String(body.decision||"APPROVE").toUpperCase();
       const reason=String(body.reason||"").trim();
+      if(body.calculated_won===null||body.calculated_won===undefined||
+         typeof body.calculated_won==="boolean"||
+         (typeof body.calculated_won==="string"&&body.calculated_won.trim()===""))
+        throw new HttpError(400,"INVALID_WEEKLY_APPROVAL");
       if(!Number.isSafeInteger(employeeId)||employeeId<=0||
          !/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(weekStart)||
          !Number.isSafeInteger(calculatedWon)||calculatedWon<0||
@@ -471,7 +476,8 @@ Deno.serve(async req=>{
       const employeeRow=currentPayroll.rows.find(r=>Number(r.employee_id)===employeeId);
       if(!employeeRow||!employeeRow.pay||employeeRow.payrollType!=="HOURLY")
         throw new HttpError(404,"WEEKLY_EMPLOYEE_NOT_FOUND");
-      const actualCalculated=Number(employeeRow.pay.weeklyCalculatedAmounts?.[weekStart]||0);
+      const actualCalculated=verifiedWeeklySource(employeeRow.pay,weekStart);
+      if(actualCalculated===null)throw new HttpError(409,"WEEKLY_SOURCE_UNVERIFIED");
       if(calculatedWon!==actualCalculated)throw new HttpError(409,"WEEKLY_CALCULATED_AMOUNT_CHANGED");
       if(actor.internal||!actor.userId)throw new HttpError(403,"ADMIN_USER_REQUIRED");
       // Initial APPROVE followed by another manager approval is audited as REAPPROVE.
