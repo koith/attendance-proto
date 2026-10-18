@@ -27,6 +27,29 @@ function parseSaleNameCandidates(rows){
   seen.add(name);return {name,count};
  });
 }
+// MTG-07: preserve inspection provenance without claiming transaction quantity.
+function saleSkuAuditCsv(rows){
+ if(!Array.isArray(rows)||!rows.length||rows.length>100)throw Error("SKU_AUDIT_INVALID");
+ const valid=new Set(["EXACT","PROMOTION","AMBIGUOUS","UNMAPPED"]);
+ const cell=value=>{
+  const raw=String(value??"");
+  const safe=/^[\s]*[=+\-@\t\r]/.test(raw)?"'"+raw:raw;
+  return '"'+safe.replace(/"/g,'""')+'"';
+ };
+ const headings=["판매명 원문","분류","SKU ID","품목명","일치 별칭","승인상태","자료용도"];
+ const lines=[headings.map(cell).join(",")];
+ for(const r of rows){
+  if(!r||!valid.has(r.status)||typeof r.name!=="string"||
+     r.name.length<1||r.name.length>120)throw Error("SKU_AUDIT_INVALID_ROW");
+  const linked=r.status==="EXACT"||r.status==="PROMOTION";
+  if(linked?(!Number.isSafeInteger(r.product)||r.product<=0):r.product!==null)
+   throw Error("SKU_AUDIT_INVALID_PRODUCT");
+  lines.push([r.name,r.status,linked?r.product:"",linked?r.productName:"",
+    linked?r.alias:"",r.status==="EXACT"?"지점 승인 일치":"검토 필요",
+    "관리자 검토용 · 실제 판매수량/자동승인 아님"].map(cell).join(","));
+ }
+ return "\ufeff"+lines.join("\r\n")+"\r\n";
+}
 window.openStoreSaleSkuPreview=function(){
  const modal=document.createElement("div");
  modal.className="ops-modal";
@@ -38,6 +61,8 @@ window.openStoreSaleSkuPreview=function(){
  '<p id="opsSaleNameLoadStatus" role="status" aria-live="polite">실거래가 없는 경우 목록은 비워 둡니다. 거래건수는 판매수량이 아닙니다.</p>'+
  '<textarea id="opsSaleNames" rows="6" placeholder="아메리카노&#10;행사 아메리카노&#10;아메리카노 1L"></textarea>'+
  '<button type="button" class="btn btn-primary" id="opsSaleSkuRun">지점 품목 매핑 검사</button>'+
+ '<button type="button" class="btn btn-secondary" id="opsSaleSkuExport" disabled>검토 결과 CSV 내보내기</button>'+
+ '<small>검토용 내보내기는 원본 판매명·분류·승인 SKU만 기록하며 실제 메뉴 판매수량이나 자동 승인 결과를 의미하지 않습니다.</small>'+
  '<div role="status" aria-live="polite" id="opsSaleSkuResult">조회 전 · 미확인 메뉴는 자동 연결하지 않습니다.</div>'+
  '</div></div>';
  document.body.appendChild(modal);
@@ -46,6 +71,24 @@ window.openStoreSaleSkuPreview=function(){
  modal.onclick=e=>{if(e.target===modal)close()};
  const run=modal.querySelector("#opsSaleSkuRun"),output=modal.querySelector("#opsSaleSkuResult");
  const load=modal.querySelector("#opsLoadRealSaleNames");
+ const save=modal.querySelector("#opsSaleSkuExport");
+ let verifiedPreview=null,verifiedInput="";
+ modal.querySelector("#opsSaleNames").addEventListener("input",()=>{
+  verifiedPreview=null;verifiedInput="";save.disabled=true;
+ });
+ save.onclick=()=>{
+  if(!verifiedPreview||modal.querySelector("#opsSaleNames").value!==verifiedInput){
+   save.disabled=true;output.textContent="입력이 변경되었습니다. 먼저 다시 검사해 주세요.";return;
+  }
+  try{
+   const content=saleSkuAuditCsv(verifiedPreview);
+   const url=URL.createObjectURL(new Blob([content],{type:"text/csv;charset=utf-8"}));
+   const link=document.createElement("a");
+   link.href=url;link.download="baekeok-sku-review-"+new Date().toISOString().slice(0,10)+".csv";
+   document.body.appendChild(link);link.click();link.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(e){output.textContent="검토 파일 생성 실패: "+String(e.message||e)}
+ };
  load.onclick=async()=>{
   const from=document.getElementById("opsFrom")?.value,to=document.getElementById("opsTo")?.value;
   const note=modal.querySelector("#opsSaleNameLoadStatus"),area=modal.querySelector("#opsSaleNames");
@@ -53,7 +96,8 @@ window.openStoreSaleSkuPreview=function(){
    note.textContent="매출·매입 조회 기간을 먼저 설정해 주세요.";return;
   }
   if(area.value.trim()&&!window.confirm("현재 입력한 판매명을 확인된 실거래 메뉴명으로 바꾸시겠습니까?"))return;
-  load.disabled=true;note.textContent="확인된 실매출 메뉴명을 조회 중…";
+  load.disabled=true;save.disabled=true;verifiedPreview=null;verifiedInput="";
+  note.textContent="확인된 실매출 메뉴명을 조회 중…";
   try{
    const rows=parseSaleNameCandidates(await BE.saleNameCandidates(from,to));
    if(!modal.isConnected)return;
@@ -72,10 +116,13 @@ window.openStoreSaleSkuPreview=function(){
   if(!names.length||names.length>100||names.some(x=>x.length>120)){
    output.textContent="판매명 1~100개를 입력하고 항목별 120자 이내로 제한해 주세요.";return;
   }
+  save.disabled=true;verifiedPreview=null;verifiedInput="";
   run.disabled=true;output.textContent="승인된 지점 품목 매핑 확인 중…";
   try{
+   const original=modal.querySelector("#opsSaleNames").value;
    const rows=parseSkuPreview(await BE.saleSkuPreview(names),names);
-   if(!modal.isConnected)return;
+   if(!modal.isConnected||modal.querySelector("#opsSaleNames").value!==original)return;
+   verifiedPreview=rows;verifiedInput=original;save.disabled=false;
    const labels={EXACT:"지점 승인 별칭 일치",PROMOTION:"행사명 후보 (확인 필요)",
     AMBIGUOUS:"복수 품목 충돌 · 수동 검토",UNMAPPED:"매핑 미확인 · 판매량 반영 금지"};
    output.innerHTML='<div style="display:grid;gap:8px">'+rows.map(x=>
