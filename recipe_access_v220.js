@@ -1,9 +1,9 @@
-/* v220: top-level recipe access for clocked-in staff and store-scoped manager edits. */
+/* Public read-only store recipe view; store-scoped edits require manager authentication. */
 (function(){
   const esc=v=>window.safeHtml?window.safeHtml(v):String(v??"");
   const number=v=>Number(v||0).toLocaleString("ko-KR");
-  // Never fall back to an anonymously hosted manufacturing reference.
-  // Manager/staff RPC responses are the only authority for recipe instructions.
+  // Never ship recipe instructions as a static public reference file.
+  // Server RPC controls READY-store public reads and manager-only edits.
   const instructionsFor=row=>Array.isArray(row.instructions)?row.instructions:[];
   const sourceMaterials=row=>instructionsFor(row).map(v=>({label:v.label||"기본",lines:String(v.content||"").split("\n").map(x=>x.trim()).filter(Boolean).filter(x=>/\d+(?:\.\d+)?\s*(?:g|ml|샷|P|펌프|개|봉|장|스쿱|oz|L)\b|얼음\s*가득/i.test(x))})).filter(v=>v.lines.length);
   const stockReference=item=>(window.OPERATIONS_REFERENCE_V208?.inventory||[]).find(x=>String(x.name).trim()===String(item?.name).trim());
@@ -150,7 +150,7 @@
 
   function renderList(rows,manager){
     const cats=["전체",...new Set(rows.map(r=>r.category||"미분류"))],state={focusedKey:null,returnY:0,pushed:false,restoring:false};
-    view.innerHTML=`<div class="recipe-v220"><div class="recipe-v220-head page-title-row"><div><h2 class="page-title">레시피</h2><p>${manager?"이 지점에서 사용하는 레시피입니다. 연필 버튼으로 지점 전용 변경사항을 저장할 수 있습니다.":"직원이 언제든 확인할 수 있는 보기 전용 레시피입니다."}</p></div><span>${rows.length}개</span></div><div class="recipe-v220-toolbar"><label>카테고리<select id="rvCat">${cats.map(x=>`<option>${esc(x)}</option>`).join("")}</select></label><label>정렬<select id="rvSort"><option value="name-asc">메뉴명 ▲</option><option value="name-desc">메뉴명 ▼</option><option value="category-asc">카테고리명 ▲</option><option value="category-desc">카테고리명 ▼</option></select></label><label>검색<span class="recipe-v220-searchbox"><input id="rvSearch" type="search" placeholder="메뉴명 검색" autocomplete="off"><button id="rvSearchClear" type="button" class="recipe-v220-search-clear" aria-label="검색어 지우기">×</button></span></label></div><div id="rvList" class="recipe-v220-list"></div></div>`;
+    view.innerHTML=`<div class="recipe-v220"><div class="recipe-v220-head page-title-row"><div><h2 class="page-title">레시피</h2><p>${manager?"이 지점에서 사용하는 레시피입니다. 연필 버튼으로 지점 전용 변경사항을 저장할 수 있습니다.":"로그인 없이 열람할 수 있는 보기 전용 레시피입니다."}</p></div><span>${rows.length}개</span></div><div class="recipe-v220-toolbar"><label>카테고리<select id="rvCat">${cats.map(x=>`<option>${esc(x)}</option>`).join("")}</select></label><label>정렬<select id="rvSort"><option value="name-asc">메뉴명 ▲</option><option value="name-desc">메뉴명 ▼</option><option value="category-asc">카테고리명 ▲</option><option value="category-desc">카테고리명 ▼</option></select></label><label>검색<span class="recipe-v220-searchbox"><input id="rvSearch" type="search" placeholder="메뉴명 검색" autocomplete="off"><button id="rvSearchClear" type="button" class="recipe-v220-search-clear" aria-label="검색어 지우기">×</button></span></label></div><div id="rvList" class="recipe-v220-list"></div></div>`;
     const catEl=document.getElementById("rvCat"),sortEl=document.getElementById("rvSort"),searchEl=document.getElementById("rvSearch"),searchClearEl=document.getElementById("rvSearchClear"),listEl=document.getElementById("rvList");
     const closeFocused=(fromPop=false)=>{
       if(!state.focusedKey)return;
@@ -190,64 +190,25 @@
     const syncSearchClear=()=>searchClearEl.classList.toggle("is-visible",!!searchEl.value);catEl.onchange=draw;sortEl.onchange=draw;searchEl.oninput=()=>{syncSearchClear();draw()};searchClearEl.onclick=()=>{searchEl.value="";syncSearchClear();draw();searchEl.focus()};syncSearchClear();draw();
   }
 
-  let staffShiftTimer=null;
-  const stopShiftTimer=()=>{if(staffShiftTimer!==null){clearInterval(staffShiftTimer);staffShiftTimer=null}};
-  async function staffRecipeGate(){
-    const all=await BE.listEmployeesState();
-    const working=(Array.isArray(all)?all:[]).filter(e=>e.working===true);
-    if(!working.length){
-      view.innerHTML='<div class="recipe-v220-empty">현재 출근 중인 직원만 레시피를 볼 수 있습니다.<p><button type="button" class="btn btn-secondary" id="rvStaffRetry">근무 상태 다시 확인</button></p></div>';
-      document.getElementById('rvStaffRetry').onclick=()=>renderRecipeHub();
-      return;
-    }
-    view.innerHTML=`<section class="recipe-v220 recipe-v220-staff-gate"><h2>직원 레시피 열람</h2>
-      <p>현재 출근 중인 직원만 레시피를 볼 수 있습니다. 직원 본인의 비밀번호를 확인합니다.</p>
-      <form id="rvStaffLogin"><label>근무 중인 직원<select id="rvStaffEmployee" required>
-      ${working.map(e=>`<option value="${Number(e.id)}">${esc(e.name)}</option>`).join("")}</select></label>
-      <label>직원 비밀번호<input id="rvStaffPin" type="password" inputmode="numeric" autocomplete="off" required></label>
-      <button class="btn btn-primary" type="submit" id="rvStaffRead">보기 전용 레시피 열람</button>
-      <p id="rvStaffError" role="alert" aria-live="polite"></p></form></section>`;
-    const form=document.getElementById('rvStaffLogin');
-    form.onsubmit=async event=>{
-      event.preventDefault();
-      const id=Number(document.getElementById('rvStaffEmployee').value);
-      const pin=document.getElementById('rvStaffPin').value;
-      const submit=document.getElementById('rvStaffRead'),notice=document.getElementById('rvStaffError');
-      if(!Number.isSafeInteger(id)||!pin)return;
-      submit.disabled=true;notice.textContent='';
-      try{
-        const allowed=await BE.staffRecipeList(id,pin,CURRENT_STORE_ID);
-        document.getElementById('rvStaffPin').value='';
-        renderList(allowed,false);
-        stopShiftTimer();
-        staffShiftTimer=setInterval(async()=>{
-          if(!document.getElementById('rvList')){stopShiftTimer();return}
-          try{
-            const now=await BE.listEmployeesState();
-            if(!Array.isArray(now)||!now.some(e=>Number(e.id)===id&&e.working===true)){stopShiftTimer();await renderRecipeHub()}
-          }catch(_){stopShiftTimer();await renderRecipeHub()}
-        },30000);
-      }catch(e){
-        document.getElementById('rvStaffPin').value='';
-        notice.textContent='열람할 수 없습니다. 본인 비밀번호와 출근 상태를 확인하세요.';
-        submit.disabled=false;
-      }
-    };
-  }
+  // Read-only recipe browsing never requires a manager session, an employee PIN,
+  // or a clocked-in shift. The server RPC restricts exposure to READY stores.
+  // Editing remains routed only through manager-authenticated RPCs.
   async function renderRecipeHub(){
-    stopShiftTimer();
     view.innerHTML='<div class="recipe-v220-loading">레시피를 불러오는 중…</div>';
     try{
       let manager=false;
       if(LIVE&&Auth.isLoggedIn()){
         try{manager=!!(await BE.isAdmin())}catch(_){manager=false}
       }
-      if(manager){
-        rows=await BE.storeRecipeList(CURRENT_STORE_ID);
-        renderList(rows,true);
-      }else if(LIVE) await staffRecipeGate();
-      else view.innerHTML='<p class="recipe-v220-empty">직원 레시피 열람은 운영 출근 인증 후 이용할 수 있습니다.</p>';
-    }catch(e){view.innerHTML=`<p class="recipe-v220-empty">레시피를 불러오지 못했습니다. 근무 상태를 다시 확인하세요.</p>`}
+      const visible=manager
+        ?await BE.storeRecipeList(CURRENT_STORE_ID)
+        :await BE.publicStoreRecipeList(CURRENT_STORE_ID);
+      renderList(visible,manager);
+    }catch(error){
+      view.innerHTML='<div class="recipe-v220-empty">레시피를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'+
+        '<p><button type="button" class="btn btn-secondary" id="rvRetry">다시 시도</button></p></div>';
+      document.getElementById('rvRetry').onclick=()=>renderRecipeHub();
+    }
   }
   window.renderRecipeHub=renderRecipeHub;
 })();
