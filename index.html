@@ -831,6 +831,7 @@
 <script src="no_double_tap_zoom.js?v=20260926p" defer></script>
 <script src="supabase_session_resilience_v1.js?v=20260918a"></script>
 <script src="payroll_elapsed_weeks_v1.js?v=20261014a"></script>
+<script src="payroll_weekly_source_ui_v1.js?v=20261018v327"></script>
 <link rel="stylesheet" href="kpi_b_944.css?v=950">
 <script src="kpi_b_944.js?v=947" defer></script>
 <link rel="stylesheet" href="modal_header_968.css?v=308">
@@ -840,7 +841,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.326">v0.326</button></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.327">v0.327</button></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -933,7 +934,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.326";
+const APP_VERSION="v0.327";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -3172,30 +3173,41 @@ async function drawPay(ym){
           const firstMonday=firstWeek.getFullYear()+"-"+String(firstWeek.getMonth()+1).padStart(2,"0")+"-"+String(firstWeek.getDate()).padStart(2,"0");
           modal.innerHTML=`<h3>주휴수당 정정 · ${safeHtml(eName)}</h3>
           <div class="field"><label>대상 주 월요일</label><input id="weeklyApproveDate" type="date" min="${ym}-01" max="${ym}-${String(new Date(Number(ym.slice(0,4)),Number(ym.slice(5,7)),0).getDate()).padStart(2,"0")}" value="${firstMonday}"></div>
-          <div class="field"><label>해당 주 자동계산 금액 (원)</label><input id="weeklyApproveOriginal" type="number" min="0" step="1" value="0"></div>
-          <div class="field"><label>최종 승인 금액 (원)</label><input id="weeklyApproveAmount" type="number" min="0" step="1" value="0"></div>
+          <div class="field"><label>해당 주 자동계산 금액 (원)</label><input id="weeklyApproveOriginal" type="number" min="0" step="1" value="" readonly></div>
+          <div class="field"><label>최종 승인 금액 (원)</label><input id="weeklyApproveAmount" type="number" min="0" step="1" value=""></div><p id="weeklyApproveSourceStatus" role="status">서버 계산 근거 확인 중…</p>
           <div class="field"><label>처리 결과</label><select id="weeklyDecision"><option value="APPROVE">정정 승인</option><option value="REJECT">반려 · 지급액 0원</option></select></div>
           <div class="field"><label>정정·반려 사유</label><textarea id="weeklyApproveReason" placeholder="대타 승인 내역 및 지급 판단 근거"></textarea></div>
           <p style="font-size:.8rem">자동 계산액과 사유를 확인하세요. 기존 승인 이후 다시 승인하면 재승인으로 별도 기록되며 이전 승인·반려 기록은 보존됩니다.</p>
           <button type="button" class="btn btn-primary btn-block" id="weeklyApproveSave">정정 승인·재승인</button>`;
           openAddVeil();
           const syncWeekAmount=()=>{const key=modal.querySelector("#weeklyApproveDate").value;
-            const amount=Number(pay.weeklyCalculatedAmounts?.[key]||0);
-            modal.querySelector("#weeklyApproveOriginal").value=String(amount);
-            modal.querySelector("#weeklyApproveAmount").value=String(amount);
+            const amount=window.weeklyApprovalSourceAmount(pay,key);
+            const valid=amount!==null;
+            modal.querySelector("#weeklyApproveOriginal").value=valid?String(amount):"";
+            modal.querySelector("#weeklyApproveAmount").value=valid?String(amount):"";
+            modal.querySelector("#weeklyApproveAmount").disabled=!valid||modal.querySelector("#weeklyDecision").value==="REJECT";
+            modal.querySelector("#weeklyApproveSave").disabled=!valid;
+            modal.querySelector("#weeklyApproveSourceStatus").textContent=valid?
+              (amount===0?"서버에서 확인된 0원 계산 또는 해당 주 미지급 검토 사유입니다. 승인 판단 및 사유를 확인하세요.":"서버 계산 근거 확인됨. 정정 사유와 금액을 검산하세요.") :
+              "이 주의 서버 계산 또는 미지급 검토 기록이 없습니다. 승인하지 말고 근태·계약·대상 주를 확인하세요.";
           };
           modal.querySelector("#weeklyApproveOriginal").readOnly=true;
           modal.querySelector("#weeklyApproveDate").onchange=syncWeekAmount;
           modal.querySelector("#weeklyDecision").onchange=()=>{
             const rejected=modal.querySelector("#weeklyDecision").value==="REJECT";
             const amountField=modal.querySelector("#weeklyApproveAmount");
-            amountField.disabled=rejected;
-            amountField.value=rejected?"0":String(Number(modal.querySelector("#weeklyApproveOriginal").value)||0);
+            const fromServer=modal.querySelector("#weeklyApproveOriginal").value;
+            amountField.disabled=rejected||fromServer==="";
+            amountField.value=fromServer===""?"":rejected?"0":fromServer;
           };
           syncWeekAmount();
           modal.querySelector("#weeklyApproveSave").onclick=async()=>{
             const week_start=modal.querySelector("#weeklyApproveDate").value;
-            const calculated_won=Number(modal.querySelector("#weeklyApproveOriginal").value);
+            const verifiedWon=window.weeklyApprovalSourceAmount(pay,week_start);
+            if(verifiedWon===null||modal.querySelector("#weeklyApproveOriginal").value!==String(verifiedWon)){
+              alert("이 주의 서버 계산 근거가 확인되지 않았습니다. 근태·계약을 확인하세요.");return;
+            }
+            const calculated_won=verifiedWon;
             const decision=modal.querySelector("#weeklyDecision").value;
             const approved_won=decision==="REJECT"?0:Number(modal.querySelector("#weeklyApproveAmount").value);
             const reason=modal.querySelector("#weeklyApproveReason").value.trim();
