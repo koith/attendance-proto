@@ -16,7 +16,7 @@ INSERT INTO public.operations_transactions VALUES
 (2,1,'2026-10-10','BAEMIN','delivery-1','SALE','CONFIRMED',false,4800,'2026-10-10 12:02+09'),
 (3,1,'2026-10-10','BAEMIN','demo-delivery','SALE','CONFIRMED',true,4800,'2026-10-10 12:01+09'),
 (4,2,'2026-10-10','BAEMIN','other-store','SALE','CONFIRMED',false,4800,'2026-10-10 12:02+09'),
-(5,1,'2026-10-10','BAEMIN','too-late','SALE','CONFIRMED',false,4800,'2026-10-10 12:06+09'),
+(5,1,'2026-10-10','BAEMIN','too-late','SALE','CONFIRMED',false,4800,'2026-10-10 12:07+09'),
 (6,1,'2026-10-10','BAEMIN','different-price','SALE','CONFIRMED',false,5000,'2026-10-10 12:01+09'),
 (7,1,'2026-10-10','BAEMIN','refund','REFUND','CONFIRMED',false,4800,'2026-10-10 12:01+09'),
 (8,1,'2026-10-10','BAEMIN','cancel','SALE','CANCELLED',false,4800,'2026-10-10 12:01+09'),
