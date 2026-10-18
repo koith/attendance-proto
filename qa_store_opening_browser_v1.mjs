@@ -46,6 +46,7 @@ function recipePage(){return `<!doctype html><html lang="ko"><meta charset="utf-
  const BE={
    isAdmin:async()=>role!=='STAFF',
    storeRecipeList:id=>api('recipe-list',{store:id}),
+   publicStoreRecipeList:id=>api('public-recipe-list',{store:id}),
    storeRecipeOverrideSave:(store,menuKey,name,category,components,thumbnail,instructions)=>
      api('recipe-save',{store,menuKey,name,category,components,thumbnail,instructions}),
    storeRecipeOverrideClear:(store,menuKey)=>api('recipe-clear',{store,menuKey}),
@@ -77,6 +78,7 @@ const server=http.createServer(async(req,res)=>{
    let body='';for await(const buf of req)body+=buf;
    const x=JSON.parse(body||'{}'),store=Number(x.store),mode=u.pathname.slice(4);
    if(mode==='recipe-list')return send(res,[forStore(store)]);
+   if(mode==='public-recipe-list')return send(res,[forStore(store)]);
    if(mode==='employees')return send(res,[...workers.values()].filter(w=>w.store_id===store).map(({pin,...w})=>w));
    if(mode==='staff-recipe'){
     const w=workers.get(Number(x.id));
@@ -167,7 +169,7 @@ async function recipes(){
  });
  const visit=async(store,role)=>{
   await page.goto(base+'/recipe-fixture.html?store='+store+'&role='+role);
-  await page.locator('.recipe-v220,#rvStaffRetry').first().waitFor({timeout:7000});
+  await page.locator('.recipe-v220-card').first().waitFor({timeout:7000});
  };
  await visit(701,'OWNER');
  ok((await page.locator('#view').innerText()).includes(baseRecipe.menu_name),'Source recipe initially shown');
@@ -182,18 +184,12 @@ async function recipes(){
  await visit(702,'OWNER');
  ok((await page.locator('#view').innerText()).includes('본사 테스트 라떼'),'Other branch gets original source');
  await visit(701,'STAFF');
- ok((await page.locator('#view').innerText()).includes('현재 출근 중인 직원만'),'Offshift staff blocked');
- workers.get(210).working=true;
- await page.locator('#rvStaffRetry').click();
- await page.locator('#rvStaffPin').fill('9999');
- await page.locator('#rvStaffRead').click();
- await page.waitForTimeout(100);
- ok((await page.locator('#rvStaffError').innerText()).length>0,'Bad staff PIN blocked');
- await page.locator('#rvStaffPin').fill('1234');
- await page.locator('#rvStaffRead').click();
- await page.locator('.recipe-v220-card').waitFor({timeout:6000});
- ok((await page.locator('#view').innerText()).includes('지점 전용 테스트 라떼'),'Shift-verified employee reads local recipe');
- ok((await page.locator('[data-edit]').count())===0,'Staff has no editor');
+ ok((await page.locator('#view').innerText()).includes('지점 전용 테스트 라떼'),'No-login guest reads branch-specific recipe without active shift');
+ ok((await page.locator('#rvStaffPin').count())===0,'No employee PIN requested');
+ ok((await page.locator('.recipe-v220-edit').count())===0,'Guest cannot edit recipes');
+ await visit(702,'STAFF');
+ ok((await page.locator('#view').innerText()).includes('본사 테스트 라떼'),'Guest cannot see other branch override');
+ ok((await page.locator('.recipe-v220-edit').count())===0,'Guest cannot modify other branch');
  await visit(701,'OWNER');
  await page.locator('.recipe-v220-edit').click();
  await page.locator('#rvReset').click();
@@ -214,7 +210,7 @@ try{
  await activate(invalid,{password:'short',forceSubmit:true,success:false}); // JS handler security
  await activate(reject,{fail:true,success:false});
  await recipes();
- console.log('PASS #1000 sandbox browser: invite/accept/password/owner/assistant/error/recipe edit/reset/employee access; assertions='+checks);
+ console.log('PASS #1000 sandbox browser: invite/accept/password/owner/assistant/error/recipe edit/reset/guest read-only; assertions='+checks);
 }catch(error){
  fs.mkdirSync('qa-results',{recursive:true});
  fs.writeFileSync('qa-results/store-opening-browser-v1-failure.txt',String(error&&error.stack||error));
