@@ -23,6 +23,34 @@ function upsertStocktakeSelection(selected,item,raw){
  selected.set(id,{item_id:id,name:String(item.name),unit:String(item.unit),counted_quantity:Number(text)});
  return {updated,count:selected.size};
 }
+// A corrupt/partial backend response must never show a misleading 0-unit
+// variance or expose the irreversible manager post action.
+function verifiedStocktakeDetail(data,requestedId){
+ const numeric=value=>{
+  if(value===null||value===undefined||typeof value==="boolean"||
+     (typeof value==="string"&&value.trim()===""))return NaN;
+  const number=Number(value);
+  return Number.isFinite(number)?number:NaN;
+ };
+ if(!data||!Number.isSafeInteger(Number(requestedId))||Number(data.id)!==requestedId||
+    !["DRAFT","POSTED","CANCELLED"].includes(data.status)||
+    !Array.isArray(data.lines)||!data.lines.length||data.lines.length>100)
+   throw Error("STOCKTAKE_DETAIL_INVALID");
+ const seen=new Set();
+ const lines=data.lines.map(row=>{
+  const id=Number(row?.item_id),counted=numeric(row?.counted_quantity);
+  const expected=numeric(row?.expected_quantity),variance=numeric(row?.variance);
+  if(!Number.isSafeInteger(id)||id<=0||seen.has(id)||
+     !Number.isFinite(counted)||counted<0||counted>1e9||
+     !Number.isFinite(expected)||!Number.isFinite(variance)||
+     Math.abs((counted-expected)-variance)>0.000001)
+   throw Error("STOCKTAKE_UNVERIFIED_VARIANCE");
+  seen.add(id);
+  return {...row,item_id:id,counted_quantity:counted,
+   expected_quantity:expected,variance};
+ });
+ return {...data,lines};
+}
 window.openStoreInventoryStocktake=async function(){
  let catalog=[],history=[];
  try{
@@ -103,9 +131,8 @@ window.openStoreInventoryStocktake=async function(){
    button.onclick=()=>showDetails(Number(button.dataset.stocktakeDetail)));
  }
  async function showDetails(id){
-  const data=await BE.inventoryStocktakeDetail(id);
-  if(!data||!Array.isArray(data.lines)||Number(data.id)!==id)throw Error("STOCKTAKE_DETAIL_INVALID");
-  const changes=data.lines.filter(line=>Number(line.variance)!==0);
+  const data=verifiedStocktakeDetail(await BE.inventoryStocktakeDetail(id),id);
+  const changes=data.lines.filter(line=>line.variance!==0);
   find("#opsStocktakeReview").innerHTML='<div class="ops-card" style="display:grid;gap:8px">'+
    '<b>실사 #'+id+' · '+esc(data.status)+'</b>'+
    '<small>예상재고와 실사수량의 차이만 장부에 기록됩니다. 다른 품목은 변경하지 않습니다.</small>'+
