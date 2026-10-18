@@ -221,8 +221,6 @@ BEGIN
  BEGIN PERFORM public.admin_store_staff_stocktake_decide(2,id,true);
  EXCEPTION WHEN raise_exception THEN denied:=true; END;
  IF NOT denied THEN RAISE EXCEPTION 'cross-store manager accepted staff proposal'; END IF;
- SELECT count(*) INTO n FROM public.admin_store_staff_stocktake_list(1) WHERE id=id;
- -- Avoid ambiguous PLPGSQL column names: the RPC is also exercised directly below.
  SELECT count(*) INTO n FROM public.admin_store_staff_stocktake_list(1) p WHERE p.status='SUBMITTED';
  IF n<>1 THEN RAISE EXCEPTION 'expected one pending staff proposal'; END IF;
  r:=public.admin_store_staff_stocktake_decide(1,id,true);
