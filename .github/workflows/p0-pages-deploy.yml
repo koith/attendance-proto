@@ -28,6 +28,7 @@ on:
       - 'qa_operations_demo_metrics_guard_v1.mjs'
       - 'supabase/migrations/20261015082000_operations_real_metrics_exclude_demo.sql'
       - 'qa_inventory_editor_wiring_v1.mjs'
+      - 'qa_stock_reorder_net_pending_v1.mjs'
       - 'qa_operational_readiness_fail_closed_v1.mjs'
       - 'qa_index_startup_smoke_v1.mjs'
       - 'qa_adversarial_audit_v2.mjs'
@@ -251,6 +252,7 @@ jobs:
           node --check operations_reference_ui_v208.js
           node --check operations_v1.js
           node qa_inventory_editor_wiring_v1.mjs
+          node qa_stock_reorder_net_pending_v1.mjs
       - name: POS asynchronous route guard
         run: node qa_pos_route_async_guard_v1.mjs
       - name: Manual attendance creation and midnight/partial failure regression
