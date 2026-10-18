@@ -7,6 +7,17 @@ CREATE ROLE authenticated NOLOGIN;
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 CREATE TABLE public.stores(id bigint PRIMARY KEY, name text NOT NULL);
 INSERT INTO public.stores VALUES (1,'Synthetic Inha'),(2,'Synthetic other');
+ALTER TABLE public.stores ADD COLUMN is_active boolean NOT NULL DEFAULT true;
+ALTER TABLE public.stores ADD COLUMN onboarding_status text NOT NULL DEFAULT 'READY';
+-- Synthetic catalog mapped to actual *normalized* fixture SALE rows below.
+CREATE TABLE public.hq_products(id bigint PRIMARY KEY,name text NOT NULL,status text NOT NULL);
+CREATE TABLE public.hq_product_transaction_links(product_id bigint,transaction_type text,alias text);
+CREATE TABLE public.store_product_assignments(product_id bigint,store_id bigint,status text);
+INSERT INTO public.hq_products VALUES (11,'아메리카노','ACTIVE'),(12,'아메리카노 1L','ACTIVE'),(13,'배달 커피','ACTIVE'),(14,'다른 지점 전용','ACTIVE');
+INSERT INTO public.hq_product_transaction_links VALUES
+(11,'SALE','아메리카노'),(12,'SALE','아메리카노 1L'),(13,'SALE','배달 커피'),(14,'SALE','다른 지점 전용');
+INSERT INTO public.store_product_assignments VALUES
+(11,1,'ACTIVE'),(12,1,'ACTIVE'),(13,1,'ACTIVE'),(14,2,'ACTIVE');
 -- Production HQ metrics reference these tables; isolated test fixtures are
 -- deliberately empty so no real store balances or stock counts are involved.
 CREATE TABLE public.inventory_items(id bigint PRIMARY KEY,is_active boolean,reorder_level numeric);
@@ -59,6 +70,7 @@ AS $f$ SELECT true,false WHERE false $f$;
 \ir supabase/migrations/20261012221000_store_operations_reconciliation.sql
 \ir supabase/migrations/20261012200500_operations_real_ledger_export.sql
 \ir supabase/migrations/20261015082000_operations_real_metrics_exclude_demo.sql
+\ir supabase/migrations/20261018212000_store_sale_sku_preview.sql
 
 -- Synthetic-only table readback RLS policies allow test assertions to inspect
 -- their own store. Production table grants/policies remain completely untouched.
@@ -112,6 +124,50 @@ BEGIN
  '[{"source_record_key":"purchase-1","business_date":"2026-10-10","transaction_type":"PURCHASE","channel":"ONLYONE","counterparty":"원두 매입","net_amount":"10000","vat_amount":"1000","total_amount":"11000"}]'::jsonb);
  IF (r->>'row_count')::integer<>1 THEN RAISE EXCEPTION 'PURCHASE_IMPORT_FAILED'; END IF;
 END $test$;
+
+-- QA-07: One real production-shaped fixture path, from normalized source
+-- transactions through the *actual production* store-scoped SKU matching RPC.
+-- Invoice counts below represent receipts, NOT purchased/sold menu unit counts.
+DO $connected_sku$
+DECLARE names text[]; rows record; mapped_count integer;
+BEGIN
+ SELECT array_agg(t.counterparty ORDER BY t.id),count(*) INTO names,mapped_count
+ FROM public.operations_transactions t
+ WHERE t.store_id=1 AND t.is_demo IS FALSE AND t.status='CONFIRMED'
+   AND t.transaction_type='SALE' AND t.source IN ('KIS_POS','BAEMIN');
+ IF mapped_count<>2 OR cardinality(names)<>2 THEN
+   RAISE EXCEPTION 'SYNTHETIC_POS_DELIVERY_SOURCE_MISSING: %',mapped_count;
+ END IF;
+ SELECT count(*) INTO mapped_count
+ FROM public.admin_store_sale_sku_preview(1,names) p
+ WHERE p.match_status='EXACT' AND p.product_id IN (11,13);
+ IF mapped_count<>2 THEN
+  RAISE EXCEPTION 'RAW_NORMALIZED_SALE_DID_NOT_CONNECT_TO_APPROVED_SKU: %',mapped_count;
+ END IF;
+ SELECT * INTO rows FROM public.admin_store_sale_sku_preview(
+    1,ARRAY['행사 아메리카노','행사 아메리카노 1L','다른 지점 전용',
+    '원두 매입','환불']);
+ IF rows.match_status<>'PROMOTION' OR rows.product_id<>11 THEN
+  RAISE EXCEPTION 'PROMOTION_ALIAS_MAPPING_WRONG';
+ END IF;
+ SELECT * INTO rows FROM public.admin_store_sale_sku_preview(1,ARRAY['행사 아메리카노 1L']);
+ IF rows.match_status<>'PROMOTION' OR rows.product_id<>12 THEN
+  RAISE EXCEPTION 'LITRE_VARIANT_COLLAPSED';
+ END IF;
+ SELECT count(*) INTO mapped_count
+ FROM public.admin_store_sale_sku_preview(1,
+   ARRAY['다른 지점 전용','원두 매입','환불']) p
+ WHERE p.match_status='UNMAPPED' AND p.product_id IS NULL;
+ IF mapped_count<>3 THEN
+  RAISE EXCEPTION 'CROSS_STORE_OR_PURCHASE_REFUND_CONVERTED_TO_MENU_SALE';
+ END IF;
+ BEGIN
+  PERFORM public.admin_store_sale_sku_preview(2,ARRAY['아메리카노']);
+  RAISE EXCEPTION 'UNAUTHORIZED_CROSS_STORE_SKU_PREVIEW';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
+END $connected_sku$;
+\echo PASS: real fixture POS + BAEMIN normalizer output mapped to approved store SKU without inventing unit sales
 
 DO $test$
 DECLARE s json; a json; n bigint; sum_real bigint;
