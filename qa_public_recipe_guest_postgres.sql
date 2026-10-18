@@ -57,10 +57,14 @@ BEGIN
  IF n<>0 THEN RAISE EXCEPTION 'UNKNOWN_STORE_RECIPE_EXPOSED'; END IF;
 END $qa$;
 SET ROLE anon;
-SELECT CASE WHEN (SELECT count(*) FROM public.store_recipe_list_public(701))=1
-             AND (SELECT max(menu_name) FROM public.store_recipe_list_public(701))='701점 전용 레시피'
-  THEN 'PASS anonymous READY recipe' ELSE (SELECT 1/0)::text END AS result;
-SELECT CASE WHEN (SELECT count(*) FROM public.store_recipe_list_public(703))=0
-  THEN 'PASS staged-store deny' ELSE (SELECT 1/0)::text END AS result;
+DO $anonymous$
+BEGIN
+  IF (SELECT count(*) FROM public.store_recipe_list_public(701))<>1
+   OR (SELECT max(menu_name) FROM public.store_recipe_list_public(701))<>'701점 전용 레시피'
+  THEN RAISE EXCEPTION 'ANON_READY_RECIPE_NOT_VISIBLE'; END IF;
+  IF (SELECT count(*) FROM public.store_recipe_list_public(703))<>0
+  THEN RAISE EXCEPTION 'ANON_STAGED_RECIPE_EXPOSED'; END IF;
+END $anonymous$;
+SELECT 'PASS anonymous READY, STAGED isolation' AS result;
 RESET ROLE;
 SELECT 'PASS anonymous read-only recipe/RLS-boundary fixture' AS result;
