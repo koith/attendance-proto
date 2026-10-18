@@ -5,7 +5,6 @@ function range(){const d=window.kstNow?window.kstNow():new Date(),p=n=>String(n)
 function empty(t,s=""){const guide=esc(s).replace('예시 데이터는 최근 30일 기준입니다. 1달을 선택하거나 예시 데이터를 다시 채워보세요.','예시 데이터는 최근 30일 기준입니다.<br>1달을 선택하거나 예시 데이터를 다시 채워보세요.');return `<div class="ops-empty"><b>${esc(t)}</b>${s?`<small>${guide}</small>`:""}</div>`}
 // Only server-confirmed inventory and stored recipe components are operational data.
 // Do not invent stock quantities or recipe ingredients as a fallback for a missing backend row.
-const recipeComponents=r=>Array.isArray(r.components)?r.components:[];
 // MTG-12: purchase transaction gross is NOT cost of consumed ingredients.
 // Inventory valuations, returns, waste and tax basis are not yet reconciled.
 // Missing financial data must never be silently converted into a zero amount.
@@ -19,6 +18,7 @@ function operationsCostStatus(summary){
   reason:"기초·기말 재고평가액과 반품·폐기·부가세 기준이 확정되지 않아 사용 재료비를 산출할 수 없습니다."};
 }
 
+const recipeComponents=r=>Array.isArray(r.components)?r.components:[];
 const withCatalog=rows=>(rows||[]).filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.name||""));
 function shell(tab){
  S.tab=tab||S.tab;
