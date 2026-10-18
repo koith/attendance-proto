@@ -6,6 +6,13 @@ const number=x=>Number(x).toLocaleString("ko-KR",{maximumFractionDigits:3});
 function ageReviewRows(data){
  if(!Array.isArray(data)||data.length>200)throw Error("AGE_REVIEW_INVALID_RESPONSE");
  return data.map(x=>{
+  // Missing stock measurements MUST NOT be coerced to a valid zero.
+  // Number(null) and Number(" ") both equal zero, concealing bad RPC rows.
+  const numeric=v=>(typeof v==="number"&&Number.isFinite(v))||
+    (typeof v==="string"&&v.trim()!==""&&Number.isFinite(Number(v)));
+  if(!x||typeof x!=="object"||
+     ![x.item_id,x.days_since_receipt,x.on_hand].every(numeric))
+   throw Error("AGE_REVIEW_INVALID_ROW");
   const id=Number(x.item_id),days=Number(x.days_since_receipt),balance=Number(x.on_hand);
   if(!Number.isSafeInteger(id)||id<1||!Number.isSafeInteger(days)||days<0||
      !Number.isFinite(balance)||balance<=0||!/^\d{4}-\d{2}-\d{2}$/.test(x.last_receipt_on||""))
