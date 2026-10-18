@@ -6,7 +6,7 @@ const ops=fs.readFileSync('operations_v1.js','utf8');
 const ui=fs.readFileSync('operations_stocktake_v1.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261012210500_store_inventory_stocktake.sql','utf8');
 assert.match(html,/operations_v1\.js\?v=[\w.-]+/,'Operations asset must be cache-busted');
-assert.match(html,/operations_stocktake_v1\.js\?v=20261012v244/);
+assert.match(html,/operations_stocktake_v1\.js\?v=20261018v320/);
 assert.match(html,/const APP_VERSION="v0\.\d+";/);
 assert.match(ops,/id="opsStocktakeOpen"/);
 assert.match(ops,/window\.openStoreInventoryStocktake\?\.\(\)/);
@@ -15,6 +15,18 @@ for (const rpc of [
  'admin_store_stocktake_draft','admin_store_stocktake_post'
 ]) assert.match(html,new RegExp('rpc\\("'+rpc+'"'),'missing authorized adapter '+rpc);
 assert.match(ui,/window\.openStoreInventoryStocktake=async function/);
+assert.match(ui,/id="opsStocktakeSearch"/,'mobile stocktake catalog must be searchable');
+assert.match(ui,/search\.addEventListener\("input",renderPicker\)/,'search should filter without a remote write');
+assert.match(ui,/picker\.disabled=matches\.length===0/,'no-match search cannot add an arbitrary stock item');
+const from=ui.indexOf('function stocktakeMatchingCatalog(');
+const to=ui.indexOf('window.openStoreInventoryStocktake=',from);
+assert.ok(from>0&&to>from,'filter helper must exist independently of DOM');
+const filter=(new Function(ui.slice(from,to)+'\nreturn stocktakeMatchingCatalog;'))();
+const sample=[{id:1,name:'원두 케냐'},{id:2,name:'우유 1L'},{id:3,name:'원두 브라질'}];
+assert.deepEqual(filter(sample,' 원두 ').map(x=>x.id),[1,3],'Korean stock-name substring filtering');
+assert.deepEqual(filter(sample,'없는 품목'),[],'empty results must not fall back to another item');
+assert.deepEqual(filter(sample,'').map(x=>x.id),[1,2,3],'empty search preserves the complete authorized catalog');
+assert.deepEqual(sample.map(x=>x.id),[1,2,3],'search does not mutate catalog or store data');
 assert.match(ui,/await Promise\.all\(\[BE\.inventoryStocktakeCatalog\(\),BE\.inventoryStocktakeList\(\)\]\)/);
 assert.match(ui,/const draft=await BE\.inventoryStocktakeDraft\(/);
 assert.match(ui,/if\(!confirm\("실사 #"/,'explicit human confirmation required before stock mutation');
