@@ -90,8 +90,12 @@ function _ensureMonthTabs(ss){
     var name=m+'월'; keep[name]=true;
     if(!ss.getSheetByName(name)) ss.insertSheet(name);
   }
+  // Only remove tabs created by the old automated three-section layout.
+  // An unrelated audit/QA/manual tab belongs to the user, not to this writer.
   ss.getSheets().forEach(function(sh){
-    if(!keep[sh.getName()]) ss.deleteSheet(sh);
+    var name=sh.getName();
+    if(!keep[name] && /^(?:근태|세션|급여)-20\d{2}-(?:0[1-9]|1[0-2])$/.test(name))
+      ss.deleteSheet(sh);
   });
   for(var i=1;i<=12;i++){
     var target=ss.getSheetByName(i+'월');
