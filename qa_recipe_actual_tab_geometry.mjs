@@ -35,7 +35,7 @@ try {
       window.Auth={isLoggedIn:()=>false};
       window.BE={
         publicStoreRecipeList:async(storeId)=>{
-          assert.equal(storeId,1);
+          if(storeId!==1)throw Error('WRONG_STORE_IN_BROWSER_FIXTURE');
           return Array.from({length:75},(_,i)=>({
             menu_key:'regression_'+i,menu_name:'메뉴 '+i,category:'커피',
             components:[],instructions:[],thumbnail_url:null
