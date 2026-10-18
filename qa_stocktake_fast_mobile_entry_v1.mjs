@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const src=fs.readFileSync('operations_stocktake_v1.js','utf8');
+const html=fs.readFileSync('index.html','utf8');
+const start=src.indexOf('function stocktakeMatchingCatalog(');
+const end=src.indexOf('window.openStoreInventoryStocktake=',start);
+assert.ok(start>0&&end>start,'actual executable stocktake helpers required');
+const upsert=Function(src.slice(start,end)+'\nreturn upsertStocktakeSelection;')();
+const selected=new Map();
+const item={id:5,name:'원두',unit:'g'};
+assert.deepEqual(upsert(selected,item,'0'),{updated:false,count:1});
+assert.equal(selected.get(5).counted_quantity,0,'confirmed measured zero is valid');
+assert.deepEqual(upsert(selected,item,'10.001'),{updated:true,count:1});
+assert.equal(selected.get(5).counted_quantity,10.001);
+assert.deepEqual(upsert(selected,item,'20'),{updated:true,count:1});
+assert.equal(selected.get(5).counted_quantity,20,'recount replaces only unsaved draft, not a duplicate record');
+for(const invalid of ['',null,' ','-1','NaN','1.0001','1000000001','00','1e2','Infinity']){
+ assert.throws(()=>upsert(selected,item,invalid),/실제 수량/);
+ assert.equal(selected.get(5).counted_quantity,20,'invalid new value must preserve previous count');
+}
+for(let i=6;i<105;i++)upsert(selected,{id:i,name:'synthetic '+i,unit:'ea'},'1');
+assert.equal(selected.size,100);
+assert.deepEqual(upsert(selected,item,'6'),{updated:true,count:100},'recount allowed even at capacity');
+assert.throws(()=>upsert(selected,{id:105,name:'overflow',unit:'ea'},'1'),/최대 100개/);
+assert.equal(selected.size,100);
+assert.throws(()=>upsert(selected,undefined,'0'),/품목을 선택/);
+assert.match(src,/quantity\.addEventListener\("keydown",event=>\{if\(event\.key==="Enter"\)/);
+assert.match(src,/search\.value="";renderPicker\(\);renderSelected\(\)/);
+assert.match(src,/search\.focus\(\)/);
+assert.match(src,/실사 수량을 수정했습니다/);
+assert.match(src,/const result=upsertStocktakeSelection\(selected,item,raw\)/);
+assert.match(src,/await BE\.inventoryStocktakeDraft/);
+assert.match(src,/if\(!confirm\("실사 #"/);
+assert.match(html,/const APP_VERSION="v0\.329"/);
+assert.match(html,/operations_stocktake_v1\.js\?v=20261018v329/);
+console.log('PASS MTG-16: measured zero, unsaved duplicate recount, boundary rejection, 100-line mobile fast-entry');
