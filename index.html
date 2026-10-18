@@ -3173,7 +3173,7 @@ async function drawPay(ym){
           const firstMonday=firstWeek.getFullYear()+"-"+String(firstWeek.getMonth()+1).padStart(2,"0")+"-"+String(firstWeek.getDate()).padStart(2,"0");
           modal.innerHTML=`<h3>주휴수당 정정 · ${safeHtml(eName)}</h3>
           <div class="field"><label>대상 주 월요일</label><input id="weeklyApproveDate" type="date" min="${ym}-01" max="${ym}-${String(new Date(Number(ym.slice(0,4)),Number(ym.slice(5,7)),0).getDate()).padStart(2,"0")}" value="${firstMonday}"></div>
-          <div class="field"><label>해당 주 서버 계산 근거 (원)</label><input id="weeklyApproveOriginal" type="number" min="0" step="1" value="" readonly></div>
+          <div class="field"><label>해당 주 자동계산 금액 (원)</label><input id="weeklyApproveOriginal" type="number" min="0" step="1" value="" readonly></div>
           <div class="field"><label>최종 승인 금액 (원)</label><input id="weeklyApproveAmount" type="number" min="0" step="1" value=""></div><p id="weeklyApproveSourceStatus" role="status">서버 계산 근거 확인 중…</p>
           <div class="field"><label>처리 결과</label><select id="weeklyDecision"><option value="APPROVE">정정 승인</option><option value="REJECT">반려 · 지급액 0원</option></select></div>
           <div class="field"><label>정정·반려 사유</label><textarea id="weeklyApproveReason" placeholder="대타 승인 내역 및 지급 판단 근거"></textarea></div>
