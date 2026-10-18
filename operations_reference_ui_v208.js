@@ -61,13 +61,40 @@ async function openReceiveOrder(order){
  const remain=Number(order.ordered_quantity)-Number(order.received_quantity),m=modal("입고 처리",'<div class="ops-recipe-editor"><p><b>'+esc(order.item_name)+'</b><br>발주 '+num(order.ordered_quantity)+' '+esc(order.unit)+' · 미입고 '+num(remain)+' '+esc(order.unit)+'</p><label>이번 입고 수량<input id="opsReceiveQty" type="number" min="0.01" max="'+remain+'" step="0.01" value="'+remain+'"></label><button type="button" class="btn btn-primary" id="opsReceiveSave">입고 확정</button></div>');
  m.body.querySelector("#opsReceiveSave").onclick=async()=>{const qty=Number(m.body.querySelector("#opsReceiveQty").value||0);if(qty<=0||qty>remain)return alert("입고 수량을 확인하세요.");try{await BE.inventoryReceive(order.id,qty);m.close();await loadInventoryManagement();renderInventory(true)}catch(e){alert("입고 처리 실패: "+e.message)}};
 }
+function stockOrderSuggestion(row,orders=purchaseOrders){
+ const finite=v=>Number.isFinite(Number(v))?Number(v):NaN;
+ const on=finite(row.on_hand),target=finite(row.target_level??row.reorder_level??0);
+ const fail=reason=>({valid:false,on,target,pending:0,shortage:0,suggest:0,packSize:1,reason});
+ if(!Number.isFinite(on)||!Number.isFinite(target)||target<0)return fail("재고 수량을 확인하세요.");
+ const key=Number(row.manual?row.id:(row.source_item_id??row.id));
+ if(!Number.isSafeInteger(key)||key<=0)return fail("품목 식별자를 확인하세요.");
+ const stockUnit=String(row.stock_unit||row.unit||"").trim(),orderUnit=String(row.order_unit||stockUnit).trim();
+ const pack=finite(row.conversion_quantity||1);
+ if(!stockUnit||!orderUnit||!(pack>0))return fail("재고 및 발주 단위를 확인하세요.");
+ let pending=0;
+ for(const o of orders||[]){
+  const match=row.manual?Number(o.manual_item_id)===key:Number(o.item_id)===key;
+  if(!match||["CANCELLED","VOID","RECEIVED","CLOSED"].includes(String(o.status).toUpperCase()))continue;
+  const qty=finite(o.ordered_quantity),received=finite(o.received_quantity||0);
+  if(!Number.isFinite(qty)||!Number.isFinite(received)||qty<0||received<0||received>qty)return fail("미입고 수량을 확인하세요.");
+  const u=String(o.unit||"").trim();
+  if(u!==stockUnit&&u!==orderUnit)return fail("기존 발주의 단위가 현재 재고와 다릅니다.");
+  pending+=(qty-received)*(u===stockUnit?1:pack);
+  if(!Number.isFinite(pending))return fail("미입고 합계를 확인하세요.");
+ }
+ const shortage=Math.max(0,target-on-pending),packSize=stockUnit!==orderUnit&&pack>1?pack:1;
+ const packs=shortage>0?Math.ceil(shortage/packSize-1e-10):0;
+ return {valid:true,on,target,pending,shortage,packSize,suggest:packs*packSize,reason:""};
+}
 async function openPurchaseOrder(row){
- const target=Number(row.target_level||row.reorder_level||0),on=Number(row.on_hand||0),suggest=Math.max(1,target-on),m=modal("발주 등록",'<div class="ops-recipe-editor"><p><b>'+esc(row.name)+'</b><br>현재 '+num(on)+' '+esc(row.unit||"")+' · 목표 '+num(target)+' '+esc(row.unit||"")+'</p><label>발주 수량<input id="opsOrderQty" type="number" min="0.01" step="0.01" value="'+suggest+'"></label><label>메모<input id="opsOrderNote" placeholder="선택 입력"></label><button type="button" class="btn btn-primary" id="opsOrderSave">발주 등록</button></div>');
+ const rec=stockOrderSuggestion(row),unit=esc(row.stock_unit||row.unit||"");
+ const hint=rec.valid?'현재 '+num(rec.on)+' '+unit+' · 미입고 '+num(rec.pending)+' '+unit+' · 목표 '+num(rec.target)+' '+unit+'<br>부족 '+num(rec.shortage)+' '+unit+(rec.packSize>1?' · 포장 '+num(rec.packSize)+' '+unit+'씩':''):esc(rec.reason);
+ const m=modal("발주 등록",'<div class="ops-recipe-editor"><p><b>'+esc(row.name)+'</b><br>'+hint+'</p><label>발주 수량 ('+unit+')<input id="opsOrderQty" type="number" min="0.01" step="0.01" value="'+(rec.valid?rec.suggest:0)+'"></label><label>메모<input id="opsOrderNote" placeholder="선택 입력"></label><button type="button" class="btn btn-primary" id="opsOrderSave" '+(rec.valid?'':'disabled')+'>발주 등록</button></div>');
  m.body.querySelector("#opsOrderSave").onclick=async()=>{const qty=Number(m.body.querySelector("#opsOrderQty").value||0);if(qty<=0)return alert("발주 수량을 입력하세요.");try{await BE.inventoryPurchaseOrder(row,qty,m.body.querySelector("#opsOrderNote").value.trim());m.close();await loadInventoryManagement();renderInventory(true)}catch(e){alert("발주 등록 실패: "+e.message)}};
 }
 function orderPanel(){
   const low=managedInventory.filter(x=>stockState(x).rank<2).sort((a,b)=>stockState(a).rank-stockState(b).rank||Number(a.on_hand)-Number(b.on_hand));
-  const bars=low.length?low.map((row,index)=>{const target=Number(row.target_level||row.reorder_level||0),on=Number(row.on_hand||0),need=Math.max(0,target-on),pct=target?Math.min(100,on/target*100):0,st=stockState(row);return '<button type="button" class="ops-order-row '+st.key+'" data-managed-stock="'+managedInventory.indexOf(row)+'"><span><b>'+esc(row.name)+'</b><small>'+st.label+' · 현재 '+num(on)+' / 목표 '+num(target)+' '+esc(row.unit||"")+'</small></span><i><em style="width:'+pct+'%"></em></i><strong>발주 '+num(need)+' '+esc(row.unit||"")+'</strong></button>'}).join(""):'<div class="ops-order-empty">현재 발주점에 도달한 등록 품목이 없습니다.</div>';
+  const bars=low.length?low.map((row,index)=>{const target=Number(row.target_level||row.reorder_level||0),on=Number(row.on_hand||0),rec=stockOrderSuggestion(row),need=rec.valid?rec.suggest:0,pct=target?Math.min(100,on/target*100):0,st=stockState(row);return '<button type="button" class="ops-order-row '+st.key+'" data-managed-stock="'+managedInventory.indexOf(row)+'"><span><b>'+esc(row.name)+'</b><small>'+st.label+' · 현재 '+num(on)+' / 목표 '+num(target)+' '+esc(row.unit||"")+'</small></span><i><em style="width:'+pct+'%"></em></i><strong>'+(rec.valid?(need>0?'권장 발주 '+num(need)+' '+esc(row.stock_unit||row.unit||""):'입고 대기 · 추가 0'):'단위 확인 필요')+'</strong></button>'}).join(""):'<div class="ops-order-empty">현재 발주점에 도달한 등록 품목이 없습니다.</div>';
   return '<section class="ops-order-panel"><div class="ops-unified-section-head"><div><b>발주 필요</b><span>'+low.length+'개 품목</span></div><div><button type="button" class="btn btn-secondary btn-sm" id="opsInventoryBulk">일괄 등록</button><button type="button" class="btn btn-primary btn-sm" id="opsInventoryAdd">+ 재고 등록</button></div></div><div class="ops-order-bars">'+bars+'</div></section>';
 }
 function inventoryState(row){
