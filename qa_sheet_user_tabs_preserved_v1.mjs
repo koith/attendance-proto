@@ -20,4 +20,9 @@ const book={
  setActiveSheet:()=>{},moveActiveSheet:()=>{}
 };
 ctx._ensureMonthTabs(book);
+assert.deepEqual(deleted,['근태-2026-10','세션-2026-10','급여-2026-10']);
+assert.ok(tabs.includes('QA-05_TMP')&&tabs.includes('검토용'));
+assert.equal(tabs.filter(n=>/^[1-9][0-9]*월$/.test(n)).length,12);
+ctx._ensureMonthTabs(book);
+assert.equal(deleted.length,3,'repeat sync must not remove user tabs');
 console.log('PASS annual Sheet cleanup is limited to legacy names');
