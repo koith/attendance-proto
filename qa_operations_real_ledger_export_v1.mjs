@@ -63,10 +63,15 @@ assert.equal(successful.fetched[2].beforeId,8);
 assert.equal(successful.fetched[0].limit,500);
 assert.equal(successful.links.length,1);
 assert.equal(successful.downloaded.length,1);
-assert.match(successful.links[0].download,/^baekeok-real-operations-2026-10-01-2026-10-31\.csv$/);
+assert.match(successful.links[0].download,/^baekeok-internal-operations-2026-10-01-2026-10-31\.csv$/);
 const csv=successful.downloaded[0];
 assert.ok(csv.startsWith('\uFEFF'),'Korean Excel receives UTF-8 BOM');
 assert.equal(csv.split('\r\n').filter(Boolean).length,1008,'full rows and one header exported');
+assert.match(csv.split('\r\n')[0],/"자료용도"$/,'each downloaded file self-describes internal use');
+assert.equal((csv.match(/"내부 운영 참고용 · 세무신고 자료 아님"/g)||[]).length,1007,
+ 'all source rows must carry the internal-only disclaimer, not just the screen');
+assert.match(source,/세무 신고용 원천 증빙이나 법정 신고서를 대신하지 않습니다/,
+ 'screen must distinguish operations ledger from legal tax filing');
 assert.match(csv,/"'=HYPERLINK\(""unsafe""\)"/,'spreadsheet formula injection must be escaped');
 assert.equal(successful.alerts.length,0);
 assert.equal(successful.button.disabled,false,'button must recover after success');
