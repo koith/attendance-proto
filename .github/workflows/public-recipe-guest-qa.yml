@@ -1,0 +1,56 @@
+name: Anonymous READY-store recipe read regression
+on:
+  pull_request:
+    paths:
+      - 'recipe_access_v220.js'
+      - 'index.html'
+      - 'supabase/migrations/20261018013000_public_ready_store_recipe_read.sql'
+      - 'qa_public_recipe_guest_postgres.sql'
+      - 'qa_recipe_staff_shift_only_v1.mjs'
+      - 'qa_recipe_no_static_instruction_leak_v1.mjs'
+      - 'qa_store_opening_browser_v1.mjs'
+      - '.github/workflows/public-recipe-guest-qa.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'recipe_access_v220.js'
+      - 'index.html'
+      - 'supabase/migrations/20261018013000_public_ready_store_recipe_read.sql'
+      - 'qa_public_recipe_guest_postgres.sql'
+      - 'qa_recipe_staff_shift_only_v1.mjs'
+      - 'qa_recipe_no_static_instruction_leak_v1.mjs'
+      - 'qa_store_opening_browser_v1.mjs'
+      - '.github/workflows/public-recipe-guest-qa.yml'
+jobs:
+  guest-policy:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: public_guest_test_only
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: public_guest_test_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify new public recipe view policy
+        run: |
+          node --check recipe_access_v220.js
+          node qa_recipe_staff_shift_only_v1.mjs
+          node qa_recipe_no_static_instruction_leak_v1.mjs
+      - name: Verify real PostgreSQL grants, READY boundary, and cross-store override separation
+        run: psql -v ON_ERROR_STOP=1 -d postgres -f qa_public_recipe_guest_postgres.sql
