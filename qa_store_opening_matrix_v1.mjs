@@ -9,6 +9,7 @@ const lanes=[
  ['대표 초대/승인/비밀번호 계약','qa_owner_invite_autoactivation_921.mjs'],
  ['대표·보조 관리자 접근 경계','qa_store_delegated_manager_v1.mjs'],
  ['보조 관리자 초대/권한 변경/해임 동작','qa_store_manager_actions_v1.mjs'],
+ ['기존 관리자 세션 서버 거부 안내·오프라인 비오인','qa_admin_single_session_watch_v1.mjs'],
  ['근태 자정·야간 교대','qa_actual_attendance_overnight_pairing_v1.mjs'],
  ['근태 일자별 분리','qa_actual_attendance_day_slices_v1.mjs'],
  ['근태 누락·장시간 이상 징후','qa_actual_attendance_anomaly_v1.mjs'],
