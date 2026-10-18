@@ -24,6 +24,8 @@ assert.equal(fn({...row,manual:true},[o(300,0,{manual_item_id:20,item_id:null})]
 assert.equal(fn(row,[o(100,0,{unit:'mystery'})]).valid,false,'unknown units fail closed');
 assert.equal(fn(row,[o(100,120)]).valid,false,'overreceived orders fail closed');
 assert.equal(fn({...row,conversion_quantity:0},[]).valid,false,'zero conversion must not permit order-unit conversion');
+assert.equal(fn({...row,conversion_quantity:null},[]).valid,false);
+assert.equal(fn({...row,stock_unit:'g',order_unit:'g',conversion_quantity:null},[]).valid,true);
 assert.equal(fn({...row,on_hand:NaN},[]).valid,false);
 for(const count of [null,undefined,'','  ',NaN,Infinity]){
  const out=fn({...row,on_hand:count},[]);
