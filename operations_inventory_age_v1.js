@@ -21,6 +21,41 @@ function ageReviewRows(data){
    receipt:String(x.last_receipt_on),usage:x.last_usage_on?String(x.last_usage_on):null};
  });
 }
+// Show verified ledger alerts automatically when managers open the inventory screen.
+// Cached briefly to avoid one RPC for every search keystroke; an empty ledger is NOT
+// evidence of safe physical expiry dates.
+let ageReviewCache={store:null,expiresAt:0,rows:null,pending:null};
+async function cachedAgeReview(store){
+ const now=Date.now();
+ if(ageReviewCache.store===store&&ageReviewCache.rows&&now<ageReviewCache.expiresAt)
+  return ageReviewCache.rows;
+ if(ageReviewCache.store===store&&ageReviewCache.pending)return ageReviewCache.pending;
+ const pending=BE.inventoryAgeReview(60).then(ageReviewRows);
+ ageReviewCache={store,expiresAt:0,rows:null,pending};
+ try{
+  const rows=await pending;
+  ageReviewCache={store,expiresAt:Date.now()+60000,rows,pending:null};
+  return rows;
+ }catch(error){
+  if(ageReviewCache.store===store)ageReviewCache={store:null,expiresAt:0,rows:null,pending:null};
+  throw error;
+ }
+}
+window.refreshStoreInventoryAgeAlert=async function(){
+ const display=document.getElementById("opsInventoryAgeAlert");
+ if(!display)return;
+ const scope=Number(CURRENT_STORE_ID)||1;
+ display.textContent="장기 체류 재고 점검 중…";
+ try{
+  const rows=await cachedAgeReview(scope);
+  if(!display.isConnected)return;
+  display.textContent=rows.length?
+   "장기 체류 가능 재고 "+rows.length+"개 · 입고/사용 이력 현장 점검 권장 (소비기한 확정 아님)":
+   "장기 체류 점검 대상 없음 · 입고 이력 누락 시 판정 불가";
+ }catch(error){
+  if(display.isConnected)display.textContent="장기 체류 점검 자료 확인 실패 · 안전 판정 불가";
+ }
+};
 window.openStoreInventoryAgeReview=async function(){
  const modal=document.createElement("div");
  modal.className="ops-modal";
