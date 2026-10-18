@@ -4,6 +4,12 @@
 "use strict";
 const esc=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const qty=value=>Number(value||0).toLocaleString("ko-KR",{maximumFractionDigits:3});
+// Filter only the already authorized catalog returned for this store.
+// Never replace missing on-hand data or publish inventory through public routes.
+function stocktakeMatchingCatalog(rows,term){
+ const q=String(term||"").trim().toLocaleLowerCase("ko-KR");
+ return q?rows.filter(x=>String(x.name||"").toLocaleLowerCase("ko-KR").includes(q)):rows;
+}
 window.openStoreInventoryStocktake=async function(){
  let catalog=[],history=[];
  try{
@@ -16,6 +22,7 @@ window.openStoreInventoryStocktake=async function(){
   '<div class="ops-modal-head"><b>표준 품목 재고 실사</b><button type="button" class="ops-modal-close" aria-label="닫기">×</button></div>'+
   '<div class="ops-modal-body" style="display:grid;gap:12px">'+
   '<div style="font-size:.84rem">실사 초안은 재고를 변경하지 않습니다. 수량과 차이를 확인한 뒤 <b>확정 반영</b>해야만 장부에 조정 이력이 추가됩니다. 샘플·데모 품목 및 시연 재고는 제외됩니다.</div>'+
+  '<label>품목명 검색<input id="opsStocktakeSearch" class="form-control" type="search" autocomplete="off" placeholder="예: 원두, 우유"></label>'+
   '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,160px);gap:8px">'+
   '<label>실사할 품목<select id="opsStocktakeItem" class="form-control"></select></label>'+
   '<label>실제 수량<input id="opsStocktakeQty" class="form-control" type="number" min="0" max="1000000000" step="0.001" placeholder="0"></label></div>'+
@@ -31,9 +38,17 @@ window.openStoreInventoryStocktake=async function(){
  modal.querySelector(".ops-modal-close").onclick=close;
  modal.onclick=e=>{if(e.target===modal)close()};
  const find=selector=>modal.querySelector(selector);
- const picker=find("#opsStocktakeItem"),quantity=find("#opsStocktakeQty");
- picker.innerHTML=catalog.length?catalog.map(x=>'<option value="'+Number(x.id)+'">'+esc(x.name)+' ('+esc(x.unit)+')</option>').join(""):'<option value="">실사 가능한 표준 품목 없음</option>';
- const busy=(value)=>{find("#opsStocktakeAdd").disabled=value;find("#opsStocktakeDraft").disabled=value||selected.size===0;};
+ const picker=find("#opsStocktakeItem"),quantity=find("#opsStocktakeQty"),search=find("#opsStocktakeSearch");
+ function renderPicker(){
+  const matches=stocktakeMatchingCatalog(catalog,search.value),previous=picker.value;
+  picker.innerHTML=matches.length?matches.map(x=>'<option value="'+Number(x.id)+'">'+esc(x.name)+' ('+esc(x.unit)+')</option>').join(""):'<option value="">검색되는 표준 품목 없음</option>';
+  picker.disabled=matches.length===0;
+  find("#opsStocktakeAdd").disabled=matches.length===0;
+  if(matches.some(x=>String(x.id)===previous))picker.value=previous;
+ }
+ search.addEventListener("input",renderPicker);
+ renderPicker();
+ const busy=(value)=>{find("#opsStocktakeAdd").disabled=value||picker.disabled;find("#opsStocktakeDraft").disabled=value||selected.size===0;};
  function renderSelected(){
   const rows=[...selected.values()];
   find("#opsStocktakeSelection").innerHTML=rows.length?
