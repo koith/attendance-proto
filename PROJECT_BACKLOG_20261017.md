@@ -30,7 +30,7 @@
 - [x] **QA-02 (P0)** 자동 QA 자체를 검증: 급여 테스트 직원을 포함시키는 변이, 취약한 비밀번호/잘못된 지점 활성화를 주입하고 실패 감지. **결함 주입 검증 완료**. 근거: PR #1003, main commit `da1361d21798`.
 - [x] **QA-03 (P0)** 실제 앱 소스의 본사→대표→보조→직원·레시피 연속 Chromium 재생과 지점 격리. **모의 네트워크·가상 메일함 범위 완료**. 근거: PR #1006, SHA `b892bf18c649`, CI run 39024771557.
 - [ ] **QA-04 (P0)** 격리된 실제 Supabase Auth/SMTP 시험메일 송신 → 별도 테스트 메일함 수신 → 링크 클릭 → 비밀번호 확정 → 실제 Auth 세션 재검증, 만료/재발송/취소. **실제 송수신 미검증**. 근거/후속: [#1005](https://github.com/koith/attendance-proto/issues/1005). 실제 점주/운영계정에 시험 메일 금지.
-- [ ] **QA-05 (P0)** 독립 테스트용 Google Sheet에 Apps Script 실제 쓰기·재조회·정정 재동기화·중복 방지·월별 형식·장애 재시도·지점 격리·안전 정리. **실제 테스트 시트 왕복 미검증**. 후속 #1005. 운영 `2026 근태` 손상 금지.
+- [ ] **QA-05 (P0)** 독립 테스트용 Google Sheet에 Apps Script 실제 쓰기·재조회·정정 재동기화·중복 방지·월별 형식·장애 재시도·지점 격리·안전 정리. **Apps Script 전체 쓰기↔재조회는 미검증**. 2026-10-18 격리된 실제 Google Sheet를 신규 생성해 월 탭 12개·합성 급여 2건·재동기화 멱등성·긴 정정사유 WRAP/원문 note의 Google Sheets API 쓰기↔재조회 부분 검증 완료. 실제 앱→Edge→Apps Script E2E·지점별 권한은 별도 미완료. 후속 #1005. 운영 `2026 근태` 손상 금지.
 - [ ] **QA-06 (P1)** 지점 등록의 중복/잘못된 주소·READY 전후 경계, 보조 관리자 권한 변경 직후 구세션, 직원 근태 정상/지각/조퇴/휴게/야간/자정/월말/입퇴사/정정/재입사, 계약 변경, 급여 독립 기대값·마감·취소·중복 방어의 누락 커버리지 **시나리오별 증거 행렬** 보완. 기존 CI 통과와 별개로 요구 목록 전체 완료 판정.
 - [ ] **QA-07 (P1)** 실제 신규 지점 시나리오에서 재고·발주·입출고·POS·대시보드·권한별 메뉴 노출·해임 후 접근까지 연결되는 확장 통합 QA 및 음성 테스트 자동화.
 - [x] **QA-08 (P1)** 신규 지점 개통 자동 QA의 **시나리오별 PASS/FAIL 표·CI 실행/커밋 상태·브라우저 실패 스크린샷 및 예외 스택** 영구 증거 수집. **지점 개통 CI 범위 완료**. 기존 `qa_store_opening_matrix_v1.mjs`는 세부 시나리오/종료코드를 `qa-results/store-opening-matrix.json`으로 생성, [PR #1031](https://github.com/koith/attendance-proto/pull/1031) main `bc0b046e9f0e93dd1c8153b7caa674abfdb0897b`에서 브라우저 실패 이미지/stack 및 source/browser/Postgres 결과 JSON을 `if:always()` 업로드(수집 실패도 로그 보존). PR CI 53/53 PASS, [main 통합 QA #39047895923](https://github.com/koith/attendance-proto/actions/runs/39047895923) SUCCESS, `store-opening-contract-results`, `store-opening-lane-status` 실제 아티팩트 readback, [P0 Pages #39047895833](https://github.com/koith/attendance-proto/actions/runs/39047895833) SUCCESS. 비현장 Gmail·Google Sheets 실연동 성공은 별도 QA-04/05 항목으로 남김.
@@ -67,7 +67,7 @@
 - [x] **REL-01** v0.315 버전 버튼/LIVE 컨트롤 양방향 클릭·모바일/데스크톱 QA 및 실제 Pages 배포 확인 → 이후 v0.316 운영. PR #991/#993, Pages run 39024771709. *특정 실제 iPhone의 물리 터치 경험은 별도 사용자 환경 검증 대상*.
 - [x] **REL-02** 오래된 정적 자산 캐시키를 고정한 배포 게이트 QA 수정. PR #996, main commit `480fec8da0bf`. *향후 새로운 핀 퇴행은 별도로 감시*.
 - [x] **REL-03** 2026-10-12 정재우 야간 근태 데이터 복구 원장/운영 이력 확인. GitHub 이슈 #910 완료 댓글(2026-10-16), 정정 overlay #102/#103; 이전 감사 이력 및 원본 타각 보존.
-- [ ] **REL-04 (P1)** 다중 Pages 게시·배포·QA 경로가 필수 테스트를 우회하지 않도록 작업 분기/취소/실패 후 스모크 테스트와 사용자 알림의 정합성을 통합 점검. 인수인계 7절.
+- [x] **REL-04 (P1)** 배포완료보장 워크플로·회귀테스트의 이중 자동 Pages 게시/QA 우회·실패 재시도·독립 검증/롤백 안전성 검사. 기존 [PR #1025](https://github.com/koith/attendance-proto/pull/1025)로 `publish-pages.yml`을 수동 복구 전용으로 제한하고 동일 SHA P0 검증 증거 필수 적용, `p0-pages-deploy.yml`을 유일한 main 자동 게시자로 운영. **2026-10-18 결함 수정**: 기존 회귀테스트의 잘못 이스케이프된 `push:` 탐지식을 [Issue #1047](https://github.com/koith/attendance-proto/issues/1047) / [PR #1048](https://github.com/koith/attendance-proto/pull/1048)에서 실제 YAML 이벤트 파서/인위적 push·schedule 주입검사로 개선. PR **51/51 CI PASS**, main `fe50c3f6d58956a8b170e75ebf02fbc66d11eb9f`, [P0 Pages #39101059786](https://github.com/koith/attendance-proto/actions/runs/39101059786) SUCCESS, [독립 검증 #39101212783](https://github.com/koith/attendance-proto/actions/runs/39101212783) SUCCESS. 운영 UI 버전 v0.318 유지(테스트/워크플로 보강만 포함).
 
 ## 5. 다음 대화/매 보고용 규칙
 
@@ -113,3 +113,8 @@
 
 ## 12. 역사 월간 시트 잔여 서식 복구 (2026-10-18)
 - [x] **SHEET-01 (운영 오류·2026-10-18)** 9월 하단 빈 79~248행(A:N)의 흰색 배경·테두리 제거 및 8월 81~250행 유사 오류 수정. **실제 운영 완료**: [Issue #1042](https://github.com/koith/attendance-proto/issues/1042) / [PR #1043](https://github.com/koith/attendance-proto/pull/1043), main `9e26ba97e6448012048517ee9ee173acca8b494b`, 54/54 PR QA 통과, [Apps Script 배포·실시트 갱신 #39090383478](https://github.com/koith/attendance-proto/actions/runs/39090383478) 성공, [P0 Pages 배포·동일실행 검증 #39090383521](https://github.com/koith/attendance-proto/actions/runs/39090383521) 성공. 원본 수식·값이 없음을 확인한 빈 영역 4,760셀의 서식만 Google Sheets API로 제거; 운영 9월 79·247행, 8월 81행 형식/값 없음 readback, 9월 30~31행 실제 근태 및 서식 보존. 재발 방지: 다른 월 탭을 현재 월 갱신 때 놓치는 구버전 잔여 스타일을 안전한 1회 정리, isBlank·A:N 범위 제한·ScriptProperties 멱등성 QA. 앱 표기 버전 **v0.318**. 기존 잔여 개발과 구분한 신규 운영 오류 접수·완료 건.
+
+## 13. 잔여 작업 실처리 — 2026-10-18
+- **REL-04 완료**: 이중 Pages 자동 게시 회귀테스트 결함 #1047 수정(PR #1048); PR 51/51, P0 #39101059786/독립 #39101212783 성공; YAML 주입 변이로 우회 감지 입증. 본래 복구 정책과 정적 페이지·DB 롤백 격리 제약 유지.
+- **QA-05 진행(완료 아님)**: 운영 `2026 근태`가 아닌 독립 파일 `[QA 격리] 백억커피 근태·급여 Sheets 왕복 검증 2026-10-18` (ID `1j3T8PRNpBF5XRTguwBW2KdKYA-hIzISVom5JiN8BTf8`)에 12월 탭, 합성 금액 30,000+80,000원, 합계 110,000원, 정정사유 WRAP/원문 note, 덮어쓰기·재조회 멱등성 확인. *Google Sheets REST 수준에 한정됨; 앱 실제 쓰기 전체 검증 아님.* 원본 실운영 인하대 데이터 무변경.
+- **MTG-10 개발 중**: [Issue #1049](https://github.com/koith/attendance-proto/issues/1049), [PR #1051](https://github.com/koith/attendance-proto/pull/1051)에서 미입고 발주/포장단위·중복 방어 계산 및 QA 작성. CI·main 배포완료 검증 전까지 [ ] 유지.
