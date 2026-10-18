@@ -30,7 +30,8 @@ for(const [pay,expected] of cases){
  assert.equal(ui(pay,week),verifiedWeeklySource(pay,week),'UI/Edge drift');
 }
 assert.match(html,/payroll_weekly_source_ui_v1\.js\?v=20261018v327/);
-assert.match(html,/const APP_VERSION="v0\.327"/);
+const version=html.match(/const APP_VERSION="v0\.(\d+)"/)?.[1];
+assert.ok(Number(version)>=327,'weekly approval guard must remain available in all later app versions');
 assert.match(html,/id="weeklyApproveSourceStatus"/);
 assert.match(html,/const amount=window\.weeklyApprovalSourceAmount\(pay,key\)/);
 assert.match(html,/modal\.querySelector\("#weeklyApproveSave"\)\.disabled=!valid/);
