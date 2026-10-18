@@ -6,6 +6,19 @@ function empty(t,s=""){const guide=esc(s).replace('예시 데이터는 최근 30
 // Only server-confirmed inventory and stored recipe components are operational data.
 // Do not invent stock quantities or recipe ingredients as a fallback for a missing backend row.
 const recipeComponents=r=>Array.isArray(r.components)?r.components:[];
+// MTG-12: purchase transaction gross is NOT cost of consumed ingredients.
+// Inventory valuations, returns, waste and tax basis are not yet reconciled.
+// Missing financial data must never be silently converted into a zero amount.
+function operationsCostStatus(summary){
+ const raw=summary?.purchases;
+ const purchaseAmount=(
+   (typeof raw==="number"&&Number.isSafeInteger(raw)&&raw>=0)||
+   (typeof raw==="string"&&/^\\d+$/.test(raw)&&Number.isSafeInteger(Number(raw)))
+  )?Number(raw):null;
+ return {purchaseAmount,materialCost:null,ready:false,
+  reason:"기초·기말 재고평가액과 반품·폐기·부가세 기준이 확정되지 않아 사용 재료비를 산출할 수 없습니다."};
+}
+
 const withCatalog=rows=>(rows||[]).filter(x=>!x.is_demo&&!/^\[예시\]/.test(x.name||""));
 function shell(tab){
  S.tab=tab||S.tab;
@@ -152,7 +165,12 @@ async function openOpsModal(kind){
  submit.onclick=async()=>{const file=input.files?.[0];if(!file||!parsed.length)return;submit.disabled=true;submit.textContent="업로드 중…";try{const r=await BE.operationsImportStage(wrap.querySelector("#opsImportSource").value,file.name,parsed);preview.innerHTML='<b>'+(r?.normalized?'지점 데이터 반영 완료':'업로드 등록 완료 · 정규화 대기')+'</b><span>'+num(r?.row_count||parsed.length)+'행 · 배치 #'+esc(r?.batch_id||"")+'</span>';submit.textContent="완료"}catch(e){submit.disabled=false;submit.textContent="검증 후 업로드";alert("업로드 실패: "+e.message)}}
 }
 async function draw(){const body=document.getElementById("opsBody");if(!body)return;let trendData=null;body.innerHTML=empty("불러오는 중…");try{const rr=range(),f=document.getElementById("opsFrom")?.value||rr[0],t=document.getElementById("opsTo")?.value||rr[1];if(!f||!t||t<f)throw Error("조회 기간을 확인하세요.");
-if(S.tab==="dashboard"){const[s,a,tr]=await Promise.all([BE.operationsSummary(f,t),BE.operationsAnalytics(f,t),BE.operationsTrend(S.trend)]);trendData=tr;const daily=a.daily||[],channels=a.by_channel||[];body.innerHTML=`<div class="ops-kpis"><div class="ops-kpi primary"><span>매출</span><b>${won(s.sales)}</b></div><div class="ops-kpi"><span>매입</span><b>${won(s.purchases)}</b></div><div class="ops-kpi"><span>재고 부족</span><b>${num(a.low_stock)}개</b></div><div class="ops-kpi"><span>미해결 대사</span><b>${num(a.open_reconciliation)}건</b></div></div>
+if(S.tab==="dashboard"){const[s,a,tr]=await Promise.all([BE.operationsSummary(f,t),BE.operationsAnalytics(f,t),BE.operationsTrend(S.trend)]);trendData=tr;const daily=a.daily||[],channels=a.by_channel||[],cost=operationsCostStatus(s);body.innerHTML=`<div class="ops-kpis"><div class="ops-kpi primary"><span>매출</span><b>${won(s.sales)}</b></div><div class="ops-kpi"><span>매입 거래 총액</span><b>${cost.purchaseAmount===null?"자료 확인 필요":won(cost.purchaseAmount)}</b></div><div class="ops-kpi"><span>재고 부족</span><b>${num(a.low_stock)}개</b></div><div class="ops-kpi"><span>미해결 대사</span><b>${num(a.open_reconciliation)}건</b></div></div>
+<section class="ops-card" id="opsMaterialCostSafety" aria-label="매입액과 재료비 구분">
+ <div class="ops-card-head"><div><b>월별 재료비 검산</b><small>조회 기간에 포함된 거래와 실제 소비 원가는 다른 지표입니다.</small></div></div>
+ <div class="ops-row"><span>사용 재료비</span><strong>미산출 · 재고 평가자료 필요</strong></div>
+ <p class="ops-note">매입 거래 총액은 해당 기간의 거래 금액이며 실제 소비한 재료비를 뜻하지 않습니다. ${cost.reason} 미확인 재고는 0원으로 계산하지 않으며 임의 예상치를 표시하지 않습니다.</p>
+ </section>
 <div class="ops-card ops-trend-card"><div class="ops-card-head"><div><b>매출 · 매입 추이</b><small>선택 기간의 총액 변화</small></div></div><div class="ops-range"><button data-range="1h" ${S.trend==="1h"?"class=\"on\"":""}>1시간</button><button data-range="24h" ${S.trend==="24h"?"class=\"on\"":""}>24시간</button><button data-range="7d" ${S.trend==="7d"?"class=\"on\"":""}>1주일</button><button data-range="1m" ${S.trend==="1m"?"class=\"on\"":""}>1달</button><button data-range="6m" ${S.trend==="6m"?"class=\"on\"":""}>6달</button><button data-range="1y" ${S.trend==="1y"?"class=\"on\"":""}>1년</button></div><div class="ops-chart" id="opsTotalChart"></div></div><div class="ops-card ops-trend-card"><div class="ops-card-head"><div><b>메뉴별 매출 추이</b><small>매출 상위 메뉴 최대 8개</small></div></div><div class="ops-chart ops-menu-chart" id="opsMenuChart"></div></div><div class="ops-card"><div class="ops-card-head"><b>채널별 매출</b><span class="ops-meta">${num(s.transaction_count)}건</span></div>${channels.length?channels.map(x=>`<div class="ops-row"><div class="ops-row-main"><b>${esc(x.channel)}</b><small>${num(x.transactions)}건</small></div><strong>${won(x.amount)}</strong></div>`).join(""):empty("등록된 매출 데이터가 없습니다.","원천 데이터를 연결하면 자동 집계됩니다.")}</div>
 <div class="ops-card"><div class="ops-card-head"><b>일별 흐름</b></div>${daily.length?daily.slice(-14).map(x=>`<div class="ops-row"><div class="ops-row-main"><b>${esc(x.business_date)}</b><small>매입 ${won(x.purchases)}</small></div><strong>${won(x.sales)}</strong></div>`).join(""):empty("집계할 거래가 없습니다.")}</div>`}
 else if(S.tab==="inquiry"){
