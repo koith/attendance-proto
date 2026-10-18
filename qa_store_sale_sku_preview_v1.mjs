@@ -54,5 +54,27 @@ assert.deepEqual(candidates([]),[],'no verified sales must not generate placehol
 assert.throws(()=>candidates([{sale_name:'',transaction_count:1}]),/SALE_NAME_RESPONSE_INVALID/);
 assert.throws(()=>candidates([{sale_name:'원두',transaction_count:0}]),/SALE_NAME_RESPONSE_INVALID/);
 assert.throws(()=>candidates([{sale_name:'중복',transaction_count:1},{sale_name:'중복',transaction_count:2}]),/SALE_NAME_RESPONSE_INVALID/);
+// Executed read-only CSV audit path: export never fabricates quantities.
+const csvBegin=js.indexOf('function saleSkuAuditCsv(');
+const csvEnd=js.indexOf('window.openStoreSaleSkuPreview=',csvBegin);
+assert.ok(csvBegin>=0&&csvEnd>csvBegin,'audit writer is a pure helper');
+const audit=Function(js.slice(csvBegin,csvEnd)+'\nreturn saleSkuAuditCsv')();
+const result=parse(responses,a);
+const csv=audit(result);
+assert.ok(csv.startsWith('\ufeff'),'Excel-ready UTF-8 BOM');
+assert.equal(csv.split('\r\n').filter(Boolean).length,6,'five audited source names plus header');
+assert.match(csv,/아메리카노 1L","PROMOTION","12"/,'litre SKU must remain distinct');
+assert.match(csv,/없는제품","UNMAPPED","",""/,'unmapped has no fake SKU');
+assert.match(csv,/행사 아메리카노","PROMOTION","11"/);
+assert.match(csv,/관리자 검토용 · 실제 판매수량\/자동승인 아님/);
+assert.doesNotMatch(csv,/판매수량","/,'unknown quantity not implied');
+const malicious=audit([{name:'=HYPERLINK("https://fake")',status:'UNMAPPED',product:null}]);
+assert.ok(malicious.includes("'=HYPERLINK"),'spreadsheet formula injection must be escaped');
+assert.throws(()=>audit([]),/SKU_AUDIT_INVALID/);
+assert.throws(()=>audit([{name:'fake',status:'EXACT',product:null}]),/SKU_AUDIT_INVALID_PRODUCT/);
+assert.throws(()=>audit([{name:'fake',status:'AUTO_APPROVED',product:1}]),/SKU_AUDIT_INVALID_ROW/);
+assert.match(js,/id="opsSaleSkuExport" disabled/);
+assert.match(js,/modal\.querySelector\("#opsSaleNames"\)\.value!==verifiedInput/,'old inspection must not be exported after user edits');
+assert.doesNotMatch(js,/\.insert\(|\.update\(|\.delete\(/,'read-only SKU audit');
 new Function(js);new Function(ops);
 console.log('PASS MTG-07: guarded store-only sale SKU UI, campaign and litre separate, no automatic transaction writes');
