@@ -1,0 +1,34 @@
+name: QA-06 scenario evidence matrix
+on:
+  pull_request:
+    paths:
+      - 'qa_store_opening_scenario_evidence_v1.mjs'
+      - '.github/workflows/qa06-scenario-evidence.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'qa_store_opening_scenario_evidence_v1.mjs'
+      - '.github/workflows/qa06-scenario-evidence.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Execute every mapped attendance/payroll case
+        run: node qa_store_opening_scenario_evidence_v1.mjs
+      - name: Retain pass/fail and explicit field-evidence gaps
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa06-scenario-evidence
+          path: |
+            qa-results/store-opening-qa06-evidence.json
+            qa-results/store-opening-qa06-evidence.md
+          if-no-files-found: error
