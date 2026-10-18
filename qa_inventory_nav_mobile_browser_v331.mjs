@@ -13,7 +13,8 @@ assert.match(source,/return '<section class="ops-order-panel" id="opsInventoryOr
 const appVersion=Number(html.match(/const APP_VERSION="v0\.(\d+)"/)?.[1]);
 assert.ok(Number.isSafeInteger(appVersion)&&appVersion>=331,'inventory shortcut renderer must remain active in subsequent releases');
 assert.match(html,/operations_reference_ui_v208\.js\?v=20261018nav331/);
-assert.match(html,/operations_v1\.css\?v=20261018v331/);
+assert.match(html,/operations_v1\.css\?v=[\w.-]+/,'inventory CSS must stay versioned on every new release');
+assert.match(css,/\.ops-inventory-shortcuts\s*\{/,'real inventory navigation CSS must remain in release');
 const functionBody=source.slice(begin,end);
 const styles=[...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map(m=>m[1]).join('\n');
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});

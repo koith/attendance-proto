@@ -182,10 +182,24 @@ else if(S.tab==="inquiry"){
   '<label>자료 구분<select id="opsMode"><option value="actual">확인된 실거래</option><option value="demo">시연 예시 (실적 제외)</option></select></label>'+
   '<label>거래 구분<select id="opsType"><option value="">전체</option><option value="SALE">매출</option><option value="PURCHASE">매입</option><option value="REFUND">환불</option></select></label>'+
   '<label>채널<select id="opsChannel"><option value="">전체</option></select></label></div>'+
+  '<div class="ops-inquiry-shortcuts" role="group" aria-label="거래 구분 빠른 선택">'+
+  '<button type="button" class="active" data-inquiry-quick-type="" aria-pressed="true">전체</button>'+
+  '<button type="button" data-inquiry-quick-type="SALE" aria-pressed="false">매출</button>'+
+  '<button type="button" data-inquiry-quick-type="PURCHASE" aria-pressed="false">매입</button>'+
+  '<button type="button" data-inquiry-quick-type="REFUND" aria-pressed="false">환불</button></div>'+
   '<div class="ops-summary" aria-live="polite"></div>'+
   '<div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>일자</th><th>구분</th><th>채널</th><th>공급가액</th><th>부가세</th><th>합계</th><th>거래처/메뉴</th></tr></thead><tbody></tbody></table></div>'+
   '<div class="ops-inquiry-pagination" style="display:flex;justify-content:center;align-items:center;gap:12px;margin:16px 0"><button type="button" class="btn btn-secondary btn-sm" id="opsPrev">이전</button><span id="opsPageInfo" aria-live="polite"></span><button type="button" class="btn btn-secondary btn-sm" id="opsNext">다음</button></div>';
- const modeSelect=body.querySelector("#opsMode"),typeSelect=body.querySelector("#opsType"),channelSelect=body.querySelector("#opsChannel"),
+ function setQuickTypeState(selected){
+  const valid=["","SALE","PURCHASE","REFUND"];
+  if(!valid.includes(selected))throw Error("INVALID_QUICK_TRANSACTION_TYPE");
+  body.querySelectorAll("[data-inquiry-quick-type]").forEach(button=>{
+   const active=button.dataset.inquiryQuickType===selected;
+   button.classList.toggle("active",active);
+   button.setAttribute("aria-pressed",String(active));
+  });
+ }
+  const modeSelect=body.querySelector("#opsMode"),typeSelect=body.querySelector("#opsType"),channelSelect=body.querySelector("#opsChannel"),
        prev=body.querySelector("#opsPrev"),next=body.querySelector("#opsNext"),pager=body.querySelector("#opsPageInfo");
  const renderPage=data=>{
    if(!data||!Array.isArray(data.rows)||!Number.isFinite(Number(data.total_count)))throw Error("INVALID_INQUIRY_PAGE");
@@ -224,7 +238,11 @@ else if(S.tab==="inquiry"){
    }catch(error){if(req===request){body.querySelector(".ops-summary").textContent="거래 조회 실패: "+String(error?.message||error);prev.disabled=true;next.disabled=true;}}
  };
  modeSelect.onchange=()=>{q.mode=modeSelect.value;q.page=1;q.channel=null;refresh(true)};
- typeSelect.onchange=()=>{q.type=typeSelect.value||null;q.page=1;refresh(false)};
+ typeSelect.onchange=()=>{q.type=typeSelect.value||null;q.page=1;setQuickTypeState(typeSelect.value);refresh(false)};
+ body.querySelectorAll("[data-inquiry-quick-type]").forEach(button=>button.onclick=()=>{
+  typeSelect.value=button.dataset.inquiryQuickType;
+  typeSelect.onchange();
+ });
  channelSelect.onchange=()=>{q.channel=channelSelect.value||null;q.page=1;refresh(false)};
  prev.onclick=()=>{if(q.page>1){q.page--;refresh(false)}};
  next.onclick=()=>{if(!next.disabled){q.page++;refresh(false)}};
