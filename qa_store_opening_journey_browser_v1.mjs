@@ -192,6 +192,23 @@ function html(kind,params){
    'storeRecipeOverrideSave:async(id,k,n,c,parts,thumb,steps)=>{const r=await fetch(window.CONFIG.SUPABASE_URL+"/rest/v1/rpc/admin_store_recipe_override_save",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+Auth.token},body:JSON.stringify({p_store_id:id,p_menu_key:k,p_menu_name:n,p_category:c,p_components:parts,p_thumbnail_url:thumb,p_instructions:steps})});if(!r.ok)throw Error("RECIPE_SAVE_DENIED");return r.json()},'+
    'storeRecipeOverrideClear:async(id,k)=>{const r=await fetch(window.CONFIG.SUPABASE_URL+"/rest/v1/rpc/admin_store_recipe_override_clear",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+Auth.token},body:JSON.stringify({p_store_id:id,p_menu_key:k})});if(!r.ok)throw Error("RECIPE_CLEAR_DENIED");return r.json()}};renderRecipeHub();';
  }
+ else if(kind==='stocktake'){
+   body='<main id="storeStocktakeQa"></main>';asset='operations_stocktake_v1.js';
+   action='window.BE={'+
+    'inventoryStocktakeCatalog:()=>qaStocktake("admin_store_stocktake_catalog",{}),'+
+    'inventoryStocktakeList:()=>qaStocktake("admin_store_stocktake_list",{}),'+
+    'inventoryStocktakeDraft:(lines,note)=>qaStocktake("admin_store_stocktake_draft",{p_lines:lines,p_note:note}),'+
+    'inventoryStocktakeDetail:id=>qaStocktake("admin_store_stocktake_detail",{p_stocktake_id:id}),'+
+    'inventoryStocktakePost:id=>qaStocktake("admin_store_stocktake_post",{p_stocktake_id:id}),'+
+    'staffStocktakeProposals:async()=>[]};'+
+    'window.openStoreInventoryStocktake();';
+   body+='<script>async function qaStocktake(name,args){'+
+    'const r=await fetch(window.CONFIG.SUPABASE_URL+"/rest/v1/rpc/"+name,'+
+    '{method:"POST",headers:{"Content-Type":"application/json",'+
+    '"Authorization":"Bearer "+window.Auth.token},'+
+    'body:JSON.stringify({p_store_id:window.CURRENT_STORE_ID,...args})});'+
+    'const data=await r.json();if(!r.ok)throw Error(data.message||data.error||name);return data}</script>';
+ }
  return '<!doctype html><meta charset="utf-8"><style>body{font:15px sans-serif}.btn{cursor:pointer}.form-control{padding:8px}.employee-panel{margin:20px}</style>'+body+'<script>'+init+'</script><script src="/'+asset+'"></script><script>'+action+'</script>';
 }
 const server=http.createServer((req,res)=>{
@@ -308,6 +325,58 @@ try{
  await recipe.locator('.recipe-v220-card').first().waitFor();
  verify((await recipe.locator('.recipe-v220-card').first().innerText()).includes('QA 개통점 아메리카노'),'branch override persists across a real recipe UI reload');
  await recipe.close();
+ // QA-07 continuous synthetic journey: same READY branch and real owner
+ // actor now opens the SHIPPED stocktake dialog. Draft must not touch
+ // ledger; posting must be a separate, authorized, exactly-once action.
+ const stocktake=await contextPage('/qa/stocktake?token=qa-owner');
+ await stocktake.locator('#opsStocktakeItem').waitFor();
+ await stocktake.locator('#opsStocktakeSearch').fill('원두');
+ await stocktake.locator('#opsStocktakeItem').selectOption('501');
+ await stocktake.locator('#opsStocktakeQty').fill('10');
+ await stocktake.locator('#opsStocktakeAdd').click();
+ await stocktake.locator('#opsStocktakeDraft').click();
+ await stocktake.locator('#opsStocktakeConfirm').waitFor();
+ const newDraft=[...stocktakes.values()][0];
+ verify(newDraft?.status==='DRAFT'&&stockLevels.get(501)===12.5&&movements.length===0,
+  'real stocktake UI drafts only; initial 12.5 kg remains unchanged');
+ verify(newDraft?.lines?.[0]?.variance===-2.5,
+  'same store source inventory 12.5 kg vs counted 10 kg independently reconciles -2.5');
+ verify(api('admin_store_stocktake_post',{p_store_id:OTHER,p_stocktake_id:newDraft.id},'qa-owner').status===403,
+  'cross-store inventory posting is rejected without changing either ledger');
+ verify(api('admin_store_stocktake_post',{p_store_id:STORE,p_stocktake_id:newDraft.id},'qa-assistant').status===403,
+  'assistant payroll/staff permissions never silently grant inventory-post authority');
+ await stocktake.locator('#opsStocktakeConfirm').click();
+ await stocktake.waitForFunction(()=>document.querySelector('#opsStocktakeReview')?.textContent?.includes('POSTED'));
+ verify(newDraft.status==='POSTED'&&stockLevels.get(501)===10&&movements.length===1&&
+  movements[0].quantity===-2.5&&movements[0].store_id===STORE,
+  'actual source UI submits separate owner POST and exactly one original signed ledger adjustment');
+ verify(api('admin_store_stocktake_post',{p_store_id:STORE,p_stocktake_id:newDraft.id},'qa-owner').status===409&&movements.length===1,
+  'duplicate inventory POST never replays a signed stock delta');
+ verify(stockLevels.get(502)===7&&stores.get(OTHER).onboarding_status==='STAGED',
+  'untouched catalog items and comparison branch remain intact across opening-to-inventory');
+ await stocktake.close();
+
+ // Same actual owner-management UI revokes the previous assistant AFTER
+ // exercising authenticated attendance/payroll, recipe, and inventory.
+ const revokedUI=await contextPage('/qa/manager?token=qa-owner');
+ const revoke=revokedUI.locator('[data-manager-revoke="assistant-qa-id"]');
+ await revoke.waitFor();
+ await revoke.click();
+ await revokedUI.getByText('관리자 권한을 해제했습니다.').waitFor();
+ verify(!users.get('qa-assistant').active&&!managers.get('assistant-qa-id').active,
+  'real owner UI revokes delegated manager from the SAME opened store');
+ for(const [name,data] of [
+  ['store_limited_employee_list',{p_store_id:STORE}],
+  ['store_limited_payroll_read',{p_store_id:STORE}],
+  ['store_delegated_permissions_set',{p_store_id:STORE,p_user_id:'assistant-qa-id',p_payroll_view:true}],
+  ['admin_store_stocktake_post',{p_store_id:STORE,p_stocktake_id:newDraft.id}]
+ ]){
+  verify(api(name,data,'qa-assistant').status===403,
+   'revoked assistant stale token rejected for '+name);
+ }
+ verify(api('admin_store_stocktake_list',{p_store_id:STORE},'qa-owner').result.length===1,
+  'original manager remains authorized for historical stocktake proof');
+ await revokedUI.close();
  verify(audits.some(a=>a.path.endsWith('/functions/v1/server-sync-sheet')&&a.body.mode==='invite_store_delegated_manager')&&audits.some(a=>a.path.endsWith('/rest/v1/rpc/admin_store_recipe_override_save')),'QA exercised actual UI network request paths');
  console.log('STORE OPENING ISOLATED BROWSER QA PASSED: '+steps+' assertions, '+mail.length+' synthetic invitations, '+audits.length+' intercepted API calls; no production writes.');
 }catch(error){
