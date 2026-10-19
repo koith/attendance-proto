@@ -74,4 +74,39 @@ assert.equal(post('2').ok,true,'valid existing store isolated sync still works')
 assert.equal(writes,1);
 assert.equal(vmContext._annualBook('INHA',2026).getId(),'isolated-new-3',
  'Legacy INHA may not reuse the already claimed primary active workbook');
-console.log('PASS QA-05 primary workbook protected; new stores independent, property readback stable, unsafe keys rejected before any Sheet write');
+// A missing mapped workbook is NOT permission to abandon its history and
+// create another blank annual file. The operator must restore file access.
+props.set('ATTENDANCE_BOOK_5_2026','inaccessible-existing-2026');
+const createdBeforeMissing=created.length,writesBeforeMissing=writes;
+assert.throws(()=>vmContext._annualBook('5',2026),/MAPPED_WORKBOOK_UNAVAILABLE/);
+assert.equal(props.get('ATTENDANCE_BOOK_5_2026'),'inaccessible-existing-2026',
+ 'Missing workbook mapping must be retained for recovery');
+assert.equal(created.length,createdBeforeMissing,'Do not fabricate a replacement file');
+const failedSync=post('5');
+assert.equal(failedSync.ok,false,'Missing mapped workbook cannot report successful sync');
+assert.match(failedSync.error,/MAPPED_WORKBOOK_UNAVAILABLE/);
+assert.equal(writes,writesBeforeMissing,'Failed mapped workbook never clears a month');
+
+// Simulate lost Script Properties during year turnover: active 2026 must not
+// become 2027, rename 2026, or lose historical rows due to active adoption.
+props.delete('ATTENDANCE_BOOK_1_2026');
+const oldYearTitle=active.name;
+const newlyCreated=created.length;
+const nextYear=vmContext._annualBook('1',2027);
+assert.equal(created.length,newlyCreated+1,'Primary store needs a fresh annual workbook');
+assert.notEqual(nextYear.getId(),active.id,'Never adopt 2026 as 2027');
+assert.equal(active.name,oldYearTitle,'Past-year workbook title must stay intact');
+assert.equal(props.get('ATTENDANCE_BOOK_1_2027'),nextYear.getId());
+assert.equal(vmContext._annualBook('1',2027).getId(),nextYear.getId(),
+ '2027 existing workbook mapping must be reusable');
+
+// Even a manually corrupted property must not repurpose a previous-year file.
+props.set('ATTENDANCE_BOOK_6_2027',active.id);
+const originalWrites=writes,originalTitle=active.name;
+assert.throws(()=>vmContext._annualBook('6',2027),/MAPPED_WORKBOOK_YEAR_CONFLICT/);
+assert.equal(active.name,originalTitle,'Mapped wrong-year workbook must not be renamed');
+assert.equal(props.get('ATTENDANCE_BOOK_6_2027'),active.id,
+ 'Conflicting mapping must be retained for investigation');
+assert.equal(writes,originalWrites,'Year-conflict guard must not write report content');
+
+console.log('PASS QA-05 primary workbook protected; new stores independent, property readback stable, unsafe keys and lost annual workbook mappings fail closed');
