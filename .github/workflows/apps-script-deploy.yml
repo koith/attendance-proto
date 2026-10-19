@@ -9,6 +9,7 @@ on:
       - apps_script.gs
       - qa_sheet_formula_literal_v1.mjs
       - qa_sheet_valid_month_v1.mjs
+      - qa_sheet_payload_preflight_v1.mjs
       - qa_sheet_user_tabs_preserved_v1.mjs
       - qa_sheet_closed_snapshot_gross_v1.mjs
       - qa_sheet_meeting_20261017_v1.mjs
@@ -21,6 +22,7 @@ on:
       - apps_script.gs
       - qa_sheet_formula_literal_v1.mjs
       - qa_sheet_valid_month_v1.mjs
+      - qa_sheet_payload_preflight_v1.mjs
       - qa_sheet_user_tabs_preserved_v1.mjs
       - qa_sheet_closed_snapshot_gross_v1.mjs
       - qa_sheet_header_border_persistence_v1.mjs
@@ -54,6 +56,7 @@ jobs:
           node qa_sheet_new_month_format_contract.mjs
           node qa_sheet_formula_literal_v1.mjs
           node qa_sheet_valid_month_v1.mjs
+          node qa_sheet_payload_preflight_v1.mjs
           node qa_sheet_user_tabs_preserved_v1.mjs
           node qa_sheet_closed_snapshot_gross_v1.mjs
           node qa_sheet_header_border_persistence_v1.mjs
