@@ -71,7 +71,7 @@ assert.match(js,/staffAuth\.employee_id/);
 assert.match(css,/\.monthly-work-summary\.manager>summary/);
 assert.match(css,/@media\(max-width:520px\)/);
 assert.match(html,/actual_attendance\.js\?v=20261019below349/);
-assert.match(html,/actual_attendance\.css\?v=20261019cards348/);
+assert.match(html,/actual_attendance\.css\?v=20261019below349/);
 assert.match(index,/const APP_VERSION="v0\.349";/);
 new Function(js);
 console.log('PASS #1193: month/employee isolation, corrected shift, overnight attribution, 16h anomaly, no-data, staff PIN, responsive HTML and version');
