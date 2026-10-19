@@ -8,6 +8,7 @@ on:
       - 'supabase/migrations/20261019084500_staff_stocktake_proposal_baseline.sql'
       - 'qa_staff_stocktake_proposals_postgres.sql'
       - 'qa_staff_stocktake_ui_v1.mjs'
+      - 'qa_staff_stocktake_pin_race_v1.mjs'
       - 'operations_staff_stocktake_v1.js'
       - '.github/workflows/store-stocktake-postgres-integration.yml'
   push:
@@ -19,6 +20,7 @@ on:
       - 'supabase/migrations/20261019084500_staff_stocktake_proposal_baseline.sql'
       - 'qa_staff_stocktake_proposals_postgres.sql'
       - 'qa_staff_stocktake_ui_v1.mjs'
+      - 'qa_staff_stocktake_pin_race_v1.mjs'
       - 'operations_staff_stocktake_v1.js'
       - '.github/workflows/store-stocktake-postgres-integration.yml'
 jobs:
@@ -53,3 +55,5 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f qa_staff_stocktake_proposals_postgres.sql
       - name: Validate shipped staff/manager stocktake JavaScript and adapters
         run: node qa_staff_stocktake_ui_v1.mjs
+      - name: Exercise live handlers against delayed PIN authentication responses
+        run: node qa_staff_stocktake_pin_race_v1.mjs
