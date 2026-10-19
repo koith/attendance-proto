@@ -188,3 +188,31 @@
   .wrap{width:100%;max-width:1024px!important;padding-left:18px;padding-right:18px}
 }
 @media(min-width:1280px){.wrap{max-width:1280px!important}}
+
+/* #1193 v0.347: one read-only monthly total section shared by staff and managers. */
+.monthly-work-summary{
+  display:block;margin:0 0 14px;padding:13px 16px 12px;background:var(--panel);
+  border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+  color:var(--ink);font-variant-numeric:tabular-nums;
+}
+.monthly-work-heading{font-size:.85rem;font-weight:800;line-height:1.5}
+.monthly-work-summary.manager>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:revert}
+.monthly-work-summary.manager>summary strong{margin-left:auto;text-align:right;color:var(--brand);font-size:.79rem;white-space:nowrap}
+.monthly-work-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));column-gap:16px;row-gap:0;margin:10px 0 4px;border-top:1px solid var(--line)}
+.monthly-person-total{display:flex;align-items:center;justify-content:space-between;gap:9px;min-width:0;padding:9px 0;border-bottom:1px solid var(--line);font-size:.79rem}
+.monthly-person-total span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.monthly-person-total strong{flex:0 0 auto;font-size:.82rem;color:var(--ink)}
+.monthly-work-figure{font-size:1.45rem;line-height:1.4;font-weight:850;color:var(--brand);margin:3px 0}
+.monthly-work-sub{color:var(--sub);font-size:.78rem}
+.monthly-work-note{margin:9px 0 0;color:var(--sub);line-height:1.45;font-size:.69rem}
+.monthly-work-empty{font-size:.78rem;color:var(--sub)}
+@media(max-width:520px){
+  .monthly-work-summary{padding:11px 12px;margin-bottom:10px}
+  .monthly-work-summary.manager>summary{flex-wrap:wrap;gap:3px 10px}
+  .monthly-work-summary.manager>summary strong{font-size:.74rem}
+  .monthly-work-list{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px}
+  .monthly-person-total{font-size:.73rem;padding:8px 0}
+  .monthly-person-total strong{font-size:.71rem}
+  .monthly-work-note{font-size:.67rem}
+}
+@media(max-width:360px){.monthly-work-list{grid-template-columns:1fr}}
