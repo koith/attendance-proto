@@ -4,9 +4,9 @@ const app=fs.readFileSync('index.html','utf8');
 const staff=fs.readFileSync('operations_staff_stocktake_v1.js','utf8');
 const manager=fs.readFileSync('operations_stocktake_v1.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261019082000_staff_stocktake_proposals.sql','utf8');
-assert.match(app,/const APP_VERSION="v0\.339"/);
-assert.match(app,/operations_staff_stocktake_v1\.js\?v=20261019v339/);
-assert.match(app,/operations_stocktake_v1\.js\?v=20261019v339/);
+assert.match(app,/const APP_VERSION="v0\.346"/);
+assert.match(app,/operations_staff_stocktake_v1\.js\?v=20261019v346/);
+assert.match(app,/operations_stocktake_v1\.js\?v=20261019v340/);
 assert.match(app,/id="staffCountOpen"/);
 assert.match(app,/window\.openStaffStocktake\?\.\(\)/);
 for(const rpc of ['staff_stocktake_catalog','staff_stocktake_submit','admin_store_staff_stocktake_list','admin_store_staff_stocktake_decide']){
