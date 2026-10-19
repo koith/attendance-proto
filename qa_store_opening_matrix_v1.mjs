@@ -52,6 +52,9 @@ const lanes=[
  ['POS/매출 CSV 형식·주입 오류 거부','qa_operations_csv_integrity_v1.mjs'],
  ['매출·매입 데모의 실제 보고서 유입 차단','qa_operations_demo_metrics_guard_v1.mjs'],
  ['미정산·누락 거래 대사 화면 연결','qa_store_operations_reconciliation_ui_v1.mjs'],
+ // QA-07 / MTG-06: execute actual async cross-store isolation/race regression
+ // in the integrated store-opening evidence matrix, not only as a standalone check.
+ ['매출 대사 비동기 지점 전환·교차 노출 방지','qa_operations_reconciliation_store_race_v1.mjs'],
  ['POS/배달 실제 장부 페이징·시연 분리','qa_operations_paged_real_v1.mjs'],
  ['지점 진입 잠금 및 재고 원문 단위 보존','qa_store_entry_inventory_units_v021.mjs']
 ];
