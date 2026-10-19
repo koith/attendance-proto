@@ -138,8 +138,25 @@ async function renderInventory(refresh=false){
   const body=refresh?document.getElementById("opsBody"):shell("재고","발주 필요 품목과 인하대점 재고 기준을 한 화면에서 관리합니다.");
   if(typeof window.mountAdminSubnav==="function") await window.mountAdminSubnav("inventory");
   if(!refresh)await loadInventoryManagement();
-  const all=REF.inventory||[],categories=["전체",...new Set(all.map(x=>x.category))];let rows=inventoryCategory==="전체"?all:all.filter(x=>x.category===inventoryCategory);
-  if(inventoryQuery)rows=rows.filter(x=>[x.name,x.current_text,x.minimum_text,x.order_text,x.note].some(v=>String(v||"").toLowerCase().includes(inventoryQuery)));
+  const all=REF.inventory||[],categories=["전체",...new Set(all.map(x=>x.category))];
+  const catalogRows=()=>{
+    let next=inventoryCategory==="전체"?all:all.filter(x=>x.category===inventoryCategory);
+    if(inventoryQuery)next=next.filter(x=>[x.name,x.current_text,x.minimum_text,x.order_text,x.note].some(v=>String(v||"").toLowerCase().includes(inventoryQuery)));
+    return next;
+  };
+  const rows=catalogRows();
+  // Search edits only the catalog. Never recreate order/receiving/aging panels,
+  // closing the supplier details or stealing the mobile keyboard's focus.
+  const updateCatalog=()=>{
+    if(!body.isConnected)return;
+    const shown=catalogRows();
+    const cards=body.querySelector(".ops-stock-grid");
+    const count=body.querySelector("#opsInventoryCatalogCount");
+    const shortcut=body.querySelector('[data-inventory-jump="opsInventoryCatalog"]');
+    if(cards)cards.innerHTML=shown.length?shown.map(inventoryCard).join(""):'<div class="ops-empty"><b>검색 결과가 없습니다.</b></div>';
+    if(count)count.textContent=shown.length+"개";
+    if(shortcut)shortcut.textContent="전체 품목 "+shown.length;
+  };
   // Reversible, role-neutral navigation. Keep all live actions mounted and
   // visible; only scroll the current page instead of changing route/hash.
   const reorderCount=managedInventory.filter(x=>stockState(x).rank<2).length;
@@ -147,7 +164,7 @@ async function renderInventory(refresh=false){
    '<button type="button" data-inventory-jump="opsInventoryOrders">발주 '+reorderCount+' · 입고 '+purchaseOrders.length+'</button>'+
    '<button type="button" data-inventory-jump="opsInventoryAgeSection">재고 점검</button>'+
    '<button type="button" data-inventory-jump="opsInventoryCatalog">전체 품목 '+rows.length+'</button></nav>';
-  body.innerHTML=nav+orderPanel()+receivingPanel()+'<div id="opsInventoryAgeSection" class="ops-inventory-age-section"><div class="ops-head-actions" style="margin:12px 0"><button type="button" class="btn btn-secondary" id="opsInventoryAgeReview">장기 체류 가능 재고 점검</button></div><div class="ops-note" id="opsInventoryAgeAlert" role="status" aria-live="polite">입고·사용 이력 점검 중…</div></div><div class="ops-unified-section-title" id="opsInventoryCatalog"><b>재고 기준</b><span>'+rows.length+'개</span></div><div class="ops-inventory-toolbar ops-reference-toolbar"><label>검색<input id="opsReferenceInventorySearch" type="search" value="'+esc(inventoryQuery)+'" placeholder="품목명·현재고·발주기준"></label><label>카테고리<select id="opsReferenceInventoryCat">'+categories.map(x=>'<option '+(x===inventoryCategory?'selected':'')+'>'+esc(x)+'</option>').join("")+'</select></label></div><div class="ops-stock-chart ops-stock-grid">'+(rows.length?rows.map(inventoryCard).join(""):'<div class="ops-empty"><b>검색 결과가 없습니다.</b></div>')+'</div>';
+  body.innerHTML=nav+orderPanel()+receivingPanel()+'<div id="opsInventoryAgeSection" class="ops-inventory-age-section"><div class="ops-head-actions" style="margin:12px 0"><button type="button" class="btn btn-secondary" id="opsInventoryAgeReview">장기 체류 가능 재고 점검</button></div><div class="ops-note" id="opsInventoryAgeAlert" role="status" aria-live="polite">입고·사용 이력 점검 중…</div></div><div class="ops-unified-section-title" id="opsInventoryCatalog"><b>재고 기준</b><span id="opsInventoryCatalogCount" aria-live="polite">'+rows.length+'개</span></div><div class="ops-inventory-toolbar ops-reference-toolbar"><label>검색<input id="opsReferenceInventorySearch" type="search" value="'+esc(inventoryQuery)+'" placeholder="품목명·현재고·발주기준"></label><label>카테고리<select id="opsReferenceInventoryCat">'+categories.map(x=>'<option '+(x===inventoryCategory?'selected':'')+'>'+esc(x)+'</option>').join("")+'</select></label></div><div class="ops-stock-chart ops-stock-grid">'+(rows.length?rows.map(inventoryCard).join(""):'<div class="ops-empty"><b>검색 결과가 없습니다.</b></div>')+'</div>';
   // Use the already-implemented and authorized inventory editors in operations_v1.
   const editor=window.openInventoryEntryFromUnified;
   if(typeof editor!=="function")throw new Error("INVENTORY_EDITOR_NOT_READY");
@@ -166,8 +183,9 @@ async function renderInventory(refresh=false){
   void window.refreshStoreInventoryAgeAlert?.();
   body.querySelectorAll("[data-managed-stock]").forEach(button=>button.onclick=()=>openPurchaseOrder(managedInventory[Number(button.dataset.managedStock)]));
   body.querySelectorAll("[data-receive-order]").forEach(button=>button.onclick=()=>openReceiveOrder(purchaseOrders[Number(button.dataset.receiveOrder)]));
-  const search=document.getElementById("opsReferenceInventorySearch");search.oninput=e=>{inventoryQuery=e.target.value.trim().toLowerCase();renderInventory(true);const next=document.getElementById("opsReferenceInventorySearch");next.focus();next.setSelectionRange(next.value.length,next.value.length)};
-  document.getElementById("opsReferenceInventoryCat").onchange=e=>{inventoryCategory=e.target.value;renderInventory(true)};
+  const search=document.getElementById("opsReferenceInventorySearch");
+  search.oninput=e=>{inventoryQuery=e.target.value.trim().toLowerCase();updateCatalog();};
+  document.getElementById("opsReferenceInventoryCat").onchange=e=>{inventoryCategory=e.target.value;updateCatalog();};
 }
 
 async function loadRegisteredRecipes(){registeredRecipes=(await BE.recipeList()).map(row=>({...row,menu_name:cleanExample(row.menu_name)}))}
