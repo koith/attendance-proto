@@ -10,6 +10,7 @@ async function check(phase){
  createElement(){return {className:"",innerHTML:"",querySelector(){return {onclick:null}},remove(){}}},body:{appendChild(x){added.push(x)}}};
  const BE={storeReconciliationIssues(){return first.promise},storeCrossSourceSuspects(){return second.promise}};
  const ctx={document,BE,alert:x=>alerts.push(x),get CURRENT_STORE_ID(){return store}};
+ ctx.window=ctx;
  vm.runInNewContext(source,ctx);
  const pending=ctx.openStoreOperationsReconciliation();
  if(phase==="issues"){store=2;first.resolve([]);await pending;}
