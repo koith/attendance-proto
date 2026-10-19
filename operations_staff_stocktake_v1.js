@@ -32,7 +32,7 @@ window.openStaffStocktake=async function(){
  '<label>품목 검색<input id="staffCountSearch" type="search" class="form-control" placeholder="예: 우유, 원두"></label>'+
  '<div style="display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:8px">'+
  '<label>품목<select id="staffCountItem" class="form-control"></select></label>'+
- '<label>실제 수량<input id="staffCountQty" class="form-control" type="number" min="0" max="1000000000" step=".001"></label></div>'+
+ '<label>실제 수량<input id="staffCountQty" class="form-control" type="number" inputmode="decimal" min="0" max="1000000000" step=".001" placeholder="0"></label></div>'+
  '<button type="button" id="staffCountAdd" class="btn btn-secondary">품목 추가 / 실사 수량 수정</button>'+
  '<div id="staffCountLines"></div>'+
  '<label>실사 메모<textarea id="staffCountNote" maxlength="500" rows="2" class="form-control"></textarea></label>'+
@@ -60,6 +60,7 @@ window.openStaffStocktake=async function(){
   picker.innerHTML=matches.length?matches.map(x=>'<option value="'+Number(x.id)+'">'+esc(x.name)+' ('+esc(x.unit)+')</option>').join(""):'<option value="">일치하는 품목 없음</option>';
   picker.disabled=!matches.length;el("staffCountAdd").disabled=!matches.length;
   if(matches.some(x=>String(x.id)===previous))picker.value=previous;
+  if(!picker.disabled)el("staffCountAdd").textContent=selected.has(Number(picker.value))?"선택 품목 수량 수정":"품목 추가";
  }
  function renderLines(){
   el("staffCountLines").innerHTML=selected.size?
@@ -73,6 +74,7 @@ window.openStaffStocktake=async function(){
   });
  }
  el("staffCountSearch").addEventListener("input",renderPicker);
+ el("staffCountItem").addEventListener("change",renderPicker);
  try{
   const cards=await BE.posPublicStaffCards();
   if(!Array.isArray(cards)||!dialog.isConnected)throw Error("직원 목록 응답 오류");
@@ -108,11 +110,16 @@ window.openStaffStocktake=async function(){
  el("staffCountAdd").onclick=()=>{
   const item=catalog.find(x=>Number(x.id)===Number(el("staffCountItem").value));
   try{
+   const updated=selected.has(Number(item?.id));
    staffCountUpsert(selected,item,el("staffCountQty").value);
    el("staffCountQty").value="";el("staffCountSearch").value="";
    renderPicker();renderLines();el("staffCountSearch").focus();
+   el("staffCountStatus").textContent=updated?"실사 수량을 수정했습니다. 제출 전까지 장부는 변경되지 않습니다.":"품목을 추가했습니다. 다음 품목을 검색하세요.";
   }catch(e){el("staffCountStatus").textContent=String(e.message||e)}
  };
+ el("staffCountQty").addEventListener("keydown",event=>{
+  if(event.key==="Enter"){event.preventDefault();el("staffCountAdd").click();}
+ });
  el("staffCountSubmit").onclick=async()=>{
   if(busy||!selected.size||verifiedEmployee!==Number(el("staffCountEmployee").value))return;
   if(!confirm("실사 결과를 점주에게 제출할까요? 제출만으로 실제 재고는 변경되지 않습니다."))return;
