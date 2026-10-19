@@ -38,7 +38,7 @@ try{
     'esc','inventoryCard','loadInventoryManagement','shell','openPurchaseOrder','openReceiveOrder',
     code+';return renderInventory;');
    const render=builder(document,window,REF,'전체','',managedInventory,purchaseOrders,()=>({rank:1}),
-    ()=>'<section class="ops-order-panel" id="opsInventoryOrders" style="min-height:130px"><b>발주 필요</b><button id="opsInventoryBulk">일괄 등록</button><button id="opsInventoryAdd">+ 재고 등록</button></section>',
+    ()=>'<section class="ops-order-panel" id="opsInventoryOrders" style="min-height:130px"><b>발주 필요</b><button id="opsInventoryBulk">일괄 등록</button><button id="opsInventoryAdd">+ 재고 등록</button><button id="opsSupplierHandoffOpen">공급사 주문 입력 보조</button></section>',
     ()=>'<section class="ops-receiving-panel" style="min-height:130px"><b>입고 대기</b></section>',
     v=>String(v),
     row=>'<article class="ops-card" style="height:700px">'+row.name+'</article>',
@@ -72,6 +72,7 @@ try{
   await nav.locator('button').nth(2).click();
   assert.equal(await page.evaluate(()=>window.lastInventoryShortcut),'opsInventoryCatalog');
   assert.equal(await page.locator('#opsInventoryAdd').count(),1,'stock addition action must remain mounted');
+  assert.equal(await page.locator('#opsSupplierHandoffOpen').count(),1,'optional supplier handoff action must remain mounted');
   assert.equal(await page.locator('#opsInventoryAgeReview').count(),1,'aging review action must remain mounted');
   if(width===390){
    fs.mkdirSync('qa-results',{recursive:true});
