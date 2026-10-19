@@ -63,7 +63,7 @@ for(const [label,file] of lanes){
  if(!label||!file)configurationFailures.push('empty QA label or filename');
  if(laneNames.has(label))configurationFailures.push('duplicate QA label: '+label);
  if(laneFiles.has(file))configurationFailures.push('duplicate QA file: '+file);
- if(!/^qa_[a-z0-9_]+\\.mjs$/.test(file))configurationFailures.push('invalid QA path: '+file);
+ if(!file.startsWith('qa_')||!file.endsWith('.mjs')||file.includes('/')||file.includes('\\\\'))configurationFailures.push('invalid QA path: '+file);
  if(!fs.existsSync(file))configurationFailures.push('missing QA file: '+file);
  laneNames.add(label);laneFiles.add(file);
 }
