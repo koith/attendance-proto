@@ -6,7 +6,8 @@ import vm from 'node:vm';
 // No live PIN, employee, payroll, inventory or supplier data is used.
 const source=fs.readFileSync('operations_staff_stocktake_v1.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
-assert.match(index,/const APP_VERSION="v0\.350"/);
+// Test the v0.350 stocktake asset regardless of a later unrelated app release.
+assert.match(index,/const APP_VERSION="v0\.\d+"/);
 assert.match(index,/operations_staff_stocktake_v1\.js\?v=20261019v350/);
 assert.match(source,/id="staffCountQty"[^>]*inputmode="decimal"/);
 assert.match(source,/staffCountQty"\)\.addEventListener\("keydown"/);
