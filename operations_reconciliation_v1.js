@@ -24,25 +24,29 @@ window.openStoreOperationsReconciliation=async function(){
  if(!from||!to||to<from){alert("대사 조회 기간을 확인하세요.");return;}
  const trigger=document.getElementById("opsReconciliationOpen");
  const requestedStore=String(typeof CURRENT_STORE_ID==="undefined"?"":CURRENT_STORE_ID);
- const sameStore=()=>String(typeof CURRENT_STORE_ID==="undefined"?"":CURRENT_STORE_ID)===requestedStore;
+ const sameContext=()=>String(typeof CURRENT_STORE_ID==="undefined"?"":CURRENT_STORE_ID)===requestedStore &&
+  document.getElementById("opsFrom")?.value===from &&
+  document.getElementById("opsTo")?.value===to &&
+  document.getElementById("opsReconciliationOpen")===trigger;
  if(trigger?.disabled)return;
  if(trigger)trigger.disabled=true;
+ try{
  let issues;
  try{
   issues=await BE.storeReconciliationIssues(from,to);
-  if(!sameStore())return;
+  if(!sameContext())return;
   if(!Array.isArray(issues)||issues.length>2000)throw Error("RECONCILIATION_INVALID_RESPONSE");
  }catch(error){
-  if(!sameStore())return;
-  if(trigger)trigger.disabled=false;
+  if(!sameContext())return;
+
   alert("대사 내역 조회 실패: "+error.message);
   return;
  }
- if(trigger)trigger.disabled=false;
+
  let suspects=[],suspectError="";
  try{ suspects=parseCrossSourceSuspects(await BE.storeCrossSourceSuspects(from,to)); }
  catch(e){ suspectError=String(e.message||e); }
- if(!sameStore())return;
+ if(!sameContext())return;
  const modal=document.createElement("div");modal.className="ops-modal";
  const rows=issues.map(x=>'<tr><td>'+esc(x.business_date||"-")+'</td>'+
    '<td>'+esc(x.issue_type==="IMPORT_FAILED"?"수집 실패":x.issue_type==="RAW_NOT_CONFIRMED"?"미확정 원천":x.issue_type)+'</td>'+
@@ -68,10 +72,14 @@ window.openStoreOperationsReconciliation=async function(){
      suspects.length?'<div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>일자</th><th>배달원천</th><th>POS 키</th><th>배달 키</th><th>총액</th><th>시각차</th></tr></thead><tbody>'+suspectRows+'</tbody></table></div>':
      '<div class="ops-empty">의심 후보 없음 · 중복이 전혀 없다는 뜻은 아닙니다.</div>')+
    '</div></div>';
- if(!sameStore())return;
+ if(!sameContext())return;
  document.body.appendChild(modal);
  const close=()=>modal.remove();
  modal.querySelector(".ops-modal-close").onclick=close;
  modal.onclick=e=>{if(e.target===modal)close()};
+ }finally{
+  // Release the original mounted control after both lookups and all error paths.
+  if(trigger&&document.getElementById("opsReconciliationOpen")===trigger)trigger.disabled=false;
+ }
 };
 })();
