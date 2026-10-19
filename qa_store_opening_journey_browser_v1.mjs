@@ -6,7 +6,7 @@ import http from 'node:http';
 import {chromium} from 'playwright';
 
 const STORE=800001, OTHER=800002, HOST='https://waluhdgqhwjjwmflhrle.supabase.co';
-const files=new Set(['index.html','owner_activation.html','owner_activation.js','hq_owner_console.js','store_manager_tab.js','store_limited_manager.js','recipe_access_v220.js','operations_stocktake_v1.js']);
+const files=new Set(['index.html','owner_activation.html','owner_activation.js','hq_owner_console.js','store_manager_tab.js','store_limited_manager.js','recipe_access_v220.js','operations_stocktake_v1.js','operations_v1.js']);
 const users=new Map([['qa-hq',{id:'hq-id',email:'hq@opening-qa.invalid',role:'HQ',active:true}]]);
 const mail=[], audits=[], stores=new Map([[STORE,{id:STORE,name:'QA 가상개통점',code:'QA-OPENING',onboarding_status:'STAGED',is_active:false,province:'경기도',district:'수원시'}],[OTHER,{id:OTHER,name:'QA 비교점',code:'QA-OTHER',onboarding_status:'STAGED',is_active:false,province:'경기도',district:'수원시'}]]);
 const managers=new Map(),permissions=new Map(),recipeBase={menu_key:'AMERICANO',menu_name:'본사 아메리카노',category:'커피',components:[{item_id:501,item_name:'원두',quantity:18,unit:'g'}],instructions:[{label:'HOT',content:'본사 지정 제조법'}],thumbnail_url:'',is_overridden:false};
@@ -17,6 +17,12 @@ const overrides=new Map(),staff=[{id:900101,store_id:STORE,name:'가상 직원',
 const stockLevels=new Map([[501,12.5],[502,7]]);
 const stockCatalog=[{id:501,name:'원두',unit:'kg'},{id:502,name:'우유',unit:'L'}];
 const stocktakes=new Map(),movements=[];let nextStocktakeId=75001;
+const actualSalesPurchases=[],importBatches=[],sourceKeys=new Set();
+const scopedTotals=()=>actualSalesPurchases.reduce((a,t)=>{
+ if(t.transaction_type==='SALE')a.sales+=t.total_amount;
+ else if(t.transaction_type==='PURCHASE')a.purchases+=t.total_amount;
+ return a;
+},{sales:0,purchases:0});
 const copy=x=>structuredClone(x),key=(store,menu)=>String(store)+':'+String(menu);
 function reply(route,data,status=200){
  return route.fulfill({status,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type','Access-Control-Allow-Methods':'POST,OPTIONS,PUT'},body:JSON.stringify(data)});
@@ -93,6 +99,47 @@ function api(name,body,token,method='POST'){
  }
  if(name==='store_limited_pending_requests')return isAssistant&&permissions.get(user.id)?.attendance_approve&&scopeOK?{result:[]}:denial();
  if(name==='store_limited_payroll_read')return isAssistant&&permissions.get(user.id)?.payroll_view&&scopeOK?{result:[{employee_name:staff[0].name,gross_pay:120000,net_pay:116040}]}:denial();
+ if(name.startsWith('admin_store_operations_')){
+   if(!scopeOK||!isOwner||stores.get(STORE).onboarding_status!=='READY')return denial();
+   if(name==='admin_store_operations_import_stage'){
+     if(!['KIS_POS','ONLYONE'].includes(body.p_source)||!Array.isArray(body.p_rows)||
+       !body.p_rows.length||body.p_rows.length>100)return failing('INVALID_IMPORT',400);
+     const batch=[];
+     for(const row of body.p_rows){
+       const key=String(body.p_source)+':'+String(row.source_record_key);
+       const value=Number(row.total_amount);
+       if(!/^\d{4}-\d{2}-\d{2}$/.test(row.business_date||'')||
+          !Number.isSafeInteger(value)||value<0||sourceKeys.has(key)||
+          !['SALE','PURCHASE'].includes(row.transaction_type)||
+          (body.p_source==='KIS_POS'?row.transaction_type!=='SALE':
+           row.transaction_type!=='PURCHASE')||row.is_demo==='true')
+        return failing('SOURCE_TRANSACTION_UNVERIFIED_OR_DUPLICATE',409);
+       batch.push({...row,total_amount:value,source_record_key:key,store_id:STORE,
+        is_demo:false,status:'CONFIRMED',net_amount:value,vat_amount:0});
+     }
+     batch.forEach(t=>{actualSalesPurchases.push(t);sourceKeys.add(t.source_record_key);});
+     importBatches.push({source:body.p_source,file_name:body.p_file_name,
+        status:'COMPLETED',count:batch.length});
+     return {result:{normalized:true,row_count:batch.length,batch_id:importBatches.length}};
+   }
+   if(name==='admin_store_operations_page'){
+     const rows=actualSalesPurchases.filter(t=>(!body.p_type||t.transaction_type===body.p_type)&&
+       (!body.p_channel||t.channel===body.p_channel)&&t.business_date>=body.p_from&&
+       t.business_date<=body.p_to&&body.p_mode!=='demo');
+     return {result:{rows:copy(rows).slice((Number(body.p_page)-1)*100,Number(body.p_page)*100),
+       total_count:rows.length,totals:{net:rows.reduce((n,t)=>n+t.net_amount,0),
+        vat:0,total:rows.reduce((n,t)=>n+t.total_amount,0)}}};
+   }
+   if(name==='admin_store_operations_channels_mode')
+    return {result:[...new Set(actualSalesPurchases.map(t=>t.channel))].map(channel=>({channel}))};
+   if(name==='admin_store_operations_summary')return {result:scopedTotals()};
+   if(name==='admin_store_operations_analytics')
+    return {result:{daily:[{business_date:actualSalesPurchases[0]?.business_date||'2026-10-19',
+      ...scopedTotals()}],by_channel:[],low_stock:0,open_reconciliation:0}};
+   if(name==='admin_store_operations_trend')return {result:{totals:[],menus:[],menu_names:[]}};
+   if(name==='admin_store_operations_imports')return {result:copy(importBatches)};
+   return failing('UNHANDLED_OPERATIONS_'+name,500);
+ }
  if(name.startsWith('admin_store_stocktake_')){
    if(!scopeOK||!isOwner||stores.get(STORE).onboarding_status!=='READY')return denial();
    if(name==='admin_store_stocktake_catalog')return {result:copy(stockCatalog)};
@@ -194,6 +241,25 @@ function html(kind,params){
    'inventoryItems:async()=>[{id:501,name:"원두",unit:"g",sku:"QA-COFFEE"}],'+
    'storeRecipeOverrideSave:async(id,k,n,c,parts,thumb,steps)=>{const r=await fetch(window.CONFIG.SUPABASE_URL+"/rest/v1/rpc/admin_store_recipe_override_save",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+Auth.token},body:JSON.stringify({p_store_id:id,p_menu_key:k,p_menu_name:n,p_category:c,p_components:parts,p_thumbnail_url:thumb,p_instructions:steps})});if(!r.ok)throw Error("RECIPE_SAVE_DENIED");return r.json()},'+
    'storeRecipeOverrideClear:async(id,k)=>{const r=await fetch(window.CONFIG.SUPABASE_URL+"/rest/v1/rpc/admin_store_recipe_override_clear",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+Auth.token},body:JSON.stringify({p_store_id:id,p_menu_key:k})});if(!r.ok)throw Error("RECIPE_CLEAR_DENIED");return r.json()}};renderRecipeHub();';
+ }
+ else if(kind==='ops'){
+   body='<main id="view"></main>';asset='operations_v1.js';
+   action='window.view=document.getElementById("view");'+
+    'window.BE={'+
+    'operationsImportStage:(source,file,rows)=>qaOps("admin_store_operations_import_stage",{p_source:source,p_file_name:file,p_rows:rows}),'+
+    'operationsInquiryPage:(from,to,type,channel,page,size,mode)=>qaOps("admin_store_operations_page",{p_from:from,p_to:to,p_type:type,p_channel:channel,p_page:page,p_size:size,p_mode:mode}),'+
+    'operationsChannelsMode:(from,to,mode)=>qaOps("admin_store_operations_channels_mode",{p_from:from,p_to:to,p_mode:mode}),'+
+    'operationsSummary:(from,to)=>qaOps("admin_store_operations_summary",{p_from:from,p_to:to}),'+
+    'operationsAnalytics:(from,to)=>qaOps("admin_store_operations_analytics",{p_from:from,p_to:to}),'+
+    'operationsTrend:range=>qaOps("admin_store_operations_trend",{p_range:range}),'+
+    'operationsImports:()=>qaOps("admin_store_operations_imports",{})};'+
+    'window.renderOperations("inquiry");';
+   body+='<script>async function qaOps(name,args){'+
+    'const r=await fetch(window.CONFIG.SUPABASE_URL+"/rest/v1/rpc/"+name,'+
+    '{method:"POST",headers:{"Content-Type":"application/json",'+
+    '"Authorization":"Bearer "+window.Auth.token},'+
+    'body:JSON.stringify({p_store_id:window.CURRENT_STORE_ID,...args})});'+
+    'const data=await r.json();if(!r.ok)throw Error(data.message||data.error||name);return data}</script>';
  }
  else if(kind==='stocktake'){
    body='<main id="storeStocktakeQa"></main>';asset='operations_stocktake_v1.js';
@@ -359,6 +425,64 @@ try{
   'untouched catalog items and comparison branch remain intact across opening-to-inventory');
  await stocktake.close();
 
+ // QA-07 extended: the SAME synthetic opened store, owner session and
+ // posted stock ledger now execute the shipped POS/purchase CSV UI and
+ // BOTH the actual operations inquiry and cost-aware dashboard.
+ // The adapter is intentionally a strict fake for KIS/ONLYONE; it does
+ // not claim that any real provider endpoint or account is connected.
+ const ops=await contextPage('/qa/ops?token=qa-owner');
+ await ops.locator('#opsMode').waitFor();
+ await ops.locator('.ops-sales-more>summary').click();
+ const fixtureDay=new Date().toISOString().slice(0,7)+'-14';
+ for(const row of [
+  {source:'KIS_POS',name:'pos-fixture.csv',type:'SALE',channel:'KIS_POS',
+   key:'pos-001',total:8900,description:'아메리카노'},
+  {source:'ONLYONE',name:'supplier-fixture.csv',type:'PURCHASE',channel:'ONLYONE',
+   key:'supply-001',total:3200,description:'원두'}
+ ]){
+  await ops.locator('#opsUploadOpen').click();
+  await ops.locator('#opsImportSource').selectOption(row.source);
+  const csv='business_date,transaction_type,channel,total_amount,counterparty,source_record_key\n'+
+   [fixtureDay,row.type,row.channel,row.total,row.description,row.key].join(',')+'\n';
+  await ops.locator('#opsImportFile').setInputFiles({
+   name:row.name,mimeType:'text/csv',buffer:Buffer.from(csv,'utf8')
+  });
+  await ops.locator('#opsImportSubmit').click();
+  await ops.locator('#opsImportPreview').getByText('지점 데이터 반영 완료').waitFor();
+  await ops.locator('.ops-modal-close').click();
+ }
+ verify(actualSalesPurchases.length===2&&sourceKeys.size===2&&importBatches.length===2,
+  'actual POS and supplier upload dialogs recorded exactly two distinct source transactions');
+ verify(scopedTotals().sales===8900&&scopedTotals().purchases===3200,
+  'POS SALE and verified supplier PURCHASE stay distinct in the same branch');
+ verify(api('admin_store_operations_page',{
+   p_store_id:OTHER,p_from:fixtureDay,p_to:fixtureDay,p_page:1},'qa-owner').status===403,
+  'other store cannot inspect same imported revenue/purchases');
+ verify(api('admin_store_operations_import_stage',{
+   p_store_id:STORE,p_source:'KIS_POS',p_rows:[{business_date:fixtureDay,
+    transaction_type:'SALE',channel:'KIS_POS',total_amount:'8900',
+    counterparty:'아메리카노',source_record_key:'pos-001'}]},'qa-owner').status===409,
+  'same source transaction cannot import twice');
+ verify(api('admin_store_operations_import_stage',{
+   p_store_id:STORE,p_source:'KIS_POS',p_rows:[{business_date:fixtureDay,
+    transaction_type:'SALE',channel:'KIS_POS',total_amount:'1200',is_demo:'true',
+    counterparty:'QA demo',source_record_key:'demo-001'}]},'qa-owner').status===409,
+  'explicitly marked demo sale cannot contaminate confirmed sales');
+ await ops.locator('#opsRefresh').click();
+ await ops.waitForFunction(()=>document.querySelector('.ops-summary')?.textContent?.includes('전체 합계'));
+ const inquiry=await ops.locator('.ops-summary').innerText();
+ verify(inquiry.includes('12,100원')&&await ops.locator('.ops-table tbody tr').count()===2,
+  'actual operations inquiry renders two confirmed POS/supplier rows with 12,100 won total');
+ await ops.evaluate(()=>window.renderOperations('dashboard'));
+ await ops.locator('#opsMaterialCostSafety').waitFor();
+ const dashboard=await ops.locator('#opsBody').innerText();
+ verify(dashboard.includes('8,900원')&&dashboard.includes('3,200원')&&
+  dashboard.includes('사용 재료비')&&dashboard.includes('미산출'),
+  'real store dashboard separates POS revenue and actual purchase gross, without invented material consumption');
+ verify(movements.length===1&&stockLevels.get(501)===10&&stockLevels.get(502)===7,
+  'financial import preserves the existing signed inventory movement and unrelated stock');
+ await ops.close();
+
  // Same actual owner-management UI revokes the previous assistant AFTER
  // exercising authenticated attendance/payroll, recipe, and inventory.
  const revokedUI=await contextPage('/qa/manager?token=qa-owner');
@@ -373,7 +497,8 @@ try{
   ['store_limited_employee_list',{p_store_id:STORE}],
   ['store_limited_payroll_read',{p_store_id:STORE}],
   ['store_delegated_permissions_set',{p_store_id:STORE,p_user_id:'assistant-qa-id',p_payroll_view:true}],
-  ['admin_store_stocktake_post',{p_store_id:STORE,p_stocktake_id:newDraft.id}]
+  ['admin_store_stocktake_post',{p_store_id:STORE,p_stocktake_id:newDraft.id}],
+  ['admin_store_operations_summary',{p_store_id:STORE,p_from:fixtureDay,p_to:fixtureDay}]
  ]){
   verify(api(name,data,'qa-assistant').status===403,
    'revoked assistant stale token rejected for '+name);
