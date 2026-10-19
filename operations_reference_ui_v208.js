@@ -153,7 +153,8 @@ async function renderInventory(refresh=false){
   if(typeof editor!=="function")throw new Error("INVENTORY_EDITOR_NOT_READY");
   document.getElementById("opsInventoryAdd").onclick=()=>editor("manual");
   document.getElementById("opsInventoryBulk").onclick=()=>editor("bulk");
-  document.getElementById("opsSupplierHandoffOpen").onclick=()=>window.openSupplierOrderHandoff?.(purchaseOrders,Number(CURRENT_STORE_ID)||1);
+  const supplierButton=document.getElementById("opsSupplierHandoffOpen");
+  if(supplierButton)supplierButton.onclick=()=>window.openSupplierOrderHandoff?.(purchaseOrders,Number(CURRENT_STORE_ID)||1);
   body.querySelectorAll("[data-inventory-jump]").forEach(button=>{
     button.onclick=()=>{
       const id=button.dataset.inventoryJump;
