@@ -108,7 +108,7 @@ function api(name,body,token,method='POST'){
      for(const row of body.p_rows){
        const key=String(body.p_source)+':'+String(row.source_record_key);
        const value=Number(row.total_amount);
-       if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(row.business_date||'')||
+       if(!/^\d{4}-\d{2}-\d{2}$/.test(row.business_date||'')||
           !Number.isSafeInteger(value)||value<0||sourceKeys.has(key)||
           !['SALE','PURCHASE'].includes(row.transaction_type)||
           (body.p_source==='KIS_POS'?row.transaction_type!=='SALE':
