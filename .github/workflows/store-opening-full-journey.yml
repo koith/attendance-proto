@@ -119,6 +119,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Validate operations title and advanced action disclosure at phone and desktop widths
         run: node qa_operations_header_mobile_browser_v1.mjs
+      - name: Validate selected-only supplier handoff across mobile and desktop widths
+        run: node qa_supplier_handoff_browser_v1.mjs
       - name: Execute owner and assistant activation + recipe UI scenarios
         run: node qa_store_opening_browser_v1.mjs
       - name: Connected HQ invite, owner activation, assistant activation, delegated staff and recipe isolation
