@@ -13,3 +13,4 @@ jobs:
       - run: node qa_boot_syntax.mjs
       - run: node qa_operations_v1.mjs
       - run: node qa_operations_sales_quick_filters_v1.mjs
+      - run: node qa_operations_no_source_not_zero_v1.mjs
