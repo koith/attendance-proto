@@ -425,6 +425,64 @@ try{
   'untouched catalog items and comparison branch remain intact across opening-to-inventory');
  await stocktake.close();
 
+ // QA-07 extended: the SAME synthetic opened store, owner session and
+ // posted stock ledger now execute the shipped POS/purchase CSV UI and
+ // BOTH the actual operations inquiry and cost-aware dashboard.
+ // The adapter is intentionally a strict fake for KIS/ONLYONE; it does
+ // not claim that any real provider endpoint or account is connected.
+ const ops=await contextPage('/qa/ops?token=qa-owner');
+ await ops.locator('#opsMode').waitFor();
+ await ops.locator('.ops-sales-more>summary').click();
+ const fixtureDay=new Date().toISOString().slice(0,7)+'-14';
+ for(const row of [
+  {source:'KIS_POS',name:'pos-fixture.csv',type:'SALE',channel:'KIS_POS',
+   key:'pos-001',total:8900,description:'아메리카노'},
+  {source:'ONLYONE',name:'supplier-fixture.csv',type:'PURCHASE',channel:'ONLYONE',
+   key:'supply-001',total:3200,description:'원두'}
+ ]){
+  await ops.locator('#opsUploadOpen').click();
+  await ops.locator('#opsImportSource').selectOption(row.source);
+  const csv='business_date,transaction_type,channel,total_amount,counterparty,source_record_key\\n'+
+   [fixtureDay,row.type,row.channel,row.total,row.description,row.key].join(',')+'\\n';
+  await ops.locator('#opsImportFile').setInputFiles({
+   name:row.name,mimeType:'text/csv',buffer:Buffer.from(csv,'utf8')
+  });
+  await ops.locator('#opsImportSubmit').click();
+  await ops.locator('#opsImportPreview').getByText('지점 데이터 반영 완료').waitFor();
+  await ops.locator('.ops-modal-close').click();
+ }
+ verify(actualSalesPurchases.length===2&&sourceKeys.size===2&&importBatches.length===2,
+  'actual POS and supplier upload dialogs recorded exactly two distinct source transactions');
+ verify(scopedTotals().sales===8900&&scopedTotals().purchases===3200,
+  'POS SALE and verified supplier PURCHASE stay distinct in the same branch');
+ verify(api('admin_store_operations_page',{
+   p_store_id:OTHER,p_from:fixtureDay,p_to:fixtureDay,p_page:1},'qa-owner').status===403,
+  'other store cannot inspect same imported revenue/purchases');
+ verify(api('admin_store_operations_import_stage',{
+   p_store_id:STORE,p_source:'KIS_POS',p_rows:[{business_date:fixtureDay,
+    transaction_type:'SALE',channel:'KIS_POS',total_amount:'8900',
+    counterparty:'아메리카노',source_record_key:'pos-001'}]},'qa-owner').status===409,
+  'same source transaction cannot import twice');
+ verify(api('admin_store_operations_import_stage',{
+   p_store_id:STORE,p_source:'KIS_POS',p_rows:[{business_date:fixtureDay,
+    transaction_type:'SALE',channel:'KIS_POS',total_amount:'1200',is_demo:'true',
+    counterparty:'QA demo',source_record_key:'demo-001'}]},'qa-owner').status===409,
+  'explicitly marked demo sale cannot contaminate confirmed sales');
+ await ops.locator('#opsRefresh').click();
+ await ops.waitForFunction(()=>document.querySelector('.ops-summary')?.textContent?.includes('전체 합계'));
+ const inquiry=await ops.locator('.ops-summary').innerText();
+ verify(inquiry.includes('12,100원')&&await ops.locator('.ops-table tbody tr').count()===2,
+  'actual operations inquiry renders two confirmed POS/supplier rows with 12,100 won total');
+ await ops.evaluate(()=>window.renderOperations('dashboard'));
+ await ops.locator('#opsMaterialCostSafety').waitFor();
+ const dashboard=await ops.locator('#opsBody').innerText();
+ verify(dashboard.includes('8,900원')&&dashboard.includes('3,200원')&&
+  dashboard.includes('사용 재료비')&&dashboard.includes('미산출'),
+  'real store dashboard separates POS revenue and actual purchase gross, without invented material consumption');
+ verify(movements.length===1&&stockLevels.get(501)===10&&stockLevels.get(502)===7,
+  'financial import preserves the existing signed inventory movement and unrelated stock');
+ await ops.close();
+
  // Same actual owner-management UI revokes the previous assistant AFTER
  // exercising authenticated attendance/payroll, recipe, and inventory.
  const revokedUI=await contextPage('/qa/manager?token=qa-owner');
@@ -439,7 +497,8 @@ try{
   ['store_limited_employee_list',{p_store_id:STORE}],
   ['store_limited_payroll_read',{p_store_id:STORE}],
   ['store_delegated_permissions_set',{p_store_id:STORE,p_user_id:'assistant-qa-id',p_payroll_view:true}],
-  ['admin_store_stocktake_post',{p_store_id:STORE,p_stocktake_id:newDraft.id}]
+  ['admin_store_stocktake_post',{p_store_id:STORE,p_stocktake_id:newDraft.id}],
+  ['admin_store_operations_summary',{p_store_id:STORE,p_from:fixtureDay,p_to:fixtureDay}]
  ]){
   verify(api(name,data,'qa-assistant').status===403,
    'revoked assistant stale token rejected for '+name);
