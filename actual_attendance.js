@@ -588,14 +588,15 @@ init();
 })();
 
 
-/* #1193 v0.347: render verified monthly employee totals on both calendar modes.
-   Keep existing month and day renderers, PIN isolation, corrections and month navigation. */
+/* #1193 v0.349: keep both manager/staff verified monthly totals BELOW
+   the complete calendar (including legend/today action). Preserve the same
+   PIN isolation, session calculations, corrections and month navigation. */
 (()=>{
   const previousRenderMonth=renderMonth;
   renderMonth=function(){
     previousRenderMonth();
     const app=el('app');
     if(app?.querySelector('.calendar')&&!app.querySelector('.monthly-work-summary'))
-      app.insertAdjacentHTML('afterbegin',monthlyCompletedSummaryHtml());
+      app.insertAdjacentHTML('beforeend',monthlyCompletedSummaryHtml());
   };
 })();
