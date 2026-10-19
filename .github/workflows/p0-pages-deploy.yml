@@ -22,6 +22,8 @@ on:
       - 'qa_hq_quicknav_escape_contract_v1.mjs'
       - 'qa_pos_route_async_guard_v1.mjs'
       - 'qa_pos_attendance_guest_v1.mjs'
+      - 'qa_actual_monthly_person_totals_v347.mjs'
+      - 'actual_attendance.css'
       - 'qa_pos_guest_live_rpc_v1.mjs'
       - 'qa_pos_startup_network_timeout_v1.mjs'
       - 'operations_reference_ui_v208.js'
@@ -249,6 +251,8 @@ jobs:
         run: node qa_pos_kiosk_gate_v1.mjs
       - name: POS non-admin staff attendance with independent PIN security (#1028)
         run: node qa_pos_attendance_guest_v1.mjs
+      - name: Staff/manager corrected monthly attendance totals guard (#1193)
+        run: node qa_actual_monthly_person_totals_v347.mjs
       - name: Read-only LIVE POS shared-PC guest RPC smoke (no staff secrets)
         run: node qa_pos_guest_live_rpc_v1.mjs
       - name: Preserve issue instruction source with fail-closed trace tests
