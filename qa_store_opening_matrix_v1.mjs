@@ -44,6 +44,7 @@ const lanes=[
  ['모바일 재고실사 초안/확정 UI 안전성','qa_store_stocktake_ui_v1.mjs'],
  ['확정/초안 실사 검증된 CSV 증빙 및 원본 수량 보존','qa_stocktake_audit_csv_v1.mjs'],
  ['모바일 재실사 빠른 수정·다음 품목 입력','qa_stocktake_fast_mobile_entry_v1.mjs'],
+ ['직원 공용 POS 모바일 실사 Enter 빠른 추가·수량 재입력','qa_staff_stocktake_fast_mobile_entry_v350.mjs'],
  ['미입고/부분입고 발주·포장단위 중복 차단','qa_stock_reorder_net_pending_v1.mjs'],
  ['온리원 공급사 미입고 발주 선택·단위·중복·지점 격리','qa_supplier_order_handoff_v1.mjs'],
  ['재고 미확인·데모 수량 제외','qa_inventory_real_metrics_v1.mjs'],
