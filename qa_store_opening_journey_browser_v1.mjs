@@ -57,7 +57,7 @@ function api(name,body,token,method='POST'){
  if(name==='is_hq_admin')return {result:isHQ};
  if(name==='store_delegated_manager_list'){
    if(!scopeOK||!(isOwner||isAssistant||isHQ))return denial();
-   return {result:[...managers.values()].filter(m=>m.store_id===STORE).map(m=>({store_id:STORE,user_id:m.id,email:m.email,manager_role:m.role==='OWNER'&&m.active?'OWNER':'DELEGATED'}))};
+   return {result:[...managers.values()].filter(m=>m.store_id===STORE&&m.active).map(m=>({store_id:STORE,user_id:m.id,email:m.email,manager_role:m.role==='OWNER'?'OWNER':'DELEGATED'}))};
  }
  if(name==='store_manager_invitation_states'){
    if(!scopeOK||!(isOwner||isAssistant||isHQ))return denial();
@@ -359,10 +359,11 @@ try{
  // Same actual owner-management UI revokes the previous assistant AFTER
  // exercising authenticated attendance/payroll, recipe, and inventory.
  const revokedUI=await contextPage('/qa/manager?token=qa-owner');
+ await revokedUI.locator('.smt-delegate summary').first().click();
  const revoke=revokedUI.locator('[data-manager-revoke="assistant-qa-id"]');
- await revoke.waitFor();
  await revoke.click();
- await revokedUI.getByText('관리자 권한을 해제했습니다.').waitFor();
+ await revokedUI.waitForFunction(()=>
+  !document.querySelector('[data-manager-revoke="assistant-qa-id"]'));
  verify(!users.get('qa-assistant').active&&!managers.get('assistant-qa-id').active,
   'real owner UI revokes delegated manager from the SAME opened store');
  for(const [name,data] of [
