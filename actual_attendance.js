@@ -85,21 +85,33 @@ function monthlyCompletedSummaryHtml(){
   const visible=isStaff?people:registered;
   const sum=visible.reduce((n,e)=>n+(totals.get(Number(e.id))||0),0);
   const current=ym.replace('-', '년 ')+'월';
-  const note='<p class="monthly-work-note">출퇴근 완료·관리자 정정 반영 기준 · 진행 중/누락/확인 필요 기록 제외 · 급여 산정 시간과 다를 수 있습니다.</p>';
+  const noteText='완료·정정 반영 기준 · 진행 중/누락/확인 필요 기록 제외 · 급여 산정 시간과 다를 수 있음';
+  const safeNote=escapeHtml(noteText);
+  const hint='<span class="monthly-work-hint" aria-label="'+safeNote+'" title="'+safeNote+'">ⓘ</span>';
+  const note='<p class="monthly-work-note">'+safeNote+'</p>';
   if(isStaff){
-    const name=people[0]?.name||'내 기록';
+    const name=escapeHtml(people[0]?.name||'내 기록');
     return '<section class="monthly-work-summary staff" aria-label="내 월별 근무시간 합계">'+
-      '<div class="monthly-work-heading">내 '+escapeHtml(current)+' 완료 근무시간</div>'+
-      '<div class="monthly-work-figure">'+escapeHtml(dur(sum))+'</div>'+
-      '<div class="monthly-work-sub">'+escapeHtml(name)+' · '+(sum>0?'완료된 기록 합산':'완료된 기록 없음')+'</div>'+
+      '<div class="monthly-work-heading">내 월 근무시간 '+hint+'</div>'+
+      '<div class="monthly-work-staff-line"><strong class="monthly-work-figure">'+escapeHtml(dur(sum))+'</strong>'+
+      '<span class="monthly-work-sub">'+name+' · '+(sum>0?'완료 기록 합산':'완료된 기록 없음')+'</span></div>'+
       note+'</section>';
   }
-  const rows=visible.map(e=>'<div class="monthly-person-total"><span>'+escapeHtml(e.name||'직원 정보 없음')+
-    '</span><strong>'+escapeHtml(dur(totals.get(Number(e.id))||0))+'</strong></div>').join('');
+  // Keep the exact corrected, completed-work totals; change presentation only.
+  // Use the same compact identity-band hierarchy as employee cards elsewhere.
+  const rows=visible.map(e=>{
+    const name=escapeHtml(e.name||'직원 정보 없음');
+    const initial=escapeHtml(Array.from(String(e.name||'?'))[0]||'?');
+    const time=escapeHtml(dur(totals.get(Number(e.id))||0));
+    return '<article class="monthly-person-total monthly-employee-card" role="listitem" aria-label="'+name+' · '+time+'">'+
+      '<div class="monthly-employee-head"><span class="monthly-employee-avatar" aria-hidden="true">'+initial+'</span>'+
+      '<span class="monthly-employee-name" title="'+name+'">'+name+'</span></div>'+
+      '<div class="monthly-employee-body"><strong>'+time+'</strong><small>완료 근무</small></div></article>';
+  }).join('');
   return '<details class="monthly-work-summary manager" open>'+
-    '<summary class="monthly-work-heading"><span>직원별 '+escapeHtml(current)+' 완료 근무시간</span>'+
+    '<summary class="monthly-work-heading"><span>월 근무시간 '+hint+'</span>'+
     '<strong>'+registered.length+'명 · 전체 '+escapeHtml(dur(sum))+'</strong></summary>'+
-    '<div class="monthly-work-list">'+(rows||'<p class="monthly-work-empty">이번 달 완료된 근무 기록이 없습니다.</p>')+'</div>'+
+    '<div class="monthly-work-list" role="list">'+(rows||'<p class="monthly-work-empty">이번 달 완료된 근무 기록이 없습니다.</p>')+'</div>'+
     note+'</details>';
 }
 function isIssue(s,day){if(s.status==='INCOMPLETE'||s.status==='ORPHAN_OUT')return true;if(s.status==='WORKING'&&day!==dayKey(kstToday()))return true;if(s.status==='COMPLETE'&&s.sec>16*3600)return true;return false}
