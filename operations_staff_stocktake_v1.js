@@ -12,6 +12,12 @@ function staffCountUpsert(selected,item,raw){
  selected.set(id,{item_id:id,counted_quantity:Number(text),name:item.name,unit:item.unit});
  return selected.size;
 }
+// Race guard: a successful old PIN response must not reactivate the shared POS form
+// after the selected employee or current PIN input changes.
+function staffVerificationMatches(epoch,currentEpoch,currentEmployee,currentPin,expectedEmployee,expectedPin){
+ return epoch===currentEpoch&&Number(currentEmployee)===Number(expectedEmployee)&&
+   String(currentPin)===String(expectedPin);
+}
 window.openStaffStocktake=async function(){
  if(!LIVE){alert("지점 서버에 연결된 상태에서만 직원 실사를 제출할 수 있습니다.");return;}
  const dialog=document.createElement("div");dialog.className="ops-modal";
@@ -34,13 +40,19 @@ window.openStaffStocktake=async function(){
  '</div><div id="staffCountStatus" role="status" aria-live="polite">직원 선택 후 PIN을 입력하세요.</div>'+
  '</div></div>';
  document.body.appendChild(dialog);
- const el=id=>dialog.querySelector("#"+id),close=()=>{el("staffCountPin").value="";dialog.remove()};
+ const el=id=>dialog.querySelector("#"+id),close=()=>{verificationEpoch++;el("staffCountPin").value="";dialog.remove()};
  dialog.querySelector(".ops-modal-close").onclick=close;
  dialog.onclick=e=>{if(e.target===dialog)close()};
- let catalog=[],selected=new Map(),verifiedEmployee=null,busy=false;
- const invalid=()=>{verifiedEmployee=null;catalog=[];selected.clear();el("staffCountWorkspace").hidden=true};
- const fields=["staffCountEmployee","staffCountPin"];
- for(const key of fields)el(key).addEventListener("change",invalid);
+ let catalog=[],selected=new Map(),verifiedEmployee=null,busy=false,verificationEpoch=0;
+ const invalid=()=>{
+  verificationEpoch++;verifiedEmployee=null;catalog=[];selected.clear();
+  el("staffCountWorkspace").hidden=true;el("staffCountSubmit").disabled=true;
+  el("staffCountStatus").textContent="직원 또는 PIN이 변경됐습니다. 다시 본인 확인하세요.";
+ };
+ el("staffCountEmployee").addEventListener("change",invalid);
+ el("staffCountEmployee").addEventListener("input",invalid);
+ // 'change' fires only after blur; invalidate sensitive proof on every keystroke.
+ el("staffCountPin").addEventListener("input",invalid);
  function renderPicker(){
   const term=el("staffCountSearch").value.trim().toLocaleLowerCase("ko-KR"),picker=el("staffCountItem");
   const matches=catalog.filter(x=>String(x.name||"").toLocaleLowerCase("ko-KR").includes(term));
@@ -74,19 +86,23 @@ window.openStaffStocktake=async function(){
  }catch(e){if(dialog.isConnected)el("staffCountStatus").textContent="직원 목록 조회 실패: "+String(e.message||e)}
  el("staffCountVerify").onclick=async()=>{
   if(busy)return;invalid();
+  const epoch=verificationEpoch;
   const id=Number(el("staffCountEmployee").value),pin=el("staffCountPin").value;
   if(!Number.isSafeInteger(id)||id<=0||pin.length<4){el("staffCountStatus").textContent="직원과 본인 PIN을 확인하세요.";return;}
   busy=true;el("staffCountVerify").disabled=true;
+  el("staffCountStatus").textContent="직원 본인 확인 중…";
   try{
    const rows=await BE.staffStocktakeCatalog(id,pin);
    if(!Array.isArray(rows)||rows.length>500||!rows.every(x=>Number.isSafeInteger(Number(x.id))&&
      typeof x.name==="string"&&typeof x.unit==="string"))
     throw Error("품목 응답을 확인할 수 없습니다.");
-   if(!dialog.isConnected)return;
+   if(!dialog.isConnected||!staffVerificationMatches(epoch,verificationEpoch,
+      el("staffCountEmployee").value,el("staffCountPin").value,id,pin))return;
    catalog=rows;verifiedEmployee=id;
    el("staffCountWorkspace").hidden=false;renderPicker();renderLines();
    el("staffCountStatus").textContent="본인 확인 완료 · 재고 실사 품목을 입력하세요.";
-  }catch(e){if(dialog.isConnected)el("staffCountStatus").textContent="인증/조회 실패: "+String(e.message||e)}
+  }catch(e){if(dialog.isConnected&&epoch===verificationEpoch)
+   el("staffCountStatus").textContent="인증/조회 실패: "+String(e.message||e)}
   finally{busy=false;if(dialog.isConnected)el("staffCountVerify").disabled=false}
  };
  el("staffCountAdd").onclick=()=>{
