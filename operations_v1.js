@@ -209,7 +209,7 @@ else if(S.tab==="inquiry"){
    // No confirmed source rows is not evidence that the store actually sold 0 won.
    // Fail closed for missing, blank, NaN or unsafe aggregate values.
    const verifiedAmount=v=>(typeof v==="number"&&Number.isSafeInteger(v))||
-     (typeof v==="string"&&/^-?\\d+$/.test(v)&&Number.isSafeInteger(Number(v)));
+     (typeof v==="string"&&/^-?\d+$/.test(v)&&Number.isSafeInteger(Number(v)));
    const verifiedTotals=Number.isSafeInteger(count)&&count>0&&
      ["net","vat","total"].every(key=>verifiedAmount(totals[key]));
    body.querySelector(".ops-summary").innerHTML='<span>'+esc(label)+' · 표시 '+num(rows.length)+' / 전체 '+num(count)+'건</span>'+
