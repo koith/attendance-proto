@@ -40,7 +40,7 @@ const context=vm.createContext({window,document:doc,BE,LIVE:true,alert(){},confi
 vm.runInContext(source,context,{filename:'operations_staff_stocktake_v1.js',timeout:1500});
 await window.openStaffStocktake();
 const el=id=>modal.querySelector('#'+id);
-const verify=async(id,pin)=>{
+const verify=(id,pin)=>{
  el('staffCountEmployee').value=String(id);
  el('staffCountPin').value=pin;
  const p=el('staffCountVerify').onclick();
@@ -50,14 +50,14 @@ const verify=async(id,pin)=>{
 };
 const rows=[{id:11,name:'우유',unit:'ml'}];
 // PIN changes while RPC is in flight: old success MUST NOT revive authenticated workspace.
-const a=await verify(101,'1111');
+const a=verify(101,'1111');
 el('staffCountPin').value='2222';el('staffCountPin').dispatch('input');
 calls[0].resolve(rows);await a;
 assert.equal(el('staffCountWorkspace').hidden,true,'stale verification reopened prior staff's workspace');
 assert.equal(el('staffCountSubmit').disabled,true);
 assert.notEqual(el('staffCountStatus').textContent,'본인 확인 완료 · 재고 실사 품목을 입력하세요.');
 // Matching request succeeds and permits only a fresh verified workspace.
-const b=await verify(101,'2222');
+const b=verify(101,'2222');
 calls[1].resolve(rows);await b;
 assert.equal(el('staffCountWorkspace').hidden,false,'fresh verified PIN should unlock workflow');
 // Editing identity invalidates previously successful PIN immediately.
@@ -65,17 +65,17 @@ el('staffCountEmployee').value='102';el('staffCountEmployee').dispatch('change')
 assert.equal(el('staffCountWorkspace').hidden,true,'switching employee must revoke form');
 assert.equal(el('staffCountSubmit').disabled,true);
 // Employee switch in flight cannot leak an old worker's successful RPC result.
-const c=await verify(101,'3333');
+const c=verify(101,'3333');
 el('staffCountEmployee').value='102';el('staffCountEmployee').dispatch('change');
 calls[2].resolve(rows);await c;
 assert.equal(el('staffCountWorkspace').hidden,true);
 // Failure from old request must not overwrite the new identity's current state.
-const d=await verify(102,'4444');
+const d=verify(102,'4444');
 el('staffCountPin').value='5555';el('staffCountPin').dispatch('input');
 calls[3].reject(new Error('stale network error'));await d;
 assert.match(el('staffCountStatus').textContent,/다시 본인 확인하세요/);
 // Close during RPC cannot reopen a removed modal or retain PIN.
-const e=await verify(102,'6666');
+const e=verify(102,'6666');
 modal.querySelector('.ops-modal-close').onclick();
 calls[4].resolve(rows);await e;
 assert.equal(modal.isConnected,false);assert.equal(el('staffCountPin').value,'');
