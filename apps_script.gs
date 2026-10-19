@@ -133,14 +133,14 @@ function _annualBook(storeKey, year){
     var activeAlreadyUsed = !!active && Object.keys(all).some(function(k){
       return k.indexOf('ATTENDANCE_BOOK_')===0 && all[k]===active.getId();
     });
-    // Do not reuse a previous-year active report as a new year's workbook,
-    // even when Script Properties were reset or this is a legacy primary store.
+    // Never claim an unrelated active workbook as a payroll/attendance book.
+    // Legacy primary adoption is allowed only for the exact same-year report
+    // title; a generic "active" file may be another user's working document.
+    // Reject copies, other-year workbooks and files without a report title.
     var activeName = active ? String(active.getName()) : '';
-    var activeReportYear = activeName.match(/(?:^|\D)(20\d{2})\s*근태/);
-    var activeWrongYear = !!activeReportYear && Number(activeReportYear[1])!==year;
-    // Only legacy primary-store imports may adopt a same-year active workbook.
-    // A brand-new store must always get its own file, even with no prior props.
-    if(active && !activeAlreadyUsed && !activeWrongYear &&
+    var activeIsSameYearReport = activeName.trim() === year + ' 근태';
+    // A new store must always create its own independent annual workbook.
+    if(active && !activeAlreadyUsed && activeIsSameYearReport &&
        (storeKey==='1'||storeKey==='INHA')){
       ss = active;
     }else{
