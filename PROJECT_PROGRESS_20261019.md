@@ -63,3 +63,9 @@
 - **PR #1208 → main `55f009239cd6f4ca05aa197e205777103ea3f8af`:** QA-05 Apps Script 쓰기 전에 데이터 구조·값 검증, 오류 시 기존 Sheet 값 clear 이전에 종료. `qa_sheet_payload_preflight_v1.mjs`의 허용·거부/서식유지 경계 회귀 포함, PR **59/59 Actions PASS**; 운영 [Apps Script 배포·후속 Sheet 갱신 #39229949036](https://github.com/koith/attendance-proto/actions/runs/39229949036) SUCCESS. **실제 분리된 시험용 Google Sheet의 Edge→GAS 전체 쓰기/재조회 증거 아님**, QA-05 여전히 [ ].
 - **PR #1209 → main `a3e34ca5ecf3c2b9acace04d9d47673b8eeb050b`:** QA-06 실제 급여 엔진 합성 근무: 정상 8h, 지각/조퇴 각각 25분, 중복 시 50분 감소, 실급여 동일한 분 단위 변화. 2026-09 입사/퇴사·재입사 사이 무급 9일, 재입사 합산 급여 21/30일, 기간 중첩 중복 지급 안 함. 증거 행렬 **26→28** 실행 레인, CI **55/55 PASS**. 실제 지점 직원 출퇴근·퇴사/재입사 승인·JWT·실근태/실급여 7 GAP는 미증빙, QA-06 여전히 [ ].
 - 두 PR 일반 UI 화면 자산 변경 없음 → **운영 UI 버전 v0.349 유지**. 체크박스 변동 0: **38건/완료 19건/미완료 19건**, 해당 미완료 19건의 실제 외부자료 및 현장 승인 요건은 그대로 구분한다.
+
+## 2026-10-19 #1213 QA-05 멀티매장 시트 실제 소유 경계 방어
+
+- [PR #1213](https://github.com/koith/attendance-proto/pull/1213) squash `7d81293acfebb195a3c7335f16303d2bfe38097a`, PR **57/57 CI SUCCESS**.
+- 기존 `_annualBook`은 script properties가 비어 있을 경우 어떤 신규 지점이든 bound active Sheet를 채택해 타점 원본 문서를 오염시킬 여지가 있었음. 이제 store key **1/INHA 외 다른 최초 지점은 독립 Google Sheet를 강제 생성**, 이후 자신의 property ID만 읽음. 특수문자 무차별 밑줄 치환의 store-key 충돌도 명시적인 BAD_STORE_KEY 사전 실패로 변경. 기등록 1/INHA 운영 경로 및 기존 개별 지점 property 할당은 유지.
+- 실제 Apps Script 함수 `_annualBook`·`doPost`를 인메모리 Fake SpreadsheetApp/DriveApp/PropertiesService 환경에서 실행: 2/3 점포 서로 다른 스프레드시트, 1번 본래 active 보존, 키 재호출 멱등성, 잘못된 키 workbook/Sheet 접근 0 검증. **실제 테스트시트 전송/수신은 미실시**; QA-05 통합 외부 연동 검증대기 그대로. 사용자 화면 앱 v0.349 유지. 38건/완료19/미완료19.
