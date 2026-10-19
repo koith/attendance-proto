@@ -11,6 +11,8 @@ const lanes=[
  ['ATT-MANUAL','수기 근태 생성 및 실패 방어','qa_actual_attendance_manual_add_v1.mjs'],
  ['ATT-CORRECT','동시각 정정 이력 선택','qa_attendance_correction_tiebreak_v1.mjs'],
  ['ATT-REASON-GUARD','근태 수기 정정/취소 원본 사유 보존 경계','qa_event_correction_reason_guard_v1.mjs'],
+ ['ATT-CLOCK-DELTA','확정 근태 지각·조퇴 실제 시간과 시급 엔진 산식','qa_payroll_clock_variance_v1.mjs'],
+ ['ATT-REHIRE-PERIOD','퇴사-공백-재입사 월급제 기간별 승인 원천 일수','qa_payroll_rehire_periods_v1.mjs'],
  ['ATT-OVERNIGHT','야간 출퇴근·자정 익일 쌍','qa_actual_attendance_overnight_pairing_v1.mjs'],
  ['ATT-SEGMENTS','날짜 경계 기준 출근 분할','qa_actual_attendance_day_slices_v1.mjs'],
  ['PAY-BREAK','현재 서버의 휴게 미고려/미제공 실제 금액 계산','qa_break_not_considered_alias_v1.mjs'],
@@ -53,7 +55,7 @@ for(const [id,label,file] of lanes){
 }
 const evidence={issue:1008,canonicalId:'QA-06',at:new Date().toISOString(),
  environment:'executable synthetic/source fixture; no real device, live Auth/SMTP or production mutations',
- coverageNote:'Expanded executable coverage does not resolve real JWT issuance, actual late/early shifts, real rehire, manager review, or field payroll evidence.',
+ coverageNote:'Synthetic late/early paid-minutes and rehire period prorations now execute against the shipped engine; actual approved schedules, live late/early records, genuine rehire, real JWT issuance, manager review and field payroll remain unverified.',
  verified:results.filter(x=>x.result==='PASS').length,
  failed:results.filter(x=>x.result==='FAIL').length,
  unresolved:pending.map(([id,label])=>({id,label,result:'GAP_FIELD_OR_MISSING_EVIDENCE'})),
