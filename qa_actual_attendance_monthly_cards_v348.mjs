@@ -22,7 +22,7 @@ const escapeHtml=x=>String(x).replace(/[&<>"']/g,y=>({
  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
 })[y]);
 const dur=n=>Math.floor(n/3600)+'시간 '+Math.floor(n%3600/60)+'분';
-const context={S,escapeHtml,dur,sessionAnchor:s=>s.in,
+const context={S,Date,escapeHtml,dur,sessionAnchor:s=>s.in,
  dayKey:d=>d.toISOString().slice(0,10),
  isIssue:s=>s.status!=='COMPLETE'||s.sec>16*3600};
 const methods=vm.runInNewContext(part+';({monthlyCompletedByEmployee,monthlyCompletedSummaryHtml})',context);
