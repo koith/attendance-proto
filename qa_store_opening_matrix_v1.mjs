@@ -39,6 +39,7 @@ const lanes=[
  ['재고 장기체류 안전성·입고/사용·개인정보 경계','qa_store_inventory_age_v1.mjs'],
  ['판매명·행사명·1L 지점 SKU 매핑 경계','qa_store_sale_sku_preview_v1.mjs'],
  ['승인 SKU × 지점별 실제 레시피 수동 수량 재료 예상 소모량','qa_store_recipe_usage_preview_v1.mjs'],
+ ['실제 지점 레시피-관측·폐기·서비스·오차 대비 과부족 증거/0원 안전성','qa_store_recipe_variance_v1.mjs'],
  ['재고 수기·대량 등록 실제 UI 연결','qa_inventory_editor_wiring_v1.mjs'],
  ['모바일 재고실사 초안/확정 UI 안전성','qa_store_stocktake_ui_v1.mjs'],
  ['확정/초안 실사 검증된 CSV 증빙 및 원본 수량 보존','qa_stocktake_audit_csv_v1.mjs'],

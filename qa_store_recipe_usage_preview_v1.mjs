@@ -4,7 +4,7 @@ const s=fs.readFileSync('operations_sale_sku_preview_v1.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const version=Number(html.match(/const APP_VERSION="v0\.(\d+)"/)?.[1]);
 assert.ok(Number.isInteger(version)&&version>=339);
-assert.match(html,/operations_sale_sku_preview_v1\.js\?v=20261019v339/);
+assert.match(html,/operations_sale_sku_preview_v1\.js\?v=20261019v341/);
 assert.match(s,/await BE\.storeRecipeList\(store\)/);
 assert.match(s,/data-sale-units/);
 assert.match(s,/현재 POS 거래건수는 판매수량이 아닙니다/);
