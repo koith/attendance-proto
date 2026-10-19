@@ -53,7 +53,7 @@ const rows=[{id:11,name:'우유',unit:'ml'}];
 const a=verify(101,'1111');
 el('staffCountPin').value='2222';el('staffCountPin').dispatch('input');
 calls[0].resolve(rows);await a;
-assert.equal(el('staffCountWorkspace').hidden,true,'stale verification reopened prior staff's workspace');
+assert.equal(el("staffCountWorkspace").hidden,true,"stale verification reopened previous verified workspace");
 assert.equal(el('staffCountSubmit').disabled,true);
 assert.notEqual(el('staffCountStatus').textContent,'본인 확인 완료 · 재고 실사 품목을 입력하세요.');
 // Matching request succeeds and permits only a fresh verified workspace.
