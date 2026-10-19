@@ -56,7 +56,7 @@ assert.match(css,/\.monthly-work-note\s*\{[^}]*position:absolute!important/s,
  'redundant disclaimer is offscreen but remains accessible');
 assert.match(html,/actual_attendance\.css\?v=20261019below349/);
 assert.match(html,/actual_attendance\.js\?v=20261019below349/);
-const appMinor=Number(index.match(/const APP_VERSION="v0\\.(\\d+)"/)?.[1]);
+const appMinor=Number(index.match(/const APP_VERSION="v0\.(\d+)"/)?.[1]);
 assert.ok(Number.isInteger(appMinor)&&appMinor>=349,'monthly summary must remain supported after v0.349');
 assert.match(index,/aria-label="현재 앱 버전 v0\.349">v0\.349<\/button>/);
 console.log('PASS v0.349+ manager card UI, 10 active employees, 2-col mobile, safe XSS, staff PIN isolation, corrected-only totals');
