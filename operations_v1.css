@@ -332,3 +332,16 @@
   .ops-sales-more-body{grid-template-columns:repeat(2,minmax(0,1fr))}
   .ops-sales-more-body>.btn:last-child{grid-column:1/-1}
 }
+
+/* #1184 — Unverified/no-ingest finance is an absence of evidence, not 0원 sales. */
+.ops-summary:has(.ops-financial-unverified){background:var(--surface-muted);border-color:var(--border)}
+.ops-summary .ops-financial-unverified{
+ display:grid;align-items:start;gap:4px;min-width:0;
+ line-height:1.55;flex:1 1 200px;color:var(--text-muted)
+}
+.ops-summary .ops-financial-unverified>b{color:var(--text);font-weight:750}
+.ops-summary .ops-financial-unverified>span{white-space:normal;overflow-wrap:anywhere}
+@media(max-width:430px){
+ .ops-summary:has(.ops-financial-unverified){flex-wrap:wrap}
+ .ops-summary .ops-financial-unverified{flex-basis:100%}
+}
