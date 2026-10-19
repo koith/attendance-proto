@@ -11,7 +11,7 @@ assert.match(source,/verifiedEmployee=null;catalog=\[\];selected\.clear\(\)/);
 assert.match(source,/if\(dialog\.isConnected&&epoch===verificationEpoch\)/);
 assert.match(source,/staffStocktakeSubmit\(verifiedEmployee,el\("staffCountPin"\)\.value/);
 assert.match(source,/result\.stock_changed!==false/);
-assert.match(index,/operations_staff_stocktake_v1\.js\?v=20261019v346/);
+assert.match(index,/operations_staff_stocktake_v1\.js\?v=20261019v350/);
 
 class FakeNode {
  constructor(){this.value='';this.hidden=false;this.disabled=false;this.textContent='';this.innerHTML='';this.isConnected=true;this.handlers={};this.nodes=new Map();}

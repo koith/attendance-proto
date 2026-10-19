@@ -72,6 +72,7 @@ assert.match(css,/\.monthly-work-summary\.manager>summary/);
 assert.match(css,/@media\(max-width:520px\)/);
 assert.match(html,/actual_attendance\.js\?v=20261019below349/);
 assert.match(html,/actual_attendance\.css\?v=20261019below349/);
-assert.match(index,/const APP_VERSION="v0\.349";/);
+const appMinor=Number(index.match(/const APP_VERSION="v0\.(\d+)";/)?.[1]);
+assert.ok(Number.isInteger(appMinor)&&appMinor>=349,'monthly hours must remain supported after v0.349');
 new Function(js);
 console.log('PASS #1193: month/employee isolation, corrected shift, overnight attribution, 16h anomaly, no-data, staff PIN, responsive HTML and version');
