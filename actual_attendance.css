@@ -189,30 +189,89 @@
 }
 @media(min-width:1280px){.wrap{max-width:1280px!important}}
 
-/* #1193 v0.347: one read-only monthly total section shared by staff and managers. */
+/* #1193 v0.348: manager monthly totals use compact employee-card identity bands.
+   Attendance math/PIN verification unchanged. Avoid a full-size explanation row. */
 .monthly-work-summary{
-  display:block;margin:0 0 14px;padding:13px 16px 12px;background:var(--panel);
+  display:block;margin:0 0 10px;padding:10px 12px 11px;background:var(--panel);
   border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
-  color:var(--ink);font-variant-numeric:tabular-nums;
+  color:var(--ink);font-variant-numeric:tabular-nums;min-width:0;
 }
-.monthly-work-heading{font-size:.85rem;font-weight:800;line-height:1.5}
-.monthly-work-summary.manager>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:revert}
-.monthly-work-summary.manager>summary strong{margin-left:auto;text-align:right;color:var(--brand);font-size:.79rem;white-space:nowrap}
-.monthly-work-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));column-gap:16px;row-gap:0;margin:10px 0 4px;border-top:1px solid var(--line)}
-.monthly-person-total{display:flex;align-items:center;justify-content:space-between;gap:9px;min-width:0;padding:9px 0;border-bottom:1px solid var(--line);font-size:.79rem}
-.monthly-person-total span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.monthly-person-total strong{flex:0 0 auto;font-size:.82rem;color:var(--ink)}
-.monthly-work-figure{font-size:1.45rem;line-height:1.4;font-weight:850;color:var(--brand);margin:3px 0}
-.monthly-work-sub{color:var(--sub);font-size:.78rem}
-.monthly-work-note{margin:9px 0 0;color:var(--sub);line-height:1.45;font-size:.69rem}
-.monthly-work-empty{font-size:.78rem;color:var(--sub)}
+.monthly-work-heading{font-size:.83rem;font-weight:800;line-height:1.35;min-width:0}
+.monthly-work-summary.manager>summary{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;
+  list-style:none;min-height:26px;
+}
+.monthly-work-summary.manager>summary::-webkit-details-marker{display:none}
+.monthly-work-summary.manager>summary::after{
+  content:"⌄";order:2;color:var(--sub);font-size:.85rem;transition:transform .12s ease;
+}
+.monthly-work-summary.manager:not([open])>summary::after{transform:rotate(-90deg)}
+.monthly-work-summary.manager>summary>span{display:flex;gap:5px;align-items:center;min-width:0;white-space:nowrap}
+.monthly-work-summary.manager>summary strong{
+  margin-left:auto;color:var(--brand);font-size:.78rem;white-space:nowrap;
+}
+.monthly-work-hint{
+  display:inline-flex;justify-content:center;align-items:center;
+  width:18px;height:18px;flex:0 0 18px;border-radius:50%;
+  background:var(--panel2);color:var(--sub);font-size:.69rem;font-weight:500;cursor:help;
+}
+.monthly-work-list{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));
+  gap:7px;margin-top:9px;
+}
+.monthly-employee-card{
+  display:flex;flex-direction:column;min-width:0;min-height:64px;padding:0;
+  overflow:hidden;border-radius:10px;border:1px solid #dce7df;background:#fff;
+}
+.monthly-employee-head{
+  display:flex;align-items:center;gap:6px;min-width:0;
+  padding:4px 8px;background:#eaf3ed;border-bottom:1px solid #e0ebe4;
+}
+.monthly-employee-avatar{
+  display:flex;align-items:center;justify-content:center;flex:0 0 22px;
+  width:22px;height:22px;border-radius:50%;background:#d0e7d7;
+  font-size:.65rem;font-weight:850;color:#276341;
+}
+.monthly-employee-name{
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:.74rem;font-weight:800;color:#254e35;
+}
+.monthly-employee-body{
+  display:flex;align-items:baseline;justify-content:space-between;gap:4px;
+  min-width:0;padding:6px 8px 7px;
+}
+.monthly-employee-body strong{font-size:.85rem;line-height:1.3;white-space:nowrap;color:var(--ink)}
+.monthly-employee-body small{font-size:.6rem;color:var(--sub);white-space:nowrap}
+.monthly-work-staff-line{
+  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;min-width:0;margin-top:3px;
+}
+.monthly-work-figure{font-size:1.28rem;line-height:1.25;font-weight:850;color:var(--brand)}
+.monthly-work-sub{font-size:.75rem;color:var(--sub)}
+/* Explain how totals differ from payroll without occupying a full visible row.
+   The accessible text and the adjacent ⓘ title remain available. */
+.monthly-work-note{
+  position:absolute!important;width:1px!important;height:1px!important;
+  overflow:hidden!important;clip:rect(0,0,0,0)!important;
+  white-space:nowrap!important;margin:0!important;padding:0!important;
+}
+.monthly-work-empty{
+  grid-column:1 / -1;margin:0;padding:6px 3px;
+  color:var(--sub);font-size:.76rem;
+}
 @media(max-width:520px){
-  .monthly-work-summary{padding:11px 12px;margin-bottom:10px}
-  .monthly-work-summary.manager>summary{flex-wrap:wrap;gap:3px 10px}
-  .monthly-work-summary.manager>summary strong{font-size:.74rem}
-  .monthly-work-list{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px}
-  .monthly-person-total{font-size:.73rem;padding:8px 0}
-  .monthly-person-total strong{font-size:.71rem}
-  .monthly-work-note{font-size:.67rem}
+  .monthly-work-summary{padding:8px 10px 9px;margin-bottom:9px}
+  .monthly-work-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:7px}
+  .monthly-work-summary.manager>summary strong{font-size:.71rem}
+  .monthly-work-heading{font-size:.77rem}
+  .monthly-employee-head{padding:4px 6px;gap:5px}
+  .monthly-employee-body{padding:5px 6px 6px}
+  .monthly-employee-body strong{font-size:.76rem}
+  .monthly-employee-body small{font-size:.53rem}
+  .monthly-employee-card{min-height:61px}
 }
-@media(max-width:360px){.monthly-work-list{grid-template-columns:1fr}}
+@media(max-width:360px){
+  .monthly-work-summary.manager>summary{gap:4px}
+  .monthly-work-summary.manager>summary>span{font-size:.73rem}
+  .monthly-work-summary.manager>summary strong{font-size:.67rem}
+  .monthly-employee-body small{font-size:.5rem}
+}

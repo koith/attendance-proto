@@ -117,6 +117,8 @@ jobs:
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.55.1
           npx playwright install --with-deps chromium
+      - name: Validate manager month-cards in Chromium at 320-1024px
+        run: node qa_actual_attendance_month_cards_browser_v348.mjs
       - name: Validate operations title and advanced action disclosure at phone and desktop widths
         run: node qa_operations_header_mobile_browser_v1.mjs
       - name: Validate selected-only supplier handoff across mobile and desktop widths
@@ -147,6 +149,7 @@ jobs:
           name: store-opening-browser-failure-evidence
           path: |
             qa-results/*.png
+            qa-results/attendance-manager-cards-v348-mobile.png
             qa-results/*failure.txt
           if-no-files-found: ignore
           retention-days: 30

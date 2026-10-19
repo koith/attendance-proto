@@ -12,3 +12,5 @@ jobs:
         with:
           node-version: 22
       - run: node qa_monthly_attendance_summary_v28.mjs
+      - run: node qa_actual_attendance_monthly_cards_v348.mjs
+
