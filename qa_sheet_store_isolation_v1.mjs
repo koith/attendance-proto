@@ -111,4 +111,31 @@ assert.equal(props.get('ATTENDANCE_BOOK_6_2027'),active.id,
  'Conflicting mapping must be retained for investigation');
 assert.equal(writes,originalWrites,'Year-conflict guard must not write report content');
 
-console.log('PASS QA-05 primary workbook protected; new stores independent, property readback stable, unsafe keys and lost annual workbook mappings fail closed');
+// A script's active spreadsheet can be an unrelated working document, not
+// an annual attendance workbook. Never repurpose or rename it merely because
+// this is the first sync for the historical primary store.
+const unrelated={id:'unrelated-active-sheet',name:'지점 정산 자료'};
+books.set(unrelated.id,unrelated);
+activeBook=apiBook(unrelated);
+props.delete('ATTENDANCE_BOOK_1_2026');
+const newBookCount=created.length;
+const safeFirst=vmContext._annualBook('1',2026);
+assert.equal(created.length,newBookCount+1,
+ 'Unknown active document must not be adopted as a primary annual report');
+assert.notEqual(safeFirst.getId(),unrelated.id,'Keep independent workbook identity');
+assert.equal(unrelated.name,'지점 정산 자료','Never rename an unrelated active document');
+assert.equal(props.get('ATTENDANCE_BOOK_1_2026'),safeFirst.getId(),
+ 'New same-year report must be mapped for future idempotent sync');
+assert.equal(vmContext._annualBook('1',2026).getId(),safeFirst.getId(),
+ 'Follow-up sync must reuse newly created report, not the unrelated active file');
+const copiedReport={id:'unbound-2026-report-copy',name:'2026 근태 복사본'};
+books.set(copiedReport.id,copiedReport);
+activeBook=apiBook(copiedReport);
+props.delete('ATTENDANCE_BOOK_INHA_2026');
+const beforeCopy=created.length;
+const safeCopy=vmContext._annualBook('INHA',2026);
+assert.equal(created.length,beforeCopy+1,'Report copies must not be silently taken over');
+assert.notEqual(safeCopy.getId(),copiedReport.id);
+assert.equal(copiedReport.name,'2026 근태 복사본','Preserve the original report copy name');
+
+console.log('PASS QA-05 primary workbook protected; new stores independent, property readback stable, unsafe keys and unrelated/copied active documents and lost annual workbook mappings fail closed');
