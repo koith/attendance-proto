@@ -31,6 +31,11 @@ function doPost(e){
       return _json({ok:false, error:'BAD_ROWS'});
     }
 
+    // Validate the complete incoming table grid BEFORE _annualBook or any clear().
+    // A partially-built Edge report must not erase an existing monthly report.
+    var payloadError = _validateSheetPayload(body);
+    if(payloadError) return _json({ok:false, error:payloadError});
+
     var parts = body.ym.split('-');
     var year = Number(parts[0]);
     var month = Number(parts[1]);
@@ -47,6 +52,43 @@ function doPost(e){
   }catch(err){
     return _json({ok:false, error:String(err)});
   }
+}
+
+/**
+ * QA-05: structural preflight at the Apps Script write boundary.
+ * Non-empty tables must have an exact rectangular shape. Google setValues()
+ * fails after clear() if a row is sparse, nested or wider than its header.
+ * Keep legitimately empty months (header/rows both []) writable.
+ */
+function _validateSheetPayload(body){
+  var names=['attendance','sessions','payroll'];
+  for(var s=0;s<names.length;s++){
+    var section=body[names[s]];
+    if(!section || !Array.isArray(section.header) || !Array.isArray(section.rows))
+      return 'BAD_SECTION_SHAPE';
+    var width=section.header.length;
+    if(width>200 || section.rows.length>20000 || (width===0 && section.rows.length>0))
+      return 'BAD_SECTION_SIZE';
+    for(var h=0;h<width;h++){
+      if(typeof section.header[h]!=='string' || !section.header[h] || section.header[h].length>1000)
+        return 'BAD_HEADER_VALUE';
+    }
+    for(var i=0;i<section.rows.length;i++){
+      var row=section.rows[i];
+      if(!Array.isArray(row) || row.length!==width)return 'BAD_ROW_SHAPE';
+      for(var j=0;j<width;j++){
+        if(!Object.prototype.hasOwnProperty.call(row,j))return 'BAD_ROW_SHAPE';
+        var cell=row[j];
+        if(cell===null)continue;
+        var type=typeof cell;
+        if(type!=='string'&&type!=='number'&&type!=='boolean')
+          return 'BAD_CELL_VALUE';
+        if(type==='number'&&!isFinite(cell))return 'BAD_CELL_VALUE';
+        if(type==='string'&&cell.length>50000)return 'BAD_CELL_VALUE';
+      }
+    }
+  }
+  return null;
 }
 
 /**
