@@ -4,7 +4,7 @@ const app=fs.readFileSync('index.html','utf8');
 const ops=fs.readFileSync('operations_v1.js','utf8');
 const ui=fs.readFileSync('operations_reconciliation_v1.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261012221000_store_operations_reconciliation.sql','utf8');
-assert.match(app,/operations_reconciliation_v1\.js\?v=20261019v333/);
+assert.match(app,/operations_reconciliation_v1\.js\?v=20261020v351/,'Reconciliation code cache pin must match the released v0.351 asset');
 assert.match(app,/storeCrossSourceSuspects\(from,to\)\{ return rpc\("admin_store_cross_source_sale_suspects"/);
 assert.match(ui,/await BE\.storeCrossSourceSuspects\(from,to\)/);
 const suspectsSql=fs.readFileSync('supabase/migrations/20261018235000_cross_source_sale_suspects.sql','utf8');
