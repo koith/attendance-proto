@@ -118,6 +118,11 @@ window.openStoreSaleSkuPreview=function(){
  modal.querySelector(".ops-modal-close").onclick=close;
  modal.onclick=e=>{if(e.target===modal)close()};
  const run=modal.querySelector("#opsSaleSkuRun"),output=modal.querySelector("#opsSaleSkuResult");
+ output.addEventListener("input",e=>{
+   if(e.target?.matches?.("[data-sale-units]"))
+     modal.querySelector("#opsSaleRecipeUsageResult").textContent=
+       "판매수량이 변경되었습니다. 예상 사용량을 다시 계산해야 합니다.";
+ });
  const load=modal.querySelector("#opsLoadRealSaleNames");
  const save=modal.querySelector("#opsSaleSkuExport"),usage=modal.querySelector("#opsSaleRecipeUsage");
  let verifiedPreview=null,verifiedInput="";
@@ -157,6 +162,52 @@ window.openStoreSaleSkuPreview=function(){
         escapeText(x.unit)+"</b></div>").join("")+"</div>"+
      "<small>계산한 판매명 "+result.details.length+"개 · 지점 수정 레시피 사용 "+
        result.details.filter(x=>x.override).length+"개 · 실제 사용량 확정 아님</small>";
+
+   // Optional comparison is only available after a fully verified, manager-entered
+   // sales quantity + scoped live recipe calculation. No zero-filled field defaults.
+   const variance=document.createElement("details");
+   variance.className="ops-card";
+   variance.innerHTML='<summary>관측 재료 사용량·폐기·서비스·허용오차 과부족 대조 (선택)</summary>'+
+     '<p>모든 수량은 관리자 직접 입력이며 실제 POS·재고·실물 자료에서 자동 확정하지 않습니다. '+
+     '각 재료의 관측·폐기·서비스 수량과 허용오차(%)를 빠짐없이 입력하세요. 값이 없으면 0으로 계산하지 않습니다.</p>'+
+     '<div id="opsUsageVarianceFields" style="display:grid;gap:10px">'+result.ingredients.map(x=>
+     '<div class="ops-card" data-usage-part="'+x.id+'" style="display:grid;gap:6px">'+
+     '<b>'+escapeText(x.name)+' · 예상 '+pretty(x.amount)+' '+escapeText(x.unit)+'</b>'+
+     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px">'+
+     ['관측 사용량','폐기량','서비스 추가량','허용오차(%)'].map((label,i)=>
+       '<label style="display:grid;gap:4px">'+label+
+       '<input type="number" inputmode="decimal" min="0" step="0.001" class="form-control" '+
+       'data-usage-field="'+['observed','waste','service','tolerance'][i]+'" placeholder="직접 입력" aria-label="'+
+       escapeText(x.name)+' '+label+'"></label>').join("")+'</div></div>'
+     ).join("")+'</div>'+
+     '<button type="button" id="opsUsageVarianceRun" class="btn btn-secondary">입력 증거 기준 과부족 확인</button>'+
+     '<div id="opsUsageVarianceResult" role="status" aria-live="polite">검토 전 · 데이터 미입력은 안전/정상 판정이 아닙니다.</div>';
+   display.appendChild(variance);
+   variance.querySelector("#opsUsageVarianceRun").onclick=()=>{
+     const resultNode=variance.querySelector("#opsUsageVarianceResult");
+     try{
+       if(area.value!==verifiedInput||(Number(CURRENT_STORE_ID)||1)!==store)
+         throw Error("판매명 또는 지점이 변경되어 다시 검증해야 합니다.");
+       const updated=[...modal.querySelectorAll("[data-sale-units]")].map(el=>el.value);
+       if(updated.length!==amounts.length||updated.some((x,i)=>x!==amounts[i]))
+         throw Error("입력 판매수량이 변경됐습니다. 예상량을 다시 계산하세요.");
+       const samples=[...variance.querySelectorAll("[data-usage-part]")].map(node=>{
+         const read=field=>node.querySelector('[data-usage-field="'+field+'"]').value;
+         return {id:Number(node.dataset.usagePart),observed:read("observed"),
+          waste:read("waste"),service:read("service"),tolerance:read("tolerance")};
+       });
+       const checked=window.computeStoreRecipeVariance(result.ingredients,samples);
+       resultNode.innerHTML="<b>수동 관측량 기준 과부족 대조 · 실물 증거 미확정</b>"+
+         '<div style="display:grid;gap:6px">'+checked.map(x=>
+         '<div class="ops-card">'+escapeText(x.name)+' · 관측 '+pretty(x.observed)+' '+escapeText(x.unit)+
+         ' / 레시피+폐기+서비스 '+pretty(x.expected)+' '+escapeText(x.unit)+
+         ' · 차이 '+pretty(x.delta)+' '+escapeText(x.unit)+' · '+
+         (x.status==="WITHIN"?"설정 허용오차 범위":
+           x.status==="OVER"?"관측 초과 · 과소계상 여부 확인":"관측 부족 · 분실/과소측정 여부 확인")+
+         ' ('+pretty(x.tolerance)+'%)</div>').join("")+'</div>'+
+         '<small>POS 자동 연동·실사 증빙·원장 저장 없음. 관리자가 원천자료를 대조해야 확정할 수 있습니다.</small>';
+     }catch(e){resultNode.textContent="계산 보류 · 빈칸을 0으로 가정하지 않습니다: "+String(e.message||e);}
+   };
   }catch(e){if(modal.isConnected)display.textContent="계산 불가 · 실제 수량이나 레시피 근거를 확인하세요: "+String(e.message||e);}
   finally{if(modal.isConnected)usage.disabled=false}
  };
