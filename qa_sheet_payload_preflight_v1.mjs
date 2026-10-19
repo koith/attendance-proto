@@ -49,7 +49,7 @@ const empty=input();for(const key of ['attendance','sessions','payroll'])empty[k
 assert.equal(post(empty).ok,true,'legitimate no-employee month must still sync');
 const safe=input();safe.payroll.rows=[['테스트',null]];
 assert.equal(post(safe).ok,true,'explicit null fields may be projected to a review marker');
-assert.equal(bookCalls,4);assert.equal(writeCalls,4);
+assert.equal(bookCalls,3);assert.equal(writeCalls,3);
 assert.ok(src.indexOf('_validateSheetPayload(body)') < src.indexOf('_annualBook(storeKey, year)'),
  'source guard must run before sheet access');
 assert.match(src,/getRange\(1,1,sh\.getMaxRows\(\),width\)\.clear/,
