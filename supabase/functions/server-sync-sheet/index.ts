@@ -238,7 +238,13 @@ async function googleWrite(ym,payload,closed,closedPayroll,workingAttendance){
   const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   const raw=await res.text();let result;
   try{result=JSON.parse(raw)}catch{throw new Error("SHEET_NON_JSON_RESPONSE")}
-  if(!res.ok||result?.ok!==true)throw new Error("SHEET_WRITE_FAILED: "+String(result?.error||res.status).slice(0,170));
+  if(!res.ok||result?.ok!==true){
+    // Apps Script normally returns HTTP 200 even when its script-level lock is busy.
+    // Preserve that exact transient lease conflict as 409 so deploy and caller
+    // retries can distinguish it from an actual Sheet write failure.
+    if(result?.error==="SHEET_SYNC_BUSY")throw new HttpError(409,"SHEET_SYNC_BUSY");
+    throw new Error("SHEET_WRITE_FAILED: "+String(result?.error||res.status).slice(0,170));
+  }
   const proof=result.sheet_format;
   if(!proof||proof.column_resize_applied!==true||proof.resize_scope!=="all_used_columns_after_write"||proof.width_source!=="measured_display_text"||proof.column_width_readback_verified!==true||proof.verified_month_tabs!==12||!Number.isInteger(proof.resized_columns)||proof.resized_columns<1||!Number.isInteger(proof.verified_column_widths)||proof.verified_column_widths<proof.resized_columns*12)throw new Error("SHEET_COLUMN_RESIZE_NOT_CONFIRMED");
   if(!result.spreadsheet_id||!result.spreadsheet_url)throw new Error("SHEET_WRITE_LOCATION_UNCONFIRMED");
