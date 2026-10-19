@@ -252,3 +252,12 @@
 - 원인: 신규 지점의 `ATTENDANCE_BOOK_<store>_<year>` 식별자가 없는 경우, 기존 코드가 스크립트의 최초 활성 워크북을 그대로 채택해 **새 지점 동기화가 기존 지점 연간 시트로 향할 위험**이 있음. 또한 `store_key`의 모든 특수문자를 밑줄로 치환하면 서로 다른 지점 키가 동일 파일로 충돌 가능.
 - 수정: 보존된 기존 식별자→스프레드시트 매핑 재사용은 유지하되 **최초 활성 워크북 재사용을 1/INHA 구형 주 지점에만 한정**; 그 외 신규 지점은 반드시 독립 스프레드시트 생성·매핑. 모호한/공백·비ASCII·긴 키는 시트 접근 전에 명시적 `BAD_STORE_KEY` 차단. `qa_sheet_store_isolation_v1.mjs`에서 실제 Apps Script 함수와 완전 격리형 SpreadsheetApp·DriveApp·PropertiesService 모의 API로 1↔2↔3 지점, 재호출 멱등성, 키 충돌/잘못된 키 쓰기 차단 검증. **PR 57/57 Actions SUCCESS**. 실제 운영 원본 파일을 테스트로 변경하지 않음.
 - **QA-05 [ ] 계속 유지:** 이 수정은 운영 안전성 코드를 보강한 것이며, 실제 분리 테스트 Sheet에 대해 **Edge→GAS 웹앱 실쓰기·재조회·수정재동기화·오류 재시도**를 실행한 근거가 아니므로 종단 QA 완료 아님. 기존 정본 **38개 중 완료 19, 미완료 19** 불변.
+
+
+## 34. 2026-10-19 QA-05 연간 보고서 원본 보호 및 잘못된 재연결 차단 — 코드/QA/배포 완료
+
+- **접수:** [통합 원장 #1008](https://github.com/koith/attendance-proto/issues/1008) 사용자 지시 원문 댓글 #6264538628. 사용자는 남은 19건 개발 지속, 막힘 시 대체 경로, 버전과 완료·미완료 목록 보고를 명령.
+- **QA-05 부분 개발:** [PR #1218](https://github.com/koith/attendance-proto/pull/1218), main squash `4d17cc480b18bbbbcf7ea16064ca41a9a63047ab`. `apps_script.gs` 기존 지점-연도 파일 매핑이 있는데 Google Drive의 해당 워크북을 열 수 없을 때, 예전처럼 매핑을 삭제하고 새 빈 스프레드시트를 생성하지 않고 `MAPPED_WORKBOOK_UNAVAILABLE`로 **실패 폐쇄**하며 원본 파일 식별자를 보존. 새해 동기화 시 Script Properties가 유실되어도 지난해 명시적 근태 파일을 활성 파일로 재활용/개명하지 않음. 저장된 파일 매핑이 다른 연도 파일을 가리키면 `MAPPED_WORKBOOK_YEAR_CONFLICT`로 쓰기 전에 차단. 자동 복구 실패를 동기화 성공으로 위장하지 않음.
+- **격리형 회귀:** `qa_sheet_store_isolation_v1.mjs`에 매핑 파일 접근 불가/오류 응답/원식별자·원근태 파일 이름 보존, 기존 연도→신규 연도 생성·재호출 멱등성, 오염된 연도 매핑의 데이터 쓰기 차단 케이스 추가. 실운영 근태·급여·레시피/사업장 시트 데이터 변경 없이 가상 Google Apps Script API에서 검증. **PR GitHub Actions 54/54 SUCCESS**.
+- **배포/검증:** [Apps Script report deploy #39234250300](https://github.com/koith/attendance-proto/actions/runs/39234250300) **SUCCESS**. [P0 Pages #39234250310](https://github.com/koith/attendance-proto/actions/runs/39234250310) P0 게이트·아티팩트 빌드·게시·동일 실행 독립 검증 **SUCCESS**. 일반 사용자 앱 화면 자산 미변경 → **v0.349 유지**.
+- **중요 범위 경계:** 격리된 실제 신규 시험시트에 대한 **Edge→Apps Script 웹앱→Google Sheets 쓰기/재조회/수정·재시도·지점별 Auth E2E** 및 실인원 검증은 아직 수행되지 않았으므로 **QA-05 [ ] 유지**. 전체 정본 **38개 중 완료 19개 / 미완료 19개**, 신규 체크된 원장 ID 0개. 코드 수정 1건/PR 1건은 완료지만 QA-05 전체 완료는 아님.
