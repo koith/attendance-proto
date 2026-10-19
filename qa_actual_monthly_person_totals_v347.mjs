@@ -65,13 +65,13 @@ assert.match(funcs.monthlyCompletedSummaryHtml(),/1시간 0분/,'month navigatio
 state.ym='2026-12';assert.match(funcs.monthlyCompletedSummaryHtml(),/0분/,'no completed source is shown as 0 with an explicit no-record status');
 assert.equal(funcs.monthlyCompletedByEmployee([],state.ym).size,0,'empty month must not invent data');
 // Rendering must be attached to the common month renderer; no extra RPC or PIN bypass.
-assert.match(js,/previousRenderMonth=renderMonth;[\s\S]*?app\.insertAdjacentHTML\('afterbegin',monthlyCompletedSummaryHtml\(\)\)/);
+assert.match(js,/previousRenderMonth=renderMonth;[\s\S]*?app\.insertAdjacentHTML\('beforeend',monthlyCompletedSummaryHtml\(\)\)/);
 assert.match(js,/staff_actual_attendance/,'staff mode maintains employee-specific PIN-gated RPC');
 assert.match(js,/staffAuth\.employee_id/);
 assert.match(css,/\.monthly-work-summary\.manager>summary/);
 assert.match(css,/@media\(max-width:520px\)/);
-assert.match(html,/actual_attendance\.js\?v=20261019cards348/);
+assert.match(html,/actual_attendance\.js\?v=20261019below349/);
 assert.match(html,/actual_attendance\.css\?v=20261019cards348/);
-assert.match(index,/const APP_VERSION="v0\.348";/);
+assert.match(index,/const APP_VERSION="v0\.349";/);
 new Function(js);
 console.log('PASS #1193: month/employee isolation, corrected shift, overnight attribution, 16h anomaly, no-data, staff PIN, responsive HTML and version');
