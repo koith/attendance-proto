@@ -9,6 +9,8 @@ const context=vm.createContext({});
 vm.runInContext(src,context);
 context.SHARED_SECRET='fixture-only-secret';
 context._json=x=>x;
+// Local fake lock: production uses Apps Script LockService for serialized report writes.
+context.LockService={getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})};
 let bookCalls=0,writeCalls=0;
 const book={getId:()=> 'test-only',getUrl:()=> 'https://example.invalid/test-only',
  getName:()=> '2026 근태'};
