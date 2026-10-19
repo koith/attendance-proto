@@ -22,6 +22,7 @@ jobs:
           node --check actual_attendance_anomaly_correction_v1.js
           node --check supabase_session_resilience_v1.js
           node --check qa_actual_attendance_v1.mjs
+          node --check qa_actual_monthly_person_totals_v347.mjs
           node --check qa_actual_attendance_day_slices_v1.mjs
           node --check qa_actual_attendance_correction_v1.mjs
           node --check qa_actual_attendance_anomaly_v1.mjs
@@ -30,6 +31,8 @@ jobs:
           node --check qa_runtime_wiring_v1.mjs
       - name: Actual attendance V1 QA
         run: node qa_actual_attendance_v1.mjs
+      - name: Manager + employee monthly totals and PIN isolation (#1193)
+        run: node qa_actual_monthly_person_totals_v347.mjs
       - name: Actual attendance day slices V1 QA
         run: node qa_actual_attendance_day_slices_v1.mjs
       - name: Actual attendance correction V1 QA
