@@ -56,6 +56,8 @@ assert.notEqual(props.get('ATTENDANCE_BOOK_3_2026'),branch.getId());
 assert.equal(active.name,'2026 근태','other stores cannot rename the primary workbook');
 vmContext.SHARED_SECRET='fixture-secret';
 vmContext._json=x=>x;
+// Local fake lock: production uses Apps Script LockService for serialized report writes.
+vmContext.LockService={getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})};
 let writes=0;
 vmContext._writeMonth=()=>{writes++;return {column_width_readback_verified:true};};
 const post=key=>vmContext.doPost({postData:{contents:JSON.stringify({
