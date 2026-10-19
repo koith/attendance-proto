@@ -442,8 +442,8 @@ try{
  ]){
   await ops.locator('#opsUploadOpen').click();
   await ops.locator('#opsImportSource').selectOption(row.source);
-  const csv='business_date,transaction_type,channel,total_amount,counterparty,source_record_key\\n'+
-   [fixtureDay,row.type,row.channel,row.total,row.description,row.key].join(',')+'\\n';
+  const csv='business_date,transaction_type,channel,total_amount,counterparty,source_record_key\n'+
+   [fixtureDay,row.type,row.channel,row.total,row.description,row.key].join(',')+'\n';
   await ops.locator('#opsImportFile').setInputFiles({
    name:row.name,mimeType:'text/csv',buffer:Buffer.from(csv,'utf8')
   });
