@@ -6,11 +6,17 @@ import http from 'node:http';
 import {chromium} from 'playwright';
 
 const STORE=800001, OTHER=800002, HOST='https://waluhdgqhwjjwmflhrle.supabase.co';
-const files=new Set(['index.html','owner_activation.html','owner_activation.js','hq_owner_console.js','store_manager_tab.js','store_limited_manager.js','recipe_access_v220.js']);
+const files=new Set(['index.html','owner_activation.html','owner_activation.js','hq_owner_console.js','store_manager_tab.js','store_limited_manager.js','recipe_access_v220.js','operations_stocktake_v1.js']);
 const users=new Map([['qa-hq',{id:'hq-id',email:'hq@opening-qa.invalid',role:'HQ',active:true}]]);
 const mail=[], audits=[], stores=new Map([[STORE,{id:STORE,name:'QA 가상개통점',code:'QA-OPENING',onboarding_status:'STAGED',is_active:false,province:'경기도',district:'수원시'}],[OTHER,{id:OTHER,name:'QA 비교점',code:'QA-OTHER',onboarding_status:'STAGED',is_active:false,province:'경기도',district:'수원시'}]]);
 const managers=new Map(),permissions=new Map(),recipeBase={menu_key:'AMERICANO',menu_name:'본사 아메리카노',category:'커피',components:[{item_id:501,item_name:'원두',quantity:18,unit:'g'}],instructions:[{label:'HOT',content:'본사 지정 제조법'}],thumbnail_url:'',is_overridden:false};
 const overrides=new Map(),staff=[{id:900101,store_id:STORE,name:'가상 직원',employee_no:1,memo:'',is_active:true,working:false,pin:'1234'}];
+// ONE synthetic store survives HQ activation, owner/assistant actions,
+// source recipe update, actual inventory stocktake UI, ledger posting,
+// and assistant revocation. Zero Supabase/operating store writes.
+const stockLevels=new Map([[501,12.5],[502,7]]);
+const stockCatalog=[{id:501,name:'원두',unit:'kg'},{id:502,name:'우유',unit:'L'}];
+const stocktakes=new Map(),movements=[];let nextStocktakeId=75001;
 const copy=x=>structuredClone(x),key=(store,menu)=>String(store)+':'+String(menu);
 function reply(route,data,status=200){
  return route.fulfill({status,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type','Access-Control-Allow-Methods':'POST,OPTIONS,PUT'},body:JSON.stringify(data)});
@@ -58,6 +64,19 @@ function api(name,body,token,method='POST'){
    return {result:[...managers.values()].filter(m=>m.store_id===STORE).map(m=>({user_id:m.id,email:m.email,intended_role:m.role,account_state:m.active?'ACTIVE':'PENDING'}))};
  }
  if(name==='store_delegated_permissions_list')return isOwner&&scopeOK?{result:[...permissions.entries()].map(([uid,p])=>({user_id:uid,...p}))}:denial();
+ if(name==='store_delegated_manager_change'){
+   if(!isOwner||!scopeOK||body.p_action!=='REVOKE')return denial();
+   const manager=managers.get(String(body.p_user_id));
+   if(!manager||manager.store_id!==STORE||manager.role!=='ASSISTANT'||!manager.active)
+     return failing('ACTIVE_ASSISTANT_REQUIRED',409);
+   manager.active=false;
+   const prior=users.get('qa-assistant');if(prior)prior.active=false;
+   // Revocation removes this store's membership entirely, matching the
+   // production contract; pending invites remain listed BEFORE activation.
+   managers.delete(manager.id);
+   permissions.delete(manager.id);
+   return {result:{ok:true,revoked:true}};
+ }
  if(name==='store_delegated_permissions_set'){
    if(!isOwner||!scopeOK)return denial();
    const m=[...managers.values()].find(x=>x.id===body.p_user_id&&x.role==='ASSISTANT'&&x.active);
@@ -74,6 +93,49 @@ function api(name,body,token,method='POST'){
  }
  if(name==='store_limited_pending_requests')return isAssistant&&permissions.get(user.id)?.attendance_approve&&scopeOK?{result:[]}:denial();
  if(name==='store_limited_payroll_read')return isAssistant&&permissions.get(user.id)?.payroll_view&&scopeOK?{result:[{employee_name:staff[0].name,gross_pay:120000,net_pay:116040}]}:denial();
+ if(name.startsWith('admin_store_stocktake_')){
+   if(!scopeOK||!isOwner||stores.get(STORE).onboarding_status!=='READY')return denial();
+   if(name==='admin_store_stocktake_catalog')return {result:copy(stockCatalog)};
+   if(name==='admin_store_stocktake_list')return {result:[...stocktakes.values()]
+     .map(x=>({id:x.id,status:x.status,counted_on:x.counted_on,line_count:x.lines.length}))};
+   if(name==='admin_store_stocktake_draft'){
+     if(!Array.isArray(body.p_lines)||!body.p_lines.length||body.p_lines.length>100)return failing('INVALID_STOCKTAKE',400);
+     const ids=new Set();
+     const lines=body.p_lines.map(row=>{
+       const id=Number(row.item_id),count=Number(row.counted_quantity),item=stockCatalog.find(x=>x.id===id);
+       if(!item||ids.has(id)||row.counted_quantity===null||row.counted_quantity===''||
+          !Number.isFinite(count)||count<0||count>1e9||Math.round(count*1000)!==count*1000)
+        return null;
+       ids.add(id);
+       const expected=stockLevels.get(id);
+       return {item_id:id,name:item.name,unit:item.unit,expected_quantity:expected,
+        counted_quantity:count,variance:Number((count-expected).toFixed(3))};
+     });
+     if(lines.some(x=>!x))return failing('INVALID_COUNT',400);
+     const record={id:nextStocktakeId++,store_id:STORE,status:'DRAFT',
+       counted_on:'2026-10-19',note:String(body.p_note||''),lines};
+     stocktakes.set(record.id,record);
+     return {result:{id:record.id,status:'DRAFT',stock_changed:false}};
+   }
+   const record=stocktakes.get(Number(body.p_stocktake_id));
+   if(!record)return failing('STOCKTAKE_NOT_FOUND',404);
+   if(name==='admin_store_stocktake_detail')return {result:copy(record)};
+   if(name==='admin_store_stocktake_post'){
+     if(record.status!=='DRAFT')return failing('STOCKTAKE_ALREADY_POSTED',409);
+     if(record.lines.some(line=>stockLevels.get(line.item_id)!==line.expected_quantity))
+      return failing('STOCK_CHANGED_RECOUNT',409);
+     for(const line of record.lines){
+       if(line.variance!==0){
+         movements.push({store_id:STORE,item_id:line.item_id,
+           quantity:line.variance,source_id:record.id});
+         stockLevels.set(line.item_id,line.counted_quantity);
+       }
+     }
+     record.status='POSTED';
+     return {result:{ok:true,status:'POSTED',adjustments:record.lines.filter(x=>x.variance!==0).length}};
+   }
+   return failing('UNHANDLED_STOCKTAKE_'+name,500);
+ }
  if(name==='admin_store_recipe_list'){
    if(!(isOwner||isAssistant||isHQ))return denial();
    const selected=Number(body.p_store_id);
@@ -132,6 +194,23 @@ function html(kind,params){
    'inventoryItems:async()=>[{id:501,name:"원두",unit:"g",sku:"QA-COFFEE"}],'+
    'storeRecipeOverrideSave:async(id,k,n,c,parts,thumb,steps)=>{const r=await fetch(window.CONFIG.SUPABASE_URL+"/rest/v1/rpc/admin_store_recipe_override_save",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+Auth.token},body:JSON.stringify({p_store_id:id,p_menu_key:k,p_menu_name:n,p_category:c,p_components:parts,p_thumbnail_url:thumb,p_instructions:steps})});if(!r.ok)throw Error("RECIPE_SAVE_DENIED");return r.json()},'+
    'storeRecipeOverrideClear:async(id,k)=>{const r=await fetch(window.CONFIG.SUPABASE_URL+"/rest/v1/rpc/admin_store_recipe_override_clear",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+Auth.token},body:JSON.stringify({p_store_id:id,p_menu_key:k})});if(!r.ok)throw Error("RECIPE_CLEAR_DENIED");return r.json()}};renderRecipeHub();';
+ }
+ else if(kind==='stocktake'){
+   body='<main id="storeStocktakeQa"></main>';asset='operations_stocktake_v1.js';
+   action='window.BE={'+
+    'inventoryStocktakeCatalog:()=>qaStocktake("admin_store_stocktake_catalog",{}),'+
+    'inventoryStocktakeList:()=>qaStocktake("admin_store_stocktake_list",{}),'+
+    'inventoryStocktakeDraft:(lines,note)=>qaStocktake("admin_store_stocktake_draft",{p_lines:lines,p_note:note}),'+
+    'inventoryStocktakeDetail:id=>qaStocktake("admin_store_stocktake_detail",{p_stocktake_id:id}),'+
+    'inventoryStocktakePost:id=>qaStocktake("admin_store_stocktake_post",{p_stocktake_id:id}),'+
+    'staffStocktakeProposals:async()=>[]};'+
+    'window.openStoreInventoryStocktake();';
+   body+='<script>async function qaStocktake(name,args){'+
+    'const r=await fetch(window.CONFIG.SUPABASE_URL+"/rest/v1/rpc/"+name,'+
+    '{method:"POST",headers:{"Content-Type":"application/json",'+
+    '"Authorization":"Bearer "+window.Auth.token},'+
+    'body:JSON.stringify({p_store_id:window.CURRENT_STORE_ID,...args})});'+
+    'const data=await r.json();if(!r.ok)throw Error(data.message||data.error||name);return data}</script>';
  }
  return '<!doctype html><meta charset="utf-8"><style>body{font:15px sans-serif}.btn{cursor:pointer}.form-control{padding:8px}.employee-panel{margin:20px}</style>'+body+'<script>'+init+'</script><script src="/'+asset+'"></script><script>'+action+'</script>';
 }
@@ -249,6 +328,59 @@ try{
  await recipe.locator('.recipe-v220-card').first().waitFor();
  verify((await recipe.locator('.recipe-v220-card').first().innerText()).includes('QA 개통점 아메리카노'),'branch override persists across a real recipe UI reload');
  await recipe.close();
+ // QA-07 continuous synthetic journey: same READY branch and real owner
+ // actor now opens the SHIPPED stocktake dialog. Draft must not touch
+ // ledger; posting must be a separate, authorized, exactly-once action.
+ const stocktake=await contextPage('/qa/stocktake?token=qa-owner');
+ await stocktake.locator('#opsStocktakeItem').waitFor();
+ await stocktake.locator('#opsStocktakeSearch').fill('원두');
+ await stocktake.locator('#opsStocktakeItem').selectOption('501');
+ await stocktake.locator('#opsStocktakeQty').fill('10');
+ await stocktake.locator('#opsStocktakeAdd').click();
+ await stocktake.locator('#opsStocktakeDraft').click();
+ await stocktake.locator('#opsStocktakeConfirm').waitFor();
+ const newDraft=[...stocktakes.values()][0];
+ verify(newDraft?.status==='DRAFT'&&stockLevels.get(501)===12.5&&movements.length===0,
+  'real stocktake UI drafts only; initial 12.5 kg remains unchanged');
+ verify(newDraft?.lines?.[0]?.variance===-2.5,
+  'same store source inventory 12.5 kg vs counted 10 kg independently reconciles -2.5');
+ verify(api('admin_store_stocktake_post',{p_store_id:OTHER,p_stocktake_id:newDraft.id},'qa-owner').status===403,
+  'cross-store inventory posting is rejected without changing either ledger');
+ verify(api('admin_store_stocktake_post',{p_store_id:STORE,p_stocktake_id:newDraft.id},'qa-assistant').status===403,
+  'assistant payroll/staff permissions never silently grant inventory-post authority');
+ await stocktake.locator('#opsStocktakeConfirm').click();
+ await stocktake.waitForFunction(()=>document.querySelector('#opsStocktakeReview')?.textContent?.includes('POSTED'));
+ verify(newDraft.status==='POSTED'&&stockLevels.get(501)===10&&movements.length===1&&
+  movements[0].quantity===-2.5&&movements[0].store_id===STORE,
+  'actual source UI submits separate owner POST and exactly one original signed ledger adjustment');
+ verify(api('admin_store_stocktake_post',{p_store_id:STORE,p_stocktake_id:newDraft.id},'qa-owner').status===409&&movements.length===1,
+  'duplicate inventory POST never replays a signed stock delta');
+ verify(stockLevels.get(502)===7&&stores.get(OTHER).onboarding_status==='STAGED',
+  'untouched catalog items and comparison branch remain intact across opening-to-inventory');
+ await stocktake.close();
+
+ // Same actual owner-management UI revokes the previous assistant AFTER
+ // exercising authenticated attendance/payroll, recipe, and inventory.
+ const revokedUI=await contextPage('/qa/manager?token=qa-owner');
+ await revokedUI.locator('.smt-delegate summary').first().click();
+ const revoke=revokedUI.locator('[data-manager-revoke="assistant-qa-id"]');
+ await revoke.click();
+ await revokedUI.waitForFunction(()=>
+  !document.querySelector('[data-manager-revoke="assistant-qa-id"]'));
+ verify(!users.get('qa-assistant').active&&!managers.has('assistant-qa-id'),
+  'real owner UI revokes delegated manager from the SAME opened store');
+ for(const [name,data] of [
+  ['store_limited_employee_list',{p_store_id:STORE}],
+  ['store_limited_payroll_read',{p_store_id:STORE}],
+  ['store_delegated_permissions_set',{p_store_id:STORE,p_user_id:'assistant-qa-id',p_payroll_view:true}],
+  ['admin_store_stocktake_post',{p_store_id:STORE,p_stocktake_id:newDraft.id}]
+ ]){
+  verify(api(name,data,'qa-assistant').status===403,
+   'revoked assistant stale token rejected for '+name);
+ }
+ verify(api('admin_store_stocktake_list',{p_store_id:STORE},'qa-owner').result.length===1,
+  'original manager remains authorized for historical stocktake proof');
+ await revokedUI.close();
  verify(audits.some(a=>a.path.endsWith('/functions/v1/server-sync-sheet')&&a.body.mode==='invite_store_delegated_manager')&&audits.some(a=>a.path.endsWith('/rest/v1/rpc/admin_store_recipe_override_save')),'QA exercised actual UI network request paths');
  console.log('STORE OPENING ISOLATED BROWSER QA PASSED: '+steps+' assertions, '+mail.length+' synthetic invitations, '+audits.length+' intercepted API calls; no production writes.');
 }catch(error){
