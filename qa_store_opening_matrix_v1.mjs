@@ -45,6 +45,7 @@ const lanes=[
  ['확정/초안 실사 검증된 CSV 증빙 및 원본 수량 보존','qa_stocktake_audit_csv_v1.mjs'],
  ['모바일 재실사 빠른 수정·다음 품목 입력','qa_stocktake_fast_mobile_entry_v1.mjs'],
  ['미입고/부분입고 발주·포장단위 중복 차단','qa_stock_reorder_net_pending_v1.mjs'],
+ ['온리원 공급사 미입고 발주 선택·단위·중복·지점 격리','qa_supplier_order_handoff_v1.mjs'],
  ['재고 미확인·데모 수량 제외','qa_inventory_real_metrics_v1.mjs'],
  ['지점별 POS/배달/매출 접근 경계','qa_store_operations_isolation_v1.mjs'],
  ['POS/매출 CSV 형식·주입 오류 거부','qa_operations_csv_integrity_v1.mjs'],
