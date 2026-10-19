@@ -55,8 +55,26 @@ const lanes=[
  ['POS/배달 실제 장부 페이징·시연 분리','qa_operations_paged_real_v1.mjs'],
  ['지점 진입 잠금 및 재고 원문 단위 보존','qa_store_entry_inventory_units_v021.mjs']
 ];
-const started=new Date().toISOString(),results=[];
+// Fail closed if a future edit silently duplicates a lane or drops a QA file.
+// Missing files must be reported as a lane failure, not as an unhandled crash.
+const laneNames=new Set(),laneFiles=new Set(),configurationFailures=[];
+if(!lanes.length)configurationFailures.push('no QA lanes configured');
 for(const [label,file] of lanes){
+ if(!label||!file)configurationFailures.push('empty QA label or filename');
+ if(laneNames.has(label))configurationFailures.push('duplicate QA label: '+label);
+ if(laneFiles.has(file))configurationFailures.push('duplicate QA file: '+file);
+ if(!/^qa_[a-z0-9_]+\\.mjs$/.test(file))configurationFailures.push('invalid QA path: '+file);
+ if(!fs.existsSync(file))configurationFailures.push('missing QA file: '+file);
+ laneNames.add(label);laneFiles.add(file);
+}
+const started=new Date().toISOString(),results=[];
+for(const message of configurationFailures){
+ results.push({label:'QA matrix configuration',file:'qa_store_opening_matrix_v1.mjs',passed:false,exitCode:null,output:message});
+ console.error('FAIL '+message);
+}
+
+for(const [label,file] of lanes){
+ if(!fs.existsSync(file))continue;
  const child=spawnSync(process.execPath,[file],{encoding:'utf8',timeout:90000,maxBuffer:1024*1024*3});
  const passed=child.status===0&&!child.error;
  const output=(child.stdout||'')+(child.stderr||'')+(child.error||'');
