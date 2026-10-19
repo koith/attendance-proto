@@ -6,7 +6,7 @@ import http from 'node:http';
 import {chromium} from 'playwright';
 
 const STORE=800001, OTHER=800002, HOST='https://waluhdgqhwjjwmflhrle.supabase.co';
-const files=new Set(['index.html','owner_activation.html','owner_activation.js','hq_owner_console.js','store_manager_tab.js','store_limited_manager.js','recipe_access_v220.js','operations_stocktake_v1.js']);
+const files=new Set(['index.html','owner_activation.html','owner_activation.js','hq_owner_console.js','store_manager_tab.js','store_limited_manager.js','recipe_access_v220.js','operations_stocktake_v1.js','operations_v1.js']);
 const users=new Map([['qa-hq',{id:'hq-id',email:'hq@opening-qa.invalid',role:'HQ',active:true}]]);
 const mail=[], audits=[], stores=new Map([[STORE,{id:STORE,name:'QA 가상개통점',code:'QA-OPENING',onboarding_status:'STAGED',is_active:false,province:'경기도',district:'수원시'}],[OTHER,{id:OTHER,name:'QA 비교점',code:'QA-OTHER',onboarding_status:'STAGED',is_active:false,province:'경기도',district:'수원시'}]]);
 const managers=new Map(),permissions=new Map(),recipeBase={menu_key:'AMERICANO',menu_name:'본사 아메리카노',category:'커피',components:[{item_id:501,item_name:'원두',quantity:18,unit:'g'}],instructions:[{label:'HOT',content:'본사 지정 제조법'}],thumbnail_url:'',is_overridden:false};
@@ -17,6 +17,12 @@ const overrides=new Map(),staff=[{id:900101,store_id:STORE,name:'가상 직원',
 const stockLevels=new Map([[501,12.5],[502,7]]);
 const stockCatalog=[{id:501,name:'원두',unit:'kg'},{id:502,name:'우유',unit:'L'}];
 const stocktakes=new Map(),movements=[];let nextStocktakeId=75001;
+const actualSalesPurchases=[],importBatches=[],sourceKeys=new Set();
+const scopedTotals=()=>actualSalesPurchases.reduce((a,t)=>{
+ if(t.transaction_type==='SALE')a.sales+=t.total_amount;
+ else if(t.transaction_type==='PURCHASE')a.purchases+=t.total_amount;
+ return a;
+},{sales:0,purchases:0});
 const copy=x=>structuredClone(x),key=(store,menu)=>String(store)+':'+String(menu);
 function reply(route,data,status=200){
  return route.fulfill({status,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type','Access-Control-Allow-Methods':'POST,OPTIONS,PUT'},body:JSON.stringify(data)});
@@ -93,6 +99,47 @@ function api(name,body,token,method='POST'){
  }
  if(name==='store_limited_pending_requests')return isAssistant&&permissions.get(user.id)?.attendance_approve&&scopeOK?{result:[]}:denial();
  if(name==='store_limited_payroll_read')return isAssistant&&permissions.get(user.id)?.payroll_view&&scopeOK?{result:[{employee_name:staff[0].name,gross_pay:120000,net_pay:116040}]}:denial();
+ if(name.startsWith('admin_store_operations_')){
+   if(!scopeOK||!isOwner||stores.get(STORE).onboarding_status!=='READY')return denial();
+   if(name==='admin_store_operations_import_stage'){
+     if(!['KIS_POS','ONLYONE'].includes(body.p_source)||!Array.isArray(body.p_rows)||
+       !body.p_rows.length||body.p_rows.length>100)return failing('INVALID_IMPORT',400);
+     const batch=[];
+     for(const row of body.p_rows){
+       const key=String(body.p_source)+':'+String(row.source_record_key);
+       const value=Number(row.total_amount);
+       if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(row.business_date||'')||
+          !Number.isSafeInteger(value)||value<0||sourceKeys.has(key)||
+          !['SALE','PURCHASE'].includes(row.transaction_type)||
+          (body.p_source==='KIS_POS'?row.transaction_type!=='SALE':
+           row.transaction_type!=='PURCHASE')||row.is_demo==='true')
+        return failing('SOURCE_TRANSACTION_UNVERIFIED_OR_DUPLICATE',409);
+       batch.push({...row,total_amount:value,source_record_key:key,store_id:STORE,
+        is_demo:false,status:'CONFIRMED',net_amount:value,vat_amount:0});
+     }
+     batch.forEach(t=>{actualSalesPurchases.push(t);sourceKeys.add(t.source_record_key);});
+     importBatches.push({source:body.p_source,file_name:body.p_file_name,
+        status:'COMPLETED',count:batch.length});
+     return {result:{normalized:true,row_count:batch.length,batch_id:importBatches.length}};
+   }
+   if(name==='admin_store_operations_page'){
+     const rows=actualSalesPurchases.filter(t=>(!body.p_type||t.transaction_type===body.p_type)&&
+       (!body.p_channel||t.channel===body.p_channel)&&t.business_date>=body.p_from&&
+       t.business_date<=body.p_to&&body.p_mode!=='demo');
+     return {result:{rows:copy(rows).slice((Number(body.p_page)-1)*100,Number(body.p_page)*100),
+       total_count:rows.length,totals:{net:rows.reduce((n,t)=>n+t.net_amount,0),
+        vat:0,total:rows.reduce((n,t)=>n+t.total_amount,0)}}};
+   }
+   if(name==='admin_store_operations_channels_mode')
+    return {result:[...new Set(actualSalesPurchases.map(t=>t.channel))].map(channel=>({channel}))};
+   if(name==='admin_store_operations_summary')return {result:scopedTotals()};
+   if(name==='admin_store_operations_analytics')
+    return {result:{daily:[{business_date:actualSalesPurchases[0]?.business_date||'2026-10-19',
+      ...scopedTotals()}],by_channel:[],low_stock:0,open_reconciliation:0}};
+   if(name==='admin_store_operations_trend')return {result:{totals:[],menus:[],menu_names:[]}};
+   if(name==='admin_store_operations_imports')return {result:copy(importBatches)};
+   return failing('UNHANDLED_OPERATIONS_'+name,500);
+ }
  if(name.startsWith('admin_store_stocktake_')){
    if(!scopeOK||!isOwner||stores.get(STORE).onboarding_status!=='READY')return denial();
    if(name==='admin_store_stocktake_catalog')return {result:copy(stockCatalog)};
