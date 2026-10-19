@@ -39,7 +39,13 @@ function doPost(e){
     var parts = body.ym.split('-');
     var year = Number(parts[0]);
     var month = Number(parts[1]);
-    var storeKey = String(body.store_key || 'INHA').replace(/[^A-Za-z0-9_-]/g,'_');
+    // Never collapse two foreign store keys (e.g. "A/B" vs "A_B") into
+    // one script-property key. Old INHA default is for legacy primary sync only.
+    if(body.store_key!=null && typeof body.store_key!=='string' &&
+       typeof body.store_key!=='number')return _json({ok:false, error:'BAD_STORE_KEY'});
+    var storeKey = String(body.store_key==null?'INHA':body.store_key);
+    if(!/^[A-Za-z0-9_-]{1,48}$/.test(storeKey))
+      return _json({ok:false, error:'BAD_STORE_KEY'});
     var ss = _annualBook(storeKey, year);
     var meta = '마지막 동기화: ' + body.synced_at + '   |   상태: ' + body.status_label;
 
@@ -108,8 +114,12 @@ function _annualBook(storeKey, year){
   if(!ss){
     var active = SpreadsheetApp.getActiveSpreadsheet();
     var all = props.getProperties();
-    var activeAlreadyUsed = Object.keys(all).some(function(k){ return k.indexOf('ATTENDANCE_BOOK_')===0 && all[k]===active.getId(); });
-    if(!activeAlreadyUsed){
+    var activeAlreadyUsed = !!active && Object.keys(all).some(function(k){
+      return k.indexOf('ATTENDANCE_BOOK_')===0 && all[k]===active.getId();
+    });
+    // Only legacy primary-store imports may adopt the bound active workbook.
+    // A brand-new store must always get its own file, even with no prior props.
+    if(active && !activeAlreadyUsed && (storeKey==='1'||storeKey==='INHA')){
       ss = active;
     }else{
       ss = SpreadsheetApp.create(year + ' 근태');
