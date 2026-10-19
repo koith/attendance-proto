@@ -74,6 +74,40 @@ try{
   assert.equal(await page.locator('#opsInventoryAdd').count(),1,'stock addition action must remain mounted');
   assert.equal(await page.locator('#opsSupplierHandoffOpen').count(),1,'optional supplier handoff action must remain mounted');
   assert.equal(await page.locator('#opsInventoryAgeReview').count(),1,'aging review action must remain mounted');
+  // MTG-16: mobile typing must NOT rerender order/receiving panels or
+  // dismiss the on-screen keyboard by recreating its input.
+  await page.evaluate(()=>{
+    document.getElementById('opsInventoryOrders').dataset.retain='active';
+    document.getElementById('opsReferenceInventorySearch').dataset.retain='same-input';
+  });
+  const search=page.locator('#opsReferenceInventorySearch');
+  await search.fill('존재하지 않는 품목');
+  assert.equal(await page.locator('.ops-stock-grid article').count(),0,
+   'search excludes nonmatches without destroying other modules');
+  assert.match(await page.locator('.ops-stock-grid').innerText(),/검색 결과가 없습니다/);
+  assert.equal((await page.locator('#opsInventoryCatalogCount').innerText()).trim(),'0개');
+  assert.equal((await nav.locator('button').nth(2).innerText()).trim(),'전체 품목 0');
+  assert.ok(await search.evaluate(el=>el===document.activeElement),
+   'typing must preserve keyboard focus');
+  assert.equal(await page.locator('#opsInventoryOrders').getAttribute('data-retain'),'active',
+   'order panel must be the SAME DOM element across keystrokes');
+  assert.equal(await search.getAttribute('data-retain'),'same-input',
+   'input element must not be recreated');
+  await search.fill('원두');
+  assert.equal(await page.locator('.ops-stock-grid article').count(),1,
+   'typing a known item must restore catalog results');
+  assert.equal((await page.locator('#opsInventoryCatalogCount').innerText()).trim(),'1개');
+  const cat=page.locator('#opsReferenceInventoryCat');
+  await cat.selectOption({label:'커피'});
+  assert.equal(await page.locator('.ops-stock-grid article').count(),1);
+  await cat.selectOption({label:'전체'});
+  assert.equal(await page.locator('.ops-stock-grid article').count(),1);
+  assert.equal(await page.locator('#opsInventoryOrders').getAttribute('data-retain'),'active',
+   'category changes must not remount live order handlers');
+  assert.equal(await page.locator('#opsInventoryAgeReview').count(),1,
+   'aging action must remain connected after both filters');
+  assert.ok((await page.evaluate(()=>document.documentElement.scrollWidth))<=width+1,
+   'filtering cannot introduce horizontal overflow '+width);
   if(width===390){
    fs.mkdirSync('qa-results',{recursive:true});
    await page.screenshot({path:'qa-results/inventory-shortcuts-390.png',fullPage:true});
