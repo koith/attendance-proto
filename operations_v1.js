@@ -206,9 +206,18 @@ else if(S.tab==="inquiry"){
    const rows=data.rows,count=Number(data.total_count),totals=data.totals||{};
    if(rows.length>q.size||count<rows.length)throw Error("INVALID_INQUIRY_PAGE_COUNT");
    const label=q.mode==="demo"?"시연 예시 · 실제 실적에서 제외":"확인된 실거래";
+   // No confirmed source rows is not evidence that the store actually sold 0 won.
+   // Fail closed for missing, blank, NaN or unsafe aggregate values.
+   const verifiedAmount=v=>(typeof v==="number"&&Number.isSafeInteger(v))||
+     (typeof v==="string"&&/^-?\\d+$/.test(v)&&Number.isSafeInteger(Number(v)));
+   const verifiedTotals=Number.isSafeInteger(count)&&count>0&&
+     ["net","vat","total"].every(key=>verifiedAmount(totals[key]));
    body.querySelector(".ops-summary").innerHTML='<span>'+esc(label)+' · 표시 '+num(rows.length)+' / 전체 '+num(count)+'건</span>'+
-     '<div><span>전체 공급가액 <b>'+won(totals.net)+'</b></span><span>전체 부가세 <b>'+won(totals.vat)+'</b></span>'+
-     '<span class="total">전체 합계 <b>'+won(totals.total)+'</b></span></div>';
+     (verifiedTotals?'<div><span>전체 공급가액 <b>'+won(totals.net)+'</b></span><span>전체 부가세 <b>'+won(totals.vat)+'</b></span>'+
+      '<span class="total">전체 합계 <b>'+won(totals.total)+'</b></span></div>':
+      '<div class="ops-financial-unverified" role="status"><b>실거래 합계 미확인</b><span>'+
+      (count===0?'선택한 조건에서 확인된 거래가 없습니다. 실제 매출 0원으로 확정한 것은 아닙니다.':
+       '거래 원천 합계가 완전하지 않아 금액을 표시하지 않습니다.')+'</span></div>');
    body.querySelector(".ops-table tbody").innerHTML=rows.length?rows.map(x=>
      '<tr><td>'+esc(x.business_date)+'</td><td>'+esc(x.transaction_type==="SALE"?"매출":x.transaction_type==="PURCHASE"?"매입":x.transaction_type==="REFUND"?"환불":x.transaction_type)+'</td>'+
      '<td>'+esc(x.channel||"기타")+'</td><td>'+won(x.net_amount)+'</td><td>'+won(x.vat_amount)+'</td><td><b>'+won(x.total_amount)+'</b></td>'+
