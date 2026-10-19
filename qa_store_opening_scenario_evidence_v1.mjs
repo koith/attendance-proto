@@ -5,17 +5,24 @@ const lanes=[
  ['STORE-REGISTER','중복·주소·READY 경계 기초 검증','qa_hq_store_onboarding_v1.mjs'],
  ['STORE-READY','비READY 지점 진입 차단','qa_store_entry_ready_lock_v1.mjs'],
  ['ADMIN-ROLE','보조 관리자 지점 권한 격리','qa_store_delegated_manager_v1.mjs'],
+ ['ADMIN-REVOKE','대표/보조 해임·지점 READY 전환 후 서버 역할 경계','qa_store_owner_revocation_hardening_v1.mjs'],
+ ['ADMIN-STALE-UX','이전 관리자 세션 서버 거부 응답·오프라인 오인 방지','qa_admin_single_session_watch_v1.mjs'],
  ['ATT-RAW','근태 원천과 화면 소비자 무결성','qa_actual_attendance_canonical_v1.mjs'],
  ['ATT-MANUAL','수기 근태 생성 및 실패 방어','qa_actual_attendance_manual_add_v1.mjs'],
  ['ATT-CORRECT','동시각 정정 이력 선택','qa_attendance_correction_tiebreak_v1.mjs'],
+ ['ATT-REASON-GUARD','근태 수기 정정/취소 원본 사유 보존 경계','qa_event_correction_reason_guard_v1.mjs'],
  ['ATT-OVERNIGHT','야간 출퇴근·자정 익일 쌍','qa_actual_attendance_overnight_pairing_v1.mjs'],
  ['ATT-SEGMENTS','날짜 경계 기준 출근 분할','qa_actual_attendance_day_slices_v1.mjs'],
  ['PAY-BREAK','현재 서버의 휴게 미고려/미제공 실제 금액 계산','qa_break_not_considered_alias_v1.mjs'],
  ['PAY-BREAK-UI','세 가지 휴게방식·실제 급여/시트 연결','qa_three_way_break_sheet_layout_v1.mjs'],
  ['PAY-CONTRACT','급여 계약 변경 시 권한/중첩 거부','qa_payroll_contract_transition_fail_closed_v1.mjs'],
  ['PAY-WEEK','주휴수당 승인·반려·재승인','qa_payroll_approval_engine_fixture_v1.mjs'],
+ ['PAY-WEEK-SOURCE','실제 Edge 계산의 주휴 미확인 0원 오인 차단','qa_payroll_weekly_verified_source_v1.mjs'],
+ ['PAY-WEEK-POLICY','월경계·미퇴근·대타 주휴 독립 산식 회귀','qa_payroll_policy_scenarios_v1.mjs'],
  ['PAY-CROSSMONTH','월말·연말 주휴 소속 월','qa_payroll_month_boundary_v1.mjs'],
  ['PAY-CLOSE','급여 마감/취소 서버 권한','qa_payroll_close_server_authority_v1.mjs'],
+ ['PAY-CLOSE-SNAPSHOT','마감 저장 시 수당 항목·음수/NULL 방어','qa_payroll_snapshot_components_v1.mjs'],
+ ['PAY-CLOSED-FROZEN','확정 월급 스냅샷 불변·누락 거부 UI','qa_closed_payroll_immutable_ui_v1.mjs'],
  ['PAY-NOFUTURE','미래 월 급여 허위 생성 차단','qa_payroll_no_future_month_salary_v1.mjs'],
  ['PAY-NOPUNCH','마감 없는 미타각 상태 방어','qa_payroll_no_local_punch_close_v1.mjs'],
  ['PAY-TERMINATED','퇴사자 월급 지급 경계','qa_payroll_terminated_monthly_no_punch_v1.mjs'],
@@ -33,15 +40,20 @@ const pending=[
 ];
 const results=[];
 for(const [id,label,file] of lanes){
- if(!fs.existsSync(file))throw Error('MISSING_QA_FIXTURE '+id+' '+file);
- const r=spawnSync(process.execPath,[file],{encoding:'utf8',timeout:90000,maxBuffer:1024*1024*3});
- const pass=r.status===0&&!r.error;
+ const exists=fs.existsSync(file);
+ const r=exists?spawnSync(process.execPath,[file],{encoding:'utf8',timeout:90000,maxBuffer:1024*1024*3}):null;
+ const pass=exists&&r.status===0&&!r.error;
+ const evidence=!exists?'MISSING_QA_FIXTURE '+id+' '+file:
+  ((r.stdout||'')+(r.stderr||'')+String(r.error||'')).slice(-1600);
+ // Missing, timed-out, or failed lanes must survive into the artifact and fail CI.
  results.push({id,label,file,result:pass?'PASS':'FAIL',
-  evidence:((r.stdout||'')+(r.stderr||'')+String(r.error||'')).slice(-1600)});
+  exitCode:r?.status??null,evidence});
  console.log((pass?'PASS ':'FAIL ')+id+' · '+label);
+ if(!pass)console.error(evidence);
 }
 const evidence={issue:1008,canonicalId:'QA-06',at:new Date().toISOString(),
- environment:'synthetic/source fixture; no physical device or production mutations',
+ environment:'executable synthetic/source fixture; no real device, live Auth/SMTP or production mutations',
+ coverageNote:'Expanded executable coverage does not resolve real JWT issuance, actual late/early shifts, real rehire, manager review, or field payroll evidence.',
  verified:results.filter(x=>x.result==='PASS').length,
  failed:results.filter(x=>x.result==='FAIL').length,
  unresolved:pending.map(([id,label])=>({id,label,result:'GAP_FIELD_OR_MISSING_EVIDENCE'})),
