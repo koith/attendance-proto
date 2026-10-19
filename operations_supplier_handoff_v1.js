@@ -26,9 +26,13 @@ function verifiedSupplierOrderCandidates(orders,storeId){
   const itemId=Number(row.item_id),manualId=Number(row.manual_item_id);
   if((Number.isSafeInteger(itemId)&&itemId>0)===(Number.isSafeInteger(manualId)&&manualId>0))
    throw Error("SUPPLIER_HANDOFF_INVALID_ITEM");
-  const name=String(row.item_name||"").trim(),unit=String(row.order_unit||row.unit||"").trim();
-  if(!name||name.length>140||/[\r\n\t]/.test(name)||!unit||unit.length>24||
-     /[\r\n\t]/.test(unit)||(row.order_unit&&row.unit&&String(row.order_unit)!==String(row.unit)))
+  const rawName=String(row.item_name??""),rawUnit=String(row.order_unit??row.unit??"");
+  const name=rawName.trim(),unit=rawUnit.trim();
+  // Inspect the unsanitized source before trim: a leading CR/LF is a prompt
+  // instruction injection risk when pasting into the supplier's AI cart.
+  if(/[\r\n\t\x00-\x1f]/.test(rawName)||/[\r\n\t\x00-\x1f]/.test(rawUnit)||
+     !name||name.length>140||!unit||unit.length>24||
+     (row.order_unit&&row.unit&&String(row.order_unit)!==String(row.unit)))
    throw Error("SUPPLIER_HANDOFF_INVALID_ITEM");
   const ordered=amount(row.ordered_quantity),received=amount(row.received_quantity);
   if(ordered<=0||received>ordered||ordered===received)throw Error("SUPPLIER_HANDOFF_INVALID_QUANTITY");
