@@ -105,7 +105,7 @@ async function openPurchaseOrder(row){
 function orderPanel(){
   const low=managedInventory.filter(x=>stockState(x).rank<2).sort((a,b)=>stockState(a).rank-stockState(b).rank||Number(a.on_hand)-Number(b.on_hand));
   const bars=low.length?low.map((row,index)=>{const target=Number(row.target_level||row.reorder_level||0),on=Number(row.on_hand||0),rec=stockOrderSuggestion(row),need=rec.valid?rec.suggest:0,pct=target?Math.min(100,on/target*100):0,st=stockState(row);return '<button type="button" class="ops-order-row '+st.key+'" data-managed-stock="'+managedInventory.indexOf(row)+'"><span><b>'+esc(row.name)+'</b><small>'+st.label+' · 현재 '+num(on)+' / 목표 '+num(target)+' '+esc(row.unit||"")+'</small></span><i><em style="width:'+pct+'%"></em></i><strong>'+(rec.valid?(need>0?'권장 발주 '+num(need)+' '+esc(row.stock_unit||row.unit||""):'입고 대기 · 추가 0'):'단위 확인 필요')+'</strong></button>'}).join(""):'<div class="ops-order-empty">현재 발주점에 도달한 등록 품목이 없습니다.</div>';
-  return '<section class="ops-order-panel" id="opsInventoryOrders"><div class="ops-unified-section-head"><div><b>발주 필요</b><span>'+low.length+'개 품목</span></div><div><button type="button" class="btn btn-secondary btn-sm" id="opsInventoryBulk">일괄 등록</button><button type="button" class="btn btn-primary btn-sm" id="opsInventoryAdd">+ 재고 등록</button></div></div><div class="ops-order-bars">'+bars+'</div></section>';
+  return '<section class="ops-order-panel" id="opsInventoryOrders"><div class="ops-unified-section-head"><div><b>발주 필요</b><span>'+low.length+'개 품목</span></div><div><button type="button" class="btn btn-secondary btn-sm" id="opsInventoryBulk">일괄 등록</button><button type="button" class="btn btn-primary btn-sm" id="opsInventoryAdd">+ 재고 등록</button></div></div><div class="ops-order-bars">'+bars+'</div><details class="ops-card" style="margin-top:10px"><summary style="cursor:pointer;font-weight:700;min-height:36px">공급사 주문 입력 준비 · 추가 도구</summary><p style="margin:9px 0;font-size:.85rem">CJ프레시웨이 내부 발주 기록에서 품목을 선택·검토 후 복사합니다. 실제 공급사 장바구니 반영이나 주문이 아닙니다.</p><button type="button" class="btn btn-secondary btn-sm" id="opsSupplierHandoffOpen">선택 발주 검토·복사</button></details></section>';
 }
 function inventoryState(row){
   if(!hasMeasuredStock(row.on_hand))return {key:"unknown",label:"재고 미확인",rank:2};
@@ -153,6 +153,7 @@ async function renderInventory(refresh=false){
   if(typeof editor!=="function")throw new Error("INVENTORY_EDITOR_NOT_READY");
   document.getElementById("opsInventoryAdd").onclick=()=>editor("manual");
   document.getElementById("opsInventoryBulk").onclick=()=>editor("bulk");
+  document.getElementById("opsSupplierHandoffOpen").onclick=()=>window.openSupplierOrderHandoff?.(purchaseOrders,Number(CURRENT_STORE_ID)||1);
   body.querySelectorAll("[data-inventory-jump]").forEach(button=>{
     button.onclick=()=>{
       const id=button.dataset.inventoryJump;
