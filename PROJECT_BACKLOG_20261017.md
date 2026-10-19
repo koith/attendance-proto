@@ -231,3 +231,10 @@
 - **QA:** 전체 PR **79/79 CI SUCCESS**. 현재 렌더 함수를 실행하는 `qa_actual_attendance_monthly_cards_v348.mjs`, 기존 `qa_actual_monthly_person_totals_v347.mjs`의 16시간 초과/야간/정정/직원 개인정보 테스트까지 PASS. 실제 Chromium 320/375/390/768/1024px 테스트 모두 PASS: 카드 수 10개, 모바일 2열, 잘림/겹침/가로 넘침 없음. 테스트용 가상 직원만 이용.
 - **운영:** [Pages run #39224056958](https://github.com/koith/attendance-proto/actions/runs/39224056958) P0/빌드/게시/독립 검증 전부 SUCCESS, `index.html`+`actual_attendance.html`+`actual_attendance.js`+`actual_attendance.css` **4개 운영 파일이 main cc802c6f와 바이트 단위 일치**, 공개 **v0.348 HTTP 200**, 보호 급여 API HTTP 401.
 - UX-01 후속 개선으로 **완료 건수 중복 추가 없음**: 정본 **38건, 개발완료 19건, 미완료 19건** 유지. 실제 사용자 아이폰 체감 검수는 후속 사용자 수용 검증으로 분리.
+
+## 31. 2026-10-19 근무현황 월 합계 달력 하단 재배치 — UX-01 후속
+
+- **사용자 원문:** “최근에 근무현황(관리자입장/직원입장)에서 총근무시간 추가했는데 달력보다 위에 배치했더니 불편하다 달력 아래로 옮겨라” → [Issue #1193](https://github.com/koith/attendance-proto/issues/1193)에 원문 보존.
+- **코드 수정·검증·병합:** [PR #1205](https://github.com/koith/attendance-proto/pull/1205), main squash `c0a9bad642d07bd6c5b804bf32fb3a95b6f3c647`, **앱 v0.349**. `actual_attendance.js`의 관리자/직원 공통 월 렌더 래퍼에서 `insertAdjacentHTML('afterbegin')`을 `beforeend`로 수정해 화면 순서 **요일 헤더 → 달력 → 범례 → 오늘 버튼 → 총근무시간(관리자 직원별 카드·직원 본인 합계)** 로 변경. JS/CSS 캐시 키 교체, v0.349 배지 갱신.
+- **실행 검증:** PR **88/88 GitHub Actions SUCCESS**(월 총합 계산·PIN 직원 격리·정정/자정/이상치, 실물 Chromium 관리자/직원 실제 공통 래퍼 DOM 순서·반복 렌더 중복 방지·모바일 카드/가로 넘침 포함). **운영 Pages 게시 및 독립 배포 확인은 연계된 P0 배포 실행에서 최종 판정**; PR CI만으로 운영 배포 성공을 주장하지 않음.
+- 완료 항목 UX-01의 후속 UX 재배치이므로 **새 원장 업무 ID나 완료 건수 중복 추가 없음: 전체 38건, 완료 19건, 잔여 19건**. 원본 근태·급여·레시피·서버 Auth/DB 변경 없음. 실사용자 화면 수용 검증대기 범위 유지.
