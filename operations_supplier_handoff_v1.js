@@ -65,7 +65,7 @@ window.openSupplierOrderHandoff=function(orders,storeId){
  modal.innerHTML='<div class="ops-modal-sheet ops-unified-sheet" style="max-width:720px">'+
  '<div class="ops-modal-head"><b>공급사 주문 입력 준비</b><button type="button" id="opsHandoffClose" aria-label="닫기">×</button></div>'+
  '<div class="ops-modal-body" style="display:grid;gap:12px">'+
- '<p>내부 발주는 실제 CJ프레시웨이 주문과 별개입니다. 온리원푸드넷/프레시엔에서 **상품 규격과 기존 주문 중복**을 확인한 뒤 직접 최종 주문하세요.</p>'+
+ '<p>내부 발주는 실제 CJ프레시웨이 주문과 별개입니다. 온리원푸드넷/프레시엔에서 상품 규격과 기존 주문 중복을 확인한 뒤 직접 최종 주문하세요.</p>'+
  '<small>이미 공급사에 주문한 항목은 선택하지 마세요. 체크하지 않은 품목은 복사하지 않습니다.</small>'+
  '<div id="opsHandoffCandidates" style="display:grid;gap:8px">'+
  (candidates.length?candidates.map(r=>
@@ -93,8 +93,18 @@ window.openSupplierOrderHandoff=function(orders,storeId){
   }
   if(!window.confirm("점주가 선택한 내부 발주를 확인했으며, 공급사 중복 주문과 상품·단위를 직접 확인할 예정입니까?"))return;
   let text;
-  try{text=supplierHandoffText(orders,storeId,choice)}catch(e){
-   status.textContent="복사할 수 없습니다: "+String(e.message||e);return;
+  try{
+   const previous=supplierHandoffText(orders,storeId,choice);
+   // A manager may receive stock while the modal is open. Re-read the server
+   // before copying: no stale/duplicate supplier request amounts.
+   const live=await BE.inventoryPurchaseOrders();
+   if(!modal.isConnected||(Number(CURRENT_STORE_ID)||1)!==Number(storeId))
+    throw Error("SUPPLIER_HANDOFF_STORE_CHANGED");
+   const current=supplierHandoffText(live,storeId,choice);
+   if(current!==previous)throw Error("SUPPLIER_HANDOFF_STALE_ORDERS");
+   text=current;
+  }catch(e){
+   status.textContent="복사할 수 없습니다. 입고 또는 발주 상태를 재조회해 주세요: "+String(e.message||e);return;
   }
   try{
    await navigator.clipboard.writeText(text);
