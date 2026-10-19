@@ -24,10 +24,16 @@ const lanes=[
  ['대표 관리자 해임 뒤 권한 차단','qa_store_owner_revocation_hardening_v1.mjs'],
  ['근태↔급여 정합성','qa_attendance_payroll_consumer_parity_v1.mjs'],
  ['주휴·미완결 근태/급여 정책','qa_payroll_policy_scenarios_v1.mjs'],
+ // QA-06: verify the actual shipped payroll engine's clock deltas and rehire spans.
+ ['실제 급여 엔진 시각차·지각/조퇴 시간 계산','qa_payroll_clock_variance_v1.mjs'],
+ ['실제 급여 엔진 퇴사·재입사 공백/중복지급 차단','qa_payroll_rehire_periods_v1.mjs'],
  ['급여 마감 서버 권한','qa_payroll_close_server_authority_v1.mjs'],
  ['지점간 급여 격리','qa_store_payroll_isolation_v1.mjs'],
  ['실제 엔진 다직원 근태→급여→시트 페이로드','qa_store_opening_payroll_sheet_v1.mjs'],
  ['구글 시트 자동 동기화 제어','qa_sheet_auto_sync_v1.mjs'],
+ // QA-05: actual Apps Script doPost lock and concurrent revision safety.
+ ['구글 시트 doPost 동시쓰기 잠금·해제','qa_sheet_sync_lock_v1.mjs'],
+ ['구글 시트 비동기 완료 지문 경합 방지','qa_sheet_sync_finish_race_v1.mjs'],
  ['마감 급여 지점별 시트 격리','qa_sheet_snapshot_store_scope_v1.mjs'],
  ['TEST 근태·급여 실운영 시트 격리','qa_server_sheet_test_exclusion_v1.mjs'],
  ['직원 출근/PIN/레시피 권한','qa_staff_recipe_ready_guard_v1.mjs'],
@@ -52,6 +58,9 @@ const lanes=[
  ['POS/매출 CSV 형식·주입 오류 거부','qa_operations_csv_integrity_v1.mjs'],
  ['매출·매입 데모의 실제 보고서 유입 차단','qa_operations_demo_metrics_guard_v1.mjs'],
  ['미정산·누락 거래 대사 화면 연결','qa_store_operations_reconciliation_ui_v1.mjs'],
+ // QA-07 / MTG-06: execute actual async cross-store isolation/race regression
+ // in the integrated store-opening evidence matrix, not only as a standalone check.
+ ['매출 대사 비동기 지점 전환·교차 노출 방지','qa_operations_reconciliation_store_race_v1.mjs'],
  ['POS/배달 실제 장부 페이징·시연 분리','qa_operations_paged_real_v1.mjs'],
  ['지점 진입 잠금 및 재고 원문 단위 보존','qa_store_entry_inventory_units_v021.mjs']
 ];
