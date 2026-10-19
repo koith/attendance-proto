@@ -64,7 +64,7 @@ try{
  const mountStart=source.indexOf('/* #1193 v0.349:');
  assert.ok(mountStart>0,'missing v0.349 live month placement wrapper');
  const liveMount=source.slice(mountStart);
- assert.match(liveMount,/insertAdjacentHTML\\('beforeend'/,'summary must follow the calendar');
+ assert.ok(liveMount.includes("app.insertAdjacentHTML('beforeend',monthlyCompletedSummaryHtml());"),'summary must follow the calendar');
  S.staffMode=true;
  S.staffAuth={employee_id:1};
  const staffMarkup=render();
