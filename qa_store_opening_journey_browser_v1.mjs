@@ -57,7 +57,7 @@ function api(name,body,token,method='POST'){
  if(name==='is_hq_admin')return {result:isHQ};
  if(name==='store_delegated_manager_list'){
    if(!scopeOK||!(isOwner||isAssistant||isHQ))return denial();
-   return {result:[...managers.values()].filter(m=>m.store_id===STORE&&m.active).map(m=>({store_id:STORE,user_id:m.id,email:m.email,manager_role:m.role==='OWNER'?'OWNER':'DELEGATED'}))};
+   return {result:[...managers.values()].filter(m=>m.store_id===STORE).map(m=>({store_id:STORE,user_id:m.id,email:m.email,manager_role:m.role==='OWNER'&&m.active?'OWNER':'DELEGATED'}))};
  }
  if(name==='store_manager_invitation_states'){
    if(!scopeOK||!(isOwner||isAssistant||isHQ))return denial();
@@ -71,6 +71,9 @@ function api(name,body,token,method='POST'){
      return failing('ACTIVE_ASSISTANT_REQUIRED',409);
    manager.active=false;
    const prior=users.get('qa-assistant');if(prior)prior.active=false;
+   // Revocation removes this store's membership entirely, matching the
+   // production contract; pending invites remain listed BEFORE activation.
+   managers.delete(manager.id);
    permissions.delete(manager.id);
    return {result:{ok:true,revoked:true}};
  }
@@ -364,7 +367,7 @@ try{
  await revoke.click();
  await revokedUI.waitForFunction(()=>
   !document.querySelector('[data-manager-revoke="assistant-qa-id"]'));
- verify(!users.get('qa-assistant').active&&!managers.get('assistant-qa-id').active,
+ verify(!users.get('qa-assistant').active&&!managers.has('assistant-qa-id'),
   'real owner UI revokes delegated manager from the SAME opened store');
  for(const [name,data] of [
   ['store_limited_employee_list',{p_store_id:STORE}],
