@@ -41,10 +41,11 @@ const markups={inquiry:render('inquiry'),inventory:render('inventory'),dashboard
 const pageTitle=/<div class="ops-head page-title-row ops-page-header"><div class="ops-page-heading"><h2 class="page-title">([^<]+)<\/h2><\/div>/;
 for(const [tab,markup] of Object.entries(markups)){
  assert.match(markup,pageTitle,tab+' heading must be first full-width row');
- assert.ok(markup.indexOf('class="ops-head-actions"')>markup.indexOf('class="ops-page-heading"'),
+ assert.ok(markup.indexOf('class="ops-head-actions')>markup.indexOf('class="ops-page-heading"'),
   'actions must follow heading');
 }
 assert.equal((markups.inquiry.match(/id="ops(?:CollectOpen|UploadOpen|ExportActual|SaleSkuPreview)"/g)||[]).length,4);
+assert.match(markups.inquiry,/<details class="ops-sales-more"><summary/,'advanced work is folded by default');
 const publishedVersion=html.match(/const APP_VERSION="(v\d+\.\d+)"/)?.[1];
 assert.ok(publishedVersion,'application version should be explicit');
 assert.ok(html.includes('aria-label="현재 앱 버전 '+publishedVersion+'"'),
@@ -75,7 +76,7 @@ try{
     return {width:innerWidth,docWidth:document.documentElement.scrollWidth,
       direction:getComputedStyle(header).flexDirection,
       header:box(header),title:box(title),label:box(label),rail:rail?box(rail):null,
-      buttons:rail?[...rail.querySelectorAll('button')].map(box):[],
+      buttons:rail?[...rail.querySelectorAll(':scope > button')].map(box):[],
       railOverflow:rail?{client:rail.clientWidth,scroll:rail.scrollWidth}:null};
    });
    assert.equal(result.direction,'column',tab+' '+width+'px: heading and actions must stack vertically');
@@ -88,16 +89,28 @@ try{
     assert.ok(result.buttons.every(b=>Math.abs(b.top-result.buttons[0].top)<=1),
      tab+' '+width+'px: buttons need one horizontal row');
     if(tab==='inquiry'){
-     assert.equal(result.buttons.length,4);
-     await page.locator('.ops-page-header .ops-head-actions').evaluate(e=>e.scrollLeft=e.scrollWidth);
-     const last=await page.locator('#opsSaleSkuPreview').boundingBox();
-     const rail=await page.locator('.ops-page-header .ops-head-actions').boundingBox();
-     assert.ok(last.x+last.width<=rail.x+rail.width+2,tab+' '+width+'px: final action unreachable');
+     assert.equal(result.buttons.length,1,'only primary collection action is visible before expanding');
+     const more=page.locator('.ops-sales-more');
+     assert.equal(await more.count(),1,'one advanced actions disclosure');
+     assert.ok(!(await more.evaluate(e=>e.open)),'advanced actions default closed');
+     await more.locator('summary').click();
+     assert.ok(await more.evaluate(e=>e.open),'advanced actions must open');
+     assert.equal(await more.locator('button').count(),3,'upload, CSV, SKU functions retained');
+     for(const id of ['opsUploadOpen','opsExportActual','opsSaleSkuPreview']){
+       const action=page.locator('#'+id);
+       assert.ok(await action.isVisible(),'expanded action not visible: '+id+' '+width);
+       const b=await action.boundingBox();
+       assert.ok(b.width>=100&&b.height>=40,'mobile action too small '+id);
+     }
+     assert.ok((await page.evaluate(()=>document.documentElement.scrollWidth))<=width+1,
+      'expanded advanced controls cause horizontal page overflow '+width);
+     await more.locator('summary').click();
+     assert.ok(!(await more.evaluate(e=>e.open)),'advanced actions must close');
     }
    }
   }
   await ctx.close();
-  console.log('PASS mobile title+one-line independent toolbar viewport '+width+'px');
+  console.log('PASS mobile full-width title and accessible collapsed sales tools viewport '+width+'px');
  }
 }finally{await browser.close();}
 console.log('PASS #1113: actual app render, original action handlers, 6 responsive widths, no title collision or page overflow');
