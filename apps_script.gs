@@ -109,7 +109,11 @@ function _annualBook(storeKey, year){
   var known = props.getProperty(propKey);
   var ss = null;
   if(known){
-    try{ ss = SpreadsheetApp.openById(known); }catch(openErr){ props.deleteProperty(propKey); }
+    // Never silently replace an inaccessible mapped workbook with a new blank
+    // workbook: that would orphan prior payroll/attendance reports and make a
+    // re-sync look successful. Keep the original file ID for operator recovery.
+    try{ ss = SpreadsheetApp.openById(known); }
+    catch(openErr){ throw new Error('MAPPED_WORKBOOK_UNAVAILABLE'); }
   }
   if(!ss){
     var active = SpreadsheetApp.getActiveSpreadsheet();
@@ -117,9 +121,15 @@ function _annualBook(storeKey, year){
     var activeAlreadyUsed = !!active && Object.keys(all).some(function(k){
       return k.indexOf('ATTENDANCE_BOOK_')===0 && all[k]===active.getId();
     });
-    // Only legacy primary-store imports may adopt the bound active workbook.
+    // Do not reuse a previous-year active report as a new year's workbook,
+    // even when Script Properties were reset or this is a legacy primary store.
+    var activeName = active ? String(active.getName()) : '';
+    var activeReportYear = activeName.match(/(?:^|\D)(20\d{2})\s*근태/);
+    var activeWrongYear = !!activeReportYear && Number(activeReportYear[1])!==year;
+    // Only legacy primary-store imports may adopt a same-year active workbook.
     // A brand-new store must always get its own file, even with no prior props.
-    if(active && !activeAlreadyUsed && (storeKey==='1'||storeKey==='INHA')){
+    if(active && !activeAlreadyUsed && !activeWrongYear &&
+       (storeKey==='1'||storeKey==='INHA')){
       ss = active;
     }else{
       ss = SpreadsheetApp.create(year + ' 근태');
@@ -131,6 +141,11 @@ function _annualBook(storeKey, year){
     }
     props.setProperty(propKey, ss.getId());
   }
+  // A stale/wrong-year property must not rename or overwrite last year's
+  // actual workbook. Explicit repair is safer than manufacturing a new file.
+  var mappedYear = String(ss.getName()).match(/(?:^|\D)(20\d{2})\s*근태/);
+  if(mappedYear && Number(mappedYear[1])!==year)
+    throw new Error('MAPPED_WORKBOOK_YEAR_CONFLICT');
   if(ss.getName() !== year + ' 근태') DriveApp.getFileById(ss.getId()).setName(year + ' 근태');
   _ensureMonthTabs(ss);
   return ss;
