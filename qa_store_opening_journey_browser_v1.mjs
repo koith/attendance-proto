@@ -242,6 +242,25 @@ function html(kind,params){
    'storeRecipeOverrideSave:async(id,k,n,c,parts,thumb,steps)=>{const r=await fetch(window.CONFIG.SUPABASE_URL+"/rest/v1/rpc/admin_store_recipe_override_save",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+Auth.token},body:JSON.stringify({p_store_id:id,p_menu_key:k,p_menu_name:n,p_category:c,p_components:parts,p_thumbnail_url:thumb,p_instructions:steps})});if(!r.ok)throw Error("RECIPE_SAVE_DENIED");return r.json()},'+
    'storeRecipeOverrideClear:async(id,k)=>{const r=await fetch(window.CONFIG.SUPABASE_URL+"/rest/v1/rpc/admin_store_recipe_override_clear",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+Auth.token},body:JSON.stringify({p_store_id:id,p_menu_key:k})});if(!r.ok)throw Error("RECIPE_CLEAR_DENIED");return r.json()}};renderRecipeHub();';
  }
+ else if(kind==='ops'){
+   body='<main id="view"></main>';asset='operations_v1.js';
+   action='window.view=document.getElementById("view");'+
+    'window.BE={'+
+    'operationsImportStage:(source,file,rows)=>qaOps("admin_store_operations_import_stage",{p_source:source,p_file_name:file,p_rows:rows}),'+
+    'operationsInquiryPage:(from,to,type,channel,page,size,mode)=>qaOps("admin_store_operations_page",{p_from:from,p_to:to,p_type:type,p_channel:channel,p_page:page,p_size:size,p_mode:mode}),'+
+    'operationsChannelsMode:(from,to,mode)=>qaOps("admin_store_operations_channels_mode",{p_from:from,p_to:to,p_mode:mode}),'+
+    'operationsSummary:(from,to)=>qaOps("admin_store_operations_summary",{p_from:from,p_to:to}),'+
+    'operationsAnalytics:(from,to)=>qaOps("admin_store_operations_analytics",{p_from:from,p_to:to}),'+
+    'operationsTrend:range=>qaOps("admin_store_operations_trend",{p_range:range}),'+
+    'operationsImports:()=>qaOps("admin_store_operations_imports",{})};'+
+    'window.renderOperations("inquiry");';
+   body+='<script>async function qaOps(name,args){'+
+    'const r=await fetch(window.CONFIG.SUPABASE_URL+"/rest/v1/rpc/"+name,'+
+    '{method:"POST",headers:{"Content-Type":"application/json",'+
+    '"Authorization":"Bearer "+window.Auth.token},'+
+    'body:JSON.stringify({p_store_id:window.CURRENT_STORE_ID,...args})});'+
+    'const data=await r.json();if(!r.ok)throw Error(data.message||data.error||name);return data}</script>';
+ }
  else if(kind==='stocktake'){
    body='<main id="storeStocktakeQa"></main>';asset='operations_stocktake_v1.js';
    action='window.BE={'+
