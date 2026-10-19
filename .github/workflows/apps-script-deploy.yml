@@ -10,6 +10,7 @@ on:
       - qa_sheet_formula_literal_v1.mjs
       - qa_sheet_valid_month_v1.mjs
       - qa_sheet_payload_preflight_v1.mjs
+      - qa_sheet_sync_lock_v1.mjs
       - qa_sheet_store_isolation_v1.mjs
       - qa_sheet_user_tabs_preserved_v1.mjs
       - qa_sheet_closed_snapshot_gross_v1.mjs
@@ -24,6 +25,7 @@ on:
       - qa_sheet_formula_literal_v1.mjs
       - qa_sheet_valid_month_v1.mjs
       - qa_sheet_payload_preflight_v1.mjs
+      - qa_sheet_sync_lock_v1.mjs
       - qa_sheet_store_isolation_v1.mjs
       - qa_sheet_user_tabs_preserved_v1.mjs
       - qa_sheet_closed_snapshot_gross_v1.mjs
@@ -59,6 +61,7 @@ jobs:
           node qa_sheet_formula_literal_v1.mjs
           node qa_sheet_valid_month_v1.mjs
           node qa_sheet_payload_preflight_v1.mjs
+          node qa_sheet_sync_lock_v1.mjs
           node qa_sheet_store_isolation_v1.mjs
           node qa_sheet_user_tabs_preserved_v1.mjs
           node qa_sheet_closed_snapshot_gross_v1.mjs
