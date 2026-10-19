@@ -59,6 +59,49 @@ function kstToday(){return new Date(new Date().toLocaleString('en-US',{timeZone:
 const S={ym:'',employees:[],sessions:[],selectedDay:null,storeHours:{open_minute:420,close_minute:1500},staffMode:false,staffAuth:null};
 function sessionAnchor(s){return s.in||s.out}
 function sessionsForDay(day){return S.sessions.filter(s=>{const a=sessionAnchor(s);return a&&dayKey(a)===day})}
+// Monthly completed-work totals for both store managers and PIN-authenticated staff.
+// Share the calendar's shift-start day attribution and corrected event projection.
+// Ongoing, incomplete or anomalous (>16h) shifts must never become verified hours.
+function monthlyCompletedByEmployee(sessions,ym){
+  const totals=new Map();
+  for(const shift of sessions||[]){
+    if(shift?.status!=='COMPLETE')continue;
+    const date=sessionAnchor(shift),seconds=Number(shift.sec),id=Number(shift.employee_id);
+    if(!(date instanceof Date)||!Number.isFinite(date.getTime())||
+       dayKey(date).slice(0,7)!==ym||!Number.isSafeInteger(id)||id<=0||
+       !Number.isFinite(seconds)||seconds<=0||isIssue(shift,dayKey(date)))continue;
+    totals.set(id,(totals.get(id)||0)+seconds);
+  }
+  return totals;
+}
+function monthlyCompletedSummaryHtml(){
+  const isStaff=!!S.staffMode,ym=S.ym;
+  const totals=monthlyCompletedByEmployee(S.sessions,ym);
+  const people=(S.employees||[]).filter(e=>{
+    const id=Number(e.id);
+    return !isStaff || id===Number(S.staffAuth?.employee_id);
+  });
+  const registered=people.filter(e=>(totals.get(Number(e.id))||0)>0);
+  const visible=isStaff?people:registered;
+  const sum=visible.reduce((n,e)=>n+(totals.get(Number(e.id))||0),0);
+  const current=ym.replace('-', '년 ')+'월';
+  const note='<p class="monthly-work-note">출퇴근 완료·관리자 정정 반영 기준 · 진행 중/누락/확인 필요 기록 제외 · 급여 산정 시간과 다를 수 있습니다.</p>';
+  if(isStaff){
+    const name=people[0]?.name||'내 기록';
+    return '<section class="monthly-work-summary staff" aria-label="내 월별 근무시간 합계">'+
+      '<div class="monthly-work-heading">내 '+escapeHtml(current)+' 완료 근무시간</div>'+
+      '<div class="monthly-work-figure">'+escapeHtml(dur(sum))+'</div>'+
+      '<div class="monthly-work-sub">'+escapeHtml(name)+' · '+(sum>0?'완료된 기록 합산':'완료된 기록 없음')+'</div>'+
+      note+'</section>';
+  }
+  const rows=visible.map(e=>'<div class="monthly-person-total"><span>'+escapeHtml(e.name||'직원 정보 없음')+
+    '</span><strong>'+escapeHtml(dur(totals.get(Number(e.id))||0))+'</strong></div>').join('');
+  return '<details class="monthly-work-summary manager" open>'+
+    '<summary class="monthly-work-heading"><span>직원별 '+escapeHtml(current)+' 완료 근무시간</span>'+
+    '<strong>'+registered.length+'명 · 전체 '+escapeHtml(dur(sum))+'</strong></summary>'+
+    '<div class="monthly-work-list">'+(rows||'<p class="monthly-work-empty">이번 달 완료된 근무 기록이 없습니다.</p>')+'</div>'+
+    note+'</details>';
+}
 function isIssue(s,day){if(s.status==='INCOMPLETE'||s.status==='ORPHAN_OUT')return true;if(s.status==='WORKING'&&day!==dayKey(kstToday()))return true;if(s.status==='COMPLETE'&&s.sec>16*3600)return true;return false}
 async function loadMonth(){const app=el('app');app.innerHTML='<div class="loading">실근무 기록 불러오는 중…</div>';const {first,next}=monthBounds(S.ym);el('monthLabel').textContent=S.ym.replace('-','년 ')+'월';try{
   if(S.staffMode){
@@ -529,5 +572,18 @@ init();
       let t=btn.querySelector('.calendar-day-total');
       if(total>0){if(!t){t=document.createElement('span');t.className='calendar-day-total';btn.appendChild(t)}t.textContent='총 '+compact(total)}
     });
+  };
+})();
+
+
+/* #1193 v0.347: render verified monthly employee totals on both calendar modes.
+   Keep existing month and day renderers, PIN isolation, corrections and month navigation. */
+(()=>{
+  const previousRenderMonth=renderMonth;
+  renderMonth=function(){
+    previousRenderMonth();
+    const app=el('app');
+    if(app?.querySelector('.calendar')&&!app.querySelector('.monthly-work-summary'))
+      app.insertAdjacentHTML('afterbegin',monthlyCompletedSummaryHtml());
   };
 })();
