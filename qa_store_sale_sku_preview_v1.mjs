@@ -7,7 +7,7 @@ const ops=fs.readFileSync('operations_v1.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261018212000_store_sale_sku_preview.sql','utf8');
 const version=html.match(/const APP_VERSION="v0\.(\d+)"/)?.[1];
 assert.ok(Number(version)>=328,"SKU mapping preview must remain present in later releases");
-assert.match(html,/operations_sale_sku_preview_v1\.js\?v=20261019v339/);
+assert.match(html,/operations_sale_sku_preview_v1\.js\?v=20261019v341/);
 assert.match(html,/async saleNameCandidates\(from,to\)\{ return rpc\("admin_store_sale_name_candidates"/);
 assert.match(js,/id="opsLoadRealSaleNames"/);
 assert.match(js,/await BE\.saleNameCandidates\(from,to\)/);
