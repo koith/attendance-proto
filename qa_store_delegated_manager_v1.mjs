@@ -47,8 +47,11 @@ assert.match(edge,/store_primary_owner_can_delegate/);
 assert.match(edge,/service_store_delegated_manager_attach_invited_user/);
 assert.match(edge,/actor\.adminRole!=="HQ"/,"existing HQ invitation remains protected");
 const preflight=edge.indexOf('client.rpc("store_primary_owner_can_delegate"');
-const emailSend=edge.indexOf('client.auth.admin.inviteUserByEmail(email,{',preflight);
-assert.ok(preflight>0&&emailSend>preflight,"owner authorization must precede sending email");
+const dispatch=edge.indexOf('dispatchInvitation(email,storeId,actor.userId,"STORE_ASSISTANT")',preflight);
+const gate=edge.indexOf('client.rpc("service_store_invitation_dispatch_preflight"');
+const emailSend=edge.indexOf('client.auth.admin.inviteUserByEmail(email,',gate);
+assert.ok(preflight>0&&dispatch>preflight&&gate>0&&emailSend>gate,
+  "owner authorization and server preflight must precede sending email");
 
 class Node {
  constructor(){this.style={};this.hidden=false;this.listeners={};this.children=[];this.ids={};this.attributes={};this.dataset={};this.textContent="";this.value="";}

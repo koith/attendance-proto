@@ -24,6 +24,7 @@ on:
       - 'qa_v096_search_clear.mjs'
       - 'qa_store_opening_mutation_proof_v1.mjs'
       - 'owner_activation.*'
+      - 'qa_invitation_preflight_1243.sql'
       - 'recipe_access_v220.js'
       - 'store_manager_tab.js'
       - 'hq_store_onboarding_ui.js'

@@ -50,6 +50,12 @@ function api(name,body,token,method='POST'){
    stores.get(scoped).onboarding_status=body.p_status;stores.get(scoped).is_active=body.p_status==='READY';
    return {result:{ok:true,store_id:scoped,status:body.p_status}};
  }
+ if(name==='store_invitation_activation_preflight'){
+   if(!user)return failing('AUTHENTICATED_USER_REQUIRED',403);
+   const pending=[...managers.values()].find(m=>m.id===user.id);
+   if(!pending)return failing('INVITATION_CANCELLED_OR_NOT_FOUND',403);
+   return {result:{ok:true,store_id:pending.store_id,intended_role:pending.role}};
+ }
  if(name==='store_primary_owner_accept_invitation'){
    if(!user||!user.passwordSet||!user.emailConfirmed)return failing('EMAIL_CONFIRMATION_REQUIRED',403);
    const manager=[...managers.values()].find(m=>m.id===user.id);

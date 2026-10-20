@@ -68,7 +68,7 @@ try{
    assert.match(tooShort.output,/Rejected invite must not redirect|AssertionError/,
      'Activation mutant must fail an explicit invitation safety assertion');
    fs.writeFileSync(activation,original);
-   mutate(activation,"Number(accepted.store_id)!==storeId","false");
+   mutate(activation,"Number(accepted.store_id)!==storeId||Number(preflight.store_id)!==storeId","false");
    const crossStore=run(fixture,60000);
    mustReject(crossStore,'mismatched store identity in real activation page');
    assert.match(crossStore.output,/Rejected invite must not redirect|AssertionError/,

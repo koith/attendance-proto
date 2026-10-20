@@ -37,6 +37,19 @@ form.onsubmit=async event=>{
  const button=document.getElementById("confirm");button.disabled=true;
  status.textContent="비밀번호와 지점 권한을 확인하고 있습니다.";
  try{
+  // A canceled/expired or cross-store invite may still have a valid Supabase
+  // access token. Refuse any password PUT until scoped server authorization
+  // verifies the invite's current owner/delegated status.
+  const preflightResponse=await fetch(config.url+"/rest/v1/rpc/store_invitation_activation_preflight",{
+    method:"POST",headers:{apikey:config.key,Authorization:"Bearer "+token,
+      "Content-Type":"application/json"},body:"{}"
+  });
+  const preflight=await preflightResponse.json().catch(()=>({}));
+  if(!preflightResponse.ok||preflight?.ok!==true||
+     !Number.isSafeInteger(Number(preflight.store_id))||Number(preflight.store_id)<1||
+     !["OWNER","ASSISTANT"].includes(preflight.intended_role))
+    throw Error("초대가 취소·만료되었거나 인증이 완료되지 않았습니다. 비밀번호를 변경하지 않았습니다. 본사 또는 대표 관리자에게 새 초대를 요청하세요. ("+
+      String(preflight?.message||preflight?.error||"INVITATION_NOT_ACTIVE")+")");
   const change=await fetch(config.url+"/auth/v1/user",{
    method:"PUT",headers:{apikey:config.key,Authorization:"Bearer "+token,
      "Content-Type":"application/json"},body:JSON.stringify({password})
@@ -62,7 +75,7 @@ form.onsubmit=async event=>{
   const ctx=await r.json();
   const storeId=Number(ctx?.store_id);
   if(!r.ok||ctx?.role!=="STORE_MANAGER"||!Number.isSafeInteger(storeId)||storeId<1||
-     Number(accepted.store_id)!==storeId)
+     Number(accepted.store_id)!==storeId||Number(preflight.store_id)!==storeId)
     throw Error("점주 권한을 확인할 수 없습니다. 본사에 문의하세요.");
   localStorage.setItem("baekeok_auth",JSON.stringify({
     access_token:token,refresh_token:refresh||"",expires_in:Number(hash.get("expires_in"))||3600
