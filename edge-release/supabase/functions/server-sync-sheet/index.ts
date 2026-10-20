@@ -317,6 +317,30 @@ function safeCompare(clientPayload,serverPayload){
   return {payroll_identical:normalize(clientPayload.payroll)===normalize(serverPayload.payroll),
     attendance_identical:normalize(clientPayload.attendance)===normalize(serverPayload.attendance)};
 }
+// Read-only eligibility gate prevents mailing HQ/other-store/duplicate accounts.
+async function dispatchInvitation(email,storeId,actorId,mode){
+  const {data:gate,error:gateError}=await client.rpc("service_store_invitation_dispatch_preflight",{
+    p_store_id:storeId,p_email:email,p_actor_id:actorId,p_mode:mode
+  });
+  if(gateError||gate?.ok!==true||!["INVITE","RECOVERY"].includes(gate?.delivery))
+    throw new HttpError(409,"INVITE_PRECHECK_FAILED: "+String(gateError?.message||"UNVERIFIED_GATE"));
+  const redirectTo="https://koith.github.io/attendance-proto/owner_activation.html";
+  if(gate.delivery==="RECOVERY"){
+    // Existing email-confirmed Auth account with no password: recipient must
+    // prove mailbox ownership via Supabase recovery link. Never reset it here.
+    if(typeof gate.user_id!=="string"||!gate.user_id)
+      throw new HttpError(409,"INVITE_PRECHECK_MISSING_AUTH_USER");
+    const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo});
+    if(error)throw new HttpError(409,"INVITE_RECOVERY_DELIVERY_FAILED: "+String(error.message||"UNKNOWN"));
+    return {userId:gate.user_id,delivery:"RECOVERY"};
+  }
+  const {data:invited,error}=await client.auth.admin.inviteUserByEmail(email,{redirectTo});
+  if(error||!invited?.user?.id)throw new HttpError(409,"INVITE_FAILED: "+String(error?.message||"NO_USER"));
+  // No silent identity substitution between SQL precheck and Auth mutation.
+  if(gate.user_id&&gate.user_id!==invited.user.id)
+    throw new HttpError(409,"INVITE_AUTH_IDENTITY_CHANGED");
+  return {userId:invited.user.id,delivery:"INVITE"};
+}
 Deno.serve(async req=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:CORS});
   if(req.method!=="POST")return reply({ok:false,error:"METHOD_NOT_ALLOWED"},405);
@@ -342,16 +366,15 @@ Deno.serve(async req=>{
           .select("store_id").eq("store_id",storeId).maybeSingle();
         if(primaryError||!primary)throw new HttpError(409,"ACTIVE_PRIMARY_OWNER_REQUIRED");
       }
-      const {data:invited,error:inviteError}=await client.auth.admin.inviteUserByEmail(email,{redirectTo:"https://koith.github.io/attendance-proto/owner_activation.html"});
-      if(inviteError||!invited?.user?.id)
-        throw new HttpError(409,"INVITE_FAILED: "+String(inviteError?.message||"NO_USER"));
+      const sent=await dispatchInvitation(email,storeId,actor.userId,
+        isAssistant?"HQ_ASSISTANT":"HQ_OWNER");
       const {data:assigned,error:assignError}=await client.rpc(isAssistant?"service_hq_store_assistant_attach_invited_user":"service_store_manager_attach_invited_user",{
-        p_store_id:storeId,p_user_id:invited.user.id,p_actor_id:actor.userId
+        p_store_id:storeId,p_user_id:sent.userId,p_actor_id:actor.userId
       });
       if(assignError||assigned?.ok!==true)
         throw new HttpError(502,"INVITE_SENT_BUT_ROLE_ASSIGN_FAILED: "+
           String(assignError?.message||"UNKNOWN"));
-      return reply({ok:true,store_id:storeId,email,role:"STORE_MANAGER",invitation_role:isAssistant?"ASSISTANT":"OWNER",invited:true});
+      return reply({ok:true,store_id:storeId,email,role:"STORE_MANAGER",invitation_role:isAssistant?"ASSISTANT":"OWNER",invited:true,delivery:sent.delivery});
     }
     if(mode==="invite_store_delegated_manager"){
       if(actor.internal||actor.adminRole!=="STORE_MANAGER"||!actor.userId)
@@ -366,18 +389,14 @@ Deno.serve(async req=>{
         p_store_id:storeId,p_actor_id:actor.userId
       });
       if(gateError||allowed!==true)throw new HttpError(403,"OWNER_ONLY");
-      const {data:invited,error:inviteError}=await client.auth.admin.inviteUserByEmail(email,{
-        redirectTo:"https://koith.github.io/attendance-proto/owner_activation.html"
-      });
-      if(inviteError||!invited?.user?.id)
-        throw new HttpError(409,"INVITE_FAILED: "+String(inviteError?.message||"NO_USER"));
+      const sent=await dispatchInvitation(email,storeId,actor.userId,"STORE_ASSISTANT");
       const {data:assigned,error:assignError}=await client.rpc("service_store_delegated_manager_attach_invited_user",{
-        p_store_id:storeId,p_user_id:invited.user.id,p_actor_id:actor.userId
+        p_store_id:storeId,p_user_id:sent.userId,p_actor_id:actor.userId
       });
       if(assignError||assigned?.ok!==true)
         throw new HttpError(502,"INVITE_SENT_BUT_ROLE_ASSIGN_FAILED: "+
           String(assignError?.message||"UNKNOWN"));
-      return reply({ok:true,store_id:storeId,email,role:"STORE_MANAGER",invited:true});
+      return reply({ok:true,store_id:storeId,email,role:"STORE_MANAGER",invited:true,delivery:sent.delivery});
     }
     if(mode==="deployment"){
       const ym=currentYm();
