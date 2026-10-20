@@ -63,7 +63,15 @@ if(knownQaProject){
 }
 assert.match(scriptId,/^[A-Za-z0-9_-]{15,}$/);
 const gs=buildQa1243GAS(readFileSync('apps_script.gs','utf8'),secret);
-const manifest=readFileSync('appsscript.json','utf8');
+// Only the disposable QA-owned project gets a private API-executable entry.
+// This preserves the unchanged operating webapp manifest. API access is MYSELF,
+// never ANYONE: an authenticated owner-side scope probe, not a public writer.
+const qaManifest=JSON.parse(readFileSync('appsscript.json','utf8'));
+assert.equal(qaManifest.webapp?.access,'ANYONE_ANONYMOUS');
+assert.equal(qaManifest.webapp?.executeAs,'USER_DEPLOYING');
+assert.ok(!qaManifest.executionApi,'Operating manifest must not already expose an execution API');
+qaManifest.executionApi={access:'MYSELF'};
+const manifest=JSON.stringify(qaManifest);
 await jsonRequest(api+'/'+scriptId+'/content',{method:'PUT',headers,body:JSON.stringify({files:[
  {name:'Code',type:'SERVER_JS',source:gs},{name:'appsscript',type:'JSON',source:manifest}
 ]})});
@@ -105,6 +113,46 @@ async function probeReadonlyPublication(url){
   return {networkError:true,getOnlyReached:false};
  }
 }
+// Optional alternative to owner-editor interaction. Google scripts.run requires
+// a shared standard Cloud project and an OAuth token carrying ALL script scopes.
+// A failure here is only diagnostic. Never fall back to a production Sheet/secret.
+async function attemptOwnerScopeProbe(){
+ const apiEntry=detail.entryPoints?.find(e=>e.entryPointType==='EXECUTION_API')?.executionApi;
+ if(apiEntry?.entryPointConfig?.access!=='MYSELF'){
+  console.log('QA1243_EXEC_API_NOT_AVAILABLE '+JSON.stringify({privateExecutionApi:false}));
+  return false;
+ }
+ try{
+  const response=await fetch('https://script.googleapis.com/v1/scripts/'+
+    encodeURIComponent(deployment.deploymentId)+':run',{
+    method:'POST',headers,body:JSON.stringify({function:'qa1243AuthorizeServices',devMode:false}),
+    redirect:'error',signal:AbortSignal.timeout(30000)
+   });
+  const raw=await response.text();let value=null;try{value=JSON.parse(raw)}catch{}
+  const success=response.ok&&!value?.error&&value?.response?.result==='QA1243_AUTH_SCOPE_CHECK_ONLY';
+  // Do not log the response body: error payloads can accidentally include user data.
+  console.log('QA1243_OWNER_EXEC_API_SCOPE_DIAGNOSTIC '+JSON.stringify({
+   http:response.status,privateOwnerEntry:true,functionName:'qa1243AuthorizeServices',
+   recognizedScopeCheck:success,errorType:String(value?.error?.status||'NONE').slice(0,55)
+  }));
+  return success;
+ }catch{
+  console.log('QA1243_OWNER_EXEC_API_SCOPE_DIAGNOSTIC '+JSON.stringify({networkError:true}));
+  return false;
+ }
+}
+async function recheckWrongSecretWithoutWriting(url){
+ try{
+  const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({secret:'QA1243_NOT_A_VALID_SECRET_PROBE'}),
+   redirect:'follow',signal:AbortSignal.timeout(25000)});
+  const raw=await res.text();let payload=null;try{payload=JSON.parse(raw)}catch{}
+  const healthy=res.ok&&payload?.ok===false&&payload?.error==='UNAUTHORIZED';
+  console.log('QA1243_AFTER_OWNER_API_PREFLIGHT '+JSON.stringify({
+   http:res.status,wrongSecretRejected:healthy,returnedJson:payload!==null}));
+  return healthy;
+ }catch{return false;}
+}
 async function waitForExecutableQaWebapp(url){
  const attempts=12;let last=null;let consecutive403=0;
  for(let n=1;n<=attempts;n++){
@@ -140,6 +188,10 @@ async function waitForExecutableQaWebapp(url){
     const publication=await probeReadonlyPublication(url);
     if(publication.getOnlyReached)
       throw new Error('QA1243_GAS_POST_ROUTE_OR_METHOD_403');
+    // Attempt owner-only read-only execution, then exactly one wrong-secret
+    // recheck. A successful scripts.run alone never permits payroll writes.
+    if(await attemptOwnerScopeProbe() && await recheckWrongSecretWithoutWriting(url))
+      return;
     throw new Error('QA1243_GAS_AUTH_OR_PUBLICATION_POLICY_403');
    }
   }catch(error){

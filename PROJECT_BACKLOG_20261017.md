@@ -381,3 +381,11 @@
 - **이전 이어받은 실제 개발 배포 완료:** [PR #1281](https://github.com/koith/attendance-proto/pull/1281) 병합 `56d4752ff440d6cb0650630c015e09eb8ea39a87` (QA GAS 403 GET/POST 분리; 실 GAS 재검증 [#39516040734](https://github.com/koith/attendance-proto/actions/runs/39516040734)은 GET+POST 모두 403 HTML → FAIL), [PR #1282](https://github.com/koith/attendance-proto/pull/1282) 병합 `864383ceeefa5ec9596886804efeb77505180685` (MTG-06/QA-07 서버 대사 비정상행/중복 pair 방어, PR 50/50 CI), [P0 Pages #39516799837](https://github.com/koith/attendance-proto/actions/runs/39516799837) SUCCESS 및 지점 개통 전체 QA [#39516799795](https://github.com/koith/attendance-proto/actions/runs/39516799795) SUCCESS. **운영 v0.353 유지**.
 - **본 대화 신규 운영 읽기 전용 보호 기준선:** Supabase HQ3, INHA 직원10, 지점244, QA1243 운영 테스트 지점0, 대표 연결0, 보조 연결0, 급여 스냅샷0; attendance/franchise-ops ACTIVE_HEALTHY. 시트 전체 셀 바이트 불변은 확인되지 않아 **그렇게 주장하지 않음**.
 - **미확인·외부 차단:** Hosted Google QA script 실제 /exec GET+POST HTTP403, 운영 Hosted Auth SMTP 테스트 수신·실제 관리자 계정 세션 회수·본사 데이터 사후 무변경 전체 증명 불충분. 운영 계정·지점 작업 승인 미부여. 개통 사전 **NO_GO** 유지하며 최종 PASS는 외부 실증 완료 후만. 정본 **전체 38건/완료19/잔여19** 유지.
+
+
+## 48. 2026-10-21 #1243 Google 403 다중 경로 대체 진단 — 운영 무쓰기(부분 작업)
+
+- 이전 [PR #1281](https://github.com/koith/attendance-proto/pull/1281) GET/POST 403 동시 확인 결과를 기반으로, [PR #1287](https://github.com/koith/attendance-proto/pull/1287)에서 **Google Apps Script API `scripts.run` 소유자 전용 읽기 전용 권한 probe**를 추가. 운영 `appsscript.json` 및 `apps_script.gs`는 변경하지 않으며 **기존 QA 전용 script의 복사 배포 manifest**에 한해서 `executionApi.access = MYSELF`를 설정해 다른 익명 클라이언트에 API 실행을 개방하지 않음.
+- 실제 익명 /exec POST 403 HTML 3회 + 읽기 전용 GET 403 HTML 발생 후, 이미 연결된 Google OAuth로 오직 `qa1243AuthorizeServices`(Drive/Sheets/Properties 존재 여부 읽기, 쓰기 없음)를 `scripts.run` 단 한 번 호출. 결과는 HTTP 상태/안전한 오류 유형만 기록. 성공한 것처럼 오인하지 않기 위해 **잘못된 secret POST가 JSON `UNAUTHORIZED`를 반환할 때만** 기존 Edge→QA GAS→QA Sheets 경로 진행 가능.
+- Google 공식 문서상 API 실행은 **공통 표준 Cloud 프로젝트·전체 스크립트 scope를 가진 OAuth**가 필요하며, `scripts.run` 403도 기능 불가능 증거가 아니라 별도 경로 제한을 뜻한다. 실제 자동 승인/웹앱 403 해소는 trusted main E2E 실행 전 **UNVERIFIED**.
+- PR QA 성공과 운영 HTTP 성공을 구분. 사전 금요일 개통 게이트는 `NO_GO`이고 **QA-05 [ ]** 및 38/19/19 유지. 운영 데이터 무단 변경 금지.

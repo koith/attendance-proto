@@ -93,4 +93,10 @@ const getContext={_json:v=>v};
 vm.runInNewContext(getBody+'\nthis.__get=doGet;',getContext);
 assert.equal(getContext.__get().probe,'QA1243_PUBLICATION_GET_ONLY');
 assert.equal(getContext.__get().ok,true);
+// The owner-only helper has no mutable Sheet or account operation.
+const scopeBegin=qa.indexOf('function qa1243AuthorizeServices(){');
+assert.ok(scopeBegin>0);
+const scopeBody=qa.slice(scopeBegin,qa.indexOf('\n',scopeBegin)+1);
+assert.match(scopeBody,/QA1243_AUTH_SCOPE_CHECK_ONLY/);
+assert.doesNotMatch(scopeBody,/\.create\(|\.insert|\.delete|\.update|\.clear|\.setProperty|\.setValue|\.setName|\.moveTo|\.append/);
 console.log('PASS #1243 QA-only GAS map guard: foreign operating workbook, foreign QA workbook, legitimate reuse, fresh create, invalid store writes blocked before lock; operating script untouched');
