@@ -289,7 +289,6 @@ window.mountHqOwnerConsole=async function(box){
  body.querySelector("#hqOwnerFilter").onchange=e=>{filter=e.target.value;render()};
  body.querySelector("#hqOwnerSearch").oninput=e=>{search=e.target.value;const pos=e.target.selectionStart;render();const input=body.querySelector("#hqOwnerSearch");input.focus();input.setSelectionRange(pos,pos)};
  body.querySelectorAll("[data-store]").forEach(b=>b.onclick=()=>{chose(b.dataset.store)});
- if(!store)return;
  body.querySelector("#hqNewStoreForm")?.addEventListener("submit",event=>{
    event.preventDefault();
    if(busy)return;
@@ -312,6 +311,7 @@ window.mountHqOwnerConsole=async function(box){
      notice={title:"신규 지점 등록 완료",message:name+" ("+code+") · 준비 중(STAGED). 대표 관리자 초대와 지점 실재 확인 후 운영 활성화하세요."};
    });
  });
+ if(!store)return;
  body.querySelectorAll("[data-manager-tab]").forEach(button=>button.onclick=()=>{
    activeTab=button.dataset.managerTab;notice=null;render();
  });
