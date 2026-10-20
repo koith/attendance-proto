@@ -33,6 +33,9 @@ CREATE TABLE public.qa1243_recipe_overrides(
  store_id bigint NOT NULL REFERENCES public.stores(id),menu_key text NOT NULL,
  instructions text NOT NULL,PRIMARY KEY(store_id,menu_key)
 );
+-- The upstream invitation fixture intentionally has no INHA row; seed only in isolated QA.
+INSERT INTO public.stores(id,name,onboarding_status,is_active,qa_cleanup_marker)
+ VALUES(1,'Protected synthetic INHA','READY',true,NULL);
 INSERT INTO public.qa1243_employees(id,store_id,name)
  SELECT 100+i,1,'Protected synthetic INHA staff '||i FROM generate_series(1,10)i;
 INSERT INTO public.qa1243_recipe_overrides VALUES (1,'AMERICANO','protected-original');
