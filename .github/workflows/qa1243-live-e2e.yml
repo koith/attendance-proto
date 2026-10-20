@@ -39,13 +39,22 @@ jobs:
         with:
           script: |
             const contextName='edge/server-sync-sheet-deploy';
+            // A docs/test-only follow-up SHA does not redeploy Edge. Resolve
+            // the most recent ancestor commit that changed the native Edge
+            // source and require its official production receipt to succeed.
+            const {data:edgeCommits}=await github.rest.repos.listCommits({
+              ...context.repo,sha:context.sha,path:'edge-release/supabase/functions/server-sync-sheet/index.ts',per_page:1
+            });
+            const edgeSha=edgeCommits[0]?.sha;
+            if(!edgeSha)throw new Error('Could not resolve deployed Edge source ancestor');
             for(let attempt=0;attempt<35;attempt++){
               const {data}=await github.rest.repos.listCommitStatusesForRef({
-                ...context.repo,ref:context.sha,per_page:100
+                ...context.repo,ref:edgeSha,per_page:100
               });
               const receipt=data.find(x=>x.context===contextName);
               if(receipt?.state==='success'){
-                core.info('PASS official Edge deployment attested at exact SHA '+context.sha);
+                core.info('PASS official Edge deployment attested at source SHA '+edgeSha+
+                  ' (workflow SHA '+context.sha+')');
                 return;
               }
               if(receipt?.state==='failure'||receipt?.state==='error'){
