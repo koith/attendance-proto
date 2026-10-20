@@ -25,7 +25,8 @@ const checks=[
 ];
 for(const [name,pattern] of checks)assert.match(sql,pattern,name);
 assert.match(edge,/mode==="invite_store_manager"/);
-assert.match(edge,/client\.auth\.admin\.inviteUserByEmail\(email,\{redirectTo:/);
+assert.match(edge,/client\.auth\.admin\.inviteUserByEmail\(email,\{redirectTo\}/);
+assert.match(edge,/client\.rpc\("service_store_invitation_dispatch_preflight"/);
 assert.match(edge,/client\.rpc\(isAssistant\?"service_hq_store_assistant_attach_invited_user":"service_store_manager_attach_invited_user"/);
 assert.match(edge,/actor\.adminRole!=="HQ"/);
 assert.match(ui,/hq_stores_onboarding_list/);
