@@ -1,0 +1,38 @@
+name: QA1243 live hosted Auth and SMTP config read-only audit
+on:
+  pull_request:
+    paths:
+      - 'scripts/qa1243_readonly_auth_config.mjs'
+      - 'qa1243_approved_sheet_route_guard.mjs'
+      - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
+      - '.github/workflows/qa1243-operational-readonly.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/qa1243_readonly_auth_config.mjs'
+      - 'qa1243_approved_sheet_route_guard.mjs'
+      - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
+      - '.github/workflows/qa1243-operational-readonly.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit-hosted-auth-smtp:
+    name: Live read-only Supabase Auth/SMTP config
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Audit code syntax (GET only; no account mutations)
+        run: |
+          node --check scripts/qa1243_readonly_auth_config.mjs
+          node -e "const fs=require('fs');const s=fs.readFileSync('scripts/qa1243_readonly_auth_config.mjs','utf8');if(/method:\s*['\"](?:POST|PATCH|PUT|DELETE)['\"]/.test(s))process.exit(1);console.log('PASS read-only verbs only')"
+      - name: Check explicitly approved QA route and production write isolation (static harness)
+        run: node qa1243_approved_sheet_route_guard.mjs
+      - name: Request hosted Auth and SMTP configuration using GET only
+        run: node scripts/qa1243_readonly_auth_config.mjs

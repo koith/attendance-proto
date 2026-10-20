@@ -66,6 +66,23 @@ async function authenticate(req,mode){
   return {internal:false,userId:data.user.id,adminRole:admin.data.admin_role,storeId:admin.data.store_id};
 }
 class HttpError extends Error{constructor(status,message){super(message);this.status=status}}
+// QA #1243: production sheet routing is strictly store 1 until an owner approves
+// an isolated real QA branch in writing and provisions all dedicated secrets.
+// Missing/mismatched settings MUST NOT fall back to the operating web app.
+function approvedQaSheetRoute(storeId,store){
+  if(!Number.isSafeInteger(storeId)||storeId<=1||
+     String(Deno.env.get("QA1243_APPROVED_STORE_ID")||"")!==String(storeId)||
+     String(store?.code||"")!==`QA1243_${storeId}`||
+     !String(store?.name||"").startsWith("[QA #1243]"))return null;
+  const url=Deno.env.get("QA1243_SHEET_WEBAPP_URL")||"";
+  const secret=Deno.env.get("QA1243_SHEET_SHARED_SECRET")||"";
+  const operatingUrl=Deno.env.get("SHEET_WEBAPP_URL")||"";
+  const operatingSecret=Deno.env.get("SHEET_SHARED_SECRET")||"";
+  if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(url)||
+     !operatingUrl||url===operatingUrl||
+     secret.length<64||secret===operatingSecret)return null;
+  return {url,secret,storeKey:`QA1243_${storeId}`};
+}
 async function sourceFor(ym,storeId){
   const {data,error}=await client.rpc("sheet_server_payroll_source",{p_store_id:storeId,p_ym:ym});
   if(error||!data)throw new Error("SERVER_PAYROLL_SOURCE_FAILED: "+(error?.code||"NO_DATA"));
@@ -225,12 +242,15 @@ async function buildReport(ym,storeId){
   const closedPayroll=snapshotRows(snapshots,ym);
   return {source:data,report,workingAttendance,closed:!!closedPayroll,closedPayroll};
 }
-async function googleWrite(ym,payload,closed,closedPayroll,workingAttendance){
-  const url=Deno.env.get("SHEET_WEBAPP_URL"),secret=Deno.env.get("SHEET_SHARED_SECRET");
+async function googleWrite(ym,payload,closed,closedPayroll,workingAttendance,storeId=1,qaRoute=null){
+  // QA store may NEVER share the operating Apps Script URL, credentials or workbook key.
+  if(storeId!==1&&!qaRoute)throw new HttpError(403,"QA_SHEET_ROUTE_NOT_APPROVED");
+  const url=qaRoute?.url||Deno.env.get("SHEET_WEBAPP_URL");
+  const secret=qaRoute?.secret||Deno.env.get("SHEET_SHARED_SECRET");
   if(!url||!/^https:\/\/script\.google\.com\//.test(url)||!secret)throw new Error("SHEET_APP_NOT_CONFIGURED");
   const body={
     secret,ym,synced_at:seoulStamp(),status_label:closed?"마감완료":"예상 · 미마감",
-    store_key:String(payload.store_key||"1"),store_name:String(payload.store_name||"인하대학교점"),
+    store_key:qaRoute?.storeKey||String(payload.store_key||"1"),store_name:String(payload.store_name||"인하대학교점"),
     drive_structure:{root_folder_name:"백억커피",store_folder_name:String(payload.store_name||"인하대학교점"),create_missing_folders:true,one_spreadsheet_per_store:true,separate_by_store:true},
     sheet_format:{auto_resize_columns:true,resize_scope:"all_used_columns_after_write",width_source:"measured_display_text",recalculate_on_every_sync:true,human_readable_report:true,hide_empty_sections:true,freeze_header_rows:true,duration_format:"HH:MM"},
     attendance:workingAttendance||payload.attendance,sessions:payload.sessions,payroll:closed?(closedPayroll||payload.payroll):payload.payroll
@@ -259,7 +279,7 @@ async function finish(storeId,ym,fingerprint,token,ok,message){
   const {data,error}=await client.rpc("sheet_autosync_finish",{p_store_id:storeId,p_ym:ym,p_fingerprint:fingerprint,p_claim:token,p_ok:ok,p_error:message||null});
   if(error||data!==true)throw new Error("SHEET_FINISH_FAILED: "+(error?.code||"CLAIM_STALE"));
 }
-async function writeClaimed(ym,storeId,prepared,release,force=false){
+async function writeClaimed(ym,storeId,prepared,release,force=false,qaRoute=null){
   const fingerprint=await hash(JSON.stringify({release,ym,report:prepared.report,closed:prepared.closed,closedPayroll:prepared.closedPayroll}));
   const lease=await claim(storeId,ym,fingerprint,force);
   if(!lease){
@@ -267,7 +287,7 @@ async function writeClaimed(ym,storeId,prepared,release,force=false){
     return {ok:true,ym,skipped:true};
   }
   try{
-    const result=await googleWrite(ym,prepared.report,prepared.closed,prepared.closedPayroll,prepared.workingAttendance);
+    const result=await googleWrite(ym,prepared.report,prepared.closed,prepared.closedPayroll,prepared.workingAttendance,storeId,qaRoute);
     await finish(storeId,ym,fingerprint,lease,true,null);
     return {ok:true,ym,written:true,result};
   }catch(error){
@@ -422,10 +442,11 @@ Deno.serve(async req=>{
     if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(ym))throw new HttpError(400,"BAD_YM");
     if(!Number.isSafeInteger(storeId)||storeId<=0)throw new HttpError(400,"INVALID_STORE");
     const {data:store,error:storeError}=await client.from("stores")
-      .select("id,name,is_active,onboarding_status").eq("id",storeId).maybeSingle();
+      .select("id,name,code,is_active,onboarding_status").eq("id",storeId).maybeSingle();
     if(storeError||!store||!store.is_active||store.onboarding_status!=="READY")
       throw new HttpError(403,"STORE_NOT_ONBOARDED");
-    if(["sync","parity"].includes(mode)&&storeId!==1)
+    const qaRoute=storeId===1?null:approvedQaSheetRoute(storeId,store);
+    if(["sync","parity"].includes(mode)&&storeId!==1&&!qaRoute)
       throw new HttpError(403,"STORE_SHEET_SYNC_NOT_CONFIGURED");
     if(!actor.internal && actor.adminRole!=="HQ" && !(actor.adminRole==="STORE_MANAGER"&&Number(actor.storeId)===storeId))
       throw new HttpError(403,"STORE_NOT_AUTHORIZED");
@@ -532,7 +553,7 @@ Deno.serve(async req=>{
     // Reject changes to existing manual projection until parity is proven.
     if(parity&&(!parity.payroll_identical||!parity.attendance_identical))
       throw new HttpError(409,"SERVER_CLIENT_PARITY_MISMATCH");
-    const result=await writeClaimed(ym,storeId,prepared,release,true);
+    const result=await writeClaimed(ym,storeId,prepared,release,true,qaRoute);
     return reply({...result,parity});
   }catch(error){
     const status=error instanceof HttpError?error.status:502;
