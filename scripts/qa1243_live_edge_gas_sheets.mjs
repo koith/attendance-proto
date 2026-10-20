@@ -5,6 +5,7 @@
 import {readFileSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
 import assert from 'node:assert/strict';
+import {buildQa1243GAS} from './qa1243_build_isolated_gas.mjs';
 
 const projectRef='waluhdgqhwjjwmflhrle';
 const audience=`https://${projectRef}.supabase.co/functions/v1/server-sync-sheet`;
@@ -61,31 +62,7 @@ if(knownQaProject){
  console.log('QA1243_GAS_PROJECT_CREATED '+JSON.stringify({scriptId,scope:'new standalone project only'}));
 }
 assert.match(scriptId,/^[A-Za-z0-9_-]{15,}$/);
-let gs=readFileSync('apps_script.gs','utf8');
-assert.ok(gs.includes("var SHARED_SECRET = 'REPLACE_WITH_LONG_RANDOM_SECRET';"));
-gs=gs.replace("var SHARED_SECRET = 'REPLACE_WITH_LONG_RANDOM_SECRET';",
- "var SHARED_SECRET = '"+secret+"';");
-// In the QA-only uploaded copy, force visible QA and store markers in every
-// new/renamed workbook title. Never create a test workbook named exactly like
-// the real operating "2026 근태", even though the IDs are isolated.
-const originalCreate="ss = SpreadsheetApp.create(year + ' 근태');";
-const originalRename="if(ss.getName() !== year + ' 근태') DriveApp.getFileById(ss.getId()).setName(year + ' 근태');";
-assert.equal(gs.split(originalCreate).length,2,'Expected canonical annualBook create');
-assert.equal(gs.split(originalRename).length,2,'Expected canonical annualBook rename');
-gs=gs.replace(originalCreate,"ss = SpreadsheetApp.create('QA1243 ' + storeKey + ' ' + year + ' 근태');");
-gs=gs.replace(originalRename,
- "if(ss.getName() !== 'QA1243 ' + storeKey + ' ' + year + ' 근태') "+
- "DriveApp.getFileById(ss.getId()).setName('QA1243 ' + storeKey + ' ' + year + ' 근태');");
-assert.ok(!gs.includes(originalCreate)&&!gs.includes(originalRename));
-// Intentionally read-only. An owner can select this function and Run once in
-// the isolated project's editor to grant Apps Script service scopes. The QA
-// function is NOT present in the operating script and creates no workbook.
-gs+='\nfunction qa1243AuthorizeServices(){'+
-  'SpreadsheetApp.getActiveSpreadsheet();'+
-  'DriveApp.getRootFolder().getName();'+
-  'PropertiesService.getScriptProperties().getKeys();'+
-  'LockService.getScriptLock();'+
-  'return "QA1243_AUTH_SCOPE_CHECK_ONLY";}\n';
+const gs=buildQa1243GAS(readFileSync('apps_script.gs','utf8'),secret);
 const manifest=readFileSync('appsscript.json','utf8');
 await jsonRequest(api+'/'+scriptId+'/content',{method:'PUT',headers,body:JSON.stringify({files:[
  {name:'Code',type:'SERVER_JS',source:gs},{name:'appsscript',type:'JSON',source:manifest}
