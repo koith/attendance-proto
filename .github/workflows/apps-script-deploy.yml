@@ -96,9 +96,11 @@ jobs:
             // A one-minute background Sheet sync can own the lease when deployment starts.
             // Retry only that transient conflict; never silently accept failed writes.
             const audience = 'https://waluhdgqhwjjwmflhrle.supabase.co/functions/v1/server-sync-sheet';
-            const token = await core.getIDToken(audience);
             let result, response;
             for (let attempt = 1; attempt <= 8; attempt++) {
+              // Lease contention and Apps Script response retries can outlive a
+              // short-lived GitHub OIDC JWT. Mint identity for EACH request.
+              const token = await core.getIDToken(audience);
               response = await fetch(audience, {
                 method: 'POST',
                 headers: {'Content-Type':'application/json', Authorization:'Bearer ' + token},
@@ -110,9 +112,12 @@ jobs:
                 core.info('Sheet refreshed after deployment: ' + result.ym + ' (' + result.spreadsheet_id + ')');
                 break;
               }
-              if (response.status !== 409 || result.error !== 'SHEET_SYNC_BUSY' || attempt === 8) {
+              const transient = (response.status === 409 && result?.error === 'SHEET_SYNC_BUSY') ||
+                (response.status === 502 && result?.error === 'SHEET_NON_JSON_RESPONSE');
+              if (!transient || attempt === 8) {
                 throw new Error('Deployment Sheet write unconfirmed: ' + JSON.stringify(result));
               }
-              core.warning('Concurrent Sheet sync lease; retry ' + attempt + '/8 in 15 seconds');
-              await new Promise(resolve => setTimeout(resolve, 15000));
+              const delay = result?.error === 'SHEET_SYNC_BUSY' ? 15000 : 30000;
+              core.warning('Transient Sheet sync ' + result?.error + '; retry ' + attempt + '/8 in ' + delay / 1000 + 's');
+              await new Promise(resolve => setTimeout(resolve, delay));
             }
