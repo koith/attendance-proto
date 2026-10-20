@@ -4,6 +4,7 @@ on:
     paths:
       - 'supabase/migrations/20261020121000_invitation_dispatch_activation_preflight_1243.sql'
       - 'qa_invitation_preflight_1243.sql'
+      - 'qa_invitation_edge_dispatch_1243.mjs'
       - '.github/workflows/invitation-preflight-1243.yml'
   push:
     branches: [main]
@@ -39,6 +40,11 @@ jobs:
       PGPASSWORD: synthetic_only
       PGDATABASE: invitation_qa
     steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Real Edge dispatch helper checks with synthetic Auth and mailbox
+        run: node qa_invitation_edge_dispatch_1243.mjs
       - uses: actions/checkout@v4
       - name: Run real SQL functions with 100% disposable Auth/branch fixtures
         run: |
