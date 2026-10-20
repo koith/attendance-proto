@@ -88,10 +88,10 @@ DO $qa$ DECLARE r jsonb;BEGIN
  IF r->>'intended_role'<>'OWNER' OR r->>'store_id'<>'703'
  THEN RAISE EXCEPTION 'PENDING_OWNER_PRECHECK_FAILED: %',r; END IF;
 END $qa$;
-UPDATE public.store_primary_owner_invitation_intents SET expires_at=now()-interval '1 second' WHERE store_id=703;
+UPDATE public.store_primary_owner_invitation_intents SET created_at=now()-interval '2 days',expires_at=now()-interval '1 day' WHERE store_id=703;
 SELECT public.qa_preflight_reject(
  'SELECT public.store_invitation_activation_preflight()','OWNER_INVITATION_EXPIRED');
-UPDATE public.store_primary_owner_invitation_intents SET expires_at=now()+interval '1 day' WHERE store_id=703;
+UPDATE public.store_primary_owner_invitation_intents SET created_at=now(),expires_at=now()+interval '1 day' WHERE store_id=703;
 -- This is cancellation of a disposable synthetic invitation only.
 DELETE FROM public.admin_users WHERE user_id='00000000-0000-4000-8000-000000000006';
 SELECT public.qa_preflight_reject(
