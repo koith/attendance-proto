@@ -119,6 +119,11 @@ async function activate(u,{password='SyntheticPassword-123!',confirm=password,
    record.confirmed=true;record.password=JSON.parse(route.request().postData()).password;
    return reply({id:'mock-'+record.store});
   }
+  if(fn==='store_invitation_activation_preflight'){
+   if(record.revoked)return reply({message:'INVITATION_CANCELLED_OR_NOT_FOUND'},403);
+   if(record.expired)return reply({message:'OWNER_INVITATION_EXPIRED'},409);
+   return reply({ok:true,store_id:record.store,intended_role:record.role});
+  }
   if(fn==='store_primary_owner_accept_invitation'){
    if(fail)return reply({message:'SYNTHETIC_ACCEPT_FAILURE'},409);
    if(!record.confirmed)return reply({message:'NOT_CONFIRMED'},403);
@@ -139,6 +144,9 @@ async function activate(u,{password='SyntheticPassword-123!',confirm=password,
  else await page.locator('#confirm').click();
  if(success){
   await page.waitForURL(new RegExp('/index[.]html[?]mode=store&store='+u.store+'#pos'),{timeout:8000});
+  ok(calls.indexOf('store_invitation_activation_preflight')>=0&&
+    calls.indexOf('store_invitation_activation_preflight')<calls.indexOf('user'),
+    'Preflight must validate current authorization before password PUT');
   ok(calls.indexOf('user')>=0&&calls.indexOf('user')<calls.indexOf('store_primary_owner_accept_invitation'),
     'Password PUT must precede accept RPC');
   ok(calls.includes('admin_context'),'Activated account requires role check');
@@ -209,6 +217,13 @@ try{
  await activate(invalid,{password:'short',success:false}); // Native HTML validity
  await activate(invalid,{password:'short',forceSubmit:true,success:false}); // JS handler security
  await activate(reject,{fail:true,success:false});
+ const revoked=invite('OWNER',701,'cancelled');revoked.revoked=true;
+ await activate(revoked,{success:false,expectedError:'INVITATION_CANCELLED_OR_NOT_FOUND'});
+ ok(!revoked.password,'Cancelled invitation cannot update password even with an Auth token');
+ const expired=invite('OWNER',701,'expired');expired.expired=true;
+ await activate(expired,{success:false,expectedError:'OWNER_INVITATION_EXPIRED'});
+ ok(!expired.password,'Expired invitation cannot update password');
+ 
  await recipes();
  console.log('PASS #1000 sandbox browser: invite/accept/password/owner/assistant/error/recipe edit/reset/guest read-only; assertions='+checks);
 }catch(error){
