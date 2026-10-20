@@ -3,11 +3,15 @@ on:
   pull_request:
     paths:
       - 'scripts/qa1243_readonly_auth_config.mjs'
+      - 'qa1243_approved_sheet_route_guard.mjs'
+      - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
       - '.github/workflows/qa1243-operational-readonly.yml'
   push:
     branches: [main]
     paths:
       - 'scripts/qa1243_readonly_auth_config.mjs'
+      - 'qa1243_approved_sheet_route_guard.mjs'
+      - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
       - '.github/workflows/qa1243-operational-readonly.yml'
   workflow_dispatch:
 permissions:
@@ -28,5 +32,7 @@ jobs:
         run: |
           node --check scripts/qa1243_readonly_auth_config.mjs
           node -e "const fs=require('fs');const s=fs.readFileSync('scripts/qa1243_readonly_auth_config.mjs','utf8');if(/method:\s*['\"](?:POST|PATCH|PUT|DELETE)['\"]/.test(s))process.exit(1);console.log('PASS read-only verbs only')"
+      - name: Check explicitly approved QA route and production write isolation (static harness)
+        run: node qa1243_approved_sheet_route_guard.mjs
       - name: Request hosted Auth and SMTP configuration using GET only
         run: node scripts/qa1243_readonly_auth_config.mjs
