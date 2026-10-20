@@ -48,6 +48,17 @@ assert.match(script,/buildQa1243GAS\(readFileSync\('apps_script\.gs','utf8'\),se
 assert.match(script,/QA1243_GAS_AUTH_OR_PUBLICATION_POLICY_403/);
 assert.match(generator,/QA1243_PUBLICATION_GET_ONLY/);
 assert.match(script,/probeReadonlyPublication\(url\)/);
+assert.match(script,/qaManifest\.executionApi=\{access:'MYSELF'\}/);
+assert.match(script,/const apiEntry=detail\.entryPoints\?\.find/);
+assert.match(script,/entryPointType==='EXECUTION_API'/);
+assert.match(script,/function:'qa1243AuthorizeServices',devMode:false/);
+assert.match(script,/QA1243_OWNER_EXEC_API_SCOPE_DIAGNOSTIC/);
+assert.match(script,/QA1243_AFTER_OWNER_API_PREFLIGHT/);
+assert.match(script,/await attemptOwnerScopeProbe\(\) && await recheckWrongSecretWithoutWriting\(url\)/);
+assert.ok(script.indexOf("if(await attemptOwnerScopeProbe()")<script.indexOf('const oidcUrl='),
+ 'No production Edge request before isolated private scripts.run and wrong-secret recheck');
+assert.doesNotMatch(script,/qaManifest\.executionApi=\{access:'ANYONE/);
+
 assert.match(script,/method:'GET'/);
 assert.match(script,/QA1243_GAS_READONLY_GET_DIAGNOSTIC/);
 assert.match(script,/QA1243_GAS_POST_ROUTE_OR_METHOD_403/);
