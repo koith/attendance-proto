@@ -25,6 +25,9 @@ on:
       - 'qa_store_opening_mutation_proof_v1.mjs'
       - 'owner_activation.*'
       - 'qa_invitation_preflight_1243.sql'
+      - 'qa_hq_existing_account_reconnect_1243.sql'
+      - 'qa_invitation_edge_dispatch_1243.mjs'
+      - 'qa_store_opening_lifecycle_1243.sql'
       - 'recipe_access_v220.js'
       - 'store_manager_tab.js'
       - 'hq_store_onboarding_ui.js'
@@ -90,6 +93,8 @@ jobs:
           node-version: '22'
       - name: Run every isolated store-opening contract lane
         run: node qa_store_opening_matrix_v1.mjs
+      - name: Validate actual Edge invite dispatcher for new and recovery pathways
+        run: node qa_invitation_edge_dispatch_1243.mjs
       - name: Prove safe replenishment QA catches duplicate and cancelled purchase regressions
         run: node qa_store_opening_stock_mutation_proof_v1.mjs
       - name: Prove payroll/Sheet QA detects a deliberately injected TEST data leak
@@ -190,6 +195,9 @@ jobs:
           set -euo pipefail
           fixtures=(
             qa_hq_store_onboarding_postgres_integration.sql
+            qa_hq_existing_account_reconnect_1243.sql
+            qa_invitation_preflight_1243.sql
+            qa_store_opening_lifecycle_1243.sql
             qa_store_delegated_manager_postgres.sql
             qa_store_opening_owner_activation_postgres.sql
             qa_store_opening_recipe_postgres_v1.sql

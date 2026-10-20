@@ -301,3 +301,12 @@
 - **미반영 취약 경로:** `.github/workflows/apps-script-deploy.yml`에서도 Pages #1248과 동일하게 짧은 수명 GitHub OIDC bearer를 **최대 8회 시트 갱신 재시도에 재사용**했음. 409 `SHEET_SYNC_BUSY`만 재시도하고, 실제 GAS에서 관찰된 502 `SHEET_NON_JSON_RESPONSE`는 곧바로 실패함. #1248의 성공을 QA-05 전체 완료로 잘못 확대하지 않는다.
 - **이번 코드:** `fix/gas-deploy-oidc-renewal-1243` 브랜치에서 Apps Script 배포 후 시트 쓰기 증거 단계도 매 요청 새 `core.getIDToken` 발급, 409/502 **명확한 두 일시 장애만 제한 재시도**, 응답의 `written===true`/spreadsheet ID/열 자동 너비 확인 필수. 타 인증 오류 즉시 실패, 무한 재시도 금지. 합성 `qa_apps_script_sheet_oidc_v1.mjs`는 실제 workflow 스크립트 추출 후 실행하며 3/8회 다른 bearer와 403 즉시 거부 검증. 본사 계정·INHA 원본 DB/시트 필드·업무 로직 변경 없음. 
 - **분리:** 실제 GAS 배포·원본 Sheet 쓰기 결과는 PR/Actions의 후속 수신 결과에 따라 증거를 갱신한다. Google Sheets 독립 신규 점포의 실제 외부 E2E, Supabase Auth/SMTP 수신, 현장 기기 등은 계속 별도. 원장 **38중 완료 19, 미완료 19**, Issue #1243 열린 상태 유지.
+
+
+## 40. 2026-10-20 #1243 신규 지점 단일 격리 수명주기 + 안전 정리 E2E QA 증강
+
+- **사용자 원문 접수:** [Issue #1243 신규 지시 댓글](https://github.com/koith/attendance-proto/issues/1243#issuecomment-6282746825). #1252 배포 복구는 별도 완료, 재작업하지 않음.
+- **실행형 신규 시나리오:** `qa_store_opening_lifecycle_1243.sql`은 GitHub Actions의 **일회용 PostgreSQL 16 전용 DB**에서 기존 실제 invite/reconnect/activation PostgreSQL 마이그레이션을 실행한다. 별도 QA 신규 STAGED 지점 705/706 + 실제 SQL의 서비스 초대 사전심사/관리자 연결 + 새 계정 초대 모의 생성→이메일 확인·암호설정 모의→대표 승격 + 기존 인증 계정의 명시적 보조 관리자 재연결 + 권한·해임 후 오래된 토큰 차단 + 초대 취소/재발송, 만료·복구·재발송을 연속 검증한다. 추가로 합성 직원·근태·급여·시트 행·레시피의 지점 구분을 점검한다. **별도 실제 소스 엔진 시험**은 기존 50개 이상 JS 레인/일회용 PostgreSQL 마이그레이션에서 수행하며, 이 보조 투영 테스트 단독으로 실제 Sheets API 동작을 증명하지 않는다.
+- **격리 정리 시험:** 3 HQ/인하대 직원 10명/원본 레시피를 별도 가상 보호 fixture에 준비. 보호 지점 및 마커 불일치, READY 상태, 직원·지점관리자·초대 등 참조가 남은 상태의 정리 **거부**; 실제 synthetic QA-owned 행만 정밀하게 아카이브·검수 후 FK 순서대로 제거하고 잔여 참조 0/보호 fixture 불변 검사. 범용 운영 지점 삭제 함수는 설치하지 않는다. 일회용 DB 자체도 CI에서 DROP한다.
+- **CI 연계:** `.github/workflows/store-opening-full-journey.yml`에 신규 수명주기 SQL + 기존 계정 재연결·초대 사전심사 SQL을 각각 독립 DB에서 실행, 실제 Edge 초대 dispatcher의 격리 모의 네트워크 검사 추가. 워크플로 결과·PR·운영 배포 증거는 실행 후 Issue #1243에 별도 기록한다. 앱 코드 미변경: `v0.353` 유지.
+- **검증 경계:** 실제 GoTrue 신규 Auth user 생성·SMTP 송수신·수신함 클릭·실사용자 로그인과 세션, 격리 테스트 Sheet를 대상으로 한 전체 Edge→Apps Script→Google API 실제 왕복, 매장 POS 실기기 모두 이 SQL/Chromium 자동 QA가 대체하지 못한다. Supabase 독립 개발 브랜치 생성은 **비용 확인 및 사용자 승인 요청** 응답으로 생성되지 않음. 실제 운영 지점·HQ 관리자·인하대 원본에 테스트 DML 없음. **QA-04/QA-05/AUTH-01/FIELD-01/#1243는 부분 개발/외부 검증대기 [ ] 그대로**.
