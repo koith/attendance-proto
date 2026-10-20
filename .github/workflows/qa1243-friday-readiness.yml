@@ -1,0 +1,58 @@
+name: QA1243 Friday opening hard readiness gate
+on:
+  pull_request:
+    paths:
+      - 'scripts/qa1243_friday_preflight.mjs'
+      - 'scripts/qa1243_friday_preflight.test.mjs'
+      - '.github/workflows/qa1243-friday-readiness.yml'
+      - 'PROJECT_BACKLOG_20261017.md'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/qa1243_friday_preflight.mjs'
+      - 'scripts/qa1243_friday_preflight.test.mjs'
+      - '.github/workflows/qa1243-friday-readiness.yml'
+  workflow_run:
+    workflows:
+      - verified-pages-deployment-notification
+      - QA1243 isolated live production Edge GAS Sheets E2E
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  prelaunch-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate actual fail-closed evidence evaluator
+        run: |
+          node --check scripts/qa1243_friday_preflight.mjs
+          node --check scripts/qa1243_friday_preflight.test.mjs
+          node scripts/qa1243_friday_preflight.test.mjs
+      - name: Examine latest main CI evidence and determine Friday NO_GO or PASS
+        if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/qa1243_friday_preflight.mjs --live
+      - name: Preserve evidence even when opening is NO_GO
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa1243-friday-go-live-verdict
+          path: |
+            qa-results/friday-opening-readiness.json
+            qa-results/friday-opening-readiness.md
+          retention-days: 30
+          if-no-files-found: warn
+      - name: Explicit safety boundary
+        if: always()
+        run: |
+          echo 'No real store, owner identity, invitation, payroll, recipe, operating Google Sheet or production DB is written by this gate.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Unverified hosted mail/session or live GAS result is NO_GO. Friday actual owner email is validated only after explicit approval.' >> "$GITHUB_STEP_SUMMARY"
