@@ -56,9 +56,9 @@ const version=(await jsonRequest(api+'/'+scriptId+'/versions',{
  method:'POST',headers,body:JSON.stringify({description:'QA1243 isolated '+marker})
 })).value.versionNumber;
 const deployment=(await jsonRequest(api+'/'+scriptId+'/deployments',{
- method:'POST',headers,body:JSON.stringify({deploymentConfig:{
+ method:'POST',headers,body:JSON.stringify({
  scriptId,versionNumber:version,manifestFileName:'appsscript',description:'QA1243 standalone isolated test only'
- }})
+ })
 })).value;
 const detail=(await jsonRequest(api+'/'+scriptId+'/deployments/'+deployment.deploymentId,{headers})).value;
 const ep=detail.entryPoints?.find(e=>e.entryPointType==='WEB_APP')?.webApp;
