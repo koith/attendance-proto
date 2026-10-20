@@ -68,7 +68,7 @@ BEGIN
  END IF;
  RETURN jsonb_build_object('ok',true,'delivery',
    CASE WHEN v_confirmed THEN 'RECOVERY' ELSE 'INVITE' END,
-   'existing_auth_user',v_uid IS NOT NULL,'store_id',p_store_id);
+   'existing_auth_user',v_uid IS NOT NULL,'user_id',v_uid,'store_id',p_store_id);
 END $fn$;
 REVOKE ALL ON FUNCTION public.service_store_invitation_dispatch_preflight(bigint,text,uuid,text)
  FROM PUBLIC,anon,authenticated;
