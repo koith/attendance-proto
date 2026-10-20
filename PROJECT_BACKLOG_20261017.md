@@ -370,3 +370,11 @@
 - **추가 코드 개발:** [PR #1282](https://github.com/koith/attendance-proto/pull/1282) `operations_reconciliation_v1.js`에서 서버 대사 응답이 배열이지만 항목이 null/배열인 경우 기존에는 화면 렌더 단계에서 예외가 발생할 수 있었다. 실제 UI 진입 경계에서 유효하지 않은 레코드를 `RECONCILIATION_INVALID_RESPONSE`로 거부하고 버튼 복원·오류 알림을 보장. POS/배달 후보에 동일 transaction pair가 반복돼 점주에게 중복 의심 건수로 과대 표시될 위험도 `SUSPECTS_DUPLICATE_PAIR` 오류로 차단. 원천 데이터 삭제·중복 자동 차감은 하지 않음.
 - **추가 실행 테스트:** [변경 QA](https://github.com/koith/attendance-proto/blob/fix/mtg06-reconciliation-response-guard-20261021/qa_operations_reconciliation_store_race_v1.mjs) 실제 렌더 함수 VM 레인 9→12 시나리오: null 원천 오류 메시지+재시도 가능·중복 후보 fail-closed·정상 단일 후보 보존. PR CI/병합/운영 배포 판정은 Issue #1243 후속 댓글에서 별도 확인.
 - **외부 연동 경계:** 실제 POS·배민·쿠팡이츠 원천 취소/중복/정산 자료는 아직 검증되지 않았으므로 **MTG-06 및 QA-07 체크박스 [ ] 유지**. 운영 거래·근태·급여·시트 쓰기 없음. 원장 총 38건/완료19/잔여19 그대로.
+
+
+## 47. 2026-10-21 금요일 신규 지점 개통 P0 재분류
+
+- [개통 P0 게이트 및 금요일 실행 런북](P0_STORE_OPENING_20261023.md) 정본 부속 문서 추가. 10/22 목요일 업무 종료 전 사전 QA·배포 PASS/FAIL, 10/23 금요일 아침 실정보 제공·명시 승인 후 운영 개통.
+- 기존 19개 잔여 중 QA-04/05/06/07, AUTH-01, SEC-01, FIELD-01/02/03 및 지점 개통 필수 권한·직원·급여·시트·레시피 격리 작업을 P0 검증 게이트로 우선 배치. 비필수 MTG 확장 업무는 임시 후순위. **원장 38/완료19/잔여19 유지.**
+- 실제 [#39516040734](https://github.com/koith/attendance-proto/actions/runs/39516040734) QA 전용 GAS GET/POST 모두 403 HTML이므로 **개통 사전 PASS 불가**. QA 전용 소유자 권한 동의 및 재검증이 필요하나 미승인을 확정 원인으로 단정하지 않는다.
+- 운영 기준선 2026-10-21 읽기전용 SQL: HQ 3명/인하대점 직원 10명/지점 244개/QA1243 운영 지점 0개. 운영 지점·계정 생성/삭제/초대/권한변경은 금요일 명시 승인 전 금지.
