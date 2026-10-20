@@ -2,21 +2,80 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import vm from "node:vm";
 const source=readFileSync(new URL("./operations_reconciliation_v1.js",import.meta.url),"utf8");
-const makeDeferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
-async function check(phase){
- let store=1,first=makeDeferred(),second=makeDeferred(),alerts=[],added=[],disabled=false;
+const deferred=()=>{let resolve,reject;const promise=new Promise((ok,fail)=>{resolve=ok;reject=fail});return {promise,resolve,reject}};
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+function fixture(){
+ let store=1,from="2026-10-01",to="2026-10-19",issues=deferred(),suspects=deferred();
+ let issueCalls=0,suspectCalls=0,disabled=false;
+ const alerts=[],added=[];
  const trigger={get disabled(){return disabled},set disabled(v){disabled=v}};
- const document={getElementById(id){return id==="opsFrom"?{value:"2026-10-01"}:id==="opsTo"?{value:"2026-10-19"}:trigger},
- createElement(){return {className:"",innerHTML:"",querySelector(){return {onclick:null}},remove(){}}},body:{appendChild(x){added.push(x)}}};
- const BE={storeReconciliationIssues(){return first.promise},storeCrossSourceSuspects(){return second.promise}};
- const ctx={document,BE,alert:x=>alerts.push(x),get CURRENT_STORE_ID(){return store}};
+ const inputs={opsFrom:{get value(){return from}},opsTo:{get value(){return to}}};
+ const document={
+  getElementById(id){return id==="opsReconciliationOpen"?trigger:inputs[id]??null},
+  createElement(){return {className:"",innerHTML:"",querySelector(){return {onclick:null}},remove(){}}},
+  body:{appendChild(node){added.push(node)}}
+ };
+ const BE={
+  storeReconciliationIssues(){issueCalls++;return issues.promise},
+  storeCrossSourceSuspects(){suspectCalls++;return suspects.promise}
+ };
+ const ctx={document,BE,alert:value=>alerts.push(value),get CURRENT_STORE_ID(){return store}};
  ctx.window=ctx;
  vm.runInNewContext(source,ctx);
- const pending=ctx.openStoreOperationsReconciliation();
- if(phase==="issues"){store=2;first.resolve([]);await pending;}
- else {first.resolve([]);await new Promise(r=>setImmediate(r));store=2;second.resolve([]);await pending;}
- assert.equal(added.length,0,"stale store modal must not be mounted");
- assert.equal(alerts.length,0,"stale store must not trigger cross-store alerts");
+ return {ctx,issues,suspects,alerts,added,trigger,get disabled(){return disabled},
+  get issueCalls(){return issueCalls},get suspectCalls(){return suspectCalls},
+  setStore(value){store=value},setFrom(value){from=value},setTo(value){to=value}};
 }
-await check("issues");await check("suspects");
-console.log("MTG-06 cross-store reconciliation async race PASS (2 phases)");
+async function stale(stage,dimension){
+ const t=fixture(),pending=t.ctx.openStoreOperationsReconciliation();
+ assert.equal(t.disabled,true);
+ if(stage==="suspects"){t.issues.resolve([]);await tick();assert.equal(t.suspectCalls,1);}
+ if(dimension==="store")t.setStore(2);
+ if(dimension==="from")t.setFrom("2026-10-02");
+ if(dimension==="to")t.setTo("2026-10-20");
+ if(stage==="issues")t.issues.resolve([]);
+ else t.suspects.resolve([]);
+ await pending;
+ assert.equal(t.added.length,0,"stale "+dimension+" result cannot show modal");
+ assert.equal(t.alerts.length,0,"stale "+dimension+" cannot show an alert");
+ assert.equal(t.disabled,false,"same button must recover from stale lookup");
+}
+for(const stage of ["issues","suspects"])
+ for(const dimension of ["store","from","to"])await stale(stage,dimension);
+{
+ const t=fixture(),first=t.ctx.openStoreOperationsReconciliation();
+ await t.ctx.openStoreOperationsReconciliation();
+ assert.equal(t.issueCalls,1,"parallel issue lookup must be suppressed");
+ t.issues.resolve([]);
+ await tick();
+ assert.equal(t.disabled,true,"must remain locked throughout suspected-duplicate lookup");
+ assert.equal(t.suspectCalls,1);
+ await t.ctx.openStoreOperationsReconciliation();
+ assert.equal(t.issueCalls,1,"parallel lookup during phase two must be suppressed");
+ assert.equal(t.suspectCalls,1);
+ t.suspects.resolve([]);
+ await first;
+ assert.equal(t.added.length,1,"successful lookup should open exactly one modal");
+ assert.equal(t.disabled,false,"finished lookup must release button");
+}
+{
+ const t=fixture(),first=t.ctx.openStoreOperationsReconciliation();
+ t.issues.reject(new Error("TEST_SOURCE_FAILURE"));
+ await first;
+ assert.equal(t.disabled,false,"failed first request must release button");
+ assert.equal(t.alerts.length,1);
+ const retry=t.ctx.openStoreOperationsReconciliation();
+ await retry;
+ assert.equal(t.issueCalls,2,"user can retry after a failed lookup");
+}
+{
+ const t=fixture(),first=t.ctx.openStoreOperationsReconciliation();
+ t.issues.resolve([]);
+ await tick();
+ t.suspects.reject(new Error("TEST_SUSPECTS_FAILURE"));
+ await first;
+ assert.equal(t.disabled,false,"failed suspect lookup must release button");
+ assert.equal(t.added.length,1,"partial result must remain visible with failure context");
+ assert.match(t.added[0].innerHTML,/중복 의심 조회 실패/);
+}
+console.log("MTG-06 reconciliation context/locking/retry PASS (9 scenarios)");
