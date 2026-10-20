@@ -81,4 +81,16 @@ for(const bad of ['INHA','1','705','QA1243_SBX_BAD!',null]){
  assert.equal(res.error,'QA1243_STORE_KEY_REQUIRED',String(bad));
  assert.equal(locks,0,'Invalid store key must never access Drive or Sheet');
 }
+// Only the independent QA deployment gets the health probe. It must not
+// read secrets, acquire a lock or reach Drive/Sheets before returning JSON.
+const getStart=qa.indexOf('function doGet(){');
+const getEnd=qa.indexOf('\nfunction qa1243AuthorizeServices()',getStart);
+assert.ok(getStart>0&&getEnd>getStart,'Isolated generated writer needs GET');
+const getBody=qa.slice(getStart,getEnd);
+assert.match(getBody,/QA1243_PUBLICATION_GET_ONLY/);
+assert.doesNotMatch(getBody,/SpreadsheetApp|DriveApp|LockService|PropertiesService|SHARED_SECRET|_writeMonth|_annualBook/);
+const getContext={_json:v=>v};
+vm.runInNewContext(getBody+'\nthis.__get=doGet;',getContext);
+assert.equal(getContext.__get().probe,'QA1243_PUBLICATION_GET_ONLY');
+assert.equal(getContext.__get().ok,true);
 console.log('PASS #1243 QA-only GAS map guard: foreign operating workbook, foreign QA workbook, legitimate reuse, fresh create, invalid store writes blocked before lock; operating script untouched');

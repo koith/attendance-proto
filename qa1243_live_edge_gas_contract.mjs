@@ -46,6 +46,13 @@ assert.match(script,/QA1243 isolated Edge GAS 2026-10-20T/);
 assert.match(generator,/qa1243AuthorizeServices/);
 assert.match(script,/buildQa1243GAS\(readFileSync\('apps_script\.gs','utf8'\),secret\)/);
 assert.match(script,/QA1243_GAS_AUTH_OR_PUBLICATION_POLICY_403/);
+assert.match(generator,/QA1243_PUBLICATION_GET_ONLY/);
+assert.match(script,/probeReadonlyPublication\(url\)/);
+assert.match(script,/method:'GET'/);
+assert.match(script,/QA1243_GAS_READONLY_GET_DIAGNOSTIC/);
+assert.match(script,/QA1243_GAS_POST_ROUTE_OR_METHOD_403/);
+assert.ok(script.indexOf('const publication=await probeReadonlyPublication(url)')<script.indexOf('const oidcUrl='),
+ 'GET may diagnose 403 only before any Edge or Sheet writes');
 assert.match(script,/consecutive403>=3/);
 assert.match(script,/QA1243_GAS_WRITER_EXECUTABLE/);
 assert.ok(script.indexOf('await waitForExecutableQaWebapp(qaUrl);')<script.indexOf('const oidcUrl='),

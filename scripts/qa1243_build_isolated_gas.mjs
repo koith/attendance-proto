@@ -33,6 +33,11 @@ export function buildQa1243GAS(source,secret){
     mappedAnchor);
   assert.ok(!gs.includes("ss = SpreadsheetApp.create(year + ' 근태');"));
   assert.ok(!gs.includes("setName(year + ' 근태');"));
+  // Publication-only probe: no shared secret, payroll payload, locks, Drive
+  // access or sheet creation. Diagnoses Google /exec permission separately
+  // from POST dispatch. Only this synthetic standalone QA project receives it.
+  assert.ok(!/function\s+doGet\s*\(/.test(source),'QA writer unexpectedly gained doGet');
+  gs+='\nfunction doGet(){return _json({ok:true,probe:"QA1243_PUBLICATION_GET_ONLY"}); }\n';
   // The owner must authorize this isolated project once; this function has
   // no account, store, attendance or Sheet writer side effects.
   gs+='\nfunction qa1243AuthorizeServices(){'+
