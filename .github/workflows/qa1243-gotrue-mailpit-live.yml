@@ -72,6 +72,7 @@ jobs:
             -e GOTRUE_DISABLE_SIGNUP=false \
             -e GOTRUE_EXTERNAL_EMAIL_ENABLED=true \
             -e GOTRUE_MAILER_AUTOCONFIRM=false \
+            -e GOTRUE_MAILER_OTP_EXP=60 \
             -e GOTRUE_SMTP_ADMIN_EMAIL=qa1243@localhost.invalid \
             -e GOTRUE_SMTP_HOST=127.0.0.1 \
             -e GOTRUE_SMTP_PORT=1025 \
