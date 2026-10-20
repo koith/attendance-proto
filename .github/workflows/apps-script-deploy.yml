@@ -18,6 +18,7 @@ on:
       - qa_sheet_header_border_persistence_v1.mjs
       - qa_apps_script_no_pr_deploy_v1.mjs
       - qa_apps_script_deploy_retry_v1.mjs
+      - qa_apps_script_sheet_oidc_v1.mjs
       - tools/deploy_apps_script_with_retry.sh
       - .github/workflows/apps-script-deploy.yml
   push:
@@ -38,6 +39,7 @@ on:
       - qa_apps_script_deploy_secret.mjs
       - qa_apps_script_no_pr_deploy_v1.mjs
       - qa_apps_script_deploy_retry_v1.mjs
+      - qa_apps_script_sheet_oidc_v1.mjs
       - tools/deploy_apps_script_with_retry.sh
       - .github/workflows/apps-script-deploy.yml
 
@@ -73,6 +75,7 @@ jobs:
           node qa_apps_script_deploy_secret.mjs
           node qa_apps_script_no_pr_deploy_v1.mjs
           node qa_apps_script_deploy_retry_v1.mjs
+          node qa_apps_script_sheet_oidc_v1.mjs
       - name: Push source and redeploy existing web app
         if: github.event_name != 'pull_request'
         env:
