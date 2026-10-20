@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import vm from "node:vm";
 const source=readFileSync(new URL("./operations_reconciliation_v1.js",import.meta.url),"utf8");
+const html=readFileSync(new URL("./index.html",import.meta.url),"utf8");
+assert.match(html,/const APP_VERSION="v0\.354"/);
+assert.match(html,/aria-label="현재 앱 버전 v0\.354">v0\.354<\/button>/);
+assert.match(html,/operations_reconciliation_v1\.js\?v=20261021v354/);
+assert.doesNotMatch(html,/operations_reconciliation_v1\.js\?v=20261020v351/);
 const deferred=()=>{let resolve,reject;const promise=new Promise((ok,fail)=>{resolve=ok;reject=fail});return {promise,resolve,reject}};
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 function fixture(){
