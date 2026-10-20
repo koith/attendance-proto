@@ -67,6 +67,47 @@ assert.equal(ep.entryPointConfig?.access,'ANYONE_ANONYMOUS');
 assert.equal(ep.entryPointConfig?.executeAs,'USER_DEPLOYING');
 const qaUrl=ep.url;
 console.log('QA1243_GAS_DEPLOYED '+JSON.stringify({scriptId,deploymentId:deployment.deploymentId,access:ep.entryPointConfig.access,executeAs:ep.entryPointConfig.executeAs}));
+// A deployment resource is not proof its /exec URL can actually execute:
+// newly provisioned standalone projects may still require their owner's
+// interactive authorization or web-app publication propagation. Probe with
+// deliberately WRONG secret before sending a single payroll row. A healthy
+// app returns JSON {ok:false,error:"UNAUTHORIZED"} without creating a Sheet.
+async function waitForExecutableQaWebapp(url){
+ const attempts=12;let last=null;
+ for(let n=1;n<=attempts;n++){
+  try{
+   const probe=await fetch(url,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({secret:'QA1243_NOT_A_VALID_SECRET_PROBE'}),
+    redirect:'follow',signal:AbortSignal.timeout(25000)
+   });
+   const body=await probe.text();let payload=null;
+   try{payload=JSON.parse(body)}catch{}
+   const at=new URL(probe.url);
+   const authRequired=at.hostname==='accounts.google.com'
+     || /Authorization is required|authorization required|sign in to continue|script has not been authorized/i.test(body);
+   last={attempt:n,http:probe.status,contentType:(probe.headers.get('content-type')||'').split(';')[0],
+    returnedJson:payload!==null,finalHost:at.hostname,authRequired};
+   if(probe.ok&&payload?.ok===false&&payload?.error==='UNAUTHORIZED'){
+    console.log('QA1243_GAS_WRITER_EXECUTABLE '+JSON.stringify({...last,wrongSecretRejected:true}));
+    return;
+   }
+   // Auth HTML is usually permanent until the script owner explicitly
+   // approves its new scopes. Never misreport as an Edge or Sheets success.
+   if(authRequired){
+    console.log('QA1243_GAS_OWNER_AUTHORIZATION_REQUIRED '+JSON.stringify(last));
+    throw new Error('QA1243_GAS_OWNER_CONSENT_REQUIRED');
+   }
+  }catch(error){
+   if(error?.message==='QA1243_GAS_OWNER_CONSENT_REQUIRED')throw error;
+   last={attempt:n,networkError:true};
+  }
+  if(n<attempts)await new Promise(resolve=>setTimeout(resolve,12000));
+ }
+ console.log('QA1243_GAS_WRITER_NOT_EXECUTABLE '+JSON.stringify(last));
+ throw new Error('QA1243_GAS_EXEC_PERMISSION_OR_PROPAGATION_UNVERIFIED');
+}
+await waitForExecutableQaWebapp(qaUrl);
 const oidcUrl=new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);
 oidcUrl.searchParams.set('audience',audience);
 const oidc=await jsonRequest(oidcUrl.toString(),{headers:{Authorization:'Bearer '+process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}});
