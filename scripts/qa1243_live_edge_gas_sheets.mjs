@@ -22,13 +22,13 @@ async function jsonRequest(url,options={},assertOk=true){
  if(assertOk&&!res.ok){
   // Never publish bearer tokens, script source, or complete remote error bodies.
   const rawMessage=String(value?.error?.message||'').slice(0,350);
-  const detail=[process.env.GOOGLE_OAUTH_CLIENT_SECRET,process.env.GOOGLE_OAUTH_REFRESH_TOKEN,
-    secret]
+  const detail=[process.env.GOOGLE_OAUTH_CLIENT_SECRET,process.env.GOOGLE_OAUTH_REFRESH_TOKEN,secret]
     .filter(Boolean).some(token=>rawMessage.includes(token))?'REDACTED_SECRET':
-    rawMessage.replace(/(?:Bearer\\s+|eyJ)[A-Za-z0-9_.-]{20,}/g,'[REDACTED]');
+    rawMessage.replace(/eyJ[A-Za-z0-9_.-]{20,}/g,'[REDACTED]');
   const endpoint=new URL(url);
-  throw Error('REMOTE_HTTP_'+res.status+' for '+endpoint.hostname+' '+endpoint.pathname.replace(/\\/projects\\/[^/]+/,'/projects/[qa-script]')+
+  throw Error('REMOTE_HTTP_'+res.status+' for '+endpoint.hostname+' '+endpoint.pathname.split('/').slice(0,3).join('/')+
     ' [type='+String(value?.error?.status||'UNKNOWN')+'] '+detail);
+
  }
  return {status:res.status,ok:res.ok,value};
 }
