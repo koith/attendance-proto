@@ -363,3 +363,10 @@
 - [PR #1281](https://github.com/koith/attendance-proto/pull/1281) QA 복사본에만 읽기 전용 `doGet` 도달성 검사 추가, 실패했던 잘못된 secret POST 이후 **쓰기·OIDC 이전**에 GET 결과를 추가 조사: GET 정상이면 `QA1243_GAS_POST_ROUTE_OR_METHOD_403`, GET까지 차단되면 `QA1243_GAS_AUTH_OR_PUBLICATION_POLICY_403`. 어느 쪽도 실연동 성공으로 기록하지 않음. QA 보안 regression에서 GET 시 운영 파일·시크릿·잠금 접근 불가를 검증. 운영 `apps_script.gs` 및 기존 Edge 실제 동기화 로직 불변.
 - [첫 번째 PR head 705683fd](https://github.com/koith/attendance-proto/commit/705683fde8f11505cc25d98a3b7a86feda6b2dea) 50/50 PR Actions SUCCESS (개발 코드/합성 QA). 최종 병합·main 실 POST/GET 판정 및 배포 증거는 Issue #1243에 후속 기록. 실제 프로젝트 소유자 `qa1243AuthorizeServices` 동의 전 운영 데이터 테스트 쓰기 금지.
 - **완료/미완료 원장 원칙:** QA-05와 #1243는 미완료, [x] 변경 없음. 전체 38건 / 완료 19 / 잔여 19 유지.
+
+
+## 46. 2026-10-21 MTG-06/QA-07 매출 대사 읽기 전용 UI 비정상 원천 보강
+
+- **추가 코드 개발:** [PR #1282](https://github.com/koith/attendance-proto/pull/1282) `operations_reconciliation_v1.js`에서 서버 대사 응답이 배열이지만 항목이 null/배열인 경우 기존에는 화면 렌더 단계에서 예외가 발생할 수 있었다. 실제 UI 진입 경계에서 유효하지 않은 레코드를 `RECONCILIATION_INVALID_RESPONSE`로 거부하고 버튼 복원·오류 알림을 보장. POS/배달 후보에 동일 transaction pair가 반복돼 점주에게 중복 의심 건수로 과대 표시될 위험도 `SUSPECTS_DUPLICATE_PAIR` 오류로 차단. 원천 데이터 삭제·중복 자동 차감은 하지 않음.
+- **추가 실행 테스트:** [변경 QA](https://github.com/koith/attendance-proto/blob/fix/mtg06-reconciliation-response-guard-20261021/qa_operations_reconciliation_store_race_v1.mjs) 실제 렌더 함수 VM 레인 9→12 시나리오: null 원천 오류 메시지+재시도 가능·중복 후보 fail-closed·정상 단일 후보 보존. PR CI/병합/운영 배포 판정은 Issue #1243 후속 댓글에서 별도 확인.
+- **외부 연동 경계:** 실제 POS·배민·쿠팡이츠 원천 취소/중복/정산 자료는 아직 검증되지 않았으므로 **MTG-06 및 QA-07 체크박스 [ ] 유지**. 운영 거래·근태·급여·시트 쓰기 없음. 원장 총 38건/완료19/잔여19 그대로.
