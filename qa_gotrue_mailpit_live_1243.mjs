@@ -86,4 +86,19 @@ r=await request('/invite','POST',{email:cancelled},adminToken);assert.ok([200,20
 const bad=actionUrl(doomedMail.mail);bad.searchParams.set('token','invalid-expired-synthetic-1243');
 bad.searchParams.set('token_hash','invalid-expired-synthetic-1243');
 r=await request(bad.pathname+bad.search);assert.ok(r.status>=400||[302,303].includes(r.status)&&!(r.headers.get('location')||'').includes('access_token='),'Invalid/expired-like token must not mint session');ok('Invalid/expired-like Auth verification token denied');
-console.log('QA1243_GOTRUE_MAILPIT_RESULTS '+JSON.stringify({scope:'SELF_HOSTED_GOTRUE_REAL_HTTP_MAILPIT_REAL_SMTP',count:testResults.length,results:testResults,productionAuthNotTested:true,actualExpiryClockNotTested:true,appAuthorizationRevocationNotTested:true}));
+// Real timed expiration: the official GoTrue mailer is configured for 60-second OTP lifetime.
+// Wait on an actual, never-used invite link rather than substituting a tampered token.
+const expAddr='actualexpiry@qa1243.invalid';
+const beforeExpiry=new Set((await messages()).map(x=>x.ID||x.id));
+r=await request('/invite','POST',{email:expAddr},adminToken);
+assert.ok([200,201].includes(r.status),'Real expiring invite not delivered');
+const expMail=await mailFor(expAddr,beforeExpiry);
+const realLink=actionUrl(expMail.mail);
+assert.equal(realLink.searchParams.get('type'),'invite');
+await new Promise(resolve=>setTimeout(resolve,70000));
+r=await request(realLink.pathname+realLink.search);
+const location=r.headers.get('location')||'';
+assert.ok(r.status>=400||([302,303].includes(r.status)&&!location.includes('access_token=')),
+  'Expired 60-second GoTrue invite must not mint a live session: HTTP '+r.status);
+ok('Real 60-second invite link expired and rejected',{expirySeconds:60,waitSeconds:70});
+console.log('QA1243_GOTRUE_MAILPIT_RESULTS '+JSON.stringify({scope:'SELF_HOSTED_GOTRUE_REAL_HTTP_MAILPIT_REAL_SMTP',count:testResults.length,results:testResults,productionAuthNotTested:true,actualExpiryClockNotTested:false,appAuthorizationRevocationNotTested:true}));
