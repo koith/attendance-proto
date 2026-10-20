@@ -31,14 +31,15 @@ assert.match(sql,/REVOKE ALL ON FUNCTION public\.service_store_manager_attach_in
 assert.match(sql,/legacy_hq_invite_20261014/);
 
 // Password PUT must precede server-only appointment. Never trust client store_id.
+const preflightStep=activation.indexOf('"/rest/v1/rpc/store_invitation_activation_preflight"');
 const passwordStep=activation.indexOf('"/auth/v1/user"');
 const acceptStep=activation.indexOf('"/rest/v1/rpc/store_primary_owner_accept_invitation"');
 const contextStep=activation.indexOf('"/rest/v1/rpc/admin_context"');
 const redirectStep=activation.indexOf('location.replace("index.html?mode=store');
-assert.ok(passwordStep>=0 && passwordStep<acceptStep && acceptStep<contextStep && contextStep<redirectStep);
+assert.ok(preflightStep>=0 && preflightStep<passwordStep && passwordStep<acceptStep && acceptStep<contextStep && contextStep<redirectStep);
 assert.match(activation,/acceptedResponse\.ok\|\|accepted\?\.ok!==true/);
 assert.match(activation,/Number\(accepted\.store_id\)!==storeId/);
-assert.match(page,/owner_activation\.js\?v=20261016v295/);
+assert.match(page,/owner_activation\.js\?v=20261020v353/);
 
 // HQ must display pending vs appointed separately, with no second manual click.
 assert.match(hq,/rpc\("hq_store_primary_owner_invitation_list"\)/);
