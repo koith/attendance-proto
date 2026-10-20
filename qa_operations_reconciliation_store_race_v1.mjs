@@ -78,4 +78,39 @@ for(const stage of ["issues","suspects"])
  assert.equal(t.added.length,1,"partial result must remain visible with failure context");
  assert.match(t.added[0].innerHTML,/중복 의심 조회 실패/);
 }
-console.log("MTG-06 reconciliation context/locking/retry PASS (9 scenarios)");
+{
+ const t=fixture(),first=t.ctx.openStoreOperationsReconciliation();
+ t.issues.resolve([null]);
+ await first;
+ assert.equal(t.added.length,0,"malformed reconciliation row never renders");
+ assert.equal(t.alerts.length,1,"malformed upstream row surfaces a retryable error");
+ assert.match(t.alerts[0],/RECONCILIATION_INVALID_RESPONSE/);
+ assert.equal(t.disabled,false,"bad upstream response releases control");
+}
+{
+ const t=fixture(),first=t.ctx.openStoreOperationsReconciliation();
+ t.issues.resolve([]);
+ await tick();
+ const pair={pos_transaction_id:11,delivery_transaction_id:12,
+  total_amount:4500,gap_seconds:60,business_date:"2026-10-20",
+  delivery_source:"BAEMIN",pos_key:"POS-11",delivery_key:"DELIVERY-12"};
+ t.suspects.resolve([pair,{...pair}]);
+ await first;
+ assert.equal(t.added.length,1,"valid issue portion still shown");
+ assert.match(t.added[0].innerHTML,/SUSPECTS_DUPLICATE_PAIR/);
+ assert.doesNotMatch(t.added[0].innerHTML,/POS-11/,"duplicate suspects never appear as confirmed twice");
+ assert.equal(t.disabled,false);
+}
+{
+ const t=fixture(),first=t.ctx.openStoreOperationsReconciliation();
+ t.issues.resolve([]);
+ await tick();
+ t.suspects.resolve([{pos_transaction_id:11,delivery_transaction_id:12,
+  total_amount:4500,gap_seconds:60,business_date:"2026-10-20",
+  delivery_source:"BAEMIN",pos_key:"POS-11",delivery_key:"DELIVERY-12"}]);
+ await first;
+ assert.equal(t.added.length,1);
+ assert.match(t.added[0].innerHTML,/POS-11/,"valid unique suspect is preserved");
+ assert.doesNotMatch(t.added[0].innerHTML,/중복 의심 조회 실패/);
+}
+console.log("MTG-06 reconciliation context/locking/retry and upstream malformed/duplicate protection PASS (12 scenarios)");

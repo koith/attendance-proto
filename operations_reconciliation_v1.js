@@ -5,6 +5,7 @@
 const esc=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 function parseCrossSourceSuspects(rows){
  if(!Array.isArray(rows)||rows.length>100)throw Error("SUSPECTS_INVALID_RESPONSE");
+ const seenPairs=new Set();
  return rows.map(x=>{
   const pos=Number(x.pos_transaction_id),delivery=Number(x.delivery_transaction_id),
    amount=Number(x.total_amount),gap=Number(x.gap_seconds);
@@ -14,6 +15,11 @@ function parseCrossSourceSuspects(rows){
     !/^\d{4}-\d{2}-\d{2}$/.test(String(x.business_date||""))||
     !["BAEMIN","COUPANG_EATS","COUPANGEATS"].includes(x.delivery_source))
    throw Error("SUSPECTS_INVALID_ROW");
+  // An identical POS/delivery candidate may be reviewed only once. If an
+  // upstream join duplicates it, show a failure rather than two fake cases.
+  const pair=pos+":"+delivery;
+  if(seenPairs.has(pair))throw Error("SUSPECTS_DUPLICATE_PAIR");
+  seenPairs.add(pair);
   return {pos,delivery,amount,gap,date:x.business_date,source:x.delivery_source,
    posKey:String(x.pos_key||""),deliveryKey:String(x.delivery_key||"")};
  });
@@ -35,7 +41,11 @@ window.openStoreOperationsReconciliation=async function(){
  try{
   issues=await BE.storeReconciliationIssues(from,to);
   if(!sameContext())return;
-  if(!Array.isArray(issues)||issues.length>2000)throw Error("RECONCILIATION_INVALID_RESPONSE");
+  // Reject malformed upstream rows before dereferencing them in the DOM.
+  // The read-only reconciliation UI must show a retryable error, not crash.
+  if(!Array.isArray(issues)||issues.length>2000||
+     issues.some(row=>!row||typeof row!=="object"||Array.isArray(row)))
+    throw Error("RECONCILIATION_INVALID_RESPONSE");
  }catch(error){
   if(!sameContext())return;
 
