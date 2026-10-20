@@ -51,6 +51,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # GoTrue migrations expect the auth namespace (normally initialized by Supabase DB bootstrap).
+          PGPASSWORD=qa-only-no-production-secret psql -h 127.0.0.1 -U postgres -d qa1243_gotrue -v ON_ERROR_STOP=1 -c 'CREATE SCHEMA IF NOT EXISTS auth;'
           docker run -d --name qa1243-gotrue --network host \
             -e GOTRUE_API_HOST=0.0.0.0 \
             -e GOTRUE_API_PORT=9999 \
