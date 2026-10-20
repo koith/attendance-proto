@@ -289,8 +289,15 @@
 - **검증대기(개발 완료라고 부르지 않음):** 운영 Supabase Auth→SMTP 실제 메일·받은편지함·메일 복구/인증 링크, 한국어 Auth 초대 템플릿 운영 반영, 실제 격리 점포 직원→근태→급여→Google Sheets E2E 및 단말, 이메일 rate-limit/SMTP 실패 및 실제 만료 토큰. QA-04/05, AUTH-01, FIELD-01을 임의 완료 처리하지 않음. 기존 원장 총계 **38건 중 완료 19·미완료 19**, #1243 아직 진행.
 
 
-## 38. 2026-10-20 v0.353 Pages 배포 실패 #1248 복구 (진행 중)
+## 38. 2026-10-20 v0.353 Pages 배포 실패 #1248 복구 완료
 
 - **실패 증거:** [Issue #1248](https://github.com/koith/attendance-proto/issues/1248) / [Pages run 39359415513](https://github.com/koith/attendance-proto/actions/runs/39359415513) P0=SUCCESS, Pages artifact=SUCCESS, 실공개 모바일/데스크톱 Chromium·자산 검증=SUCCESS, 그러나 `Confirm immediate Sheet refresh after Pages deployment` 단계 FAILURE. 여러 번 `SHEET_SYNC_BUSY` (409)·`SHEET_NON_JSON_RESPONSE` (502) 이후 약 5분 45초 경과한 요청이 `DEPLOYMENT_IDENTITY_REJECTED` (403)로 끝남. 서버 `authenticate(req,mode="deployment")`가 GitHub Actions OIDC JWT 서명/만료 및 워크플로·리포지토리·main 출처를 검사한 뒤 거절. **단기 GitHub OIDC 토큰을 재시도 8회 동안 한 번만 발급하여 재사용하는 것이 식별된 결함 경로**. 정확히 만료 오류는 서버의 포괄적 에러 매핑으로 노출되지 않으므로 `JWT_EXPIRED` 단정은 하지 않음.
 - **수정:** [브랜치 `fix/pages-oidc-refresh-1248`](https://github.com/koith/attendance-proto/tree/fix/pages-oidc-refresh-1248)에서 Pages 의무 Sheet write/readback 검사 과정 각 재요청 직전에 `core.getIDToken(audience)`으로 짧은 수명 토큰을 **새로 발급**. `SHEET_SYNC_BUSY` / `SHEET_NON_JSON_RESPONSE`만 제한 재시도; 403 권한 오류·오류 응답·최종 미확인 Sheet는 계속 fail-closed. `written === true`, spreadsheet_id 및 자동 열 너비 확인 조건 절대 완화하지 않음. `qa_deployment_sheet_transient_retry_v1.mjs`에서 세 번/최악 8번 응답의 모든 Authorization 토큰이 서로 다른지 실행형 검증 추가. 기존 웹앱 배포 소스 **v0.353** 그대로 유지 (배포 정책만 수정, 실제 페이지 콘텐츠 불변).
-- **남은 게이트:** 새 PR 전체 CI PASS → main squash → Pages publish 및 후속 Sheet refresh 실제 PASS → 같은 실행·별도 independent verifier 성공 → Issue #1243 + 원장에 정확한 run/SHA 기록. **과거 v0.353 #1248 실패는 성공으로 변경하지 않음.** 실외부 메일/인증/점포/독립 Sheets E2E (QA-04/05, AUTH-01, FIELD-01)는 이번 Sheet 운영 동기화 확인과 별개로 남아 있음. 기존 총계 **38/19 완료/19 잔여** 불변.
+- **검증·복구 완료:** [PR #1249](https://github.com/koith/attendance-proto/pull/1249) 50/50 CI SUCCESS → main `5e834ed859a1d4bcccaf0b6c704894020f7af42b`; [Pages #39362743821](https://github.com/koith/attendance-proto/actions/runs/39362743821) **4/4 jobs SUCCESS** (P0/빌드/게시+Sheet write/후속 QA) → [독립 #39363098448](https://github.com/koith/attendance-proto/actions/runs/39363098448) **SUCCESS** 및 [배포 성공 Issue #1250](https://github.com/koith/attendance-proto/issues/1250)에서 exact SHA, 공개 HTTP/버전 `v0.353`, 모바일/데스크톱 Chromium, 변경 자산 일치 확인. 운영 HQ 관리자 3, INHA 직원 10/READY 1/대표 0, 전체 점포 244 변경 없음. **과거 v0.353 #1248 실패는 성공으로 변경하지 않음.** 실외부 메일/인증/점포/독립 Sheets E2E (QA-04/05, AUTH-01, FIELD-01)는 이번 Sheet 운영 동기화 확인과 별개로 남아 있음. 기존 총계 **38/19 완료/19 잔여** 불변.
+
+
+## 39. 2026-10-20 #1243 QA-05 외부 Apps Script 배포 인증 안정성 후속 (검증 중)
+
+- **미반영 취약 경로:** `.github/workflows/apps-script-deploy.yml`에서도 Pages #1248과 동일하게 짧은 수명 GitHub OIDC bearer를 **최대 8회 시트 갱신 재시도에 재사용**했음. 409 `SHEET_SYNC_BUSY`만 재시도하고, 실제 GAS에서 관찰된 502 `SHEET_NON_JSON_RESPONSE`는 곧바로 실패함. #1248의 성공을 QA-05 전체 완료로 잘못 확대하지 않는다.
+- **이번 코드:** `fix/gas-deploy-oidc-renewal-1243` 브랜치에서 Apps Script 배포 후 시트 쓰기 증거 단계도 매 요청 새 `core.getIDToken` 발급, 409/502 **명확한 두 일시 장애만 제한 재시도**, 응답의 `written===true`/spreadsheet ID/열 자동 너비 확인 필수. 타 인증 오류 즉시 실패, 무한 재시도 금지. 합성 `qa_apps_script_sheet_oidc_v1.mjs`는 실제 workflow 스크립트 추출 후 실행하며 3/8회 다른 bearer와 403 즉시 거부 검증. 본사 계정·INHA 원본 DB/시트 필드·업무 로직 변경 없음. 
+- **분리:** 실제 GAS 배포·원본 Sheet 쓰기 결과는 PR/Actions의 후속 수신 결과에 따라 증거를 갱신한다. Google Sheets 독립 신규 점포의 실제 외부 E2E, Supabase Auth/SMTP 수신, 현장 기기 등은 계속 별도. 원장 **38중 완료 19, 미완료 19**, Issue #1243 열린 상태 유지.
