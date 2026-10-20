@@ -247,6 +247,13 @@ window.mountHqOwnerConsole=async function(box){
  '<div class="hq-owner-filters"><input class="form-control" id="hqOwnerSearch" type="search" placeholder="지점명·코드·지역 검색" value="'+h(search)+'"><select class="form-control" id="hqOwnerFilter"><option value="ALL">전체</option><option value="MISSING">대표 미배정</option><option value="ASSIGNED">배정 완료</option></select></div>'+
  '<div class="hq-owner-quicknav" aria-label="빠른 지점 선택"><button type="button" data-quick-mode="region" class="'+(quickMode==="region"?"active":"")+'">지역별 찾기</button><button type="button" data-quick-mode="initial" class="'+(quickMode==="initial"?"active":"")+'">가나다순</button><button type="button" data-quick-mode="recent" class="'+(quickMode==="recent"?"active":"")+'">최근 지점</button></div>'+
  (quickMode?'<div class="hq-quick-overlay"><section class="hq-quick-dialog" role="dialog" aria-modal="true" aria-label="빠른 지점 찾기"><div class="hq-quick-dialog-head"><strong>'+h(quickTitle)+'</strong><button id="hqQuickClose" type="button">닫기</button></div>'+quickPanel+'</section></div>':'')+
+ '<details class="hq-new-store" id="hqNewStoreDetails" style="border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin:10px 0"><summary style="cursor:pointer;font-weight:650">+ 신규 지점 등록</summary>'+
+ '<form id="hqNewStoreForm" style="display:grid;gap:8px;margin-top:10px">'+
+ '<p class="hq-owner-help" style="margin:0">본사에서 등록하면 <strong>준비 중(STAGED)</strong> 상태로 생성됩니다. 관리자 초대·실재 확인 전에는 운영할 수 없습니다.</p>'+
+ '<label for="hqNewStoreName">지점명</label><input id="hqNewStoreName" class="form-control" required minlength="2" maxlength="80" autocomplete="off" placeholder="예: 백억커피 신규지점">'+
+ '<label for="hqNewStoreCode">지점 코드 (영문 대문자·숫자·_)</label><input id="hqNewStoreCode" class="form-control" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_]{3,32}" autocapitalize="characters" autocomplete="off" placeholder="예: STORE_001">'+
+ '<label for="hqNewStoreRegion">운영 지역 (선택)</label><input id="hqNewStoreRegion" class="form-control" maxlength="80" autocomplete="off" placeholder="예: 인천">'+
+ '<button type="submit" class="btn btn-primary btn-sm" id="hqNewStoreSubmit">준비 중 지점 등록</button></form></details>'+
  '<div class="hq-owner-columns"><div class="hq-owner-list">'+rows.map(s=>
  '<button type="button" class="hq-owner-row'+(selected===Number(s.id)?" active":"")+'" data-store="'+Number(s.id)+'"><strong>'+h(s.name)+'</strong><span class="hq-owner-status '+(owner(s.id)?"assigned":"unassigned")+'">'+(owner(s.id)?"대표 배정":"미배정")+'</span></button>').join("")+'</div>'+
  '<div class="hq-owner-detail">'+(store?'<h3 class="hq-manager-store-head">'+h(store.name)+'</h3>'+tabs+
@@ -283,6 +290,28 @@ window.mountHqOwnerConsole=async function(box){
  body.querySelector("#hqOwnerSearch").oninput=e=>{search=e.target.value;const pos=e.target.selectionStart;render();const input=body.querySelector("#hqOwnerSearch");input.focus();input.setSelectionRange(pos,pos)};
  body.querySelectorAll("[data-store]").forEach(b=>b.onclick=()=>{chose(b.dataset.store)});
  if(!store)return;
+ body.querySelector("#hqNewStoreForm")?.addEventListener("submit",event=>{
+   event.preventDefault();
+   if(busy)return;
+   const name=body.querySelector("#hqNewStoreName").value.trim();
+   const code=body.querySelector("#hqNewStoreCode").value.trim().toUpperCase();
+   const region=body.querySelector("#hqNewStoreRegion").value.trim();
+   if(name.length<2||name.length>80||!/^[A-Z0-9_]{3,32}$/.test(code)||region.length>80)
+     return alert("지점명(2~80자)·코드(영문/숫자/밑줄 3~32자)를 확인하세요.");
+   if(stores.some(s=>s.name===name||String(s.code||"").toUpperCase()===code))
+     return alert("이미 등록된 지점명 또는 코드입니다.");
+   if(!confirm(name+" 지점을 준비 중(STAGED) 상태로 등록하시겠습니까?\\n\\n지점 코드: "+code+
+      "\\n대표 관리자 초대·지점 실재 확인 전에는 운영 활성화되지 않습니다."))return;
+   run(async()=>{
+     const result=await rpc("hq_store_register",{p_name:name,p_code:code,p_region_group:region||null});
+     const id=Number(result?.store_id);
+     if(result?.ok!==true||result?.status!=="STAGED"||!Number.isSafeInteger(id)||id<1)
+       throw Error("STORE_REGISTRATION_NOT_CONFIRMED");
+     selected=id;filter="ALL";search="";activeTab="status";quickMode="";resetQuickFilters();
+   },()=>{
+     notice={title:"신규 지점 등록 완료",message:name+" ("+code+") · 준비 중(STAGED). 대표 관리자 초대와 지점 실재 확인 후 운영 활성화하세요."};
+   });
+ });
  body.querySelectorAll("[data-manager-tab]").forEach(button=>button.onclick=()=>{
    activeTab=button.dataset.managerTab;notice=null;render();
  });
