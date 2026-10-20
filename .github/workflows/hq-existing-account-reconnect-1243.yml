@@ -1,0 +1,46 @@
+name: HQ existing-account reconnect isolated QA (#1243)
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261020093000_hq_verified_existing_account_reconnect.sql'
+      - 'qa_hq_existing_account_reconnect_1243.sql'
+      - '.github/workflows/hq-existing-account-reconnect-1243.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20261020093000_hq_verified_existing_account_reconnect.sql'
+      - 'qa_hq_existing_account_reconnect_1243.sql'
+      - '.github/workflows/hq-existing-account-reconnect-1243.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_qa_only
+          POSTGRES_DB: reconnect_qa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d reconnect_qa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_qa_only
+      PGDATABASE: reconnect_qa
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise actual migration against disposable synthetic users and stores
+        run: |
+          command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          psql -v ON_ERROR_STOP=1 -f qa_hq_existing_account_reconnect_1243.sql
