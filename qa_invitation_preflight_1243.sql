@@ -100,7 +100,7 @@ SELECT set_config('fixture.role','service_role',false);
 DO $qa$ DECLARE r jsonb; BEGIN
  r:=public.service_store_invitation_dispatch_preflight(703,'pending@synthetic.invalid',
   '00000000-0000-4000-8000-000000000001','HQ_OWNER');
- IF r->>'delivery'<>'INVITE' THEN RAISE EXCEPTION 'CANCEL_REINVITE_PRECHECK_FAILED: %',r; END IF;
+ IF r->>'delivery'<>'RECOVERY' THEN RAISE EXCEPTION 'CANCEL_REINVITE_PRECHECK_FAILED: %',r; END IF;
 END $qa$;
 SELECT public.service_store_manager_attach_invited_user(
  703,'00000000-0000-4000-8000-000000000006','00000000-0000-4000-8000-000000000001');
