@@ -61,7 +61,7 @@ const fresh='new@qa1243.invalid',old='existing@qa1243.invalid',cancelled='cancel
 const pass='LongSyntheticTestPassword-1243!';
 const startMail=new Set((await messages()).map(m=>m.ID||m.id));
 let r=await request('/health');assert.equal(r.status,200);ok('GoTrue server /health');
-r=await request('/admin/users','GET',null,adminToken);assert.ok(r.status!==401&&r.status!==403,'Service role token rejected: '+r.status);ok('Admin JWT authenticated');
+r=await request('/admin/users','GET',null,adminToken);assert.equal(r.status,200,'Service role admin HTTP API must be operational: '+JSON.stringify(r.body));ok('Admin JWT authenticated');
 r=await request('/invite','POST',{email:fresh},adminToken);assert.ok([200,201].includes(r.status),'Invitation failed '+r.status+': '+JSON.stringify(r.body));const freshId=r.body.id||r.body.user?.id;assert.ok(freshId);ok('New identity Auth /invite accepted');
 const first=await mailFor(fresh,startMail);const a=await redeem(first.mail,'invite');assert.equal(a.user.email,fresh);ok('SMTP invite delivered, link redeemed, real Auth user session');
 r=await request('/user','PUT',{password:pass},a.access);assert.equal(r.status,200,'Invitation password update '+r.status+': '+JSON.stringify(r.body));r=await request('/token?grant_type=password','POST',{email:fresh,password:pass});assert.equal(r.status,200,'Login with set password must succeed');assert.ok(r.body.access_token);ok('Invite password set and password login');
