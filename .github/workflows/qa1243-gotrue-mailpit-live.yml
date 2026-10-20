@@ -53,6 +53,8 @@ jobs:
           set -euo pipefail
           # GoTrue migrations expect the auth namespace (normally initialized by Supabase DB bootstrap).
           PGPASSWORD=qa-only-no-production-secret psql -h 127.0.0.1 -U postgres -d qa1243_gotrue -v ON_ERROR_STOP=1 -c 'CREATE SCHEMA IF NOT EXISTS auth;'
+          # Auth migrations own auth.*; runtime queries address users via the role's schema search_path.
+          PGPASSWORD=qa-only-no-production-secret psql -h 127.0.0.1 -U postgres -d qa1243_gotrue -v ON_ERROR_STOP=1 -c 'ALTER DATABASE qa1243_gotrue SET search_path = auth, public;'
           docker run -d --name qa1243-gotrue --network host \
             -e GOTRUE_API_HOST=0.0.0.0 \
             -e GOTRUE_API_PORT=9999 \
