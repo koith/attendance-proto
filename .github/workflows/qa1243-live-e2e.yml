@@ -1,0 +1,70 @@
+name: QA1243 isolated live production Edge GAS Sheets E2E
+on:
+  pull_request:
+    paths:
+      - 'scripts/qa1243_live_edge_gas_sheets.mjs'
+      - 'qa1243_live_edge_gas_contract.mjs'
+      - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
+      - 'supabase/functions/server-sync-sheet/index.ts'
+      - '.github/workflows/qa1243-live-e2e.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/qa1243_live_edge_gas_sheets.mjs'
+      - 'qa1243_live_edge_gas_contract.mjs'
+      - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
+      - 'supabase/functions/server-sync-sheet/index.ts'
+      - '.github/workflows/qa1243-live-e2e.yml'
+permissions:
+  contents: read
+  statuses: read
+  id-token: write
+jobs:
+  qa1243-isolated-e2e:
+    name: Trusted production Edge to a new independent GAS project and Sheets
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate integration runner and OIDC isolation contract
+        run: |
+          node --check scripts/qa1243_live_edge_gas_sheets.mjs
+          node qa1243_live_edge_gas_contract.mjs
+      - name: Await verified native production Edge deployment of this exact revision
+        if: github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const contextName='edge/server-sync-sheet-deploy';
+            for(let attempt=0;attempt<35;attempt++){
+              const {data}=await github.rest.repos.listCommitStatusesForRef({
+                ...context.repo,ref:context.sha,per_page:100
+              });
+              const receipt=data.find(x=>x.context===contextName);
+              if(receipt?.state==='success'){
+                core.info('PASS official Edge deployment attested at exact SHA '+context.sha);
+                return;
+              }
+              if(receipt?.state==='failure'||receipt?.state==='error'){
+                throw new Error('Production Edge deployment receipt FAILED');
+              }
+              core.info('Production Edge deployment receipt not ready; checking again');
+              await new Promise(resolve=>setTimeout(resolve,15000));
+            }
+            throw new Error('Production Edge deployment not attested at this SHA');
+      - name: Execute real new GAS project and production Edge service-to-service QA
+        if: github.event_name == 'push'
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+        run: |
+          node scripts/qa1243_live_edge_gas_sheets.mjs
+      - name: Explicit evidence limitation
+        if: always()
+        run: |
+          echo 'No production test store or Auth account was created by this workflow.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This is live Edge→independent GAS→real Sheets synthetic-path QA, not real app user login or hosted SMTP delivery.' >> "$GITHUB_STEP_SUMMARY"

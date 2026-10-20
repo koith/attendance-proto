@@ -31,14 +31,16 @@ function weekBelongsToPayrollMonth(ym,weekStart){
 function currentYm(){const v=seoulParts();return `${v.year}-${v.month}`;}
 function seoulStamp(){const v=seoulParts();return `${v.year}-${v.month}-${v.day} ${v.hour}:${v.minute}`;}
 async function authenticate(req,mode){
-  if(mode==="deployment"){
+  if(mode==="deployment"||mode==="qa1243_sandbox_e2e"){
     const header=/^Bearer (.+)$/i.exec(req.headers.get("Authorization")||"");
     if(!header)throw new HttpError(401,"DEPLOYMENT_TOKEN_REQUIRED");
     try{
       const jwks=createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"));
       const {payload}=await jwtVerify(header[1],jwks,{issuer:"https://token.actions.githubusercontent.com",audience:"https://waluhdgqhwjjwmflhrle.supabase.co/functions/v1/server-sync-sheet"});
       const workflow=String(payload.workflow_ref||"");
-      const accepted=["p0-pages-deploy.yml","apps-script-deploy.yml"].some(file=>workflow===`koith/attendance-proto/.github/workflows/${file}@refs/heads/main`);
+      const workflows=mode==="deployment"?["p0-pages-deploy.yml","apps-script-deploy.yml"]:["qa1243-live-e2e.yml"];
+      const accepted=workflows.some(file=>workflow===`koith/attendance-proto/.github/workflows/${file}@refs/heads/main`);
+      if(mode==="qa1243_sandbox_e2e"&&payload.event_name!=="push")throw new Error("QA_MAIN_PUSH_ONLY");
       if(!accepted||payload.repository!=="koith/attendance-proto"||payload.ref!=="refs/heads/main")throw new Error("UNTRUSTED_WORKFLOW");
       return {internal:true,workflow};
     }catch{throw new HttpError(403,"DEPLOYMENT_IDENTITY_REJECTED")}
@@ -366,7 +368,7 @@ Deno.serve(async req=>{
   if(req.method!=="POST")return reply({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   try{
     const body=await req.json(),mode=String(body?.mode||"sync");
-    if(!["cron","dryrun","deployment","payroll","parity","sync","weekly_approve","weekly_decide","payroll_close_preview","payroll_close","payroll_reopen","invite_store_manager","invite_store_assistant_by_hq","invite_store_delegated_manager"].includes(mode))throw new HttpError(400,"BAD_MODE");
+    if(!["cron","dryrun","deployment","qa1243_sandbox_e2e","payroll","parity","sync","weekly_approve","weekly_decide","payroll_close_preview","payroll_close","payroll_reopen","invite_store_manager","invite_store_assistant_by_hq","invite_store_delegated_manager"].includes(mode))throw new HttpError(400,"BAD_MODE");
     const actor=await authenticate(req,mode);
     if(mode==="invite_store_manager"||mode==="invite_store_assistant_by_hq"){
       const isAssistant=mode==="invite_store_assistant_by_hq";
@@ -417,6 +419,38 @@ Deno.serve(async req=>{
         throw new HttpError(502,"INVITE_SENT_BUT_ROLE_ASSIGN_FAILED: "+
           String(assignError?.message||"UNKNOWN"));
       return reply({ok:true,store_id:storeId,email,role:"STORE_MANAGER",invited:true,delivery:sent.delivery});
+    }
+    if(mode==="qa1243_sandbox_e2e"){
+      // Strictly isolated GH OIDC synthetic E2E; no DB/Auth mutations and
+      // NEVER use operating Script/secret/store. Not a real-store activation.
+      if(actor.workflow!==`koith/attendance-proto/.github/workflows/qa1243-live-e2e.yml@refs/heads/main`)
+        throw new HttpError(403,"QA_WORKFLOW_ONLY");
+      const qaUrl=String(body.qa_webapp_url||"");
+      const qaSecret=String(body.qa_secret||"");
+      const qaStoreKey=String(body.qa_store_key||"");
+      const sections=body.report||{};
+      const ym=String(body.ym||"");
+      const validSection=section=>section&&Array.isArray(section.header)&&Array.isArray(section.rows)
+        &&section.header.length>0&&section.header.length<=32&&section.rows.length<=10
+        &&section.header.every(h=>typeof h==="string"&&h.length<=100)
+        &&section.rows.every(row=>Array.isArray(row)&&row.length===section.header.length
+          &&row.every(v=>typeof v==="string"&&v.length<=500));
+      if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(ym)
+         ||!/^QA1243_SBX_[A-Za-z0-9]{8,24}$/.test(qaStoreKey)
+         ||!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]{15,}\/exec$/.test(qaUrl)
+         ||qaUrl===(Deno.env.get("SHEET_WEBAPP_URL")||"")
+         ||qaSecret.length<64||qaSecret===(Deno.env.get("SHEET_SHARED_SECRET")||"")
+         ||!["attendance","sessions","payroll"].every(key=>validSection(sections[key])))
+        throw new HttpError(403,"QA_SANDBOX_ISOLATION_REJECTED");
+      const payload={store_key:qaStoreKey,store_name:"[QA #1243] isolated OIDC E2E",
+        attendance:sections.attendance,sessions:sections.sessions,payroll:sections.payroll};
+      const route={url:qaUrl,secret:qaSecret,storeKey:qaStoreKey};
+      const result=await googleWrite(ym,payload,false,null,null,999999999,route);
+      // Receipt only. Actual spreadsheet readback is performed via Google Sheets
+      // API under the QA workflow and must exclude the known operating sheet.
+      return reply({ok:true,mode,ym,qa_store_key:qaStoreKey,
+        spreadsheet_id:result.spreadsheet_id,
+        sheet_format:result.sheet_format,counts:result.counts});
     }
     if(mode==="deployment"){
       const ym=currentYm();
