@@ -41,13 +41,39 @@ const token=await jsonRequest('https://oauth2.googleapis.com/token',{
 const oauth=token.value.access_token;assert.ok(oauth,'Google OAuth access token required');
 const headers={Authorization:'Bearer '+oauth,'content-type':'application/json'};
 const api='https://script.googleapis.com/v1/projects';
-const created=(await jsonRequest(api,{method:'POST',headers,body:JSON.stringify({title:projectName})})).value;
-const scriptId=created.scriptId;assert.match(scriptId,/^[A-Za-z0-9_-]{15,}$/);
-console.log('QA1243_GAS_PROJECT_CREATED '+JSON.stringify({scriptId,scope:'new standalone project only'}));
+// Reuse only a *verified existing QA-owned* standalone project after its
+// initial creation. Owner consent is per-project: making a new GAS project on
+// every CI run discards an approval and makes permanent 403s unfixable.
+// This ID was created by the isolated QA run #39421278882, not an operational
+// Apps Script. The owner can grant scope once in this independent project.
+const knownQaProject=process.env.QA1243_GAS_SCRIPT_ID||
+  '1VkwzA0EKQAf9VQ9BECOcOLkikhIuHR7EtKt6mZkq6B8_Q9HH4w6lQmrw';
+let scriptId;
+if(knownQaProject){
+ const existing=(await jsonRequest(api+'/'+encodeURIComponent(knownQaProject),{headers})).value;
+ assert.match(existing.title||'',/^QA1243 isolated Edge GAS 2026-10-20T/,'Never overwrite non-QA GAS projects');
+ assert.equal(existing.scriptId,knownQaProject,'QA project identity must be unchanged');
+ scriptId=existing.scriptId;
+ console.log('QA1243_GAS_PROJECT_REUSED '+JSON.stringify({scriptId,scope:'preexisting standalone QA-only project'}));
+}else{
+ const created=(await jsonRequest(api,{method:'POST',headers,body:JSON.stringify({title:projectName})})).value;
+ scriptId=created.scriptId;
+ console.log('QA1243_GAS_PROJECT_CREATED '+JSON.stringify({scriptId,scope:'new standalone project only'}));
+}
+assert.match(scriptId,/^[A-Za-z0-9_-]{15,}$/);
 let gs=readFileSync('apps_script.gs','utf8');
 assert.ok(gs.includes("var SHARED_SECRET = 'REPLACE_WITH_LONG_RANDOM_SECRET';"));
 gs=gs.replace("var SHARED_SECRET = 'REPLACE_WITH_LONG_RANDOM_SECRET';",
  "var SHARED_SECRET = '"+secret+"';");
+// Intentionally read-only. An owner can select this function and Run once in
+// the isolated project's editor to grant Apps Script service scopes. The QA
+// function is NOT present in the operating script and creates no workbook.
+gs+='\nfunction qa1243AuthorizeServices(){'+
+  'SpreadsheetApp.getActiveSpreadsheet();'+
+  'DriveApp.getRootFolder().getName();'+
+  'PropertiesService.getScriptProperties().getKeys();'+
+  'LockService.getScriptLock();'+
+  'return "QA1243_AUTH_SCOPE_CHECK_ONLY";}\n';
 const manifest=readFileSync('appsscript.json','utf8');
 await jsonRequest(api+'/'+scriptId+'/content',{method:'PUT',headers,body:JSON.stringify({files:[
  {name:'Code',type:'SERVER_JS',source:gs},{name:'appsscript',type:'JSON',source:manifest}
@@ -73,7 +99,7 @@ console.log('QA1243_GAS_DEPLOYED '+JSON.stringify({scriptId,deploymentId:deploym
 // deliberately WRONG secret before sending a single payroll row. A healthy
 // app returns JSON {ok:false,error:"UNAUTHORIZED"} without creating a Sheet.
 async function waitForExecutableQaWebapp(url){
- const attempts=12;let last=null;
+ const attempts=12;let last=null;let consecutive403=0;
  for(let n=1;n<=attempts;n++){
   try{
    const probe=await fetch(url,{
@@ -98,8 +124,16 @@ async function waitForExecutableQaWebapp(url){
     console.log('QA1243_GAS_OWNER_AUTHORIZATION_REQUIRED '+JSON.stringify(last));
     throw new Error('QA1243_GAS_OWNER_CONSENT_REQUIRED');
    }
+   // Three consistent HTML 403 responses on the new deployment are not
+   // a transient Sheet/Edge failure. Authorization/publication policy must
+   // be resolved without touching operating assets or making any data writes.
+   consecutive403=(probe.status===403&&payload===null)?consecutive403+1:0;
+   if(consecutive403>=3){
+    console.log('QA1243_GAS_HTTP_403_PERMISSION_BLOCK '+JSON.stringify(last));
+    throw new Error('QA1243_GAS_AUTH_OR_PUBLICATION_POLICY_403');
+   }
   }catch(error){
-   if(error?.message==='QA1243_GAS_OWNER_CONSENT_REQUIRED')throw error;
+   if(['QA1243_GAS_OWNER_CONSENT_REQUIRED','QA1243_GAS_AUTH_OR_PUBLICATION_POLICY_403'].includes(error?.message))throw error;
    last={attempt:n,networkError:true};
   }
   if(n<attempts)await new Promise(resolve=>setTimeout(resolve,12000));
