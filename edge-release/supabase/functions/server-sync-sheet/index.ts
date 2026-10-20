@@ -242,7 +242,7 @@ async function buildReport(ym,storeId){
   const closedPayroll=snapshotRows(snapshots,ym);
   return {source:data,report,workingAttendance,closed:!!closedPayroll,closedPayroll};
 }
-async function googleWrite(ym,payload,closed,closedPayroll,workingAttendance,storeId,qaRoute=null){
+async function googleWrite(ym,payload,closed,closedPayroll,workingAttendance,storeId=1,qaRoute=null){
   // QA store may NEVER share the operating Apps Script URL, credentials or workbook key.
   if(storeId!==1&&!qaRoute)throw new HttpError(403,"QA_SHEET_ROUTE_NOT_APPROVED");
   const url=qaRoute?.url||Deno.env.get("SHEET_WEBAPP_URL");
