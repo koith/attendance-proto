@@ -7,9 +7,20 @@ try {
  for(const [name,viewport] of [['mobile',{width:390,height:844}],['desktop',{width:1440,height:900}]]) {
   const page=await browser.newPage({viewport,locale:'ko-KR'});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  let registered=null;
+  let registeredCalls=0;
   await page.route('**/rest/v1/rpc/**',route=>{
    const rpc=route.request().url().split('/').pop();
+   if(rpc==='hq_store_register'){
+     registeredCalls++;
+     const data=JSON.parse(route.request().postData()||'{}');
+     registered={id:284,name:data.p_name,code:data.p_code,region_group:data.p_region_group,
+       onboarding_status:'STAGED',is_active:false};
+     return route.fulfill({status:200,contentType:'application/json',
+       body:JSON.stringify({ok:true,store_id:284,status:'STAGED',code:registered.code})});
+   }
    const stores=Array.from({length:283},(_,i)=>({id:i+1,name:i===0?'강남역점':i===1?'송파역점':i===2?'주소미등록점':'테스트'+i+'점',code:'S'+i,region_group:i%2?'경기':'서울',road_address:i===0?'서울특별시 강남구 테헤란로 10':i===1?'서울특별시 송파구 올림픽로 20':i===3?'경기도 수원시 영통구 대학로 12':i===5?'경기도 수원시 팔달구 매산로 3':''}));
+   if(registered)stores.push(registered);
    const locations=[{store_id:1,province:'서울특별시',district:'강남구',subdistrict:'',address:'서울 강남구 테헤란로 10'},{store_id:2,province:'서울특별시',district:'송파구',subdistrict:'',address:'서울 송파구 올림픽로 20'},{store_id:4,province:'경기도',district:'수원시',subdistrict:'영통구',address:'경기 수원시 영통구 대학로 12'},{store_id:6,province:'경기도',district:'수원시',subdistrict:'팔달구',address:'경기 수원시 팔달구 매산로 3'},...Array.from({length:30},(_,i)=>({store_id:i+20,province:'서울특별시',district:'종로구',subdistrict:'',address:'서울 종로구 테스트로 '+i})),{store_id:7,province:'부산광역시',district:'금정구',subdistrict:'',address:'부산 금정구'},{store_id:8,province:'부산광역시',district:'동래구',subdistrict:'',address:'부산 동래구'},{store_id:9,province:'부산광역시',district:'기장군',subdistrict:'',address:'부산 기장군'}];
    const managers=[
     {store_id:1,user_id:'owner-1',email:'owner@synthetic.invalid',intended_role:'OWNER',account_state:'ACTIVE',registered_at:'2026-10-16T09:00:00Z'},
@@ -315,6 +326,26 @@ try {
   await page.locator('.hq-owner-row').first().waitFor();
   assert.equal(await activeQuickListeners(),0,'Remount must not leak prior keyboard listeners');
   assert.equal(await page.getByRole('dialog').count(),0,'Reopen must reset the quick picker');
+  // #1243: Main HQ console must register a STAGED-only branch via authorized HQ RPC.
+  assert.equal(await page.locator('#hqNewStoreForm').count(),1,'HQ console exposes new-store registration');
+  await page.locator('#hqNewStoreDetails').evaluate(el=>{el.open=true});
+  await page.locator('#hqNewStoreName').fill('강남역점');
+  await page.locator('#hqNewStoreCode').fill('QA1243');
+  await page.locator('#hqNewStoreSubmit').click();
+  assert.equal(registeredCalls,0,'duplicate branch name must be rejected before RPC');
+  await page.locator('#hqNewStoreName').fill('합성 신규 지점');
+  await page.locator('#hqNewStoreCode').fill('bad-code');
+  await page.locator('#hqNewStoreSubmit').click();
+  assert.equal(registeredCalls,0,'invalid branch code must not reach HQ RPC');
+  await page.locator('#hqNewStoreCode').fill('QA1243');
+  await page.evaluate(()=>{window.confirm=()=>true});
+  await page.locator('#hqNewStoreSubmit').click();
+  await page.waitForFunction(()=>document.querySelector('.hq-owner-row.active')?.dataset.store==='284');
+  assert.equal(registeredCalls,1,'valid STAGED registration must occur once');
+  assert.equal(registered?.onboarding_status,'STAGED','new store must start STAGED');
+  assert.equal(registered?.is_active,false,'new store cannot be READY automatically');
+  assert.equal(await page.locator('.hq-owner-row').count(),284,'existing directory preserved');
+  assert.match(await page.locator('.hq-owner-detail').innerText(),/합성 신규 지점/);
   await page.locator('[data-quick-mode="recent"]').click();
   assert.equal(await activeQuickListeners(),1,'Remounted popup has exactly one listener');
   await page.evaluate(()=>document.querySelector('#adAccount').remove());
