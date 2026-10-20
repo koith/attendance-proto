@@ -68,7 +68,7 @@ gs=gs.replace("var SHARED_SECRET = 'REPLACE_WITH_LONG_RANDOM_SECRET';",
 // Intentionally read-only. An owner can select this function and Run once in
 // the isolated project's editor to grant Apps Script service scopes. The QA
 // function is NOT present in the operating script and creates no workbook.
-gs+='\\nfunction qa1243AuthorizeServices(){'+
+gs+='\nfunction qa1243AuthorizeServices(){'+
   'SpreadsheetApp.getActiveSpreadsheet();'+
   'DriveApp.getRootFolder().getName();'+
   'PropertiesService.getScriptProperties().getKeys();'+
