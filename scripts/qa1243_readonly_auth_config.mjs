@@ -60,7 +60,7 @@ result.publicEmailSignupEnabled=null;
 result.publicExternalEmailConfigured=null;
 try {
   const index=await readFile(new URL('../index.html',import.meta.url),'utf8');
-  const match=index.match(/SUPABASE_ANON_KEY:\\s*["']([^"']+)["']/);
+  const match=index.match(/SUPABASE_ANON_KEY:\s*["']([^"']+)["']/);
   if(!match) result.publicSettingsReason='APP_PUBLIC_ANON_KEY_NOT_FOUND';
   else {
     const res=await fetch('https://waluhdgqhwjjwmflhrle.supabase.co/auth/v1/settings',{
