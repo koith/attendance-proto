@@ -65,6 +65,18 @@ let gs=readFileSync('apps_script.gs','utf8');
 assert.ok(gs.includes("var SHARED_SECRET = 'REPLACE_WITH_LONG_RANDOM_SECRET';"));
 gs=gs.replace("var SHARED_SECRET = 'REPLACE_WITH_LONG_RANDOM_SECRET';",
  "var SHARED_SECRET = '"+secret+"';");
+// In the QA-only uploaded copy, force visible QA and store markers in every
+// new/renamed workbook title. Never create a test workbook named exactly like
+// the real operating "2026 근태", even though the IDs are isolated.
+const originalCreate="ss = SpreadsheetApp.create(year + ' 근태');";
+const originalRename="if(ss.getName() !== year + ' 근태') DriveApp.getFileById(ss.getId()).setName(year + ' 근태');";
+assert.equal(gs.split(originalCreate).length,2,'Expected canonical annualBook create');
+assert.equal(gs.split(originalRename).length,2,'Expected canonical annualBook rename');
+gs=gs.replace(originalCreate,"ss = SpreadsheetApp.create('QA1243 ' + storeKey + ' ' + year + ' 근태');");
+gs=gs.replace(originalRename,
+ "if(ss.getName() !== 'QA1243 ' + storeKey + ' ' + year + ' 근태') "+
+ "DriveApp.getFileById(ss.getId()).setName('QA1243 ' + storeKey + ' ' + year + ' 근태');");
+assert.ok(!gs.includes(originalCreate)&&!gs.includes(originalRename));
 // Intentionally read-only. An owner can select this function and Run once in
 // the isolated project's editor to grant Apps Script service scopes. The QA
 // function is NOT present in the operating script and creates no workbook.
@@ -177,6 +189,17 @@ async function read(id){
  return result.value.values||[];
 }
 function occurrence(rows,word){return rows.flat().filter(v=>String(v).includes(word)).length}
+// Independent Sheets API metadata proves the generated workbook is a QA
+// file, not a previously existing operational report with the same title.
+async function verifyQaWorkbookTitle(id,storeKey){
+ const url='https://sheets.googleapis.com/v4/spreadsheets/'+id+
+  '?fields=spreadsheetId%2Cproperties(title)';
+ const r=await jsonRequest(url,{headers:sheetHead});
+ assert.equal(r.value.spreadsheetId,id);
+ assert.equal(r.value.properties?.title,'QA1243 '+storeKey+' 2026 근태',
+  'Only visibly marked test workbooks are acceptable');
+}
+await verifyQaWorkbookTitle(aId,storeA);
 const before=await read(aId);assert.ok(occurrence(before,marker)>=1,'Google Sheets readback has synthetic marker');
 assert.ok(JSON.stringify(before).includes('45,000')||JSON.stringify(before).includes('45000'),'45,000 won on real spreadsheet');
 const repeated=await edge(storeA,45000);assert.equal(repeated.value.ok,true);
@@ -191,6 +214,7 @@ assert.equal(occurrence(afterCorrection,marker),occurrence(before,marker),'Corre
 const b=await edge(storeB,60000);assert.equal(b.value.ok,true);
 const bId=b.value.spreadsheet_id;assert.notEqual(bId,aId,'Different synthetic stores MUST use different annual workbooks');
 assert.notEqual(bId,'1-0on5kKhnIrjrutEDAR9y4nkBGlB1VL6YaLD49eG024');
+await verifyQaWorkbookTitle(bId,storeB);
 const bRows=await read(bId);
 assert.ok(JSON.stringify(bRows).includes('60,000')||JSON.stringify(bRows).includes('60000'));
 const aFinal=await read(aId);assert.deepEqual(aFinal,afterCorrection,'B store write must not mutate A rows');
