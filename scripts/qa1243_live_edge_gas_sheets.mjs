@@ -87,6 +87,24 @@ console.log('QA1243_GAS_DEPLOYED '+JSON.stringify({scriptId,deploymentId:deploym
 // interactive authorization or web-app publication propagation. Probe with
 // deliberately WRONG secret before sending a single payroll row. A healthy
 // app returns JSON {ok:false,error:"UNAUTHORIZED"} without creating a Sheet.
+// Safe non-mutating discriminator: GET can prove publication is reachable
+// even when Google rejects POST. Never send payroll or the QA secret here.
+async function probeReadonlyPublication(url){
+ try{
+  const request=new URL(url);request.searchParams.set('qa1243_probe','publication_only');
+  const res=await fetch(request.toString(),{method:'GET',redirect:'follow',
+   signal:AbortSignal.timeout(25000)});
+  const body=await res.text();let value=null;try{value=JSON.parse(body)}catch{}
+  const evidence={http:res.status,contentType:(res.headers.get('content-type')||'').split(';')[0],
+   finalHost:new URL(res.url).hostname,
+   getOnlyReached:res.ok&&value?.probe==='QA1243_PUBLICATION_GET_ONLY'};
+  console.log('QA1243_GAS_READONLY_GET_DIAGNOSTIC '+JSON.stringify(evidence));
+  return evidence;
+ }catch(_error){
+  console.log('QA1243_GAS_READONLY_GET_DIAGNOSTIC '+JSON.stringify({networkError:true}));
+  return {networkError:true,getOnlyReached:false};
+ }
+}
 async function waitForExecutableQaWebapp(url){
  const attempts=12;let last=null;let consecutive403=0;
  for(let n=1;n<=attempts;n++){
@@ -119,10 +137,13 @@ async function waitForExecutableQaWebapp(url){
    consecutive403=(probe.status===403&&payload===null)?consecutive403+1:0;
    if(consecutive403>=3){
     console.log('QA1243_GAS_HTTP_403_PERMISSION_BLOCK '+JSON.stringify(last));
+    const publication=await probeReadonlyPublication(url);
+    if(publication.getOnlyReached)
+      throw new Error('QA1243_GAS_POST_ROUTE_OR_METHOD_403');
     throw new Error('QA1243_GAS_AUTH_OR_PUBLICATION_POLICY_403');
    }
   }catch(error){
-   if(['QA1243_GAS_OWNER_CONSENT_REQUIRED','QA1243_GAS_AUTH_OR_PUBLICATION_POLICY_403'].includes(error?.message))throw error;
+   if(['QA1243_GAS_OWNER_CONSENT_REQUIRED','QA1243_GAS_AUTH_OR_PUBLICATION_POLICY_403','QA1243_GAS_POST_ROUTE_OR_METHOD_403'].includes(error?.message))throw error;
    last={attempt:n,networkError:true};
   }
   if(n<attempts)await new Promise(resolve=>setTimeout(resolve,12000));
