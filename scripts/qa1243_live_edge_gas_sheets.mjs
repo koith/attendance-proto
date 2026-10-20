@@ -19,7 +19,17 @@ for(const key of required)if(!process.env[key])throw Error('REQUIRED_QA_CREDENTI
 async function jsonRequest(url,options={},assertOk=true){
  const res=await fetch(url,{...options,redirect:'error',signal:AbortSignal.timeout(60000)});
  const raw=await res.text();let value;try{value=JSON.parse(raw)}catch{value={unexpectedNonJson:true}};
- if(assertOk&&!res.ok)throw Error('REMOTE_HTTP_'+res.status+' for '+new URL(url).hostname+' / '+new URL(url).pathname.split('/').slice(0,4).join('/'));
+ if(assertOk&&!res.ok){
+  // Never publish bearer tokens, script source, or complete remote error bodies.
+  const rawMessage=String(value?.error?.message||'').slice(0,350);
+  const detail=[process.env.GOOGLE_OAUTH_CLIENT_SECRET,process.env.GOOGLE_OAUTH_REFRESH_TOKEN,
+    secret]
+    .filter(Boolean).some(token=>rawMessage.includes(token))?'REDACTED_SECRET':
+    rawMessage.replace(/(?:Bearer\\s+|eyJ)[A-Za-z0-9_.-]{20,}/g,'[REDACTED]');
+  const endpoint=new URL(url);
+  throw Error('REMOTE_HTTP_'+res.status+' for '+endpoint.hostname+' '+endpoint.pathname.replace(/\\/projects\\/[^/]+/,'/projects/[qa-script]')+
+    ' [type='+String(value?.error?.status||'UNKNOWN')+'] '+detail);
+ }
  return {status:res.status,ok:res.ok,value};
 }
 const token=await jsonRequest('https://oauth2.googleapis.com/token',{
