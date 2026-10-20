@@ -228,7 +228,8 @@ window.mountHqOwnerConsole=async function(box){
  const invitePanel='<div class="hq-manager-invite-panel" role="tabpanel" aria-label="관리자 초대">'+
    '<label for="hqInviteRole">역할</label><select class="form-control" id="hqInviteRole"><option value="OWNER">대표 관리자</option><option value="ASSISTANT">보조 관리자</option></select>'+
    '<label for="hqOwnerEmail">이메일</label><input class="form-control" id="hqOwnerEmail" type="email" placeholder="manager@example.com" autocomplete="off">'+
-   '<div class="hq-owner-buttons"><button type="button" class="btn btn-primary btn-sm" id="hqOwnerInvite">초대 메일 발송</button></div>'+
+   '<div class="hq-owner-buttons" style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-primary btn-sm" id="hqOwnerInvite">신규 계정 초대 메일 발송</button><button type="button" class="btn btn-secondary btn-sm" id="hqOwnerConnectExisting">기존 인증 계정 연결 (메일 없음)</button></div>'+
+   '<p class="hq-owner-help">이미 가입해 이메일·비밀번호 인증을 완료한 계정은 별도 버튼으로 연결합니다. 본사·타 지점 계정은 연결할 수 없으며, 보조 관리자 권한은 기본적으로 모두 꺼집니다.</p>'+
    '<h4>초대 대기중</h4>'+
    (waitingRows.length?waitingRows.map(m=>
      '<div class="hq-manager-invite-row"><span><strong>'+h(m.email)+'</strong><small>'+h(roleName(m))+' · '+(m.account_state==="EXPIRED"?"기한 만료":"인증 대기")+'</small></span>'+
@@ -317,6 +318,30 @@ window.mountHqOwnerConsole=async function(box){
  });
  if(activeTab==="invite"){
    const email=()=>body.querySelector("#hqOwnerEmail").value.trim().toLowerCase();
+   body.querySelector("#hqOwnerConnectExisting").onclick=()=>{
+     const role=body.querySelector("#hqInviteRole").value,assistant=role==="ASSISTANT";
+     if(!assistant&&(current||waiting))
+       return alert("대표 관리자 또는 대기 중인 대표 초대가 있습니다. 먼저 기존 역할을 확인하세요.");
+     if(assistant&&!current)return alert("대표 관리자 활성화 후 보조 관리자를 연결할 수 있습니다.");
+     if(assistant&&(store?.onboarding_status!=="READY"||store?.is_active!==true))
+       return alert("보조 관리자는 개통된 READY 지점에만 연결할 수 있습니다.");
+     const v=email();
+     if(!v||!body.querySelector("#hqOwnerEmail").checkValidity())return alert("올바른 이메일을 입력하세요.");
+     if(!confirm("이미 이메일·비밀번호 인증된 기존 계정을 지점에 바로 연결하시겠습니까?\\n\\n"+
+       "지점: "+store.name+"\\n이메일: "+v+"\\n역할: "+(assistant?"보조":"대표")+
+       "\\n\\n초대 메일이나 비밀번호 재설정 없이 연결됩니다. 본사 계정·타점 관리자 연결은 서버가 차단합니다."))return;
+     run(async()=>{
+       const result=await rpc("hq_store_existing_verified_account_connect",{
+         p_email:v,p_store_id:selected,p_intended_role:role
+       });
+       if(result?.ok!==true||Number(result.store_id)!==selected||result.intended_role!==role)
+         throw Error("EXISTING_ACCOUNT_CONNECTION_NOT_CONFIRMED");
+     },()=>{
+       activeTab="status";notice={title:"기존 인증 계정 연결 완료",
+         message:store.name+" · "+v+" · "+(assistant?"보조 관리자 (기본 권한 없음)":"대표 관리자")+
+           " 권한이 연결되었습니다. 메일은 발송하지 않았습니다."};
+     });
+   };
    body.querySelector("#hqOwnerInvite").onclick=()=>{
      const role=body.querySelector("#hqInviteRole").value,assistant=role==="ASSISTANT";
      if(!assistant&&current)return alert("이미 대표 관리자가 있습니다. 대표 교체는 별도 승인 후 진행하세요.");
@@ -327,7 +352,7 @@ window.mountHqOwnerConsole=async function(box){
      const found=accounts.find(a=>String(a.email||"").toLowerCase()===v);
      if(found){
        const linkedManager=managers.find(m=>m.user_id===found.user_id);
-       return alert(linkedManager?"이미 연결된 계정입니다. 관리자 현황 또는 해제 탭에서 상태를 확인하세요.":isHqAccount(found)?"본사 관리자 계정은 지점 관리자로 초대할 수 없습니다.":"이미 가입한 일반 계정입니다. 본사 계정 관리에서 연결 상태를 확인하세요.");
+       return alert(linkedManager?"이미 연결된 계정입니다. 관리자 현황 또는 해제 탭에서 상태를 확인하세요.":isHqAccount(found)?"본사 관리자 계정은 지점 관리자로 초대할 수 없습니다.":"이미 가입한 일반 계정입니다. 아래 ‘기존 인증 계정 연결 (메일 없음)’ 버튼을 사용하세요.");
      }
      if(confirm("관리자 초대 메일을 발송하시겠습니까?\n\n지점: "+store.name+"\n이메일: "+v+"\n역할: "+(assistant?"보조 관리자":"대표 관리자")+"\n\n이메일이 발송되며, 수신인이 인증·비밀번호 설정을 완료하면 "+(assistant?"해당 지점의 보조 관리자 계정으로 활성화됩니다.":"해당 지점의 대표 관리자로 자동 등록됩니다.")+"\n\n발송을 진행할까요?")){
        run(()=>invite(v,selected,role),()=>{
