@@ -9,8 +9,20 @@ try {
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   let registered=null;
   let registeredCalls=0;
+  let reconnectCalls=0;
+  let lastReconnect=null;
   await page.route('**/rest/v1/rpc/**',route=>{
    const rpc=route.request().url().split('/').pop();
+   if(rpc==='hq_store_existing_verified_account_connect'){
+     reconnectCalls++;
+     lastReconnect=JSON.parse(route.request().postData()||'{}');
+     if(lastReconnect.p_email==='hq@synthetic.invalid')
+       return route.fulfill({status:403,contentType:'application/json',
+          body:JSON.stringify({message:'CANNOT_DOWNGRADE_HQ'})});
+     return route.fulfill({status:200,contentType:'application/json',
+       body:JSON.stringify({ok:true,store_id:lastReconnect.p_store_id,
+        intended_role:lastReconnect.p_intended_role,connection:'EXISTING_VERIFIED_ACCOUNT'})});
+   }
    if(rpc==='hq_store_register'){
      registeredCalls++;
      const data=JSON.parse(route.request().postData()||'{}');
@@ -346,6 +358,17 @@ try {
   assert.equal(registered?.is_active,false,'new store cannot be READY automatically');
   assert.equal(await page.locator('.hq-owner-row').count(),284,'existing directory preserved');
   assert.match(await page.locator('.hq-owner-detail').innerText(),/합성 신규 지점/);
+  // Existing accounts use a separate explicitly confirmed HQ RPC: no email call.
+  await page.locator('[data-manager-tab="invite"]').click();
+  assert.equal(await page.locator('#hqOwnerConnectExisting').count(),1);
+  await page.locator('#hqOwnerEmail').fill('existing@synthetic.invalid');
+  await page.locator('#hqOwnerConnectExisting').click();
+  await page.waitForFunction(()=>document.querySelector('[data-manager-tab="status"]')?.getAttribute('aria-selected')==='true');
+  assert.equal(reconnectCalls,1,'verified existing account must use the dedicated RPC');
+  assert.equal(lastReconnect?.p_store_id,284,'existing account may only be connected to selected branch');
+  assert.equal(lastReconnect?.p_intended_role,'OWNER','explicit role selection forwarded');
+  assert.equal(lastReconnect?.p_email,'existing@synthetic.invalid');
+
   await page.locator('[data-quick-mode="recent"]').click();
   assert.equal(await activeQuickListeners(),1,'Remounted popup has exactly one listener');
   await page.evaluate(()=>document.querySelector('#adAccount').remove());
