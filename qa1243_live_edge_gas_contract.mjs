@@ -31,4 +31,10 @@ assert.match(script,/getIDToken|ACTIONS_ID_TOKEN_REQUEST_URL/);
 assert.match(script,/https:\/\/sheets\.googleapis\.com\/v4\/spreadsheets/);
 assert.match(script,/duplicateNoGrowth:true,correction:true/);
 assert.match(script,/realProductionStoreOrAuthUsed:false/);
+assert.match(script,/await waitForExecutableQaWebapp\(qaUrl\)/);
+assert.match(script,/QA1243_NOT_A_VALID_SECRET_PROBE/);
+assert.match(script,/QA1243_GAS_OWNER_CONSENT_REQUIRED/);
+assert.match(script,/QA1243_GAS_WRITER_EXECUTABLE/);
+assert.ok(script.indexOf('await waitForExecutableQaWebapp(qaUrl);')<script.indexOf('const oidcUrl='),
+ 'Unauthorized POST must be verified before minting OIDC and writing');
 console.log('PASS QA1243 sandbox OIDC isolation, prod URL/secret denylist, real writer source, readback/correction/storage isolation CI static guards');
