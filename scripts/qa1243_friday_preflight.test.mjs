@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {REQUIRED,EXTERNAL_BLOCKERS,classifyWorkflow,verdict} from './qa1243_friday_preflight.mjs';
+import {REQUIRED,EXTERNAL_BLOCKERS,classifyWorkflow,verdict,reconcileIntegratedSqlEvidence} from './qa1243_friday_preflight.mjs';
 const SHA='864383ceeefa5ec9596886804efeb77505180685';
 const now=Date.parse('2026-10-21T00:00:00Z');
 const spec={id:'LIVE_EDGE_GAS_SHEETS',sameSha:false};
@@ -26,4 +26,22 @@ assert.ok(REQUIRED.some(s=>s.id==='TEST_MAIL_GOTRUE'));
 assert.ok(REQUIRED.some(s=>s.id==='INDEPENDENT_PAGES'));
 assert.ok(EXTERNAL_BLOCKERS.some(s=>s.id==='HOSTED_TEST_MAIL_RECEIPT'));
 assert.ok(EXTERNAL_BLOCKERS.some(s=>s.id==='PRODUCTION_PREPOST_DATA_PROOF'));
+const integratedSource=`Run isolated SQL fixtures; never connect to Supabase production
+set -euo pipefail
+fixtures=(qa_hq_store_onboarding_postgres_integration.sql qa_store_delegated_manager_postgres.sql)
+if ! psql -f fixture; then exit 1; fi`;
+const staleSql=[
+ {id:'STORE_E2E',status:'PASS',run_id:8833,head_sha:SHA},
+ {id:'HQ_STORE_POSTGRES',status:'FAIL',reason:'RUN_STALE_OR_INVALID_DATE'},
+ {id:'MANAGER_POSTGRES',status:'FAIL',reason:'NO_MAIN_RUN'}
+];
+const mergedSql=reconcileIntegratedSqlEvidence(staleSql,integratedSource);
+assert.equal(mergedSql[1].status,'PASS','full-jouney HQ fixture is independently exercised in disposable SQL');
+assert.equal(mergedSql[2].status,'PASS','full-jouney delegated fixture is independently exercised in disposable SQL');
+assert.equal(mergedSql[1].run_id,8833);
+assert.equal(reconcileIntegratedSqlEvidence(staleSql,integratedSource.replace('exit 1','no fail-closed'))[1].status,'FAIL');
+assert.equal(reconcileIntegratedSqlEvidence(staleSql,integratedSource.replace('qa_store_delegated_manager_postgres.sql','missing.sql'))[2].status,'FAIL');
+assert.equal(reconcileIntegratedSqlEvidence([{...staleSql[0],status:'FAIL'},...staleSql.slice(1)],integratedSource)[1].status,'FAIL');
+assert.equal(reconcileIntegratedSqlEvidence([{...staleSql[0]}, {...staleSql[1],reason:'WORKFLOW_FAILURE'}, staleSql[2]],integratedSource)[1].status,'FAIL',
+ 'A standalone failure cannot be laundered by a different green workflow');
 console.log('PASS #1243 Friday prelaunch: failing current Google 403, stale run, historical green, wrong SHA, synthetic-vs-hosted boundaries all NO_GO');
