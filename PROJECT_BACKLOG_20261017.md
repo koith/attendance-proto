@@ -389,3 +389,11 @@
 - 실제 익명 /exec POST 403 HTML 3회 + 읽기 전용 GET 403 HTML 발생 후, 이미 연결된 Google OAuth로 오직 `qa1243AuthorizeServices`(Drive/Sheets/Properties 존재 여부 읽기, 쓰기 없음)를 `scripts.run` 단 한 번 호출. 결과는 HTTP 상태/안전한 오류 유형만 기록. 성공한 것처럼 오인하지 않기 위해 **잘못된 secret POST가 JSON `UNAUTHORIZED`를 반환할 때만** 기존 Edge→QA GAS→QA Sheets 경로 진행 가능.
 - Google 공식 문서상 API 실행은 **공통 표준 Cloud 프로젝트·전체 스크립트 scope를 가진 OAuth**가 필요하며, `scripts.run` 403도 기능 불가능 증거가 아니라 별도 경로 제한을 뜻한다. 실제 자동 승인/웹앱 403 해소는 trusted main E2E 실행 전 **UNVERIFIED**.
 - PR QA 성공과 운영 HTTP 성공을 구분. 사전 금요일 개통 게이트는 `NO_GO`이고 **QA-05 [ ]** 및 38/19/19 유지. 운영 데이터 무단 변경 금지.
+
+## 49. 2026-10-21 — 금요일 P0 Hosted Auth 설정 미검증을 PASS로 오판하는 경계 수정
+
+- 사용자 2026-10-21 P0 계속 실행 지시: Issue #1243 comment #6304726553.
+- 과거 QA1243 Hosted Auth 설정 읽기 전용 워크플로가 운영 Management API 인증 없이도 public auth/settings 응답만 읽고 성공 종료할 수 있어 HOSTED_AUTH_READ 게이트가 거짓 PASS 되는 결함 수정.
+- 운영 Hosted 한국어 초대 HTML/제목, 이메일 기능, SMTP 호스트/발신인 모두 실제 읽기 검증되었을 때만 PASS. 검증 불가/불일치/누락은 반드시 exit 1 및 NO_GO. Gmail 실 수신과 관리자 live 세션은 여전히 별도 차단 항목.
+- 금요일 P0 게이트 workflow_run 트리거에 Hosted Auth 점검 완료 추가. 정상/미설정/6종 개별 부정 및 null 회귀 테스트 추가.
+- 운영 Auth 설정 변경, SMTP 송신, 실제 운영 계정/지점/시트 쓰기 전혀 없음. 38개 중 19개 완료, 19개 잔여 유지. 테스트·배포 링크는 Issue #1243에 후속 기록.

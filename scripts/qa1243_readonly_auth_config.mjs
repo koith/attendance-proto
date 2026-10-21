@@ -3,6 +3,7 @@
 // passphrases, URLs containing tokens, or email template contents.
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
+import {assessHostedInviteConfig} from './qa1243_auth_config_verdict.mjs';
 
 const PROJECT_REF='waluhdgqhwjjwmflhrle';
 const expectedSubject='[백억커피] 매장 관리자 계정 초대 안내';
@@ -81,6 +82,9 @@ const allowed=new Set(Object.keys(result));
 if(Object.keys(result).some(k=>!allowed.has(k)))throw Error('Unexpected output key');
 console.log('QA1243_READONLY_AUTH_SMTP_CONFIG '+JSON.stringify(result));
 console.log('QA1243_LOCAL_INVITE_TEMPLATE_SHA256 '+createHash('sha256').update(template).digest('hex').slice(0,16));
-if(!result.configReadable){
-  console.log('PENDING_AUTH_CONFIG_READ: hosted Auth/SMTP settings could not be verified; this is not a PASS.');
+const assessment=assessHostedInviteConfig(result);
+console.log('QA1243_HOSTED_INVITE_CONFIG_VERDICT '+JSON.stringify(assessment));
+if(!assessment.ready){
+  console.log('NO_GO_HOSTED_AUTH_CONFIG: Korean invite template, subject, provider and SMTP have not all been verified.');
+  process.exitCode=1;
 }
