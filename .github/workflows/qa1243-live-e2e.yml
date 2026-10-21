@@ -5,6 +5,9 @@ on:
       - 'scripts/qa1243_live_edge_gas_sheets.mjs'
       - 'scripts/qa1243_build_isolated_gas.mjs'
       - 'qa1243_gas_foreign_workbook_guard.mjs'
+      - '.github/workflows/verified-pages-deployment-notification.yml'
+      - '.github/workflows/p0-pages-deploy.yml'
+      - 'qa1243_pages_no_operating_write_guard.mjs'
       - 'qa1243_live_edge_gas_contract.mjs'
       - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
       - 'supabase/functions/server-sync-sheet/index.ts'
@@ -15,6 +18,9 @@ on:
       - 'scripts/qa1243_live_edge_gas_sheets.mjs'
       - 'scripts/qa1243_build_isolated_gas.mjs'
       - 'qa1243_gas_foreign_workbook_guard.mjs'
+      - '.github/workflows/verified-pages-deployment-notification.yml'
+      - '.github/workflows/p0-pages-deploy.yml'
+      - 'qa1243_pages_no_operating_write_guard.mjs'
       - 'qa1243_live_edge_gas_contract.mjs'
       - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
       - 'supabase/functions/server-sync-sheet/index.ts'
@@ -38,6 +44,7 @@ jobs:
           node --check scripts/qa1243_live_edge_gas_sheets.mjs
           node qa1243_live_edge_gas_contract.mjs
           node qa1243_gas_foreign_workbook_guard.mjs
+          node qa1243_pages_no_operating_write_guard.mjs
       - name: Await verified native production Edge deployment of this exact revision
         if: github.event_name == 'push'
         uses: actions/github-script@v7
