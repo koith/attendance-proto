@@ -5,7 +5,8 @@
 import {readFileSync} from 'node:fs';
 import {randomBytes,createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
-import {buildQa1243GAS,buildQa1243Manifest,QA1243_SCRIPT_SCOPES} from './qa1243_build_isolated_gas.mjs';
+import {buildQa1243GAS,buildQa1243Manifest,QA1243_SCRIPT_SCOPES,
+ selectQa1243OwnedExistingScript,QA1243_EXISTING_SCRIPT_TITLE} from './qa1243_build_isolated_gas.mjs';
 
 const projectRef='waluhdgqhwjjwmflhrle';
 const audience=`https://${projectRef}.supabase.co/functions/v1/server-sync-sheet`;
@@ -103,20 +104,40 @@ const api='https://script.googleapis.com/v1/projects';
 const knownQaProject=String(process.env.QA1243_GAS_SCRIPT_ID||'').trim();
 if(knownQaProject==='1VkwzA0EKQAf9VQ9BECOcOLkikhIuHR7EtKt6mZkq6B8_Q9HH4w6lQmrw')
  throw Error('QA1243_LEGACY_OPERATING_OWNER_SCRIPT_FORBIDDEN');
-let scriptId;
-if(knownQaProject){
- const existing=(await jsonRequest(api+'/'+encodeURIComponent(knownQaProject),{headers})).value;
- assert.match(existing.title||'',/^QA1243 isolated Edge GAS /,'Never overwrite non-QA GAS projects');
- assert.equal(existing.scriptId,knownQaProject,'QA project identity must be unchanged');
- scriptId=existing.scriptId;
- await verifyQaScriptOwner(scriptId);
- console.log('QA1243_GAS_PROJECT_REUSED '+JSON.stringify({scriptId,scope:'preexisting standalone QA-only project'}));
-}else{
- const created=(await jsonRequest(api,{method:'POST',headers,body:JSON.stringify({title:projectName})})).value;
- scriptId=created.scriptId;
- await verifyQaScriptOwner(scriptId);
- console.log('QA1243_GAS_PROJECT_CREATED '+JSON.stringify({scriptId,scope:'new standalone project only'}));
+// An independent QA owner already created a project. Never create another
+// project if the optional Actions variable has not been entered. Discover it
+// through the verified QA OAuth identity using metadata-only Drive pagination.
+async function discoverExistingQaProject(){
+ const results=[];let pageToken='';
+ for(let page=0;page<10;page++){
+  const q="name = '"+QA1243_EXISTING_SCRIPT_TITLE.replace(/'/g,"\\'")+
+   "' and mimeType = 'application/vnd.google-apps.script' and trashed = false";
+  const params=new URLSearchParams({q,spaces:'drive',pageSize:'100',
+   fields:'nextPageToken,files(id,name,mimeType,trashed,owners(emailAddress))'});
+  if(pageToken)params.set('pageToken',pageToken);
+  const response=(await jsonRequest('https://www.googleapis.com/drive/v3/files?'+params,{
+   headers:{Authorization:'Bearer '+oauth}})).value;
+  if(!Array.isArray(response.files))throw Error('QA1243_SCRIPT_DISCOVERY_INVALID_RESPONSE');
+  results.push(...response.files);
+  if(!response.nextPageToken){
+   const id=selectQa1243OwnedExistingScript(results);
+   console.log('QA1243_GAS_SCRIPT_AUTODISCOVERED '+JSON.stringify({
+    scriptId:id,owner:EXPECTED_QA_OWNER,uniqueMatch:true,noGitHubVariableRequired:true
+   }));
+   return id;
+  }
+  pageToken=response.nextPageToken;
+ }
+ throw Error('QA1243_SCRIPT_DISCOVERY_PAGINATION_LIMIT');
 }
+const scriptId=knownQaProject||await discoverExistingQaProject();
+const existing=(await jsonRequest(api+'/'+encodeURIComponent(scriptId),{headers})).value;
+assert.equal(existing.title,QA1243_EXISTING_SCRIPT_TITLE,'Never overwrite a differently named project');
+assert.equal(existing.scriptId,scriptId,'QA project identity must be unchanged');
+await verifyQaScriptOwner(scriptId);
+console.log('QA1243_GAS_PROJECT_REUSED '+JSON.stringify({
+ scriptId,scope:'preexisting standalone QA-only project',createdNewProject:false
+}));
 assert.match(scriptId,/^[A-Za-z0-9_-]{15,}$/);
 const gs=buildQa1243GAS(readFileSync('apps_script.gs','utf8'),secret);
 // Explicit Sheets+storage scopes; no DriveApp, UrlFetchApp or execution API.

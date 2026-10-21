@@ -30,7 +30,7 @@
    - `QA1243_GOOGLE_OAUTH_CLIENT_SECRET` = 새 QA client secret
    - `QA1243_GOOGLE_OAUTH_REFRESH_TOKEN` = QA refresh token
 9. QA Chrome 프로필로 [Apps Script 시작](https://script.google.com/home/projects/create) → 새 프로젝트 → 왼쪽 위 제목을 **`QA1243 isolated Edge GAS 2026-10-21 QA-only`**로 변경. **이 단계에서는 운영 스크립트 코드를 복사해 붙여넣지 않으며, OAuth를 승인하지 않는다.**
-10. Apps Script 프로젝트 설정(톱니바퀴) → **스크립트 ID 복사**. [GitHub Settings → Secrets and variables → Actions → Variables](https://github.com/koith/attendance-proto/settings/variables/actions) → **New repository variable** → 이름 `QA1243_GAS_SCRIPT_ID`, 값 새 QA 스크립트 ID. **기존 운영 계정 소유 스크립트 ID는 입력 금지.**
+10. **스크립트 ID 복사 및 GitHub 변수 등록은 기본적으로 불필요.** QA Google OAuth 자격증명이 들어오면 CI가 Drive metadata-only 목록에서 이름이 정확히 `QA1243 isolated Edge GAS 2026-10-21 QA-only`이고 소유자가 `webuielf@gmail.com`인 기존 스크립트를 자동 탐색한다. 후보가 0개/여러 개이거나 소유자가 다르면 **원격 소스 쓰기 전에 중지**한다. `QA1243_GAS_SCRIPT_ID` 변수는 동일한 QA 소유 프로젝트를 직접 지정해야 할 때에만 선택적으로 사용한다. 운영 계정 소유 Script ID는 어떤 경우에도 사용 금지.
 
 ## 3. 최소권한 구조와 검증
 
@@ -41,14 +41,14 @@
 
 ## 4. QA 코드 배포와 QA 계정 OAuth 승인
 
-새 QA 자격증명과 스크립트 ID를 등록한 뒤, GitHub Actions의 `QA1243 isolated live production Edge GAS Sheets E2E`를 실행한다. **운영 시트·운영 앱을 갱신하는 별도 Actions job의 실행 여부를 먼저 검사**하고, 운영 Sheet write가 유발되는 main push는 사용하지 않는다. 이 조건을 충족하는 안전한 실행 경로가 확인되지 않았다면 QA 실행도 보류한다.
+QA 계정의 독립 OAuth 비밀값 3개를 등록한 뒤, [GitHub QA-only Actions](https://github.com/koith/attendance-proto/actions/workflows/qa1243-live-e2e.yml)에서 마지막 **main push 실행 → Re-run jobs → Re-run failed jobs**를 사용한다. Script ID 변수는 생략한다. `workflow_dispatch`는 production Edge OIDC가 `push` 이벤트만 허용하므로 **사용하지 않는다**. QA 전용 재실행만으로 운영 Pages 배포/Sheet 갱신은 트리거하지 않는다. **운영 시트·운영 앱을 갱신하는 별도 Actions job의 실행 여부를 먼저 검사**하고, 운영 Sheet write가 유발되는 main push는 사용하지 않는다. 이 조건을 충족하는 안전한 실행 경로가 확인되지 않았다면 QA 실행도 보류한다.
 
 GitHub 로그에 `QA1243_REMOTE_SOURCE_ATTESTED`가 기록되고, 실제 QA Apps Script 소스/manifest가 검증된 이후:
 1. QA 계정으로 [Apps Script](https://script.google.com/home) → 방금 만든 QA 프로젝트만 연다.
 2. 좌측 **프로젝트 설정 → 'appsscript.json' 매니페스트 파일 표시**를 켜고 **편집기 → appsscript.json**의 `oauthScopes`가 `spreadsheets`, `script.storage` 두 개뿐인지 확인.
 3. 편집기 상단 함수 선택에서 `qa1243AuthorizeServices` → **실행**.
 4. 동의 팝업에 표시되는 계정이 `webuielf@gmail.com`인지 확인. Drive 전체 수정·삭제, 외부 웹 콘텐츠 실행이 표시되면 **취소하고 중단**. Sheets 수정 권한은 **QA 계정 파일만 접근 가능한 상태**라는 재검증을 마친 뒤에만 QA 계정에서 승인.
-5. [GitHub QA1243 live E2E Actions 실행 목록](https://github.com/koith/attendance-proto/actions/workflows/qa1243-live-e2e.yml) → **QA-only main push에서 실패한 실행**을 열고 우측 상단 **Re-run jobs → Re-run failed jobs**. GitHub Secrets/Variables를 등록하거나 QA 소유자가 동의한 뒤에도 **새 main push를 만들 필요 없이** 기존 `push` 실행을 다시 진행할 수 있으므로 운영 Pages·Sheets 배포를 유발하지 않는다.
+5. [GitHub QA1243 live E2E Actions 실행 목록](https://github.com/koith/attendance-proto/actions/workflows/qa1243-live-e2e.yml)에서 이전 **main push 실패 실행 → Re-run jobs → Re-run failed jobs**로 재실행한다. 신규 main 커밋/운영 릴리스는 불필요하다.
 6. 로그에서 `QA1243_OAUTH_OWNER_VERIFIED`, `QA1243_RUNNER_OAUTH_SCOPE_VERIFIED`, `QA1243_OPERATING_FILE_DENY_PROBE`, `QA1243_REMOTE_SCRIPT_OWNER_VERIFIED`, `QA1243_REMOTE_SOURCE_ATTESTED`, `QA1243_GAS_WRITER_EXECUTABLE`, `QA1243_E2E_REAL_COMPLETE`까지 **모두** 확인. 외부 잘못된 secret POST가 JSON `UNAUTHORIZED`인지 먼저 확인해야 다음 단계가 진행된다. 여전히 403 HTML이면 웹앱 배포 계정과 액세스 정책·스크립트 소유자의 편집기 실행 권한을 확인하고 Sheet 쓰기를 중단한다.
 
 ## 5. 완료 판정 (아직 미충족)

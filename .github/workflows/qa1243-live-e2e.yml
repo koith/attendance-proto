@@ -45,6 +45,7 @@ jobs:
           node qa1243_live_edge_gas_contract.mjs
           node qa1243_gas_foreign_workbook_guard.mjs
           node qa1243_pages_no_operating_write_guard.mjs
+          node qa1243_gas_foreign_workbook_guard.mjs
       - name: Await verified native production Edge deployment of this exact revision
         if: github.event_name == 'push'
         uses: actions/github-script@v7
@@ -82,8 +83,8 @@ jobs:
           QA1243_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID }}
           QA1243_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET }}
           QA1243_GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN }}
-          # New script owned by webuielf@gmail.com (optional initial value).
-          # Never set to the historical operating-account owned Script ID.
+          # Optional. If empty, discover exact pre-created QA-only script from
+          # verified QA OAuth Drive metadata. Never use the operating Script ID.
           QA1243_GAS_SCRIPT_ID: ${{ vars.QA1243_GAS_SCRIPT_ID }}
         run: |
           node scripts/qa1243_live_edge_gas_sheets.mjs
