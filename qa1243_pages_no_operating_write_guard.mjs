@@ -14,8 +14,9 @@ assert.match(pages,/!files.includes\('scripts\/qa1243_build_isolated_gas\.mjs'\)
 for(const name of ['build-pages','notify-deployment-result','deploy-pages']){
   const begin=pages.indexOf('\n  '+name+':');
   assert.ok(begin>=0,'Missing Pages job: '+name);
-  const next=pages.indexOf('\n  ',begin+4);
-  const block=pages.slice(begin,next>begin?next:pages.length);
+  const rest=pages.slice(begin+4);
+  const next=rest.search(/\n  [a-z][a-z-]*:\n/);
+  const block=pages.slice(begin,next>=0?begin+4+next:pages.length);
   assert.ok(block.includes('!contains(github.event.head_commit.message, '+JSON.stringify(marker).replace(/"/g,"'")+')'),
     'QA only must skip operating job '+name);
 }
