@@ -9,6 +9,13 @@ assert.deepEqual(classifyWorkflow(spec,[older,failed],SHA,now).status,'FAIL',
  'Latest failed E2E supersedes historic synthetic/real success');
 assert.match(classifyWorkflow(spec,[older,failed],SHA,now).reason,/FAILURE/);
 assert.equal(classifyWorkflow(spec,[older],SHA,now).status,'PASS');
+const qaOnlyPage={...older,head_commit:{message:'fix QA [QA1243-NO-OPERATING-WRITE]'},display_title:'QA-only'};
+assert.equal(classifyWorkflow({id:'PAGES_PUBLISH',sameSha:true},[qaOnlyPage],SHA,now).reason,
+ 'QA_ONLY_PUSH_NO_PAGES_PUBLICATION','QA-only skipped Pages is not a release success');
+assert.equal(classifyWorkflow({id:'INDEPENDENT_PAGES',sameSha:true},[qaOnlyPage],SHA,now).status,
+ 'FAIL','Skipped independent publication is not independent approval');
+assert.equal(classifyWorkflow({id:'PAGES_PUBLISH',sameSha:true},[older],SHA,now).status,'PASS');
+
 assert.equal(classifyWorkflow(spec,[{...older,status:'in_progress',conclusion:null}],SHA,now).status,'FAIL');
 assert.equal(classifyWorkflow(spec,[{...older,head_branch:'feature'}],SHA,now).status,'FAIL');
 assert.equal(classifyWorkflow(spec,[{...older,event:'pull_request'}],SHA,now).status,'FAIL');
