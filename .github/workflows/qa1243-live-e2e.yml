@@ -14,7 +14,6 @@ on:
       - '.github/workflows/qa1243-live-e2e.yml'
   push:
     branches: [main]
-  workflow_dispatch: # isolated QA-only run; no Pages or operating Sheet release
     paths:
       - 'scripts/qa1243_live_edge_gas_sheets.mjs'
       - 'scripts/qa1243_build_isolated_gas.mjs'
@@ -33,7 +32,6 @@ permissions:
 jobs:
   qa1243-isolated-e2e:
     name: Trusted production Edge to a new independent GAS project and Sheets
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -49,7 +47,7 @@ jobs:
           node qa1243_pages_no_operating_write_guard.mjs
           node qa1243_gas_foreign_workbook_guard.mjs
       - name: Await verified native production Edge deployment of this exact revision
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'push'
         uses: actions/github-script@v7
         with:
           script: |
@@ -80,7 +78,7 @@ jobs:
             }
             throw new Error('Production Edge deployment not attested at this SHA');
       - name: Execute real new GAS project and production Edge service-to-service QA
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'push'
         env:
           QA1243_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID }}
           QA1243_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET }}
