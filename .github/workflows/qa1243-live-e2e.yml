@@ -8,6 +8,7 @@ on:
       - 'scripts/qa1243_mobile_token_contract.mjs'
       - 'qa1243_mobile_token_contract.test.mjs'
       - 'qa1243_mobile_safari_vm.test.mjs'
+      - 'scripts/qa1243_mobile_http_smoke.mjs'
       - 'supabase/functions/qa1243-mobile-auth/**'
       - 'supabase/migrations/20261021221500_qa1243_mobile_one_time_session.sql'
       - 'scripts/qa1243_oauth_bootstrap.mjs'
@@ -30,6 +31,7 @@ on:
       - 'scripts/qa1243_mobile_token_contract.mjs'
       - 'qa1243_mobile_token_contract.test.mjs'
       - 'qa1243_mobile_safari_vm.test.mjs'
+      - 'scripts/qa1243_mobile_http_smoke.mjs'
       - 'supabase/functions/qa1243-mobile-auth/**'
       - 'supabase/migrations/20261021221500_qa1243_mobile_one_time_session.sql'
       - 'scripts/qa1243_oauth_bootstrap.mjs'
@@ -48,6 +50,19 @@ permissions:
   statuses: read
   id-token: write
 jobs:
+  qa1243-mobile-safari-public-http:
+    name: QA-only Safari live public GET POST query security
+    if: github.event_name == 'push'
+    permissions: {}
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Real credentialless HTTPS smoke - QA only, no DB or operating Sheets
+        run: node scripts/qa1243_mobile_http_smoke.mjs
   qa1243-isolated-e2e:
     name: Trusted production Edge to a new independent GAS project and Sheets
     runs-on: ubuntu-latest
