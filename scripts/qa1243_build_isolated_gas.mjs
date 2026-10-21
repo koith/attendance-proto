@@ -2,6 +2,25 @@
 // Apps Script deployment. Only QA-marked synthetic workbook keys are accepted.
 import assert from 'node:assert/strict';
 
+export const QA1243_EXISTING_SCRIPT_TITLE='QA1243 isolated Edge GAS 2026-10-21 QA-only';
+export const QA1243_EXPECTED_OWNER='webuielf@gmail.com';
+
+// Select the user's already-created standalone project, NEVER another owner's
+// similarly named project. Unverified, absent, or duplicate matches fail closed.
+export function selectQa1243OwnedExistingScript(files,expectedTitle=QA1243_EXISTING_SCRIPT_TITLE){
+  assert.ok(Array.isArray(files),'QA1243_SCRIPT_DISCOVERY_INVALID_RESPONSE');
+  const named=files.filter(f=>f?.name===expectedTitle && f.trashed!==true);
+  if(named.some(f=>f.mimeType!=='application/vnd.google-apps.script' ||
+      !Array.isArray(f.owners) ||
+      f.owners.length!==1 ||
+      String(f.owners[0].emailAddress||'').toLowerCase()!==QA1243_EXPECTED_OWNER ||
+      !/^[A-Za-z0-9_-]{15,}$/.test(String(f.id||''))))
+    throw Error('QA1243_SCRIPT_DISCOVERY_OWNER_OR_TYPE_UNVERIFIED');
+  if(named.length!==1)throw Error(named.length===0?
+    'QA1243_EXISTING_SCRIPT_NOT_FOUND':'QA1243_DUPLICATE_SCRIPT_TITLES');
+  return named[0].id;
+}
+
 export function buildQa1243GAS(source,secret){
   assert.ok(typeof secret==='string'&&secret.length>=64&&/^[A-Za-z0-9_-]+$/.test(secret),
     'Dedicated random QA-only shared secret required');
