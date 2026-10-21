@@ -48,7 +48,8 @@ GitHub 로그에 `QA1243_REMOTE_SOURCE_ATTESTED`가 기록되고, 실제 QA Apps
 2. 좌측 **프로젝트 설정 → 'appsscript.json' 매니페스트 파일 표시**를 켜고 **편집기 → appsscript.json**의 `oauthScopes`가 `spreadsheets`, `script.storage` 두 개뿐인지 확인.
 3. 편집기 상단 함수 선택에서 `qa1243AuthorizeServices` → **실행**.
 4. 동의 팝업에 표시되는 계정이 `webuielf@gmail.com`인지 확인. Drive 전체 수정·삭제, 외부 웹 콘텐츠 실행이 표시되면 **취소하고 중단**. Sheets 수정 권한은 **QA 계정 파일만 접근 가능한 상태**라는 재검증을 마친 뒤에만 QA 계정에서 승인.
-5. GitHub QA E2E 다시 실행하여 외부 잘못된 secret POST가 JSON `UNAUTHORIZED`인지 먼저 확인. 여전히 403 HTML이면 웹앱 배포의 액세스/정책 설정을 확인하고 Sheet 쓰기를 중단한다.
+5. [GitHub QA1243 live E2E Actions 실행 목록](https://github.com/koith/attendance-proto/actions/workflows/qa1243-live-e2e.yml) → **QA-only main push에서 실패한 실행**을 열고 우측 상단 **Re-run jobs → Re-run failed jobs**. GitHub Secrets/Variables를 등록하거나 QA 소유자가 동의한 뒤에도 **새 main push를 만들 필요 없이** 기존 `push` 실행을 다시 진행할 수 있으므로 운영 Pages·Sheets 배포를 유발하지 않는다.
+6. 로그에서 `QA1243_OAUTH_OWNER_VERIFIED`, `QA1243_RUNNER_OAUTH_SCOPE_VERIFIED`, `QA1243_OPERATING_FILE_DENY_PROBE`, `QA1243_REMOTE_SCRIPT_OWNER_VERIFIED`, `QA1243_REMOTE_SOURCE_ATTESTED`, `QA1243_GAS_WRITER_EXECUTABLE`, `QA1243_E2E_REAL_COMPLETE`까지 **모두** 확인. 외부 잘못된 secret POST가 JSON `UNAUTHORIZED`인지 먼저 확인해야 다음 단계가 진행된다. 여전히 403 HTML이면 웹앱 배포 계정과 액세스 정책·스크립트 소유자의 편집기 실행 권한을 확인하고 Sheet 쓰기를 중단한다.
 
 ## 5. 완료 판정 (아직 미충족)
 
