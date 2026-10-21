@@ -207,6 +207,7 @@ jobs:
               'qa1243_live_edge_gas_contract.mjs',
               'qa1243_pages_no_operating_write_guard.mjs',
               '.github/workflows/qa1243-live-e2e.yml',
+              '.github/workflows/qa1243-bootstrap-package.yml',
               '.github/workflows/p0-pages-deploy.yml',
               '.github/workflows/verified-pages-deployment-notification.yml',
               'QA1243_QA_GOOGLE_BOOTSTRAP.md',
