@@ -1,0 +1,43 @@
+name: QA1243 OAuth one-click Windows package
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/qa1243-bootstrap-package.yml'
+      - 'QA1243_OAuth_Start.cmd'
+      - 'QA1243_QA_GOOGLE_BOOTSTRAP.md'
+      - 'scripts/qa1243_oauth_bootstrap.mjs'
+      - 'scripts/qa1243_oauth_bootstrap.test.mjs'
+      - 'scripts/qa1243_oauth_scopes.mjs'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/qa1243-bootstrap-package.yml'
+      - 'QA1243_OAuth_Start.cmd'
+      - 'QA1243_QA_GOOGLE_BOOTSTRAP.md'
+      - 'scripts/qa1243_oauth_bootstrap.mjs'
+      - 'scripts/qa1243_oauth_bootstrap.test.mjs'
+      - 'scripts/qa1243_oauth_scopes.mjs'
+permissions:
+  contents: read
+jobs:
+  qa1243-packager:
+    name: Static QA and package client-only OAuth helper
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test no-token-logging, PKCE, scopes and client ownership
+        run: node scripts/qa1243_oauth_bootstrap.test.mjs
+      - name: Upload four public source files ONLY - never OAuth JSON or secrets
+        uses: actions/upload-artifact@v4
+        with:
+          name: QA1243-OAuth-OneClick
+          path: |
+            QA1243_OAuth_Start.cmd
+            QA1243_QA_GOOGLE_BOOTSTRAP.md
+            scripts/qa1243_oauth_bootstrap.mjs
+            scripts/qa1243_oauth_scopes.mjs
+          if-no-files-found: error
+          retention-days: 7
