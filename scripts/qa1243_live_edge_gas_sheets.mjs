@@ -266,7 +266,18 @@ async function verifyQaWorkbookTitle(id,storeKey){
  assert.equal(r.value.properties?.title,'QA1243 '+storeKey+' 2026 근태',
   'Only visibly marked test workbooks are acceptable');
 }
+async function verifyQaWorkbookOwner(id){
+ const url='https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+
+  '?fields=id%2CmimeType%2Cowners(emailAddress)%2Ctrashed';
+ const doc=(await jsonRequest(url,{headers:{Authorization:'Bearer '+oauth}})).value;
+ if(doc.id!==id || doc.mimeType!=='application/vnd.google-apps.spreadsheet' ||
+    doc.trashed===true ||
+    !doc.owners?.some(o=>String(o.emailAddress||'').toLowerCase()===EXPECTED_QA_OWNER))
+   throw Error('QA1243_CREATED_WORKBOOK_OWNER_MISMATCH');
+ console.log('QA1243_WORKBOOK_OWNER_VERIFIED '+JSON.stringify({id,owner:EXPECTED_QA_OWNER}));
+}
 await verifyQaWorkbookTitle(aId,storeA);
+await verifyQaWorkbookOwner(aId);
 const before=await read(aId);assert.ok(occurrence(before,marker)>=1,'Google Sheets readback has synthetic marker');
 assert.ok(JSON.stringify(before).includes('45,000')||JSON.stringify(before).includes('45000'),'45,000 won on real spreadsheet');
 const repeated=await edge(storeA,45000);assert.equal(repeated.value.ok,true);
@@ -282,6 +293,7 @@ const b=await edge(storeB,60000);assert.equal(b.value.ok,true);
 const bId=b.value.spreadsheet_id;assert.notEqual(bId,aId,'Different synthetic stores MUST use different annual workbooks');
 assert.notEqual(bId,'1-0on5kKhnIrjrutEDAR9y4nkBGlB1VL6YaLD49eG024');
 await verifyQaWorkbookTitle(bId,storeB);
+await verifyQaWorkbookOwner(bId);
 const bRows=await read(bId);
 assert.ok(JSON.stringify(bRows).includes('60,000')||JSON.stringify(bRows).includes('60000'));
 const aFinal=await read(aId);assert.deepEqual(aFinal,afterCorrection,'B store write must not mutate A rows');
