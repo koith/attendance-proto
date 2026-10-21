@@ -50,6 +50,36 @@ if(String(who.email||'').trim().toLowerCase()!==EXPECTED_QA_OWNER ||
    who.email_verified!==true)
   throw Error('QA1243_GOOGLE_OWNER_MISMATCH_STOP_BEFORE_SCRIPT_API');
 console.log('QA1243_OAUTH_OWNER_VERIFIED '+JSON.stringify({email:EXPECTED_QA_OWNER}));
+
+const granted=(await jsonRequest('https://oauth2.googleapis.com/tokeninfo?access_token='+
+  encodeURIComponent(oauth),{method:'GET'})).value;
+const actualScopes=new Set(String(granted.scope||'').split(/\s+/).filter(Boolean));
+const approvedScopes=[
+ 'https://www.googleapis.com/auth/userinfo.email',
+ 'https://www.googleapis.com/auth/script.projects',
+ 'https://www.googleapis.com/auth/script.deployments',
+ 'https://www.googleapis.com/auth/drive.metadata.readonly',
+ 'https://www.googleapis.com/auth/spreadsheets.readonly'
+];
+if(approvedScopes.some(scope=>!actualScopes.has(scope)) ||
+   [...actualScopes].some(scope=>!approvedScopes.includes(scope)))
+ throw Error('QA1243_OAUTH_SCOPE_MISSING_OR_OVERPRIVILEGED');
+console.log('QA1243_RUNNER_OAUTH_SCOPE_VERIFIED '+JSON.stringify({
+ scopeNames:[...actualScopes].sort(),noDriveWrite:true,noSheetsWrite:true,noExternalRequest:true
+}));
+// Independently recheck user-reported access denial using this actual QA token.
+// This is read-only metadata probing. A newly shared operating file blocks QA.
+for(const [kind,id] of [
+ ['operatingWorkbook','1-0on5kKhnIrjrutEDAR9y4nkBGlB1VL6YaLD49eG024'],
+ ['legacyOwnerQaScript','1VkwzA0EKQAf9VQ9BECOcOLkikhIuHR7EtKt6mZkq6B8_Q9HH4w6lQmrw']
+]){
+ const res=await fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+
+  '?fields=id',{headers:{Authorization:'Bearer '+oauth},redirect:'error',signal:AbortSignal.timeout(30000)});
+ const inaccessible=res.status===403||res.status===404;
+ console.log('QA1243_OPERATING_FILE_DENY_PROBE '+JSON.stringify({kind,http:res.status,inaccessible}));
+ if(!inaccessible)throw Error('QA1243_OPERATING_ASSET_ACCESS_NOT_DENIED');
+}
+
 async function verifyQaScriptOwner(id){
  const url='https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+
   '?fields=id%2Cname%2CmimeType%2Cowners(emailAddress)%2Ctrashed';
