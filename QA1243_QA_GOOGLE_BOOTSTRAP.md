@@ -59,4 +59,4 @@ GitHub 로그에 `QA1243_REMOTE_SOURCE_ATTESTED`가 기록되고, 실제 QA Apps
 - 운영 Supabase DB 및 HQ/INHA read-only 전후 불변, 기존 운영 구글 시트 자체 전체 셀 불변은 읽기 증거 없으면 주장하지 않음
 - 모든 실증 로그를 Issue #1243에 기록 후에만 QA-05 부분 게이트 PASS. HOSTED AUTH/실 사용자 세션 별도, 금요일 전체 게이트 NO_GO 유지.
 
-**주요 주의:** 현재 `p0-pages-deploy.yml`은 main **모든 push**에 트리거되며 성공 시 기존 운영 근태 Sheet를 재동기화하는 단계가 있다. 따라서 QA 보안용 PR을 단순 병합하는 것은 사용자 '운영 시트 변경 금지'와 충돌한다. 메인 병합 전 별도 승인 없는 운영 write가 일어나지 않도록 CI 트리거 격리/배포 수동 방식을 검증해야 한다.
+**중요 — 안전 통합:** `p0-pages-deploy.yml`은 일반 main push에서 운영 근태 Sheet를 재동기화한다. QA-only PR #1296은 유일한 마커 `[QA1243-NO-OPERATING-WRITE]`를 포함한 squash merge에 한해 **운영 Pages build/deploy/Sheet write/운영 배포 성공 알림을 건너뛰도록** 변경 파일 allowlist를 검증한다. 마커 없이 merge하면 기존 운영 시트 쓰기 가능성이 있으므로 금지. 이 생략은 Pages 실제 배포가 아니며 Friday gate에서 PAGES 증거는 FAIL로 기록한다. GitHub 사용자가 임의로 운영 workflow를 수동 실행하면 이 마커 보호를 우회할 수 있으므로 QA 외 수동 트리거도 금지.
