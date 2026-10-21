@@ -224,6 +224,25 @@ async function getGoogleRefreshToken(client){
  return auth.refresh_token;
 }
 
+// Re-run a previously failed, trusted main push only if its SHA still
+// belongs to main history. Unrelated later merges must not require a new
+// operating Pages release or weaken the Edge push-event OIDC verifier.
+export async function selectTrustedFailedMainRun(runs,mainSha,compareStatus){
+ if(!/^[a-f0-9]{40}$/.test(String(mainSha||''))||!Array.isArray(runs))
+  throw Error('QA1243_TRUSTED_RUN_SELECTION_INVALID');
+ for(const item of runs){
+  if(item?.event!=='push'||item?.status!=='completed'||
+    item?.conclusion!=='failure'||
+    !Number.isSafeInteger(item.databaseId)||
+    !/^[a-f0-9]{40}$/.test(String(item.headSha||'')))continue;
+  // Github comparison: base=run SHA, head=main. Status "ahead" means
+  // main is a descendant; "identical" means same commit.
+  const status=await compareStatus(item.headSha,mainSha);
+  if(status==='ahead'||status==='identical')return item;
+ }
+ return null;
+}
+
 async function uploadSecretsAndRerun(client,refreshToken){
  const env=githubSecretsStdin(client,refreshToken);
  // stdin only; GitHub CLI encrypts locally. No shell, --body, env vars,
@@ -246,9 +265,15 @@ async function uploadSecretsAndRerun(client,refreshToken){
   '--branch','main','--event','push','--limit','30',
   '--json','databaseId,headSha,status,conclusion,event'
  ]));
- const match=runs.find(r=>r.headSha===main.trim() && r.event==='push' &&
-   r.status==='completed' && r.conclusion==='failure' &&
-   Number.isSafeInteger(r.databaseId));
+ const match=await selectTrustedFailedMainRun(runs,main.trim(),async (ancestor,tip)=>{
+  const status=(await command('gh',[
+   'api','repos/'+QA1243_REPO+'/compare/'+ancestor+'...'+tip,
+   '--jq','.status'
+  ])).trim();
+  if(!['ahead','identical','behind','diverged'].includes(status))
+   throw Error('QA1243_GITHUB_COMPARE_STATUS_UNVERIFIED');
+  return status;
+ });
  if(!match){
   console.log('QA1243_SECRETS_READY_NO_SAFE_FAILED_MAIN_PUSH_TO_RERUN');
   return;

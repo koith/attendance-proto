@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {
  QA1243_REPO,QA1243_GCP_PROJECT,QA1243_QA_EMAIL,
  validateDesktopClient,oauthAuthorizationUrl,
- githubSecretsStdin,findQaDesktopCredentials
+ githubSecretsStdin,findQaDesktopCredentials,selectTrustedFailedMainRun
 } from './qa1243_oauth_bootstrap.mjs';
 import {QA1243_RUNNER_SCOPES,assertQa1243RunnerScopes} from './qa1243_oauth_scopes.mjs';
 
@@ -124,4 +124,11 @@ assert.match(runtime,/https:\/\/www\.googleapis\.com\/auth\/spreadsheets'/,
  'QA writer alone needs Sheets write permission');
 assert.doesNotMatch(runtime,/https:\/\/www\.googleapis\.com\/auth\/drive'/);
 assert.match(shell,/QA1243_OAuth_Start\.cmd|scripts\\qa1243_oauth_bootstrap\.mjs/);
+const failed={databaseId:991,event:'push',status:'completed',conclusion:'failure',headSha:'a'.repeat(40)};
+const divergent={...failed,databaseId:992,headSha:'b'.repeat(40)};
+const tip='c'.repeat(40);
+const selected=await selectTrustedFailedMainRun([divergent,failed],tip,async (base)=>base===failed.headSha?'ahead':'diverged');
+assert.equal(selected.databaseId,991);
+assert.equal(await selectTrustedFailedMainRun([divergent],tip,async ()=>'diverged'),null);
+assert.equal(await selectTrustedFailedMainRun([{...failed,event:'workflow_dispatch'}],tip,async ()=>'ahead'),null);
 console.log('PASS QA1243 Desktop OAuth strict scopes, PKCE loopback, QA identity, GitHub stdin secrets, trusted push-only rerun, no operating Google writes');
