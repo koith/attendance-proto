@@ -186,6 +186,36 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # QA1243 isolated code must NEVER trigger the operating Google Sheet
+      # refresh at the end of a regular Pages deployment.
+      - name: Verify marked QA-only changes contain no operating assets
+        if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[QA1243-NO-OPERATING-WRITE]') }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const allowed=new Set([
+              'scripts/qa1243_build_isolated_gas.mjs',
+              'scripts/qa1243_live_edge_gas_sheets.mjs',
+              'qa1243_gas_foreign_workbook_guard.mjs',
+              'qa1243_live_edge_gas_contract.mjs',
+              'qa1243_pages_no_operating_write_guard.mjs',
+              '.github/workflows/qa1243-live-e2e.yml',
+              '.github/workflows/p0-pages-deploy.yml',
+              '.github/workflows/verified-pages-deployment-notification.yml',
+              'QA1243_QA_GOOGLE_BOOTSTRAP.md',
+              'PROJECT_BACKLOG_20261017.md'
+            ]);
+            const before=context.payload.before;
+            if(!/^[a-f0-9]{40}$/.test(String(before||'')) ||
+               /^0{40}$/.test(before))throw Error('QA1243_NO_WRITES_DIFF_BASE_UNAVAILABLE');
+            const {data:diff}=await github.rest.repos.compareCommits({
+              ...context.repo,base:before,head:context.sha,per_page:100
+            });
+            const files=(diff.files||[]).map(x=>x.filename);
+            if(!files.length || files.length>=100 || files.some(x=>!allowed.has(x)) ||
+               !files.includes('scripts/qa1243_build_isolated_gas.mjs'))
+               throw Error('QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE');
+            core.info('QA1243_NO_OPERATING_WRITE_GUARD_PASS files='+files.length);
       # A merged Edge code change must never publish its dependent Pages client
       # until the canonical server-sync-sheet deployment has an explicit receipt.
       - name: Require matching production Edge deployment receipt for changed Edge source
@@ -421,7 +451,7 @@ jobs:
 
   build-pages:
     name: Build Pages artifact
-    if: github.event_name != 'pull_request'
+    if: ${{ github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[QA1243-NO-OPERATING-WRITE]') }}
     needs: p0-gate
     runs-on: ubuntu-latest
     steps:
@@ -433,7 +463,7 @@ jobs:
 
   notify-deployment-result:
     name: Same-run Pages validation (final alert only after independent verification)
-    if: ${{ always() && github.event_name != 'pull_request' }}
+    if: ${{ always() && github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[QA1243-NO-OPERATING-WRITE]') }}
     needs: [p0-gate, build-pages, deploy-pages]
     runs-on: ubuntu-latest
     concurrency:
@@ -500,7 +530,7 @@ jobs:
 
   deploy-pages:
     name: Deploy GitHub Pages
-    if: github.event_name != 'pull_request'
+    if: ${{ github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[QA1243-NO-OPERATING-WRITE]') }}
     needs: [p0-gate, build-pages]
     environment:
       name: github-pages
