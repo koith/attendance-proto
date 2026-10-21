@@ -25,7 +25,7 @@
 
 ## B. Windows에서 한 번 — Secret 3개 자동 등록
 
-1. 이 저장소에서 제공하는 QA1243 OAuth 도우미 패키지(`QA1243_OAuth_Start.cmd`와 `scripts/*.mjs`)를 PC의 **개인 폴더**에 내려받아 압축 해제합니다. 소스는 GitHub PR로 검증된 파일이며, 회사/운영 파일과 함께 넣지 않습니다.
+1. [GitHub Actions → QA1243 OAuth one-click Windows package](https://github.com/koith/attendance-proto/actions/workflows/qa1243-bootstrap-package.yml)의 최신 **main 성공 실행**을 열어 아래 **Artifacts → QA1243-OAuth-OneClick**을 다운로드한 뒤 **한 번만 압축 해제**합니다. 저장소에서 검증한 `QA1243_OAuth_Start.cmd`와 `scripts/*.mjs`·설명서만 포함하며, OAuth Secret/JSON은 포함하지 않습니다. 파일을 PC의 개인 폴더에 보관하고 운영 자료 폴더에 넣지 않습니다.
 2. `QA1243_OAuth_Start.cmd` **더블클릭**. Node.js 및 GitHub CLI가 없다면 공식 Windows Package Manager(winget)로 설치를 시도합니다. GitHub 로그인 이력이 없을 경우 **GitHub 로그인 승인**이 한 번 필요하며, 대상 저장소 관리자 권한도 자동 확인합니다. 방금 다운로드한 QA Desktop OAuth JSON을 Downloads에서 자동 탐색합니다.
 3. 자동으로 열린 Google 브라우저에서 **`webuielf@gmail.com`을 선택**하고 위 5개 읽기·스크립트 관리 범위를 검토 후 **동의**합니다. `Drive 전체 수정/삭제`, `Google Sheets 전체 수정/삭제`, `외부 요청` 범위가 표시되면 허용하지 않고 중단합니다.
 4. **나머지는 자동**: PKCE code 교환, Refresh Token 발급/검증, 실제 소유 계정 email 검증, GitHub에 `QA1243_GOOGLE_OAUTH_CLIENT_ID`, `QA1243_GOOGLE_OAUTH_CLIENT_SECRET`, `QA1243_GOOGLE_OAUTH_REFRESH_TOKEN`을 암호화 전송, Secret 이름만 재확인, 가장 최근 검증된 main **push 이벤트** QA 작업 실패 job 재실행 요청. Script ID를 복사하거나 GitHub 화면에서 Secrets 3개를 각각 등록할 필요가 없습니다.
