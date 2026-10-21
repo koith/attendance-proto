@@ -199,8 +199,6 @@ jobs:
               'scripts/qa1243_mobile_token_contract.mjs',
               'qa1243_mobile_token_contract.test.mjs',
               'supabase/functions/qa1243-mobile-auth/index.ts',
-              'supabase/functions/qa1243-mobile-auth/page.ts',
-              'supabase/migrations/20261021221500_qa1243_mobile_one_time_session.sql',
               'QA1243_MOBILE_SAFARI.md',
               'scripts/qa1243_oauth_bootstrap.mjs',
               'scripts/qa1243_oauth_bootstrap.test.mjs',
