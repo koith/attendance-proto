@@ -196,6 +196,9 @@ jobs:
             const allowed=new Set([
               'scripts/qa1243_build_isolated_gas.mjs',
               'scripts/qa1243_live_edge_gas_sheets.mjs',
+              'scripts/qa1243_friday_preflight.mjs',
+              'scripts/qa1243_friday_preflight.test.mjs',
+              '.github/workflows/qa1243-friday-readiness.yml',
               'qa1243_gas_foreign_workbook_guard.mjs',
               'qa1243_live_edge_gas_contract.mjs',
               'qa1243_pages_no_operating_write_guard.mjs',
