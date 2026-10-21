@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {buildQa1243GAS,buildQa1243Manifest,QA1243_SCRIPT_SCOPES} from './scripts/qa1243_build_isolated_gas.mjs';
+import {buildQa1243GAS,buildQa1243Manifest,QA1243_SCRIPT_SCOPES,
+ selectQa1243OwnedExistingScript,QA1243_EXISTING_SCRIPT_TITLE} from './scripts/qa1243_build_isolated_gas.mjs';
 const original=readFileSync('apps_script.gs','utf8');
 const secret='QA1243_64_CHARACTERS_OR_MORE_FAKE_ONLY_TEST_SECRET_NO_REAL_SYSTEM_VALUE_123456';
 const qa=buildQa1243GAS(original,secret);
@@ -112,4 +113,23 @@ assert.ok(scopeBegin>0);
 const scopeBody=qa.slice(scopeBegin,qa.indexOf('\n',scopeBegin)+1);
 assert.match(scopeBody,/QA1243_AUTH_SCOPE_CHECK_ONLY/);
 assert.doesNotMatch(scopeBody,/\.create\(|\.insert|\.delete|\.update|\.clear|\.setProperty|\.setValue|\.setName|\.moveTo|\.append/);
+// No manual Script ID is required: only the exact existing QA-owner project
+// may be discovered. Missing, duplicate, foreign-owner, wrong MIME and
+// unverified owner metadata must all STOP before publishing anything.
+const qaFile={id:'QA1243IsolatedProject001',name:QA1243_EXISTING_SCRIPT_TITLE,
+ mimeType:'application/vnd.google-apps.script',trashed:false,
+ owners:[{emailAddress:'webuielf@gmail.com'}]};
+assert.equal(selectQa1243OwnedExistingScript([qaFile]),qaFile.id);
+assert.throws(()=>selectQa1243OwnedExistingScript([]),/QA1243_EXISTING_SCRIPT_NOT_FOUND/);
+assert.throws(()=>selectQa1243OwnedExistingScript([qaFile,{...qaFile,id:'QA1243IsolatedProject002'}]),
+ /QA1243_DUPLICATE_SCRIPT_TITLES/);
+assert.throws(()=>selectQa1243OwnedExistingScript([{...qaFile,owners:[{emailAddress:'dokodemoitsho@gmail.com'}]}]),
+ /QA1243_SCRIPT_DISCOVERY_OWNER_OR_TYPE_UNVERIFIED/);
+assert.throws(()=>selectQa1243OwnedExistingScript([{...qaFile,owners:undefined}]),
+ /QA1243_SCRIPT_DISCOVERY_OWNER_OR_TYPE_UNVERIFIED/);
+assert.throws(()=>selectQa1243OwnedExistingScript([{...qaFile,mimeType:'application/vnd.google-apps.spreadsheet'}]),
+ /QA1243_SCRIPT_DISCOVERY_OWNER_OR_TYPE_UNVERIFIED/);
+assert.equal(selectQa1243OwnedExistingScript([qaFile,{...qaFile,id:'TRASHED_QA_SCRIPT',trashed:true}]),qaFile.id);
+assert.throws(()=>selectQa1243OwnedExistingScript([{...qaFile,id:'short'}]),
+ /QA1243_SCRIPT_DISCOVERY_OWNER_OR_TYPE_UNVERIFIED/);
 console.log('PASS #1243 Sheets-only QA writer: minimal OAuth scopes, no DriveApp/UrlFetchApp/deleteSheet, mapped foreign workbook rejected; isolated new/reuse, invalid direct store keys denied; operating script unchanged');
