@@ -432,3 +432,12 @@
 - **Google 공식 확인:** Desktop+loopback+PKCE 지원, External/Testing 사용자에 QA 이메일 필요, 일반 이메일 이외 scopes 발급 refresh token 기본 7일 만료. Cloud Desktop client 생성/JSON 다운로드·최초 동의 및 QA GAS 자체 runtime 동의는 Google 소유자/관리자 인증을 요하는 단계이므로 connector로 우회하지 않음.
 - **회귀 및 운영 안전:** `scripts/qa1243_oauth_bootstrap.test.mjs` 부정 테스트(운영 Cloud JSON·웹 클라이언트·과도 scope·다중 파일·잘못된 리디렉션·토큰 로그/임시 저장 탐지) 및 PR QA runner 단계 추가. 운영 Pages/운영 Sheet writer 보호 allowlist에 이 QA-only 파일만 추가, 보호 마커 `[QA1243-NO-OPERATING-WRITE]` 유지.
 - **완료 아님:** 사용자의 로컬 QA OAuth 승인 전 실제 자격증명 발급/Secret 저장/Google-hosted script 업로드/QA Sheets E2E를 성공했다고 주장하지 않음. 증거는 Issue #1243 후속 로그에 기록. **QA-05 [ ], Friday NO_GO, 38/19/19**.
+
+## 54. 2026-10-21 — QA1243 iPhone Safari 단기 OAuth 보조 인증(기존 Windows 경로 보존)
+
+- **사용자 지시 원문:** [Issue #1243](https://github.com/koith/attendance-proto/issues/1243#issuecomment-6316995575). iPhone Safari만 사용, PR #1298~1299의 Windows OAuth 도우미와 QA 자동화 경로 보존, 운영 Google 원본/기존 운영 DB 무쓰기, Friday NO_GO.
+- **공식 경로 검토:** Google TV/Device Authorization은 `script.projects`/`script.deployments` OAuth scope 미지원. Desktop OAuth 127.0.0.1 callback은 모바일 Safari로 실행 불가. Confidential Web OAuth code flow는 서버 측 Google client secret 및 GitHub Secrets write 권한이 필요한데 현재 QA 구성에는 설정/승인이 없어 공개 브라우저에 내장 금지.
+- **채택한 안전한 범위:** 별도 `supabase/functions/qa1243-mobile-auth/index.ts` **GET-only 정적 HTML**에서 Google GIS token popup으로 QA `webuielf@gmail.com`만 로그인·동의. 기존 Runner의 5개 정확한 scope를 검사. 단기 토큰은 브라우저 메모리에만 보유, Safari 클립보드로 **1회 복사**, GitHub 공식 Actions Secrets 화면에서 사용자가 직접 `QA1243_GOOGLE_OAUTH_ACCESS_TOKEN`으로 등록. 공개 사이트 자체는 GitHub 관리자 credential/PAT/Google Client Secret/Google 토큰을 수집하거나 저장·전달하지 않음. 다른 URL query/POST 및 XSS 동작은 차단.
+- **Runner 연동:** trusted main push E2E는 Desktop OAuth 3종이 있을 때 기존 refresh grant를 우선 사용하고, 없을 때 QA 전용 단기 Access Token Secret을 사용. OAuth tokeninfo 검사는 토큰을 URL query에 넣지 않고 POST body로 변경, 최소 30분 잔여시간 및 Google QA 소유권/정확한 권한 검사. Windows 코드, 운영 Google/Apps Script/Sheets 보존.
+- **보안 제한:** 단기 access token은 암호학적으로 한 번만 쓸 수 있는 credential이 아니므로 브라우저 페이지 자체 10분/1회 복사만 제한. 진정한 GitHub Secrets 자동 쓰기는 GitHub 권한이 필요하므로 공개 사이트에서 관리자 PAT을 요구하는 대신 **GitHub 공식 UI 등록 1단계는 유지**. Safari 실기기 팝업 및 실제 Google 계정 사용자 승인 미완료 시 **모바일 전체 동작 PASS 불가**.
+- **검증:** PR의 모바일 Google/GitHub 부정 검증 테스트 및 QA-only Pages/운영 Sheet 배포 스킵 가드 테스트. 운영 DB DML/마이그레이션 없음. 실제 Google-hosted QA Script 업로드·Edge→GAS→Sheet A/B 실증은 별도로 누락을 명시한다. QA-05 [ ], Friday NO_GO, 정본 총 38/완료19/잔여19 유지.

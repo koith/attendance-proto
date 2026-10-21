@@ -5,6 +5,11 @@ on:
       - 'scripts/qa1243_live_edge_gas_sheets.mjs'
       - 'scripts/qa1243_build_isolated_gas.mjs'
       - 'scripts/qa1243_oauth_scopes.mjs'
+      - 'scripts/qa1243_mobile_token_contract.mjs'
+      - 'qa1243_mobile_token_contract.test.mjs'
+      - 'qa1243_mobile_safari_vm.test.mjs'
+      - 'supabase/functions/qa1243-mobile-auth/**'
+      - 'supabase/migrations/20261021221500_qa1243_mobile_one_time_session.sql'
       - 'scripts/qa1243_oauth_bootstrap.mjs'
       - 'scripts/qa1243_oauth_bootstrap.test.mjs'
       - 'QA1243_OAuth_Start.cmd'
@@ -22,6 +27,11 @@ on:
       - 'scripts/qa1243_live_edge_gas_sheets.mjs'
       - 'scripts/qa1243_build_isolated_gas.mjs'
       - 'scripts/qa1243_oauth_scopes.mjs'
+      - 'scripts/qa1243_mobile_token_contract.mjs'
+      - 'qa1243_mobile_token_contract.test.mjs'
+      - 'qa1243_mobile_safari_vm.test.mjs'
+      - 'supabase/functions/qa1243-mobile-auth/**'
+      - 'supabase/migrations/20261021221500_qa1243_mobile_one_time_session.sql'
       - 'scripts/qa1243_oauth_bootstrap.mjs'
       - 'scripts/qa1243_oauth_bootstrap.test.mjs'
       - 'QA1243_OAuth_Start.cmd'
@@ -54,6 +64,8 @@ jobs:
           node qa1243_gas_foreign_workbook_guard.mjs
           node qa1243_pages_no_operating_write_guard.mjs
           node scripts/qa1243_oauth_bootstrap.test.mjs
+          node qa1243_mobile_token_contract.test.mjs
+          node qa1243_mobile_safari_vm.test.mjs
       - name: Await verified native production Edge deployment of this exact revision
         if: github.event_name == 'push'
         uses: actions/github-script@v7
@@ -91,6 +103,8 @@ jobs:
           QA1243_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID }}
           QA1243_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET }}
           QA1243_GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN }}
+          # QA Safari access-token path: short-lived, no refresh token, never logged.
+          QA1243_GOOGLE_OAUTH_ACCESS_TOKEN: ${{ secrets.QA1243_GOOGLE_OAUTH_ACCESS_TOKEN }}
           # Optional. If empty, discover exact pre-created QA-only script from
           # verified QA OAuth Drive metadata. Never use the operating Script ID.
           QA1243_GAS_SCRIPT_ID: ${{ vars.QA1243_GAS_SCRIPT_ID }}

@@ -5,6 +5,7 @@
 import {readFileSync} from 'node:fs';
 import {randomBytes,createHash} from 'node:crypto';
 import {QA1243_RUNNER_SCOPES,assertQa1243RunnerScopes} from './qa1243_oauth_scopes.mjs';
+import {QA1243_MIN_TOKEN_LIFETIME_SECONDS} from './qa1243_mobile_token_contract.mjs';
 import assert from 'node:assert/strict';
 import {buildQa1243GAS,buildQa1243Manifest,QA1243_SCRIPT_SCOPES,
  selectQa1243OwnedExistingScript,QA1243_EXISTING_SCRIPT_TITLE} from './qa1243_build_isolated_gas.mjs';
@@ -16,16 +17,27 @@ const marker='QA1243_'+randomBytes(6).toString('hex').toUpperCase();
 const storeA='QA1243_SBX_'+randomBytes(6).toString('hex').toUpperCase();
 const storeB='QA1243_SBX_'+randomBytes(6).toString('hex').toUpperCase();
 const secret=randomBytes(64).toString('hex');
-const required=['QA1243_GOOGLE_OAUTH_CLIENT_ID','QA1243_GOOGLE_OAUTH_CLIENT_SECRET','QA1243_GOOGLE_OAUTH_REFRESH_TOKEN',
- 'ACTIONS_ID_TOKEN_REQUEST_URL','ACTIONS_ID_TOKEN_REQUEST_TOKEN'];
-for(const key of required)if(!process.env[key])throw Error('REQUIRED_QA_CREDENTIAL_MISSING: '+key);
+// Mobile Safari issues a short-lived Google Access Token. Existing Windows
+// Desktop OAuth refresh-token route remains intact and is preferred if complete.
+// Never send a Google access token in an URL/query or log it.
+const mobileAccess=String(process.env.QA1243_GOOGLE_OAUTH_ACCESS_TOKEN||'').trim();
+const desktopReady=['QA1243_GOOGLE_OAUTH_CLIENT_ID','QA1243_GOOGLE_OAUTH_CLIENT_SECRET',
+ 'QA1243_GOOGLE_OAUTH_REFRESH_TOKEN'].every(key=>Boolean(process.env[key]));
+const required=desktopReady?['QA1243_GOOGLE_OAUTH_CLIENT_ID','QA1243_GOOGLE_OAUTH_CLIENT_SECRET',
+ 'QA1243_GOOGLE_OAUTH_REFRESH_TOKEN','ACTIONS_ID_TOKEN_REQUEST_URL',
+ 'ACTIONS_ID_TOKEN_REQUEST_TOKEN']:mobileAccess?
+ ['ACTIONS_ID_TOKEN_REQUEST_URL','ACTIONS_ID_TOKEN_REQUEST_TOKEN']:
+ ['QA1243_GOOGLE_OAUTH_REFRESH_TOKEN_OR_MOBILE_ACCESS_TOKEN'];
+for(const key of required)if(!process.env[key])
+ throw Error('REQUIRED_QA_CREDENTIAL_MISSING: '+key);
 async function jsonRequest(url,options={},assertOk=true){
  const res=await fetch(url,{...options,redirect:'error',signal:AbortSignal.timeout(60000)});
  const raw=await res.text();let value;try{value=JSON.parse(raw)}catch{value={unexpectedNonJson:true}};
  if(assertOk&&!res.ok){
   // Never publish bearer tokens, script source, or complete remote error bodies.
   const rawMessage=String(value?.error?.message||'').slice(0,350);
-  const detail=[process.env.QA1243_GOOGLE_OAUTH_CLIENT_SECRET,process.env.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN,secret]
+  const detail=[process.env.QA1243_GOOGLE_OAUTH_CLIENT_SECRET,process.env.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN,
+      process.env.QA1243_GOOGLE_OAUTH_ACCESS_TOKEN,secret]
     .filter(Boolean).some(token=>rawMessage.includes(token))?'REDACTED_SECRET':
     rawMessage.replace(/eyJ[A-Za-z0-9_.-]{20,}/g,'[REDACTED]');
   const endpoint=new URL(url);
@@ -35,13 +47,21 @@ async function jsonRequest(url,options={},assertOk=true){
  }
  return {status:res.status,ok:res.ok,value};
 }
-const token=await jsonRequest('https://oauth2.googleapis.com/token',{
- method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
- body:new URLSearchParams({client_id:process.env.QA1243_GOOGLE_OAUTH_CLIENT_ID,
- client_secret:process.env.QA1243_GOOGLE_OAUTH_CLIENT_SECRET,
- refresh_token:process.env.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN,grant_type:'refresh_token'})
-});
-const oauth=token.value.access_token;assert.ok(oauth,'Google OAuth access token required');
+let oauth;
+if(desktopReady){
+ const token=await jsonRequest('https://oauth2.googleapis.com/token',{
+  method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
+  body:new URLSearchParams({client_id:process.env.QA1243_GOOGLE_OAUTH_CLIENT_ID,
+  client_secret:process.env.QA1243_GOOGLE_OAUTH_CLIENT_SECRET,
+  refresh_token:process.env.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN,grant_type:'refresh_token'})
+ });
+ oauth=token.value.access_token;
+ console.log('QA1243_GOOGLE_AUTH_ROUTE_DESKTOP_REFRESH');
+}else{
+ oauth=mobileAccess;
+ console.log('QA1243_GOOGLE_AUTH_ROUTE_MOBILE_EPHEMERAL');
+}
+assert.ok(oauth,'Google OAuth access token required');
 const headers={Authorization:'Bearer '+oauth,'content-type':'application/json'};
 
 const EXPECTED_QA_OWNER='webuielf@gmail.com';
@@ -53,8 +73,16 @@ if(String(who.email||'').trim().toLowerCase()!==EXPECTED_QA_OWNER ||
   throw Error('QA1243_GOOGLE_OWNER_MISMATCH_STOP_BEFORE_SCRIPT_API');
 console.log('QA1243_OAUTH_OWNER_VERIFIED '+JSON.stringify({email:EXPECTED_QA_OWNER}));
 
-const granted=(await jsonRequest('https://oauth2.googleapis.com/tokeninfo?access_token='+
-  encodeURIComponent(oauth),{method:'GET'})).value;
+// Official Google OAuth tokeninfo supports POST; never pass bearer tokens in
+// URL parameters (browser history, proxies and request metadata can expose them).
+const granted=(await jsonRequest('https://www.googleapis.com/oauth2/v2/tokeninfo',{
+ method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
+ body:new URLSearchParams({access_token:oauth})
+})).value;
+if(!desktopReady &&
+   (!Number.isFinite(Number(granted.expires_in)) ||
+    Number(granted.expires_in)<QA1243_MIN_TOKEN_LIFETIME_SECONDS))
+ throw Error('QA1243_MOBILE_TOKEN_EXPIRY_TOO_SHORT');
 const actualScopes=new Set(String(granted.scope||'').split(/\s+/).filter(Boolean));
 assertQa1243RunnerScopes(actualScopes);
 assert.equal(QA1243_RUNNER_SCOPES.length,5);

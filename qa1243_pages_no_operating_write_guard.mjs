@@ -9,6 +9,11 @@ const marker='[QA1243-NO-OPERATING-WRITE]';
 // MUST skip, including the job containing POST(mode:deployment) sheet writer.
 assert.match(pages,/Verify marked QA-only changes contain no operating assets/);
 assert.match(pages,/QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE/);
+assert.match(pages,/supabase\/functions\/qa1243-mobile-auth\/index\.ts/);
+const safari=readFileSync('supabase/functions/qa1243-mobile-auth/index.ts','utf8');
+assert.match(safari,/QA1243_READ_ONLY_PAGE/);
+assert.doesNotMatch(safari,/api\.github\.com|github_pat_|SUPABASE_SERVICE_ROLE_KEY/);
+assert.doesNotMatch(safari,/localStorage|sessionStorage/);
 assert.match(pages,/const allowed=new Set\(/);
 assert.match(pages,/!files\.some\(f=>\[/);
 assert.match(pages,/scripts\/qa1243_oauth_bootstrap\.mjs/);
