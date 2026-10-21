@@ -1,63 +1,54 @@
-# QA1243 — 독립 Google 계정 설정 / 2026-10-21
+# QA1243 — QA Google 계정 OAuth 1회 설정 / 2026-10-21
 
-**계정 경계:** `webuielf@gmail.com`만 사용. 운영 Google 계정의 OAuth 허용 금지. 인하대점 운영 시트 `2026 근태` 및 운영 Apps Script를 열람·공유·권한 승인·배포·수정하지 않는다. 과거 `1VkwzA0EKQAf9VQ9BECOcOLkikhIuHR7EtKt6mZkq6B8_Q9HH4w6lQmrw` QA 프로젝트는 **운영 계정 소유**이므로 폐기 대상이며 재사용하지 않는다(물리적 삭제는 별도 승인 필요).
+## 결론: 사용자가 직접 입력하는 Secret은 0개
 
-## 1. 절대 먼저 수행하지 말 것
+- **허용 계정:** `webuielf@gmail.com`만. 운영 계정의 Google 연결(현재 ChatGPT Drive `dokodemoitsho@gmail.com`)을 사용하지 않음.
+- **전제 완료:** QA 계정/독립 Google Cloud `QA1243-Isolated` (ID `qa1243-isolated`), Script/Sheets/Drive API, QA 계정 Apps Script API 허용, QA Script `QA1243 isolated Edge GAS 2026-10-21 QA-only` 생성 완료.
+- **사용자 추가 화면 조작:** QA Cloud OAuth 동의 화면의 테스트 사용자 및 Desktop OAuth 클라이언트 **최초 1회** 설정/JSON 다운로드 (아직 미설정일 때만), Windows 동봉 도우미 `QA1243_OAuth_Start.cmd` 실행 및 Google·GitHub 브라우저 로그인/동의.
+- **자동:** OAuth local callback + PKCE → 정확한 scope/QA 계정 확인 → Refresh Token 발급/재발급 검증 → GitHub Actions Secret 3개 등록 → 기존 main push QA만 자동 재실행. QA Script ID 자동 검색/업로드/배포 및 QA Sheet A/B 생성은 기존 trusted CI가 수행.
+- **일회성 문서/스크립트 및 근거:** `scripts/qa1243_oauth_bootstrap.mjs` / `scripts/qa1243_oauth_scopes.mjs` / `scripts/qa1243_oauth_bootstrap.test.mjs`. Google 공식 [Desktop OAuth 문서](https://developers.google.com/identity/protocols/oauth2/native-app)·[Testing 사용자](https://support.google.com/cloud/answer/15549945)·[GitHub CLI stdin Secret](https://cli.github.com/manual/gh_secret_set).
+- **운영 환경 절대 보호:** 인하대점 `2026 근태`, 실제 운영 Apps Script/Google OAuth, 기존 운영 Supabase 매장/직원/급여/레시피에 쓰기 없음. QA-only 작업용 `[QA1243-NO-OPERATING-WRITE]` main merge는 운영 Pages 빌드/배포·Google Sheets 갱신을 생략.
 
-- 운영 계정으로 Google OAuth 승인 버튼을 누르지 않는다.
-- 운영 Apps Script/Sheet ID를 QA 계정에 공유하지 않는다.
-- GitHub `GOOGLE_OAUTH_CLIENT_ID` 등 기존 운영 Secret을 QA workflow에 연결하지 않는다.
-- 금요일 신규 지점 실정보·운영 직원·운영 레시피·운영 Sheets를 테스트 데이터로 사용하지 않는다.
-- 보안 키 또는 OAuth refresh token을 ChatGPT·Issue·PR 댓글·로그에 게시하지 않는다.
+## A. 구글 클라우드에서 딱 한 번 — QA 계정일 때만
 
-## 2. 사용자 1회 사전 준비 (QA 계정으로만 진행)
+이미 설정했다면 다시 생성하거나 변경할 필요가 없습니다.
 
-1. Chrome 우측 상단 프로필 → **QA 전용 Chrome 프로필** 사용. [Google 계정](https://myaccount.google.com/) 우측 상단 프로필 확인: `webuielf@gmail.com`.
-2. [Google Cloud Console](https://console.cloud.google.com/) → 상단 프로젝트 선택 → **새 프로젝트** `QA1243-Isolated` → 만들기. 상단에 해당 프로젝트와 QA 계정 표시 확인.
-3. [Apps Script 사용자 설정](https://script.google.com/home/usersettings) → **Google Apps Script API** 접근을 **켜기**. 운영 계정이 아닌 QA 계정 설정만 변경한다. 이 설정은 해당 QA 계정의 스크립트에 대해 외부 앱의 API 관리 허용 여부를 정하는 것으로, 운영 계정에서 켜면 안 된다. 그다음 **API 및 서비스 → 라이브러리**에서 **Apps Script API**, **Google Sheets API**, **Google Drive API**를 찾아 각각 **사용**. 별도 운영 프로젝트는 변경하지 않는다.
-4. **Google Auth Platform → 브랜딩** (화면에 따라 *OAuth 동의 화면*) 앱 이름 `QA1243 Isolated`, 지원 이메일 QA 계정. **대상(Audience)** 에서 외부(External)·테스트(Testing) 선택, **테스트 사용자**에 QA 계정만 추가한다. 다른 계정 접근 없음. **데이터 액세스**에 아래 최소 권한만 등록.
-5. **Google Auth Platform → 클라이언트** → **클라이언트 만들기** → *웹 애플리케이션* → 이름 `QA1243 CI` → **승인된 리디렉션 URI**에 `https://developers.google.com/oauthplayground` 추가 → 만들기. OAuth Playground를 사용하는 경우 웹 앱용 Redirect URI 등록이 필수다. Client ID/Client Secret은 **QA 전용**으로 관리한다.
-6. [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground/)를 QA Chrome 프로필에서 연다. 톱니바퀴(설정) → **Use your own OAuth credentials** 체크 → 위 QA 프로젝트의 client ID/secret만 입력 → Access type **Offline**, 승인 동의가 있다면 **Prompt for consent**. 다음 범위를 추가하여 Authorize APIs:
+1. **QA 계정만 활성화한 Chrome 프로필**에서 [Google Cloud → QA1243-Isolated OAuth Audience](https://console.cloud.google.com/auth/audience?project=qa1243-isolated)를 열어 External(외부) / Testing(테스트), 테스트 사용자 `webuielf@gmail.com` 한 명 등록을 확인. 다른 계정 및 운영 계정을 테스트 사용자에 등록하지 않습니다.
+2. 같은 프로젝트 [Data Access](https://console.cloud.google.com/auth/scopes?project=qa1243-isolated)에 필요 시 **아래 5개 scope만** 등록/동의 검토:
    - `https://www.googleapis.com/auth/userinfo.email`
    - `https://www.googleapis.com/auth/script.projects`
    - `https://www.googleapis.com/auth/script.deployments`
    - `https://www.googleapis.com/auth/drive.metadata.readonly`
    - `https://www.googleapis.com/auth/spreadsheets.readonly`
-   **Drive 전체 수정/삭제, Sheets 전체 수정/삭제 및 external_request는 CI OAuth에서 요청하면 안 됨.**
-7. 동의 화면이 **QA 계정**인지 확인한 뒤, 최소 범위만 동의한다. OAuth Playground에서 **Exchange authorization code for tokens** 클릭 → 발급된 **refresh token**은 다른 곳에 공유하지 않는다.
-8. [GitHub 저장소 → Settings → Secrets and variables → Actions](https://github.com/koith/attendance-proto/settings/secrets/actions) → **New repository secret** 세 건 생성 (현재 운영 비밀값은 유지):
-   - `QA1243_GOOGLE_OAUTH_CLIENT_ID` = 새 QA Cloud OAuth client ID
-   - `QA1243_GOOGLE_OAUTH_CLIENT_SECRET` = 새 QA client secret
-   - `QA1243_GOOGLE_OAUTH_REFRESH_TOKEN` = QA refresh token
-9. QA Chrome 프로필로 [Apps Script 시작](https://script.google.com/home/projects/create) → 새 프로젝트 → 왼쪽 위 제목을 **`QA1243 isolated Edge GAS 2026-10-21 QA-only`**로 변경. **이 단계에서는 운영 스크립트 코드를 복사해 붙여넣지 않으며, OAuth를 승인하지 않는다.**
-10. **스크립트 ID 복사 및 GitHub 변수 등록은 기본적으로 불필요.** QA Google OAuth 자격증명이 들어오면 CI가 Drive metadata-only 목록에서 이름이 정확히 `QA1243 isolated Edge GAS 2026-10-21 QA-only`이고 소유자가 `webuielf@gmail.com`인 기존 스크립트를 자동 탐색한다. 후보가 0개/여러 개이거나 소유자가 다르면 **원격 소스 쓰기 전에 중지**한다. `QA1243_GAS_SCRIPT_ID` 변수는 동일한 QA 소유 프로젝트를 직접 지정해야 할 때에만 선택적으로 사용한다. 운영 계정 소유 Script ID는 어떤 경우에도 사용 금지.
+3. [OAuth Clients](https://console.cloud.google.com/auth/clients?project=qa1243-isolated) → **Create client → Desktop app(데스크톱 앱)** → 이름 `QA1243 local once` → JSON 다운로드. 파일 이름은 보통 `client_secret_*.json`입니다. **Downloads 폴더에 보관**하면 도우미가 자동 탐색합니다. Desktop app에는 OAuth Playground redirect URI를 추가할 필요가 없습니다.
+4. 기존에 QA Cloud 프로젝트의 **Desktop OAuth 클라이언트가 이미 있다면 새로 만들지 말고** 해당 JSON만 다운로드하면 됩니다. 운영 Cloud OAuth 클라이언트, Web application type, 서비스 계정 JSON, API key는 도우미가 거부합니다.
 
-## 3. 최소권한 구조와 검증
+## B. Windows에서 한 번 — Secret 3개 자동 등록
 
-- **GitHub Actions OAuth (QA 계정):** userinfo.email, script.projects, script.deployments, drive.metadata.readonly, spreadsheets.readonly만 허용. 서버는 Google userinfo에서 QA 이메일을 확인하고 실제 토큰 범위 5개가 정확히 일치하는지 검사한다. 운영 근태 시트 및 기존 운영 계정 소유 QA 스크립트의 Drive 메타데이터 조회가 403/404인지 검사한다. QA Script 프로젝트의 파일 소유자 이메일을 Drive 메타데이터로 재검증한 후에만 업데이트한다. 운영 계정 자격증명은 환경변수에서 사용하지 않는다.
-- **새 QA Apps Script 자체:** 명시적 OAuth scope는 **`spreadsheets`와 `script.storage` 두 개**. DriveApp / UrlFetchApp / executionApi 없고, QA 키/시트명만 허용하며, 기존 시트 탭을 삭제하거나 기존 파일을 이동·이름 변경하는 코드를 생성하지 않는다.
-- **배포 증명:** Google `projects.getContent` 최신 소스와 `versions.getContent(versionNumber)`를 GitHub 생성 소스·manifest와 바이트 단위 비교. 서버가 돌려준 배포 versionNumber도 일치해야 한다. 정확한 소스+manifest SHA-256만 로그로 공개하며 secret 평문은 절대 로그에 내지 않는다.
-- **QA 실 Sheet 생성:** 격리된 웹앱에 올바른 QA secret과 `QA1243_SBX_...` store 키를 보낼 때 `SpreadsheetApp.create('QA1243 ... 근태')`로 생성. QA 계정의 새 파일만 쓰고, 인하대 원본 시트 ID 접근은 계정 및 코드 2중 차단.
+1. [GitHub Actions → QA1243 OAuth one-click Windows package](https://github.com/koith/attendance-proto/actions/workflows/qa1243-bootstrap-package.yml)의 최신 **main 성공 실행**을 열어 아래 **Artifacts → QA1243-OAuth-OneClick**을 다운로드한 뒤 **한 번만 압축 해제**합니다. 저장소에서 검증한 `QA1243_OAuth_Start.cmd`와 `scripts/*.mjs`·설명서만 포함하며, OAuth Secret/JSON은 포함하지 않습니다. 파일을 PC의 개인 폴더에 보관하고 운영 자료 폴더에 넣지 않습니다.
+2. `QA1243_OAuth_Start.cmd` **더블클릭**. Node.js 및 GitHub CLI가 없다면 공식 Windows Package Manager(winget)로 설치를 시도합니다. GitHub 로그인 이력이 없을 경우 **GitHub 로그인 승인**이 한 번 필요하며, 대상 저장소 관리자 권한도 자동 확인합니다. 방금 다운로드한 QA Desktop OAuth JSON을 Downloads에서 자동 탐색합니다.
+3. 자동으로 열린 Google 브라우저에서 **`webuielf@gmail.com`을 선택**하고 위 5개 읽기·스크립트 관리 범위를 검토 후 **동의**합니다. `Drive 전체 수정/삭제`, `Google Sheets 전체 수정/삭제`, `외부 요청` 범위가 표시되면 허용하지 않고 중단합니다.
+4. **나머지는 자동**: PKCE code 교환, Refresh Token 발급/검증, 실제 소유 계정 email 검증, GitHub에 `QA1243_GOOGLE_OAUTH_CLIENT_ID`, `QA1243_GOOGLE_OAUTH_CLIENT_SECRET`, `QA1243_GOOGLE_OAUTH_REFRESH_TOKEN`을 암호화 전송, Secret 이름만 재확인, 가장 최근 검증된 main **push 이벤트** QA 작업 실패 job 재실행 요청. Script ID를 복사하거나 GitHub 화면에서 Secrets 3개를 각각 등록할 필요가 없습니다.
+5. 실행 결과에는 `QA1243_THREE_GITHUB_ACTIONS_SECRETS_UPLOADED`, `QA1243_TRUSTED_MAIN_PUSH_E2E_RERUN_REQUESTED` 같은 **상태 코드만** 나타납니다. Refresh Token/Client Secret/토큰 교환 HTTP 본문·인증코드는 **표시·파일 저장하지 않습니다**. 만약 Downloads에 QA Desktop JSON이 여러 종류라면, 새로 받은 JSON 파일 경로를 지정해 `QA1243_OAuth_Start.cmd --credentials "C:\\Users\\...\\Downloads\\client_secret_...json"`로 재실행할 수 있습니다.
 
-## 4. QA 코드 배포와 QA 계정 OAuth 승인
+**GitHub 자동화 방식:** 로컬 [GitHub CLI `gh secret set -f -`](https://cli.github.com/manual/gh_secret_set)로 내용은 표준입력에서만 전달하고 GitHub에 보내기 전에 로컬 암호화합니다. GitHub Secret 3개 원문은 커밋/Issue/채팅/명령줄 인수로 옮기지 않습니다. GitHub CLI 자체의 정상 로그인 자격증명 보관은 사용자의 PC에서 처리됩니다.
 
-QA 계정의 독립 OAuth 비밀값 3개를 등록한 뒤, [GitHub QA-only Actions](https://github.com/koith/attendance-proto/actions/workflows/qa1243-live-e2e.yml)에서 마지막 **main push 실행 → Re-run jobs → Re-run failed jobs**를 사용한다. Script ID 변수는 생략한다. `workflow_dispatch`는 production Edge OIDC가 `push` 이벤트만 허용하므로 **사용하지 않는다**. QA 전용 재실행만으로 운영 Pages 배포/Sheet 갱신은 트리거하지 않는다. **운영 시트·운영 앱을 갱신하는 별도 Actions job의 실행 여부를 먼저 검사**하고, 운영 Sheet write가 유발되는 main push는 사용하지 않는다. 이 조건을 충족하는 안전한 실행 경로가 확인되지 않았다면 QA 실행도 보류한다.
+**Google OAuth Desktop 근거:** [Google 가이드](https://developers.google.com/identity/protocols/oauth2/native-app)는 Desktop에서 `127.0.0.1` 임시 로컬 리디렉션/PKCE를 지원하고, `access_type=offline` + `prompt=consent`로 Refresh Token 발급을 지원합니다. **OOB 코드 복사 방식은 사용하지 않습니다.** 이 도우미는 로컬에서만 콜백을 받고 아무 외부 콜백 서버도 사용하지 않습니다.
 
-GitHub 로그에 `QA1243_REMOTE_SOURCE_ATTESTED`가 기록되고, 실제 QA Apps Script 소스/manifest가 검증된 이후:
-1. QA 계정으로 [Apps Script](https://script.google.com/home) → 방금 만든 QA 프로젝트만 연다.
-2. 좌측 **프로젝트 설정 → 'appsscript.json' 매니페스트 파일 표시**를 켜고 **편집기 → appsscript.json**의 `oauthScopes`가 `spreadsheets`, `script.storage` 두 개뿐인지 확인.
-3. 편집기 상단 함수 선택에서 `qa1243AuthorizeServices` → **실행**.
-4. 동의 팝업에 표시되는 계정이 `webuielf@gmail.com`인지 확인. Drive 전체 수정·삭제, 외부 웹 콘텐츠 실행이 표시되면 **취소하고 중단**. Sheets 수정 권한은 **QA 계정 파일만 접근 가능한 상태**라는 재검증을 마친 뒤에만 QA 계정에서 승인.
-5. [GitHub QA1243 live E2E Actions 실행 목록](https://github.com/koith/attendance-proto/actions/workflows/qa1243-live-e2e.yml)에서 이전 **main push 실패 실행 → Re-run jobs → Re-run failed jobs**로 재실행한다. 신규 main 커밋/운영 릴리스는 불필요하다.
-6. 로그에서 `QA1243_OAUTH_OWNER_VERIFIED`, `QA1243_RUNNER_OAUTH_SCOPE_VERIFIED`, `QA1243_OPERATING_FILE_DENY_PROBE`, `QA1243_REMOTE_SCRIPT_OWNER_VERIFIED`, `QA1243_REMOTE_SOURCE_ATTESTED`, `QA1243_GAS_WRITER_EXECUTABLE`, `QA1243_E2E_REAL_COMPLETE`까지 **모두** 확인. 외부 잘못된 secret POST가 JSON `UNAUTHORIZED`인지 먼저 확인해야 다음 단계가 진행된다. 여전히 403 HTML이면 웹앱 배포 계정과 액세스 정책·스크립트 소유자의 편집기 실행 권한을 확인하고 Sheet 쓰기를 중단한다.
+## C. 자동 QA 배포 뒤 필요한 1회 QA Script 소유자 동의 (조건부)
 
-## 5. 완료 판정 (아직 미충족)
+- **필요할 때만**: [GitHub QA E2E](https://github.com/koith/attendance-proto/actions/workflows/qa1243-live-e2e.yml)에서 `QA1243_REMOTE_SOURCE_ATTESTED`가 출력된 뒤 `QA1243_GAS_OWNER_CONSENT_REQUIRED` 또는 실행 403이 나오는 경우.
+- `webuielf@gmail.com`으로 [Apps Script](https://script.google.com/home)에서 기존 QA1243 프로젝트만 열고, 상단 함수 선택 `qa1243AuthorizeServices` → **실행 → Sheets 및 Script properties 권한 동의**. 이 권한은 **독립 QA 계정의 GAS 런타임**이 신규 QA 시트를 만들고 쓰기 위해 필요합니다. CI OAuth와는 별개이며 CI에 Sheets 전체 수정 권한을 부여하는 일이 아닙니다.
+- 동의 후 GitHub의 동일 QA E2E main push **실패 작업 재실행**. 해당 대화가 진행 중이고 도구 접근이 가능하면 개발 담당자가 GitHub 연결로 재실행할 수 있습니다. 승인 외의 화면 복잡한 설정/코드 붙여넣기 금지.
 
-- QA Google token identity, OAuth 5 scopes, 운영 파일 접근 거부, QA 스크립트 소유주 인증, 활성 배포 코드·manifest digest 일치
-- QA 웹앱 잘못된 secret → `UNAUTHORIZED`, 익명 GET 공개 probe 성공 (403 아님)
-- 운영 production Edge의 **trusted OIDC** → QA 웹앱 → QA Google Sheet A/B 생성
-- Google Sheets 실제 읽기·중복 방지·정정·타 지점 격리, 신규 Sheet의 소유자 QA 계정 증명
-- 운영 Supabase DB 및 HQ/INHA read-only 전후 불변, 기존 운영 구글 시트 자체 전체 셀 불변은 읽기 증거 없으면 주장하지 않음
-- 모든 실증 로그를 Issue #1243에 기록 후에만 QA-05 부분 게이트 PASS. HOSTED AUTH/실 사용자 세션 별도, 금요일 전체 게이트 NO_GO 유지.
+## D. 범위, 만료, 완료조건
 
-**중요 — 안전 통합:** `p0-pages-deploy.yml`은 일반 main push에서 운영 근태 Sheet를 재동기화한다. QA-only PR #1296은 유일한 마커 `[QA1243-NO-OPERATING-WRITE]`를 포함한 squash merge에 한해 **운영 Pages build/deploy/Sheet write/운영 배포 성공 알림을 건너뛰도록** 변경 파일 allowlist를 검증한다. 마커 없이 merge하면 기존 운영 시트 쓰기 가능성이 있으므로 금지. 이 생략은 Pages 실제 배포가 아니며 Friday gate에서 PAGES 증거는 FAIL로 기록한다. GitHub 사용자가 임의로 운영 workflow를 수동 실행하면 이 마커 보호를 우회할 수 있으므로 QA 외 수동 트리거도 금지.
+| 작업 | OAuth scope | 목적 |
+| --- | --- | --- |
+| GitHub CI OAuth (Desktop) | 위 정확히 5개 | Apps Script 코드/배포, Drive 파일명·소유권 확인, 기존/신규 Sheets 읽기 검증 |
+| QA Apps Script 런타임 | `spreadsheets`, `script.storage` | QA 전용 새 Sheets A/B 만들기/기록·스크립트 자체 속성 저장 |
+| 운영 Google OAuth | **미사용** | 운영 리소스 보존 |
+
+- Google Cloud **External / Testing**에서 위와 같은 일반 이메일 이외 범위가 포함되면 Refresh Token은 **7일 후 만료**되는 것이 기본입니다. [Google 공식 설정 안내](https://support.google.com/cloud/answer/15549945). 금요일 개통 QA는 이 안에 수행하고, 7일 이후 같은 흐름이 필요하다면 별도 안전한 재승인이 필요합니다. 장기 서비스 계정 대체 설계 없이 임의로 Production publishing으로 전환하지 않습니다.
+- GitHub Secret 등록/QA runner 시작만으로 PASS 아님. **실제 owner 검증, 운영 자료 접근 거부, 소스/버전 readback, 익명 GAS 잘못된 secret에 JSON `UNAUTHORIZED`, 실제 Edge→GAS→QA Sheets 읽기/중복방지/정정/지점 A-B 격리**가 검증되어야 QA-05 통과.
+- Hosted Auth 한국어 초대 실메일, 보조 관리자 구세션 회수, 현장 증거, 실제 신규 지점 승인 등은 별도 미완료. **금요일 개통 게이트는 실제 검증 전까지 NO_GO**. 정본 업무원장 38/19/19.

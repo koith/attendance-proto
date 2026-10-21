@@ -4,6 +4,10 @@ on:
     paths:
       - 'scripts/qa1243_live_edge_gas_sheets.mjs'
       - 'scripts/qa1243_build_isolated_gas.mjs'
+      - 'scripts/qa1243_oauth_scopes.mjs'
+      - 'scripts/qa1243_oauth_bootstrap.mjs'
+      - 'scripts/qa1243_oauth_bootstrap.test.mjs'
+      - 'QA1243_OAuth_Start.cmd'
       - 'qa1243_gas_foreign_workbook_guard.mjs'
       - '.github/workflows/verified-pages-deployment-notification.yml'
       - '.github/workflows/p0-pages-deploy.yml'
@@ -17,6 +21,10 @@ on:
     paths:
       - 'scripts/qa1243_live_edge_gas_sheets.mjs'
       - 'scripts/qa1243_build_isolated_gas.mjs'
+      - 'scripts/qa1243_oauth_scopes.mjs'
+      - 'scripts/qa1243_oauth_bootstrap.mjs'
+      - 'scripts/qa1243_oauth_bootstrap.test.mjs'
+      - 'QA1243_OAuth_Start.cmd'
       - 'qa1243_gas_foreign_workbook_guard.mjs'
       - '.github/workflows/verified-pages-deployment-notification.yml'
       - '.github/workflows/p0-pages-deploy.yml'
@@ -45,7 +53,7 @@ jobs:
           node qa1243_live_edge_gas_contract.mjs
           node qa1243_gas_foreign_workbook_guard.mjs
           node qa1243_pages_no_operating_write_guard.mjs
-          node qa1243_gas_foreign_workbook_guard.mjs
+          node scripts/qa1243_oauth_bootstrap.test.mjs
       - name: Await verified native production Edge deployment of this exact revision
         if: github.event_name == 'push'
         uses: actions/github-script@v7

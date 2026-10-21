@@ -422,3 +422,13 @@
 - **코드:** OAuth userinfo에서 QA 이메일을 검증하고 운영 파일 Drive 접근 거부를 확인한 뒤, QA 전용 Drive API metadata-only 검색으로 정확한 이름/소유자/유일한 Apps Script를 찾아 자동 재사용. `QA1243_GAS_SCRIPT_ID` 변수는 선택이며, 미설정 시 새 스크립트를 임의 생성하지 않음. 없거나 중복·잘못된 소유자·형식·페이지 탐색 오류는 소스 쓰기 전에 fail-closed. 기존 QA Script 소스·manifest Google API 등록과 QA Sheets 생성/검증은 QA 인증 수립 후 기존 GitHub trusted push QA 워크플로에서 자동 진행.
 - **회귀:** 실 소유자·이름·MIME·중복·빈 목록·삭제 표시·불충분 소유자 메타데이터 테스트를 `qa1243_gas_foreign_workbook_guard.mjs`에 추가. QA-only Pages/운영 Google Sheet write 안전 마커 `[QA1243-NO-OPERATING-WRITE]` 유지.
 - **인증 및 E2E는 미완료:** QA 소유 OAuth client와 승인된 refresh token, GitHub repository secrets 3개는 아직 외부 승인 단계이며 현재의 운영 연결로 대신할 수 없음. GitHub Secrets 직접 관리 connector 미노출. Edge OIDC는 `push`만 허용하므로 `workflow_dispatch`로 우회하지 않고 기존 main push QA workflow의 failed jobs만 다시 실행. `QA-05 [ ]`, 금요일 `NO_GO`, 정본 총 38 / 완료 19 / 잔여 19 유지.
+
+## 53. 2026-10-21 — QA Google OAuth Desktop+PKCE 일회성 등록 도우미 (#1243)
+
+- **지시 접수:** [Issue #1243](https://github.com/koith/attendance-proto/issues/1243#issuecomment-6309077511). PR #1297 자동 Script ID 탐색을 재구현하지 않고, OAuth Secret 3건 수동 입력을 없애고 실제 최소권한·Desktop OAuth 경로를 검증.
+- **Runner 최소권한 고정:** `userinfo.email`, `script.projects`, `script.deployments`, `drive.metadata.readonly`, `spreadsheets.readonly` 정확히 5개를 공용 모듈 `scripts/qa1243_oauth_scopes.mjs`에서 강제. **CI에서 Drive/Sheets 쓰기·삭제 scope 없음**. 독립 QA Apps Script runtime의 `spreadsheets`+ `script.storage`는 신규 QA Sheet 생성·수정에 필수이므로 별도 격리/소유자 검증을 유지.
+- **도우미:** `QA1243_OAuth_Start.cmd`, `scripts/qa1243_oauth_bootstrap.mjs`; Google Cloud QA Desktop client JSON 파일을 사용자 PC에서 읽고, 127.0.0.1 PKCE+state 콜백·offline prompt=consent·email_verified `webuielf@gmail.com`·정확히 5 scope·refresh grant 재검증. GitHub CLI Admin 권한 확인 후 `gh secret set -f -`로 **프로세스 표준입력만** 사용해 Secret 3건 암호화 등록. Refresh Token/Client Secret은 PR/로그/채팅/임시 파일/프로세스 인수에 기록하지 않음.
+- **자동 재실행:** 최신 main SHA에 일치하는 기존 failed `push` QA run에 한해 `gh run rerun --failed`; production Edge OIDC는 `workflow_dispatch` 허용하지 않으므로 별도 release/운영 Sheet 작성 없이 기존 trusted QA 경로만 사용.
+- **Google 공식 확인:** Desktop+loopback+PKCE 지원, External/Testing 사용자에 QA 이메일 필요, 일반 이메일 이외 scopes 발급 refresh token 기본 7일 만료. Cloud Desktop client 생성/JSON 다운로드·최초 동의 및 QA GAS 자체 runtime 동의는 Google 소유자/관리자 인증을 요하는 단계이므로 connector로 우회하지 않음.
+- **회귀 및 운영 안전:** `scripts/qa1243_oauth_bootstrap.test.mjs` 부정 테스트(운영 Cloud JSON·웹 클라이언트·과도 scope·다중 파일·잘못된 리디렉션·토큰 로그/임시 저장 탐지) 및 PR QA runner 단계 추가. 운영 Pages/운영 Sheet writer 보호 allowlist에 이 QA-only 파일만 추가, 보호 마커 `[QA1243-NO-OPERATING-WRITE]` 유지.
+- **완료 아님:** 사용자의 로컬 QA OAuth 승인 전 실제 자격증명 발급/Secret 저장/Google-hosted script 업로드/QA Sheets E2E를 성공했다고 주장하지 않음. 증거는 Issue #1243 후속 로그에 기록. **QA-05 [ ], Friday NO_GO, 38/19/19**.

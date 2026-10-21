@@ -10,7 +10,12 @@ const marker='[QA1243-NO-OPERATING-WRITE]';
 assert.match(pages,/Verify marked QA-only changes contain no operating assets/);
 assert.match(pages,/QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE/);
 assert.match(pages,/const allowed=new Set\(/);
-assert.match(pages,/!files.includes\('scripts\/qa1243_build_isolated_gas\.mjs'\)/);
+assert.match(pages,/!files\.some\(f=>\[/);
+assert.match(pages,/scripts\/qa1243_oauth_bootstrap\.mjs/);
+assert.match(pages,/QA1243_OAuth_Start\.cmd/);
+assert.match(qa,/node scripts\/qa1243_oauth_bootstrap\.test\.mjs/);
+assert.match(qa,/secrets\.QA1243_GOOGLE_OAUTH_CLIENT_SECRET/);
+assert.match(qa,/secrets\.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN/);
 for(const name of ['build-pages','notify-deployment-result','deploy-pages']){
   const begin=pages.indexOf('\n  '+name+':');
   assert.ok(begin>=0,'Missing Pages job: '+name);

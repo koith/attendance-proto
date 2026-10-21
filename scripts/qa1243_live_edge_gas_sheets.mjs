@@ -4,6 +4,7 @@
 // no existing Apps Script deployment or its shared secret is read/changed.
 import {readFileSync} from 'node:fs';
 import {randomBytes,createHash} from 'node:crypto';
+import {QA1243_RUNNER_SCOPES,assertQa1243RunnerScopes} from './qa1243_oauth_scopes.mjs';
 import assert from 'node:assert/strict';
 import {buildQa1243GAS,buildQa1243Manifest,QA1243_SCRIPT_SCOPES,
  selectQa1243OwnedExistingScript,QA1243_EXISTING_SCRIPT_TITLE} from './qa1243_build_isolated_gas.mjs';
@@ -55,16 +56,8 @@ console.log('QA1243_OAUTH_OWNER_VERIFIED '+JSON.stringify({email:EXPECTED_QA_OWN
 const granted=(await jsonRequest('https://oauth2.googleapis.com/tokeninfo?access_token='+
   encodeURIComponent(oauth),{method:'GET'})).value;
 const actualScopes=new Set(String(granted.scope||'').split(/\s+/).filter(Boolean));
-const approvedScopes=[
- 'https://www.googleapis.com/auth/userinfo.email',
- 'https://www.googleapis.com/auth/script.projects',
- 'https://www.googleapis.com/auth/script.deployments',
- 'https://www.googleapis.com/auth/drive.metadata.readonly',
- 'https://www.googleapis.com/auth/spreadsheets.readonly'
-];
-if(approvedScopes.some(scope=>!actualScopes.has(scope)) ||
-   [...actualScopes].some(scope=>!approvedScopes.includes(scope)))
- throw Error('QA1243_OAUTH_SCOPE_MISSING_OR_OVERPRIVILEGED');
+assertQa1243RunnerScopes(actualScopes);
+assert.equal(QA1243_RUNNER_SCOPES.length,5);
 console.log('QA1243_RUNNER_OAUTH_SCOPE_VERIFIED '+JSON.stringify({
  scopeNames:[...actualScopes].sort(),noDriveWrite:true,noSheetsWrite:true,noExternalRequest:true
 }));
