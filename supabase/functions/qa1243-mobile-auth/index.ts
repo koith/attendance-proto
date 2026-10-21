@@ -1,257 +1,144 @@
-// QA1243 SAFARI ONLY. Never import operating Sheets/Script, DB or account.
-// Public page has NO embedded Google Client Secret or GitHub administrator PAT.
-// Bearer tokens exist only in short-lived POST memory and GitHub's encrypted
-// one-hour QA access-token Secret; no logging, URL query or durable storage.
-import sodium from 'npm:libsodium-wrappers@0.7.15';
-import {htmlPage} from './page.ts';
-
-const QA_OWNER='webuielf@gmail.com';
-const GITHUB_OWNER='koith';
-const REPO='koith/attendance-proto';
+// QA1243 iPhone Safari OAuth — public STATIC HTML, no privileged backend.
+// This function NEVER receives, stores, or forwards Google OAuth tokens or
+// GitHub credentials. GitHub Secrets are written ONLY on github.com official UI.
+// Independent from operating Google Sheets/Apps Script and attendance DB.
 const SECRET_NAME='QA1243_GOOGLE_OAUTH_ACCESS_TOKEN';
-const COOKIE='qa1243_mobile_once';
-const EXPECTED_SCOPES=[
+const scopeList=[
  'https://www.googleapis.com/auth/userinfo.email',
  'https://www.googleapis.com/auth/script.projects',
  'https://www.googleapis.com/auth/script.deployments',
  'https://www.googleapis.com/auth/drive.metadata.readonly',
  'https://www.googleapis.com/auth/spreadsheets.readonly'
 ];
-const expirySeconds=600;
-class Denied extends Error {
- constructor(public readonly code:string){super(code);}
+const page=`<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer"><title>QA1243 iPhone OAuth</title>
+<style nonce="QA1243_NONCE">
+:root{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:#142334;background:#f5f7fa}
+*{box-sizing:border-box}body{padding:25px 14px 65px;margin:0}.panel{max-width:540px;margin:auto;background:white;border:1px solid #dbe4ef;border-radius:15px;padding:24px 20px}
+h1{font-size:22px;margin:0 0 8px}p{font-size:14px;line-height:1.6}label{font-size:13px;font-weight:650;display:block;margin-top:18px;margin-bottom:8px}
+input{padding:12px;border:1px solid #aebfd0;border-radius:8px;width:100%;font-size:16px}
+button,.link{display:block;width:100%;padding:14px 10px;margin-top:14px;border-radius:9px;text-align:center;font-size:15px;font-weight:650}
+button{background:#185cc1;border:0;color:white}button:disabled{opacity:.48}.link{border:1px solid #c6d5e5;color:#155ab0;text-decoration:none}
+small{font-size:12px;color:#607081;line-height:1.6;display:block;margin-top:15px}
+#status{border-radius:8px;background:#eef2f7;padding:13px;overflow-wrap:anywhere;font-size:13px}
+</style>
+<script nonce="QA1243_NONCE" src="https://accounts.google.com/gsi/client" async defer></script>
+</head><body><main class="panel">
+<h1>QA1243 · iPhone 인증</h1>
+<p><strong>webuielf@gmail.com</strong> QA 계정 전용 · 10분 세션 · 토큰 복사 한 번</p>
+<p>이 페이지는 Google 로그인만 수행하며, 인증정보를 서버·URL·로그로 전송하지 않습니다. GitHub Secret은 반드시 GitHub 공식 화면에서 저장합니다.</p>
+<label for="client">QA1243-Isolated 프로젝트의 Google Web OAuth Client ID</label>
+<input id="client" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="숫자-...apps.googleusercontent.com">
+<button id="login" type="button">1. QA Google 로그인·동의</button>
+<button id="copy" type="button" disabled>2. 인증 토큰 복사 (한 번)</button>
+<a class="link" id="github" href="https://github.com/koith/attendance-proto/settings/secrets/actions/new" target="_blank" rel="noopener noreferrer">3. GitHub 공식 Secret 등록 화면</a>
+<p id="status" role="status" aria-live="polite">QA Web OAuth Client ID를 입력한 뒤 Google 계정으로 로그인하세요.</p>
+<small>GitHub 화면에서 Secret 이름: <strong>QA1243_GOOGLE_OAUTH_ACCESS_TOKEN</strong>. 값에는 방금 복사한 토큰만 붙여넣습니다. 이 토큰은 짧은 유효기간을 가집니다. 기존 Windows Refresh Token 도우미는 그대로 유지합니다.</small>
+</main>
+<script nonce="QA1243_NONCE">
+(()=>{
+'use strict';
+const scopes=QA1243_SCOPE_LIST;
+const expected='webuielf@gmail.com';
+const deadline=Date.now()+10*60*1000;
+const name='QA1243_GOOGLE_OAUTH_ACCESS_TOKEN';
+const googleButton=document.getElementById('login');
+const copyButton=document.getElementById('copy');
+const clientInput=document.getElementById('client');
+const status=document.getElementById('status');
+let token=null,confirmed=false,used=false;
+function note(s){status.textContent=s;}
+function expired(){
+ if(Date.now()<=deadline)return false;
+ token=null;confirmed=false;copyButton.disabled=true;googleButton.disabled=true;
+ note('10분 인증 세션이 종료되었습니다. Safari에서 새로고침하세요.');
+ return true;
 }
-function fail(code:string):never{throw new Denied(code);}
-function hex(data:Uint8Array){return Array.from(data,b=>b.toString(16).padStart(2,'0')).join('');}
-async function digest(value:string){
- return hex(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))));
+googleButton.addEventListener('click',()=>{
+ if(expired()||used)return;
+ const cid=clientInput.value.trim();
+ if(!/^[0-9]+-[A-Za-z0-9_-]+\\.apps\\.googleusercontent\\.com$/.test(cid)){
+  note('QA 프로젝트의 Web OAuth Client ID 형식을 확인하세요.');return;
+ }
+ if(!window.google?.accounts?.oauth2?.initTokenClient){
+  note('Google 로그인 모듈이 아직 준비되지 않았습니다. 다시 누르세요.');return;
+ }
+ googleButton.disabled=true;
+ const oauth=google.accounts.oauth2.initTokenClient({
+  client_id:cid,scope:scopes.join(' '),login_hint:expected,
+  callback:async response=>{
+   try{
+    if(expired())return;
+    if(!response?.access_token||response.error){
+     throw Error('GOOGLE_CONSENT_INCOMPLETE');
+    }
+    const actual=new Set(String(response.scope||'').split(/\\s+/).filter(Boolean));
+    if(actual.size!==scopes.length||scopes.some(x=>!actual.has(x))||
+       !google.accounts.oauth2.hasGrantedAllScopes(response,...scopes))
+       throw Error('GOOGLE_SCOPE_MISMATCH');
+    if(Number(response.expires_in)<1800)throw Error('GOOGLE_TOKEN_TOO_SHORT');
+    // Google userinfo uses an Authorization header; no token in URL or query.
+    const result=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{
+      headers:{Authorization:'Bearer '+response.access_token},
+      cache:'no-store',redirect:'error'
+    });
+    if(!result.ok)throw Error('GOOGLE_USERINFO_UNAVAILABLE');
+    const profile=await result.json();
+    if(String(profile.email||'').toLowerCase()!==expected||
+       profile.email_verified!==true)
+       throw Error('GOOGLE_ACCOUNT_NOT_QA_OWNER');
+    token=response.access_token;confirmed=true;copyButton.disabled=false;
+    clientInput.value='';
+    note('QA 계정과 정확한 5개 권한 확인 완료. 2번 버튼으로 토큰을 복사하세요.');
+   }catch(error){
+    token=null;confirmed=false;copyButton.disabled=true;
+    note('인증 실패: '+String(error?.message||'GOOGLE_ERROR'));
+    googleButton.disabled=false;
+   }
+  },
+  error_callback:()=>{
+   googleButton.disabled=false;note('Google 팝업이 취소되거나 차단되었습니다.');
+  }
+ });
+ oauth.requestAccessToken({prompt:'consent'});
+});
+copyButton.addEventListener('click',async()=>{
+ if(expired()||!confirmed||used||!token)return;
+ try{
+  await navigator.clipboard.writeText(token);
+  used=true;token=null;confirmed=false;
+  copyButton.disabled=true;googleButton.disabled=true;
+  note('복사 완료. 3번 GitHub 공식 화면에서 이름 '+name+'을 입력하고 값 붙여넣기 후 저장하세요. 토큰은 더 이상 이 페이지에 보관되지 않습니다.');
+ }catch{
+  note('Safari 클립보드 쓰기가 거부되었습니다. 브라우저 권한을 확인한 후 다시 누르세요.');
+ }
+});
+})();
+</script></body></html>`;
+function pageResponse(req:Request){
+ if(new URL(req.url).search)return new Response('QA1243_QUERY_NOT_ALLOWED',{status:400,headers:headers('disabled')});
+ const bytes=crypto.getRandomValues(new Uint8Array(16));
+ const nonce=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+ const html=page.replaceAll('QA1243_NONCE',nonce).replace('QA1243_SCOPE_LIST',JSON.stringify(scopeList));
+ return new Response(html,{status:200,headers:{...headers(nonce),'Content-Type':'text/html; charset=utf-8'}});
 }
-function randomHex(bytes=32){return hex(crypto.getRandomValues(new Uint8Array(bytes)));}
-function securityHeaders(nonce?:string){
+function headers(nonce:string){
  return {
-  'Cache-Control':'no-store, no-cache, must-revalidate, private',
-  'Pragma':'no-cache','Referrer-Policy':'no-referrer',
-  'X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY',
-  'Cross-Origin-Opener-Policy':'same-origin-allow-popups',
+  'Cache-Control':'no-store, no-cache, private, max-age=0',
+  'Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff',
+  'X-Frame-Options':'DENY','Cross-Origin-Opener-Policy':'same-origin-allow-popups',
   'Permissions-Policy':'camera=(), microphone=(), geolocation=()',
   'Content-Security-Policy':[
-   "default-src 'none'",
-   "base-uri 'none'","frame-ancestors 'none'","form-action 'none'",
-   "script-src 'nonce-"+(nonce||'disabled')+"' https://accounts.google.com/gsi/client https://accounts.google.com/gsi/",
-   "style-src 'nonce-"+(nonce||'disabled')+"' https://accounts.google.com/gsi/",
-   "connect-src 'self' https://accounts.google.com",
+   "default-src 'none'","frame-ancestors 'none'","base-uri 'none'","form-action 'none'",
+   "script-src 'nonce-"+nonce+"' https://accounts.google.com/gsi/client https://accounts.google.com/gsi/",
+   "style-src 'nonce-"+nonce+"' https://accounts.google.com/gsi/",
+   "connect-src https://www.googleapis.com https://accounts.google.com",
    "frame-src https://accounts.google.com"
   ].join('; ')
  };
 }
-function jsonReply(code:string,http=400,extra:Record<string,unknown>={}){
- return new Response(JSON.stringify({ok:code==='QA1243_OK',code,...extra}),{
-  status:http,headers:{...securityHeaders(),'Content-Type':'application/json;charset=utf-8'}
- });
-}
-function serverEnv(){
- const url=Deno.env.get('SUPABASE_URL');
- const key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
- if(!url?.startsWith('https://')||!key)fail('QA1243_MOBILE_BACKEND_CONFIGURATION_REQUIRED');
- return {url,key};
-}
-async function sessionRpc(name:string,hashedNonce:string){
- if(!/^[0-9a-f]{64}$/.test(hashedNonce))fail('QA1243_BAD_SESSION_HASH');
- const {url,key}=serverEnv();
- const res=await fetch(url+'/rest/v1/rpc/'+name,{
-  method:'POST',redirect:'error',
-  headers:{apikey:key,Authorization:'Bearer '+key,
-   'Content-Type':'application/json','Accept':'application/json'},
-  body:JSON.stringify({p_digest:hashedNonce}),
-  signal:AbortSignal.timeout(12000)
- });
- if(!res.ok)fail('QA1243_SESSION_DATABASE_UNAVAILABLE');
- const v=await res.json();
- return v===true;
-}
-function readNonce(req:Request){
- const found=(req.headers.get('cookie')||'').split(';').map(x=>x.trim())
-  .find(part=>part.startsWith(COOKIE+'='));
- const v=found?.slice(COOKIE.length+1)||'';
- return /^[0-9a-f]{64}$/.test(v)?v:null;
-}
-function expireCookie(){
- return COOKIE+'=; Path=/functions/v1/qa1243-mobile-auth; Max-Age=0; HttpOnly; Secure; SameSite=Strict';
-}
-async function readSmallJson(req:Request){
- const claimed=Number(req.headers.get('content-length')||0);
- if(claimed>8500)fail('QA1243_BODY_TOO_LARGE');
- const reader=req.body?.getReader();
- if(!reader)fail('QA1243_MISSING_BODY');
- const parts:Uint8Array[]=[];
- let total=0;
- try{
-  while(true){
-   const {done,value}=await reader.read();
-   if(done)break;
-   total+=value.byteLength;
-   if(total>8500)fail('QA1243_BODY_TOO_LARGE');
-   parts.push(value);
-  }
- }finally{reader.releaseLock();}
- const packed=new Uint8Array(total);
- let offset=0;
- for(const part of parts){packed.set(part,offset);offset+=part.length;}
- try{return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(packed));}
- catch{fail('QA1243_INVALID_REQUEST_BODY');}
-}
-async function externalJson(url:string,options:RequestInit,where:'GOOGLE'|'GITHUB'){
- let response:Response;
- try{response=await fetch(url,{...options,redirect:'error',signal:AbortSignal.timeout(15000)});}
- catch{fail('QA1243_'+where+'_NETWORK_UNAVAILABLE');}
- if(!response.ok)fail('QA1243_'+where+'_HTTP_'+response.status);
- try{return await response.json();}
- catch{fail('QA1243_'+where+'_BAD_RESPONSE');}
-}
-async function verifyGoogle(access:string,clientId:string){
- if(!/^[A-Za-z0-9._~-]{40,4096}$/.test(access)|| 
-    !/^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(clientId))
-   fail('QA1243_GOOGLE_CREDENTIAL_FORMAT');
- // Google supports tokeninfo POST. Access token goes in HTTPS form body,
- // NEVER URL query, stdout, referrer, GitHub Issue or Edge Function log.
- const tokenInfo=await externalJson('https://www.googleapis.com/oauth2/v2/tokeninfo',{
-  method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
-  body:new URLSearchParams({access_token:access})
- },'GOOGLE');
- const audience=tokenInfo.audience||tokenInfo.issued_to||tokenInfo.aud;
- if(audience!==clientId)fail('QA1243_GOOGLE_CLIENT_AUDIENCE_MISMATCH');
- const granted=new Set(String(tokenInfo.scope||'').split(/\s+/).filter(Boolean));
- if(granted.size!==EXPECTED_SCOPES.length ||
-    EXPECTED_SCOPES.some(s=>!granted.has(s)))fail('QA1243_GOOGLE_SCOPE_MISMATCH');
- if(!Number.isFinite(Number(tokenInfo.expires_in)) ||
-    Number(tokenInfo.expires_in)<1800)fail('QA1243_GOOGLE_ACCESS_TOKEN_TOO_OLD');
- const profile=await externalJson('https://www.googleapis.com/oauth2/v3/userinfo',{
-  headers:{Authorization:'Bearer '+access}
- },'GOOGLE');
- if(String(profile.email||'').toLowerCase()!==QA_OWNER || profile.email_verified!==true)
-  fail('QA1243_GOOGLE_OWNER_MISMATCH');
- // Original operating Google file must remain inaccessible to QA account.
- for(const fileId of [
-  '1-0on5kKhnIrjrutEDAR9y4nkBGlB1VL6YaLD49eG024',
-  '1VkwzA0EKQAf9VQ9BECOcOLkikhIuHR7EtKt6mZkq6B8_Q9HH4w6lQmrw'
- ]){
-  const denied=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{
-   method:'GET',redirect:'error',
-   headers:{Authorization:'Bearer '+access},signal:AbortSignal.timeout(10000)
-  });
-  if(denied.status!==403&&denied.status!==404)
-   fail('QA1243_OPERATING_GOOGLE_FILE_ACCESS_NOT_DENIED');
- }
-}
-async function githubJson(url:string,gh:string,options:RequestInit={}){
- return await externalJson('https://api.github.com'+url,{
-  ...options,headers:{
-   Accept:'application/vnd.github+json',
-   Authorization:'Bearer '+gh,
-   'X-GitHub-Api-Version':'2022-11-28',
-   ...(options.headers||{})
-  }
- },'GITHUB');
-}
-async function githubResponse(url:string,gh:string,options:RequestInit){
- let res:Response;
- try{res=await fetch('https://api.github.com'+url,{
-  ...options,redirect:'error',signal:AbortSignal.timeout(15000),
-  headers:{
-   Accept:'application/vnd.github+json',
-   Authorization:'Bearer '+gh,'X-GitHub-Api-Version':'2022-11-28',
-   'Content-Type':'application/json'
-  }
- });}catch{fail('QA1243_GITHUB_NETWORK_UNAVAILABLE');}
- if(![201,204].includes(res.status))fail('QA1243_GITHUB_WRITE_NOT_AUTHORIZED');
-}
-async function verifyGithub(gh:string){
- const profile=await githubJson('/user',gh);
- const repo=await githubJson('/repos/'+REPO,gh);
- if(profile.login!==GITHUB_OWNER || repo.full_name!==REPO || repo.permissions?.admin!==true)
-  fail('QA1243_GITHUB_REPO_OWNER_MISMATCH');
-}
-async function chooseTrustedRun(gh:string){
- const branch=await githubJson('/repos/'+REPO+'/branches/main',gh);
- const mainSha=branch.commit?.sha;
- if(!/^[a-f0-9]{40}$/.test(mainSha||''))fail('QA1243_MAIN_SHA_UNVERIFIED');
- const result=await githubJson('/repos/'+REPO+
-  '/actions/workflows/qa1243-live-e2e.yml/runs?branch=main&event=push&per_page=30',gh);
- for(const run of result.workflow_runs||[]){
-  if(run.event!=='push'||run.head_branch!=='main'||run.status!=='completed'||
-      run.conclusion!=='failure'||!Number.isSafeInteger(run.id) ||
-      !/^[a-f0-9]{40}$/.test(run.head_sha||''))continue;
-  const diff=await githubJson('/repos/'+REPO+'/compare/'+run.head_sha+'...'+mainSha,gh);
-  if(diff.status==='ahead'||diff.status==='identical')return run.id as number;
- }
- fail('QA1243_NO_TRUSTED_FAILED_PUSH_RUN');
-}
-async function submit(req:Request){
- const origin=new URL(req.url).origin;
- if(req.headers.get('origin')!==origin ||
-    req.headers.get('x-qa1243-mobile')!=='1' ||
-    !String(req.headers.get('content-type')||'').startsWith('application/json'))
-  fail('QA1243_CSRF_OR_ORIGIN_REJECTED');
- const cookie=readNonce(req);
- if(!cookie)fail('QA1243_SESSION_COOKIE_MISSING');
- const data=await readSmallJson(req);
- const google=String(data?.googleAccessToken||'');
- const webClient=String(data?.googleClientId||'');
- const gh=String(data?.githubToken||'');
- if(!/^github_pat_[A-Za-z0-9_]{20,300}$/.test(gh))
-  fail('QA1243_GITHUB_FINE_GRAINED_PAT_REQUIRED');
- await verifyGoogle(google,webClient);
- await verifyGithub(gh);
- const runId=await chooseTrustedRun(gh);
- // The nonce hash is atomically claimed in Postgres before any Secret PUT.
- // Two retries with the same cookie cannot re-execute the privileged write.
- if(!await sessionRpc('qa1243_mobile_session_claim',await digest(cookie)))
-  fail('QA1243_SESSION_EXPIRED_OR_ALREADY_USED');
- const pub=await githubJson('/repos/'+REPO+'/actions/secrets/public-key',gh);
- if(!/^[A-Za-z0-9_=-]+$/.test(pub.key||'')||!pub.key_id)
-  fail('QA1243_GITHUB_PUBLIC_KEY_UNVERIFIED');
- await sodium.ready;
- const key=sodium.from_base64(pub.key,sodium.base64_variants.ORIGINAL);
- if(key.length!==32)fail('QA1243_INVALID_GITHUB_PUBLIC_KEY');
- const encrypted=sodium.to_base64(
-  sodium.crypto_box_seal(sodium.from_string(google),key),
-  sodium.base64_variants.ORIGINAL);
- await githubResponse('/repos/'+REPO+'/actions/secrets/'+SECRET_NAME,gh,{
-  method:'PUT',body:JSON.stringify({encrypted_value:encrypted,key_id:pub.key_id})
- });
- // Verify only the secret metadata, never its encrypted or plaintext value.
- const meta=await githubJson('/repos/'+REPO+'/actions/secrets/'+SECRET_NAME,gh);
- if(meta.name!==SECRET_NAME)fail('QA1243_GITHUB_SECRET_METADATA_NOT_VERIFIED');
- await githubResponse('/repos/'+REPO+'/actions/runs/'+runId+'/rerun-failed-jobs',gh,{
-  method:'POST',body:'{}'
- });
- return new Response(JSON.stringify({ok:true,code:'QA1243_OK',
-  runUrl:'https://github.com/'+REPO+'/actions/runs/'+runId}),{
-  status:200,headers:{...securityHeaders(),'Content-Type':'application/json;charset=utf-8',
-   'Set-Cookie':expireCookie()}
- });
-}
-Deno.serve(async(req)=>{
- try{
-  if(req.method==='GET'){
-   if(new URL(req.url).search)fail('QA1243_URL_PARAMETERS_NOT_ALLOWED');
-   const session=randomHex();
-   if(!await sessionRpc('qa1243_mobile_session_issue',await digest(session)))
-    fail('QA1243_SESSION_RATE_LIMIT_OR_CONFLICT');
-   const nonce=randomHex(16);
-   return new Response(htmlPage(nonce),{
-    headers:{...securityHeaders(nonce),'Content-Type':'text/html;charset=utf-8',
-     'Set-Cookie':COOKIE+'='+session+'; Path=/functions/v1/qa1243-mobile-auth; Max-Age='+
-       expirySeconds+'; HttpOnly; Secure; SameSite=Strict'}
-   });
-  }
-  if(req.method==='POST')return await submit(req);
-  return jsonReply('QA1243_METHOD_NOT_ALLOWED',405);
- }catch(error){
-  // Do NOT stringify/log thrown errors, request bodies, Google or GitHub
-  // HTTP responses. Only whitelisted failure codes leave this endpoint.
-  const code=error instanceof Denied&&/^QA1243_[A-Z0-9_]+$/.test(error.code)?
-   error.code:'QA1243_INTERNAL_FAILURE';
-  return jsonReply(code,code==='QA1243_INTERNAL_FAILURE'?503:400);
- }
+Deno.serve((req:Request)=>{
+ if(req.method!=='GET')return new Response('QA1243_READ_ONLY_PAGE',{status:405,headers:headers('disabled')});
+ return pageResponse(req);
 });
