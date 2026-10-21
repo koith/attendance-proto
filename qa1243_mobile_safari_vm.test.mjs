@@ -5,10 +5,12 @@ import {webcrypto} from 'node:crypto';
 import {QA1243_RUNNER_SCOPES} from './scripts/qa1243_oauth_scopes.mjs';
 
 const source=readFileSync('supabase/functions/qa1243-mobile-auth/index.ts','utf8');
-const pre=source.slice(0,source.indexOf('Deno.serve('));
-assert.ok(pre.length>1000,'Must parse actual shipped Safari HTML source');
+const start=source.indexOf('const page=\x60');
+const end=source.indexOf('\nfunction pageResponse(',start);
+assert.ok(start>=0&&end>start,'Must parse actual shipped Safari HTML source');
+const pageOnly=source.slice(start,end);
 const context={crypto:webcrypto};
-vm.runInNewContext(pre+'\nthis.shown=page;',context);
+vm.runInNewContext(pageOnly+'\nthis.shown=page;',context);
 const html=String(context.shown)
  .replaceAll('QA1243_NONCE','TESTONLY_CSP_NONCE')
  .replace('QA1243_SCOPE_LIST',JSON.stringify(QA1243_RUNNER_SCOPES));
