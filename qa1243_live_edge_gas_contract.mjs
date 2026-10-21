@@ -42,31 +42,33 @@ assert.match(generator,/QA1243_STORE_KEY_REQUIRED/);
 assert.match(script,/verifyQaWorkbookTitle\(aId,storeA\)/);
 assert.match(script,/verifyQaWorkbookTitle\(bId,storeB\)/);
 assert.match(script,/Only visibly marked test workbooks are acceptable/);
-assert.match(script,/QA1243 isolated Edge GAS 2026-10-20T/);
+assert.match(script,/QA1243 isolated Edge GAS /);
 assert.match(generator,/qa1243AuthorizeServices/);
 assert.match(script,/buildQa1243GAS\(readFileSync\('apps_script\.gs','utf8'\),secret\)/);
 assert.match(script,/QA1243_GAS_AUTH_OR_PUBLICATION_POLICY_403/);
 assert.match(generator,/QA1243_PUBLICATION_GET_ONLY/);
 assert.match(script,/probeReadonlyPublication\(url\)/);
-assert.match(script,/qaManifest\.executionApi=\{access:'MYSELF'\}/);
-assert.match(script,/const apiEntry=detail\.entryPoints\?\.find/);
-assert.match(script,/entryPointType==='EXECUTION_API'/);
-assert.match(script,/function:'qa1243AuthorizeServices',devMode:false/);
-assert.match(script,/QA1243_OWNER_EXEC_API_SCOPE_DIAGNOSTIC/);
-assert.match(script,/QA1243_AFTER_OWNER_API_PREFLIGHT/);
-assert.match(script,/await attemptOwnerScopeProbe\(\) && await recheckWrongSecretWithoutWriting\(url\)/);
-assert.ok(script.indexOf("if(await attemptOwnerScopeProbe()")<script.indexOf('const oidcUrl='),
- 'No production Edge request before isolated private scripts.run and wrong-secret recheck');
-assert.doesNotMatch(script,/qaManifest\.executionApi=\{access:'ANYONE/);
-
+assert.match(script,/QA1243_GOOGLE_OWNER_MISMATCH_STOP_BEFORE_SCRIPT_API/);
+assert.match(script,/QA1243_SCRIPT_OWNER_NOT_QA_ACCOUNT/);
+assert.match(script,/QA1243_LEGACY_OPERATING_OWNER_SCRIPT_FORBIDDEN/);
+assert.match(script,/QA1243_REMOTE_SOURCE_ATTESTED/);
+assert.match(script,/assertRemoteSource\(immutable,gs,manifest\)/);
+assert.match(script,/verifyQaScriptOwner/);
+assert.match(script,/EXPECTED_QA_OWNER='webuielf@gmail.com'/);
+assert.match(script,/QA1243_GOOGLE_OAUTH_REFRESH_TOKEN/);
+assert.match(wf,/secrets.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN/);
+assert.match(wf,/vars.QA1243_GAS_SCRIPT_ID/);
+assert.match(generator,/buildQa1243Manifest/);
+assert.match(generator,/QA1243_SCRIPT_SCOPES/);
+assert.doesNotMatch(wf,/secrets.GOOGLE_OAUTH_/);
+assert.doesNotMatch(script,/process.env.GOOGLE_OAUTH_/);
+assert.doesNotMatch(script,/scripts\.run|EXECUTION_API/);
 assert.match(script,/method:'GET'/);
 assert.match(script,/QA1243_GAS_READONLY_GET_DIAGNOSTIC/);
 assert.match(script,/QA1243_GAS_POST_ROUTE_OR_METHOD_403/);
 assert.ok(script.indexOf('const publication=await probeReadonlyPublication(url)')<script.indexOf('const oidcUrl='),
  'GET may diagnose 403 only before any Edge or Sheet writes');
 assert.match(script,/consecutive403>=\(knownQaProject\?1:3\)/);
-assert.match(script,/assessQaScriptCloudLink/);
-assert.match(script,/QA1243_EXEC_API_CLOUD_LINK_UNVERIFIED/);
 assert.match(script,/QA1243_GAS_WRITER_EXECUTABLE/);
 assert.ok(script.indexOf('await waitForExecutableQaWebapp(qaUrl);')<script.indexOf('const oidcUrl='),
  'Unauthorized POST must be verified before minting OIDC and writing');

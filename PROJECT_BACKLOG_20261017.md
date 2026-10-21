@@ -404,3 +404,13 @@
 - 사전 프로젝트 연결 여부를 실제 소유자가 확인하기 전에는 실패했던 owner-only `scripts.run` 호출을 반복하지 않는다. OAuth 클라이언트 앞 프로젝트 번호와 명시한 QA-only Apps Script 표준 프로젝트 번호가 일치할 때만 진단을 허용하며, 이것도 성공 증거가 아닌 접근조건 검사.
 - 기존 QA-only 프로젝트에서 이미 재현된 GET/POST 403 HTML에는 불필요한 동일 POST 3회를 중복하지 않고 GET 1회+사전 조건 확인 후 NO_GO. 잘못된 시크릿 JSON UNAUTHORIZED 확인 이전에는 Edge/Sheets 쓰기 금지 유지.
 - 회귀 단위 테스트 및 업무 #1243, P0 38/19/19 유지. 운영 Sheet/Apps Script/시크릿 미변경.
+
+## 51. 2026-10-21 — QA1243 QA 전용 Google 계정 소유·OAuth 최소권한·운영 쓰기 차단 후속 (PR #1296)
+
+- **원문 사용자 지시:** [Issue #1243 신규 접수](https://github.com/koith/attendance-proto/issues/1243#issuecomment-6307713192). QA Google 계정은 `webuielf@gmail.com`; 실제 운영 시트 접근 시 '액세스 권한 필요' 확인. 기존 운영 Google 계정의 OAuth 승인은 계속 보류하며 운영 `2026 근태`·운영 Apps Script는 변경 금지.
+- **기존 방식 폐기:** 과거 QA Script `1VkwzA0EKQAf9VQ9BECOcOLkikhIuHR7EtKt6mZkq6B8_Q9HH4w6lQmrw`가 **운영 계정 소유**임을 Google Drive 파일 메타데이터로 확인. §48/§50의 해당 스크립트 owner-only `scripts.run` 승인은 **새 절차에서 사용하지 않음**. 이 스크립트 ID의 재사용/운영 OAuth Secret 재사용은 fail-closed.
+- **이번 신규 소스(초기 PR #1296):** QA-only OAuth 환경변수, `userinfo` 실제 소유자 이메일, tokeninfo 정확한 CI 최소 권한 목록, 운영 workbook/옛 Script 접근 거부(403/404), 신규 Script/신규 Sheets 실제 `owners.emailAddress` 비교. QA Apps Script는 명시적 `spreadsheets` 및 `script.storage`로 제한하고 `DriveApp`/`UrlFetchApp`/legacy active workbook 도입·파일 이동/이름 변경·시트 삭제/Execution API 제거. 실제 Google `projects.getContent` HEAD와 versionNumber 읽기·manifest scope 비교·배포 version ID 검증.
+- **운영 시트 안전한 main 통합 조건:** `.github/workflows/p0-pages-deploy.yml`의 main 모든 push에 운영 Sheet 실제 쓰기 단계가 있으므로, 지정 QA-only 코드 변경과 특수 커밋 마커 `[QA1243-NO-OPERATING-WRITE]`가 일치하는 push에서만 기존 Pages build/deploy/Sheet refresh·독립 배포 성공 알림을 skip하도록 가드 추가. 미허용 파일이 섞이면 P0 게이트 FAIL; 마커 없이 병합하면 **운영 재동기화 위험**. 원본 Apps Script/Sheet·인하대 급여 셀은 이 PR 작업 범위에 없음.
+- **정확한 사용자 화면 작업:** [QA 전용 계정 설정/권한/Secret 절차](QA1243_QA_GOOGLE_BOOTSTRAP.md), [금요일 개통 게이트](QA1243_FRIDAY_OPENING_20261023.md) 갱신. QA 계정 OAuth client / 새 Script ID / GitHub QA Secret는 외부 사용자 인증이 필요한 단계이며 이 대화에서 임의 인증·생성·승인을 하지 않음.
+- **운영 읽기 전용 재점검:** 244 stores, HQ 3, INHA employees 10, store primary owners 0, assistant memberships 0, QA1243 store candidates 0. Google Drive 메타데이터상 기존 운영 Sheet의 ID·파일명·소유자 유지; 전체 cell hash의 불변은 별도 별칭 없으므로 증명하지 않는다.
+- **완료 경계:** GitHub PR 정적/VM 회귀 PASS를 Google 호스팅 활성 스크립트 배포 PASS로 확대 금지. 실제 QA 계정 자격증명·소유자·Scope 검증 후 배포, 잘못된 secret JSON `UNAUTHORIZED`, 403 해소, Edge→독립 GAS→QA Sheet A/B 읽기/정정/멱등성은 **미실행/미검증**이면 `QA-05 [ ]`, 금요일 전체 `NO_GO`. 전체 38건/완료19/잔여19 유지.

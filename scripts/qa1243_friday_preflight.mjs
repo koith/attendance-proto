@@ -28,6 +28,14 @@ export function classifyWorkflow(spec,runs,sha,now=Date.now()){
  if(!Number.isFinite(at)||at>now+60000||now-at>7*24*3600000)
    return {id:spec.id,status:'FAIL',reason:'RUN_STALE_OR_INVALID_DATE',run_id:latest.id};
  if(spec.sameSha&&latest.head_sha!==sha)return {id:spec.id,status:'FAIL',reason:'OTHER_MAIN_SHA',run_id:latest.id,head_sha:latest.head_sha};
+ // A QA-only main push deliberately SKIPS Pages publication and the operating
+ // Sheet sync. A green workflow gate is not proof of a real Pages release.
+ const qaSkip='[QA1243-NO-OPERATING-WRITE]';
+ const qaOnly=String(latest.head_commit?.message||'').includes(qaSkip) ||
+   String(latest.display_title||'').includes(qaSkip);
+ if((spec.id==='PAGES_PUBLISH'||spec.id==='INDEPENDENT_PAGES')&&qaOnly)
+   return {id:spec.id,status:'FAIL',reason:'QA_ONLY_PUSH_NO_PAGES_PUBLICATION',run_id:latest.id};
+
  if(latest.status!=='completed')return {id:spec.id,status:'FAIL',reason:'WORKFLOW_NOT_FINISHED',run_id:latest.id,phase:latest.status};
  if(latest.conclusion!=='success')return {id:spec.id,status:'FAIL',reason:'WORKFLOW_'+String(latest.conclusion||'UNKNOWN').toUpperCase(),run_id:latest.id};
  return {id:spec.id,status:'PASS',run_id:latest.id,head_sha:latest.head_sha,proof:spec.proof};

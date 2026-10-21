@@ -1,13 +1,27 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {buildQa1243GAS} from './scripts/qa1243_build_isolated_gas.mjs';
+import {buildQa1243GAS,buildQa1243Manifest,QA1243_SCRIPT_SCOPES} from './scripts/qa1243_build_isolated_gas.mjs';
 const original=readFileSync('apps_script.gs','utf8');
 const secret='QA1243_64_CHARACTERS_OR_MORE_FAKE_ONLY_TEST_SECRET_NO_REAL_SYSTEM_VALUE_123456';
 const qa=buildQa1243GAS(original,secret);
 assert.equal(original.includes('QA1243_MAPPED_WORKBOOK_FOREIGN'),false,
   'Operating Apps Script must not be modified by test-only transformation');
 assert.match(qa,/QA1243_MAPPED_WORKBOOK_FOREIGN/);
+const manifest=JSON.parse(buildQa1243Manifest(readFileSync('appsscript.json','utf8')));
+assert.deepEqual(manifest.oauthScopes,QA1243_SCRIPT_SCOPES);
+assert.equal(manifest.executionApi,undefined,'QA script must not expose execution API');
+assert.ok(!JSON.stringify(manifest).includes('drive'),'No full Drive OAuth scope');
+assert.ok(!JSON.stringify(manifest).includes('script.external_request'),'No UrlFetchApp OAuth scope');
+assert.doesNotMatch(qa,/\bDriveApp\s*\./,'No DriveApp in executable QA script');
+assert.doesNotMatch(qa,/\bUrlFetchApp\s*\./);
+assert.doesNotMatch(qa,/\bdeleteSheet\s*\(/,'QA script must never delete tabs');
+assert.doesNotMatch(qa,/\bgetActiveSpreadsheet\s*\(/,'QA must never adopt operating workbook');
+assert.throws(()=>buildQa1243Manifest(JSON.stringify({
+ webapp:{access:'ANYONE_ANONYMOUS',executeAs:'USER_DEPLOYING'},
+ executionApi:{access:'MYSELF'}
+})),/false|undefined|executionApi|Expected values/);
+
 assert.match(qa,/QA1243_STORE_KEY_REQUIRED/);
 assert.match(qa,/qa1243AuthorizeServices/);
 assert.ok(!qa.includes("ss = SpreadsheetApp.create(year + ' 근태');"));
@@ -24,7 +38,7 @@ assert.ok(from>=0&&to>from);
 const body=qa.slice(from,to);
 const test=(initialTitle,knownId)=>{
   const originalId='1-0on5kKhnIrjrutEDAR9y4nkBGlB1VL6YaLD49eG024';
-  const oldSheet={id:originalId,title:initialTitle,getId(){return this.id;},getName(){return this.title;}};
+  const oldSheet={id:knownId||originalId,title:initialTitle,getId(){return this.id;},getName(){return this.title;}};
   const state={mapped:knownId||null,opened:0,created:0,renamed:0,tabs:0};
   const ctx={
     PropertiesService:{getScriptProperties(){return{
@@ -33,7 +47,6 @@ const test=(initialTitle,knownId)=>{
     SpreadsheetApp:{openById(id){state.opened++;assert.equal(id,knownId);return oldSheet;},
       getActiveSpreadsheet(){return null;},create(title){state.created++;return{
         getId(){return'NEW_QA_ONLY'},getName(){return title;}};}},
-    DriveApp:{getFileById(){state.renamed++;return {setName(){state.renamed++},moveTo(){}}}},
     _ensureMonthTabs(){state.tabs++},
     Error
   };
@@ -99,4 +112,4 @@ assert.ok(scopeBegin>0);
 const scopeBody=qa.slice(scopeBegin,qa.indexOf('\n',scopeBegin)+1);
 assert.match(scopeBody,/QA1243_AUTH_SCOPE_CHECK_ONLY/);
 assert.doesNotMatch(scopeBody,/\.create\(|\.insert|\.delete|\.update|\.clear|\.setProperty|\.setValue|\.setName|\.moveTo|\.append/);
-console.log('PASS #1243 QA-only GAS map guard: foreign operating workbook, foreign QA workbook, legitimate reuse, fresh create, invalid store writes blocked before lock; operating script untouched');
+console.log('PASS #1243 Sheets-only QA writer: minimal OAuth scopes, no DriveApp/UrlFetchApp/deleteSheet, mapped foreign workbook rejected; isolated new/reuse, invalid direct store keys denied; operating script unchanged');

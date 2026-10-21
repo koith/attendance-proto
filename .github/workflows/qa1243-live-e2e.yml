@@ -3,10 +3,11 @@ on:
   pull_request:
     paths:
       - 'scripts/qa1243_live_edge_gas_sheets.mjs'
-      - 'scripts/qa1243_gas_cloud_link.mjs'
-      - 'scripts/qa1243_gas_cloud_link.test.mjs'
       - 'scripts/qa1243_build_isolated_gas.mjs'
       - 'qa1243_gas_foreign_workbook_guard.mjs'
+      - '.github/workflows/verified-pages-deployment-notification.yml'
+      - '.github/workflows/p0-pages-deploy.yml'
+      - 'qa1243_pages_no_operating_write_guard.mjs'
       - 'qa1243_live_edge_gas_contract.mjs'
       - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
       - 'supabase/functions/server-sync-sheet/index.ts'
@@ -17,6 +18,9 @@ on:
       - 'scripts/qa1243_live_edge_gas_sheets.mjs'
       - 'scripts/qa1243_build_isolated_gas.mjs'
       - 'qa1243_gas_foreign_workbook_guard.mjs'
+      - '.github/workflows/verified-pages-deployment-notification.yml'
+      - '.github/workflows/p0-pages-deploy.yml'
+      - 'qa1243_pages_no_operating_write_guard.mjs'
       - 'qa1243_live_edge_gas_contract.mjs'
       - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
       - 'supabase/functions/server-sync-sheet/index.ts'
@@ -38,9 +42,9 @@ jobs:
       - name: Validate integration runner and OIDC isolation contract
         run: |
           node --check scripts/qa1243_live_edge_gas_sheets.mjs
-          node scripts/qa1243_gas_cloud_link.test.mjs
           node qa1243_live_edge_gas_contract.mjs
           node qa1243_gas_foreign_workbook_guard.mjs
+          node qa1243_pages_no_operating_write_guard.mjs
       - name: Await verified native production Edge deployment of this exact revision
         if: github.event_name == 'push'
         uses: actions/github-script@v7
@@ -75,12 +79,12 @@ jobs:
       - name: Execute real new GAS project and production Edge service-to-service QA
         if: github.event_name == 'push'
         env:
-          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
-          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
-          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
-          # An optional QA-only owner-verified standard Cloud project number.
-          # Without evidence of a match, do not repeat expected 403 scripts.run calls.
-          QA1243_STANDARD_GCP_PROJECT_NUMBER: ${{ vars.QA1243_STANDARD_GCP_PROJECT_NUMBER }}
+          QA1243_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID }}
+          QA1243_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET }}
+          QA1243_GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN }}
+          # New script owned by webuielf@gmail.com (optional initial value).
+          # Never set to the historical operating-account owned Script ID.
+          QA1243_GAS_SCRIPT_ID: ${{ vars.QA1243_GAS_SCRIPT_ID }}
         run: |
           node scripts/qa1243_live_edge_gas_sheets.mjs
       - name: Explicit evidence limitation

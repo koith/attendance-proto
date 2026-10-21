@@ -37,15 +37,16 @@
 
 `QA1243 Friday opening hard readiness gate`는 각 workflow의 **최근 main 실행**을 조회해 이전 성공을 최신 실패와 혼동하지 않는다. 외부 실SMTP 수신·실세션·사전/사후 운영 불변 증빙은 workflow 녹색만으로 PASS로 바꾸지 않는다. 실행 결과의 JSON/Markdown 아티팩트를 보존한다.
 
-## 3. Google 403 승인 — 운영 프로젝트는 대상 아님
+## 3. Google 403 — 별도 QA 계정 소유의 **새** 프로젝트만 사용
 
-기존 QA 전용 script ID: `1VkwzA0EKQAf9VQ9BECOcOLkikhIuHR7EtKt6mZkq6B8_Q9HH4w6lQmrw`.
-
-- 최종 실제 기록 #39516040734: 배포 `ANYONE_ANONYMOUS`/`USER_DEPLOYING` 메타데이터는 성공했지만 익명 POST **3×403 HTML**, 읽기 전용 GET도 **403 HTML**. 권한 미동의 또는 공개 액세스/배포 정책 중 어느 쪽인지 미확정.
-- Google 계정 소유자에게만 요청: [QA 전용 스크립트 편집기](https://script.google.com/d/1VkwzA0EKQAf9VQ9BECOcOLkikhIuHR7EtKt6mZkq6B8_Q9HH4w6lQmrw/edit) → 함수 `qa1243AuthorizeServices` 선택 → 실행 → 표시되는 Spreadsheet/Drive/ScriptProperties 서비스 권한 확인·승인. 이 함수는 출퇴근·급여·Sheet 데이터를 쓰지 않는 사전 권한 확인.
-- QA-only `scripts.run` 추가 조건: [Google 공식 문서](https://developers.google.com/apps-script/api/how-tos/execute)에 따라 Apps Script 프로젝트와 GitHub의 OAuth 클라이언트는 **같은 표준 Google Cloud 프로젝트**를 사용하고, Apps Script API가 켜져 있으며, 권한 범위가 충분해야 한다. QA-only 스크립트 편집기 `프로젝트 설정 → Google Cloud 프로젝트`의 연결번호가 해당 Google OAuth Client ID 앞 숫자 부분과 일치함을 소유자가 실제 확인한 뒤에만 GitHub Actions repository variable `QA1243_STANDARD_GCP_PROJECT_NUMBER`를 그 번호로 설정한다. 일치하지 않거나 기본 Apps Script Cloud 프로젝트면 `scripts.run` 403을 계속 무의미하게 반복하지 않는다. 실편집기 사용 권한 승인/외부 웹앱 접근 403은 별개로 검사하며 **이 변수 설정 자체는 403 해결/실시트 QA 성공 증거가 아니다.**
-- 다시 기존 trusted main E2E 진행. **여전히 403이면** 익명 웹앱 배포 계정·조직 공개 정책 확인과 다른 배포 경로 진단; 운영 시크릿·운영 `2026 근태`를 QA에 재지정하는 우회 금지.
-- E2E 정상 성공 전에는 **Google Sheets 실연동 PASS 표기 금지**.
+- 2026-10-21 사용자 검증: `webuielf@gmail.com`은 기존 운영 `2026 근태` 파일 접근 시 **액세스 권한 필요**. 그러나 GitHub Actions OAuth token으로도 실제 403/404가 반환되는지 다시 검증해야만 PASS.
+- 이전 QA Script `1VkwzA0EKQAf9VQ9BECOcOLkikhIuHR7EtKt6mZkq6B8_Q9HH4w6lQmrw`는 Google Drive 메타데이터상 **운영 계정 소유**. 절대 재사용하거나 그 소유자 계정에서 Google OAuth 권한 승인 금지. 운영 Apps Script 및 운영 Sheet 원본 변경 금지.
+- [QA 계정 설정 및 클릭 순서](QA1243_QA_GOOGLE_BOOTSTRAP.md)에 따라 QA Cloud OAuth client와 새 QA 소유 Apps Script 준비. GitHub **별도 QA-only 세 Secret**과 `QA1243_GAS_SCRIPT_ID` 변수만 연결한다.
+- 코드(작업 PR [#1296](https://github.com/koith/attendance-proto/pull/1296))에서 OAuth token **이메일 일치**, 정확한 CI 최소 5 scope, 운영 시트/구 프로젝트 접근 거부, 새 Script 소유자 일치부터 확인. 복사된 QA Script 런타임은 `spreadsheets` + `script.storage`만 요구, `DriveApp`/`UrlFetchApp`/`scripts.run`은 사용하지 않는다. 다른 scope 승인 요청 시 즉시 중단.
+- Google 서버 `projects.getContent` HEAD/불변 versionNumber의 소스+manifest와 배포 versionNumber 일치 검증 후에만 QA 계정 **직접** 편집기에서 `qa1243AuthorizeServices`를 실행. 운영 계정 접근·승인 절대 금지.
+- QA 전용 Web App 익명 GET 공개 probe와 잘못된 secret POST가 **JSON `UNAUTHORIZED`**여야 다음 단계 허용. 403 HTML이면 NO_GO 및 모든 Sheet 쓰기 중단. 성공 후 실 Edge→QA GAS→QA 소유 A/B Sheet 읽기/정정/멱등성·지점 격리와 소유자 메타데이터를 검증해야 QA-05 부분 PASS.
+- **운영 Sheet 자동 재동기화 차단:** `p0-pages-deploy.yml`은 모든 main push에 운영 Sheet 쓰기 단계가 있으므로, GitHub QA-only 변경은 정확한 커밋 마커 `[QA1243-NO-OPERATING-WRITE]`와 소스 변경 파일 allowlist를 거쳐 운영 Pages build/deploy/Sheet refresh와 운영 배포 알림을 **건너뛴다**. 이 예외는 웹앱 배포 성공 증거로 인정하지 않는다. main 변경 파일이 허용 범위를 벗어나면 QA-only 검증 실패.
+- Hosted Auth SMTP/실수신/대표 관리자 세션 검증은 이 Google QA 통과와 무관한 별도 필수 게이트다. **전체 개통 NO_GO**는 유지.
 
 ## 4. 금요일 오전 — 승인 후 실제 개통 원자적 절차
 
