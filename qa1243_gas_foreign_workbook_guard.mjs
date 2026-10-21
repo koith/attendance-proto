@@ -38,7 +38,7 @@ assert.ok(from>=0&&to>from);
 const body=qa.slice(from,to);
 const test=(initialTitle,knownId)=>{
   const originalId='1-0on5kKhnIrjrutEDAR9y4nkBGlB1VL6YaLD49eG024';
-  const oldSheet={id:originalId,title:initialTitle,getId(){return this.id;},getName(){return this.title;}};
+  const oldSheet={id:knownId||originalId,title:initialTitle,getId(){return this.id;},getName(){return this.title;}};
   const state={mapped:knownId||null,opened:0,created:0,renamed:0,tabs:0};
   const ctx={
     PropertiesService:{getScriptProperties(){return{
