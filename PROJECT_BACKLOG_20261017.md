@@ -414,3 +414,11 @@
 - **정확한 사용자 화면 작업:** [QA 전용 계정 설정/권한/Secret 절차](QA1243_QA_GOOGLE_BOOTSTRAP.md), [금요일 개통 게이트](QA1243_FRIDAY_OPENING_20261023.md) 갱신. QA 계정 OAuth client / 새 Script ID / GitHub QA Secret는 외부 사용자 인증이 필요한 단계이며 이 대화에서 임의 인증·생성·승인을 하지 않음.
 - **운영 읽기 전용 재점검:** 244 stores, HQ 3, INHA employees 10, store primary owners 0, assistant memberships 0, QA1243 store candidates 0. Google Drive 메타데이터상 기존 운영 Sheet의 ID·파일명·소유자 유지; 전체 cell hash의 불변은 별도 별칭 없으므로 증명하지 않는다.
 - **완료 경계:** GitHub PR 정적/VM 회귀 PASS를 Google 호스팅 활성 스크립트 배포 PASS로 확대 금지. 실제 QA 계정 자격증명·소유자·Scope 검증 후 배포, 잘못된 secret JSON `UNAUTHORIZED`, 403 해소, Edge→독립 GAS→QA Sheet A/B 읽기/정정/멱등성은 **미실행/미검증**이면 `QA-05 [ ]`, 금요일 전체 `NO_GO`. 전체 38건/완료19/잔여19 유지.
+
+## 52. 2026-10-21 — QA Script ID 수동 복사·변수 등록 제거 및 자동 재사용 (#1243)
+
+- **사용자 추가 지시:** [Issue #1243 접수 #6308845159](https://github.com/koith/attendance-proto/issues/1243#issuecomment-6308845159). 사용자가 QA 전용 `webuielf@gmail.com`, Cloud `qa1243-isolated`, QA 계정 소유 신규 Apps Script `QA1243 isolated Edge GAS 2026-10-21 QA-only`를 준비했다고 보고. 운영 계정에서 QA 리소스를 만들지 말 것.
+- **도구로 증명한 경계:** 현재 연결 Google Drive는 `dokodemoitsho@gmail.com` 소유. 현재 계정 검색에서 QA 스크립트가 나타나지 않는 것은 QA 계정 리소스의 부재 증거가 아니므로 운영 연결로 생성하거나 변경하지 않음. GitHub 연결 도구는 repo 파일/PR/Actions 읽기와 일부 실행 재시도를 지원하나 Actions Secret/Variable 생성/수정 API는 노출하지 않아 자동 등록했다고 주장할 수 없음.
+- **코드:** OAuth userinfo에서 QA 이메일을 검증하고 운영 파일 Drive 접근 거부를 확인한 뒤, QA 전용 Drive API metadata-only 검색으로 정확한 이름/소유자/유일한 Apps Script를 찾아 자동 재사용. `QA1243_GAS_SCRIPT_ID` 변수는 선택이며, 미설정 시 새 스크립트를 임의 생성하지 않음. 없거나 중복·잘못된 소유자·형식·페이지 탐색 오류는 소스 쓰기 전에 fail-closed. 기존 QA Script 소스·manifest Google API 등록과 QA Sheets 생성/검증은 QA 인증 수립 후 기존 GitHub trusted push QA 워크플로에서 자동 진행.
+- **회귀:** 실 소유자·이름·MIME·중복·빈 목록·삭제 표시·불충분 소유자 메타데이터 테스트를 `qa1243_gas_foreign_workbook_guard.mjs`에 추가. QA-only Pages/운영 Google Sheet write 안전 마커 `[QA1243-NO-OPERATING-WRITE]` 유지.
+- **인증 및 E2E는 미완료:** QA 소유 OAuth client와 승인된 refresh token, GitHub repository secrets 3개는 아직 외부 승인 단계이며 현재의 운영 연결로 대신할 수 없음. GitHub Secrets 직접 관리 connector 미노출. Edge OIDC는 `push`만 허용하므로 `workflow_dispatch`로 우회하지 않고 기존 main push QA workflow의 failed jobs만 다시 실행. `QA-05 [ ]`, 금요일 `NO_GO`, 정본 총 38 / 완료 19 / 잔여 19 유지.
