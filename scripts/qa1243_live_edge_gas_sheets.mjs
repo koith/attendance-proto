@@ -6,6 +6,7 @@ import {readFileSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {buildQa1243GAS} from './qa1243_build_isolated_gas.mjs';
+import {assessQaScriptCloudLink} from './qa1243_gas_cloud_link.mjs';
 
 const projectRef='waluhdgqhwjjwmflhrle';
 const audience=`https://${projectRef}.supabase.co/functions/v1/server-sync-sheet`;
@@ -122,6 +123,15 @@ async function attemptOwnerScopeProbe(){
   console.log('QA1243_EXEC_API_NOT_AVAILABLE '+JSON.stringify({privateExecutionApi:false}));
   return false;
  }
+ // scripts.run requires a shared STANDARD Cloud project and all script OAuth scopes.
+ // Google projects.get does not attest the Cloud link; only use an owner-confirmed
+ // QA-only project number equal to this runner OAuth client GCP project number.
+ const cloud=assessQaScriptCloudLink(process.env.GOOGLE_OAUTH_CLIENT_ID,
+   process.env.QA1243_STANDARD_GCP_PROJECT_NUMBER);
+ if(!cloud.eligible){
+  console.log('QA1243_EXEC_API_CLOUD_LINK_UNVERIFIED '+JSON.stringify(cloud));
+  return false;
+ }
  try{
   const response=await fetch('https://script.googleapis.com/v1/scripts/'+
     encodeURIComponent(deployment.deploymentId)+':run',{
@@ -179,11 +189,11 @@ async function waitForExecutableQaWebapp(url){
     console.log('QA1243_GAS_OWNER_AUTHORIZATION_REQUIRED '+JSON.stringify(last));
     throw new Error('QA1243_GAS_OWNER_CONSENT_REQUIRED');
    }
-   // Three consistent HTML 403 responses on the new deployment are not
-   // a transient Sheet/Edge failure. Authorization/publication policy must
+   // Repeated historical HTML 403 on the verified pre-existing QA project
+   // is a policy/consent block: avoid three identical calls every invocation. Authorization/publication policy must
    // be resolved without touching operating assets or making any data writes.
    consecutive403=(probe.status===403&&payload===null)?consecutive403+1:0;
-   if(consecutive403>=3){
+   if(consecutive403>=(knownQaProject?1:3)){
     console.log('QA1243_GAS_HTTP_403_PERMISSION_BLOCK '+JSON.stringify(last));
     const publication=await probeReadonlyPublication(url);
     if(publication.getOnlyReached)
