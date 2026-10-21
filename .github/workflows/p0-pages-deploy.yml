@@ -197,6 +197,7 @@ jobs:
               'scripts/qa1243_build_isolated_gas.mjs',
               'scripts/qa1243_oauth_scopes.mjs',
               'scripts/qa1243_mobile_token_contract.mjs',
+              'scripts/qa1243_mobile_http_smoke.mjs',
               'qa1243_mobile_token_contract.test.mjs',
               'qa1243_mobile_safari_vm.test.mjs',
               'supabase/functions/qa1243-mobile-auth/index.ts',
@@ -231,7 +232,8 @@ jobs:
                  'scripts/qa1243_build_isolated_gas.mjs',
                  'scripts/qa1243_live_edge_gas_sheets.mjs',
                  'scripts/qa1243_oauth_scopes.mjs',
-                 'scripts/qa1243_oauth_bootstrap.mjs'
+                 'scripts/qa1243_oauth_bootstrap.mjs',
+                 'scripts/qa1243_mobile_http_smoke.mjs'
                ].includes(f)))
                throw Error('QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE');
             core.info('QA1243_NO_OPERATING_WRITE_GUARD_PASS files='+files.length);
