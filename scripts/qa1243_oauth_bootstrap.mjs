@@ -224,6 +224,50 @@ async function getGoogleRefreshToken(client){
  return auth.refresh_token;
 }
 
+// Never infer E2E PASS from a successful rerun API request alone. The trusted
+// push job must actually finish successfully with the writer step executed.
+export function assertQa1243LiveRunReceipt(run,expectedSha){
+ if(run?.event!=='push' || run?.headSha!==expectedSha ||
+    run?.status!=='completed' || run?.conclusion!=='success')
+   throw Error('QA1243_LIVE_E2E_RECEIPT_NOT_PASS');
+ const job=(run.jobs||[]).find(j=>
+  j.name==='Trusted production Edge to a new independent GAS project and Sheets');
+ if(job?.conclusion!=='success' ||
+    !job.steps?.some(step=>step.name===
+      'Execute real new GAS project and production Edge service-to-service QA' &&
+      step.conclusion==='success'))
+   throw Error('QA1243_LIVE_E2E_WRITER_STEP_NOT_PASS');
+ return true;
+}
+
+async function recordVerifiedE2eReceipt(runId,mainSha){
+ const actionUrl='https://github.com/'+QA1243_REPO+'/actions/runs/'+runId;
+ try{
+  // gh watch receives no secrets and logs remain suppressed.
+  await command('gh',['run','watch',String(runId),'--exit-status','--repo',QA1243_REPO]);
+  const receipt=JSON.parse(await command('gh',['run','view',String(runId),
+   '--repo',QA1243_REPO,'--json','event,headSha,status,conclusion,jobs']));
+  assertQa1243LiveRunReceipt(receipt,mainSha);
+  const issueBody=[
+   '[QA1243 live E2E] Verified trusted main push QA success (local one-click bootstrap)',
+   '- Official GitHub Actions evidence: '+actionUrl,
+   '- Verified source SHA: '+mainSha,
+   '- Event: push, final status: completed, conclusion: success',
+   '- The isolated live production Edge→QA Apps Script→QA Sheets writer step completed successfully.',
+   '- This proves only synthetic QA-05 service integration, NOT Hosted Auth email, manager session or Friday GO.',
+   '- Original operating Google and production Supabase data were not intentionally modified by this QA workflow.'
+  ].join('\n');
+  // Issue text contains ONLY verified public run id and SHA, no source,
+  // token, OAuth code, spreadsheet payload, or GitHub/Google credentials.
+  await command('gh',['issue','comment','1243','--repo',QA1243_REPO,
+   '--body-file','-'],{stdin:issueBody});
+  console.log('QA1243_E2E_PASS_AND_ISSUE_1243_RECORDED '+actionUrl);
+ }catch{
+  console.log('QA1243_LIVE_E2E_NOT_YET_PROVEN_OR_ISSUE_NOT_RECORDED '+actionUrl);
+  console.log('QA1243_STILL_NO_GO; check QA-only run for possible QA Script owner consent.');
+ }
+}
+
 async function uploadSecretsAndRerun(client,refreshToken){
  const env=githubSecretsStdin(client,refreshToken);
  // stdin only; GitHub CLI encrypts locally. No shell, --body, env vars,
@@ -255,6 +299,7 @@ async function uploadSecretsAndRerun(client,refreshToken){
  }
  await command('gh',['run','rerun',String(match.databaseId),'--failed','--repo',QA1243_REPO]);
  console.log('QA1243_TRUSTED_MAIN_PUSH_E2E_RERUN_REQUESTED id='+match.databaseId);
+ await recordVerifiedE2eReceipt(match.databaseId,main.trim());
 }
 
 async function main(){
