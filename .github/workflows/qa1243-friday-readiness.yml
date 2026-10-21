@@ -16,6 +16,7 @@ on:
     workflows:
       - verified-pages-deployment-notification
       - QA1243 isolated live production Edge GAS Sheets E2E
+      - QA1243 live hosted Auth and SMTP config read-only audit
     types: [completed]
     branches: [main]
   workflow_dispatch:
