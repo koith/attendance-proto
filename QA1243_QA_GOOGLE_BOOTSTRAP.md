@@ -14,7 +14,7 @@
 
 1. Chrome 우측 상단 프로필 → **QA 전용 Chrome 프로필** 사용. [Google 계정](https://myaccount.google.com/) 우측 상단 프로필 확인: `webuielf@gmail.com`.
 2. [Google Cloud Console](https://console.cloud.google.com/) → 상단 프로젝트 선택 → **새 프로젝트** `QA1243-Isolated` → 만들기. 상단에 해당 프로젝트와 QA 계정 표시 확인.
-3. **API 및 서비스 → 라이브러리**에서 **Apps Script API**, **Google Sheets API**, **Google Drive API**를 찾아 각각 **사용**. 별도 운영 프로젝트는 변경하지 않는다.
+3. [Apps Script 사용자 설정](https://script.google.com/home/usersettings) → **Google Apps Script API** 접근을 **켜기**. 운영 계정이 아닌 QA 계정 설정만 변경한다. 이 설정은 해당 QA 계정의 스크립트에 대해 외부 앱의 API 관리 허용 여부를 정하는 것으로, 운영 계정에서 켜면 안 된다. 그다음 **API 및 서비스 → 라이브러리**에서 **Apps Script API**, **Google Sheets API**, **Google Drive API**를 찾아 각각 **사용**. 별도 운영 프로젝트는 변경하지 않는다.
 4. **Google Auth Platform → 브랜딩** (화면에 따라 *OAuth 동의 화면*) 앱 이름 `QA1243 Isolated`, 지원 이메일 QA 계정. **대상(Audience)** 에서 외부(External)·테스트(Testing) 선택, **테스트 사용자**에 QA 계정만 추가한다. 다른 계정 접근 없음. **데이터 액세스**에 아래 최소 권한만 등록.
 5. **Google Auth Platform → 클라이언트** → **클라이언트 만들기** → *웹 애플리케이션* → 이름 `QA1243 CI` → **승인된 리디렉션 URI**에 `https://developers.google.com/oauthplayground` 추가 → 만들기. OAuth Playground를 사용하는 경우 웹 앱용 Redirect URI 등록이 필수다. Client ID/Client Secret은 **QA 전용**으로 관리한다.
 6. [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground/)를 QA Chrome 프로필에서 연다. 톱니바퀴(설정) → **Use your own OAuth credentials** 체크 → 위 QA 프로젝트의 client ID/secret만 입력 → Access type **Offline**, 승인 동의가 있다면 **Prompt for consent**. 다음 범위를 추가하여 Authorize APIs:
