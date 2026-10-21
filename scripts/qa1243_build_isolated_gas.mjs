@@ -49,16 +49,16 @@ export function buildQa1243GAS(source,secret){
     '  return ss;',
     '}',
     ''
-  ].join('\\n');
+  ].join('\n');
   gs=gs.slice(0,from)+qaAnnual+gs.slice(to);
   // QA writer preserves all extra sheets, even historical automated tabs.
   const delStart='  // Only remove tabs created by the old automated three-section layout.';
   const delEnd='  for(var i=1;i<=12;i++){';
   const ds=gs.indexOf(delStart),de=gs.indexOf(delEnd,ds);
   assert.ok(ds>=0&&de>ds,'Dangerous legacy tab deletion anchors changed');
-  gs=gs.slice(0,ds)+'  // QA: no sheet deletion.\\n'+gs.slice(de);
-  assert.ok(!/\\b(?:DriveApp|UrlFetchApp|ScriptApp)\\s*\\./.test(gs),'QA source must not use broad Google services');
-  assert.ok(!/\\b(?:deleteSheet|setTrashed|moveTo)\\s*\\(/.test(gs),'QA source must not delete or move');
+  gs=gs.slice(0,ds)+'  // QA: no sheet deletion.\n'+gs.slice(de);
+  assert.ok(!/\b(?:DriveApp|UrlFetchApp|ScriptApp)\s*\./.test(gs),'QA source must not use broad Google services');
+  assert.ok(!/\b(?:deleteSheet|setTrashed|moveTo)\s*\(/.test(gs),'QA source must not delete or move');
   assert.ok(!gs.includes('getActiveSpreadsheet()'),'QA must not adopt active workbook');
   assert.ok(!gs.includes("ss = SpreadsheetApp.create(year + ' 근태');"));
   assert.ok(!gs.includes("setName(year + ' 근태');"));
