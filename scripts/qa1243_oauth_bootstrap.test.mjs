@@ -114,9 +114,10 @@ assert.match(helper,/--event','push'/);
 assert.match(helper,/gh',\['run','rerun'/);
 assert.doesNotMatch(helper,/\b(?:writeFileSync|appendFileSync|mkdtempSync)\s*\(/,
  'bootstrap must NEVER write credentials/tokens to local files');
-assert.equal(/console\\.log\\(\\s*auth|console\\.log\\(\\s*refreshed/.test(helper),false,
+assert.equal(helper.includes('console.log(auth')||
+ helper.includes('console.log(refreshed'),false,
  'No credential payload may ever be logged');
-assert.equal(/['\"]--body['\"]/.test(helper),false,
+assert.equal(helper.includes("'--body'")||helper.includes('"--body"'),false,
  'Do not pass a GitHub Secret via command line arguments');
 assert.doesNotMatch(helper,/process\.env\.(?:GOOGLE_OAUTH|SHEET_SHARED_SECRET)/);
 assert.match(runtime,/https:\/\/www\.googleapis\.com\/auth\/spreadsheets'/,
