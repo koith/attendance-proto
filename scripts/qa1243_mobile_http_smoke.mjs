@@ -16,7 +16,9 @@ const check=async(method,url=address)=>{
 
 const first=await check('GET');
 assert.equal(first.response.status,200,'Public QA-only GET should be accessible without credentials');
-assert.match(first.response.headers.get('content-type')||'',/^text\/html/i);
+// Supabase shared-domain gateway deliberately rewrites HTML to text/plain.
+// This endpoint is only a diagnostic shell, NOT the working Safari OAuth page.
+assert.match(first.response.headers.get('content-type')||'',/^text\/plain/i);
 assert.match(first.response.headers.get('cache-control')||'',/no-store/);
 assert.equal(first.response.headers.get('x-frame-options'),'DENY');
 assert.equal(first.response.headers.get('referrer-policy'),'no-referrer');
@@ -46,8 +48,8 @@ const query=await check('GET',address+'?qa1243_http_smoke=read_only');
 assert.equal(query.response.status,400,'URL query must be rejected before rendering');
 assert.equal(query.body,'QA1243_QUERY_NOT_ALLOWED');
 
-console.log('QA1243_SAFARI_REAL_HTTP_PASS '+JSON.stringify({
- function:'qa1243-mobile-auth',get:200,post:405,query:400,
+console.log('QA1243_SUPABASE_HTML_RENDER_BLOCK_CONFIRMED '+JSON.stringify({
+ function:'qa1243-mobile-auth',get:200,contentType:'text/plain',post:405,query:400,notSafariPage:true,
  independentNonces:true,credentialless:true,
  oauthOwner:'webuielf@gmail.com',noOperatingWrite:true
 }));
