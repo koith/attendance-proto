@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {QA1243_RUNNER_SCOPES} from './scripts/qa1243_oauth_scopes.mjs';
+import {assertMobileTokenInfo,assertMobileGoogleUserInfo,assertGitHubOwner,assertTrustedFailedPush} from './scripts/qa1243_mobile_token_contract.mjs';
+const id='123456789-qa1243webclient.apps.googleusercontent.com';
+const info={audience:id,expires_in:3550,scope:QA1243_RUNNER_SCOPES.join(' ')};
+assertMobileTokenInfo(info,id);
+for(const bad of [{...info,audience:'fake'},{...info,expires_in:1},
+ {...info,scope:QA1243_RUNNER_SCOPES.slice(1).join(' ')},
+ {...info,scope:info.scope+' https://www.googleapis.com/auth/drive'}])
+ assert.throws(()=>assertMobileTokenInfo(bad,id),/QA1243_/);
+assertMobileGoogleUserInfo({email:'webuielf@gmail.com',email_verified:true});
+assert.throws(()=>assertMobileGoogleUserInfo({email:'dokodemoitsho@gmail.com',email_verified:true}),/QA1243_/);
+assertGitHubOwner({login:'koith'},{full_name:'koith/attendance-proto',permissions:{admin:true}});
+assert.throws(()=>assertGitHubOwner({login:'attacker'},{full_name:'koith/attendance-proto',permissions:{admin:true}}),/QA1243_/);
+const sha='a'.repeat(40);
+const run={event:'push',head_branch:'main',status:'completed',conclusion:'failure',id:12345,head_sha:sha};
+assertTrustedFailedPush(run,sha);
+assert.throws(()=>assertTrustedFailedPush({...run,event:'workflow_dispatch'},sha),/QA1243_/);
+const runner=readFileSync('scripts/qa1243_live_edge_gas_sheets.mjs','utf8');
+const wf=readFileSync('.github/workflows/qa1243-live-e2e.yml','utf8');
+assert.match(runner,/QA1243_GOOGLE_AUTH_ROUTE_MOBILE_EPHEMERAL/);
+assert.match(runner,/QA1243_GOOGLE_AUTH_ROUTE_DESKTOP_REFRESH/);
+assert.doesNotMatch(runner,/tokeninfo\?access_token=/);
+assert.match(wf,/secrets.QA1243_GOOGLE_OAUTH_ACCESS_TOKEN/);
+const mobile=readFileSync('supabase/functions/qa1243-mobile-auth/index.ts','utf8');
+assert.match(mobile,/qa1243_mobile_session_claim/);
+assert.match(mobile,/crypto_box_seal/);
+assert.match(mobile,/google.accounts.oauth2.initTokenClient/);
+assert.match(mobile,/same-origin-allow-popups/);
+console.log('PASS QA1243 mobile token identity, expiry, scope, GitHub owner and trusted run boundary');
