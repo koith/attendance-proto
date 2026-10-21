@@ -64,7 +64,9 @@ assert.match(script,/QA1243_GAS_READONLY_GET_DIAGNOSTIC/);
 assert.match(script,/QA1243_GAS_POST_ROUTE_OR_METHOD_403/);
 assert.ok(script.indexOf('const publication=await probeReadonlyPublication(url)')<script.indexOf('const oidcUrl='),
  'GET may diagnose 403 only before any Edge or Sheet writes');
-assert.match(script,/consecutive403>=3/);
+assert.match(script,/consecutive403>=\(knownQaProject\?1:3\)/);
+assert.match(script,/assessQaScriptCloudLink/);
+assert.match(script,/QA1243_EXEC_API_CLOUD_LINK_UNVERIFIED/);
 assert.match(script,/QA1243_GAS_WRITER_EXECUTABLE/);
 assert.ok(script.indexOf('await waitForExecutableQaWebapp(qaUrl);')<script.indexOf('const oidcUrl='),
  'Unauthorized POST must be verified before minting OIDC and writing');

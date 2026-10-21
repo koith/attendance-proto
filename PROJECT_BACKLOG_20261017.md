@@ -397,3 +397,10 @@
 - 운영 Hosted 한국어 초대 HTML/제목, 이메일 기능, SMTP 호스트/발신인 모두 실제 읽기 검증되었을 때만 PASS. 검증 불가/불일치/누락은 반드시 exit 1 및 NO_GO. Gmail 실 수신과 관리자 live 세션은 여전히 별도 차단 항목.
 - 금요일 P0 게이트 workflow_run 트리거에 Hosted Auth 점검 완료 추가. 정상/미설정/6종 개별 부정 및 null 회귀 테스트 추가.
 - 운영 Auth 설정 변경, SMTP 송신, 실제 운영 계정/지점/시트 쓰기 전혀 없음. 38개 중 19개 완료, 19개 잔여 유지. 테스트·배포 링크는 Issue #1243에 후속 기록.
+
+## 50. 2026-10-21 — QA 전용 GAS scripts.run 표준 GCP 프로젝트 전제조건과 403 재호출 정리
+
+- Google 공식 문서에 따른 `scripts.run` 조건(같은 **표준 Google Cloud 프로젝트**, 충분한 전 스크립트 OAuth scopes, API 실행 배포, Apps Script API 활성화)을 단순 API 진단 403과 구분.
+- 사전 프로젝트 연결 여부를 실제 소유자가 확인하기 전에는 실패했던 owner-only `scripts.run` 호출을 반복하지 않는다. OAuth 클라이언트 앞 프로젝트 번호와 명시한 QA-only Apps Script 표준 프로젝트 번호가 일치할 때만 진단을 허용하며, 이것도 성공 증거가 아닌 접근조건 검사.
+- 기존 QA-only 프로젝트에서 이미 재현된 GET/POST 403 HTML에는 불필요한 동일 POST 3회를 중복하지 않고 GET 1회+사전 조건 확인 후 NO_GO. 잘못된 시크릿 JSON UNAUTHORIZED 확인 이전에는 Edge/Sheets 쓰기 금지 유지.
+- 회귀 단위 테스트 및 업무 #1243, P0 38/19/19 유지. 운영 Sheet/Apps Script/시크릿 미변경.

@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'scripts/qa1243_live_edge_gas_sheets.mjs'
+      - 'scripts/qa1243_gas_cloud_link.mjs'
+      - 'scripts/qa1243_gas_cloud_link.test.mjs'
       - 'scripts/qa1243_build_isolated_gas.mjs'
       - 'qa1243_gas_foreign_workbook_guard.mjs'
       - 'qa1243_live_edge_gas_contract.mjs'
@@ -36,6 +38,7 @@ jobs:
       - name: Validate integration runner and OIDC isolation contract
         run: |
           node --check scripts/qa1243_live_edge_gas_sheets.mjs
+          node scripts/qa1243_gas_cloud_link.test.mjs
           node qa1243_live_edge_gas_contract.mjs
           node qa1243_gas_foreign_workbook_guard.mjs
       - name: Await verified native production Edge deployment of this exact revision
@@ -75,6 +78,9 @@ jobs:
           GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
           GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
           GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+          # An optional QA-only owner-verified standard Cloud project number.
+          # Without evidence of a match, do not repeat expected 403 scripts.run calls.
+          QA1243_STANDARD_GCP_PROJECT_NUMBER: ${{ vars.QA1243_STANDARD_GCP_PROJECT_NUMBER }}
         run: |
           node scripts/qa1243_live_edge_gas_sheets.mjs
       - name: Explicit evidence limitation

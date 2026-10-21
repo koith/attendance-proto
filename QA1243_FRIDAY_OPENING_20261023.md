@@ -43,6 +43,7 @@
 
 - 최종 실제 기록 #39516040734: 배포 `ANYONE_ANONYMOUS`/`USER_DEPLOYING` 메타데이터는 성공했지만 익명 POST **3×403 HTML**, 읽기 전용 GET도 **403 HTML**. 권한 미동의 또는 공개 액세스/배포 정책 중 어느 쪽인지 미확정.
 - Google 계정 소유자에게만 요청: [QA 전용 스크립트 편집기](https://script.google.com/d/1VkwzA0EKQAf9VQ9BECOcOLkikhIuHR7EtKt6mZkq6B8_Q9HH4w6lQmrw/edit) → 함수 `qa1243AuthorizeServices` 선택 → 실행 → 표시되는 Spreadsheet/Drive/ScriptProperties 서비스 권한 확인·승인. 이 함수는 출퇴근·급여·Sheet 데이터를 쓰지 않는 사전 권한 확인.
+- QA-only `scripts.run` 추가 조건: [Google 공식 문서](https://developers.google.com/apps-script/api/how-tos/execute)에 따라 Apps Script 프로젝트와 GitHub의 OAuth 클라이언트는 **같은 표준 Google Cloud 프로젝트**를 사용하고, Apps Script API가 켜져 있으며, 권한 범위가 충분해야 한다. QA-only 스크립트 편집기 `프로젝트 설정 → Google Cloud 프로젝트`의 연결번호가 해당 Google OAuth Client ID 앞 숫자 부분과 일치함을 소유자가 실제 확인한 뒤에만 GitHub Actions repository variable `QA1243_STANDARD_GCP_PROJECT_NUMBER`를 그 번호로 설정한다. 일치하지 않거나 기본 Apps Script Cloud 프로젝트면 `scripts.run` 403을 계속 무의미하게 반복하지 않는다. 실편집기 사용 권한 승인/외부 웹앱 접근 403은 별개로 검사하며 **이 변수 설정 자체는 403 해결/실시트 QA 성공 증거가 아니다.**
 - 다시 기존 trusted main E2E 진행. **여전히 403이면** 익명 웹앱 배포 계정·조직 공개 정책 확인과 다른 배포 경로 진단; 운영 시크릿·운영 `2026 근태`를 QA에 재지정하는 우회 금지.
 - E2E 정상 성공 전에는 **Google Sheets 실연동 PASS 표기 금지**.
 
