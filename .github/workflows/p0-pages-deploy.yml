@@ -198,6 +198,9 @@ jobs:
               'scripts/qa1243_oauth_scopes.mjs',
               'scripts/qa1243_mobile_token_contract.mjs',
               'scripts/qa1243_mobile_http_smoke.mjs',
+              'scripts/qa1243_safari_static_build.mjs',
+              'scripts/qa1243_safari_static_build.test.mjs',
+              'scripts/qa1243_safari_pages_smoke.mjs',
               'qa1243_mobile_token_contract.test.mjs',
               'qa1243_mobile_safari_vm.test.mjs',
               'supabase/functions/qa1243-mobile-auth/index.ts',
@@ -233,7 +236,8 @@ jobs:
                  'scripts/qa1243_live_edge_gas_sheets.mjs',
                  'scripts/qa1243_oauth_scopes.mjs',
                  'scripts/qa1243_oauth_bootstrap.mjs',
-                 'scripts/qa1243_mobile_http_smoke.mjs'
+                 'scripts/qa1243_mobile_http_smoke.mjs',
+                 'scripts/qa1243_safari_static_build.mjs'
                ].includes(f)))
                throw Error('QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE');
             core.info('QA1243_NO_OPERATING_WRITE_GUARD_PASS files='+files.length);
@@ -469,6 +473,40 @@ jobs:
         run: |
           echo "Intentional P0 gate failure: deployment must remain blocked."
           exit 1
+
+  qa1243-safari-pages:
+    name: QA1243 isolated Safari Pages publish (no operating Sheet write)
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[QA1243-NO-OPERATING-WRITE]') && contains(github.event.head_commit.message, '[QA1243-SAFARI-PAGES]') }}
+    needs: p0-gate
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: https://koith.github.io/attendance-proto/qa1243-safari/
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify QA static transformation without any credentials
+        run: node scripts/qa1243_safari_static_build.test.mjs
+      - name: Capture production Pages public asset byte digests before QA-only release
+        run: node scripts/qa1243_safari_pages_smoke.mjs --before
+      - name: Build static QA-only HTML / JS / CSS (existing app files unchanged)
+        run: node scripts/qa1243_safari_static_build.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - name: Deploy static QA page without payroll sync
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Assert published HTML, JS, CSS and existing operating Pages asset byte integrity
+        run: node scripts/qa1243_safari_pages_smoke.mjs --after
 
   build-pages:
     name: Build Pages artifact
