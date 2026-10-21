@@ -40,7 +40,7 @@ function runBrowser({profileEmail='webuielf@gmail.com',extraScope='',expired=fal
   hasGrantedAllScopes(_response,...scopes){return scopes.length===5;}
  }}};
  const now=Date.now();
- const fakeDate={now:()=>now+(expired?11*60*1000:1000)};
+ const fakeDate={now:()=>now};
  const browser={
   document:{getElementById(id){return nodes[id]}},
   window:{google},google,
@@ -55,6 +55,7 @@ function runBrowser({profileEmail='webuielf@gmail.com',extraScope='',expired=fal
   Set,Error,String,Number
  };
  vm.runInNewContext(inline[1],browser);
+ if(expired)fakeDate.now=()=>now+11*60*1000;
  return{nodes,events,calls,copied,get callback(){return callback}};
 }
 const ok=runBrowser();
