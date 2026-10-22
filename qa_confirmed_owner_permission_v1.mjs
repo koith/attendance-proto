@@ -26,7 +26,8 @@ assert.match(original,/PROVENANCE_VERIFICATION_REQUIRED/);
 assert.match(ui,/activationBlockers\(store,proof,sampleEmployeeCount,primaryOwnerId,list\)\.length===0/);
 assert.match(ui,/errors\.push\("대표 관리자 지정·연결"\)/,
   'HQ READY must require a same-store primary owner rather than any verified manager');
-assert.match(ui,/Number\(store\?\.manager_count\|\|0\)/,
+assert.match(ui,/activationBlockers\(store,proof,sampleEmployeeCount,primaryOwnerId,list\)\.length===0/);
+assert.match(ui,/!ownerId\|\|!members\.some\(member=>Number\(member\.store_id\)===id && member\.user_id===ownerId\)/);
   'confirmed manager count remains visible but does not authorize READY');
 assert.match(ui,/인증 점주/,'Owner confirmation count must remain visible in store operations');
 assert.doesNotMatch(sql,/DELETE FROM public\.(?:employees|payroll_snapshot|attendance_events)/);
