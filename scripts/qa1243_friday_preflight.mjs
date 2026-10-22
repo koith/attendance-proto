@@ -2,6 +2,7 @@
 // Success for synthetic QA is NOT success for hosted Auth/SMTP or live Sheets.
 // This code never creates a store/account, sends email, or writes to a Sheet.
 import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 
 export const REQUIRED = Object.freeze([
  {id:'STORE_E2E',workflow:'store-opening-full-journey.yml',proof:'isolated PostgreSQL/browser onboarding-to-payroll/recipe'},
@@ -62,6 +63,78 @@ export function reconcileIntegratedSqlEvidence(items,source){
    proof:'integrated successful disposable PostgreSQL fixture '+fixture};
  });
 }
+// The special approved v0.354 publish intentionally skips normal Pages and
+// operating Sheet jobs. The old gate examined ONLY normal workflow names and
+// incorrectly called this real, verified Pages publication a failure.
+// Never accept a workflow's green conclusion alone: require BOTH successful
+// publishing + independent readback job steps and exact live app asset bytes.
+export function reconcileSafePagesEvidence(items,receipt){
+ if(!receipt?.published?.run_id||!receipt?.independent?.run_id||
+    receipt.published.head_sha!==receipt.independent.head_sha||
+    receipt.published.head_sha?.length!==40||
+    receipt.published.verified!==true||receipt.independent.verified!==true||
+    receipt.liveHashMatch!==true)return items;
+ return items.map(item=>{
+  const source=item.id==='PAGES_PUBLISH'?receipt.published:
+    item.id==='INDEPENDENT_PAGES'?receipt.independent:null;
+  if(!source)return item;
+  return {id:item.id,status:'PASS',run_id:source.run_id,
+    head_sha:source.head_sha,proof:'verified safe Pages job, independent public HTTP readback, exact current source asset SHA256',
+    assetSha256:receipt.assetSha256};
+ });
+}
+async function fetchRunJobs(repo,runId,token){
+ const u='https://api.github.com/repos/'+repo+'/actions/runs/'+runId+'/jobs?per_page=100';
+ const r=await fetch(u,{headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+token,
+   'X-GitHub-Api-Version':'2022-11-28'},signal:AbortSignal.timeout(20000)});
+ if(!r.ok)throw Error('ACTIONS_JOBS_READ_HTTP_'+r.status);
+ const data=await r.json();
+ if(data.total_count>100||!Array.isArray(data.jobs))throw Error('ACTIONS_JOBS_UNVERIFIABLE');
+ return data.jobs;
+}
+function completedJob(jobs,name,step){
+ return jobs.some(job=>job.name===name&&job.conclusion==='success'&&
+  job.steps?.some(x=>x.name===step&&x.conclusion==='success'));
+}
+async function verifySafePagesOnLiveMain(repo,token){
+ const [publishes,readbacks]=await Promise.all([
+   fetchWorkflowRuns(repo,'p0-pages-deploy.yml',token),
+   fetchWorkflowRuns(repo,'qa1243-owner-ready-pages-independent.yml',token)
+ ]);
+ const marker='[QA1243-NO-OPERATING-WRITE]';
+ const app='[QA1243-APP-PAGES]';
+ const eligible=x=>x?.head_branch==='main'&&x.status==='completed'&&x.conclusion==='success'&&
+   String(x.head_commit?.message||'').includes(marker)&&String(x.head_commit?.message||'').includes(app);
+ const recent=(publishes||[]).filter(eligible).sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at));
+ for(const published of recent.slice(0,5)){
+  const independent=(readbacks||[]).find(x=>eligible(x)&&x.head_sha===published.head_sha&&x.event==='workflow_run');
+  if(!independent)continue;
+  const [jobs,independentJobs]=await Promise.all([
+   fetchRunJobs(repo,published.id,token),fetchRunJobs(repo,independent.id,token)
+  ]);
+  const publishPass=completedJob(jobs,'QA1243 isolated Safari Pages publish (no operating Sheet write)',
+      'Confirm public v0.354 HQ readiness UI and unchanged other operating assets');
+  const independentPass=completedJob(independentJobs,
+    'Independently check published HQ app version without operating writes',
+    'Independent HTTP readback of live index.html and owner-ready JS digest');
+  if(!publishPass||!independentPass)continue;
+  const hash={};let allMatch=true;
+  for(const name of ['index.html','hq_store_onboarding_ui.js']){
+   const u='https://koith.github.io/attendance-proto/'+name+'?qa1243_prelaunch_readback='+Date.now();
+   const r=await fetch(u,{redirect:'error',headers:{'cache-control':'no-cache'},signal:AbortSignal.timeout(20000)});
+   if(r.status!==200){allMatch=false;break;}
+   const expected=createHash('sha256').update(readFileSync(name)).digest('hex');
+   const actual=createHash('sha256').update(await r.text()).digest('hex');
+   hash[name]=actual;
+   if(expected!==actual){allMatch=false;break;}
+  }
+  return {published:{run_id:published.id,head_sha:published.head_sha,verified:publishPass},
+   independent:{run_id:independent.id,head_sha:independent.head_sha,verified:independentPass},
+   liveHashMatch:allMatch,assetSha256:hash};
+ }
+ return null;
+}
+
 export function verdict(items,external=EXTERNAL_BLOCKERS){
  const failed=items.filter(x=>x.status!=='PASS');
  return {verdict:failed.length===0&&external.length===0?'PASS':'NO_GO',
@@ -84,7 +157,14 @@ export async function liveGate(env=process.env){
    items.push(classifyWorkflow(spec,await fetchWorkflowRuns(repo,spec.workflow,token),sha));
   }catch(error){items.push({id:spec.id,status:'FAIL',reason:String(error?.message||error).slice(0,150)})}
  }
- const auditedItems=reconcileIntegratedSqlEvidence(items,readFileSync('.github/workflows/store-opening-full-journey.yml','utf8'));
+ let auditedItems=reconcileIntegratedSqlEvidence(items,readFileSync('.github/workflows/store-opening-full-journey.yml','utf8'));
+ try{
+  const livePages=await verifySafePagesOnLiveMain(repo,token);
+  auditedItems=reconcileSafePagesEvidence(auditedItems,livePages);
+ }catch(error){
+  // Never promote a Pages workflow failure into an opening PASS.
+  console.error('QA1243_SAFE_PAGES_READBACK_UNVERIFIED',String(error?.message||error).slice(0,130));
+ }
  const decision=verdict(auditedItems);
  const result={at:new Date().toISOString(),repo,sha,prelaunchDeadline:'2026-10-22 KST end of business',
   plannedOpening:'2026-10-23 KST morning',environment:'GitHub Actions public run evidence only',

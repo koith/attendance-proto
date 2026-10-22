@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {REQUIRED,EXTERNAL_BLOCKERS,classifyWorkflow,verdict,reconcileIntegratedSqlEvidence} from './qa1243_friday_preflight.mjs';
+import {REQUIRED,EXTERNAL_BLOCKERS,classifyWorkflow,verdict,reconcileIntegratedSqlEvidence,reconcileSafePagesEvidence} from './qa1243_friday_preflight.mjs';
 const SHA='864383ceeefa5ec9596886804efeb77505180685';
 const now=Date.parse('2026-10-21T00:00:00Z');
 const spec={id:'LIVE_EDGE_GAS_SHEETS',sameSha:false};
@@ -51,4 +51,32 @@ assert.equal(reconcileIntegratedSqlEvidence(staleSql,integratedSource.replace('q
 assert.equal(reconcileIntegratedSqlEvidence([{...staleSql[0],status:'FAIL'},...staleSql.slice(1)],integratedSource)[1].status,'FAIL');
 assert.equal(reconcileIntegratedSqlEvidence([{...staleSql[0]}, {...staleSql[1],reason:'WORKFLOW_FAILURE'}, staleSql[2]],integratedSource)[1].status,'FAIL',
  'A standalone failure cannot be laundered by a different green workflow');
+
+// Previous prelaunch classifier misread a verified app-only Pages release as
+// skipped, even when public HTML+JS were byte-identical to the current main.
+// Never accept bare green workflow metadata, fake jobs or stale HTML instead.
+const pageFailures=[
+ {id:'PAGES_PUBLISH',status:'FAIL',reason:'QA_ONLY_PUSH_NO_PAGES_PUBLICATION'},
+ {id:'INDEPENDENT_PAGES',status:'FAIL',reason:'NO_MAIN_RUN'},
+ {id:'HOSTED_AUTH_READ',status:'FAIL',reason:'RUN_STALE_OR_INVALID_DATE'}
+];
+const validReceipt={published:{run_id:1001,head_sha:SHA,verified:true},
+ independent:{run_id:1002,head_sha:SHA,verified:true},
+ liveHashMatch:true,assetSha256:{'index.html':'a'.repeat(64),'hq_store_onboarding_ui.js':'b'.repeat(64)}};
+const accepted=reconcileSafePagesEvidence(pageFailures,validReceipt);
+assert.deepEqual(accepted.map(x=>x.status),['PASS','PASS','FAIL'],
+ 'Only verified Pages gates may be promoted; hosted Auth remains blocked');
+assert.deepEqual(accepted.slice(0,2).map(x=>x.run_id),[1001,1002]);
+assert.equal(verdict(accepted).verdict,'NO_GO','Pages proof can never replace hosted identity/approval');
+for(const invalid of [
+ null,{...validReceipt,liveHashMatch:false},
+ {...validReceipt,published:{...validReceipt.published,verified:false}},
+ {...validReceipt,independent:{...validReceipt.independent,verified:false}},
+ {...validReceipt,independent:{...validReceipt.independent,head_sha:'b'.repeat(40)}},
+ {...validReceipt,published:{...validReceipt.published,run_id:null}}
+]){
+ assert.deepEqual(reconcileSafePagesEvidence(pageFailures,invalid),pageFailures,
+  'Fail closed on missing, fabricated, stale or mismatched release proof');
+}
+
 console.log('PASS #1243 Friday prelaunch: failing current Google 403, stale run, historical green, wrong SHA, synthetic-vs-hosted boundaries all NO_GO');
