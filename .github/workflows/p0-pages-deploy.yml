@@ -207,6 +207,7 @@ jobs:
               'qa_hq_store_onboarding_v1.mjs',
               'qa_store_provenance_gate_v1.mjs',
               'qa_store_delegated_manager_v1.mjs',
+              'qa_store_admin_ui_polish_932.mjs',
               'qa_manager_milestones_v1.mjs',
               'qa_browser_app_smoke.mjs',
               'qa_hq_store_onboarding_postgres_integration.sql',
