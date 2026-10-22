@@ -34,15 +34,15 @@ async function jsonRequest(url,options={},assertOk=true){
  const res=await fetch(url,{...options,redirect:'error',signal:AbortSignal.timeout(60000)});
  const raw=await res.text();let value;try{value=JSON.parse(raw)}catch{value={unexpectedNonJson:true}};
  if(assertOk&&!res.ok){
-  // Never publish bearer tokens, script source, or complete remote error bodies.
-  const rawMessage=String(value?.error?.message||'').slice(0,350);
-  const detail=[process.env.QA1243_GOOGLE_OAUTH_CLIENT_SECRET,process.env.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN,
-      process.env.QA1243_GOOGLE_OAUTH_ACCESS_TOKEN,secret]
-    .filter(Boolean).some(token=>rawMessage.includes(token))?'REDACTED_SECRET':
-    rawMessage.replace(/eyJ[A-Za-z0-9_.-]{20,}/g,'[REDACTED]');
+  // Google API error messages can echo authorization data or script source.
+  // Report only bounded HTTP path and a strict enumerated status code;
+  // neither raw error.message nor provider-generated free text is logged.
   const endpoint=new URL(url);
-  throw Error('REMOTE_HTTP_'+res.status+' for '+endpoint.hostname+' '+endpoint.pathname.split('/').slice(0,3).join('/')+
-    ' [type='+String(value?.error?.status||'UNKNOWN')+'] '+detail);
+  const providerStatus=String(value?.error?.status||'UNKNOWN');
+  const safeStatus=/^[A-Z][A-Z0-9_]{0,63}$/.test(providerStatus)
+   ? providerStatus : 'REDACTED_UNTRUSTED_STATUS';
+  throw Error('REMOTE_HTTP_'+res.status+' for '+endpoint.hostname+' '+
+    endpoint.pathname.split('/').slice(0,3).join('/')+' [type='+safeStatus+']');
 
  }
  return {status:res.status,ok:res.ok,value};
@@ -283,7 +283,8 @@ async function edge(storeKey,revision,opts={}){
 const first=await edge(storeA,45000);
 if(!first.ok||first.value?.ok!==true){
  console.log('QA1243_EDGE_FIRST_FAILURE '+JSON.stringify({status:first.status,
- error:String(first.value?.error||'non-json').slice(0,180)}));
+ error:(/^[A-Z][A-Z0-9_]{0,63}$/.test(String(first.value?.error||''))?
+  String(first.value.error):'REDACTED_UNTRUSTED_STATUS')}));
  throw Error('EDGE_GAS_E2E_NOT_CONFIRMED');
 }
 const aId=first.value.spreadsheet_id;assert.match(aId,/^[A-Za-z0-9_-]{15,}$/);
