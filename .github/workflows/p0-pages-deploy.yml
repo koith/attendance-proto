@@ -208,6 +208,7 @@ jobs:
               'qa_store_provenance_gate_v1.mjs',
               'qa_store_delegated_manager_v1.mjs',
               'qa_store_admin_ui_polish_932.mjs',
+              'qa_confirmed_owner_permission_v1.mjs',
               'qa_manager_milestones_v1.mjs',
               'qa_manager_invitation_roles_926.mjs',
               'qa_browser_app_smoke.mjs',
