@@ -37,7 +37,7 @@ assert.match(first.body,/https:\/\/github\.com\/koith\/attendance-proto\/setting
 assert.doesNotMatch(first.body,/github_pat_|SUPABASE_SERVICE_ROLE_KEY|localStorage|sessionStorage|api\.github\.com/);
 // Reject accidental real Google OAuth access/refresh/client-secret values in the
 // public diagnostic HTML, even if the variable names have been obfuscated.
-assert.doesNotMatch(first.body,/(?:ya29\\.[A-Za-z0-9_-]{20,}|1\\/\\/[A-Za-z0-9_-]{24,}|GOCSPX-[A-Za-z0-9_-]{12,})/,
+assert.doesNotMatch(first.body,/(?:ya29\.[A-Za-z0-9_-]{20,}|1\/\/[A-Za-z0-9_-]{24,}|GOCSPX-[A-Za-z0-9_-]{12,})/,
  'Public diagnostic must never embed credential-shaped Google token values');
 const nonce=(first.body.match(/<script nonce="([a-z0-9]{32})">/)||[])[1];
 assert.ok(nonce,'Shipped inline script must have random nonce');
