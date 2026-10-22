@@ -23,6 +23,9 @@ try{
  assert.doesNotMatch(html,/QA1243_NONCE|QA1243_SCOPE_LIST|unsafe-inline/);
  assert.doesNotMatch(html,/<script nonce=|<style nonce=/);
  assert.match(js,/QA1243_IFRAMED_OAUTH_BLOCKED/);
+ assert.match(js,/\['openid','email','profile'\]/);
+ assert.match(js,/scopes\.some\(x=>!actual\.has\(x\)\)/);
+ assert.match(js,/hasGrantedAllScopes/);
  assert.match(js,/window\.top!==window\.self/);
  assert.match(js,/webuielf@gmail\.com/);
  assert.match(js,/navigator\.clipboard\.writeText\(token\)/);
