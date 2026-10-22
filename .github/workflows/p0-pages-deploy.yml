@@ -201,6 +201,16 @@ jobs:
               'scripts/qa1243_safari_static_build.mjs',
               'scripts/qa1243_safari_static_build.test.mjs',
               'scripts/qa1243_safari_pages_smoke.mjs',
+              'scripts/qa1243_owner_ready_pages_smoke.mjs',
+              'qa_hq_store_readiness_export_v1.mjs',
+              'qa_hq_store_search_owner_activation_v1.mjs',
+              'qa_hq_store_onboarding_v1.mjs',
+              'qa_hq_store_onboarding_postgres_integration.sql',
+              'hq_store_onboarding_ui.js',
+              'index.html',
+              'supabase/migrations/20261022225500_qa1243_confirmed_primary_owner_ready.sql',
+              '.github/workflows/hq-store-onboarding-postgres-integration.yml',
+              '.github/workflows/qa1243-owner-ready-pages-independent.yml',
               'qa1243_mobile_token_contract.test.mjs',
               'qa1243_mobile_safari_vm.test.mjs',
               'supabase/functions/qa1243-mobile-auth/index.ts',
@@ -230,6 +240,47 @@ jobs:
               ...context.repo,base:before,head:context.sha,per_page:100
             });
             const files=(diff.files||[]).map(x=>x.filename);
+            const safeAppRelease=String(context.payload.head_commit?.message||'').includes('[QA1243-APP-PAGES]');
+            const appAssets=new Set([
+              'hq_store_onboarding_ui.js','index.html',
+              'supabase/migrations/20261022225500_qa1243_confirmed_primary_owner_ready.sql',
+              'qa_hq_store_onboarding_postgres_integration.sql',
+              'qa_hq_store_readiness_export_v1.mjs',
+              'qa_hq_store_search_owner_activation_v1.mjs',
+              'qa_hq_store_onboarding_v1.mjs',
+              'scripts/qa1243_owner_ready_pages_smoke.mjs',
+              '.github/workflows/hq-store-onboarding-postgres-integration.yml',
+              '.github/workflows/qa1243-owner-ready-pages-independent.yml'
+            ]);
+            if(files.some(f=>appAssets.has(f)) && !safeAppRelease)
+              throw Error('QA1243_UNMARKED_APP_CHANGE_MUST_NOT_SKIP_OPERATING_RELEASE');
+            if(safeAppRelease){
+              for(const expected of ['index.html','hq_store_onboarding_ui.js',
+                'supabase/migrations/20261022225500_qa1243_confirmed_primary_owner_ready.sql']){
+                if(!files.includes(expected))throw Error('QA1243_APP_RELEASE_REQUIRED_FILE_MISSING: '+expected);
+              }
+              const html=diff.files.find(f=>f.filename==='index.html');
+              if(!html?.patch)throw Error('QA1243_APP_HTML_DIFF_UNVERIFIED');
+              const changed=html.patch.split('\n').filter(l=>/^[-+]/.test(l)&&!/^---|^\+\+\+/.test(l));
+              const removed=changed.filter(l=>l.startsWith('-')).map(l=>l.slice(1));
+              const added=changed.filter(l=>l.startsWith('+')).map(l=>l.slice(1));
+              const expectedOld=[
+                '<button type="button" class="app-version-badge connection-version" id="appVersion"',
+                'const APP_VERSION="v0.353";',
+                '<script src="hq_store_onboarding_ui.js?v=20261017v299"></script>'
+              ];
+              const expectedNew=[
+                '<button type="button" class="app-version-badge connection-version" id="appVersion"',
+                'const APP_VERSION="v0.354";',
+                '<script src="hq_store_onboarding_ui.js?v=20261022v354"></script>'
+              ];
+              if(removed.length!==3 || added.length!==3 ||
+                 !expectedOld.every(x=>removed.some(l=>l.includes(x))) ||
+                 !expectedNew.every(x=>added.some(l=>l.includes(x))) ||
+                 removed.some(l=>!/v0\.353|20261017v299/.test(l)) ||
+                 added.some(l=>!/v0\.354|20261022v354/.test(l)))
+                throw Error('QA1243_APP_HTML_UNEXPECTED_DIFF');
+            }
             if(!files.length || files.length>=100 || files.some(x=>!allowed.has(x)) ||
                !files.some(f=>[
                  'scripts/qa1243_build_isolated_gas.mjs',
@@ -476,7 +527,7 @@ jobs:
 
   qa1243-safari-pages:
     name: QA1243 isolated Safari Pages publish (no operating Sheet write)
-    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[QA1243-NO-OPERATING-WRITE]') && contains(github.event.head_commit.message, '[QA1243-SAFARI-PAGES]') }}
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[QA1243-NO-OPERATING-WRITE]') && (contains(github.event.head_commit.message, '[QA1243-SAFARI-PAGES]') || contains(github.event.head_commit.message, '[QA1243-APP-PAGES]')) }}
     needs: p0-gate
     permissions:
       contents: read
@@ -495,7 +546,11 @@ jobs:
       - name: Verify QA static transformation without any credentials
         run: node scripts/qa1243_safari_static_build.test.mjs
       - name: Capture production Pages public asset byte digests before QA-only release
+        if: ${{ !contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: node scripts/qa1243_safari_pages_smoke.mjs --before
+      - name: Capture unchanged operating public asset digests before safe app release
+        if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
+        run: node scripts/qa1243_owner_ready_pages_smoke.mjs --before
       - name: Build static QA-only HTML / JS / CSS (existing app files unchanged)
         run: node scripts/qa1243_safari_static_build.mjs
       - uses: actions/configure-pages@v5
@@ -506,7 +561,11 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
       - name: Assert published HTML, JS, CSS and existing operating Pages asset byte integrity
+        if: ${{ !contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: node scripts/qa1243_safari_pages_smoke.mjs --after
+      - name: Confirm public v0.354 HQ readiness UI and unchanged other operating assets
+        if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
+        run: node scripts/qa1243_owner_ready_pages_smoke.mjs --after
 
   build-pages:
     name: Build Pages artifact
