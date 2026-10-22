@@ -22,4 +22,5 @@ jobs:
       - name: Independent HTTP readback of live index.html and owner-ready JS digest
         run: node scripts/qa1243_owner_ready_pages_smoke.mjs --independent
       - name: No operating Google or Supabase writes
-        run: echo 'Read-only HTTP: no operational Google Sheet or Supabase mutation.' >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo 'Read-only HTTP: no operational Google Sheet or Supabase mutation.' >> "$GITHUB_STEP_SUMMARY"
