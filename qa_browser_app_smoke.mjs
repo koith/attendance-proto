@@ -47,6 +47,11 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
     if(name==='hq_store_manager_list')return reply(route,ownerInvited?[
       {user_id:'qa-invited-id',email:'owner@example.invalid',store_id:2,store_name:'송도점'}
     ]:[]);
+    // The confirmed primary owner is a separate canonical HQ RPC; an invite
+    // or a generic manager row alone must never unlock READY.
+    if(name==='hq_store_primary_owner_list')return reply(route,ownerConfirmed?[
+      {store_id:2,user_id:'qa-invited-id'}
+    ]:[]);
     if(name==='hq_store_provenance_list')return reply(route,storeVerified?[
       {store_id:2,decision:'VERIFIED',evidence_reference:'QA verified official shop record',reviewed_at:'2026-10-11T00:00:00Z'}
     ]:[]);
@@ -59,7 +64,7 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
     }
     if(name==='hq_store_onboarding_set'){
       if(!storeVerified)return reply(route,{message:'PROVENANCE_VERIFICATION_REQUIRED'},409);
-      if(!ownerInvited)return reply(route,{message:'CONFIRMED_STORE_MANAGER_REQUIRED'},409);
+      if(!ownerConfirmed)return reply(route,{message:'CONFIRMED_PRIMARY_OWNER_REQUIRED'},409);
       stageActivated=true;return reply(route,{ok:true,store_id:2,status:'READY'});
     }
     if(name==='admin_store_payroll_period')return reply(route,{
