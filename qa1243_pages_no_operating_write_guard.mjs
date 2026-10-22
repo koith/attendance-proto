@@ -93,6 +93,38 @@ async function proveRetry({parent=originalRelease,message=retryMarker,
   assert.equal(getCommitCalled,true,'Parent approved marker must be independently fetched');
 }
 await proveRetry();
+// A change to any root synthetic journey fixture MUST trigger full browser,
+// PostgreSQL and salary/Sheet contract CI. It must remain exempt from the
+// normal Pages publisher that writes to the production payroll spreadsheet.
+const journeyWorkflow=readFileSync('.github/workflows/store-opening-full-journey.yml','utf8');
+for(const [name,section] of [
+ ['pull_request',journeyWorkflow.split('  pull_request:')[1]?.split('  push:')[0]],
+ ['push',journeyWorkflow.split('  push:')[1]?.split('  workflow_dispatch:')[0]]
+]){
+ assert.ok(section,'missing full journey CI trigger: '+name);
+ assert.match(section,/      - 'qa_\\*\\.mjs'/,'root QA mjs must trigger '+name);
+ assert.match(section,/      - 'qa_\\*\\.sql'/,'disposable SQL QA must trigger '+name);
+}
+const qaOnlyRepair='[QA1243-NO-OPERATING-WRITE] fix root journey CI trigger';
+async function proveJourneyRepair(changed,shouldAccept){
+ const context={repo:{owner:'koith',repo:'attendance-proto'},sha:'f'.repeat(40),
+  payload:{before:'a'.repeat(40),head_commit:{message:qaOnlyRepair}}};
+ const github={rest:{repos:{compareCommits:async()=>({data:{files:changed.map(filename=>({filename}))}})}}};
+ const action=executeActualGuard(context,github,{info:()=>{}});
+ if(shouldAccept)await action;
+ else await assert.rejects(action,/QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE|QA1243_UNMARKED_APP_CHANGE/);
+}
+await proveJourneyRepair([
+ '.github/workflows/store-opening-full-journey.yml',
+ '.github/workflows/p0-pages-deploy.yml',
+ 'qa1243_pages_no_operating_write_guard.mjs',
+ 'PROJECT_BACKLOG_20261017.md'
+],true);
+await proveJourneyRepair(['.github/workflows/p0-pages-deploy.yml'],false);
+await proveJourneyRepair(['.github/workflows/store-opening-full-journey.yml','index.html'],false);
+await proveJourneyRepair(['.github/workflows/store-opening-full-journey.yml',
+ 'supabase/functions/server-sync-sheet/index.ts'],false);
+console.log('PASS QA1243 root QA/SQL triggers and strictly scoped CI-only main push cannot write operating Sheets');
 await assert.rejects(proveRetry({parent:'a'.repeat(40)}),/QA1243_SAFE_RETRY_SCOPE_MISMATCH/);
 await assert.rejects(proveRetry({parentMessage:'unmarked external deployment'}),
   /QA1243_SAFE_RETRY_PARENT_UNVERIFIED/);
