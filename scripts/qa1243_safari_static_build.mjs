@@ -21,9 +21,10 @@ assert.ok(html.includes(sdk),'Expected reviewed Google Identity Services SDK');
 assert.ok(html.includes('QA1243_SCOPE_LIST'));
 assert.ok(!html.includes('localStorage')&&!html.includes('sessionStorage'));
 assert.ok(!html.includes('api.github.com')&&!html.includes('Deno.env'));
-const script="// Refuse Google OAuth in frames (static Pages cannot set frame-ancestors header).\n"+
+let script="// Refuse Google OAuth in frames (static Pages cannot set frame-ancestors header).\n"+
  "if(window.top!==window.self)throw new Error('QA1243_IFRAMED_OAUTH_BLOCKED');\n"+
  inline[1].replaceAll('QA1243_SCOPE_LIST',JSON.stringify(QA1243_RUNNER_SCOPES));
+script=script.replace("throw Error('GOOGLE_SCOPE_MISMATCH');", "throw Error('GOOGLE_SCOPE_MISMATCH missing='+scopes.filter(x=>!actual.has(x)).map(x=>x.split('/').pop()).join(',')+' extra='+[...actual].filter(x=>!scopes.includes(x)).map(x=>x.split('/').pop()).join(','));");
 assert.ok(script.includes("expected='webuielf@gmail.com'"));
 assert.ok(script.includes("navigator.clipboard.writeText(token)"));
 assert.ok(!script.includes('QA1243_SCOPE_LIST'));
