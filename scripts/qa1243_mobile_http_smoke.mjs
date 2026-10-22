@@ -23,9 +23,11 @@ assert.match(first.response.headers.get('cache-control')||'',/no-store/);
 assert.equal(first.response.headers.get('x-frame-options'),'DENY');
 assert.equal(first.response.headers.get('referrer-policy'),'no-referrer');
 const csp=first.response.headers.get('content-security-policy')||'';
-assert.match(csp,/frame-ancestors 'none'/);
-assert.match(csp,/default-src 'none'/);
-assert.match(csp,/form-action 'none'/);
+// Supabase shared domains override user-supplied HTML response CSP with
+// sandbox; this intentionally confirms the endpoint CANNOT host OAuth UI.
+// Browser-friendly HTML is only at the independently verified GitHub Pages
+// /qa1243-safari/ static path; do not weaken Supabase platform security.
+assert.match(csp,/default-src 'none'; sandbox/);
 assert.ok(!first.body.includes('QA1243_NONCE'),'Template nonce must be substituted');
 assert.ok(!first.body.includes('QA1243_SCOPE_LIST'),'OAuth scope placeholder must be substituted');
 assert.match(first.body,/google\.accounts\.oauth2\.initTokenClient/);
@@ -35,7 +37,7 @@ assert.match(first.body,/https:\/\/github\.com\/koith\/attendance-proto\/setting
 assert.doesNotMatch(first.body,/github_pat_|SUPABASE_SERVICE_ROLE_KEY|localStorage|sessionStorage|api\.github\.com/);
 const nonce=(first.body.match(/<script nonce="([a-z0-9]{32})">/)||[])[1];
 assert.ok(nonce,'Shipped inline script must have random nonce');
-assert.ok(csp.includes("'nonce-"+nonce+"'"),'CSP must permit only the emitted nonce');
+assert.ok(!csp.includes("'nonce-"+nonce+"'"),'Supabase sandbox CSP must block inline OAuth even with nonce');
 const again=await check('GET');
 const next=(again.body.match(/<script nonce="([a-z0-9]{32})">/)||[])[1];
 assert.equal(again.response.status,200);
@@ -49,7 +51,7 @@ assert.equal(query.response.status,400,'URL query must be rejected before render
 assert.equal(query.body,'QA1243_QUERY_NOT_ALLOWED');
 
 console.log('QA1243_SUPABASE_HTML_RENDER_BLOCK_CONFIRMED '+JSON.stringify({
- function:'qa1243-mobile-auth',get:200,contentType:'text/plain',post:405,query:400,notSafariPage:true,
+ function:'qa1243-mobile-auth',get:200,contentType:'text/plain',cspSandbox:true,post:405,query:400,notSafariPage:true,
  independentNonces:true,credentialless:true,
  oauthOwner:'webuielf@gmail.com',noOperatingWrite:true
 }));
