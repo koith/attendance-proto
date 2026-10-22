@@ -322,7 +322,11 @@ jobs:
                  'scripts/qa1243_oauth_scopes.mjs',
                  'scripts/qa1243_oauth_bootstrap.mjs',
                  'scripts/qa1243_mobile_http_smoke.mjs',
-                 'scripts/qa1243_safari_static_build.mjs'
+                 'scripts/qa1243_safari_static_build.mjs',
+                 // QA-only integration workflow repair must never trigger the
+                 // normal operating Sheets deploy. This entry is included in
+                 // the exact allowlist above; unrelated paths still fail.
+                 '.github/workflows/store-opening-full-journey.yml'
                ].includes(f))))
                throw Error('QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE');
             core.info('QA1243_NO_OPERATING_WRITE_GUARD_PASS files='+files.length);
