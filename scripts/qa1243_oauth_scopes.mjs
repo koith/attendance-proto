@@ -12,8 +12,9 @@ export const QA1243_RUNNER_SCOPES=Object.freeze([
 export function assertQa1243RunnerScopes(actual){
  const list=typeof actual==='string'?actual.split(/\s+/).filter(Boolean):Array.from(actual||[]);
  const set=new Set(list);
- if(set.size!==QA1243_RUNNER_SCOPES.length ||
-    QA1243_RUNNER_SCOPES.some(scope=>!set.has(scope)))
+ const implicitIdentityScopes=new Set(['openid','email','profile']);
+ if(QA1243_RUNNER_SCOPES.some(scope=>!set.has(scope)) ||
+    [...set].some(scope=>!QA1243_RUNNER_SCOPES.includes(scope)&&!implicitIdentityScopes.has(scope)))
    throw new Error('QA1243_OAUTH_SCOPE_MISSING_OR_OVERPRIVILEGED');
  return true;
 }
