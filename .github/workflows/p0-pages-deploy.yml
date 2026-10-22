@@ -220,6 +220,7 @@ jobs:
               'supabase/migrations/20261022225500_qa1243_confirmed_primary_owner_ready.sql',
               '.github/workflows/hq-store-onboarding-postgres-integration.yml',
               '.github/workflows/qa1243-owner-ready-pages-independent.yml',
+              '.github/workflows/store-opening-full-journey.yml',
               'qa1243_mobile_token_contract.test.mjs',
               'qa1243_mobile_safari_vm.test.mjs',
               'supabase/functions/qa1243-mobile-auth/index.ts',
