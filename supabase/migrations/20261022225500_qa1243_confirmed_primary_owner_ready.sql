@@ -51,4 +51,4 @@ BEGIN
 END $fn$;
 -- Keep the intended authenticated HQ RPC boundary; never expose to anon.
 REVOKE ALL ON FUNCTION public.hq_store_onboarding_set(bigint,text) FROM PUBLIC,anon;
-GRANT EXECUTE ON FUNCTION public.hq_store_onboarding_set(bigint,text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.hq_store_onboarding_set(bigint,text) TO authenticated,service_role;
