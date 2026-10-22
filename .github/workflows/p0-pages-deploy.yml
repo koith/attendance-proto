@@ -175,12 +175,14 @@ permissions:
 # replaces earlier pending PR validations on subsequent main pushes.
 concurrency:
   group: ${{ github.event_name == 'pull_request' && format('pages-pr-{0}', github.event.pull_request.number) || 'pages' }}
-  cancel-in-progress: false
+  # Stale PR validation must not block the same PR head for hours; never cancel main publication.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   p0-gate:
     name: P0 deployment gate
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
