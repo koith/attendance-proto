@@ -18,6 +18,8 @@ try{
  assert.match(html,/https:\/\/accounts\.google\.com\/gsi\/client/);
  assert.match(html,/<script src="\.\/oauth\.js" defer><\/script>/);
  assert.match(html,/referrer" content="no-referrer"/);
+ assert.match(html,/293023370445-le7n6lrrbub90i96ol64tt65lss8s6p2\.apps\.googleusercontent\.com/);
+ assert.match(html,/readonly/);
  assert.doesNotMatch(html,/QA1243_NONCE|QA1243_SCOPE_LIST|unsafe-inline/);
  assert.doesNotMatch(html,/<script nonce=|<style nonce=/);
  assert.match(js,/QA1243_IFRAMED_OAUTH_BLOCKED/);
