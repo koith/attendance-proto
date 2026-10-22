@@ -3,12 +3,24 @@ on:
   pull_request:
     paths:
       - 'qa_hq_store_onboarding_postgres_integration.sql'
+      - 'supabase/migrations/20261022225500_qa1243_confirmed_primary_owner_ready.sql'
+      - 'hq_store_onboarding_ui.js'
+      - 'qa_hq_store_readiness_export_v1.mjs'
+      - 'qa_hq_store_search_owner_activation_v1.mjs'
+      - 'qa_hq_store_onboarding_v1.mjs'
+      - 'index.html'
       - 'supabase/migrations/20261011130000_hq_sample_roster_activation_guard.sql'
       - '.github/workflows/hq-store-onboarding-postgres-integration.yml'
   push:
     branches: [main]
     paths:
       - 'qa_hq_store_onboarding_postgres_integration.sql'
+      - 'supabase/migrations/20261022225500_qa1243_confirmed_primary_owner_ready.sql'
+      - 'hq_store_onboarding_ui.js'
+      - 'qa_hq_store_readiness_export_v1.mjs'
+      - 'qa_hq_store_search_owner_activation_v1.mjs'
+      - 'qa_hq_store_onboarding_v1.mjs'
+      - 'index.html'
       - 'supabase/migrations/20261011130000_hq_sample_roster_activation_guard.sql'
       - '.github/workflows/hq-store-onboarding-postgres-integration.yml'
 jobs:
@@ -39,5 +51,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install PostgreSQL client if unavailable
         run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify real HQ readiness list, UI and CSV isolation against synthetic fixtures
+        run: |
+          node qa_hq_store_readiness_export_v1.mjs
+          node qa_hq_store_search_owner_activation_v1.mjs
+          node qa_hq_store_onboarding_v1.mjs
       - name: Verify actual HQ activation and isolation function, synthetic data only
         run: psql -v ON_ERROR_STOP=1 -f qa_hq_store_onboarding_postgres_integration.sql
