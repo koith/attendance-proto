@@ -16,7 +16,7 @@ assert.match(ui,/\[s\.name,s\.code,s\.region_group,s\.id\]/);
 assert.match(ui,/if\(included\)storePicker\.value=String\(selected\)/);
 assert.match(ui,/storePicker\.disabled=rows\.length===0/);
 assert.match(ui,/manager_count\|\|0/);
-assert.match(ui,/verified&&Number\(store\?\.manager_count\|\|0\)>0&&sampleEmployeeCount===0/);
+assert.match(ui,/activationBlockers\(store,proof,sampleEmployeeCount,primaryOwnerId,list\)\.length===0/,'HQ READY demands a linked primary owner');
 assert.doesNotMatch(ui,/id="hqStoreRefresh"/);
 assert.match(ui,/label for="hqStoreShareUrl"/);
 assert.match(ui,/href="\s*'\+escapeHTML\(entryUrl\(selected\)\)/);
