@@ -26,17 +26,32 @@ assert.equal((statements.match(/UPDATE public\.stores SET onboarding_status=p_st
 const ui=fs.readFileSync('hq_store_onboarding_ui.js','utf8');
 assert.match(ui,/rpc\("hq_store_sample_roster_counts"\)/);
 assert.match(ui,/!result\.every\(Array\.isArray\)/,'All HQ RPC lists must be validated, including sample roster');
-assert.match(ui,/sampleEmployeeCount===0/);
+assert.match(ui,/activationBlockers\(store,proof,sampleEmployeeCount,primaryOwnerId,list\)\.length===0/);
+assert.match(ui,/errors\.push\("샘플·데모 직원 검토"\)/);
 assert.match(ui,/id="hqSampleRosterBlocker"/);
 assert.match(ui,/id="hqSampleRosterSummary"/);
 const predicate=ui.match(/const canActivate=([^;]+);/)?.[1];
 assert.ok(predicate,'Activation readiness expression missing');
+// Execute the shipped blocker helper, not a reimplementation of the old
+// manager_count-only expression. Staged owner, sample roster, and other store
+// membership are independent barriers.
+const blockerStart=ui.indexOf('const activationBlockers=');
+const blockerEnd=ui.indexOf('const readinessCsvCell=',blockerStart);
+assert.ok(blockerStart>=0&&blockerEnd>blockerStart,'Shipped READY blocker helper missing');
+const helper=ui.slice(blockerStart,blockerEnd);
 const {runInNewContext}=await import('node:vm');
-const canActivate=(selected,verified,manager_count,sampleEmployeeCount)=>
-  runInNewContext(predicate,{selected,verified,store:{manager_count},sampleEmployeeCount});
-assert.equal(canActivate(2,true,1,3),false,'Seed staff must block even confirmed owner');
-assert.equal(canActivate(2,true,1,0),true,'Reviewed clean roster permits ready state');
-assert.equal(canActivate(2,false,1,0),false,'Unverified shop cannot activate');
-assert.equal(canActivate(2,true,0,0),false,'Unconfirmed owner cannot activate');
-assert.equal(canActivate(1,true,0,0),true,'Inha existing ready state remains unchanged');
+const canActivate=(selected,verified,manager_count,sampleEmployeeCount,primaryOwnerId,memberStore=2)=>{
+  const store={id:selected,manager_count};
+  const proof={decision:verified?'VERIFIED':'REJECTED'};
+  const list=primaryOwnerId?[{store_id:memberStore,user_id:primaryOwnerId}]:[];
+  return runInNewContext(helper+';('+predicate+')',
+    {selected,store,proof,sampleEmployeeCount,primaryOwnerId,list});
+};
+assert.equal(canActivate(2,true,1,3,'owner-2'),false,'Seed staff must block even confirmed owner');
+assert.equal(canActivate(2,true,1,0,'owner-2'),true,'Verified clean roster and linked primary owner permits READY');
+assert.equal(canActivate(2,false,1,0,'owner-2'),false,'Unverified shop cannot activate');
+assert.equal(canActivate(2,true,0,0,'owner-2'),false,'Zero confirmed managers cannot activate');
+assert.equal(canActivate(2,true,1,0,null),false,'Unassigned primary owner cannot activate despite generic manager');
+assert.equal(canActivate(2,true,1,0,'owner-2',3),false,'Other-store owner cannot activate');
+assert.equal(canActivate(1,true,0,0,null),true,'Inha existing ready state remains unchanged');
 console.log('PASS seeded sample+demo employees block READY activation; HQ-only aggregate, no deletion, Inha unchanged');
