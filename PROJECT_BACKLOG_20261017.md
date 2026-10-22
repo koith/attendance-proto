@@ -441,3 +441,13 @@
 - **Runner 연동:** trusted main push E2E는 Desktop OAuth 3종이 있을 때 기존 refresh grant를 우선 사용하고, 없을 때 QA 전용 단기 Access Token Secret을 사용. OAuth tokeninfo 검사는 토큰을 URL query에 넣지 않고 POST body로 변경, 최소 30분 잔여시간 및 Google QA 소유권/정확한 권한 검사. Windows 코드, 운영 Google/Apps Script/Sheets 보존.
 - **보안 제한:** 단기 access token은 암호학적으로 한 번만 쓸 수 있는 credential이 아니므로 브라우저 페이지 자체 10분/1회 복사만 제한. 진정한 GitHub Secrets 자동 쓰기는 GitHub 권한이 필요하므로 공개 사이트에서 관리자 PAT을 요구하는 대신 **GitHub 공식 UI 등록 1단계는 유지**. Safari 실기기 팝업 및 실제 Google 계정 사용자 승인 미완료 시 **모바일 전체 동작 PASS 불가**.
 - **검증:** PR의 모바일 Google/GitHub 부정 검증 테스트 및 QA-only Pages/운영 Sheet 배포 스킵 가드 테스트. 운영 DB DML/마이그레이션 없음. 실제 Google-hosted QA Script 업로드·Edge→GAS→Sheet A/B 실증은 별도로 누락을 명시한다. QA-05 [ ], Friday NO_GO, 정본 총 38/완료19/잔여19 유지.
+
+## 55. 2026-10-22 — QA1243 금요일 신규 지점 사전 회귀 보강과 공유키 위험 확인
+
+- 사용자 금요일 개통 전 실제 완료·실사용 대기 분리 요청: [Issue #1243](https://github.com/koith/attendance-proto/issues/1243#issuecomment-6341565403).
+- **전진한 실외부 증거:** [QA Google E2E #39781031886](https://github.com/koith/attendance-proto/actions/runs/39781031886) SUCCESS. QA 전용 Apps Script·Google Sheets A/B 원격 쓰기·재조회·정정·중복 방지·지점 격리가 실제 통과했음을 운영 Hosted Auth 실메일 검증과 혼동하지 않는다.
+- **남은 금요일 게이트:** [#39782981047](https://github.com/koith/attendance-proto/actions/runs/39782981047) **5/8 NO_GO**: `HOSTED_AUTH_READ`, `PAGES_PUBLISH`, `INDEPENDENT_PAGES`. QA-only Google 코드 커밋은 운영 Pages 배포를 의도적으로 건너뛰므로 일반 Pages/시트 새 성공으로 오인하지 않는다. 외부 실제 테스트 초대 이메일·관리자 실세션·사전/사후 원본 불변 증거도 미확보.
+- **기존 코드 범위 보존:** 격리 GoTrue/Mailpit 실제 테스트 이메일/비밀번호·재초대·회복·만료, 일회용 PostgreSQL의 대표/보조 권한·READY·직원/급여·레시피 및 Chromium 연속 UI QA는 기존 성공 증거와 구분; 임의 중복 생성·운영 실제 직원 초대/수정 금지.
+- **이번 새 QA 회귀 코드:** `qa1243_live_edge_gas_contract.mjs`의 QA-only trusted E2E 선행 검사에 실제 지점별 근태 경로, 대타 출근 후보·지점 제한, 테스트/운영 대타 분리, 월 경계 급여 중복방지 등 **6개의 별도 실제 앱/엔진 소스 검사** 추가. `scripts/qa1243_live_edge_gas_sheets.mjs` Google·Edge 원격 오류 자유본문 로그 노출 제거: HTTP 상태 및 제한된 상태 enum만 출력해 screenshot 공유 비밀키 2차 노출 방어. 운영 Apps Script/Sheet/Edge Secret 변경 없음. 사용자 금요일 실계정/실이메일 입력 전까지 권한/메일/급여/레시피 쓰기 없음.
+- **스크린샷 위험:** 코드상 `SHARED_SECRET` 값은 노출 가능하므로 사고 전제로 판단. 기존 운영 키와 동일·활성 여부를 증명하지 못한 상태에서 단일 키 일방 교체는 운영 시트 동기화 중단 위험. [금요일 대응 문서](QA1243_FRIDAY_OPENING_20261023.md)에 owner 확인 → dual-key → Edge 새 키 전환 → 기존 키 폐기, 무중단/승인/운영 불변 필요조건 기록. 현재 운영 키 **교체 미실시/승인·식별 검증 대기**.
+- **업무원장 판정:** QA-05는 실제 Google E2E와 통합 QA 성과를 연결하되 원래 ID의 안전 정리/실운영 시트 권한까지 모든 종료 조건이 증명되기 전 전체 완료 체크 [ ] 유지. QA-04/QA-06/QA-07/SEC-01/AUTH-01/MTG-03/04/FIELD-01 각 소스 QA와 실제 Hosted 실증을 따로 표기. **전체 38개 / 완료 19 / 잔여 19**, 신규 완료 ID 0건. 운영 개통 **NO_GO**.
