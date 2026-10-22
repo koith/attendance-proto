@@ -23,8 +23,11 @@ assert.match(sql,/CANNOT_REVOKE_LAST_READY_MANAGER/);
 assert.match(sql,/CONFIRMED_STORE_MANAGER_REQUIRED/);
 assert.match(sql,/v_review IS DISTINCT FROM 'VERIFIED'/);
 assert.match(original,/PROVENANCE_VERIFICATION_REQUIRED/);
-assert.match(ui,/Number\(store\?\.manager_count\|\|0\)>0/);
-assert.match(ui,/인증 점주/,'Owner confirmation count must remain visible in store operations');
+// A manager-count aggregate cannot authorize READY by itself.
+assert.match(ui,/activationBlockers\(store,proof,sampleEmployeeCount,primaryOwnerId,list\)\.length===0/);
+assert.match(ui,/errors\.push\("대표 관리자 지정·연결"\)/);
+assert.match(ui,/!ownerId\|\|!members\.some\(member=>Number\(member\.store_id\)===id && member\.user_id===ownerId\)/);
+assert.match(ui,/인증 관리자 계정/,'Confirmed manager prerequisite remains visible');
 assert.doesNotMatch(sql,/DELETE FROM public\.(?:employees|payroll_snapshot|attendance_events)/);
 assert.match(edge,/INACTIVE_ADMIN_ACCOUNT/);
 assert.match(edge,/authUser\.email_confirmed_at/);

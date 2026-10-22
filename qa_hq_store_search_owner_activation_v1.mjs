@@ -16,7 +16,7 @@ assert.match(ui,/\[s\.name,s\.code,s\.region_group,s\.id\]/);
 assert.match(ui,/if\(included\)storePicker\.value=String\(selected\)/);
 assert.match(ui,/storePicker\.disabled=rows\.length===0/);
 assert.match(ui,/manager_count\|\|0/);
-assert.match(ui,/verified&&Number\(store\?\.manager_count\|\|0\)>0&&sampleEmployeeCount===0/);
+assert.match(ui,/activationBlockers\(store,proof,sampleEmployeeCount,primaryOwnerId,list\)\.length===0/,'HQ READY demands a linked primary owner');
 assert.doesNotMatch(ui,/id="hqStoreRefresh"/);
 assert.match(ui,/label for="hqStoreShareUrl"/);
 assert.match(ui,/href="\s*'\+escapeHTML\(entryUrl\(selected\)\)/);
@@ -34,7 +34,7 @@ const renderedVersion=html.match(/const APP_VERSION="(v[0-9]+[.][0-9]+)";/);
 assert.ok(renderedVersion,'App must declare a parseable release version');
 assert.ok(new RegExp('id="appVersion"[^>]*>'+renderedVersion[1].replace(/[.]/g,'[.]')+'</button>').test(html),
   'App badge must match the release version without hardcoded test literals');
-assert.match(html,/hq_store_onboarding_ui\.js\?v=20261017v299/);
+assert.match(html,/hq_store_onboarding_ui\.js\?v=20261022v354/);
 assert.match(html,/\["report","리포트"\]/,'Inha six management tabs must remain visible');
 assert.match(html,/STORE_ENTRY_UNAVAILABLE/,'Unapproved store URL must remain blocked');
 console.log('PASS searchable 283-store HQ onboarding, verified+confirmed activation, READY-only share links');

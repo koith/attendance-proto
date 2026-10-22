@@ -3,10 +3,12 @@
 \set ON_ERROR_STOP on
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
+CREATE ROLE service_role NOLOGIN;
 CREATE SCHEMA auth;
 CREATE TABLE auth.users(
  id uuid PRIMARY KEY,
  email_confirmed_at timestamptz,
+ encrypted_password text,
  deleted_at timestamptz,
  is_anonymous boolean DEFAULT false,
  banned_until timestamptz
@@ -26,6 +28,10 @@ CREATE TABLE public.admin_users(
  admin_role text NOT NULL,
  store_id bigint REFERENCES public.stores(id)
 );
+CREATE TABLE public.store_primary_owners(
+ store_id bigint PRIMARY KEY REFERENCES public.stores(id),
+ user_id uuid NOT NULL REFERENCES public.admin_users(user_id)
+);
 CREATE TABLE public.employees(
  id bigint PRIMARY KEY,
  store_id bigint REFERENCES public.stores(id),
@@ -41,9 +47,9 @@ INSERT INTO public.stores(id,name,source_store_key,onboarding_status,is_active) 
  (1,'Synthetic Inha','inha','READY',true),
  (2,'Synthetic staging 2','staged2','STAGED',false),
  (3,'Synthetic staging 3','staged3','STAGED',false);
-INSERT INTO auth.users(id,email_confirmed_at,is_anonymous) VALUES
- ('00000000-0000-4000-8000-000000000010',now(),false),
- ('00000000-0000-4000-8000-000000000011',NULL,false);
+INSERT INTO auth.users(id,email_confirmed_at,encrypted_password,is_anonymous) VALUES
+ ('00000000-0000-4000-8000-000000000010',now(),'synthetic-hash',false),
+ ('00000000-0000-4000-8000-000000000011',NULL,NULL,false);
 INSERT INTO public.admin_users(user_id,admin_role,store_id) VALUES
  ('00000000-0000-4000-8000-000000000010','STORE_MANAGER',2);
 SELECT set_config('fixture.hq','yes',false);
@@ -51,6 +57,7 @@ SELECT set_config('fixture.hq','yes',false);
 -- Install REAL checked-in final activation migration, including the safe
 -- sample roster utility. No copies of the activation function body.
 \i supabase/migrations/20261011130000_hq_sample_roster_activation_guard.sql
+\i supabase/migrations/20261022225500_qa1243_confirmed_primary_owner_ready.sql
 
 CREATE OR REPLACE FUNCTION public.assert_onboarding_error(
  p_id bigint,p_status text,p_error text)
@@ -100,7 +107,16 @@ UPDATE auth.users SET deleted_at=NULL,is_anonymous=true
 SELECT public.assert_onboarding_error(2,'READY','CONFIRMED_STORE_MANAGER_REQUIRED');
 UPDATE auth.users SET is_anonymous=false WHERE id='00000000-0000-4000-8000-000000000010';
 
--- Safe READY path: verified provenance + no demo staff + verified real manager.
+-- A confirmed assistant/manager without a primary OWNER must NOT unlock READY.
+SELECT public.assert_onboarding_error(2,'READY','CONFIRMED_PRIMARY_OWNER_REQUIRED');
+INSERT INTO public.store_primary_owners(store_id,user_id)
+VALUES (2,'00000000-0000-4000-8000-000000000010');
+UPDATE auth.users SET encrypted_password=NULL
+ WHERE id='00000000-0000-4000-8000-000000000010';
+SELECT public.assert_onboarding_error(2,'READY','CONFIRMED_PRIMARY_OWNER_REQUIRED');
+UPDATE auth.users SET encrypted_password='synthetic-hash'
+ WHERE id='00000000-0000-4000-8000-000000000010';
+-- Safe READY path: verified provenance + no demo staff + verified primary.
 DO $$
 DECLARE result jsonb;
 BEGIN
@@ -132,6 +148,16 @@ BEGIN
  END IF;
 END $$;
 
+-- A still-active assistant cannot replace a suspended/invalid primary owner.
+INSERT INTO auth.users(id,email_confirmed_at,encrypted_password,is_anonymous)
+ VALUES('00000000-0000-4000-8000-000000000013',now(),'synthetic-hash',false);
+INSERT INTO public.admin_users(user_id,admin_role,store_id)
+ VALUES('00000000-0000-4000-8000-000000000013','STORE_MANAGER',2);
+UPDATE auth.users SET banned_until=now()+interval '1 day'
+ WHERE id='00000000-0000-4000-8000-000000000010';
+SELECT public.assert_onboarding_error(2,'READY','CONFIRMED_PRIMARY_OWNER_REQUIRED');
+UPDATE auth.users SET banned_until=NULL
+ WHERE id='00000000-0000-4000-8000-000000000010';
 -- Later revocation of evidence invalidates READY reactivation.
 INSERT INTO public.store_provenance_reviews(store_id,decision) VALUES(2,'REJECTED');
 SELECT public.assert_onboarding_error(2,'READY','PROVENANCE_VERIFICATION_REQUIRED');
@@ -168,19 +194,22 @@ BEGIN
  END IF;
 END $check_283$;
 
-\echo PASS: HQ store READY requires provenance, no demo, verified manager; INHA and other branches isolated
+\echo PASS: HQ store READY requires provenance, no demo, password-ready primary owner; INHA and other branches isolated
 
 
 -- Prove two independent store operators can be onboarded in sequence without
 -- opening unrelated branch data. These are fake Auth identities on disposable PG.
-INSERT INTO auth.users(id,email_confirmed_at,is_anonymous)
-VALUES ('00000000-0000-4000-8000-000000000012',now(),false);
+INSERT INTO auth.users(id,email_confirmed_at,encrypted_password,is_anonymous)
+VALUES ('00000000-0000-4000-8000-000000000012',now(),'synthetic-hash',false);
 INSERT INTO public.admin_users(user_id,admin_role,store_id)
 VALUES ('00000000-0000-4000-8000-000000000012','STORE_MANAGER',3);
 SELECT set_config('fixture.hq','yes',false);
 SELECT public.assert_onboarding_error(3,'READY','PROVENANCE_VERIFICATION_REQUIRED');
 INSERT INTO public.store_provenance_reviews(store_id,decision)
 VALUES(3,'VERIFIED');
+SELECT public.assert_onboarding_error(3,'READY','CONFIRMED_PRIMARY_OWNER_REQUIRED');
+INSERT INTO public.store_primary_owners(store_id,user_id)
+VALUES(3,'00000000-0000-4000-8000-000000000012');
 DO $two_store$
 DECLARE result jsonb;
 BEGIN
@@ -211,4 +240,4 @@ BEGIN
   RAISE EXCEPTION 'SECOND_STORE_SUSPENSION_CORRUPTED_OTHER_BRANCH';
  END IF;
 END $two_store$;
-\echo PASS: 283 branch activation/suspension isolation with distinct verified synthetic store managers
+\echo PASS: 283 branch activation/suspension isolation with distinct password-ready synthetic primary owners

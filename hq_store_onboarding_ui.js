@@ -25,7 +25,7 @@ async function invite(email,store_id,invitationRole="OWNER"){
   if(!response.ok||data?.ok!==true)throw Error(data?.error||"INVITE_FAILED");
   return data;
 }
-// Readiness export contains no PINs or owner emails. Keep all 283 registered
+// Readiness export contains no PINs or owner emails. Keep all registered
 // stores, regardless of the current filtered HQ picker, so a single CSV is
 // usable as a nationwide rollout checklist. Data comes only from HQ RPCs.
 // A store's owner onboarding is distinct from store operational readiness.
@@ -66,6 +66,22 @@ const managerMilestones=(stage,storeName,ownerEmail)=>{
     ' · 지점: '+escapeHTML(storeName||"")+
     (ownerEmail?' · 대표: '+escapeHTML(ownerEmail):'')+'</small></div></div>';
 };
+// UI hints are advisory. Final READY authorization is always the HQ PostgreSQL
+// RPC, which also validates the actual confirmed/password-ready primary owner.
+const activationBlockers=(store,proof,sampleCount,ownerId,managerRows)=>{
+  const id=Number(store?.id);
+  const members=Array.isArray(managerRows)?managerRows:[];
+  const confirmedCount=Number(store?.manager_count);
+  const errors=[];
+  if(id!==1&&proof?.decision!=="VERIFIED")errors.push("본사 실재 확인");
+  if(!Number.isSafeInteger(confirmedCount)||confirmedCount<1)
+    errors.push("인증 관리자 계정");
+  if(!ownerId||!members.some(member=>Number(member.store_id)===id && member.user_id===ownerId))
+    errors.push("대표 관리자 지정·연결");
+  if(!Number.isSafeInteger(sampleCount)||sampleCount<0||sampleCount>0)
+    errors.push("샘플·데모 직원 검토");
+  return errors;
+};
 const readinessCsvCell=value=>{
   let text=String(value??"");
   // Excel/Sheets interpret leading = + - @ (also after whitespace) as
@@ -73,8 +89,8 @@ const readinessCsvCell=value=>{
   if(/^\s*[=+\-@]/.test(text))text="'"+text;
   return '"'+text.replace(/"/g,'""')+'"';
 };
-const readinessCsv=(stores,proofs,sampleCounts)=>{
-  const header=["지점ID","지점명","코드","지역","운영상태","실재확인","이메일확인점주수","샘플직원수","개통가능여부","미완료조건"];
+const readinessCsv=(stores,proofs,sampleCounts,primaryOwners,managers)=>{
+  const header=["지점ID","지점명","코드","지역","운영상태","실재확인","인증관리자수","대표지정기록","샘플직원수","개통가능여부","미완료조건"];
   const rows=[header];
   for(const store of stores){
     const id=Number(store.id);
@@ -83,15 +99,11 @@ const readinessCsv=(stores,proofs,sampleCounts)=>{
     const owners=Number(store.manager_count||0);
     const verified=id===1||proof?.decision==="VERIFIED";
     const isReady=store.onboarding_status==="READY";
-    const blockers=[];
-    if(!isReady){
-      if(!verified)blockers.push("본사 실재 확인");
-      if(owners<1)blockers.push("인증 점주 계정");
-      if(sample>0)blockers.push("샘플·데모 직원 검토");
-    }
+    const ownerId=primaryOwners.find(item=>Number(item.store_id)===id)?.user_id;
+    const blockers=isReady?[]:activationBlockers(store,proof,sample,ownerId,managers);
     rows.push([id,store.name||"",store.code||"",store.region_group||"",
       store.onboarding_status||"UNKNOWN",id===1?"기존 운영점":proof?.decision||"미확인",
-      owners,sample,isReady?"운영 중":blockers.length?"아니오":"예",blockers.join(" / ")]);
+      owners,ownerId?"지정":"미지정",sample,isReady?"운영 중":blockers.length?"아니오":"예",blockers.join(" / ")]);
   }
   return "\uFEFF"+rows.map(row=>row.map(readinessCsvCell).join(",")).join("\r\n")+"\r\n";
 };
@@ -135,7 +147,7 @@ window.mountHqStoreOnboarding=async function(box){
     const proof=proofs.find(p=>Number(p.store_id)===selected);
     const verified=selected===1||proof?.decision==="VERIFIED";
     const sampleEmployeeCount=Number(sampleCounts.find(x=>Number(x.store_id)===selected)?.sample_employee_count||0);
-    const canActivate=selected===1||(verified&&Number(store?.manager_count||0)>0&&sampleEmployeeCount===0);
+    const canActivate=selected===1||activationBlockers(store,proof,sampleEmployeeCount,primaryOwnerId,list).length===0;
     const sampleStoreCount=sampleCounts.filter(x=>Number(x.sample_employee_count)>0).length;
     const sampleTotal=sampleCounts.reduce((n,x)=>n+Number(x.sample_employee_count||0),0);
     const readyCount=stores.filter(s=>s.onboarding_status==="READY").length;
@@ -230,7 +242,7 @@ window.mountHqStoreOnboarding=async function(box){
     body.querySelector("#hqStoreStatusFilter").onchange=e=>{statusFilter=e.target.value;updateChoices();};
     storePicker.onchange=e=>{if(!e.target.value)return;selected=Number(e.target.value);render();};
     body.querySelector("#hqStoreReadinessExport").onclick=()=>{
-      const text=readinessCsv(stores,proofs,sampleCounts);
+      const text=readinessCsv(stores,proofs,sampleCounts,primaryOwners,managers);
       const blob=new Blob([text],{type:"text/csv;charset=utf-8"});
       const url=URL.createObjectURL(blob);
       const link=document.createElement("a");
@@ -257,6 +269,7 @@ window.mountHqStoreOnboarding=async function(box){
     body.querySelector("#hqStoreVerify").onclick=()=>verifyStore("VERIFIED");
     body.querySelector("#hqStoreReject").onclick=()=>verifyStore("REJECTED");
     body.querySelector("#hqStoreReady").onclick=()=>{
+      if(!canActivate)return err("확정된 대표 계정, 인증 관리자, 지점 실재 확인 및 샘플 직원 검토를 완료해야 합니다.");
       if(!confirm(escapeHTML(store?.name)+" 점주의 접근 권한과 운영 준비가 확인됐습니까?"))return;
       act(()=>rpc("hq_store_onboarding_set",{p_store_id:selected,p_status:"READY"}),"해당 지점이 운영 활성화되었습니다.");
     };

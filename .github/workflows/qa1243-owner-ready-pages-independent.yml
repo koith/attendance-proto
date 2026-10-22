@@ -1,0 +1,26 @@
+name: QA1243 independent v0.354 owner READY Pages readback
+on:
+  workflow_run:
+    workflows: ["p0-pages-deploy"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  qa1243-owner-ready-independent:
+    name: Independently check published HQ app version without operating writes
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && contains(github.event.workflow_run.head_commit.message, '[QA1243-APP-PAGES]') && contains(github.event.workflow_run.head_commit.message, '[QA1243-NO-OPERATING-WRITE]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Independent HTTP readback of live index.html and owner-ready JS digest
+        run: node scripts/qa1243_owner_ready_pages_smoke.mjs --independent
+      - name: No operating Google or Supabase writes
+        run: |
+          echo 'Read-only HTTP: no operational Google Sheet or Supabase mutation.' >> "$GITHUB_STEP_SUMMARY"
