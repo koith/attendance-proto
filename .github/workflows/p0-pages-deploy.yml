@@ -207,6 +207,7 @@ jobs:
               'qa_hq_store_readiness_export_v1.mjs',
               'qa_hq_store_search_owner_activation_v1.mjs',
               'qa_hq_store_onboarding_v1.mjs',
+              'qa_hq_sample_roster_activation_guard_v1.mjs',
               'qa_store_provenance_gate_v1.mjs',
               'qa_store_delegated_manager_v1.mjs',
               'qa_store_admin_ui_polish_932.mjs',
@@ -250,7 +251,27 @@ jobs:
               ...context.repo,base:before,head:context.sha,per_page:100
             });
             const files=(diff.files||[]).map(x=>x.filename);
-            const safeAppRelease=String(context.payload.head_commit?.message||'').includes('[QA1243-APP-PAGES]');
+            const releaseMessage=String(context.payload.head_commit?.message||'');
+            const safeAppRelease=releaseMessage.includes('[QA1243-APP-PAGES]');
+            // One-time, fail-closed retry for verified v0.354 already merged at
+            // the exact parent SHA. Do not permit an unreviewed app diff or Sheet write.
+            const safePagesRetry=releaseMessage.includes('[QA1243-APP-PAGES-RETRY]');
+            if(safePagesRetry){
+              const expectedParent='66cb74612baf47950ba2cc391a9cf019c32b95f6';
+              const retryOnly=new Set([
+                '.github/workflows/p0-pages-deploy.yml',
+                'qa1243_pages_no_operating_write_guard.mjs'
+              ]);
+              if(!safeAppRelease || before!==expectedParent ||
+                 !files.includes('.github/workflows/p0-pages-deploy.yml') ||
+                 files.some(f=>!retryOnly.has(f)))
+                throw Error('QA1243_SAFE_RETRY_SCOPE_MISMATCH');
+              const parent=await github.rest.repos.getCommit({...context.repo,ref:before});
+              const parentMessage=String(parent.data.commit?.message||'');
+              if(!parentMessage.includes('[QA1243-NO-OPERATING-WRITE]') ||
+                 !parentMessage.includes('[QA1243-APP-PAGES]'))
+                throw Error('QA1243_SAFE_RETRY_PARENT_UNVERIFIED');
+            }
             const appAssets=new Set([
               'hq_store_onboarding_ui.js','index.html',
               'supabase/migrations/20261022225500_qa1243_confirmed_primary_owner_ready.sql',
@@ -264,7 +285,7 @@ jobs:
             ]);
             if(files.some(f=>appAssets.has(f)) && !safeAppRelease)
               throw Error('QA1243_UNMARKED_APP_CHANGE_MUST_NOT_SKIP_OPERATING_RELEASE');
-            if(safeAppRelease){
+            if(safeAppRelease && !safePagesRetry){
               for(const expected of ['index.html','hq_store_onboarding_ui.js',
                 'supabase/migrations/20261022225500_qa1243_confirmed_primary_owner_ready.sql']){
                 if(!files.includes(expected))throw Error('QA1243_APP_RELEASE_REQUIRED_FILE_MISSING: '+expected);

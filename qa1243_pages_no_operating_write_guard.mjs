@@ -61,4 +61,47 @@ assert.match(notify,/!contains\(github\.event\.workflow_run\.head_commit\.messag
 assert.match(qa,/QA1243_GOOGLE_OAUTH_CLIENT_ID/);
 assert.doesNotMatch(qa,/secrets\.GOOGLE_OAUTH_CLIENT_ID/);
 assert.doesNotMatch(apps,/scripts\/qa1243_build_isolated_gas|QA1243_QA_GOOGLE_BOOTSTRAP/);
+// Execute the ACTUAL GitHub Actions isolation guard on synthetic push payloads.
+assert.match(pages,/qa_hq_sample_roster_activation_guard_v1\.mjs/,
+  'Previous production push failed because this exact QA-only file was not allowlisted');
+assert.match(pages,/QA1243_SAFE_RETRY_SCOPE_MISMATCH/);
+assert.match(pages,/QA1243_SAFE_RETRY_PARENT_UNVERIFIED/);
+const scriptStart=pages.indexOf('            const allowed=new Set([');
+const scriptLast=pages.indexOf("            core.info('QA1243_NO_OPERATING_WRITE_GUARD_PASS",scriptStart);
+const scriptEnd=pages.indexOf('\n',scriptLast);
+assert.ok(scriptStart>0&&scriptLast>scriptStart&&scriptEnd>scriptLast);
+const actualGuard=pages.slice(scriptStart,scriptEnd).split('\n').map(line=>
+  line.startsWith('            ')?line.slice(12):line).join('\n');
+const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
+const executeActualGuard=new AsyncFunction('context','github','core',actualGuard);
+const originalRelease='66cb74612baf47950ba2cc391a9cf019c32b95f6';
+const approvedMarker='[QA1243-NO-OPERATING-WRITE] [QA1243-APP-PAGES]';
+const retryMarker=approvedMarker+' [QA1243-APP-PAGES-RETRY]';
+async function proveRetry({parent=originalRelease,message=retryMarker,
+  parentMessage=approvedMarker,changed=[
+    '.github/workflows/p0-pages-deploy.yml',
+    'qa1243_pages_no_operating_write_guard.mjs'
+  ]}={}){
+  let getCommitCalled=false;
+  const context={repo:{owner:'koith',repo:'attendance-proto'},sha:'f'.repeat(40),
+    payload:{before:parent,head_commit:{message}}};
+  const github={rest:{repos:{
+    compareCommits:async()=>({data:{files:changed.map(filename=>({filename}))}}),
+    getCommit:async()=>{getCommitCalled=true;return {data:{commit:{message:parentMessage}}};}
+  }}};
+  await executeActualGuard(context,github,{info:()=>{}});
+  assert.equal(getCommitCalled,true,'Parent approved marker must be independently fetched');
+}
+await proveRetry();
+await assert.rejects(proveRetry({parent:'a'.repeat(40)}),/QA1243_SAFE_RETRY_SCOPE_MISMATCH/);
+await assert.rejects(proveRetry({parentMessage:'unmarked external deployment'}),
+  /QA1243_SAFE_RETRY_PARENT_UNVERIFIED/);
+await assert.rejects(proveRetry({changed:[
+  '.github/workflows/p0-pages-deploy.yml','index.html'
+]}),/QA1243_SAFE_RETRY_SCOPE_MISMATCH/);
+await assert.rejects(proveRetry({changed:[
+  '.github/workflows/p0-pages-deploy.yml','supabase/functions/server-sync-sheet/index.ts'
+]}),/QA1243_SAFE_RETRY_SCOPE_MISMATCH/);
+console.log('PASS QA1243 scoped v0.354 Pages retry on approved parent, reject unrelated app/Edge diff');
+
 console.log('PASS QA1243 QA-only main push cannot invoke Pages publisher, operating Sheet refresh, or false production deploy notification');
