@@ -72,3 +72,20 @@
 - `NO_GO`: 어떤 필수 증거라도 FAIL / PENDING. 금요일 실정보 투입 보류.
 
 항목별 산출물을 재실행하지 않고 원장에 연결해 보존한다.
+
+## 6. 2026-10-22 22시 — 실제 Google E2E 통과 이후 보안·실인원 개통 게이트
+
+- **검증한 최신 증거**: trusted [Google E2E #39781031886](https://github.com/koith/attendance-proto/actions/runs/39781031886) SUCCESS (QA 소유 Script / Google Sheets A·B 쓰기·읽기·중복방지·정정·격리). 이를 다시 GOOGLE 403 미완료로 기록하지 않는다. 단 Gmail/운영 Hosted Auth 초대·인증·실세션 검증에는 해당하지 않는다.
+- **현재 게이트**: [#39782981047](https://github.com/koith/attendance-proto/actions/runs/39782981047) `5/8 NO_GO`, 남은 `HOSTED_AUTH_READ`, QA-only main 커밋으로 생략된 `PAGES_PUBLISH` 및 `INDEPENDENT_PAGES`. 외부 증빙 3개 `HOSTED_TEST_MAIL_RECEIPT`, `STORE_MANAGER_LIVE_SESSION`, `PRODUCTION_PREPOST_DATA_PROOF`는 워크플로 PASS로 대체 금지.
+- **기존 격리 증거와 남은 실증 구분**: `qa_gotrue_mailpit_live_1243.mjs`의 격리 GoTrue+Mailpit은 실제 테스트 SMTP 초대/링크/비밀번호/로그인/기존 계정 recovery/취소 후 재초대/실제 시계 만료를 검증한다. `qa_invitation_preflight_1243.sql`·`qa_store_delegated_manager_postgres.sql`·`qa_store_opening_lifecycle_1243.sql`은 지점별 가상 사용자/역할·STALE 관리자 접근 거부/직원·급여·레시피 격리를 테스트한다. **운영 Hosted Auth를 통한 실제 테스트 수신/계정 세션은 아직 미검증**, 실명/운영 초대 임의 생성하지 않는다.
+- **금요일 당일 개통**: user가 실제 지점명과 실대표 이메일 및 명시 승인을 제공하기 전 운영 지점 등록, Auth 초대 발송, 활성화/직원·근태·급여·레시피 원본 쓰기 금지. 독립 테스트 결과가 PASS라도 운영 READY로 임의 전환하지 않음.
+
+### 사진 속 공유 비밀키 — 무중단 대응
+
+1. 2026-10-21 QA1243 Google Apps Script 편집기 사진에 `SHARED_SECRET` 평문이 보였으므로, **해당 값은 노출된 것으로 가정**한다. 다만 사진 속 값이 지금 활성 운영 `SHEET_SHARED_SECRET`과 같은지, 기존 운영 계정 소유 스크립트의 키인지, 이미 교체됐는지는 **별도 소유자 증거 없이 확정할 수 없다**. 원문 키를 Issue/채팅/GitHub/QA 로그에 올리지 않는다.
+2. 운영 경로를 무정지 교체하려면 반드시 스크립트/Edge의 현재 활성 버전과 연결 대상을 읽기 전용으로 재확인한다. **새 키는 기존 키와 독립** 생성하고 GitHub 로그 및 대화에 남기지 않는다. 스크립트 쪽을 먼저 **기존 키 + 새 키 둘 다 인정하는 임시 dual-key 수신 구현**으로 배포하고, 실제 운영 시트에 임의 시험 쓰기 없이 기존 인증 경로 정상 여부를 검증한다.
+3. QA에서 새 키로 UNAUTHORIZED/정상 분기 및 무쓰기 검증한 다음, Edge `SHEET_SHARED_SECRET`을 새 키로 교체하고 외부 동기화의 정상 상태를 확인한다. 정상 전환 후에만 Apps Script에서 **기존 키 허용을 제거**해 배포한다. 하나의 키만 인정하는 기존 구현을 그대로 둔 채 Edge/Script를 순서 없이 일방 변경하면 동기화가 중단되므로 금지.
+4. **중단 조건**: 운영 Google Script 소유자 접근, 운영 Supabase Secret 설정 권한, 실제 업무 동기화 승인 및 전후 정상 증거 중 하나라도 부족하면 `ROTATION_PENDING_OWNER_AUTH`으로 기록하고 운영 값은 변경하지 않는다. 임의 시트 덮어쓰기, 기존 시트/스크립트 교체, 공유 권한 변경 금지.
+5. **QA 전용 새 프로젝트**는 실제 QA Actions 실행 시 난수 공유키를 생성해 QA 스크립트에만 배포한다. QA 랜덤 키와 운영 `SHEET_SHARED_SECRET`을 혼용하지 않는다. Actions Google API 오류 본문이 토큰/키를 다시 노출하지 않도록 QA 러너의 로그를 상태코드만 남기게 강화한다.
+
+금요일 안전 판정은 최신 자동/외부 증거에 따르며, 실제 필수 항목이 미확인되면 **NO_GO**를 유지한다.
