@@ -117,7 +117,7 @@ SELECT public.assert_onboarding_error(2,'READY','CONFIRMED_PRIMARY_OWNER_REQUIRE
 UPDATE auth.users SET encrypted_password='synthetic-hash'
  WHERE id='00000000-0000-4000-8000-000000000010';
 -- Safe READY path: verified provenance + no demo staff + verified primary.
-DO $
+DO $$
 DECLARE result jsonb;
 BEGIN
  result:=public.hq_store_onboarding_set(2,'READY');
