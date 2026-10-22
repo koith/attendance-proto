@@ -27,7 +27,10 @@ assert.throws(()=>assertQa1243RunnerScopes(QA1243_RUNNER_SCOPES.slice(1)),
 assert.throws(()=>assertQa1243RunnerScopes([...QA1243_RUNNER_SCOPES,
  'https://www.googleapis.com/auth/spreadsheets']),
  /QA1243_OAUTH_SCOPE_MISSING_OR_OVERPRIVILEGED/);
-assert.throws(()=>assertQa1243RunnerScopes([...QA1243_RUNNER_SCOPES,'openid']),
+assertQa1243RunnerScopes([...QA1243_RUNNER_SCOPES,'openid','email']);
+assertQa1243RunnerScopes([...QA1243_RUNNER_SCOPES,'openid','email','profile']);
+assert.throws(()=>assertQa1243RunnerScopes([...QA1243_RUNNER_SCOPES,'openid',
+ 'https://www.googleapis.com/auth/drive']),
  /QA1243_OAUTH_SCOPE_MISSING_OR_OVERPRIVILEGED/);
 
 const candidate={
