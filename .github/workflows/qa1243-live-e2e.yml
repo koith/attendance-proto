@@ -76,6 +76,7 @@ jobs:
               const before=context.payload.before;
               if(!/^[a-f0-9]{40}$/.test(String(before||'')) || /^0{40}$/.test(before))throw Error('GOOGLE_REUSE_BASE_REQUIRED');
               const {data}=await github.rest.repos.compareCommits({...context.repo,base:before,head:context.sha,per_page:100});
+              const costRelease=message.includes('[QA1243-COST-PAGES]')&&message.includes('[QA1243-APP-PAGES]');
               const allowed=new Set([
                 'qa_inventory_valuation_1243.sql',
                 'qa_import_identity_1243.sql',
@@ -89,6 +90,7 @@ jobs:
                 '.github/workflows/p0-pages-deploy.yml','.github/workflows/qa1243-live-e2e.yml',
                 'PROJECT_BACKLOG_20261017.md'
               ]);
+              if(costRelease)for(const f of ['index.html', 'operations_v1.js', 'qa_operations_material_cost_safe_v1.mjs', 'qa_material_cost_report_1243.sql', 'supabase/migrations/20261023024132_qa1243_verified_material_cost_report.sql', 'scripts/qa1243_material_cost_pages_smoke.mjs'])allowed.add(f);
               const files=data.files||[];
               if(!files.length || files.length>=100 || files.some(f=>!allowed.has(f.filename)||f.status==='renamed'||f.status==='removed'))throw Error('GOOGLE_REUSE_SCOPE_REJECTED');
               runLive=false;

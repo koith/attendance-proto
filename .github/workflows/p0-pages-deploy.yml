@@ -196,6 +196,12 @@ jobs:
         with:
           script: |
             const allowed=new Set([
+              'operations_v1.js',
+              'qa_operations_material_cost_safe_v1.mjs',
+              'qa_material_cost_report_1243.sql',
+              'supabase/migrations/20261023024132_qa1243_verified_material_cost_report.sql',
+              'scripts/qa1243_material_cost_pages_smoke.mjs',
+
               'qa_inventory_valuation_1243.sql',
               'qa_import_identity_1243.sql',
               'supabase/migrations/20261023023009_qa1243_inventory_valuation_fail_closed.sql',
@@ -262,6 +268,7 @@ jobs:
             const files=(diff.files||[]).map(x=>x.filename);
             const releaseMessage=String(context.payload.head_commit?.message||'');
             const safeAppRelease=releaseMessage.includes('[QA1243-APP-PAGES]');
+            const safeCostRelease=releaseMessage.includes('[QA1243-COST-PAGES]');
             // One-time, fail-closed retry for verified v0.354 already merged at
             // the exact parent SHA. Do not permit an unreviewed app diff or Sheet write.
             const safePagesRetry=releaseMessage.includes('[QA1243-APP-PAGES-RETRY]');
@@ -294,7 +301,20 @@ jobs:
             ]);
             if(files.some(f=>appAssets.has(f)) && !safeAppRelease)
               throw Error('QA1243_UNMARKED_APP_CHANGE_MUST_NOT_SKIP_OPERATING_RELEASE');
-            if(safeAppRelease && !safePagesRetry){
+            if(safeCostRelease){
+              if(!safeAppRelease || !files.includes('operations_v1.js') || !files.includes('supabase/migrations/20261023024132_qa1243_verified_material_cost_report.sql'))throw Error('MATERIAL_COST_RELEASE_SCOPE');
+              const html=diff.files.find(f=>f.filename==='index.html');
+              const lines=String(html?.patch||'').split('\n').filter(l=>/^[-+]/.test(l)&&!/^---|^\+\+\+/.test(l));
+              const before=lines.filter(l=>l[0]==='-').map(l=>l.slice(1));
+              const after=lines.filter(l=>l[0]==='+').map(l=>l.slice(1));
+              if(before.length!==3 || after.length!==3 ||
+                 !before.every((line,i)=>after[i]===line.replaceAll('v0.354','v0.355').replace('operations_v1.js?v=20261019v345','operations_v1.js?v=20261023v355')) ||
+                 !before.some(l=>l.includes('const APP_VERSION="v0.354";')) ||
+                 !before.some(l=>l.includes('id="appVersion"')) ||
+                 !before.some(l=>l.includes('operations_v1.js?v=20261019v345')))
+                throw Error('MATERIAL_COST_HTML_DIFF');
+            }
+            if(safeAppRelease && !safePagesRetry && !safeCostRelease){
               for(const expected of ['index.html','hq_store_onboarding_ui.js',
                 'supabase/migrations/20261022225500_qa1243_confirmed_primary_owner_ready.sql']){
                 if(!files.includes(expected))throw Error('QA1243_APP_RELEASE_REQUIRED_FILE_MISSING: '+expected);
@@ -598,7 +618,12 @@ jobs:
         run: node scripts/qa1243_safari_pages_smoke.mjs --before
       - name: Capture unchanged operating public asset digests before safe app release
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
-        run: node scripts/qa1243_owner_ready_pages_smoke.mjs --before
+        run: |
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-COST-PAGES]') }}" == "true" ]]; then
+            node scripts/qa1243_material_cost_pages_smoke.mjs --before
+          else
+            node scripts/qa1243_owner_ready_pages_smoke.mjs --before
+          fi
       - name: Build static QA-only HTML / JS / CSS (existing app files unchanged)
         run: node scripts/qa1243_safari_static_build.mjs
       - uses: actions/configure-pages@v5
@@ -613,7 +638,12 @@ jobs:
         run: node scripts/qa1243_safari_pages_smoke.mjs --after
       - name: Confirm public v0.354 HQ readiness UI and unchanged other operating assets
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
-        run: node scripts/qa1243_owner_ready_pages_smoke.mjs --after
+        run: |
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-COST-PAGES]') }}" == "true" ]]; then
+            node scripts/qa1243_material_cost_pages_smoke.mjs --after
+          else
+            node scripts/qa1243_owner_ready_pages_smoke.mjs --after
+          fi
 
   build-pages:
     name: Build Pages artifact

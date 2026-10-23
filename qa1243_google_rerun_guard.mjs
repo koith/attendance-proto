@@ -24,3 +24,5 @@ await assert.rejects(verdict([]),/GOOGLE_REUSE_SCOPE_REJECTED/);
 await assert.rejects(verdict(['qa_auth_role_journey_1243.mjs'],'[QA1243-NO-GOOGLE-RERUN]'),/GOOGLE_REUSE_REQUIRES_NO_WRITE/);
 assert.match(source,/if: github.event_name == 'push' && needs.execution-scope.outputs.run_live == 'true'/);
 console.log('PASS actual Google reuse guard: Auth-only skip, reject operating/Google source exemptions');
+assert.equal(await verdict(['index.html','operations_v1.js','supabase/migrations/20261023024132_qa1243_verified_material_cost_report.sql'],
+ '[QA1243-NO-GOOGLE-RERUN] [QA1243-NO-OPERATING-WRITE] [QA1243-APP-PAGES] [QA1243-COST-PAGES]'),'false');

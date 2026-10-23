@@ -513,3 +513,12 @@
 - **MTG-05/06/08 실제 결함:** 같은 CSV 안의 중복 원천키가 마지막 행으로 덮어써지고 긴 키는 180자 잘림으로 서로 다른 영수증/매입 원본이 충돌할 수 있었다. 중복/긴 키를 행번호 포함 오류로 원자적 거부하고, 기존 정상 재업로드·수정 및 지점/원천/파일 경계 유지. 이 기능은 공급사 인증·POS 1/2번 단말 실제 의미를 추정하지 않음.
 - **실행 검증:** 새 SQL fixture 2개가 실제 임베디드 PostgreSQL에서 PASS. 원래 재고 함수에 같은 테스트를 적용해 `UNKNOWN_PRICE_IS_NOT_ZERO` 실패를 검출하는 변이 증거 확보. PG16 CI에 2개 fixture 편입, 기존 및 신규 운영 무쓰기/Google 성공 재사용 guard 실행형 회귀 PASS. 운영에는 아직 함수 교체하지 않았으며 PR/CI/병합 후 명시적 함수 배포와 원본 hash 대조 예정.
 - **완료 기준:** 두 결함 수정은 MTG-05/06/08/12의 전체 실제 원천 연결·재료비 계산 완료와 다르다. 체크박스 선변경 없음. 실제 외부 자동수집/공급사 원격 장바구니/실재료비·판매량 소스에 아직 개발이 필요한 부분은 현장 검증으로 숨기지 않는다. 전체38/완료19/잔여19 유지.
+
+
+## 62. 2026-10-23 — MTG-12 사용 재료비 실제 서버 계산·v0.355 안전 대시보드 개발
+
+- **#1315 병합/운영 반영 완료:** 최종 PR 69 check 완료/실패0, main `d0acd6eebd02274dff9b9791b2363656613251c9`. 운영 migrations `qa1243_inventory_valuation_fail_closed`, `qa1243_import_source_conflict_guard` 함수-only 적용 SUCCESS. 운영 pg_get_functiondef에서 NULL가격/중복키 차단 확인, anon 함수 EXECUTE=false. 배포 전후 stores244/admin_users3/employees10/attendance236/payroll_snapshot0/inventory_movements5/operations_transactions3323/raw0/store_recipe_overrides0/recipe_source_variants245의 전체 행 digest **10/10 동일**. 운영 실인원·근태·급여·재고·매출·레시피 행 불변이며 Google Sheet writer 호출 없음. 특정 DB 테이블 검증을 Google Sheet 전체 셀 hash 검증으로 확대하지 않음.
+- **새 기능:** `admin_store_material_cost_report` read-only RPC와 기존 지점 대시보드 summary 연결. 선택 기간 직전/말일의 POSTED 실사, 모든 실재료의 확정 수량, 원장 수량과의 일치 및 양수/명시적0 단가 근거를 모두 충족할 때 `기초평가+입고-반품-기말평가=원장 사용원가`를 검산하고 기록된 폐기/서비스 원가를 별도로 반환. 기간미종료·실사초안·누락가격·평가불일치·알 수 없는 조정 이동은 NULL 유지. 구매 거래 총액/VAT/정산액과 혼동하지 않음. 이동원장 단가 기준·전체 합계 원 단위 반올림을 화면에 명시.
+- **실행 QA:** 실제 PostgreSQL에서 기초1000+입고600-반품100-기말1000=사용500(폐기100/서비스100 포함) 독립 기대값 PASS. 타점·시연·기간 밖 이동 제외, 미가격·수량불일치·DRAFT·미래기간·익명 차단 검증. 실제 UI 계산 guard의 확정500/확정0 및 잘못된 출처/빈값/음수/소수/무한값 거부 PASS. 기존 미산출 동작은 자료가 없을 때 유지.
+- **새 배포 계획:** 앱 v0.355(신규 작업 묶음). index는 버전2줄+operations_v1 캐시1줄만 변경. 기존 v0.354/OAuth/Google E2E를 재배포·재실행하지 않으며, 새 Pages 게시도 표준 Google Sheet 동기화 job과 분리. 정확한3줄 HTML diff·지정변경만 허용, 독립 HTTP index/JS checksum과 owner/근태/HQ/recipe 파일 불변성 검사 추가. 안전 가드 정상/혼입/무마커 실패 주입 PASS. PR/CI/운영 RPC 설치/신규 Pages 공개 검증은 후속 기록 전까지 완료로 표시하지 않음.
+- **범위:** 실제 원가 자료를 대신 생성하거나 소급 입력하지 않는다. 실제 창고 단가·실사·매출 수량/원천 연결 및 현장 검토는 별도. MTG-12의 자동 계산 코드 공백을 메우되 원래 전체 완료기준을 선체크하지 않음. 총38/완료19/잔여19 유지.

@@ -20,7 +20,12 @@ jobs:
         with:
           node-version: '22'
       - name: Independent HTTP readback of live index.html and owner-ready JS digest
-        run: node scripts/qa1243_owner_ready_pages_smoke.mjs --independent
+        run: |
+          if [[ "${{ contains(github.event.workflow_run.head_commit.message, '[QA1243-COST-PAGES]') }}" == "true" ]]; then
+            node scripts/qa1243_material_cost_pages_smoke.mjs --independent
+          else
+            node scripts/qa1243_owner_ready_pages_smoke.mjs --independent
+          fi
       - name: No operating Google or Supabase writes
         run: |
           echo 'Read-only HTTP: no operational Google Sheet or Supabase mutation.' >> "$GITHUB_STEP_SUMMARY"

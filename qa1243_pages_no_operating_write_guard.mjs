@@ -149,3 +149,19 @@ await assert.rejects(proveRetry({changed:[
 console.log('PASS QA1243 scoped v0.354 Pages retry on approved parent, reject unrelated app/Edge diff');
 
 console.log('PASS QA1243 QA-only main push cannot invoke Pages publisher, operating Sheet refresh, or false production deploy notification');
+
+// Execute the v0.355 release path against the actual workflow guard. Only
+// version/operations cache lines may change in HTML; no original row writes.
+const costBefore=['<button id="appVersion">v0.354</button>','const APP_VERSION="v0.354";','<script src="operations_v1.js?v=20261019v345"></script>'];
+const costAfter=costBefore.map(l=>l.replaceAll('v0.354','v0.355').replace('20261019v345','20261023v355'));
+async function proveCostRelease(added=costAfter,extra=[],message='[QA1243-NO-OPERATING-WRITE] [QA1243-APP-PAGES] [QA1243-COST-PAGES]'){
+ const paths=['index.html','operations_v1.js','supabase/migrations/20261023024132_qa1243_verified_material_cost_report.sql',...extra];
+ const files=paths.map(filename=>({filename,...(filename==='index.html'?{patch:costBefore.map(l=>'-'+l).join('\n')+'\n'+added.map(l=>'+'+l).join('\n')}:{})}));
+ const context={repo:{owner:'fixture',repo:'fixture'},sha:'f'.repeat(40),payload:{before:'a'.repeat(40),head_commit:{message}}};
+ await executeActualGuard(context,{rest:{repos:{compareCommits:async()=>({data:{files}})}}},{info(){}});
+}
+await proveCostRelease();
+await assert.rejects(proveCostRelease([...costAfter,'<script>unreviewed()</script>']),/MATERIAL_COST_HTML_DIFF/);
+await assert.rejects(proveCostRelease(costAfter,['apps_script.gs']),/QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE/);
+await assert.rejects(proveCostRelease(costAfter,[],'[QA1243-NO-OPERATING-WRITE] [QA1243-COST-PAGES]'),/MATERIAL_COST_RELEASE_SCOPE|QA1243_UNMARKED_APP_CHANGE/);
+console.log('PASS actual v0.355 cost Pages guard: exact 3-line HTML diff, reject unreviewed assets and missing release marker');
