@@ -620,3 +620,15 @@
 - `scripts/qa1243_sec01/` 후보와 localhost 전용 fixture/러너만 추가, 새 workflow는 disposable PG/GoTrue/PostgREST만 사용. migration 디렉터리/앱/운영 Edge 변경 없음. 운영 Pages/Sheet 무쓰기·Google 재사용 guard의 정확한 파일 allowlist에만 추가. 기존 root QA/SQL·migration을 건드리지 않아 전체 개통/기존 Auth8 재실행을 유발하지 않음.
 - 승인 전 준비와 실제 운영 적용의 경계·기존 유효 훅 보존/복구 조건은 [개통문서9절](QA1243_FRIDAY_OPENING_20261023.md#9-sec-01-승인-전-실제-세션복구-qa-준비). 운영 마이그레이션·활성화·실기기/승인된 계정 검증 전 SEC-01 전체 [ ] 및 NO_GO 유지. main 새 보안 CI와 기존 main read-only 감사/게이트·P0 no-write 결과는 #1243 후속 증거로 연결.
 - 앱 v0.355 / 총38·완료19·잔여19 유지. 7/2/10 분류는 전체 완료 수를 변경하지 않음. 보호244지점/HQ3/직원10 및 원본 자료/기존 Sheet 쓰기0.
+
+
+## 71. 2026-10-23 — Hosted 기존 환경 연결 경로 보완·초대 실수신 준비·SEC-01 운영 계획 확정
+
+- 사용자 이번 원문 [#1243](https://github.com/koith/attendance-proto/issues/1243#issuecomment-6360241412). #1321/#1322/v0.355·기존 Auth8/SEC9/Google/전체 개통/Pages 성공 재실행 금지, 기존 승인 연결부터 Auth 읽기 해결·필요한 관리자 조치 한 건만 요청, 실수신 준비와 별도 승인 전 SEC01 영향/복구/실기기 계획 확정 지시.
+- **추가 확인:** cloud spec53 binding0, 알려진 로컬 관리변수 없음, browser 로그인0. GitHub connector environment GET은 HTTP400 미지원이며 실제 GitHub API 권한 거부가 아님. 기존 production 환경 Secret 문맥을 감사가 사용하지 않던 누락을 보완. Actions Read로 메타데이터만 읽어 환경 존재/보호규칙을 확인한 경우에만 해당 문맥의 기존 인증으로 Auth GET. 새 환경·권한·Secret을 만들지 않음.
+- **보호 유지:** 저장소 전용/기존 인증 우선; 부재일 때만 환경 조회. 401/403 뒤 다른 권한으로 재시도하지 않음. production의 required reviewer/대기/branch 정책을 존중하고 custom/미확인 규칙이면 그 경로를 사용하지 않음. deployment:false로 가짜 운영 배포 객체 생성 없음. PR 준비에는 관리 인증정보를 주지 않음. 공식 GitHub 문서의 environment GET Actions Read와 non-deployment 환경 지원 확인.
+- **실수신 준비 확정:** 설정/실제 TTL→동의된 시험 대상/범위→invite/recovery/기존계정연결 분기→수신/스팸·링크 안전 증거→본인 수락/비밀번호/로그인→대표/보조·지점 권한→승인 범위 내 종료의 실행표 작성. Google QA 이메일 동의를 Hosted 초대 동의로 확대하지 않음. 발송/재초대/정리/READY·실제 계정 변경은 실행하지 않음.
+- **SEC01 새로운 운영 영향 읽기 분석:** HQ관리자3 중2계정에 Auth session 행90개, 복수 세션2계정, latest 연결 없는 관리자1, 존재하지 않는 Auth session에 대한 latest 연결0. 이 수를 유효 JWT/실사용 기기 수로 과장하지 않음. 명시 authenticator role hook 항목0·기존 guard hash47c6b36b66f1834371f95a561e3f90d9. 제공자 환경의 유효 설정은 별도 확인 필요.
+- **운영 계획 확정:** 기존 유효 hook/함수·권한/trigger 비공개 복구본→본사3 본인 재로그인·복구 준비→정확한 영향/SQL·시간/계정의 별도 승인→현재 객체와 diff한 최소 migration→장치A/B의 실제 구세션·옛refresh/logout/복구→직원·익명·타점 무회귀→오차단시 정확한 이전 설정/함수 복구·reload/HTTP 확인. 과거 Auth 세션·refresh token·비밀번호를 복원하거나 다른 기존 hook을 무조건 RESET하지 않음. staged fixture 전체를 운영에 일괄 실행하지 않음.
+- 자세한 실행/정지/복구 조건은 [개통문서10절](QA1243_FRIDAY_OPENING_20261023.md#10-기존-승인-연결로-hosted-읽기-해결실수신-준비sec-01-운영-계획-확정). 이번 추가 검증은 연결 선택/권한보호/GET-only와 workflow 문법에 한정, 기존 실제 E2E 재실행 없음. PR·최종 실제 Auth GET 결과·필요한 단 한 가지 관리자 조치는 #1243 후속 증거로 연결.
+- 앱 v0.355 / 전체38·완료19·잔여19 유지. 운영 SQL/계정·메일/권한·SEC01 활성화/READY·기존 Sheets 변경0. 기존 성공 검증과 배포를 반복하지 않으며 현재 미확인 조건은 성공 처리하지 않음.

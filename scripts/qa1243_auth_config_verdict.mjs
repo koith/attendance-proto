@@ -2,6 +2,27 @@
 export const HOSTED_AUTH_READ_ACCESS=Object.freeze({project:'waluhdgqhwjjwmflhrle',
  method:'GET',endpoint:'https://api.supabase.com/v1/projects/waluhdgqhwjjwmflhrle/config/auth',
  fineGrainedPermission:'auth_config_read',oauthScope:'auth:read',writeAccessRequired:false});
+// Repository credentials retain priority. Only an absent credential permits
+// checking the EXISTING production environment. Never create an environment or
+// bypass custom protection rules incompatible with deployment:false.
+export function selectHostedAuthReadContext({dedicatedPresent=false,existingPresent=false,environmentRead=null}={}){
+ const result={context:'REPOSITORY',reason:'EXISTING_REPOSITORY_CREDENTIAL',
+  environmentReadStatus:null,requiredReviewerGate:false,waitTimerGate:false};
+ if(dedicatedPresent||existingPresent)return result;
+ const status=Number.isInteger(environmentRead?.status)?environmentRead.status:null;
+ result.environmentReadStatus=status;
+ if(status!==200)return {...result,reason:status===404?'EXISTING_ENVIRONMENT_NOT_FOUND':
+  status===401||status===403?'ENVIRONMENT_METADATA_READ_DENIED':'ENVIRONMENT_METADATA_UNVERIFIED'};
+ const config=environmentRead.data;
+ if(config?.name!=='production'||!Array.isArray(config.protection_rules))
+  return {...result,reason:'ENVIRONMENT_METADATA_UNVERIFIED'};
+ const supported=new Set(['required_reviewers','wait_timer','branch_policy']);
+ if(config.protection_rules.some(rule=>!supported.has(rule?.type)))
+  return {...result,reason:'ENVIRONMENT_CUSTOM_OR_UNKNOWN_PROTECTION_PRESERVED'};
+ return {...result,context:'EXISTING_PRODUCTION',reason:'NO_REPOSITORY_CREDENTIAL_EXISTING_ENVIRONMENT_CONFIRMED',
+  requiredReviewerGate:config.protection_rules.some(rule=>rule.type==='required_reviewers'),
+  waitTimerGate:config.protection_rules.some(rule=>rule.type==='wait_timer')};
+}
 export const HOSTED_INVITATION_URLS=Object.freeze({
  siteUrls:Object.freeze(['https://koith.github.io/attendance-proto/',
   'https://koith.github.io/attendance-proto/index.html']),

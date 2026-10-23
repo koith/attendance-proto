@@ -20,14 +20,12 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
-  audit-hosted-auth-smtp:
-    name: Live read-only Supabase Auth/SMTP config
+  verify-audit-code:
+    name: Verify read-only audit preparation (no management credentials)
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    env:
-      SUPABASE_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_AUTH_READ_TOKEN }}
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,18 +34,92 @@ jobs:
       - name: Audit code syntax (GET only; no account mutations)
         run: |
           node --check scripts/qa1243_readonly_auth_config.mjs
-          node -e "const fs=require('fs');const s=fs.readFileSync('scripts/qa1243_readonly_auth_config.mjs','utf8');if(/method:\s*['\"](?:POST|PATCH|PUT|DELETE)['\"]/.test(s))process.exit(1);console.log('PASS read-only verbs only')"
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          for(const path of ['scripts/qa1243_readonly_auth_config.mjs','scripts/qa1243_auth_config_verdict.mjs']){
+            const source=readFileSync(path,'utf8');
+            if(/method:\s*['"](?:POST|PATCH|PUT|DELETE)['"]/.test(source))throw Error('AUTH_AUDIT_WRITE_VERB_FORBIDDEN');
+          }
+          console.log('PASS read-only verbs only');
+          JS
       - name: Check Hosted config, activation URLs and actual page failure paths (isolated VM)
         run: node scripts/qa1243_auth_config_verdict.test.mjs
       - name: Check explicitly approved QA route and production write isolation (static harness)
         run: node qa1243_approved_sheet_route_guard.mjs
+
+  select-existing-read-context:
+    name: Locate existing approved Auth read context (metadata only)
+    needs: verify-audit-code
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      context: ${{ steps.route.outputs.context }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: route
+        uses: actions/github-script@v7
+        env:
+          SUPABASE_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_AUTH_READ_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        with:
+          script: |
+            const {selectHostedAuthReadContext}=await import(process.env.GITHUB_WORKSPACE+'/scripts/qa1243_auth_config_verdict.mjs');
+            const dedicatedPresent=Boolean(String(process.env.SUPABASE_AUTH_READ_TOKEN||'').trim());
+            const existingPresent=Boolean(String(process.env.SUPABASE_ACCESS_TOKEN||'').trim());
+            let environmentRead=null;
+            if(!dedicatedPresent&&!existingPresent){
+              try{
+                const response=await github.rest.repos.getEnvironment({...context.repo,environment_name:'production'});
+                environmentRead={status:response.status,data:response.data};
+              }catch(error){
+                environmentRead={status:Number.isInteger(error.status)?error.status:null};
+              }
+            }
+            const result=selectHostedAuthReadContext({dedicatedPresent,existingPresent,environmentRead});
+            core.setOutput('context',result.context);
+            core.info('QA1243_AUTH_READ_CONTEXT '+JSON.stringify(result));
+            await core.summary.addHeading('Existing Auth read context').addRaw(JSON.stringify(result)).write();
+
+  audit-repository-auth:
+    name: Hosted Auth GET using existing repository credential
+    needs: select-existing-read-context
+    if: needs.select-existing-read-context.outputs.context == 'REPOSITORY'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Request hosted Auth and SMTP configuration using GET only
-        if: github.event_name != 'pull_request'
+        env:
+          SUPABASE_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_AUTH_READ_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/qa1243_readonly_auth_config.mjs
-      - name: Explicit scope and live evidence limitation
+
+  audit-existing-production-auth:
+    name: Hosted Auth GET using existing protected environment (no deployment)
+    needs: select-existing-read-context
+    if: needs.select-existing-read-context.outputs.context == 'EXISTING_PRODUCTION'
+    environment:
+      name: production
+      deployment: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Request hosted Auth and SMTP configuration using GET only
+        env:
+          SUPABASE_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_AUTH_READ_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/qa1243_readonly_auth_config.mjs
+      - name: Explicit existing-permission and non-deployment boundary
         if: always()
         run: |
-          echo 'Requires project-scoped Auth Config Read (auth_config_read / OAuth auth:read). No settings write permission required.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Dedicated read token is preferred; existing Management secret is reused only when it is absent. Tokens and SMTP values are never printed.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'PR tests do not contact Hosted Auth or prove real mail delivery; main/manual audit performs GET only.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'URL audit checks production Site URL and the actual invitation/recovery activation callback. Missing values remain unverified; no URL configuration is changed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Existing production environment only after metadata confirmation. Protection rules retained; no deployment object, settings change or mail.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Only Auth Config Read (auth_config_read / auth:read) is required. Secrets are never printed; 401/403 never broadens credentials.' >> "$GITHUB_STEP_SUMMARY"
+

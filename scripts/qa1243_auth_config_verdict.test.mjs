@@ -2,7 +2,34 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {assessHostedInviteConfig,probeHostedAuthManagement,HOSTED_AUTH_READ_ACCESS,
- assessHostedInvitationUrls,HOSTED_INVITATION_URLS} from './qa1243_auth_config_verdict.mjs';
+ assessHostedInvitationUrls,HOSTED_INVITATION_URLS,selectHostedAuthReadContext} from './qa1243_auth_config_verdict.mjs';
+
+const environment={name:'production',protection_rules:[{type:'required_reviewers',reviewers:[{secret:'untrusted-private-value'}]},{type:'wait_timer'},{type:'branch_policy'}]};
+for(const presence of [{dedicatedPresent:true},{existingPresent:true}]){
+ const route=selectHostedAuthReadContext({...presence,environmentRead:{status:200,data:environment}});
+ assert.equal(route.context,'REPOSITORY','Existing repository authority is not silently replaced');
+ assert.equal(route.environmentReadStatus,null);
+}
+const protectedRoute=selectHostedAuthReadContext({environmentRead:{status:200,data:environment}});
+assert.equal(protectedRoute.context,'EXISTING_PRODUCTION');assert.equal(protectedRoute.requiredReviewerGate,true);
+assert.equal(protectedRoute.waitTimerGate,true);assert.equal(JSON.stringify(protectedRoute).includes('untrusted-private-value'),false);
+for(const config of [null,{name:'new-environment',protection_rules:[]},{name:'production'},
+ {name:'production',protection_rules:[{type:'custom_deployment_protection_rule'}]},
+ {name:'production',protection_rules:[{type:'UNKNOWN'}]}]){
+ assert.equal(selectHostedAuthReadContext({environmentRead:{status:200,data:config}}).context,'REPOSITORY','Never create environment or bypass unknown/custom rules');
+}
+for(const status of [null,401,403,404,500])
+ assert.equal(selectHostedAuthReadContext({environmentRead:{status}}).context,'REPOSITORY');
+const workflow=readFileSync(new URL('../.github/workflows/qa1243-operational-readonly.yml',import.meta.url),'utf8');
+const verifyJob=workflow.slice(workflow.indexOf('  verify-audit-code:'),workflow.indexOf('  select-existing-read-context:'));
+assert.equal(verifyJob.includes('secrets.'),false,'PR/static preparation receives no management credential');
+assert.ok(workflow.includes("if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"));
+assert.ok(workflow.includes('deployment: false'),'Auth config read must not manufacture a production deployment');
+assert.ok(workflow.includes("environment_name:'production'"));
+assert.equal(/github\.rest\.[^\n]*(?:create|update|delete)/i.test(workflow),false,'Only existing environment GET, never secret/environment mutation');
+assert.ok(workflow.includes("outputs.context == 'REPOSITORY'"));
+assert.ok(workflow.includes("outputs.context == 'EXISTING_PRODUCTION'"));
+console.log('PASS existing Auth read routing: absent-only environment lookup, protected/non-deployment context, missing/custom rules stay closed and no management secrets in PR');
 const verified={configReadable:true,remoteTemplateMatch:true,remoteInviteSubjectMatch:true,
  emailProviderEnabled:true,smtpHostConfigured:true,smtpSenderConfigured:true,
  siteUrlProductionMatch:true,activationRedirectAllowed:true};
