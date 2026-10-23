@@ -632,3 +632,15 @@
 - **운영 계획 확정:** 기존 유효 hook/함수·권한/trigger 비공개 복구본→본사3 본인 재로그인·복구 준비→정확한 영향/SQL·시간/계정의 별도 승인→현재 객체와 diff한 최소 migration→장치A/B의 실제 구세션·옛refresh/logout/복구→직원·익명·타점 무회귀→오차단시 정확한 이전 설정/함수 복구·reload/HTTP 확인. 과거 Auth 세션·refresh token·비밀번호를 복원하거나 다른 기존 hook을 무조건 RESET하지 않음. staged fixture 전체를 운영에 일괄 실행하지 않음.
 - 자세한 실행/정지/복구 조건은 [개통문서10절](QA1243_FRIDAY_OPENING_20261023.md#10-기존-승인-연결로-hosted-읽기-해결실수신-준비sec-01-운영-계획-확정). 이번 추가 검증은 연결 선택/권한보호/GET-only와 workflow 문법에 한정, 기존 실제 E2E 재실행 없음. PR·최종 실제 Auth GET 결과·필요한 단 한 가지 관리자 조치는 #1243 후속 증거로 연결.
 - 앱 v0.355 / 전체38·완료19·잔여19 유지. 운영 SQL/계정·메일/권한·SEC01 활성화/READY·기존 Sheets 변경0. 기존 성공 검증과 배포를 반복하지 않으며 현재 미확인 조건은 성공 처리하지 않음.
+
+
+## 72. 2026-10-23 — 기존 production 인증 문맥 실제 확인 종료·관리자 조치 한 건 확정
+
+- [PR #1323](https://github.com/koith/attendance-proto/pull/1323) head b8b6cc17ebda8ff3c0a16daa758ffdf6d0081056 **59개 체크 완료/실패0**, squash **a125554c04d79d3076deb4033fda5238b59c0222** 병합. 앱 v0.355 유지. 본 절은 최종 증거 문서만 추가하며, 문서 전용 [skip ci]로 기존 QA/배포/실패 감사를 반복하지 않음. branch protection/필수 체크는 우회하지 않음.
+- **실제 연결 결과:** [Hosted 감사 #39923060344](https://github.com/koith/attendance-proto/actions/runs/39923060344), 경로 선택 job120312789544: production 환경 GET HTTP200, requiredReviewerGate=false/waitTimerGate=false, 기존 환경 문맥을 정상 사용. 실제 GET job120312839663의 2026-10-23 **17:13:16 KST** 결과는 managementCredentialSource=NONE/configReadable=false/MANAGEMENT_API_CREDENTIAL_ABSENT. 저장소와 기존 환경의 **감사에 연결된 두 자격정보가 모두 제공되지 않음**을 실행으로 확인. 조직/보관함의 모든 다른 인증정보가 없다고 단정하지 않음.
+- 설정을 읽지 못했으므로 SMTP/한국어 템플릿/인증 URL은 UNREAD이며 장애/설정 오류라고 단정하지 않음. 프로젝트/MCP 로그인이나 DB 접근만으로 Auth Management GET을 수행할 수 없고, 안전한 직접 Auth GET 도구/로컬 binding/브라우저 로그인도 없음. 인증정보 추출·권한 확대 없이 사용할 기존 실행 경로 확인을 마쳤으므로 동일 NONE 감사를 더 반복하지 않음.
+- **지금 필요한 사용자 조치는 정확히 한 건:** 대상 프로젝트 waluhdgqhwjjwmflhrle의 **Auth Config Read(auth_config_read / auth:read)만 허용된 관리 API 인증**을 저장소 Actions Secret `SUPABASE_AUTH_READ_TOKEN`으로 안전하게 연결. [등록 화면](https://github.com/koith/attendance-proto/settings/secrets/actions/new). 기존 승인된 읽기 인증이 있으면 재사용. 비밀번호/토큰 원문을 채팅·Issue·로그에 제출하지 않음. 설정 쓰기·DB쓰기·Owner 권한 요구 없음. 현재 환경 승인 대기 job은 없음.
+- 연결 후 **AI 담당:** 인증 경로 선택+Auth GET 단계만 새 Secret 문맥으로 재실행,8개 설정 판정·실제 TTL·초대/복구 링크/템플릿 경계 확인, 불일치 변경안 준비·기록. 설정 수정/실메일 발송/계정·READY/SEC01 활성화는 승인된 범위 전까지 실행하지 않음.
+- **준비 완료:** §71/개통문서§10의 실제 수신·수락·로그인 승인표 및 SEC01 본사3 영향·정확한 이전 설정/함수 보관·최소 diff·실기기 A/B/옛refresh/logout·직원/익명 무회귀·오차단시 이전 설정 복구 계획 확정. 향후 사람의 참여는 실제 수신자 동의/직접 인증 및 별도 SEC01 운영 적용 승인·실기기 확인. 현재 이들을 동시에 요청하지 않음.
+- [최종 P0 #39923060166](https://github.com/koith/attendance-proto/actions/runs/39923060166) SUCCESS, Pages build/QA publish/deploy/validation 전부 SKIP. [기술 main 최종 개통점검 #39923200350](https://github.com/koith/attendance-proto/actions/runs/39923200350) 7/8 NO_GO(HOSTED_AUTH_READ), 기존 실제 Google39781031886 PASS 재사용. main 기술작업 pending0·예상 밖 실패0. 운영 계정·메일·SQL·권한·hook·READY·기존 Sheets 변경0.
+- 정본 **전체38/완료19/잔여19**, 분류7/2/10 유지. 실제 설정 읽기·실수신/본인인증·개통 승인·SEC01 운영 실증은 성공 처리하지 않음. 다음 장애물은 기술 조사 반복이 아니라 위 최소 읽기 연결 한 건이며, 이후 조회·판정은 AI가 이어 수행한다.
