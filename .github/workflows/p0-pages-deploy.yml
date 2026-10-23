@@ -196,6 +196,14 @@ jobs:
         with:
           script: |
             const allowed=new Set([
+              'supabase/functions/qa1243-google-mail-bridge/core.mjs',
+              'supabase/functions/qa1243-google-mail-bridge/index.ts',
+              'supabase/functions/qa1243-google-mail-bridge/invite_template.mjs',
+              'gas/qa1243-auth-mail/Code.gs',
+              'gas/qa1243-auth-mail/appsscript.json',
+              'qa/qa1243_google_mail_bridge.test.mjs',
+              '.github/workflows/qa1243-google-mail-bridge.yml',
+              'docs/qa1243-google-mail-bridge.md',
               'scripts/qa1243_auth_four_fields.mjs',
               'scripts/qa1243_auth_four_fields.test.mjs',
               '.github/workflows/qa1243-auth-four-fields.yml',
