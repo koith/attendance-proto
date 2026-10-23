@@ -29,11 +29,11 @@ small{font-size:12px;color:#607081;line-height:1.6;display:block;margin-top:15px
 <p><strong>webuielf@gmail.com</strong> QA 계정 전용 · 10분 세션 · 토큰 복사 한 번</p>
 <p>이 페이지는 Google 로그인만 수행하며, 인증정보를 서버·URL·로그로 전송하지 않습니다. GitHub Secret은 반드시 GitHub 공식 화면에서 저장합니다.</p>
 <label for="client">QA1243-Isolated 프로젝트의 Google Web OAuth Client ID</label>
-<input id="client" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="숫자-...apps.googleusercontent.com">
+<input id="client" type="text" readonly aria-readonly="true" value="293023370445-le7n6lrrbub90i96ol64tt65lss8s6p2.apps.googleusercontent.com" autocomplete="off" autocapitalize="off" spellcheck="false">
 <button id="login" type="button">1. QA Google 로그인·동의</button>
 <button id="copy" type="button" disabled>2. 인증 토큰 복사 (한 번)</button>
 <a class="link" id="github" href="https://github.com/koith/attendance-proto/settings/secrets/actions/new" target="_blank" rel="noopener noreferrer">3. GitHub 공식 Secret 등록 화면</a>
-<p id="status" role="status" aria-live="polite">QA Web OAuth Client ID를 입력한 뒤 Google 계정으로 로그인하세요.</p>
+<p id="status" role="status" aria-live="polite">기존 QA OAuth 클라이언트가 자동 입력되었습니다. Google 계정 로그인·동의만 진행하세요.</p>
 <small>GitHub 화면에서 Secret 이름: <strong>QA1243_GOOGLE_OAUTH_ACCESS_TOKEN</strong>. 값에는 방금 복사한 토큰만 붙여넣습니다. 이 토큰은 짧은 유효기간을 가집니다. 기존 Windows Refresh Token 도우미는 그대로 유지합니다.</small>
 </main>
 <script nonce="QA1243_NONCE">
@@ -89,7 +89,6 @@ googleButton.addEventListener('click',()=>{
        profile.email_verified!==true)
        throw Error('GOOGLE_ACCOUNT_NOT_QA_OWNER');
     token=response.access_token;confirmed=true;copyButton.disabled=false;
-    clientInput.value='';
     note('QA 계정과 정확한 5개 권한 확인 완료. 2번 버튼으로 토큰을 복사하세요.');
    }catch(error){
     token=null;confirmed=false;copyButton.disabled=true;
