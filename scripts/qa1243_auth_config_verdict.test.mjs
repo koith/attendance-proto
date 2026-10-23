@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {assessHostedInviteConfig,probeHostedAuthManagement,HOSTED_AUTH_READ_ACCESS,
- assessHostedInvitationUrls,HOSTED_INVITATION_URLS,selectHostedAuthReadContext} from './qa1243_auth_config_verdict.mjs';
+ assessHostedInvitationUrls,HOSTED_INVITATION_URLS,selectHostedAuthReadContext,
+ diagnoseHostedAuthConfig,buildHostedAuthRepairPlan} from './qa1243_auth_config_verdict.mjs';
 
 const environment={name:'production',protection_rules:[{type:'required_reviewers',reviewers:[{secret:'untrusted-private-value'}]},{type:'wait_timer'},{type:'branch_policy'}]};
 for(const presence of [{dedicatedPresent:true},{existingPresent:true}]){
@@ -89,6 +90,52 @@ const blank=await probeHostedAuthManagement({SUPABASE_ACCESS_TOKEN:existing},exp
 assert.equal(blank.smtpHostConfigured,false);assert.equal(assessHostedInviteConfig(blank).ready,false);
 console.log('PASS exact Auth Config Read permission, safe existing credential reuse, GET-only request, no secret output, denied/no credential remains NO_GO');
 console.log('PASS QA1243 Hosted Auth strict positive evidence + fail-closed cases');
+
+// A missing custom SMTP host does not establish a broken mailer when a Send
+// Email Hook replaces it. Neither a hook nor a default mailer relaxes the gate.
+const diagnosticConfig={...config,hook_send_email_enabled:false,hook_send_email_uri:null};
+assert.equal(diagnoseHostedAuthConfig(diagnosticConfig,expected).emailDeliveryMode,'CUSTOM_SMTP');
+const defaultConfig={...diagnosticConfig,smtp_host:null,site_url:'http://localhost:3000',
+ uri_allow_list:'',mailer_templates_invite_content:'',mailer_subjects_invite:''};
+const defaultDiagnosis=diagnoseHostedAuthConfig(defaultConfig,expected);
+assert.equal(defaultDiagnosis.emailDeliveryMode,'DEFAULT_SUPABASE_MAILER');
+assert.equal(defaultDiagnosis.siteUrlClass,'LOOPBACK');
+assert.equal(defaultDiagnosis.inviteTemplateState,'EMPTY_PROVIDER_DEFAULT');
+assert.equal(defaultDiagnosis.inviteSubjectState,'EMPTY_PROVIDER_DEFAULT');
+assert.equal(defaultDiagnosis.redirectAllowListEntryCount,0);
+for(const enabled of [null,undefined,'false',0]){
+ assert.equal(diagnoseHostedAuthConfig({...defaultConfig,hook_send_email_enabled:enabled},expected).emailDeliveryMode,
+  'HOOK_STATE_UNVERIFIED','Unreported/invalid hook state cannot prove default SMTP');
+}
+const hookConfig={...defaultConfig,hook_send_email_enabled:true,
+ hook_send_email_uri:'https://private-hook.invalid/send?token=sensitive-hook-secret',
+ hook_send_email_secrets:'sensitive-hook-signing-secret'};
+const hookDiagnosis=diagnoseHostedAuthConfig(hookConfig,expected);
+assert.equal(hookDiagnosis.emailDeliveryMode,'SEND_EMAIL_HOOK');
+assert.equal(diagnoseHostedAuthConfig({...hookConfig,hook_send_email_uri:null},expected).emailDeliveryMode,'HOOK_ENABLED_UNVERIFIED');
+const hooked=await probeHostedAuthManagement({SUPABASE_AUTH_READ_TOKEN:credential},expected,
+ async()=>({ok:true,status:200,json:async()=>hookConfig}));
+assert.equal(assessHostedInviteConfig(hooked).ready,false,'Hook presence alone must not turn failed SMTP/template checks into PASS');
+for(const value of ['https://private-site.invalid/?token=sensitive-site-secret','https://name:secret@private.invalid/']){
+ assert.equal(diagnoseHostedAuthConfig({...defaultConfig,site_url:value},expected).siteUrlClass,'UNSAFE_COMPONENTS');
+}
+const safeDefault=await probeHostedAuthManagement({SUPABASE_AUTH_READ_TOKEN:credential},expected,
+ async()=>({ok:true,status:200,json:async()=>defaultConfig}));
+const plan=buildHostedAuthRepairPlan(safeDefault);
+assert.deepEqual(plan.changes.map(x=>x.field),['mailer_templates_invite_content','mailer_subjects_invite','site_url','uri_allow_list']);
+assert.equal(plan.changes[3].operation,'APPEND_EXACT_CALLBACK_PRESERVE_ALL_EXISTING_ENTRIES');
+assert.equal(plan.deliveryAction,'APPROVED_CUSTOM_PROVIDER_AND_VERIFIED_SENDER_REQUIRED');
+assert.equal(plan.futureWritePermission,'auth_config_write');assert.equal(plan.readSecretMustRemainReadOnly,true);
+assert.equal(plan.mailSent,false);assert.equal(plan.accountsChanged,false);
+assert.equal(buildHostedAuthRepairPlan(hooked).deliveryAction,'REVIEW_EXISTING_HOOK_DELIVERY_AND_KOREAN_CONTENT');
+assert.equal(buildHostedAuthRepairPlan(none).unknownsRemainBlocking,true);
+assert.equal(buildHostedAuthRepairPlan(none).changes.length,0,'Do not propose guessed writes when GET was unreadable');
+assert.equal(buildHostedAuthRepairPlan(positive).changes.length,0,'An exact matching config needs no proposed settings change');
+const report=JSON.stringify({hookDiagnosis,hooked,defaultDiagnosis,plan});
+for(const value of ['sensitive-hook-secret','sensitive-hook-signing-secret','sensitive-host','sensitive-password',
+ 'sensitive-site-secret','private-hook.invalid',expected.template,credential])
+ assert.equal(report.includes(value),false,'Diagnostics/plan must never retain private provider/config values');
+console.log('PASS default SMTP/hook distinction, unknown remains blocking, no secret/URL output and approval-only minimal repair plan preserving redirects/policies');
 
 const callback=HOSTED_INVITATION_URLS.activationUrl;
 assert.equal(assessHostedInvitationUrls({site_url:HOSTED_INVITATION_URLS.siteUrls[0]}).activationRedirectSource,'SITE_ORIGIN');

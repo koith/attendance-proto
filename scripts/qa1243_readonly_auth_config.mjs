@@ -3,7 +3,7 @@
 // passphrases, URLs containing tokens, or email template contents.
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {assessHostedInviteConfig,probeHostedAuthManagement} from './qa1243_auth_config_verdict.mjs';
+import {assessHostedInviteConfig,probeHostedAuthManagement,buildHostedAuthRepairPlan} from './qa1243_auth_config_verdict.mjs';
 
 const PROJECT_REF='waluhdgqhwjjwmflhrle';
 const expectedSubject='[백억커피] 매장 관리자 계정 초대 안내';
@@ -37,10 +37,9 @@ try {
     }else result.publicSettingsReason='AUTH_SETTINGS_HTTP_'+res.status;
   }
 }catch{result.publicSettingsReason='AUTH_SETTINGS_NETWORK_ERROR'}
-const allowed=new Set(Object.keys(result));
-if(Object.keys(result).some(k=>!allowed.has(k)))throw Error('Unexpected output key');
 console.log('QA1243_READONLY_AUTH_SMTP_CONFIG '+JSON.stringify(result));
 console.log('QA1243_LOCAL_INVITE_TEMPLATE_SHA256 '+createHash('sha256').update(template).digest('hex').slice(0,16));
+console.log('QA1243_HOSTED_AUTH_REPAIR_PLAN '+JSON.stringify(buildHostedAuthRepairPlan(result)));
 const assessment=assessHostedInviteConfig(result);
 console.log('QA1243_HOSTED_INVITE_CONFIG_VERDICT '+JSON.stringify(assessment));
 if(!assessment.ready){
