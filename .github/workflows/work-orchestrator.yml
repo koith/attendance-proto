@@ -10,6 +10,9 @@ on:
         description: 'Optional checkpoint JSON; empty performs read-only resume'
         type: string
         default: ''
+  workflow_run:
+    workflows: [p0-pages-deploy, verified-pages-deployment-notification, Production payroll Edge deployment]
+    types: [completed]
   schedule:
     - cron: '17 */6 * * *'
   pull_request:
@@ -33,10 +36,11 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ai-dev-${{ github.event_name == 'workflow_dispatch' && inputs.issue_number || github.ref }}
+  group: ai-dev-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && inputs.issue_number || github.ref }}
   cancel-in-progress: false
 jobs:
   guard:
+    if: github.event_name != 'workflow_run'
     permissions:
       contents: read
       issues: write
@@ -44,10 +48,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test scripts/ai-dev/*.test.mjs
+      - name: AI execution policy unit QA
+        run: node scripts/ai-dev/verify.mjs unit
+      - name: AI fresh process integration QA
+        run: node scripts/ai-dev/verify.mjs integration
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-dev-qa-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence.json
+          retention-days: 30
       - run: node scripts/orchestrator.test.mjs
       - id: state
         run: |
@@ -118,3 +133,64 @@ jobs:
         run: |
           node -e 'require("fs").writeFileSync("checkpoint-input.json",process.env.CHECKPOINT_JSON)'
           node scripts/ai-dev/cli.mjs checkpoint "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" checkpoint-input.json
+
+  automation-readback:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify installed automation
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ai-dev/verify.mjs deployment
+      - name: Resume canonical issue in a fresh process
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ai-dev/verify.mjs post-deploy
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-dev-installed-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            evidence.json
+            live-resume.json
+          retention-days: 30
+  acceptance-report:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event != 'pull_request')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Independently read existing QA and deployment evidence (report only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ai-dev/report.mjs > acceptance-report.json
+      - name: Summarize without blocking an existing release
+        run: |
+          node -e 'const r=require("./acceptance-report.json");require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY,"AI acceptance report-only: "+r.status+"\n\n"+JSON.stringify(r,null,2)+"\n")'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-report-${{ github.run_id }}
+          path: acceptance-report.json
+          retention-days: 30
