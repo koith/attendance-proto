@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
+      SUPABASE_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_AUTH_READ_TOKEN }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
@@ -41,4 +42,11 @@ jobs:
       - name: Check explicitly approved QA route and production write isolation (static harness)
         run: node qa1243_approved_sheet_route_guard.mjs
       - name: Request hosted Auth and SMTP configuration using GET only
+        if: github.event_name != 'pull_request'
         run: node scripts/qa1243_readonly_auth_config.mjs
+      - name: Explicit scope and live evidence limitation
+        if: always()
+        run: |
+          echo 'Requires project-scoped Auth Config Read (auth_config_read / OAuth auth:read). No settings write permission required.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Dedicated read token is preferred; existing Management secret is reused only when it is absent. Tokens and SMTP values are never printed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'PR tests do not contact Hosted Auth or prove real mail delivery; main/manual audit performs GET only.' >> "$GITHUB_STEP_SUMMARY"

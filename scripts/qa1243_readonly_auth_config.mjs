@@ -3,54 +3,13 @@
 // passphrases, URLs containing tokens, or email template contents.
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {assessHostedInviteConfig} from './qa1243_auth_config_verdict.mjs';
+import {assessHostedInviteConfig,probeHostedAuthManagement} from './qa1243_auth_config_verdict.mjs';
 
 const PROJECT_REF='waluhdgqhwjjwmflhrle';
 const expectedSubject='[백억커피] 매장 관리자 계정 초대 안내';
 const template=await readFile(new URL('../supabase/email-templates/invite.html',import.meta.url),'utf8');
-const secret=process.env.SUPABASE_ACCESS_TOKEN||'';
-const result={project:PROJECT_REF,mode:'READ_ONLY_MANAGEMENT_GET',configReadable:false,
-  managementCredentialAvailable:Boolean(secret),remoteTemplateMatch:null,remoteInviteSubjectMatch:null,
-  smtpHostConfigured:null,smtpPortConfigured:null,smtpUserConfigured:null,smtpPasswordConfigured:null,
-  smtpSenderConfigured:null,emailProviderEnabled:null,mailerAutoConfirm:null,signupDisabled:null,
-  inviteTtlSeconds:null,externalMailboxDeliveryVerified:false,
-  reason:null};
-if(!secret){
-  result.reason='MANAGEMENT_API_CREDENTIAL_ABSENT';
-} else {
-  const url='https://api.supabase.com/v1/projects/'+PROJECT_REF+'/config/auth';
-  let response;
-  try {
-    response=await fetch(url,{method:'GET',headers:{Authorization:'Bearer '+secret,Accept:'application/json'},
-      redirect:'error',signal:AbortSignal.timeout(25000)});
-  }catch{
-    result.reason='MANAGEMENT_GET_NETWORK_OR_AUTH_FAILURE';
-  }
-  if(response){
-    if(!response.ok){
-      result.reason='MANAGEMENT_GET_HTTP_'+response.status;
-      // Never print server response: it may contain secrets.
-    }else{
-      const config=await response.json();
-      result.configReadable=true;
-      result.remoteTemplateMatch=typeof config.mailer_templates_invite_content==='string'
-        ?config.mailer_templates_invite_content===template:null;
-      result.remoteInviteSubjectMatch=typeof config.mailer_subjects_invite==='string'
-        ?config.mailer_subjects_invite===expectedSubject:null;
-      const present=(key)=>Object.hasOwn(config,key)?Boolean(config[key]):null;
-      result.smtpHostConfigured=present('smtp_host');
-      result.smtpPortConfigured=present('smtp_port');
-      result.smtpUserConfigured=present('smtp_user');
-      result.smtpPasswordConfigured=present('smtp_pass');
-      result.smtpSenderConfigured=present('smtp_admin_email');
-      result.emailProviderEnabled=Object.hasOwn(config,'external_email_enabled')?config.external_email_enabled===true:null;
-      result.mailerAutoConfirm=Object.hasOwn(config,'mailer_autoconfirm')?config.mailer_autoconfirm===true:null;
-      result.signupDisabled=Object.hasOwn(config,'disable_signup')?config.disable_signup===true:null;
-      result.inviteTtlSeconds=Number.isFinite(Number(config.mailer_otp_exp))?Number(config.mailer_otp_exp):null;
-      result.reason='HTTP_200_METADATA_ONLY';
-    }
-  }
-}
+const result={project:PROJECT_REF,mode:'READ_ONLY_MANAGEMENT_GET',externalMailboxDeliveryVerified:false,
+ ...await probeHostedAuthManagement(process.env,{template,subject:expectedSubject})};
 // Fallback: public GoTrue /settings, using ONLY the same public anon key already
 // embedded in the deployed browser app. This endpoint does NOT expose SMTP
 // host/password/template or mail delivery. Never log the anon JWT itself.

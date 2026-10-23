@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {REQUIRED,EXTERNAL_BLOCKERS,classifyWorkflow,verdict,reconcileIntegratedSqlEvidence,reconcileSafePagesEvidence,verifyGoogleOnLiveMain,credentialPreflightFailure} from './qa1243_friday_preflight.mjs';
+import {REQUIRED,EXTERNAL_BLOCKERS,classifyWorkflow,verdict,reconcileIntegratedSqlEvidence,reconcileSafePagesEvidence,verifyGoogleOnLiveMain,credentialPreflightFailure,openingScope,POST_OPENING_WORK} from './qa1243_friday_preflight.mjs';
 const SHA='864383ceeefa5ec9596886804efeb77505180685';
 const now=Date.parse('2026-10-21T00:00:00Z');
 const spec={id:'GENERIC_WORKFLOW',sameSha:false};
@@ -28,6 +28,18 @@ assert.equal(classifyWorkflow(spec,[{...older,conclusion:'skipped'}],SHA,now).st
 const greens=REQUIRED.map(s=>({id:s.id,status:'PASS'}));
 assert.equal(verdict(greens,[]).verdict,'PASS','only full independently verified evidence can pass');
 assert.equal(verdict(greens).verdict,'NO_GO','hosted mail/user and production safety may not be inferred from sandbox');
+const scopeReport=openingScope(greens);
+assert.equal(scopeReport.openingVerdict,'NO_GO');assert.equal(scopeReport.postOpening.blocksOpening,false);
+assert.deepEqual(scopeReport.requiredWorkflowIds,REQUIRED.map(x=>x.id));assert.equal(scopeReport.requiredWorkflowIds.length,8);
+assert.ok(POST_OPENING_WORK.some(x=>x.id==='SUPPLIER_CART'));
+assert.ok(POST_OPENING_WORK.every(x=>!REQUIRED.some(r=>r.id===x.id)));
+for(const required of REQUIRED){
+ const failed=greens.map(x=>x.id===required.id?{...x,status:'FAIL'}:x);
+ assert.equal(openingScope(failed,[]).openingVerdict,'NO_GO','Scope separation must not discard '+required.id+' failure');
+}
+assert.equal(openingScope([...greens,{id:'UNRECOGNIZED_NEW_FAILURE',status:'FAIL'}],[]).openingVerdict,'NO_GO','No unknown failure may be filtered away');
+assert.equal(openingScope(greens,[]).openingVerdict,'PASS');
+console.log('PASS opening scope preserves all 8 required gates and live evidence; post-opening automation is reported separately without hiding failures');
 assert.equal(verdict([{...greens[0],status:'FAIL'},...greens.slice(1)],[]).verdict,'NO_GO');
 assert.ok(REQUIRED.some(s=>s.id==='LIVE_EDGE_GAS_SHEETS'));
 assert.ok(REQUIRED.some(s=>s.id==='TEST_MAIL_GOTRUE'));
@@ -179,6 +191,7 @@ async function evidenceScope(files){
   {rest:{repos:{compareCommits:async()=>({data:{files:files.map(filename=>({filename}))}})}}},{info:()=>{}});
 }
 await evidenceScope(['scripts/qa1243_friday_preflight.mjs','scripts/qa1243_friday_preflight.test.mjs','.github/workflows/p0-pages-deploy.yml','PROJECT_BACKLOG_20261017.md']);
+await evidenceScope(['scripts/qa1243_readonly_auth_config.mjs','scripts/qa1243_auth_config_verdict.mjs','scripts/qa1243_auth_config_verdict.test.mjs','.github/workflows/qa1243-operational-readonly.yml']);
 await assert.rejects(()=>evidenceScope(['scripts/qa1243_friday_preflight.mjs','apps_script.gs']),/QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE/);
 await assert.rejects(()=>evidenceScope(['scripts/qa1243_friday_preflight.mjs','index.html']),/QA1243_UNMARKED_APP_CHANGE/);
 console.log('PASS actual evidence-only publication guard; reject app and operating Sheet source changes');
