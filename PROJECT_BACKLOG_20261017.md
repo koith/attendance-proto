@@ -637,7 +637,7 @@
 ## 72. 2026-10-23 — 기존 production 인증 문맥 실제 확인 종료·관리자 조치 한 건 확정
 
 - [PR #1323](https://github.com/koith/attendance-proto/pull/1323) head b8b6cc17ebda8ff3c0a16daa758ffdf6d0081056 **59개 체크 완료/실패0**, squash **a125554c04d79d3076deb4033fda5238b59c0222** 병합. 앱 v0.355 유지. 본 절은 최종 증거 문서만 추가하며, 문서 전용 [skip ci]로 기존 QA/배포/실패 감사를 반복하지 않음. branch protection/필수 체크는 우회하지 않음.
-- **실제 연결 결과:** [Hosted 감사 #39923060344](https://github.com/koith/attendance-proto/actions/runs/39923060344), 경로 선택 job120312789544: production 환경 GET HTTP200, requiredReviewerGate=false/waitTimerGate=false, 기존 환경 문맥을 정상 사용. 실제 GET job120312839663의 2026-10-23 **17:13:16 KST** 결과는 managementCredentialSource=NONE/configReadable=false/MANAGEMENT_API_CREDENTIAL_ABSENT. 저장소와 기존 환경의 **감사에 연결된 두 자격정보가 모두 제공되지 않음**을 실행으로 확인. 조직/보관함의 모든 다른 인증정보가 없다고 단정하지 않음.
+- **실제 연결 결과:** [Hosted 감사 #39923060344 attempt1](https://github.com/koith/attendance-proto/actions/runs/39923060344/attempts/1), 경로 선택 job120312789544: production 환경 GET HTTP200, requiredReviewerGate=false/waitTimerGate=false, 기존 환경 문맥을 정상 사용. 실제 GET job120312839663의 2026-10-23 **17:13:16 KST** 결과는 managementCredentialSource=NONE/configReadable=false/MANAGEMENT_API_CREDENTIAL_ABSENT. 저장소와 기존 환경의 **감사에 연결된 두 자격정보가 모두 제공되지 않음**을 실행으로 확인. 조직/보관함의 모든 다른 인증정보가 없다고 단정하지 않음.
 - 설정을 읽지 못했으므로 SMTP/한국어 템플릿/인증 URL은 UNREAD이며 장애/설정 오류라고 단정하지 않음. 프로젝트/MCP 로그인이나 DB 접근만으로 Auth Management GET을 수행할 수 없고, 안전한 직접 Auth GET 도구/로컬 binding/브라우저 로그인도 없음. 인증정보 추출·권한 확대 없이 사용할 기존 실행 경로 확인을 마쳤으므로 동일 NONE 감사를 더 반복하지 않음.
 - **당시 필요한 조치(아래 §73에서 연결 완료):** 대상 프로젝트 waluhdgqhwjjwmflhrle의 **Auth Config Read(auth_config_read / auth:read)만 허용된 관리 API 인증**을 저장소 Actions Secret `SUPABASE_AUTH_READ_TOKEN`으로 안전하게 연결. [등록 화면](https://github.com/koith/attendance-proto/settings/secrets/actions/new). 기존 승인된 읽기 인증이 있으면 재사용. 비밀번호/토큰 원문을 채팅·Issue·로그에 제출하지 않음. 설정 쓰기·DB쓰기·Owner 권한 요구 없음. 현재 환경 승인 대기 job은 없음.
 - 연결 후 **AI 담당:** 인증 경로 선택+Auth GET 단계만 새 Secret 문맥으로 재실행,8개 설정 판정·실제 TTL·초대/복구 링크/템플릿 경계 확인, 불일치 변경안 준비·기록. 설정 수정/실메일 발송/계정·READY/SEC01 활성화는 승인된 범위 전까지 실행하지 않음.
@@ -666,3 +666,30 @@
 - **발견 결함·실제 수정:** [P039948020668](https://github.com/koith/attendance-proto/actions/runs/39948020668)의 no-operating-write guard는5개 변경 모두 정확한 allowlist에 있어도, workflow 파일 없이 Auth runner만 바꾸면 필수 진입점 목록에서 누락되어 거부했다. 보호는 fail-closed로 모든 Pages/Sheet 게시 SKIP. 이미 allowlist된 Auth readscript/verdict/test3개만 진입점에 추가하며 새 운영 경로는 허용하지 않는다.
 - **회귀 QA:** 실제 GitHub Actions guard 코드를 실행해 #1325의 정확한5파일 diff와 runner 단독 변경 PASS; owner_activation/index·운영 Edge/edge-release·Apps Script·unknown·문서만·P0만 변경은 계속 거부. 기존 Google proof/Pages 안전 guard 회귀 PASS, Google API 요청0. PR→CI→정상 병합 및 main P0/최종 gate 결과를 #1243에 후속 기록한다.
 - 앱 v0.355/38·19·19 유지. 일반 점주 발송 가능한 SMTP 연결/초대문·운영 URL 설정 변경에는 별도 운영 승인과 Auth Config Write 실행 경로 필요. 읽기 Secret 권한 확대/설정 PATCH/DML/메일·계정 변경/READY/SEC01/Sheets 쓰기0. 승인된 수신자·직접 인증 전 실제 Hosted 메일/로그인 PASS로 표시하지 않는다.
+
+
+## 75. 2026-10-23 — 최종 기술 main 결과·보존 증거·승인 전 단계 마감
+
+- **앱 v0.355 유지.** [#1325](https://github.com/koith/attendance-proto/pull/1325)59체크/실패0, main dc6eeffa55ad6937cd72d4cc13338c2bf297e876. [#1326](https://github.com/koith/attendance-proto/pull/1326)63체크/실패0, 최종 기술 main **b16edff5e223df2e1482d4500c343974217b8309**. 운영 Auth 진단과 실제 발견한 배포 보호 결함을 수정→QA→PR→정상 병합 완료. 앱 자산/Edge/Google 기능 변경이 없어 새 배포는 필요하지 않다.
+- **Auth 연결 해결/감사 완료:** [39923060344 attempt2](https://github.com/koith/attendance-proto/actions/runs/39923060344/attempts/2)에서 새 읽기 Secret으로200, [추가 원인 진단39948020251](https://github.com/koith/attendance-proto/actions/runs/39948020251) job120395473917에서200/SCOPED_AUTH_READ_SECRET. 실제 결과는 기본 mailer·Hook미사용·SMTP미구성·LOOPBACK Site URL·redirect0·초대 HTML/제목 승인본과 불일치. **감사는 실행 완료했으나 설정 검사는2/8로 불합격.** 자격정보 부재나 SMTP 통신 장애로 잘못 표시하지 않는다. 실제 메일 발송/수신은 아직 검증하지 않았다.
+- **main 무쓰기 CI 복구:** [P039950041267](https://github.com/koith/attendance-proto/actions/runs/39950041267) SUCCESS, 실제 guard `QA1243_NO_OPERATING_WRITE_GUARD_PASS files=4`. Pages build120402426710/QA publish120402427347/deploy120402427677/validation120402428438 전부 SKIP. 기존 실패39948020668은 삭제/성공 처리하지 않고 실제 원인과 수정 증거를 §74에 보존했다.
+- **Google 반복 없음:** [39950041476](https://github.com/koith/attendance-proto/actions/runs/39950041476)은 scope/static SUCCESS. 실제 Edge 대기·GAS/Sheets 생성/쓰기·실행 단계(job120402069451 step5/6) SKIP, 모바일 HTTP도 SKIP. 기존 실제 성공39781031886의 ancestry/runner/실행 증거 재사용을 최종 gate가 확인했다. Auth8/SEC9/전체 개통/Pages 배포도 재실행하지 않음.
+- **최종 개통 자동8개:** [39950188173](https://github.com/koith/attendance-proto/actions/runs/39950188173) job120402472716, **7/8 NO_GO**, HOSTED_AUTH_READ만 FAIL. 앞선 gate39950041390의 Google WORKFLOW_NOT_FINISHED는 동시 실행 중 일시 대기였고 Google 재실행 없이 workflow_run의 최종 성공 증거로 해소됐다. 기술 main pending0, 실제 설정 실패에 따른 NO_GO 외 예상 밖 실패0.
+
+| 개통 자동 항목 | 판정 | 근거/범위 |
+|---|---|---|
+| STORE_E2E | PASS | 기존 격리 PG·브라우저 개통 통합 성공 재사용 |
+| MANAGER_POSTGRES | PASS | 기존 보조 관리자 권한·해임 격리 PG 증거 |
+| HQ_STORE_POSTGRES | PASS | 기존 STAGED/READY·대표 확정 PG 증거 |
+| TEST_MAIL_GOTRUE | PASS | 기존 격리 Auth/SMTP 성공; Hosted 실수신과 구분 |
+| HOSTED_AUTH_READ | FAIL | 관리 GET200; 설정 내부2/8,6개 불일치 |
+| LIVE_EDGE_GAS_SHEETS | PASS | 실제39781031886 재사용, Google E2E 반복false |
+| PAGES_PUBLISH | PASS | 기존 v0.355 실제 게시·현재 앱 자산 일치 증거 |
+| INDEPENDENT_PAGES | PASS | 기존 독립 HTTP 검증·현재 자산 일치 증거 |
+
+- **보호 대상 전후 검증:** READ ONLY 두 시점의 동일한 행 정렬·hash 방식으로10그룹 count+전체 행 digest 모두 동일. 지점244/HQ3/인하대직원10/기존근태236(id≤5578)/급여snapshot0/재고이동5/거래3323/raw0/지점레시피override0/원본variant245. guard 함수 hash도47c6b36b66f1834371f95a561e3f90d9 동일. 신규 정상 근태 추가분까지 과거 기준과 같다고 주장하지 않음. 기존 Google Sheets writer 실행0이며 모든 셀 hash를 새로 조사한 것으로 과장하지 않는다.
+- **AI가 완료한 준비:** 읽기 연결/실제 설정 원인 확정, 비밀 없는 진단과 최소 설정 변경안, 정확한 이전 필드 비공개 보관·기존 redirect/기타 Auth 정책 보존·실패 복구/GET 재확인 계획, 실제 초대/기존계정 recovery·재연결/취소·만료·재초대/대표·보조·해임·타점 권한의 승인 후 실행표. 운영 적용·실제 인증을 모의 QA로 대신 완료 처리하지 않음.
+- **다음에 필요한 운영 결정:** §73의 한국어 HTML/제목·Site URL·callback **4필드 변경 + 승인된 메일 공급자/검증 발신자 연결의 운영 승인**. 현재 SMTP 정보/설정 쓰기 실행 권한은 없으며 Auth Config Read Secret은 그대로 유지한다. 실제 적용에는 별도 Auth Config Write(`auth_config_write`)의 승인된 안전한 실행 경로가 필요. 비밀번호/토큰 원문·추가 화면 조작을 채팅으로 요구하지 않는다. 승인만으로 읽기 토큰에 쓰기 권한이 생긴다고 주장하지 않음.
+- **그다음 사람 참여:** 설정 통과 후 동의된 테스트 이메일/대상·발송 범위 승인→수신자 본인 수신·수락/비밀번호·로그인. 실제 지점명/대표 이메일·개통 승인, 별도 SEC01 운영 적용 승인과 실기기A/B/기존HQ 복구 확인. HOSTED_TEST_MAIL_RECEIPT/STORE_MANAGER_LIVE_SESSION/SEC01_SINGLE_DEVICE_ROLLOUT/PRODUCTION_PREPOST_DATA_PROOF4개는 실제 대상 실행 증거 전까지 PENDING. 이번 원본 hash 보존은 승인된 향후 지점 작업의 전후 증거를 대신하지 않는다.
+- **정본 전체38/완료19/잔여19**, 개통 전7/본인인증·승인2/개통 후10 분류 유지. POS·배달·공급사·장바구니·판매량 연동은 미완료 추가개발이며 이번 메일/인증 개통 gate에 새 필수조건으로 넣지 않았다. QA-04/AUTH-01 등 전체 완료 조건은 아직 충족하지 않아 체크하지 않음.
+- **최종 NO_GO 사유:** 운영용 메일 경로·승인 초대문/운영 URL 설정 미충족 및 실제 수신/본인 세션·개통/SEC01 승인·실기기 증거 없음. 운영 PATCH/DML/실메일·계정/권한·READY·SEC01/Sheets 쓰기0. 이 최종 증거는 문서 전용 [skip ci]로 기록해 완료 QA/배포/실패 감사를 반복하지 않는다.

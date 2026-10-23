@@ -230,7 +230,7 @@ POS·배달·공급사·장바구니 자동화 자체는 관리자/근태/급여
 
 ## 11. 2026-10-23 기존 인증 경로 확인 결과와 다음 한 가지 조치
 
-- #1323(59체크/실패0) 병합 후 [실제 감사39923060344](https://github.com/koith/attendance-proto/actions/runs/39923060344)를 완료했다. production 메타데이터 GET200·별도 승인/대기 규칙 없음. 기존 환경의 Secret 문맥도 실제로 사용했지만17:13:16 KST 관리 인증이 NONE이어서 Auth 설정 본문은 읽지 못했다. SMTP/템플릿/URL 오류의 증거가 아니다.
+- #1323(59체크/실패0) 병합 후 [실제 감사39923060344 attempt1](https://github.com/koith/attendance-proto/actions/runs/39923060344/attempts/1)를 완료했다. production 메타데이터 GET200·별도 승인/대기 규칙 없음. 기존 환경의 Secret 문맥도 실제로 사용했지만17:13:16 KST 관리 인증이 NONE이어서 Auth 설정 본문은 읽지 못했다. SMTP/템플릿/URL 오류의 증거가 아니다.
 - **당시 요청한 조치(아래 §12에서 연결 완료):** 프로젝트 `waluhdgqhwjjwmflhrle`의 **Auth Config Read**(`auth_config_read` / OAuth `auth:read`) 관리 API 인증을 [저장소 Actions Secret 등록 화면](https://github.com/koith/attendance-proto/settings/secrets/actions/new)에서 `SUPABASE_AUTH_READ_TOKEN`으로 안전하게 연결한다. 기존 승인된 읽기 인증을 활용하고, 비밀번호/토큰을 대화나 Issue에 보내지 않는다. Owner·설정 쓰기·DB쓰기 권한은 필요하지 않다.
 - 연결되면 AI가 인증 경로 선택과 실제 GET만 새 Secret 문맥으로 재실행해 메일/SMTP/인증 URL의8개 판정을 마무리한다. 동일 NONE 재시도나 기존 초대Auth8·SEC9·Google·전체 개통·Pages 재실행은 하지 않는다.
 - 실수신·수락·로그인 준비표와 SEC01 영향/적용 전 정지 조건·이전 설정 보존/복구·실기기 검증 계획은 §10으로 확정했다. 실제 수신자 동의/직접 인증과 SEC01 활성화 승인은 향후 실행 범위이며 이번에 임의 수행하거나 한꺼번에 요청하지 않는다.
@@ -254,3 +254,26 @@ POS·배달·공급사·장바구니 자동화 자체는 관리자/근태/급여
 - **다음 운영 승인 대상은 §12의4필드 변경 및 승인 메일 공급자/검증 발신자 연결.** 현재 승인된 SMTP 정보/쓰기 실행 권한이 확인되지 않았다. Auth Config Read Secret을 쓰기용으로 바꾸지 않고, 필요한 최소 Auth Config Write 실행 경로를 승인된 보관·연결 방식으로 제공해야 실제 적용 가능. 비밀번호·토큰 원문은 채팅에 받지 않는다. 새 Secret 등록 같은 추가 화면 조작을 다시 요청하지 않는다.
 - 적용 승인/실행 권한/메일 공급자 준비 전 AI는 운영 값을 임의 생성·변경하지 않음. 기존 설정 차이와 정확한 변경값·복구/GET 확인 계획은 작성 완료. 실제 발송은 이 설정 수정 승인과 구분해 동의된 테스트 수신자·범위 승인 후1회, 본인 수신·수락/비밀번호·로그인으로 검증한다.
 - P039948020668는 허용된 Auth runner만 수정한 경우를 진입점에서 빠뜨린 기존 guard 결함으로 실패. 게시 작업은 전부 SKIP. 실제 코드 guard와 정확한 main diff의 회귀를 추가해 수정하며 정상 P0 복구를 후속 증거로 기록. 앱/Google/Pages/운영 SQL/계정·메일/SEC01/READY 변경0.
+
+## 14. 최종 결과와 AI/사용자 경계 (2026-10-23)
+
+- 앱 **v0.355**. #1325(59체크/실패0)·#1326(63체크/실패0) 정상 병합. 최종 기술 main b16edff5e223df2e1482d4500c343974217b8309. [P039950041267](https://github.com/koith/attendance-proto/actions/runs/39950041267) SUCCESS, 모든 Pages 게시/운영 Sheets 쓰기 경로 SKIP. Google39950041476의 실제 실행 step도 SKIP, 기존39781031886 재사용. 재배포 불필요.
+- **읽기 권한 문제는 해결.** 실제 GET HTTP200으로 감사 완료. 설정 내부2/8은 여전히 불합격: 승인 한국어 HTML/제목 불일치, 별도SMTP host/sender없음, 사이트복귀주소 LOOPBACK, redirect0. Send Email Hook도 꺼져 있어 기본 메일러(조직 팀 주소 한정)를 사용한다. 실제 SMTP 통신/실메일 수신은 검사하지 않아 성공/장애로 단정하지 않음.
+- [개통 최종39950188173](https://github.com/koith/attendance-proto/actions/runs/39950188173) **7/8 NO_GO**. 자동8개 개별 판정:
+
+| 항목 | 판정 | 범위 |
+|---|---|---|
+| STORE_E2E | PASS | 기존 격리 PG·브라우저 개통 통합 성공 재사용 |
+| MANAGER_POSTGRES | PASS | 기존 보조 관리자 권한·해임 격리 PG 증거 |
+| HQ_STORE_POSTGRES | PASS | 기존 STAGED/READY·대표 확정 PG 증거 |
+| TEST_MAIL_GOTRUE | PASS | 기존 격리 Auth/SMTP 성공; Hosted 실수신과 구분 |
+| HOSTED_AUTH_READ | FAIL | 관리 GET200; 설정 내부2/8,6개 불일치 |
+| LIVE_EDGE_GAS_SHEETS | PASS | 실제39781031886 재사용, Google E2E 반복false |
+| PAGES_PUBLISH | PASS | 기존 v0.355 실제 게시·현재 앱 자산 일치 증거 |
+| INDEPENDENT_PAGES | PASS | 기존 독립 HTTP 검증·현재 자산 일치 증거 |
+
+- **AI 완료:** 읽기 연결·실제 설정 원인 진단,4필드 최소 변경/기존OAuth URL·가입/세션 정책 보존·정확한 복구/GET 확인안, 실수신·수락/기존계정 분기·대표/보조/해임/타점 확인표 준비. 실제 배포 보호 결함도 코드 수정→QA→PR→병합→main P0 성공으로 마무리.
+- **지금 승인할 운영 범위:** §12의 한국어 invite HTML·제목/Site URL/callback4필드와 **승인 메일서비스·검증 발신자 연결**. SMTP 정보/쓰기 실행 권한이 아직 없어 승인만으로 즉시 쓰기 가능한 상태는 아니다. 기존 읽기 Secret은 유지하며 별도 프로젝트 Auth Config Write 실행 권한은 승인된 안전한 경로가 필요. 원문 비밀번호/토큰·추가 화면 조작을 요청하지 않는다.
+- **실제 사람 참여는 이후:** 설정통과→동의된 테스트 수신자/발송 범위 승인→본인 수신/수락/비밀번호/로그인. 실제 점주 정보/개통 승인과 SEC01 별도 적용 승인·실기기A/B·본사3 재로그인/복구 참여도 필요. 이4개 외부 증거는 준비표나 격리 성공으로 대체하지 않는다.
+- **보존 확인:** READ ONLY 전후10그룹(count/hash) 동일: 지점244/HQ3/직원10/기존근태236/급여0/재고5/거래3323/raw0/지점override0/variant245. 세션 guard 정의 동일. 모든 Sheet셀 hash를 새 검증했다고 주장하지 않으며 실제 writer0. 운영 설정/메일/계정·권한/READY/SEC01 변경0.
+- 원장 **38/완료19/잔여19**, 분류7/2/10. 개통 후 POS·공급사·장바구니·판매량10건은 미완료 개발로 유지. **NO_GO: 실제 메일/운영URL 설정 및 수신·인증/개통·보안 승인·현장 증거 미충족.** 다음은 조회 반복이나 같은 Secret 등록이 아니라 구체적인 운영 설정 승인·메일 경로 확보 단계다.
