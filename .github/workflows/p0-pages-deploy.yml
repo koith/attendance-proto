@@ -329,7 +329,8 @@ jobs:
                  // QA-only integration workflow repair must never trigger the
                  // normal operating Sheets deploy. This entry is included in
                  // the exact allowlist above; unrelated paths still fail.
-                 '.github/workflows/store-opening-full-journey.yml'
+                 '.github/workflows/store-opening-full-journey.yml',
+                 '.github/workflows/qa1243-auth-role-journey.yml'
                ].includes(f))))
                throw Error('QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE');
             core.info('QA1243_NO_OPERATING_WRITE_GUARD_PASS files='+files.length);
