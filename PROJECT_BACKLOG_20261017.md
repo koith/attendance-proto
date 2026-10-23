@@ -610,3 +610,13 @@
 - **SEC-01 누락 차단 보완:** 해임된 구JWT의 즉시 RPC 거부는 기존 실제 Auth 증거 있음. 새 장치 로그인으로 기존 장치 차단은 별개이며 WIP #999 open/unmerged/mergeable=false. 운영 read-only에서 guard 객체 존재=true, authenticator role hook 설정=false 확인; 이 조회만으로 모든 유효 운영 설정/실효성을 단정하지 않음. main 통합·실제 Auth 발급·익명/직원/HQ3·복구/롤백·실기기·승인된 활성화 미완료. 원래 P0를 임의 후순위/성공 처리하지 않고 개통 차단 목록에 명시. 단순 실사용자 인증 대기가 아닌 기술/통합·배포 잔여도 유지.
 - **보호 기준선:** read-only10그룹의 원본 hash는 §66과 동일. stores244/HQ3/employees10, 기존 근태236(id≤5578; 전체238), snapshot0/movement5/transaction3323/raw0/override0/variant245. 최초 잘못된 attendance 테이블명 조회는 relation missing으로 종료/DML0, 실제 attendance_events로 교정한 읽기 검증 성공. Auth/운영 DB·Sheet쓰기/메일/READY 없음. 기존 Sheet 전체 셀 hash를 검증한 것으로 과장하지 않음.
 - 앱 **v0.355 유지**. 변경은 감사/검증/문서만이므로 새 앱 배포 불필요, P0의 운영 Pages/Sheet 작업과 실제 Google E2E는 기존 무쓰기/재사용 마커로 차단. PR·최종 CI·병합·main 조회 감사/8개 판정·배포 SKIP 증거를 #1243에 후속 기록. 현재 개통 **NO_GO**: Hosted 설정 읽기/실수신·실인원/승인, SEC-01 통합·통제된 활성화 실증 미완료. 후속 자동화 미개발을 실인원 대기로 위장하지 않음.
+
+
+## 70. 2026-10-23 — #1321 병합 완료와 SEC-01 로그아웃 JWT 결함·실제 복구 검증 준비
+
+- [PR #1321](https://github.com/koith/attendance-proto/pull/1321) head065735ced6a3b9a1a61d59397ad874b3933a1b3a **56체크 완료/실패0** 후 squash50be119742dbcece42b9b26e7364ed64b7709cc9 병합. [Auth/URL/활성화20케이스 #39916730638](https://github.com/koith/attendance-proto/actions/runs/39916730638) SUCCESS. 기존8/8·Google·전체 개통·v0.355 배포 재실행 없음.
+- **SEC-01 승인 전 실제 개발:** 원래 P0의 새 장치 로그인 구세션 차단/복구 미완료를 단순 인증 대기로 축소하지 않고, WIP #999의 서버 구현을 운영 비활성 staged 후보로 분리. 현재 운영 함수의 읽기 hash47c6b36b66f1834371f95a561e3f90d9, signed claims/관리자 범위=true, Auth session 존재 검사=false. latest_session만 같으면 로그아웃으로 삭제된 세션의 미만료 JWT가 남을 수 있는 결함을 후보에서 수정. 실제 auth.sessions의 session id/uid 존재까지 확인한다. 운영 함수/설정/사용자 변경 없음.
+- **격리 검증:** embedded PostgreSQL에서 익명·직원·현재 관리자 허용, 새 세션 삽입 후 이전 JWT 거부, logout처럼 세션 삭제 후 동일 JWT 거부 PASS. 새 전용 CI는 실제 GoTrue 로그인/refresh JWT로 PostgREST 구세션 차단·관리자3/직원/익명 무회귀·logout·복구·실제 role RESET/reload와 재활성화를 기록. SMTP/초대/Google 재실행 없음. 환경 pre-request override로 복구를 가리는 검증 오류를 피한다.
+- `scripts/qa1243_sec01/` 후보와 localhost 전용 fixture/러너만 추가, 새 workflow는 disposable PG/GoTrue/PostgREST만 사용. migration 디렉터리/앱/운영 Edge 변경 없음. 운영 Pages/Sheet 무쓰기·Google 재사용 guard의 정확한 파일 allowlist에만 추가. 기존 root QA/SQL·migration을 건드리지 않아 전체 개통/기존 Auth8 재실행을 유발하지 않음.
+- 승인 전 준비와 실제 운영 적용의 경계·기존 유효 훅 보존/복구 조건은 [개통문서9절](QA1243_FRIDAY_OPENING_20261023.md#9-sec-01-승인-전-실제-세션복구-qa-준비). 운영 마이그레이션·활성화·실기기/승인된 계정 검증 전 SEC-01 전체 [ ] 및 NO_GO 유지. main 새 보안 CI와 기존 main read-only 감사/게이트·P0 no-write 결과는 #1243 후속 증거로 연결.
+- 앱 v0.355 / 총38·완료19·잔여19 유지. 7/2/10 분류는 전체 완료 수를 변경하지 않음. 보호244지점/HQ3/직원10 및 원본 자료/기존 Sheet 쓰기0.
