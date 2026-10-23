@@ -102,8 +102,8 @@ for(const [name,section] of [
  ['push',journeyWorkflow.split('  push:')[1]?.split('  workflow_dispatch:')[0]]
 ]){
  assert.ok(section,'missing full journey CI trigger: '+name);
- assert.match(section,/      - 'qa_\\*\\.mjs'/,'root QA mjs must trigger '+name);
- assert.match(section,/      - 'qa_\\*\\.sql'/,'disposable SQL QA must trigger '+name);
+ assert.match(section,/      - 'qa_\*\.mjs'/,'root QA mjs must trigger '+name);
+ assert.match(section,/      - 'qa_\*\.sql'/,'disposable SQL QA must trigger '+name);
 }
 const qaOnlyRepair='[QA1243-NO-OPERATING-WRITE] fix root journey CI trigger';
 async function proveJourneyRepair(changed,shouldAccept){
