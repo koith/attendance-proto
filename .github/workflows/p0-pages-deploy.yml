@@ -196,6 +196,9 @@ jobs:
         with:
           script: |
             const allowed=new Set([
+              'qa_auth_role_journey_1243.mjs',
+              'qa_auth_role_journey_1243.sql',
+              '.github/workflows/qa1243-auth-role-journey.yml',
               'scripts/qa1243_build_isolated_gas.mjs',
               'scripts/qa1243_oauth_scopes.mjs',
               'scripts/qa1243_mobile_token_contract.mjs',

@@ -485,3 +485,13 @@
 - **운영 쓰기 안전성:** 특별 표시 `[QA1243-NO-OPERATING-WRITE]`를 달고 변경할 `p0-pages-deploy.yml`의 허용 파일 가드를 좁게 확장하였다. 업무 화면·운영 SQL 함수·Apps Script·Sheet/Edge는 건드리지 않는다. CI 전용 push는 일반 Pages 게시와 운영 시트 쓰기 작업이 모두 SKIPPED여야 하며, 이를 `qa1243_pages_no_operating_write_guard.mjs`로 실제 Actions 가드 실행형 회귀검증한다. 검증되지 않은 배포 성공으로 집계하지 않는다.
 - **이미 검증된 기준 재사용:** PR #1310 병합 SHA `66cb74612baf47950ba2cc391a9cf019c32b95f6`, v0.354 독립 Pages 배포 #39814103615 / 읽기 검증 #39816437359, 운영 마이그레이션 `20261022161851`, Edge v66 ACTIVE. 완료된 OAuth/실Sheets #39781031886 및 격리 GoTrue/Mailpit #39377974348 재구축하지 않는다.
 - **금요일 GO 판정은 별개:** Hosted 실제 메일/수락/비밀번호/로그인과 지점 단위 대표-보조 실권한, 현재 유효한 QA 토큰 Edge→GAS→Sheets, 실점주·지점 승인 및 운영 불변성 전후 증빙 미확보 시 `NO_GO`. 기존 원장 38 / 완료19 / 개발·통합 QA 13 / 외부·실인원 검증대기 6. 위 회귀가 성공하기 전 신규 완료 체크 0건.
+
+
+## 59. 2026-10-23 — 실제 격리 Auth JWT와 지점 권한 RPC 연속 검증 (#1243)
+
+- **재실행하지 않는 완료 근거:** 앱 v0.354, #1310 SQL/Pages 독립 검증 및 Google 실 E2E #39781031886, #1313 최신 격리 통합 QA를 유지. 운영 Google OAuth·Sheet·메일·DB 쓰기 없음.
+- **확인한 검증 공백:** 기존 GoTrue/Mailpit SMTP 검증과 DB 권한 fixture가 분리되어 실제 로그인에서 발급한 JWT의 대표 수락·READY·보조 권한 변경·해임·재연결을 하나의 서버 경로로 증명하지 못했다.
+- **추가 구현:** `qa_auth_role_journey_1243.sql`은 GoTrue가 설치한 실제 auth.users를 그대로 사용하고, checked-in 대표/보조/기본거부/세부권한/재연결/READY migrations를 격리 DB에 설치한다. 새 워크플로에서 실제 Mailpit 수신→GoTrue 비밀번호 설정·로그인→동일 DB의 JWT 검증 PostgREST→대표 수락/본사 READY, 보조 직원·근태·급여 권한의 즉시 변경/해임을 연속 호출한다. 해임 토큰이 Auth /user에는 유효하지만 RPC 접근은 거부되는지 구분하고, 재연결 시 이전 권한이 살아나지 않는지 검증한다.
+- **운영 보호:** 모든 HTTP 대상은 코드에 고정한 127.0.0.1이며 psql 대상 DB/host/port를 강제. 로컬 합성 HQ3·보호 직원10·다른 지점 직원·급여 행 전체 JSON의 사전/사후 동일성을 확인한다. 이것은 운영 원본 불변의 실측 증거가 아니다. 별도 workflow는 운영 Secret·Google API·Pages 게시를 호출하지 않으며, QA-only main 마커의 allowlist에 정확한 새 파일만 추가했다.
+- **검증 상태:** Node 구문 검사·운영 무쓰기 가드 실행형 회귀 PASS. 실제 SMTP/Auth/PostgREST 신규 시나리오 결과는 PR CI 아티팩트 `auth-role-journey-1243`와 #1243 후속 댓글에 기록. 현재 단계에서 신규 서버 E2E 성공을 선기록하지 않는다.
+- **남은 외부 작업:** Hosted SMTP 실수신·브랜드 템플릿·실대표/보조 계정 인증·실지점 승인과 운영 전후 감사. 실제 점주 정보/승인 전 운영 초대나 STAGED→READY 전환을 하지 않는다. **NO_GO 유지**, 전체 38/완료19/잔여19(개발·통합 QA13, 외부·실인원6), 신규 완료 체크 0.

@@ -1,0 +1,132 @@
+name: QA1243 real Auth JWT and store role journey
+on:
+  pull_request:
+    paths:
+      - 'qa_auth_role_journey_1243.*'
+      - 'supabase/migrations/**'
+      - '.github/workflows/qa1243-auth-role-journey.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'qa_auth_role_journey_1243.*'
+      - 'supabase/migrations/**'
+      - '.github/workflows/qa1243-auth-role-journey.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sandbox-real-auth-smtp:
+    name: Real Auth JWT through PostgREST and shipped role migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qa-only-no-production-secret
+          POSTGRES_DB: qa1243_gotrue
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qa1243_gotrue"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      mailpit:
+        image: axllent/mailpit:v1.27
+        ports:
+          - 1025:1025
+          - 8025:8025
+    env:
+      QA_JWT_SECRET: 'qa1243-ephemeral-ONLY-local-GitHub-runner-20261020-verylong'
+      QA_GOTRUE_URL: http://127.0.0.1:9999
+      QA_MAILPIT_URL: http://127.0.0.1:8025
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGDATABASE: qa1243_gotrue
+      PGPASSWORD: qa-only-no-production-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check isolated actual-Auth test syntax
+        run: node --check qa_auth_role_journey_1243.mjs
+      - name: Start self-hosted official Supabase GoTrue (no production credentials)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # GoTrue migrations expect the auth namespace (normally initialized by Supabase DB bootstrap).
+          PGPASSWORD=qa-only-no-production-secret psql -h 127.0.0.1 -U postgres -d qa1243_gotrue -v ON_ERROR_STOP=1 -c 'CREATE SCHEMA IF NOT EXISTS auth;'
+          # Auth migrations own auth.*; runtime queries address users via the role's schema search_path.
+          PGPASSWORD=qa-only-no-production-secret psql -h 127.0.0.1 -U postgres -d qa1243_gotrue -v ON_ERROR_STOP=1 -c 'ALTER DATABASE qa1243_gotrue SET search_path = auth, public;'
+          docker run -d --name qa1243-gotrue --network host \
+            -e GOTRUE_API_HOST=0.0.0.0 \
+            -e GOTRUE_API_PORT=9999 \
+            -e API_EXTERNAL_URL=http://127.0.0.1:9999 \
+            -e GOTRUE_SITE_URL=http://127.0.0.1:3000 \
+            -e GOTRUE_URI_ALLOW_LIST=http://127.0.0.1:3000 \
+            -e GOTRUE_DB_DRIVER=postgres \
+            -e GOTRUE_DB_DATABASE_URL=postgres://postgres:qa-only-no-production-secret@127.0.0.1:5432/qa1243_gotrue \
+            -e GOTRUE_DB_NAMESPACE=auth \
+            -e GOTRUE_JWT_SECRET="$QA_JWT_SECRET" \
+            -e GOTRUE_JWT_ADMIN_ROLES=service_role \
+            -e GOTRUE_JWT_AUD=authenticated \
+            -e GOTRUE_JWT_DEFAULT_GROUP_NAME=authenticated \
+            -e GOTRUE_JWT_EXP=3600 \
+            -e GOTRUE_DISABLE_SIGNUP=false \
+            -e GOTRUE_EXTERNAL_EMAIL_ENABLED=true \
+            -e GOTRUE_MAILER_AUTOCONFIRM=false \
+            -e GOTRUE_MAILER_OTP_EXP=60 \
+            -e GOTRUE_SMTP_ADMIN_EMAIL=qa1243@localhost.invalid \
+            -e GOTRUE_SMTP_HOST=127.0.0.1 \
+            -e GOTRUE_SMTP_PORT=1025 \
+            -e GOTRUE_SMTP_SENDER_NAME='QA1243 isolated sender' \
+            -e GOTRUE_MAILER_URLPATHS_INVITE=/verify \
+            -e GOTRUE_MAILER_URLPATHS_CONFIRMATION=/verify \
+            -e GOTRUE_MAILER_URLPATHS_RECOVERY=/verify \
+            -e GOTRUE_RATE_LIMIT_EMAIL_SENT=100 \
+            -e GOTRUE_SMTP_MAX_FREQUENCY=0s \
+            supabase/gotrue:v2.197.0
+          for attempt in $(seq 1 65); do
+            if curl -fsS http://127.0.0.1:9999/health >/dev/null; then
+              echo 'PASS real GoTrue ready'
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs --tail 70 qa1243-gotrue
+          exit 1
+      - name: Install real role migrations in the same disposable Auth database
+        run: psql -X -v ON_ERROR_STOP=1 -f qa_auth_role_journey_1243.sql
+      - name: Start JWT-verifying PostgREST on the disposable database
+        run: |
+          docker run -d --name qa1243-postgrest --network host \
+            -e PGRST_DB_URI=postgres://qa1243_authenticator:local-disposable-only@127.0.0.1:5432/qa1243_gotrue \
+            -e PGRST_DB_SCHEMAS=public \
+            -e PGRST_DB_ANON_ROLE=anon \
+            -e PGRST_JWT_SECRET="$QA_JWT_SECRET" \
+            -e PGRST_SERVER_PORT=3001 \
+            postgrest/postgrest:v12.2.12
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3001/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Actual SMTP to Auth JWT to owner READY and delegated revocation journey
+        run: node qa_auth_role_journey_1243.mjs
+      - name: Preserve per-scenario evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-role-journey-1243
+          path: qa-results/auth-role-journey-1243.json
+          if-no-files-found: error
+      - name: Check no production host or keys used and destroy local containers
+        if: always()
+        shell: bash
+        run: |
+          docker logs --tail 75 qa1243-gotrue 2>&1 | sed -E 's/(token|access_token|refresh_token|password)=[^[:space:]]+/\1=[REDACTED]/g' || true
+          docker rm -f qa1243-gotrue qa1243-postgrest || true

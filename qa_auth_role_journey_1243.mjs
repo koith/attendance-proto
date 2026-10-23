@@ -1,0 +1,119 @@
+// New proof: actual SMTP -> GoTrue JWT -> PostgREST -> shipped role migrations.
+// This never calls Hosted Supabase or Google; existing Google proof is reused.
+import assert from 'node:assert/strict';
+import {createHmac} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {mkdirSync,writeFileSync} from 'node:fs';
+const AUTH='http://127.0.0.1:9999', REST='http://127.0.0.1:3001', MAIL='http://127.0.0.1:8025';
+assert.equal(process.env.PGHOST,'127.0.0.1');
+assert.equal(process.env.PGDATABASE,'qa1243_gotrue');
+assert.equal(process.env.PGPORT,'5432');
+const secret=process.env.QA_JWT_SECRET;assert.ok(secret?.length>=32);
+const encoded=x=>Buffer.from(JSON.stringify(x)).toString('base64url');
+const input=encoded({alg:'HS256',typ:'JWT'})+'.'+encoded({role:'service_role',aud:'authenticated',exp:Math.floor(Date.now()/1000)+1800});
+const service=input+'.'+createHmac('sha256',secret).update(input).digest('base64url');
+const results=[];
+const pass='Synthetic-Only-Password-1243!';
+const sql=query=>execFileSync('psql',['-XAt','-v','ON_ERROR_STOP=1','-c',query],{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+const uuid=id=>{assert.match(id,/^[a-f0-9-]{36}$/);return id;};
+async function http(base,path,token,body,method='POST'){
+ const r=await fetch(base+path,{method,redirect:'manual',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body===undefined?undefined:JSON.stringify(body)});
+ const raw=await r.text();let data;try{data=JSON.parse(raw)}catch{data=null}
+ return {status:r.status,data,location:r.headers.get('location')||''};
+}
+const rpc=(name,args,token)=>http(REST,'/rpc/'+name,token,args);
+async function success(p){const r=await p;assert.ok(r.status>=200&&r.status<300,'HTTP '+r.status+' '+(r.data?.message||''));return r.data;}
+async function denied(p,message){const r=await p;assert.ok(r.status>=400,'Expected RPC rejection');assert.equal(r.data?.message,message);}
+const ok=name=>{results.push({name,result:'PASS'});console.log('PASS '+name);};
+async function inboxIds(){return new Set((await (await fetch(MAIL+'/api/v1/messages')).json()).messages.map(x=>x.ID));}
+async function redeem(email,seen){
+ for(let i=0;i<40;i++){
+  const list=await (await fetch(MAIL+'/api/v1/messages')).json();
+  const m=list.messages.find(m=>!seen.has(m.ID)&&m.To.some(t=>t.Address===email));
+  if(m){
+   const detail=await (await fetch(MAIL+'/api/v1/message/'+m.ID)).json();
+   const urls=[...(String(detail.HTML)+' '+String(detail.Text)).replaceAll('&amp;','&').matchAll(/https?:\/\/[^\s"'<>]+/g)].map(x=>new URL(x[0]));
+   const url=urls.find(x=>x.pathname==='/verify');assert.ok(url);assert.equal(url.origin,AUTH);
+   const r=await http(AUTH,url.pathname+url.search,null,undefined,'GET');
+   assert.ok([302,303].includes(r.status));const params=new URLSearchParams(r.location.split('#')[1]);
+   const token=params.get('access_token');assert.ok(token);
+   const user=await success(http(AUTH,'/user',token,undefined,'GET'));assert.equal(user.email,email);
+   return {token,id:user.id,email};
+  }
+  await new Promise(r=>setTimeout(r,250));
+ }
+ throw Error('ISOLATED_SMTP_RECEIPT_TIMEOUT');
+}
+async function invite(email,store,mode,actor){
+ const pre=await success(rpc('service_store_invitation_dispatch_preflight',{p_store_id:store,p_email:email,p_actor_id:actor,p_mode:mode},service));
+ assert.equal(pre.delivery,'INVITE');const seen=await inboxIds();
+ const user=await success(http(AUTH,'/invite',service,{email}));uuid(user.id);
+ await success(rpc(mode==='HQ_OWNER'?'service_store_manager_attach_invited_user':'service_store_delegated_manager_attach_invited_user',
+  {p_store_id:store,p_user_id:user.id,p_actor_id:actor},service));
+ return redeem(email,seen);
+}
+async function activate(person,role,store){
+ const pre=await success(rpc('store_invitation_activation_preflight',{},person.token));
+ assert.equal(pre.intended_role,role);assert.equal(pre.store_id,store);
+ await success(http(AUTH,'/user',person.token,{password:pass},'PUT'));
+ const accepted=await success(rpc('store_primary_owner_accept_invitation',{},person.token));
+ assert.equal(accepted.owner_assigned,role==='OWNER');
+ const login=await success(http(AUTH,'/token?grant_type=password',null,{email:person.email,password:pass}));
+ assert.equal(login.user.id,person.id);person.token=login.access_token;
+}
+function protectedSnapshot(){return sql(`SELECT jsonb_build_object(
+ 'stores',(SELECT jsonb_agg(to_jsonb(s) ORDER BY id) FROM public.stores s WHERE id=1),
+ 'employees',(SELECT jsonb_agg(to_jsonb(e) ORDER BY id) FROM public.employees e WHERE store_id=1),
+ 'hq',(SELECT jsonb_agg(to_jsonb(a) ORDER BY user_id) FROM public.admin_users a WHERE admin_role='HQ'),
+ 'beta',(SELECT jsonb_agg(to_jsonb(e) ORDER BY id) FROM public.employees e WHERE store_id=702),
+ 'payroll',(SELECT jsonb_agg(to_jsonb(p) ORDER BY store_id) FROM public.payroll_snapshot p))::text`);}
+try{
+ // Create exactly three real local Auth HQ identities, then bind local fixture roles.
+ const hqs=[];for(let i=0;i<3;i++){
+  const email=`hq${i}@journey1243.invalid`;
+  const u=await success(http(AUTH,'/admin/users',service,{email,password:pass,email_confirm:true}));uuid(u.id);hqs.push(u);
+  sql(`INSERT INTO public.admin_users(user_id,email,admin_role) VALUES('${u.id}','${email}','HQ')`);
+ }
+ const hq=hqs[0];const hqSession=await success(http(AUTH,'/token?grant_type=password',null,{email:hq.email,password:pass}));
+ const before=protectedSnapshot();
+ await denied(rpc('hq_store_onboarding_set',{p_store_id:701,p_status:'READY'},hqSession.access_token),'CONFIRMED_STORE_MANAGER_REQUIRED');
+ const owner=await invite('owner@journey1243.invalid',701,'HQ_OWNER',hq.id);
+ await denied(rpc('hq_store_onboarding_set',{p_store_id:701,p_status:'READY'},hqSession.access_token),'CONFIRMED_PRIMARY_OWNER_REQUIRED');
+ await activate(owner,'OWNER',701);ok('Actual SMTP, owner acceptance, password and login JWT');
+ assert.equal(sql('SELECT onboarding_status FROM public.stores WHERE id=701'),'STAGED');
+ await success(rpc('hq_store_onboarding_set',{p_store_id:701,p_status:'READY'},hqSession.access_token));
+ ok('HQ READY requires accepted password-ready primary owner');
+ await denied(rpc('hq_store_onboarding_set',{p_store_id:702,p_status:'READY'},owner.token),'NOT_AUTHORIZED');
+ await denied(rpc('store_limited_employee_list',{p_store_id:702},owner.token),'NOT_AUTHORIZED');
+ ok('Owner JWT cannot activate or read another branch');
+ const assistant=await invite('assistant@journey1243.invalid',701,'STORE_ASSISTANT',owner.id);
+ await activate(assistant,'ASSISTANT',701);ok('Actual SMTP assistant acceptance, password and login JWT');
+ await denied(rpc('store_limited_employee_list',{p_store_id:701},assistant.token),'NOT_AUTHORIZED');
+ await success(rpc('store_delegated_permissions_set',{p_store_id:701,p_user_id:assistant.id,p_staff_edit:true,p_attendance_approve:false,p_payroll_view:false},owner.token));
+ const staff=await success(rpc('store_limited_employee_list',{p_store_id:701},assistant.token));assert.deepEqual(staff.map(e=>e.id),[70101]);
+ await denied(rpc('store_limited_employee_update',{p_store_id:701,p_employee_id:70201,p_name:'Forbidden',p_memo:''},assistant.token),'EMPLOYEE_NOT_FOUND');
+ await denied(rpc('store_limited_payroll_read',{p_store_id:701,p_ym:'2026-10'},assistant.token),'NOT_AUTHORIZED');
+ await denied(rpc('store_limited_pending_requests',{p_store_id:701},assistant.token),'NOT_AUTHORIZED');
+ await success(rpc('store_delegated_permissions_set',{p_store_id:701,p_user_id:assistant.id,p_staff_edit:true,p_attendance_approve:true,p_payroll_view:true},owner.token));
+ const payroll=await success(rpc('store_limited_payroll_read',{p_store_id:701,p_ym:'2026-10'},assistant.token));assert.deepEqual(payroll.map(p=>p.gross_pay),[45000]);
+ assert.deepEqual(await success(rpc('store_limited_pending_requests',{p_store_id:701},assistant.token)),[]);
+ await denied(rpc('store_limited_payroll_read',{p_store_id:702,p_ym:'2026-10'},assistant.token),'NOT_AUTHORIZED');
+ await success(rpc('store_delegated_permissions_set',{p_store_id:701,p_user_id:assistant.id,p_staff_edit:false,p_attendance_approve:false,p_payroll_view:false},owner.token));
+ await denied(rpc('store_limited_employee_list',{p_store_id:701},assistant.token),'NOT_AUTHORIZED');
+ await denied(rpc('store_limited_payroll_read',{p_store_id:701,p_ym:'2026-10'},assistant.token),'NOT_AUTHORIZED');
+ ok('Same assistant JWT observes immediate grant/revoke and cross-branch denial');
+ await success(rpc('store_delegated_manager_change',{p_store_id:701,p_email:null,p_user_id:assistant.id,p_action:'REVOKE'},owner.token));
+ await success(http(AUTH,'/user',assistant.token,undefined,'GET'));
+ await denied(rpc('store_invitation_activation_preflight',{},assistant.token),'INVITATION_CANCELLED_OR_NOT_FOUND');
+ await denied(rpc('store_limited_employee_list',{p_store_id:701},assistant.token),'NOT_AUTHORIZED');
+ await denied(rpc('store_limited_payroll_read',{p_store_id:701,p_ym:'2026-10'},assistant.token),'NOT_AUTHORIZED');
+ ok('Revoked unexpired real Auth JWT still authenticates but loses RPC access');
+ await denied(rpc('service_store_invitation_dispatch_preflight',{p_store_id:701,p_email:assistant.email,p_actor_id:hq.id,p_mode:'HQ_ASSISTANT'},service),'USE_EXISTING_VERIFIED_ACCOUNT');
+ await success(rpc('hq_store_existing_verified_account_connect',{p_email:assistant.email,p_store_id:701,p_intended_role:'ASSISTANT'},hqSession.access_token));
+ const permissions=await success(rpc('store_delegated_permissions_self',{},assistant.token));
+ assert.equal(permissions.staff_edit,false);assert.equal(permissions.payroll_view,false);assert.equal(permissions.attendance_approve,false);
+ await denied(rpc('store_limited_employee_list',{p_store_id:701},assistant.token),'NOT_AUTHORIZED');
+ ok('Verified existing account reconnect resets all delegated permissions');
+ const after=protectedSnapshot();assert.equal(after,before);ok('Protected branch, HQ3, staff10, Beta and payroll rows unchanged');
+} catch(e){results.push({name:'journey',result:'FAIL',error:String(e.message)});throw e;}
+finally{mkdirSync('qa-results',{recursive:true});writeFileSync('qa-results/auth-role-journey-1243.json',JSON.stringify({scope:'ISOLATED_REAL_AUTH_SMTP_POSTGREST',hostedAuthTested:false,googleE2ERepeated:false,results},null,2));}
