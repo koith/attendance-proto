@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Acceptance proof locators (results are fetched independently)",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "check",
+      "run_id",
+      "artifact_id"
+    ],
+    "properties": {
+      "check": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]{1,80}$"
+      },
+      "run_id": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "artifact_id": {
+        "type": "integer",
+        "minimum": 1
+      }
+    }
+  }
+}

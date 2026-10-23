@@ -64,3 +64,23 @@ snapshot은 `{ "issue": { "number":1331, "title":"...", "body":"전문" }, "comm
 기록은 Issue 댓글의 `[ai-dev-checkpoint:v1]` + JSON/SHA256으로 영구 보존한다. 동일 event_id/동일 입력은 no-op, 다른 입력은 충돌. expected_revision/expected_sha와 원격 branch head를 모두 확인한다. 새 SHA에서는 IN_PROGRESS로 재검증한다. 부모 digest가 갈라지거나 누락되면 CANNOT_VERIFY; 임의로 최신 댓글만 골라 이전 이력을 덮어쓰지 않는다. 동시 수동 작성은 충돌로 드러나며 지원 쓰기 경로는 이슈별 직렬 workflow이다.
 
 GitHub 소유자와 github-actions[bot]의 정확한 최상위 marker 댓글만 신뢰한다(원문 인용/접수 스냅샷은 제외). 체크포인트 상태는 진행 주장이다. CODE_VERIFIED 이상은 별도 독립 gate 결과에서 파생하며 사용자가 JSON에 verified=true를 넣어 승격할 수 없다. BLOCKED는 failure/required_action/resume_state를 보존한다. 자동 agent도 코딩 전 같은 resume 결과를 읽는다.
+
+## 독립 acceptance gate (보고 전용)
+
+`acceptance.schema.json`과 `scripts/ai-dev/acceptance.mjs`는 issue/PR/head SHA/release SHA/release scope 및 요구사항별 unit/integration/merge/deployment/post_deploy/manual 검사를 정의한다. 각 배포 범위에 실제 deployment 검사가 필수다. `manifest.mjs`는 #1331의 배포 대상을 **GitHub main의 자동화**로 한정한다. 앱 Pages/Edge/Auth 배포 완료를 뜻하지 않는다.
+
+검증기는 GitHub PR의 실제 병합/head→merge SHA, 현재 run attempt, 정확한 workflow/job/step 성공, GitHub가 보관한 아티팩트의 소속 run/SHA/만료/hash, 개별 결과의 SHA·환경·대상 URL·시각·상태를 다시 읽는다. 제출된 proof JSON은 run/artifact ID만 지정하며 결과 내용은 신뢰하지 않는다. 잘못된 증거=FAIL, 증거 부재/권한/만료/미실행=CANNOT_VERIFY. manual은 사람의 실제 수용이 필요함을 남기고 자동 PASS하지 않는다. 배포 후 검사는 같은 release SHA의 배포 이후여야 한다.
+
+`verify.mjs`가 실제 테스트/새 프로세스 재개/원격 main AGENTS 바이트 대조/원격 Issue 재개를 수행한 뒤에만 `evidence.json`을 만든다. PR은 정확한 head checkout으로 QA하며 main의 별도 readback job은 release SHA를 검증한다. SHA별 자동화 설치를 실제 서비스 배포와 혼합하지 않는다.
+
+```sh
+# 합성 테스트 및 새 프로세스 CLI 통합 검사 (원격 쓰기 없음)
+node scripts/ai-dev/verify.mjs unit
+node scripts/ai-dev/verify.mjs integration
+# 기존 GitHub read 연결로 독립 확인. 출력은 report-only, 릴리스 차단/재배포 없음.
+node scripts/ai-dev/report.mjs koith/attendance-proto <main-merge-sha>
+```
+
+기존 Work orchestration guard가 P0 Pages/독립 Pages/Edge workflow 완료, schedule, 수동 실행에서 report-only 보고서를 저장한다. QA 아티팩트 생성 중인 동일 run을 성공으로 미리 판단하지 않는다. Actions artifact 30일 보관 후 만료되면 새 검증이 필요하며 Issue의 영구 체크포인트 링크도 만료 증거를 PASS로 바꾸지 않는다. GitHub/API만 읽고 운영 API/DB/Sheets는 호출하지 않는다. 단위 테스트의 `synthetic` provenance는 운영 성공 증거로 사용하지 않는다.
+
+영향 분석: 기존 release/required-check/보호 규칙 변경0, 새 workflow0, report job은 read 권한과 5분 상한만 갖는다. 기존 배포 결과를 변경하거나 복구 실행을 dispatch하지 않는다. 운영 기능에 확대 적용/차단 모드 활성화는 별도 영향 검토 대상이다.

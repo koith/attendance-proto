@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AI development acceptance manifest v1",
+  "type": "object",
+  "required": [
+    "version",
+    "repository",
+    "issue",
+    "pr",
+    "head_sha",
+    "release_sha",
+    "release_scope",
+    "checks"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^[-\\w.]+/[-\\w.]+$"
+    },
+    "issue": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "pr": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "head_sha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "release_sha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "release_scope": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "automation",
+          "pages",
+          "edge",
+          "sheets",
+          "auth"
+        ]
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "requirement",
+          "stage",
+          "scope",
+          "revision",
+          "environment",
+          "target_url"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,80}$"
+          },
+          "requirement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "stage": {
+            "enum": [
+              "unit",
+              "integration",
+              "merge",
+              "deployment",
+              "post_deploy",
+              "manual"
+            ]
+          },
+          "scope": {
+            "enum": [
+              "automation",
+              "pages",
+              "edge",
+              "sheets",
+              "auth"
+            ]
+          },
+          "revision": {
+            "enum": [
+              "head",
+              "release"
+            ]
+          },
+          "environment": {
+            "enum": [
+              "isolated",
+              "production",
+              "repository"
+            ]
+          },
+          "target_url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "workflow": {
+            "type": "string",
+            "pattern": "^\\.github/workflows/[a-z0-9-]+\\.yml$"
+          },
+          "job": {
+            "type": "string"
+          },
+          "step": {
+            "type": "string"
+          },
+          "after": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
