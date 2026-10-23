@@ -24,15 +24,13 @@ const refreshed=await checked('https://oauth2.googleapis.com/token',{
 });
 if(typeof refreshed.access_token!=='string'||!refreshed.access_token)
  throw Error('QA1243_EXISTING_OAUTH_NO_ACCESS_TOKEN');
-const identity=await checked('https://www.googleapis.com/oauth2/v3/userinfo',{
- headers:{Authorization:'Bearer '+refreshed.access_token}
-});
-if(identity.email_verified!==true||String(identity.email||'').toLowerCase()!=='webuielf@gmail.com')
- throw Error('QA1243_EXISTING_OAUTH_WRONG_OWNER');
-const info=await checked('https://www.googleapis.com/oauth2/v2/tokeninfo',{
- method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
- body:new URLSearchParams({access_token:refreshed.access_token})
-});
+// Google refresh response exposes the granted scopes; use this before requiring userinfo scope.
+const info=typeof refreshed.scope==='string'&&refreshed.scope
+ ? {scope:refreshed.scope}
+ : await checked('https://www.googleapis.com/oauth2/v2/tokeninfo',{
+    method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({access_token:refreshed.access_token})
+   });
 try{assertQa1243RunnerScopes(info.scope);}
 catch{
  const scopes=new Set(String(info.scope||'').split(/\s+/).filter(Boolean));
@@ -43,4 +41,9 @@ catch{
  console.log('QA1243_EXISTING_OAUTH_EXTRA_SCOPE_COUNT='+extra.length);
  throw Error('QA1243_EXISTING_OAUTH_SCOPES_INCOMPATIBLE');
 }
+const identity=await checked('https://www.googleapis.com/oauth2/v3/userinfo',{
+ headers:{Authorization:'Bearer '+refreshed.access_token}
+});
+if(identity.email_verified!==true||String(identity.email||'').toLowerCase()!=='webuielf@gmail.com')
+ throw Error('QA1243_EXISTING_OAUTH_WRONG_OWNER');
 console.log('QA1243_EXISTING_OAUTH_READ_ONLY_PROBE_PASS: OWNER_AND_FIVE_EXACT_SCOPES');
