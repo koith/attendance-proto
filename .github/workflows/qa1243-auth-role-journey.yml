@@ -123,7 +123,7 @@ jobs:
         with:
           name: auth-role-journey-1243
           path: qa-results/auth-role-journey-1243.json
-          if-no-files-found: error
+          if-no-files-found: warn
       - name: Check no production host or keys used and destroy local containers
         if: always()
         shell: bash

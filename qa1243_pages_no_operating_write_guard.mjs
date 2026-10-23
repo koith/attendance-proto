@@ -120,6 +120,12 @@ await proveJourneyRepair([
  'qa1243_pages_no_operating_write_guard.mjs',
  'PROJECT_BACKLOG_20261017.md'
 ],true);
+await proveJourneyRepair([
+ '.github/workflows/qa1243-auth-role-journey.yml',
+ 'qa_auth_role_journey_1243.sql','qa_auth_role_journey_1243.mjs',
+ '.github/workflows/p0-pages-deploy.yml','PROJECT_BACKLOG_20261017.md'
+],true);
+await proveJourneyRepair(['qa_auth_role_journey_1243.mjs','owner_activation.js'],false);
 await proveJourneyRepair(['.github/workflows/p0-pages-deploy.yml'],false);
 await proveJourneyRepair(['.github/workflows/store-opening-full-journey.yml','index.html'],false);
 await proveJourneyRepair(['.github/workflows/store-opening-full-journey.yml',

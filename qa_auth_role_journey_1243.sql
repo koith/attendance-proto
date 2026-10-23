@@ -12,9 +12,9 @@ CREATE ROLE service_role NOLOGIN;
 CREATE ROLE qa1243_authenticator LOGIN PASSWORD 'local-disposable-only' NOINHERIT;
 GRANT anon,authenticated,service_role TO qa1243_authenticator;
 GRANT USAGE ON SCHEMA public,auth TO anon,authenticated,service_role;
-CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
+CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
  SELECT coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb,'{}'::jsonb) $$;
-CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT (auth.jwt()->>'sub')::uuid $$;
+CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT (auth.jwt()->>'sub')::uuid $$;
 CREATE TABLE public.stores(id bigint PRIMARY KEY,code text,name text,source_store_key text,
  onboarding_status text DEFAULT 'STAGED',is_active boolean DEFAULT false);
 CREATE TABLE public.admin_users(user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
