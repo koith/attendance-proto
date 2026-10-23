@@ -196,6 +196,7 @@ jobs:
         with:
           script: |
             const allowed=new Set([
+              '.github/workflows/recipe-actual-tab-geometry.yml',
               'operations_v1.js',
               'qa_operations_material_cost_safe_v1.mjs',
               'qa_material_cost_report_1243.sql',

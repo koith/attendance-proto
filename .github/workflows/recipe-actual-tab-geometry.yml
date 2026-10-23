@@ -13,6 +13,7 @@ on:
   workflow_dispatch:
 jobs:
   geometry:
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -23,11 +24,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --no-save playwright
-      - run: npx playwright install --with-deps chromium
-        if: runner.os == 'Linux'
+      - run: npm install --no-save --no-audit --no-fund playwright@1.55.1
+        timeout-minutes: 4
       - run: npx playwright install chromium
-        if: runner.os == 'Windows'
+        timeout-minutes: 5
+      # GitHub Ubuntu images already carry Chrome's shared libraries. Probe the
+      # actual browser first; apt is needed only when the probe proves otherwise.
+      - name: Verify Linux browser libraries; bounded repair if missing
+        if: runner.os == 'Linux'
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          if node -e 'require("playwright").chromium.launch({headless:true}).then(b=>b.close()).catch(()=>process.exit(1))'; then
+            echo 'Actual Chromium launch passed; system dependency update unnecessary.'
+          else
+            timeout 240 npx playwright install-deps chromium
+            node -e 'require("playwright").chromium.launch({headless:true}).then(b=>b.close()).catch(e=>{console.error(e.message);process.exit(1)})'
+          fi
       - run: node qa_recipe_actual_tab_geometry.mjs
       - run: node qa_recipe_live_route_geometry.mjs
       - run: node qa_recipe_cross_page_desktop_geometry.mjs
