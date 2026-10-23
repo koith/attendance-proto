@@ -15,7 +15,7 @@ const hash='a'.repeat(64);
 const invite={user:{email:'owner@example.org'},email_data:{email_action_type:'invite',token_hash:hash,redirect_to:ACTIVATION}};
 function hookHeaders(raw,{seconds=stamp,secret=hookSecret,id='evt_123'}={}){
   const key=Buffer.from(secret.slice('v1,whsec_'.length),'base64');
-  const sig=createHmac('sha256',key).update(`${{id}.${{seconds}.${{raw}`).digest('base64');
+  const sig=createHmac('sha256',key).update(`${id}.${seconds}.${raw}`).digest('base64');
   return new Headers({'webhook-id':id,'webhook-timestamp':String(seconds),'webhook-signature':'v1,'+sig});
 }
 
@@ -75,7 +75,7 @@ test('outbound GAS URL strictly pinned to Google Apps Script webapp',()=>{
 test('bridge envelope HMAC matches GAS signature computation',async()=>{
  const msg=planMessages(invite,INVITE_HTML)[0]; const env=await signedBridgeEnvelope(msg,'evt_123_0',bridgeSecret,stamp*1000);
  assert.equal(env.sent_at,stamp);assert.equal(env.nonce,'evt_123_0');
- const sig=createHmac('sha256',bridgeSecret).update(`${{stamp}.evt_123_0.${{JSON.stringify(env.data)}`).digest('base64');
+ const sig=createHmac('sha256',bridgeSecret).update(`${stamp}.evt_123_0.${JSON.stringify(env.data)}`).digest('base64');
  assert.equal(env.signature,sig);
  await assert.rejects(signedBridgeEnvelope(msg,'x','short'),/BRIDGE_SECRET_MISSING/);
 });
