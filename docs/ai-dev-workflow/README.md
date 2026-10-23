@@ -42,3 +42,25 @@ BLOCKED 해제는 마지막 진행 상태로만 가능하다. ACCEPTED는 새 �
 4. 실패/중단/새 프로세스 재개 및 #1243 판정 리허설.
 
 각 단계 PR/CI/main 결과와 다음 행동은 Issue #1331에 기록한다. 계획만으로 완료하지 않는다.
+
+## 재개 / 체크포인트 명령
+
+Node 22 이상, 기존 GitHub read 연결을 사용한다. 공개 저장소는 token 없이 읽을 수 있다.
+
+```sh
+node scripts/ai-dev/cli.mjs resume koith/attendance-proto 1331
+# 완전한 Issue/댓글 export를 받은 새 프로세스의 오프라인 재개:
+node scripts/ai-dev/cli.mjs resume koith/attendance-proto 1331 snapshot.json
+```
+
+snapshot은 `{ "issue": { "number":1331, "title":"...", "body":"전문" }, "comments":[...] }`의 GitHub REST 형식이다. 로컬 출력은 공개 Issue에 저장된 내용의 재구성이며 새 운영 검증이 아니다. pagination은 최대100페이지, GET은 15초 timeout/최대3회/최대3초 backoff. 401/403 권한 오류는 즉시 BLOCKED, 429/명확한 rate limit 및 502/503/504 GET만 제한 재시도. POST 결과 불명은 재발송하지 않고 동일 event_id로 readback한다.
+
+기존 Work orchestration guard의 workflow_dispatch에 issue_number와 checkpoint JSON을 입력하면 main에서 직렬 기록한다. 스케줄 실행은 Issue 재개 artifact만 남긴다. PR 코드에는 이 쓰기 단계가 실행되지 않는다. 체크포인트 예:
+
+```json
+{"task":"implementation","event_id":"run-unique-1","expected_revision":0,"expected_sha":null,"sha":"정확한40자리branchSHA","branch":"codex/1331-example","state":"IN_PROGRESS","scope":"작업 범위","acceptance":"요구사항별 완료 조건","next_action":"다음 실행 명령/PR","failure":"","proofs":[]}
+```
+
+기록은 Issue 댓글의 `[ai-dev-checkpoint:v1]` + JSON/SHA256으로 영구 보존한다. 동일 event_id/동일 입력은 no-op, 다른 입력은 충돌. expected_revision/expected_sha와 원격 branch head를 모두 확인한다. 새 SHA에서는 IN_PROGRESS로 재검증한다. 부모 digest가 갈라지거나 누락되면 CANNOT_VERIFY; 임의로 최신 댓글만 골라 이전 이력을 덮어쓰지 않는다. 동시 수동 작성은 충돌로 드러나며 지원 쓰기 경로는 이슈별 직렬 workflow이다.
+
+GitHub 소유자와 github-actions[bot]의 정확한 최상위 marker 댓글만 신뢰한다(원문 인용/접수 스냅샷은 제외). 체크포인트 상태는 진행 주장이다. CODE_VERIFIED 이상은 별도 독립 gate 결과에서 파생하며 사용자가 JSON에 verified=true를 넣어 승격할 수 없다. BLOCKED는 failure/required_action/resume_state를 보존한다. 자동 agent도 코딩 전 같은 resume 결과를 읽는다.

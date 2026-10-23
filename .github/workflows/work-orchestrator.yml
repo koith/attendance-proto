@@ -1,6 +1,15 @@
 name: Work orchestration guard
 on:
   workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Canonical issue to resume'
+        type: string
+        default: '1331'
+      checkpoint:
+        description: 'Optional checkpoint JSON; empty performs read-only resume'
+        type: string
+        default: ''
   schedule:
     - cron: '17 */6 * * *'
   pull_request:
@@ -23,6 +32,9 @@ on:
       - '.github/workflows/work-orchestrator.yml'
 permissions:
   contents: read
+concurrency:
+  group: ai-dev-${{ github.event_name == 'workflow_dispatch' && inputs.issue_number || github.ref }}
+  cancel-in-progress: false
 jobs:
   guard:
     permissions:
@@ -57,3 +69,52 @@ jobs:
             const existing=issues.find(i=>!i.pull_request&&i.title===title);
             if(existing)await github.rest.issues.update({...context.repo,issue_number:existing.number,body});
             else await github.rest.issues.create({...context.repo,title,body});
+
+  issue-resume:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reconstruct task from canonical issue, independent of chat history
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue_number || '1331' }}
+        run: node scripts/ai-dev/cli.mjs resume "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" > issue-resume.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: issue-resume-${{ github.run_id }}
+          path: issue-resume.json
+          retention-days: 14
+  checkpoint:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.checkpoint != ''
+    needs: [guard, issue-resume]
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Persist append-only checkpoint with revision and branch-SHA checks
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          CHECKPOINT_JSON: ${{ inputs.checkpoint }}
+        run: |
+          node -e 'require("fs").writeFileSync("checkpoint-input.json",process.env.CHECKPOINT_JSON)'
+          node scripts/ai-dev/cli.mjs checkpoint "$GITHUB_REPOSITORY" "$ISSUE_NUMBER" checkpoint-input.json
