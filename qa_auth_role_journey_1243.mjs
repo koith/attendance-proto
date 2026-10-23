@@ -116,4 +116,4 @@ try{
  ok('Verified existing account reconnect resets all delegated permissions');
  const after=protectedSnapshot();assert.equal(after,before);ok('Protected branch, HQ3, staff10, Beta and payroll rows unchanged');
 } catch(e){results.push({name:'journey',result:'FAIL',error:String(e.message)});throw e;}
-finally{mkdirSync('qa-results',{recursive:true});writeFileSync('qa-results/auth-role-journey-1243.json',JSON.stringify({scope:'ISOLATED_REAL_AUTH_SMTP_POSTGREST',hostedAuthTested:false,googleE2ERepeated:false,results},null,2));}
+finally{mkdirSync('qa-results',{recursive:true});writeFileSync('qa-results/auth-role-journey-1243.json',JSON.stringify({scope:'ISOLATED_REAL_AUTH_SMTP_POSTGREST',commit:process.env.GITHUB_SHA||null,hostedAuthTested:false,googleE2ERepeated:false,results},null,2));}

@@ -11,6 +11,7 @@ on:
       - 'qa_auth_role_journey_1243.*'
       - 'supabase/migrations/**'
       - '.github/workflows/qa1243-auth-role-journey.yml'
+  workflow_call:
   workflow_dispatch:
 permissions:
   contents: read

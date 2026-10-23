@@ -2,18 +2,29 @@ name: QA-06 scenario evidence matrix
 on:
   pull_request:
     paths:
-      - 'qa_store_opening_scenario_evidence_v1.mjs'
+      - 'qa_*.mjs'
+      - 'qa_*.sql'
+      - 'supabase/migrations/**'
+      - 'supabase/functions/server-sync-sheet/*.mjs'
       - '.github/workflows/qa06-scenario-evidence.yml'
+      - '.github/workflows/qa1243-auth-role-journey.yml'
   push:
     branches: [main]
     paths:
-      - 'qa_store_opening_scenario_evidence_v1.mjs'
+      - 'qa_*.mjs'
+      - 'qa_*.sql'
+      - 'supabase/migrations/**'
+      - 'supabase/functions/server-sync-sheet/*.mjs'
       - '.github/workflows/qa06-scenario-evidence.yml'
+      - '.github/workflows/qa1243-auth-role-journey.yml'
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
+  actual-auth:
+    uses: ./.github/workflows/qa1243-auth-role-journey.yml
   evidence:
+    needs: actual-auth
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -21,7 +32,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: auth-role-journey-1243
+          path: qa-results
+      - name: Validate proof parser and actual writer fault recovery
+        run: |
+          node qa_auth_role_evidence_1243.test.mjs
+          node qa_sheet_failure_recovery_1243.mjs
       - name: Execute every mapped attendance/payroll case
+        env:
+          QA_AUTH_ROLE_EVIDENCE: qa-results/auth-role-journey-1243.json
+          QA_AUTH_ROLE_REQUIRE: '1'
         run: node qa_store_opening_scenario_evidence_v1.mjs
       - name: Retain pass/fail and explicit field-evidence gaps
         if: always()
@@ -31,4 +53,5 @@ jobs:
           path: |
             qa-results/store-opening-qa06-evidence.json
             qa-results/store-opening-qa06-evidence.md
+            qa-results/sheet-failure-recovery-1243.json
           if-no-files-found: error
