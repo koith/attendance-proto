@@ -1,5 +1,5 @@
 # QA1243 release sentinel: isolated synthetic tests; never production mail/Sheets writes.
-name: QA1243 isolated Google mail bridge (synthetic only)
+name: QA1243 isolated Google mail bridge (synthetic QA + GAS provisioning)
 on:
   pull_request:
     paths:
@@ -32,3 +32,183 @@ jobs:
       - name: Proof of zero operating writes
         run: |
           echo 'Synthetic only: no Auth Hook enabling, GAS deployment, SMTP, account creation, emails, Sheets, SQL or Edge writes.' >> "$GITHUB_STEP_SUMMARY"
+isolated-gas-provision:
+    name: QA1243 isolated Google MailApp script provisioning (no email)
+    needs: synthetic-security-tests
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[QA1243-MAIL-GAS-DEPLOY]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    env:
+      QA1243_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID }}
+      QA1243_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET }}
+      QA1243_GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Create/reuse verified standalone QA MailApp script and attest immutable deployment
+        run: |
+          node --input-type=module <<'NODE'
+
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          import {QA1243_RUNNER_SCOPES,assertQa1243RunnerScopes} from './scripts/qa1243_oauth_scopes.mjs';
+          
+          // Exact QA-only name. Never share or overwrite the existing payroll GAS project.
+          const title='QA1243 isolated Auth MailApp 2026-10-24';
+          const owner='webuielf@gmail.com';
+          const req=['QA1243_GOOGLE_OAUTH_CLIENT_ID','QA1243_GOOGLE_OAUTH_CLIENT_SECRET','QA1243_GOOGLE_OAUTH_REFRESH_TOKEN'];
+          if(req.some(k=>!process.env[k]))throw Error('QA1243_MAIL_GAS_OAUTH_SECRETS_MISSING');
+          const badPrefix='QA1243_MAIL_GAS_';
+          async function call(url,opt={}){
+            let response;
+            try{response=await fetch(url,{...opt,redirect:'error',signal:AbortSignal.timeout(30000)});}
+            catch{throw Error(badPrefix+'NETWORK_FAILURE');}
+            if(!response.ok)throw Error(badPrefix+'API_HTTP_'+response.status);
+            try{return await response.json();}
+            catch{throw Error(badPrefix+'INVALID_API_JSON');}
+          }
+          const refreshed=await call('https://oauth2.googleapis.com/token',{
+           method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
+           body:new URLSearchParams({
+            client_id:process.env.QA1243_GOOGLE_OAUTH_CLIENT_ID,
+            client_secret:process.env.QA1243_GOOGLE_OAUTH_CLIENT_SECRET,
+            refresh_token:process.env.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN,grant_type:'refresh_token'
+           })
+          });
+          assert.ok(refreshed.access_token,badPrefix+'ACCESS_TOKEN_ABSENT');
+          const access=refreshed.access_token;
+          const authHeader={Authorization:'Bearer '+access};
+          const headers={...authHeader,'content-type':'application/json'};
+          const identity=await call('https://www.googleapis.com/oauth2/v3/userinfo',{headers:authHeader});
+          if(String(identity.email||'').toLowerCase()!==owner||identity.email_verified!==true)
+           throw Error(badPrefix+'OWNER_MISMATCH');
+          const granted=await call('https://www.googleapis.com/oauth2/v2/tokeninfo',{
+           method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
+           body:new URLSearchParams({access_token:access})
+          });
+          assertQa1243RunnerScopes(granted.scope);
+          assert.equal(QA1243_RUNNER_SCOPES.length,5);
+          console.log('QA1243_MAIL_GAS_OWNER_AND_SCOPES_VERIFIED');
+          
+          const scriptSource=readFileSync('gas/qa1243-auth-mail/Code.gs','utf8');
+          const manifestSource=readFileSync('gas/qa1243-auth-mail/appsscript.json','utf8');
+          const manifest=JSON.parse(manifestSource);
+          assert.deepEqual(manifest.oauthScopes,['https://www.googleapis.com/auth/script.send_mail']);
+          assert.equal(manifest.webapp.access,'ANYONE_ANONYMOUS');
+          assert.equal(manifest.webapp.executeAs,'USER_DEPLOYING');
+          assert.match(scriptSource,/MailApp\.sendEmail/);
+          assert.match(scriptSource,/QA1243_GMAIL_BRIDGE_SECRET/);
+          const api='https://script.googleapis.com/v1/projects';
+          const fileSet=[
+           {name:'Code',type:'SERVER_JS',source:scriptSource},
+           {name:'appsscript',type:'JSON',source:manifestSource}
+          ];
+          const fingerprint=createHash('sha256').update(scriptSource+'\n'+manifestSource).digest('hex');
+          function assertContent(doc){
+           const files=doc?.files;
+           if(!Array.isArray(files)||files.length!==2)throw Error(badPrefix+'REMOTE_FILE_SET_MISMATCH');
+           const map=Object.fromEntries(files.map(f=>[f.name,f.source]));
+           if(map.Code!==scriptSource||map.appsscript!==manifestSource)
+            throw Error(badPrefix+'REMOTE_SOURCE_MISMATCH');
+          }
+          async function verifyOwned(id){
+           const fieldQuery=new URLSearchParams({fields:'id,name,mimeType,trashed,owners(emailAddress)'});
+           const f=await call('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+'?'+fieldQuery,{headers:authHeader});
+           if(f.id!==id||f.name!==title||f.mimeType!=='application/vnd.google-apps.script'||
+             f.trashed===true||!f.owners?.some(o=>String(o.emailAddress||'').toLowerCase()===owner))
+            throw Error(badPrefix+'REMOTE_OWNER_OR_NAME_MISMATCH');
+          }
+          async function discover(){
+           const matches=[];let pageToken='';
+           for(let page=0;page<10;page++){
+            const params=new URLSearchParams({
+             q:"name = '"+title+"' and mimeType = 'application/vnd.google-apps.script' and trashed = false",
+             spaces:'drive',pageSize:'100',fields:'nextPageToken,files(id,name,mimeType,trashed,owners(emailAddress))'
+            });
+            if(pageToken)params.set('pageToken',pageToken);
+            const d=await call('https://www.googleapis.com/drive/v3/files?'+params,{headers:authHeader});
+            if(!Array.isArray(d.files))throw Error(badPrefix+'DRIVE_DISCOVERY_INVALID');
+            matches.push(...d.files);
+            if(!d.nextPageToken)return matches;
+            pageToken=d.nextPageToken;
+           }
+           throw Error(badPrefix+'DRIVE_DISCOVERY_INCOMPLETE');
+          }
+          const existing=await discover();
+          if(existing.length>1)throw Error(badPrefix+'DUPLICATE_PROJECTS_STOP');
+          let id,created=false;
+          if(existing.length){
+           id=existing[0].id;
+           await verifyOwned(id);
+           const project=await call(api+'/'+encodeURIComponent(id),{headers:authHeader});
+           if(project.scriptId!==id||project.title!==title)
+            throw Error(badPrefix+'SCRIPT_IDENTITY_MISMATCH');
+           const remote=await call(api+'/'+encodeURIComponent(id)+'/content',{headers:authHeader});
+           // A previous partial run is recoverable if the project is empty (manifest only).
+           if(remote.files?.length===1&&remote.files[0].name==='appsscript'){
+            console.log('QA1243_MAIL_GAS_RECOVER_EMPTY_PROJECT');
+           }else{
+            assertContent(remote);
+            console.log('QA1243_MAIL_GAS_EXISTING_SOURCE_ATTESTED');
+           }
+          }else{
+           const project=await call(api,{method:'POST',headers,body:JSON.stringify({title})});
+           id=project.scriptId;created=true;
+           if(!/^[A-Za-z0-9_-]{15,}$/.test(String(id||'')))
+            throw Error(badPrefix+'CREATED_ID_INVALID');
+           console.log('QA1243_MAIL_GAS_NEW_PROJECT_CREATED');
+          }
+          if(created) {
+           // New project is an isolated standalone script; never a parent-bound operating workbook.
+           if(!id)throw Error(badPrefix+'NO_NEW_ID');
+          }
+          let remote=await call(api+'/'+encodeURIComponent(id)+'/content',{headers:authHeader});
+          if(created||(remote.files?.length===1&&remote.files[0].name==='appsscript')){
+           await call(api+'/'+encodeURIComponent(id)+'/content',{
+            method:'PUT',headers,body:JSON.stringify({files:fileSet})
+           });
+           remote=await call(api+'/'+encodeURIComponent(id)+'/content',{headers:authHeader});
+          }
+          assertContent(remote);
+          console.log('QA1243_MAIL_GAS_REMOTE_READBACK_PASS '+JSON.stringify({scriptId:id,sha256:fingerprint}));
+          
+          const deploys=await call(api+'/'+encodeURIComponent(id)+'/deployments',{headers:authHeader});
+          if(!Array.isArray(deploys.deployments))throw Error(badPrefix+'DEPLOYMENT_LIST_INVALID');
+          if(deploys.deployments.length>1)throw Error(badPrefix+'MULTIPLE_DEPLOYMENTS_STOP');
+          let deployment=deploys.deployments[0];
+          if(!deployment){
+           const version=await call(api+'/'+encodeURIComponent(id)+'/versions',{
+            method:'POST',headers,body:JSON.stringify({description:'Isolated QA1243 MailApp source; Auth Hook OFF'})
+           });
+           assert.ok(Number.isInteger(version.versionNumber)&&version.versionNumber>0);
+           assertContent(await call(api+'/'+encodeURIComponent(id)+'/content?versionNumber='+version.versionNumber,{headers:authHeader}));
+           deployment=await call(api+'/'+encodeURIComponent(id)+'/deployments',{
+            method:'POST',headers,
+            body:JSON.stringify({scriptId:id,versionNumber:version.versionNumber,manifestFileName:'appsscript',
+             description:'QA1243 isolated MailApp; not configured, no real email, Auth Hook OFF'})
+           });
+          }
+          assert.ok(deployment.deploymentId,badPrefix+'DEPLOYMENT_MISSING');
+          const detail=await call(api+'/'+encodeURIComponent(id)+'/deployments/'+encodeURIComponent(deployment.deploymentId),{headers:authHeader});
+          const versionNumber=detail.deploymentConfig?.versionNumber;
+          assert.ok(Number.isInteger(versionNumber)&&versionNumber>0);
+          assertContent(await call(api+'/'+encodeURIComponent(id)+'/content?versionNumber='+versionNumber,{headers:authHeader}));
+          const webApp=detail.entryPoints?.find(e=>e.entryPointType==='WEB_APP')?.webApp;
+          if(!webApp?.url?.startsWith('https://script.google.com/macros/s/')||
+           !webApp?.url?.endsWith('/exec')||
+           webApp.entryPointConfig?.access!=='ANYONE_ANONYMOUS'||
+           webApp.entryPointConfig?.executeAs!=='USER_DEPLOYING')
+           throw Error(badPrefix+'WEBAPP_DEPLOYMENT_MISMATCH');
+          console.log('QA1243_MAIL_GAS_DEPLOYMENT_VERIFIED '+JSON.stringify({
+           scriptId:id,deploymentId:deployment.deploymentId,version:versionNumber,
+           sha256:fingerprint,webAppUrl:webApp.url,realMailSent:false,authHookEnabled:false,
+           mailAppAuthorizationNotVerified:true,gasScriptPropertyNotConfigured:true
+          }));
+          NODE
