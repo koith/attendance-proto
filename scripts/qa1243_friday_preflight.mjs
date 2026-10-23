@@ -161,7 +161,8 @@ export async function verifyGoogleOnLiveMain(repo,token,sha,fetcher=fetch,now=Da
  const spec=REQUIRED.find(x=>x.id==='LIVE_EDGE_GAS_SHEETS');
  const runs=await fetchWorkflowRuns(repo,spec.workflow,token,fetcher);
  const classified=classifyWorkflow(spec,runs,sha,now);
- if(classified.reason!=='LIVE_EXECUTION_PROOF_REQUIRED')return classified;
+ const latestWorkflowFailed=classified.reason==='WORKFLOW_FAILURE';
+ if(classified.reason!=='LIVE_EXECUTION_PROOF_REQUIRED'&&!latestWorkflowFailed)return classified;
  const candidates=runs.filter(r=>r?.head_branch==='main'&&['push','workflow_dispatch','workflow_run'].includes(r.event))
   .sort((a,b)=>Date.parse(b.created_at||0)-Date.parse(a.created_at||0));
  const credentialAttempts=[];
@@ -169,6 +170,9 @@ export async function verifyGoogleOnLiveMain(repo,token,sha,fetcher=fetch,now=Da
   const jobs=await fetchRunJobs(repo,run.id,token,fetcher);
   const job=jobs.find(x=>x.name===GOOGLE_JOB);
   const step=job?.steps?.find(x=>x.name===GOOGLE_EXEC);
+  // A failed latest workflow may be a known credential preflight, but missing
+  // or skipped execution evidence cannot hide a scope/other-job failure.
+  if(latestWorkflowFailed&&run.id===classified.run_id&&(!step||step.conclusion==='skipped'))return classified;
   if(!step||step.conclusion==='skipped')continue;
   if(step.conclusion!=='success'||job.conclusion!=='success'){
    const failure={id:spec.id,status:'FAIL',reason:'LATEST_REAL_GOOGLE_EXECUTION_NOT_SUCCESS',run_id:run.id};
