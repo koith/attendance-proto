@@ -3,29 +3,46 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '17 */6 * * *'
-  push:
+  pull_request:
     paths:
+      - 'AGENTS.md'
+      - 'scripts/ai-dev/**'
+      - 'scripts/autonomous_dev_agent.sh'
+      - 'docs/ai-dev-workflow/**'
+      - '.github/workflows/work-orchestrator.yml'
+      - '.github/workflows/p0-pages-deploy.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'AGENTS.md'
+      - 'scripts/ai-dev/**'
+      - 'docs/ai-dev-workflow/**'
+      - 'scripts/autonomous_dev_agent.sh'
       - 'scripts/work-orchestrator.mjs'
       - 'scripts/orchestrator.test.mjs'
       - '.github/workflows/work-orchestrator.yml'
 permissions:
   contents: read
-  issues: write
 jobs:
   guard:
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: node --test scripts/ai-dev/*.test.mjs
       - run: node scripts/orchestrator.test.mjs
       - id: state
         run: |
           node scripts/work-orchestrator.mjs next > next.json
           echo "json=$(cat next.json)" >> "$GITHUB_OUTPUT"
       - uses: actions/github-script@v7
-        if: github.event_name != 'push'
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         env:
           NEXT_JSON: ${{ steps.state.outputs.json }}
         with:

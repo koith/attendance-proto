@@ -286,6 +286,19 @@ jobs:
             });
             const files=(diff.files||[]).map(x=>x.filename);
             const releaseMessage=String(context.payload.head_commit?.message||'');
+            // #1331 reuses the existing no-operating-write release path.
+            // A distinct exact scope prevents the marker hiding application changes.
+            if(releaseMessage.includes('[AI1331]')){
+              const aiFiles=new Set(['AGENTS.md','scripts/autonomous_dev_agent.sh',
+                '.github/workflows/work-orchestrator.yml','.github/workflows/p0-pages-deploy.yml']);
+              if(!files.length || files.length>=100 || files.some(f=>
+                !aiFiles.has(f) && !/^scripts\/ai-dev\/[a-z0-9_.-]+\.(mjs|json)$/.test(f) &&
+                !/^docs\/ai-dev-workflow\/[a-zA-Z0-9_.-]+\.(md|json)$/.test(f)) ||
+                /\[QA1243-(APP|SAFARI|COST)-PAGES/.test(releaseMessage))
+                throw Error('AI1331_SCOPE_MUST_BE_AUTOMATION_ONLY');
+              core.info('AI1331 automation-only scope verified; operating jobs remain skipped');
+              return;
+            }
             const safeAppRelease=releaseMessage.includes('[QA1243-APP-PAGES]');
             const safeCostRelease=releaseMessage.includes('[QA1243-COST-PAGES]');
             // One-time, fail-closed retry for verified v0.354 already merged at
