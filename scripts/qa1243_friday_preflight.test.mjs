@@ -200,6 +200,21 @@ async function evidenceScope(files){
 }
 await evidenceScope(['scripts/qa1243_friday_preflight.mjs','scripts/qa1243_friday_preflight.test.mjs','.github/workflows/p0-pages-deploy.yml','PROJECT_BACKLOG_20261017.md']);
 await evidenceScope(['scripts/qa1243_readonly_auth_config.mjs','scripts/qa1243_auth_config_verdict.mjs','scripts/qa1243_auth_config_verdict.test.mjs','.github/workflows/qa1243-operational-readonly.yml']);
+// Actual #1325 diff: changing an already allowlisted read-only audit runner
+// does not require a gratuitous workflow edit to remain non-deploying.
+const hostedAuditDiff=['scripts/qa1243_readonly_auth_config.mjs',
+ 'scripts/qa1243_auth_config_verdict.mjs','scripts/qa1243_auth_config_verdict.test.mjs',
+ 'PROJECT_BACKLOG_20261017.md','QA1243_FRIDAY_OPENING_20261023.md'];
+await evidenceScope(hostedAuditDiff);
+for(const runner of hostedAuditDiff.slice(0,3))await evidenceScope([runner,'PROJECT_BACKLOG_20261017.md']);
+for(const forbidden of ['owner_activation.js','supabase/functions/server-sync-sheet/index.ts',
+ 'edge-release/supabase/functions/server-sync-sheet/index.ts','apps_script.gs','unknown-operating-file.js'])
+ await assert.rejects(()=>evidenceScope([...hostedAuditDiff,forbidden]),/QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE/);
+await assert.rejects(()=>evidenceScope([...hostedAuditDiff,'index.html']),/QA1243_UNMARKED_APP_CHANGE/);
+await assert.rejects(()=>evidenceScope(['PROJECT_BACKLOG_20261017.md','QA1243_FRIDAY_OPENING_20261023.md']),
+ /QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE/);
+await assert.rejects(()=>evidenceScope(['.github/workflows/p0-pages-deploy.yml']),/QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE/);
+console.log('PASS actual #1325 audit-only diff accepted without workflow edit; unknown/app/Edge/Sheets changes still rejected');
 await assert.rejects(()=>evidenceScope(['scripts/qa1243_friday_preflight.mjs','apps_script.gs']),/QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE/);
 await assert.rejects(()=>evidenceScope(['scripts/qa1243_friday_preflight.mjs','index.html']),/QA1243_UNMARKED_APP_CHANGE/);
 console.log('PASS actual evidence-only publication guard; reject app and operating Sheet source changes');
