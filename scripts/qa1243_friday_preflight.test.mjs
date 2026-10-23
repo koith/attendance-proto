@@ -162,7 +162,7 @@ assert.equal((await googleCase({runs:[scope,newerFailure,real],jobs:{[scope.id]:
 const stale={...real,created_at:'2026-10-01T00:00:00Z'};
 assert.equal((await googleCase({runs:[scope,stale]})).result.reason,'RUN_STALE_OR_INVALID_DATE');
 const failure=await googleCase({runs:[{...scope,conclusion:'failure'},real]});
-assert.equal(failure.result.reason,'WORKFLOW_FAILURE');assert.equal(failure.requested.length,1);
+assert.equal(failure.result.reason,'WORKFLOW_FAILURE');assert.equal(failure.requested.length,2);
 const expiredLog='QA1243_GOOGLE_AUTH_ROUTE_MOBILE_EPHEMERAL\nError: REMOTE_HTTP_401 for www.googleapis.com /oauth2/v3 [type=UNKNOWN]\nProcess completed with exit code 1.';
 const shortLog='QA1243_GOOGLE_AUTH_ROUTE_MOBILE_EPHEMERAL\nQA1243_OAUTH_OWNER_VERIFIED\nError: QA1243_MOBILE_TOKEN_EXPIRY_TOO_SHORT\nProcess completed with exit code 1.';
 assert.equal(credentialPreflightFailure(expiredLog),'QA_OAUTH_USERINFO_401_BEFORE_E2E');
@@ -178,6 +178,24 @@ for(const logs of [expiredLog,shortLog]){
  assert.equal(preflight.result.credential_preflight_attempts.length,1);
  assert.equal(preflight.result.future_rerun_auth,'REAUTH_REQUIRED_NOT_REQUESTED');
  assert.equal(preflight.result.googleE2ERepeated,false);
+}
+// A separate main commit can make the latest workflow itself fail before
+// any GAS/Sheets call. It still needs the same strict evidence review; a later
+// green scope-only run must not be necessary to reach that review.
+for(const logs of [expiredLog,shortLog]){
+ const latest=await googleCase({runs:[newerFailure,real],jobs:{[newerFailure.id]:badJobs,[real.id]:realJobs},logs});
+ assert.equal(latest.result.status,'PASS');
+ assert.equal(latest.result.run_id,real.id);
+ assert.equal(latest.result.credential_preflight_attempts[0].run_id,newerFailure.id);
+ assert.equal(latest.result.googleE2ERepeated,false);
+}
+for(const change of [
+ {logs:expiredLog+'\nQA1243_EDGE_FIRST_FAILURE'},
+ {logs:expiredLog+'\nError: OTHER_FAILURE'},
+ {logs:expiredLog,sourceBlob:'a'.repeat(40)}
+]){
+ const latest=await googleCase({runs:[newerFailure,real],jobs:{[newerFailure.id]:badJobs,[real.id]:realJobs},...change});
+ assert.equal(latest.result.status,'FAIL','Latest unknown/stage-late/unreviewed failure remains blocking');
 }
 const unknownBlob=await googleCase({runs:[scope,newerFailure,real],jobs:{[scope.id]:skippedJobs,[newerFailure.id]:badJobs,[real.id]:realJobs},logs:expiredLog,sourceBlob:'a'.repeat(40)});
 assert.equal(unknownBlob.result.reason,'CREDENTIAL_PREFLIGHT_RUNNER_UNREVIEWED');
