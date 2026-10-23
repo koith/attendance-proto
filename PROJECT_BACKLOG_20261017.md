@@ -737,3 +737,15 @@
 - [main P039962969106](https://github.com/koith/attendance-proto/actions/runs/39962969106) SUCCESS, build120445970297/QA publish120445970636/deploy120445972103/validation120445972629 모두 SKIP. Google39962968819 실제 E2E job120445481613의 Edge대기/GAS·Sheets 실행step SKIP, 모바일HTTP도 SKIP. 완료 Auth8/SEC9/Google/전체개통/Pages 반복 없음. 기술 main pending0·예상밖실패0(실제 설정에 따른 NO_GO만 유지).
 - **보존:** READ ONLY 전후10그룹 count/행digest 동일: stores244/HQ3/인하대직원10/기존근태236(id≤5578)/payroll0/재고5/거래3323/raw0/지점override0/variant245. guard 정의47c6b36b66f1834371f95a561e3f90d9 동일. 모든 Sheet셀 hash를 새로 확인한 것이 아니며 실제 writer0. 운영PATCH/DML·초대/계정·권한/READY/SEC01 변경0.
 - **앱 v0.355 / 전체38·완료19·잔여19(7/2/10) 유지. 최종 NO_GO:**4필드 운영 적용 능력 부재/설정 불일치·SMTP 미설정과 실제 수신/본인 세션·개통/SEC01 승인·현장 증거 미충족. SMTP/발신자 변경은 이번4필드에 포함하지 않음. 승인 없이 가능한 개발/검토·증거 연결은 마쳤으며 후속 자동화10건은 실제 미완료 개발로 유지한다.
+
+
+## 78. 2026-10-23 — #1328 병합 재확인·4개 설정 실행 경로 완성·무쓰기 검증 분기 수정
+
+- 사용자 재개 지시: #1328 병합 승인/항상 허용을 존중하고 미병합일 때만 재시도, 권한 오류를 코드 오류와 구분, 해결 가능한 개발·QA 계속. 실제 GET으로 #1328 merged=true/SHA c6bddf7c4f2cf6207a07e94a9817e10551b86faa/13:39:05Z 확인. 반복 병합하지 않음. 시작 main25692031396af932ceeb830040a1e6699393de7b/v0.355.
+- GitHub 승인 차단은 이전 앱 설정 변경으로 해결된 상태. 현재 cloud spec85 관리credential/outbound binding0, 실제확인된 GitHub repository/production에는AuthRead만 있고write/legacy없음. 이는 권한/실행능력 문제이며 코드 오류로 표시하지 않음. 읽기연결 재인증/토큰발급을 다시 요구하지 않는다.
+- **실제 추가 개발:** 조회 전용 workflow에 승인된4필드 적용 job을 repository/확인된 기존production으로 분리해 연결. 기본은REVIEW. trusted main의 명시적 `[QA1243-AUTH-FOUR-FIELDS-APPLY]` commit표지 또는 수동APPLY입력+유효beforeSHA일 때만 실행. 현재 승인preimage는 d98d4b91f99b92b6fea05732eb90421ccfbad0088281d0309a20fe2b815c5f62. 다른branch/PR/workflow_run/schedule/일반push는 쓰기실행 안함. main 실행은 직렬화하고 중간취소 금지.
+- **적용 범위:** 기존 §77의 한국어invite HTML/제목/site_url/uri_allow_list4개만 부분PATCH. SMTP·발신자·기타Auth/보안·실제초대·계정/권한·READY·SEC01·운영DB/Sheets는 범위밖. main에는명시실행표지를 사용해 승인4필드 실행 경로를 실제 시도하며, 기존 P0 무쓰기표지는 운영자료·Sheets 게시 차단에 사용한다. Auth PATCH유무는실제 applied/patchAttempted값으로 별도기록하며 실행 전에0으로 단정하지 않는다.
+- **변경 후 독립 감사:**4개 검증 완료 또는실제PATCH시도가있으면 별도job의 좁은 GitHub Actions Write로 기존 `qa1243-operational-readonly.yml`의 main workflow_dispatch만 호출. AuthSecret이없는 dispatcher에만 ActionsWrite를부여. GitHub공식문서의 GITHUB_TOKEN workflow_dispatch 예외를확인. 기존 감사의workflow_run으로 개통gate 재평가. Mail/Auth8/Google/Pages workflow는호출하지 않음. 자격부재로0PATCH이면불필요감사재실행 안함.
+- **별도 실제 코드 결함 수정:** 이미4항목이목표와같아0write로확인할수있는데도write자격·과거preimage를요구하던순서를수정. 승인scope확인후목표일치면NO_CHANGE_VERIFIED, 실제변경이필요할때만write자격/preimage검사. 이경우SMTP2FAIL/실수신미검증을전체PASS로바꾸지않음.
+- **새 QA:**18개 synthetic 적용기/복구 사례PASS(목표일치+쓰기없음/사용안하는readtoken/옛hash,scope불일치,동시변경,403무확대,불명확결과GET,부분복구). trusted-main/marker/manual입력/invalidSHA·권한분리·직렬실행·정확한5파일의P0/Googleguard/앱·Edge·Sheets·unknown거부PASS. YAML검증PASS. 기존성공Google·격리Auth8/SEC9·전체개통·Pages 반복안함.
+- PR→CI→병합→main승인4필드실행과새GET결과/권한사유를후속기록. 앱v0.355/원장38·19·19유지. 실제점주초대·READY·SEC01·운영자료변경은별도승인전미실행.

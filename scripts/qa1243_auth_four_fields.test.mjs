@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {FOUR_FIELDS,INVITE_SUBJECT,APPLY_SCOPE,buildFourFieldReview,runFourFields,configVerdict}
+import {FOUR_FIELDS,INVITE_SUBJECT,APPLY_SCOPE,APPLY_MARKER,APPROVED_BEFORE_SHA256,
+ buildFourFieldReview,runFourFields,configVerdict,fourFieldExecution}
  from './qa1243_auth_four_fields.mjs';
 import {HOSTED_AUTH_READ_ACCESS,HOSTED_INVITATION_URLS} from './qa1243_auth_config_verdict.mjs';
 const html=readFileSync(new URL('../supabase/email-templates/invite.html',import.meta.url),'utf8');
@@ -53,6 +54,21 @@ function provider({onGet,onPatch}={}){
 const options={html,readToken,readOnlyToken:readToken,writeToken,scope:APPLY_SCOPE,
  expectedBeforeSha256:review.beforeSha256,apply:true};
 let cases=0;
+// An operator may already have corrected the four fields. No write credential,
+// stale approval hash, or unused read credential should block zero-write proof.
+for(const change of [{writeToken:'',expectedBeforeSha256:''},
+ {writeToken:readToken,expectedBeforeSha256:'a'.repeat(64)},
+ {expectedBeforeSha256:''}]){
+ const p=provider({onGet:({state})=>Object.assign(state,review.after)});
+ const r=await runFourFields({...options,...change,fetcher:p.fetcher});cases++;
+ assert.equal(r.status,'NO_CHANGE_VERIFIED');assert.equal(r.applied,false);assert.equal(r.patchAttempted,false);
+ assert.deepEqual(p.calls.map(c=>c.method),['GET']);assert.equal(r.verdict.passed,6);assert.equal(r.verdict.ready,false);
+}
+{
+ const p=provider({onGet:({state})=>Object.assign(state,review.after)});
+ const r=await runFourFields({...options,scope:'',fetcher:p.fetcher});cases++;
+ assert.equal(r.status,'FOUR_FIELD_OPERATIONAL_SCOPE_NOT_AUTHORIZED');assert.equal(r.patchAttempted,false);
+}
 {
  const p=provider();const r=await runFourFields({...options,apply:false,fetcher:p.fetcher});cases++;
  assert.equal(r.status,'REVIEW_ONLY');assert.deepEqual(p.calls.map(c=>c.method),['GET']);assert.equal(r.applied,false);
@@ -114,7 +130,36 @@ for(const change of [{scope:''},{writeToken:''},{writeToken:readToken},{expected
 console.log('PASS '+cases+' synthetic repair cases: four-field payload, no SMTP/policy changes, review/scope/credential/preimage guards, concurrent change, 403, ambiguous outcome, targeted rollback and unknown readback');
 const workflow=readFileSync(new URL('../.github/workflows/qa1243-auth-four-fields.yml',import.meta.url),'utf8');
 assert.match(workflow,/run: node scripts\/qa1243_auth_four_fields.mjs --review/);
-assert.doesNotMatch(workflow,/--apply|QA1243_AUTH_FOUR_FIELD_SCOPE|QA1243_AUTH_EXPECTED_BEFORE_SHA256/);
+for(const eventName of ['push','workflow_dispatch','pull_request'])
+ for(const ref of ['refs/heads/feature','refs/pull/1/merge'])
+  assert.equal(fourFieldExecution({eventName,ref,message:APPLY_MARKER,operation:'APPLY'}).mode,'REVIEW');
+for(const eventName of ['pull_request','workflow_run','schedule'])
+ assert.equal(fourFieldExecution({eventName,ref:'refs/heads/main',message:APPLY_MARKER,operation:'APPLY'}).mode,'REVIEW');
+assert.equal(fourFieldExecution({eventName:'push',ref:'refs/heads/main',message:'ordinary code change'}).mode,'REVIEW');
+const armed=fourFieldExecution({eventName:'push',ref:'refs/heads/main',message:APPLY_MARKER});
+assert.equal(armed.mode,'APPLY');assert.equal(armed.beforeSha,APPROVED_BEFORE_SHA256);
+assert.equal(fourFieldExecution({eventName:'workflow_dispatch',ref:'refs/heads/main',operation:'REVIEW'}).mode,'REVIEW');
+assert.equal(fourFieldExecution({eventName:'workflow_dispatch',ref:'refs/heads/main',operation:'APPLY',beforeSha:'invalid'}).mode,'BLOCKED');
+assert.equal(fourFieldExecution({eventName:'workflow_dispatch',ref:'refs/heads/main',operation:'APPLY',beforeSha:'a'.repeat(64)}).beforeSha,'a'.repeat(64));
+for(const name of ['apply-repository','apply-existing-production']){
+ const begin=workflow.indexOf('\n  '+name+':');
+ const end=workflow.slice(begin+4).search(/\n  [a-z][a-z-]*:\n/);
+ const block=workflow.slice(begin,end<0?workflow.length:begin+4+end);
+ assert.match(block,/outputs.operation == 'APPLY'/);assert.match(block,/github.ref == 'refs\/heads\/main'/);
+ assert.match(block,/needs.repository.result == 'success'/);
+ assert.match(block,/github.event_name != 'pull_request'/);
+ assert.match(block,/QA1243_AUTH_FOUR_FIELD_SCOPE: ISSUE_1243_APPROVED_FOUR_FIELDS/);
+ assert.match(block,/QA1243_AUTH_EXPECTED_BEFORE_SHA256: \$\{\{ needs.repository.outputs.before-sha \}\}/);
+ assert.match(block,/--apply --github-output/);
+ assert.doesNotMatch(block,/SUPABASE_SERVICE_ROLE|smtp_|auth\/v1\/invite|READY|session_guard/);
+}
+const dispatch=workflow.slice(workflow.indexOf('\n  refresh-readonly-audit:'));
+assert.match(dispatch,/outputs.verified == 'true'/);assert.match(dispatch,/outputs.attempted == 'true'/);
+assert.match(dispatch,/actions: write/);assert.match(dispatch,/workflow_id:'qa1243-operational-readonly.yml',ref:'main'/);
+assert.doesNotMatch(dispatch,/secrets\.|SUPABASE_|workflow_id:'(?!qa1243-operational-readonly)/);
+assert.equal((workflow.match(/actions: write/g)||[]).length,1,'Dispatch authority is isolated from Auth secret-bearing jobs');
+assert.match(workflow,/group: qa1243-auth-four-fields-\$\{\{ github.ref \}\}/);
+assert.match(workflow,/cancel-in-progress: false/,'Never cancel an in-flight configuration operation');
 assert.match(workflow,/github.event_name != 'pull_request' && github.ref == 'refs\/heads\/main'/);
 assert.match(workflow,/deployment: false/);assert.match(workflow,/environment_name:'production'/);
 assert.match(workflow,/selectHostedAuthReadContext\(\{dedicatedPresent:write/);
@@ -124,8 +169,7 @@ const from=pages.indexOf('            const allowed=new Set(['),last=pages.index
 const actual=pages.slice(from,pages.indexOf('\n',last)).split('\n').map(l=>l.startsWith('            ')?l.slice(12):l).join('\n');
 const execute=new (Object.getPrototypeOf(async function(){}).constructor)('context','github','core',actual);
 const changed=['scripts/qa1243_auth_four_fields.mjs','scripts/qa1243_auth_four_fields.test.mjs',
- '.github/workflows/qa1243-auth-four-fields.yml','.github/workflows/p0-pages-deploy.yml',
- '.github/workflows/qa1243-live-e2e.yml',
+ '.github/workflows/qa1243-auth-four-fields.yml',
  'PROJECT_BACKLOG_20261017.md','QA1243_FRIDAY_OPENING_20261023.md'];
 async function guard(files){return execute({repo:{owner:'koith',repo:'attendance-proto'},sha:'b'.repeat(40),
  payload:{before:'a'.repeat(40),head_commit:{message:'[QA1243-NO-OPERATING-WRITE] [QA1243-NO-GOOGLE-RERUN]'}}},
@@ -133,7 +177,7 @@ async function guard(files){return execute({repo:{owner:'koith',repo:'attendance
 await guard(changed);
 for(const forbidden of ['index.html','owner_activation.js','supabase/functions/server-sync-sheet/index.ts','apps_script.gs','unknown.js'])
  await assert.rejects(()=>guard([...changed,forbidden]),/QA1243_NO_WRITES_UNEXPECTED|QA1243_UNMARKED_APP_CHANGE/);
-console.log('PASS exact review-only workflow/main guard, existing protected environment access and rejected operating changes; no real Auth or mail requests');
+console.log('PASS default-review/explicit trusted-main apply, recorded preimage, independent GET audit dispatch, existing protected environment and exact five-file no-data-write guard; no real Auth or mail requests');
 const google=readFileSync(new URL('../.github/workflows/qa1243-live-e2e.yml',import.meta.url),'utf8');
 const begin=google.indexOf('            const message='),end=google.indexOf("            core.setOutput('run_live',String(runLive));",begin);
 const runScope=new (Object.getPrototypeOf(async function(){}).constructor)('context','github','core',
