@@ -64,6 +64,7 @@ jobs:
           // Exact QA-only name. Never share or overwrite the existing payroll GAS project.
           const title='QA1243 isolated Auth MailApp 2026-10-24';
           const owner='webuielf@gmail.com';
+          const expectedScriptId='1fOm-aIyhbqv5SkCkLoJNdFIlBxdGUUhHy8wO7Ft_SF-KF5iQWTvGChNT';
           const req=['QA1243_GOOGLE_OAUTH_CLIENT_ID','QA1243_GOOGLE_OAUTH_CLIENT_SECRET','QA1243_GOOGLE_OAUTH_REFRESH_TOKEN'];
           const desktopReady=req.every(k=>Boolean(process.env[k]));
           const mobileAccess=String(process.env.QA1243_GOOGLE_OAUTH_ACCESS_TOKEN||'').trim();
@@ -141,6 +142,14 @@ jobs:
            if(map.Code!==scriptSource||map.appsscript!==manifestSource)
             throw Error(badPrefix+'REMOTE_SOURCE_MISMATCH');
           }
+          function isUntouchedNewProject(remote){
+           const files=remote?.files;
+           if(!Array.isArray(files)||files.length<1||files.length>2)return false;
+           const code=files.find(f=>f.name==='Code'&&f.type==='SERVER_JS');
+           const manifest=files.find(f=>f.name==='appsscript'&&f.type==='JSON');
+           if(!manifest||files.some(f=>f!==code&&f!==manifest))return false;
+           return !code||/^function myFunction\(\)\s*\{\s*\}\s*$/.test(String(code.source||''));
+          }
           async function verifyOwned(id){
            const fieldQuery=new URLSearchParams({fields:'id,name,mimeType,trashed,owners(emailAddress)'});
            const f=await call('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+'?'+fieldQuery,{headers:authHeader});
@@ -165,7 +174,8 @@ jobs:
            throw Error(badPrefix+'DRIVE_DISCOVERY_INCOMPLETE');
           }
           const existing=await discover();
-          if(existing.length>1)throw Error(badPrefix+'DUPLICATE_PROJECTS_STOP');
+          if(existing.length!==1||existing[0].id!==expectedScriptId)
+           throw Error(badPrefix+'EXPECTED_ISOLATED_PROJECT_NOT_FOUND_OR_DUPLICATE');
           let id,created=false;
           if(existing.length){
            id=existing[0].id;
@@ -175,7 +185,7 @@ jobs:
             throw Error(badPrefix+'SCRIPT_IDENTITY_MISMATCH');
            const remote=await call(api+'/'+encodeURIComponent(id)+'/content',{headers:authHeader});
            // A previous partial run is recoverable if the project is empty (manifest only).
-           if(remote.files?.length===1&&remote.files[0].name==='appsscript'){
+           if(isUntouchedNewProject(remote)){
             console.log('QA1243_MAIL_GAS_RECOVER_EMPTY_PROJECT');
            }else{
             assertContent(remote);
@@ -193,7 +203,7 @@ jobs:
            if(!id)throw Error(badPrefix+'NO_NEW_ID');
           }
           let remote=await call(api+'/'+encodeURIComponent(id)+'/content',{headers:authHeader});
-          if(created||(remote.files?.length===1&&remote.files[0].name==='appsscript')){
+          if(created||isUntouchedNewProject(remote)){
            await call(api+'/'+encodeURIComponent(id)+'/content',{
             method:'PUT',headers,body:JSON.stringify({files:fileSet})
            });
