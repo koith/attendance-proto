@@ -142,7 +142,7 @@ jobs:
         run: npm install --no-save --no-audit --no-fund playwright@1.55.1
       - name: Download Chromium
         timeout-minutes: 5
-        run: npx playwright install chromium
+        run: npx playwright install chromium webkit
       - name: Verify Chromium launch and repair missing system libraries
         timeout-minutes: 5
         run: |
@@ -150,9 +150,17 @@ jobs:
           if node -e 'require("playwright").chromium.launch({headless:true}).then(b=>b.close()).catch(()=>process.exit(1))'; then
             echo 'Actual Chromium launch passed.'
           else
-            timeout --kill-after=15s 240s npx playwright install-deps chromium
+            timeout --kill-after=15s 240s npx playwright install-deps chromium webkit
             node -e 'require("playwright").chromium.launch({headless:true}).then(b=>b.close()).catch(e=>{console.error(e.message);process.exit(1)})'
           fi
+      - name: Verify WebKit runtime dependencies
+        timeout-minutes: 5
+        run: |
+          if ! node -e 'require("playwright").webkit.launch({headless:true}).then(b=>b.close()).catch(()=>process.exit(1))'; then
+            timeout --kill-after=15s 240s npx playwright install-deps webkit
+          fi
+      - name: Activation recovery on Chromium and WebKit (synthetic requests only)
+        run: node qa_owner_activation_retry_browser_1243.mjs
       - name: Validate manager month-cards in Chromium at 320-1024px
         run: node qa_actual_attendance_month_cards_browser_v348.mjs
       - name: Validate operations title and advanced action disclosure at phone and desktop widths
@@ -187,6 +195,7 @@ jobs:
             qa-results/*.png
             qa-results/attendance-manager-cards-v348-mobile.png
             qa-results/*failure.txt
+            qa-results/owner-activation-retry-1243.json
           if-no-files-found: ignore
           retention-days: 30
 

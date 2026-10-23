@@ -174,7 +174,7 @@ async function pageCase(change={}){
  const elements=Object.fromEntries(['status','activateForm','password','repeat','confirm'].map(id=>[id,{hidden:false,disabled:false,textContent:'',value:''}]));
  const calls=[],stored=[],redirects=[],scrubbed=[];
  const source='SUPABASE_URL: "https://synthetic.invalid", SUPABASE_ANON_KEY: "public-synthetic-key"';
- const reply=(data,ok=true)=>({ok,json:async()=>data,text:async()=>source});
+ const reply=(data,ok=true,status=ok?200:422)=>({ok,status,json:async()=>data,text:async()=>source});
  const fetcher=async(url,options={})=>{
   calls.push({url,method:options.method||'GET'});
   if(url==='./index.html')return reply({},!state.configFailure);
@@ -182,7 +182,15 @@ async function pageCase(change={}){
    if(state.preflightNetwork)throw Error('synthetic network unavailable');
    return reply(state.preflight,!state.preflightHttpFailure);
   }
-  if(url.endsWith('/auth/v1/user'))return reply(state.passwordFailure?{message:'PASSWORD_REJECTED'}:{},!state.passwordFailure);
+  if(url.endsWith('/auth/v1/user')){
+   if(state.passwordFailure)return reply({message:'PASSWORD_REJECTED'} ,false);
+   if(state.passwordError)return reply(state.passwordError,false,state.passwordStatus??422);
+   const password=JSON.parse(options.body).password;
+   if(state.passwordValue===password)return reply({code:'same_password',msg:'New password should be different from the old password.'},false);
+   state.passwordValue=password;
+   if(state.passwordResponseLost){state.passwordResponseLost=false;throw Error('synthetic saved password response lost');}
+   return reply({});
+  }
   if(url.endsWith('/store_primary_owner_accept_invitation'))return reply(state.accepted,!state.acceptHttpFailure);
   if(url.endsWith('/admin_context'))return reply(state.context,!state.contextHttpFailure);
   throw Error('UNEXPECTED_NETWORK_REQUEST');
@@ -232,4 +240,30 @@ assert.equal(unavailable.elements.activateForm.hidden,true);assert.equal(unavail
 const retry=await pageCase({acceptHttpFailure:true});await retry.submit();
 assert.equal(retry.stored.length,0);retry.state.acceptHttpFailure=false;await retry.submit();pageCases++;
 assert.equal(retry.stored.length,1);assert.equal(retry.redirects.length,1);
+for(const intended_role of ['OWNER','ASSISTANT']){
+ const page=await pageCase({passwordValue:'synthetic-password-123',preflight:{ok:true,store_id:701,intended_role}});
+ await page.submit();pageCases++;
+ assert.equal(page.stored.length,1,'Existing matching password may resume authorized activation');
+ assert.equal(page.calls.filter(c=>c.url.endsWith('/store_invitation_activation_preflight')).length,1);
+}
+const lost=await pageCase({passwordResponseLost:true});await lost.submit();
+assert.equal(lost.stored.length,0);assert.equal(lost.redirects.length,0);
+await lost.submit();pageCases++;
+assert.equal(lost.stored.length,1,'Lost password response must not strand an invited manager');
+assert.equal(lost.calls.filter(c=>c.url.endsWith('/store_invitation_activation_preflight')).length,2);
+for(const change of [
+ {passwordError:{message:'same_password'}},
+ {passwordError:{code:'weak_password'}},
+ {passwordError:{code:'same_password'},passwordStatus:500},
+ {passwordError:{code:'same_password'},passwordStatus:401}
+]){
+ const page=await pageCase(change);await page.submit();pageCases++;
+ assert.equal(page.stored.length,0);assert.equal(page.redirects.length,0);
+ assert.equal(page.calls.some(c=>c.url.endsWith('/store_primary_owner_accept_invitation')),false);
+}
+const cancelledRetry=await pageCase({acceptHttpFailure:true});await cancelledRetry.submit();
+cancelledRetry.state.preflight={ok:false,error:'INVITATION_CANCELLED_OR_NOT_FOUND'};
+const requestsBefore=cancelledRetry.calls.length;await cancelledRetry.submit();pageCases++;
+assert.equal(cancelledRetry.calls.length,requestsBefore+1,'Re-check cancelled invitation before repeat password request');
+assert.equal(cancelledRetry.stored.length,0);assert.equal(cancelledRetry.redirects.length,0);
 console.log('PASS actual activation source VM '+pageCases+' cases: owner/assistant, expiry/cancel, no unauthorized password PUT, failure retry and cross-store context; no live Auth/SMTP calls');

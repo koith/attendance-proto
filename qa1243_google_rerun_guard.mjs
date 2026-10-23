@@ -26,3 +26,6 @@ assert.match(source,/if: github.event_name == 'push' && needs.execution-scope.ou
 console.log('PASS actual Google reuse guard: Auth-only skip, reject operating/Google source exemptions');
 assert.equal(await verdict(['.github/workflows/qa1243-owner-ready-pages-independent.yml','index.html','operations_v1.js','supabase/migrations/20261023024132_qa1243_verified_material_cost_report.sql'],
  '[QA1243-NO-GOOGLE-RERUN] [QA1243-NO-OPERATING-WRITE] [QA1243-APP-PAGES] [QA1243-COST-PAGES]'),'false');
+assert.equal(await verdict(['owner_activation.js','owner_activation.html','index.html','qa_owner_invite_autoactivation_921.mjs','qa_owner_activation_retry_browser_1243.mjs','scripts/qa1243_activation_pages_smoke.mjs'],
+ '[QA1243-NO-GOOGLE-RERUN] [QA1243-NO-OPERATING-WRITE] [QA1243-APP-PAGES] [QA1243-ACTIVATION-PAGES]'),'false');
+await assert.rejects(verdict(['owner_activation.js']),/GOOGLE_REUSE_SCOPE_REJECTED/);

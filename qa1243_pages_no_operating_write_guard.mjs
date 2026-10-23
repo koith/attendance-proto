@@ -166,3 +166,27 @@ await assert.rejects(proveCostRelease([...costAfter,'<script>unreviewed()</scrip
 await assert.rejects(proveCostRelease(costAfter,['apps_script.gs']),/QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE/);
 await assert.rejects(proveCostRelease(costAfter,[],'[QA1243-NO-OPERATING-WRITE] [QA1243-COST-PAGES]'),/MATERIAL_COST_RELEASE_SCOPE|QA1243_UNMARKED_APP_CHANGE/);
 console.log('PASS actual v0.355 cost Pages guard: exact 3-line HTML diff, reject unreviewed assets and missing release marker');
+
+// The activation fix publishes its two callback assets and version badge only;
+// it cannot mutate Sheets/Edge/SQL or piggyback an unrelated app release.
+const activationMarker=approvedMarker+' [QA1243-ACTIVATION-PAGES]';
+const activationVersion=['<button id="appVersion">v0.355</button>','const APP_VERSION="v0.355";'];
+const activationFiles=[
+ {filename:'index.html',patch:activationVersion.map(l=>'-'+l).concat(activationVersion.map(l=>'+'+l.replaceAll('v0.355','v0.356'))).join('\n')},
+ {filename:'owner_activation.html',patch:'-<script src="owner_activation.js?v=20261020v353"></script>\n+<script src="owner_activation.js?v=20261023v356"></script>'},
+ {filename:'owner_activation.js'},
+ {filename:'qa_owner_activation_retry_browser_1243.mjs'}
+];
+async function activationRelease(files=activationFiles,message=activationMarker){
+ return executeActualGuard({repo:{owner:'fixture',repo:'fixture'},sha:'b'.repeat(40),payload:{before:'a'.repeat(40),head_commit:{message}}},
+ {rest:{repos:{compareCommits:async()=>({data:{files}})}}},{info(){}});
+}
+await activationRelease();
+await assert.rejects(activationRelease(activationFiles,approvedMarker),/QA1243_APP_RELEASE_REQUIRED_FILE_MISSING/);
+await assert.rejects(activationRelease([...activationFiles,{filename:'operations_v1.js'}]),/ACTIVATION_RELEASE_SCOPE/);
+await assert.rejects(activationRelease([...activationFiles,{filename:'supabase/migrations/unapproved.sql'}]),/ACTIVATION_RELEASE_SCOPE/);
+await assert.rejects(activationRelease(activationFiles.map(f=>f.filename==='index.html'?{...f,patch:f.patch+'\n+unreviewed html'}:f)),/ACTIVATION_RELEASE_VERSION_DIFF/);
+await assert.rejects(activationRelease(activationFiles.map(f=>f.filename==='owner_activation.html'?{...f,patch:f.patch+'\n+unreviewed html'}:f)),/ACTIVATION_RELEASE_CALLBACK_DIFF/);
+assert.match(qaOnly,/qa1243_activation_pages_smoke\.mjs --before/);
+assert.match(qaOnly,/qa1243_activation_pages_smoke\.mjs --after/);
+console.log('PASS activation-only Pages scope: exact version/cache diff, unrelated app/SQL rejected, operating Sheets path skipped');
