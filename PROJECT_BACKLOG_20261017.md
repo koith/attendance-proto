@@ -705,3 +705,35 @@
 - **새 workflow는 REVIEW ONLY:** PR은 synthetic QA만, trusted main은 기존 Auth Read로4공개값 GET·쓰기 Secret 존재 확인 및 기존 production 보호 문맥 검사만 수행. 새 환경·Secret·권한·배포 객체 생성 없음. 현재 workflow에서 --apply를 실행하지 않는다. 실제 쓰기 후보가 확인되고 전후값/범위 보고 뒤에만 승인된4개 적용을 별도 실행한다.
 - **검증:**14개 synthetic 복구/권한·동시 변경/4키 payload/403·불명확 결과·targeted rollback/비노출 PASS. 정확한7파일 변경의 실제 P0/Google guard 실행 PASS, 앱·Edge·Sheets·unknown 변경 거부 유지, 실제Google 실행false. workflow YAML 검증 PASS. SMTP가 없는 fixture는4필드 적용 후에도 내부6/8이어서 전체 PASS로 바뀌지 않는 것을 확인.
 - 앱 v0.355/38·19·19 유지. 실제4값·기존 쓰기 권한 결과/PR·main 증거를 후속 절과 #1243에 기록한다. 운영 PATCH/계정·메일/READY/SEC01/DML/기존 Sheets 변경0.
+
+
+## 77. 2026-10-23 — 실제4필드 현재값·기존 쓰기 경로 부재 확정·GitHub 승인 반복 해결
+
+- **GitHub 승인 문제 해결:** 앞선 병합2회가 `user rejected MCP tool call`로 거부됐으나 사용자 “GitHub 항상 허용” 및 반복승인 최소화 후속 지시를 반영해 **GitHub 앱에만 plugin-specific full_access**를 적용(status=updated). 전역 기본값·Supabase OAuth/관리 권한은 변경하지 않음. 같은 병합 도구로 [#1328](https://github.com/koith/attendance-proto/pull/1328)66개 체크/실패0 후 정상 병합, 기술 main **c6bddf7c4f2cf6207a07e94a9817e10551b86faa**. 운영삭제·실제초대·보안설정은 별도 승인 원칙 유지. 다른 접근 도구/직접 main push로 우회하지 않음.
+- **실제 GET/권한 검사 완료:** [39962969173](https://github.com/koith/attendance-proto/actions/runs/39962969173) SUCCESS. repository job120445486684의4공개값 GET 완료(22:39:28 KST까지 완료); production job120445579535도 기존 보호환경의 알려진 write/legacy 자격 존재만 확인. 새 workflow는 REVIEW_ONLY/applied=false/patchAttempted=false이며 운영 설정은 변경되지 않음.
+
+| 항목 | 실제 현재값(GET) | 수정 확정값(미적용) |
+|---|---|---|
+| mailer_templates_invite_content | 아래 영문 HTML 전체 | [저장소 한국어 invite.html 전체](supabase/email-templates/invite.html),4202bytes/SHA256 접두 ae300e5409e99792 |
+| mailer_subjects_invite | `You've been invited` | `[백억커피] 매장 관리자 계정 초대 안내` |
+| site_url | `http://localhost:3000` | `https://koith.github.io/attendance-proto/` |
+| uri_allow_list | `""`(빈 문자열) | `https://koith.github.io/attendance-proto/owner_activation.html` |
+
+실제 변경 전 HTML 원문:
+
+```html
+<h2>You've been invited</h2>
+
+<p>You've been invited to create an account. Follow the link below to accept.</p>
+<p><a href="{{ .ConfirmationURL }}">Accept invitation</a></p>
+```
+
+- 변경 전4필드 SHA256 **d98d4b91f99b92b6fea05732eb90421ccfbad0088281d0309a20fe2b815c5f62** / 수정 확정4필드 SHA256 **32e7fe537adeb19c41bdb0a766fa24a66987b3f5476373142653e707e73226fd**. 이 두 번째 값은 아직 적용되지 않은 목표 JSON의 hash이며 운영 readback 성공값이 아니다. 실제 preimage/target/정확한4키 PATCH와 before4키 복구 JSON, before/after HTML은 작업공간 `qa-results/qa1243-auth-four-fields-20261023/`에 준비. 다른 config/SMTP·Hook/토큰 원문은 보존/공개하지 않았다.
+- **범위/영향 확정:** 앞으로 발송할 invite의 본문·제목과 인증 기본 복귀/허용경로만 바뀜. 실제 현재 uri_allow_list가 빈 문자열이므로 운영 callback1개를 넣으며, 적용 직전 목록이 달라지면 승인 preimage SHA 또는 전체 config drift 검사로 중지해 기존 경로를 덮어쓰지 않음. 이미 발행한 링크/기존 계정·비밀번호/지점/권한은 수정하지 않음. SMTP 공급자/발신 계정·Hook·기타 OAuth/가입/autoconfirm·TTL·세션/SEC01은 변경 범위가 아님.
+- **정확한 적용 차단 원인:** repository scopedRead=true/scopedWrite=false/legacyManagement=false. production 환경 메타데이터 GET200, 기존 requiredReviewer/waitTimer 없음 및 보호 문맥을 실제 검사했으며 **scopedWrite=false/legacy=false/EXISTING_WRITE_CREDENTIAL_ABSENT**. 현재 runtime 관리binding0·저장 Supabase browser로그인0·connector의 Auth Config PATCH 기능 없음. 기존 승인된 두 GitHub 실행 문맥에 Auth Config Write 자격이 없다는 실행 증거이며 읽기 인증 실패가 아니다. GitHub full_access는 Supabase Auth Config Write를 부여하지 않는다.
+- **실제 쓰기 미실행:** 사용자 요청대로 새 토큰 발급·읽기 연결 재인증을 요구하지 않음. 읽기 전용 Secret을 PATCH/권한 시험에 쓰거나 별도 권한·계정/환경을 만들지 않았다. 현재4필드 적용에 필요한 것은 **승인된 기존 운영관리 주체의 Auth Config Write 실행 능력**이며 지금 확인된 연결로는 확보되지 않음. 같은4필드 운영 승인 자체를 다시 요청하지 않고 실제 capability 부족과 구분한다.
+- **개발 완료와 미완료 구분:**4필드 제한 적용기·14개 synthetic QA·동시변경/403권한확대금지/불명확 결과GET확인/부분복구·실제 P0/Google scope guard QA 완료, PR66개 체크 실패0/병합 완료. 운영4필드 적용과 변경 후 GET검증은 **미실행**. 모의 적용 후 내부6/8은 SMTP2개를 남기는 회귀 결과일 뿐 실제 운영 통과값이 아니다.
+- **실제 현재 Auth 설정2/8:** 위 GET에서도 관리읽기/emailProvider만 PASS, 한국어 승인본/제목·SMTP host/sender·운영 Site URL/callback6개 FAIL. [최종 개통39963164952](https://github.com/koith/attendance-proto/actions/runs/39963164952) job120446080163 **7/8 NO_GO**, HOSTED_AUTH_READ만 FAIL. 기존 실제Google39781031886 재사용/googleE2ERepeated=false. 외부 실수신·점주 세션/SEC01 운영실증·승인 대상 전후 증거4개는 PENDING 유지.
+- [main P039962969106](https://github.com/koith/attendance-proto/actions/runs/39962969106) SUCCESS, build120445970297/QA publish120445970636/deploy120445972103/validation120445972629 모두 SKIP. Google39962968819 실제 E2E job120445481613의 Edge대기/GAS·Sheets 실행step SKIP, 모바일HTTP도 SKIP. 완료 Auth8/SEC9/Google/전체개통/Pages 반복 없음. 기술 main pending0·예상밖실패0(실제 설정에 따른 NO_GO만 유지).
+- **보존:** READ ONLY 전후10그룹 count/행digest 동일: stores244/HQ3/인하대직원10/기존근태236(id≤5578)/payroll0/재고5/거래3323/raw0/지점override0/variant245. guard 정의47c6b36b66f1834371f95a561e3f90d9 동일. 모든 Sheet셀 hash를 새로 확인한 것이 아니며 실제 writer0. 운영PATCH/DML·초대/계정·권한/READY/SEC01 변경0.
+- **앱 v0.355 / 전체38·완료19·잔여19(7/2/10) 유지. 최종 NO_GO:**4필드 운영 적용 능력 부재/설정 불일치·SMTP 미설정과 실제 수신/본인 세션·개통/SEC01 승인·현장 증거 미충족. SMTP/발신자 변경은 이번4필드에 포함하지 않음. 승인 없이 가능한 개발/검토·증거 연결은 마쳤으며 후속 자동화10건은 실제 미완료 개발로 유지한다.
