@@ -90,7 +90,7 @@ jobs:
                 '.github/workflows/p0-pages-deploy.yml','.github/workflows/qa1243-live-e2e.yml',
                 'PROJECT_BACKLOG_20261017.md'
               ]);
-              if(costRelease)for(const f of ['index.html', 'operations_v1.js', 'qa_operations_material_cost_safe_v1.mjs', 'qa_material_cost_report_1243.sql', 'supabase/migrations/20261023024132_qa1243_verified_material_cost_report.sql', 'scripts/qa1243_material_cost_pages_smoke.mjs'])allowed.add(f);
+              if(costRelease)for(const f of ['.github/workflows/qa1243-owner-ready-pages-independent.yml','index.html', 'operations_v1.js', 'qa_operations_material_cost_safe_v1.mjs', 'qa_material_cost_report_1243.sql', 'supabase/migrations/20261023024132_qa1243_verified_material_cost_report.sql', 'scripts/qa1243_material_cost_pages_smoke.mjs'])allowed.add(f);
               const files=data.files||[];
               if(!files.length || files.length>=100 || files.some(f=>!allowed.has(f.filename)||f.status==='renamed'||f.status==='removed'))throw Error('GOOGLE_REUSE_SCOPE_REJECTED');
               runLive=false;
