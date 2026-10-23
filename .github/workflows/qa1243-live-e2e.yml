@@ -71,6 +71,15 @@ jobs:
           script: |
             const message=String(context.payload.head_commit?.message||'');
             let runLive=context.eventName==='push';
+            if(runLive && message.includes('[AI1331]')){
+              const before=context.payload.before;
+              if(!/^[a-f0-9]{40}$/.test(String(before||'')) || /^0{40}$/.test(before))throw Error('AI1331_SCOPE_BASE_REQUIRED');
+              const {data}=await github.rest.repos.compareCommits({...context.repo,base:before,head:context.sha,per_page:100});
+              const {assertAutomationOnly}=await import(process.cwd()+'/scripts/ai-dev/release-scope.mjs');
+              assertAutomationOnly(data.files,message);
+              runLive=false;
+              core.info('AI1331 automation-only change: no Google, OAuth or Edge E2E repeated.');
+            }
             if(runLive && message.includes('[QA1243-NO-GOOGLE-RERUN]')){
               if(!message.includes('[QA1243-NO-OPERATING-WRITE]'))throw Error('GOOGLE_REUSE_REQUIRES_NO_WRITE');
               const before=context.payload.before;

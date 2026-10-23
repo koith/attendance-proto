@@ -32,3 +32,23 @@ test('actual existing P0 guard isolates AI changes and rejects operating/mixed p
     await assert.rejects(check(['AGENTS.md',path]),/AI1331_SCOPE/);
   await assert.rejects(check([]),/AI1331_SCOPE/);
 });
+
+test('actual existing Google guard skips AI changes without repeating OAuth or Sheets QA', async () => {
+  const workflow=readFileSync('.github/workflows/qa1243-live-e2e.yml','utf8');
+  const start=workflow.indexOf('            const message=');
+  const end=workflow.indexOf("            core.setOutput('run_live',String(runLive));",start);
+  const source=workflow.slice(start,end)+"core.setOutput('run_live',String(runLive));";
+  const run=new (Object.getPrototypeOf(async function(){}).constructor)('context','github','core',source);
+  const check=async(files,message='[AI1331] [QA1243-NO-OPERATING-WRITE]')=>{
+    let output;
+    await run({eventName:'push',repo:{},sha:'b'.repeat(40),payload:{before:'a'.repeat(40),head_commit:{message}}},
+      {rest:{repos:{compareCommits:async()=>({data:{files:files.map(filename=>({filename,status:'modified'}))}})}}},
+      {info(){},setOutput(k,v){output=v;}});
+    return output;
+  };
+  assert.equal(await check(['scripts/ai-dev/cli.mjs','.github/workflows/qa1243-live-e2e.yml']),'false');
+  for(const p of ['apps_script.gs','index.html','scripts/qa1243_live_edge_gas_sheets.mjs'])
+    await assert.rejects(check([p]),/AI1331_SCOPE/);
+  await assert.rejects(check(['AGENTS.md'],'[AI1331]'),/AI1331_SCOPE/);
+  assert.equal(await check(['apps_script.gs'],'ordinary app release'),'true');
+});
