@@ -2,6 +2,32 @@
 export const HOSTED_AUTH_READ_ACCESS=Object.freeze({project:'waluhdgqhwjjwmflhrle',
  method:'GET',endpoint:'https://api.supabase.com/v1/projects/waluhdgqhwjjwmflhrle/config/auth',
  fineGrainedPermission:'auth_config_read',oauthScope:'auth:read',writeAccessRequired:false});
+export const HOSTED_INVITATION_URLS=Object.freeze({
+ siteUrls:Object.freeze(['https://koith.github.io/attendance-proto/',
+  'https://koith.github.io/attendance-proto/index.html']),
+ activationUrl:'https://koith.github.io/attendance-proto/owner_activation.html'});
+// No remote URLs leave this function. GoTrue permits a redirect with the same
+// scheme/host/port as Site URL even without an additional allow-list entry.
+// Do not mistake a supported wildcard for an exact match or a confirmed failure.
+export function assessHostedInvitationUrls(config){
+ const safeUrl=value=>{
+  if(typeof value!=='string'||!value.trim())return null;
+  try{const u=new URL(value.trim());
+   return u.protocol==='https:'&&!u.username&&!u.password&&!u.search&&!u.hash?u:null;
+  }catch{return null;}
+ };
+ const site=safeUrl(config?.site_url),activation=new URL(HOSTED_INVITATION_URLS.activationUrl);
+ const raw=config?.uri_allow_list;
+ const entries=typeof raw==='string'?raw.split(',').map(x=>x.trim()).filter(Boolean):[];
+ const exact=entries.includes(activation.href);
+ const sameOrigin=site?.origin===activation.origin;
+ const unverifiedPattern=entries.some(x=>/[*?\[\]{}\\]/.test(x));
+ return {siteUrlProductionMatch:site!==null&&HOSTED_INVITATION_URLS.siteUrls.includes(site.href),
+  activationRedirectAllowed:sameOrigin||exact?true:unverifiedPattern?null:false,
+  activationRedirectSource:sameOrigin?'SITE_ORIGIN':exact?'EXACT_ALLOW_LIST':
+   unverifiedPattern?'PATTERN_REQUIRES_REVIEW':'NOT_VERIFIED',
+  activationRedirectExactListed:typeof raw==='string'?exact:null};
+}
 export async function probeHostedAuthManagement(env,expected,fetcher=fetch){
  const dedicated=String(env.SUPABASE_AUTH_READ_TOKEN||'').trim();
  const existing=String(env.SUPABASE_ACCESS_TOKEN||'').trim();
@@ -10,6 +36,8 @@ export async function probeHostedAuthManagement(env,expected,fetcher=fetch){
   managementCredentialSource:dedicated?'SCOPED_AUTH_READ_SECRET':existing?'EXISTING_MANAGEMENT_SECRET':'NONE',
   managementHttpStatus:null,authConfigReadReportedMissing:null,requiredManagementAccess:HOSTED_AUTH_READ_ACCESS,
   remoteTemplateMatch:null,remoteInviteSubjectMatch:null,
+  siteUrlProductionMatch:null,activationRedirectAllowed:null,
+  activationRedirectSource:'UNREAD',activationRedirectExactListed:null,
   smtpHostConfigured:null,smtpPortConfigured:null,smtpUserConfigured:null,smtpPasswordConfigured:null,
   smtpSenderConfigured:null,emailProviderEnabled:null,mailerAutoConfirm:null,signupDisabled:null,inviteTtlSeconds:null,
   reason:'MANAGEMENT_API_CREDENTIAL_ABSENT'};
@@ -36,7 +64,7 @@ export async function probeHostedAuthManagement(env,expected,fetcher=fetch){
  if(!config||typeof config!=='object'||Array.isArray(config))return {...result,reason:'MANAGEMENT_CONFIG_JSON_INVALID'};
  const present=key=>Object.hasOwn(config,key)?
   typeof config[key]==='string'?config[key].trim().length>0:Boolean(config[key]):null;
- return {...result,configReadable:true,reason:'HTTP_200_METADATA_ONLY',
+ return {...result,configReadable:true,reason:'HTTP_200_METADATA_ONLY',...assessHostedInvitationUrls(config),
   remoteTemplateMatch:typeof config.mailer_templates_invite_content==='string'?config.mailer_templates_invite_content===expected.template:null,
   remoteInviteSubjectMatch:typeof config.mailer_subjects_invite==='string'?config.mailer_subjects_invite===expected.subject:null,
   smtpHostConfigured:present('smtp_host'),smtpPortConfigured:present('smtp_port'),smtpUserConfigured:present('smtp_user'),
@@ -53,7 +81,9 @@ export function assessHostedInviteConfig(s){
     ['HOSTED_KOREAN_INVITE_SUBJECT_MATCH',s?.remoteInviteSubjectMatch===true],
     ['HOSTED_EMAIL_PROVIDER_ENABLED',s?.emailProviderEnabled===true],
     ['HOSTED_SMTP_HOST_CONFIGURED',s?.smtpHostConfigured===true],
-    ['HOSTED_SMTP_SENDER_CONFIGURED',s?.smtpSenderConfigured===true]
+    ['HOSTED_SMTP_SENDER_CONFIGURED',s?.smtpSenderConfigured===true],
+    ['HOSTED_SITE_URL_PRODUCTION',s?.siteUrlProductionMatch===true],
+    ['HOSTED_ACTIVATION_REDIRECT_ALLOWED',s?.activationRedirectAllowed===true]
   ];
   return {ready:checks.every(([,ok])=>ok),passed:checks.filter(([,ok])=>ok).length,
     required:checks.length,failed:checks.filter(([,ok])=>!ok).map(([id])=>id),

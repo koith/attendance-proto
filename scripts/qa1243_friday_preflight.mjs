@@ -17,8 +17,16 @@ export const REQUIRED = Object.freeze([
 export const EXTERNAL_BLOCKERS = Object.freeze([
  {id:'HOSTED_TEST_MAIL_RECEIPT',reason:'No evidence yet for hosted Auth actual invitation delivery and test mailbox round-trip; isolated Mailpit does not prove it'},
  {id:'STORE_MANAGER_LIVE_SESSION',reason:'No verified hosted store manager invite/accept/role-revoke session E2E; isolated or fake JWT does not prove it'},
+ {id:'SEC01_SINGLE_DEVICE_ROLLOUT',reason:'Original SEC-01 P0 is not waived: WIP #999 is unmerged; installed objects do not prove effective new-device/old-session enforcement, recovery or live-device safety'},
  {id:'PRODUCTION_PREPOST_DATA_PROOF',reason:'A production read-only before/after evidence receipt and authorized target-scoped operation checks must be reviewed before final PASS'}
 ]);
+// Classify all 19 unchecked canonical rows without declaring any of them done.
+// A launch minimum and the full long-term completion criteria are distinct.
+export const REMAINING_WORK_PHASES=Object.freeze({
+ beforeOpening:['QA-04','QA-05','QA-06','QA-07','SEC-01','AUTH-01','MTG-03'],
+ humanIdentityApproval:['FIELD-01','MTG-04'],
+ afterOpening:['FIELD-02','FIELD-03','MTG-05','MTG-06','MTG-07','MTG-08','MTG-11','MTG-12','MTG-13','MTG-16']
+});
 // These automation projects remain tracked in the backlog. They are not added
 // to the attendance/payroll/recipe store-opening gate. Existing required checks
 // and every recorded failure still participate in verdict(); nothing is filtered.
@@ -261,6 +269,7 @@ export function openingScope(items,external=EXTERNAL_BLOCKERS){
  return {purpose:'신규 지점 관리자·근태·급여·시트·레시피 개통',
   openingVerdict:decision.verdict,requiredWorkflowIds:REQUIRED.map(x=>x.id),
   unverifiedRequiredIds:decision.failed,liveApprovalEvidenceIds:decision.external,
+  canonicalRemainingWork:{total:19,completedByClassification:0,phases:REMAINING_WORK_PHASES},
   postOpening:{blocksOpening:false,work:POST_OPENING_WORK}};
 }
 async function fetchWorkflowRuns(repo,wf,token,fetcher=fetch){

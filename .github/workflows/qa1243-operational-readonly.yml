@@ -37,7 +37,7 @@ jobs:
         run: |
           node --check scripts/qa1243_readonly_auth_config.mjs
           node -e "const fs=require('fs');const s=fs.readFileSync('scripts/qa1243_readonly_auth_config.mjs','utf8');if(/method:\s*['\"](?:POST|PATCH|PUT|DELETE)['\"]/.test(s))process.exit(1);console.log('PASS read-only verbs only')"
-      - name: Check Hosted Auth strict positive evidence logic
+      - name: Check Hosted config, activation URLs and actual page failure paths (isolated VM)
         run: node scripts/qa1243_auth_config_verdict.test.mjs
       - name: Check explicitly approved QA route and production write isolation (static harness)
         run: node qa1243_approved_sheet_route_guard.mjs
@@ -50,3 +50,4 @@ jobs:
           echo 'Requires project-scoped Auth Config Read (auth_config_read / OAuth auth:read). No settings write permission required.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Dedicated read token is preferred; existing Management secret is reused only when it is absent. Tokens and SMTP values are never printed.' >> "$GITHUB_STEP_SUMMARY"
           echo 'PR tests do not contact Hosted Auth or prove real mail delivery; main/manual audit performs GET only.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'URL audit checks production Site URL and the actual invitation/recovery activation callback. Missing values remain unverified; no URL configuration is changed.' >> "$GITHUB_STEP_SUMMARY"
