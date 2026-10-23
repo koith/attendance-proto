@@ -1,8 +1,9 @@
 // #1243: review/apply ONLY the four user-authorized public Auth config fields.
-// The default CLI and the CI workflow are REVIEW ONLY. No SMTP/account/session
+// Default CLI/workflow operation is REVIEW. Explicit trusted-main approval can
+// apply the four fields. No SMTP/account/session
 // settings, users, invitations, SQL, Sheets or deployment APIs are touched.
 import {createHash} from 'node:crypto';
-import {readFile} from 'node:fs/promises';
+import {readFile,appendFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
 import {HOSTED_AUTH_READ_ACCESS,HOSTED_INVITATION_URLS,assessHostedInviteConfig,
  assessHostedInvitationUrls} from './qa1243_auth_config_verdict.mjs';
@@ -10,6 +11,21 @@ import {HOSTED_AUTH_READ_ACCESS,HOSTED_INVITATION_URLS,assessHostedInviteConfig,
 export const FOUR_FIELDS=Object.freeze(['mailer_templates_invite_content','mailer_subjects_invite','site_url','uri_allow_list']);
 export const INVITE_SUBJECT='[백억커피] 매장 관리자 계정 초대 안내';
 export const APPLY_SCOPE='ISSUE_1243_APPROVED_FOUR_FIELDS';
+export const APPLY_MARKER='[QA1243-AUTH-FOUR-FIELDS-APPLY]';
+export const APPROVED_BEFORE_SHA256='d98d4b91f99b92b6fea05732eb90421ccfbad0088281d0309a20fe2b815c5f62';
+// This is operation authorization, separate from whether a usable credential
+// exists. PRs/other branches never arm an apply, even with the same text.
+export function fourFieldExecution({eventName,ref,message='',operation='REVIEW',beforeSha=''}={}){
+ if(ref!=='refs/heads/main')return {mode:'REVIEW',reason:'TRUSTED_MAIN_REQUIRED',beforeSha:null};
+ if(eventName==='push'&&String(message).includes(APPLY_MARKER))
+  return {mode:'APPLY',reason:'USER_APPROVED_FOUR_FIELDS_MAIN_MARKER',beforeSha:APPROVED_BEFORE_SHA256};
+ if(eventName==='workflow_dispatch'&&operation==='APPLY'){
+  const sha=String(beforeSha||APPROVED_BEFORE_SHA256);
+  return /^[a-f0-9]{64}$/.test(sha)?{mode:'APPLY',reason:'EXPLICIT_FOUR_FIELD_DISPATCH',beforeSha:sha}:
+   {mode:'BLOCKED',reason:'APPROVED_PREIMAGE_INVALID',beforeSha:null};
+ }
+ return {mode:'REVIEW',reason:'NO_EXPLICIT_APPLY_OPERATION',beforeSha:null};
+}
 const sorted=v=>Array.isArray(v)?v.map(sorted):v&&typeof v==='object'?
  Object.fromEntries(Object.keys(v).sort().map(k=>[k,sorted(v[k])])):v;
 const digest=v=>createHash('sha256').update(JSON.stringify(sorted(v))).digest('hex');
@@ -91,11 +107,13 @@ export async function runFourFields({readToken,readOnlyToken='',writeToken='',ht
  const result={status:'REVIEW_ONLY',applied:false,patchAttempted:false,review,verdict:configVerdict(initial,html)};
  if(!apply)return result;
  if(scope!==APPLY_SCOPE)return {...result,status:'FOUR_FIELD_OPERATIONAL_SCOPE_NOT_AUTHORIZED'};
+ // Already-correct values require no mutation authority or old preimage.
+ // This verifies only the four fields; SMTP/mailbox checks remain independent.
+ if(!review.changedFields.length)return {...result,status:'NO_CHANGE_VERIFIED'};
  if(!writeToken)return {...result,status:'EXISTING_WRITE_CREDENTIAL_ABSENT'};
  if(readOnlyToken&&writeToken===readOnlyToken)return {...result,status:'READ_ONLY_CREDENTIAL_CANNOT_BE_PROMOTED'};
  if(!/^[a-f0-9]{64}$/.test(expectedBeforeSha256)||expectedBeforeSha256!==review.beforeSha256)
   return {...result,status:'APPROVED_PREIMAGE_MISSING_OR_CHANGED'};
- if(!review.changedFields.length)return {...result,status:'NO_CHANGE_VERIFIED'};
  // Re-read immediately before a partial update. No auto retry with broader auth.
  const current=await request(fetcher,readToken,'GET');
  if(!same(current,initial))return {...result,status:'CONCURRENT_CONFIG_CHANGE_NO_WRITE'};
@@ -132,6 +150,9 @@ async function main(){
   writeToken:String(env.SUPABASE_AUTH_WRITE_TOKEN||'').trim()||legacy,apply,
   scope:env.QA1243_AUTH_FOUR_FIELD_SCOPE,expectedBeforeSha256:env.QA1243_AUTH_EXPECTED_BEFORE_SHA256});
  console.log('QA1243_AUTH_PUBLIC_FOUR_FIELD_RESULT '+JSON.stringify(result));
+ if(process.argv.includes('--github-output')&&env.GITHUB_OUTPUT)
+  await appendFile(env.GITHUB_OUTPUT,'result_status='+result.status+'\nverified_fields='+
+   ['APPLIED_VERIFIED','NO_CHANGE_VERIFIED'].includes(result.status)+'\npatch_attempted='+result.patchAttempted+'\n');
  if(apply&&!['APPLIED_VERIFIED','NO_CHANGE_VERIFIED'].includes(result.status))process.exitCode=1;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)

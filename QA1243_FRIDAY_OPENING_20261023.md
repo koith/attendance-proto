@@ -315,3 +315,12 @@ POS·배달·공급사·장바구니 자동화 자체는 관리자/근태/급여
 - 읽기토큰을 쓰기로 바꾸거나 토큰발급/읽기 재연결을 다시 요구하지 않음. 이번4개 운영작업 승인을 다시 묻지도 않는다. 승인된 기존 관리 실행 주체의 **Auth Config Write 능력은 아직 확보되지 않음**. 실제4개 적용/PATCH·변경후GET 성공은 미실행으로 남긴다.14개 synthetic 적용기/복구 QA와66개 PR체크는 실제 완료.
 - [P039962969106](https://github.com/koith/attendance-proto/actions/runs/39962969106) SUCCESS·Pages 게시전부SKIP. Google39962968819의 실제 실행SKIP, 기존39781031886 재사용. [최종 gate39963164952](https://github.com/koith/attendance-proto/actions/runs/39963164952) **7/8 NO_GO(HOSTED_AUTH_READ)**. 실제 Auth 설정은2/8. 모의4필드 적용 후6/8이라는 결과를 운영 PASS로 쓰지 않는다.
 - READ ONLY 보호10그룹 전후 count/hash 및guard정의 동일(244지점/HQ3/직원10 포함). 운영메일·초대/계정·권한·READY·SEC01·SQL/기존Sheet 쓰기0. v0.355/38·19·19. SMTP/발신자·실수신·본인인증·개통승인/SEC01·현장 검증은 별도 차단조건이며 현재 임의 변경하지 않는다.
+
+
+## 17. 승인4필드 실행·독립 감사 경로와 이미 목표값인 경우의 무쓰기 검증
+
+- #1328은이미병합된것을실제확인했으며GitHub승인오류는해소됐다. 현재쓰기자격부재와별개로, 조회전용이던workflow에4개적용경로/적용후독립GET감사를완성한다.
+- 기본REVIEW유지. main명시적 `[QA1243-AUTH-FOUR-FIELDS-APPLY]` 또는수동APPLY+유효beforeSHA만작동. 승인기준beforeSHA는원장§77의d98d4b91f99b92b6fea05732eb90421ccfbad0088281d0309a20fe2b815c5f62. repository/기존production문맥을구분하고보호정책유지, main실행직렬화/취소금지.
+-4개목표값이이미일치하면write자격없어도0write NO_CHANGE_VERIFIED로확인. 실제변경이필요하면write없음/승인preimage변경시PATCH전차단. scope없는실행은목표일치여도승인된적용성공으로표시하지않는다.
+-4개검증완료또는실제PATCH시도시기존읽기전용감사를main workflow_dispatch로별도실행. 이GitHub지원경로는AuthSecret없는dispatcher에만ActionsWrite를주며SMTP·Auth8·Google·Pages실행권한/호출과분리. 자격없음으로0PATCH면기존성공QA나감사반복안함.
+-18개synthetic회귀/명시실행조건/권한분리/P0·Googleguard·YAML검증PASS. 다음PR/main실행의실제적용/차단사유는원장후속절과#1243에연결. v0.355/38·19·19,실점주초대/READY/SEC01/운영자료·Sheets는범위밖.
