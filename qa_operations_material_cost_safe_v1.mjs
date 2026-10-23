@@ -22,7 +22,16 @@ for(const value of [null,undefined,'',-1,'-7',1.5,'1.5',NaN,Infinity,'15,000',Nu
 }
 assert.equal(costGuard(null).materialCost,null);
 assert.match(src,/id="opsMaterialCostSafety"/);
-assert.match(src,/사용 재료비<\/span><strong>미산출/);
+assert.match(src,/cost\.ready\?won\(cost\.materialCost\):"미산출/);
+const proof={status:'VERIFIED',basis:'PRICED_MOVEMENTS_AND_POSTED_COUNTS',items:1,material_cost:500};
+assert.equal(costGuard({purchases:600,material_cost:proof}).materialCost,500);
+assert.equal(costGuard({purchases:600,material_cost:{...proof,material_cost:0}}).materialCost,0);
+for(const bad of [null,{}, {...proof,status:'INCOMPLETE_VALUATION'},{...proof,basis:'PURCHASE_GROSS'},
+ {...proof,items:0},{...proof,material_cost:null},{...proof,material_cost:'500'},
+ {...proof,material_cost:-1},{...proof,material_cost:0.5},{...proof,material_cost:Infinity}]){
+ assert.equal(costGuard({purchases:600,material_cost:bad}).materialCost,null);
+}
+
 assert.match(src,/cost\.purchaseAmount===null\?"자료 확인 필요":won\(cost\.purchaseAmount\)/);
 assert.match(src,/미확인 재고는 0원으로 계산하지 않으며/);
 const html=fs.readFileSync('index.html','utf8');
