@@ -116,7 +116,8 @@ copyButton.addEventListener('click',async()=>{
 })();
 </script></body></html>`;
 function pageResponse(req:Request){
- if(new URL(req.url).search)return new Response('QA1243_QUERY_NOT_ALLOWED',{status:400,headers:headers('disabled')});
+ // Query parameters are ignored: this public GET endpoint serves only fixed HTML.
+ // No URL parameter is reflected, parsed into the page, or used as a token.
  const bytes=crypto.getRandomValues(new Uint8Array(16));
  const nonce=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
  const html=page.replaceAll('QA1243_NONCE',nonce).replace('QA1243_SCOPE_LIST',JSON.stringify(scopeList));
