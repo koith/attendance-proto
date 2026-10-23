@@ -44,6 +44,7 @@ jobs:
       QA1243_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID }}
       QA1243_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET }}
       QA1243_GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN }}
+      QA1243_GOOGLE_OAUTH_ACCESS_TOKEN: ${{ secrets.QA1243_GOOGLE_OAUTH_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,7 +65,9 @@ jobs:
           const title='QA1243 isolated Auth MailApp 2026-10-24';
           const owner='webuielf@gmail.com';
           const req=['QA1243_GOOGLE_OAUTH_CLIENT_ID','QA1243_GOOGLE_OAUTH_CLIENT_SECRET','QA1243_GOOGLE_OAUTH_REFRESH_TOKEN'];
-          if(req.some(k=>!process.env[k]))throw Error('QA1243_MAIL_GAS_OAUTH_SECRETS_MISSING');
+          const desktopReady=req.every(k=>Boolean(process.env[k]));
+          const mobileAccess=String(process.env.QA1243_GOOGLE_OAUTH_ACCESS_TOKEN||'').trim();
+          if(!desktopReady&&!mobileAccess)throw Error('QA1243_MAIL_GAS_GOOGLE_OAUTH_CREDENTIAL_ABSENT');
           const badPrefix='QA1243_MAIL_GAS_';
           async function call(url,opt={}){
             let response;
@@ -74,26 +77,46 @@ jobs:
             try{return await response.json();}
             catch{throw Error(badPrefix+'INVALID_API_JSON');}
           }
-          const refreshed=await call('https://oauth2.googleapis.com/token',{
-           method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
-           body:new URLSearchParams({
-            client_id:process.env.QA1243_GOOGLE_OAUTH_CLIENT_ID,
-            client_secret:process.env.QA1243_GOOGLE_OAUTH_CLIENT_SECRET,
-            refresh_token:process.env.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN,grant_type:'refresh_token'
-           })
-          });
-          assert.ok(refreshed.access_token,badPrefix+'ACCESS_TOKEN_ABSENT');
-          const access=refreshed.access_token;
+          let access;
+          if(desktopReady){
+           const refreshed=await call('https://oauth2.googleapis.com/token',{
+            method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
+            body:new URLSearchParams({
+             client_id:process.env.QA1243_GOOGLE_OAUTH_CLIENT_ID,
+             client_secret:process.env.QA1243_GOOGLE_OAUTH_CLIENT_SECRET,
+             refresh_token:process.env.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN,grant_type:'refresh_token'
+            })
+           });
+           access=refreshed.access_token;
+           console.log('QA1243_MAIL_GAS_OAUTH_DESKTOP_REFRESH');
+          }else{
+           access=mobileAccess;
+           console.log('QA1243_MAIL_GAS_OAUTH_EPHEMERAL_FALLBACK');
+          }
+          assert.ok(access,badPrefix+'ACCESS_TOKEN_ABSENT');
           const authHeader={Authorization:'Bearer '+access};
           const headers={...authHeader,'content-type':'application/json'};
-          const identity=await call('https://www.googleapis.com/oauth2/v3/userinfo',{headers:authHeader});
+          let identity;
+          try{identity=await call('https://www.googleapis.com/oauth2/v3/userinfo',{headers:authHeader});}
+          catch(err){
+           if(!desktopReady)throw Error(badPrefix+'EPHEMERAL_TOKEN_EXPIRED_OR_INVALID');
+           throw err;
+          }
           if(String(identity.email||'').toLowerCase()!==owner||identity.email_verified!==true)
            throw Error(badPrefix+'OWNER_MISMATCH');
-          const granted=await call('https://www.googleapis.com/oauth2/v2/tokeninfo',{
-           method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
-           body:new URLSearchParams({access_token:access})
-          });
+          let granted;
+          try{
+           granted=await call('https://www.googleapis.com/oauth2/v2/tokeninfo',{
+            method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
+            body:new URLSearchParams({access_token:access})
+           });
+          }catch(err){
+           if(!desktopReady)throw Error(badPrefix+'EPHEMERAL_TOKEN_EXPIRED_OR_INVALID');
+           throw err;
+          }
           assertQa1243RunnerScopes(granted.scope);
+          if(!desktopReady && (!Number.isFinite(Number(granted.expires_in))||Number(granted.expires_in)<360))
+           throw Error(badPrefix+'EPHEMERAL_TOKEN_EXPIRED_OR_SHORT_LIVED');
           assert.equal(QA1243_RUNNER_SCOPES.length,5);
           console.log('QA1243_MAIL_GAS_OWNER_AND_SCOPES_VERIFIED');
           
