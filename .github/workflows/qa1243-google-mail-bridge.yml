@@ -32,7 +32,7 @@ jobs:
       - name: Proof of zero operating writes
         run: |
           echo 'Synthetic only: no Auth Hook enabling, GAS deployment, SMTP, account creation, emails, Sheets, SQL or Edge writes.' >> "$GITHUB_STEP_SUMMARY"
-isolated-gas-provision:
+  isolated-gas-provision:
     name: QA1243 isolated Google MailApp script provisioning (no email)
     needs: synthetic-security-tests
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[QA1243-MAIL-GAS-DEPLOY]')
@@ -180,9 +180,11 @@ isolated-gas-provision:
           console.log('QA1243_MAIL_GAS_REMOTE_READBACK_PASS '+JSON.stringify({scriptId:id,sha256:fingerprint}));
           
           const deploys=await call(api+'/'+encodeURIComponent(id)+'/deployments',{headers:authHeader});
-          if(!Array.isArray(deploys.deployments))throw Error(badPrefix+'DEPLOYMENT_LIST_INVALID');
-          if(deploys.deployments.length>1)throw Error(badPrefix+'MULTIPLE_DEPLOYMENTS_STOP');
-          let deployment=deploys.deployments[0];
+          if(deploys.deployments!==undefined&&!Array.isArray(deploys.deployments))
+           throw Error(badPrefix+'DEPLOYMENT_LIST_INVALID');
+          const list=deploys.deployments||[];
+          if(list.length>1)throw Error(badPrefix+'MULTIPLE_DEPLOYMENTS_STOP');
+          let deployment=list[0];
           if(!deployment){
            const version=await call(api+'/'+encodeURIComponent(id)+'/versions',{
             method:'POST',headers,body:JSON.stringify({description:'Isolated QA1243 MailApp source; Auth Hook OFF'})
