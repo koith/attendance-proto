@@ -29,7 +29,7 @@ export function encode(record) {
 export function decode(comment, {issue, trustedAuthors}) {
   if(!comment.body?.startsWith(marker+'\n'))return null;
   if(!trustedAuthors.includes(comment.user?.login))return null;
-  const match=comment.body.match(/^\[ai-dev-checkpoint:v1\]\n\n```json\n([\s\S]+)\n```\n?$/);
+  const match=comment.body.match(/^\[ai-dev-checkpoint:v1\]\n\n```json\n([\s\S]+)\n```\s*$/);
   if(!match)throw Error('CORRUPT_CHECKPOINT');
   const {record,digest}=JSON.parse(match[1]);validate(record);
   if(record.issue!==issue||digest!==hash(record))throw Error('CHECKPOINT_DIGEST_OR_ISSUE_MISMATCH');
@@ -83,5 +83,7 @@ export function resume(issue, comments, context) {
     tasks:Object.fromEntries(Object.entries(tasks).map(([id,t])=>[id,{...t.latest.record,checkpoint_url:t.latest.url,
       completion:'CANNOT_VERIFY',note:'Checkpoint is a progress claim; use independent acceptance gate for completion.'}])),
     next_action:Object.keys(tasks).length?'Follow each task next_action; continue independent unblocked tasks.':'Read issue and record scope, acceptance, branch and next action before coding.',
+    recent_notes:comments.filter(c=>context.trustedAuthors.includes(c.user?.login)&&
+      !c.body?.startsWith('[development-intake:')&&!c.body?.startsWith(marker)).slice(-10).map(c=>({body:c.body,url:c.html_url||c.url})),
     conversation_recovery:false};
 }
