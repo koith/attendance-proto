@@ -27,6 +27,61 @@ export const HOSTED_INVITATION_URLS=Object.freeze({
  siteUrls:Object.freeze(['https://koith.github.io/attendance-proto/',
   'https://koith.github.io/attendance-proto/index.html']),
  activationUrl:'https://koith.github.io/attendance-proto/owner_activation.html'});
+// Diagnose default mailer versus an existing Send Email Hook without exposing
+// any provider URI, credentials, addresses, remote templates or remote URLs.
+// Null/missing fields are unknown; they must never prove a default mail path.
+export function diagnoseHostedAuthConfig(config,expected){
+ const present=key=>Object.hasOwn(config,key)?
+  typeof config[key]==='string'?config[key].trim().length>0:config[key]===null?false:Boolean(config[key]):null;
+ const state=(value,wanted)=>value==null?'UNREPORTED':typeof value!=='string'?'UNREPORTED':
+  value===wanted?'EXPECTED_EXACT':!value.trim()?'EMPTY_PROVIDER_DEFAULT':'DIFFERENT';
+ const hookEnabled=typeof config.hook_send_email_enabled==='boolean'?config.hook_send_email_enabled:null;
+ const hookUriConfigured=present('hook_send_email_uri'),smtpHost=present('smtp_host');
+ let siteUrlClass='UNREPORTED';
+ if(typeof config.site_url==='string'){
+  if(!config.site_url.trim())siteUrlClass='EMPTY';
+  else try{
+   const u=new URL(config.site_url.trim());
+   siteUrlClass=u.username||u.password||u.search||u.hash?'UNSAFE_COMPONENTS':
+    HOSTED_INVITATION_URLS.siteUrls.includes(u.href)?'APP_PRODUCTION':
+    ['localhost','127.0.0.1','[::1]'].includes(u.hostname)?'LOOPBACK':
+    u.protocol==='https:'?'OTHER_HTTPS':'NON_HTTPS';
+  }catch{siteUrlClass='INVALID';}
+ }
+ return {inviteTemplateState:state(config.mailer_templates_invite_content,expected.template),
+  inviteSubjectState:state(config.mailer_subjects_invite,expected.subject),siteUrlClass,
+  redirectAllowListEntryCount:typeof config.uri_allow_list==='string'?
+   config.uri_allow_list.split(',').filter(x=>x.trim()).length:null,
+  sendEmailHookEnabled:hookEnabled,sendEmailHookUriConfigured:hookUriConfigured,
+  emailDeliveryMode:hookEnabled===true?hookUriConfigured===true?'SEND_EMAIL_HOOK':'HOOK_ENABLED_UNVERIFIED':
+   hookEnabled===false?smtpHost===true?'CUSTOM_SMTP':smtpHost===false?'DEFAULT_SUPABASE_MAILER':'UNVERIFIED':
+   'HOOK_STATE_UNVERIFIED'};
+}
+// Reviewable instructions only, never a PATCH payload or a write-capable path.
+// Existing redirect entries must survive an approved future change verbatim.
+export function buildHostedAuthRepairPlan(s){
+ const changes=[];
+ if(s?.remoteTemplateMatch===false)changes.push({field:'mailer_templates_invite_content',
+  operation:'USE_VERSIONED_KOREAN_TEMPLATE',source:'supabase/email-templates/invite.html'});
+ if(s?.remoteInviteSubjectMatch===false)changes.push({field:'mailer_subjects_invite',
+  operation:'USE_KOREAN_INVITE_SUBJECT',value:'[백억커피] 매장 관리자 계정 초대 안내'});
+ if(s?.siteUrlProductionMatch===false)changes.push({field:'site_url',operation:'SET_APPROVED_APP_DEFAULT',
+  value:HOSTED_INVITATION_URLS.siteUrls[0]});
+ if(s?.activationRedirectAllowed===false)changes.push({field:'uri_allow_list',
+  operation:'APPEND_EXACT_CALLBACK_PRESERVE_ALL_EXISTING_ENTRIES',value:HOSTED_INVITATION_URLS.activationUrl});
+ const delivery=s?.emailDeliveryMode;
+ const smtpRepair=s?.smtpHostConfigured===false||s?.smtpSenderConfigured===false;
+ return {mode:'REVIEW_ONLY_NO_MUTATIONS',configReadable:s?.configReadable===true,
+  changes,operationalApprovalRequired:changes.length>0||smtpRepair,
+  futureWritePermission:changes.length||smtpRepair?'auth_config_write':null,
+  readSecretMustRemainReadOnly:true,preserveExistingRedirects:true,preserveOtherAuthPolicies:true,
+  deliveryAction:delivery==='DEFAULT_SUPABASE_MAILER'?'APPROVED_CUSTOM_PROVIDER_AND_VERIFIED_SENDER_REQUIRED':
+   delivery==='SEND_EMAIL_HOOK'?'REVIEW_EXISTING_HOOK_DELIVERY_AND_KOREAN_CONTENT':
+   delivery==='CUSTOM_SMTP'?'VERIFY_APPROVED_MAILBOX_DELIVERY':'READ_DELIVERY_CONFIGURATION_BEFORE_CHANGE',
+  unknownsRemainBlocking:s?.configReadable!==true||delivery==='HOOK_STATE_UNVERIFIED'||delivery==='UNVERIFIED'||delivery==='HOOK_ENABLED_UNVERIFIED',
+  rollback:'PRIVATELY_PRESERVE_EXACT_CHANGED_FIELDS_BEFORE_APPROVED_APPLY_AND_RESTORE_ON_FAILURE',
+  mailSent:false,accountsChanged:false};
+}
 // No remote URLs leave this function. GoTrue permits a redirect with the same
 // scheme/host/port as Site URL even without an additional allow-list entry.
 // Do not mistake a supported wildcard for an exact match or a confirmed failure.
@@ -86,6 +141,7 @@ export async function probeHostedAuthManagement(env,expected,fetcher=fetch){
  const present=key=>Object.hasOwn(config,key)?
   typeof config[key]==='string'?config[key].trim().length>0:Boolean(config[key]):null;
  return {...result,configReadable:true,reason:'HTTP_200_METADATA_ONLY',...assessHostedInvitationUrls(config),
+  ...diagnoseHostedAuthConfig(config,expected),
   remoteTemplateMatch:typeof config.mailer_templates_invite_content==='string'?config.mailer_templates_invite_content===expected.template:null,
   remoteInviteSubjectMatch:typeof config.mailer_subjects_invite==='string'?config.mailer_subjects_invite===expected.subject:null,
   smtpHostConfigured:present('smtp_host'),smtpPortConfigured:present('smtp_port'),smtpUserConfigured:present('smtp_user'),

@@ -231,7 +231,19 @@ POS·배달·공급사·장바구니 자동화 자체는 관리자/근태/급여
 ## 11. 2026-10-23 기존 인증 경로 확인 결과와 다음 한 가지 조치
 
 - #1323(59체크/실패0) 병합 후 [실제 감사39923060344](https://github.com/koith/attendance-proto/actions/runs/39923060344)를 완료했다. production 메타데이터 GET200·별도 승인/대기 규칙 없음. 기존 환경의 Secret 문맥도 실제로 사용했지만17:13:16 KST 관리 인증이 NONE이어서 Auth 설정 본문은 읽지 못했다. SMTP/템플릿/URL 오류의 증거가 아니다.
-- **사용자에게 지금 요청하는 한 가지 조치:** 프로젝트 `waluhdgqhwjjwmflhrle`의 **Auth Config Read**(`auth_config_read` / OAuth `auth:read`) 관리 API 인증을 [저장소 Actions Secret 등록 화면](https://github.com/koith/attendance-proto/settings/secrets/actions/new)에서 `SUPABASE_AUTH_READ_TOKEN`으로 안전하게 연결한다. 기존 승인된 읽기 인증을 활용하고, 비밀번호/토큰을 대화나 Issue에 보내지 않는다. Owner·설정 쓰기·DB쓰기 권한은 필요하지 않다.
+- **당시 요청한 조치(아래 §12에서 연결 완료):** 프로젝트 `waluhdgqhwjjwmflhrle`의 **Auth Config Read**(`auth_config_read` / OAuth `auth:read`) 관리 API 인증을 [저장소 Actions Secret 등록 화면](https://github.com/koith/attendance-proto/settings/secrets/actions/new)에서 `SUPABASE_AUTH_READ_TOKEN`으로 안전하게 연결한다. 기존 승인된 읽기 인증을 활용하고, 비밀번호/토큰을 대화나 Issue에 보내지 않는다. Owner·설정 쓰기·DB쓰기 권한은 필요하지 않다.
 - 연결되면 AI가 인증 경로 선택과 실제 GET만 새 Secret 문맥으로 재실행해 메일/SMTP/인증 URL의8개 판정을 마무리한다. 동일 NONE 재시도나 기존 초대Auth8·SEC9·Google·전체 개통·Pages 재실행은 하지 않는다.
 - 실수신·수락·로그인 준비표와 SEC01 영향/적용 전 정지 조건·이전 설정 보존/복구·실기기 검증 계획은 §10으로 확정했다. 실제 수신자 동의/직접 인증과 SEC01 활성화 승인은 향후 실행 범위이며 이번에 임의 수행하거나 한꺼번에 요청하지 않는다.
 - 앱 v0.355/38·19·19 유지. 기술 main a125554c의 P0 성공·게시 전부 SKIP, 자동점검7/8와 원본 보호 기록은 원장§72/Issue#1243에 연결. 본 절의 최종 기록은 문서 전용 변경이므로 CI/운영 배포를 다시 실행하지 않는다.
+
+
+## 12. 2026-10-23 읽기 연결 해결·설정 감사 결과·승인 전 수정안
+
+- §11의 Secret 연결은 **완료**됐다. [39923060344 attempt2](https://github.com/koith/attendance-proto/actions/runs/39923060344/attempts/2)에서 전용 Auth Config Read Secret이 기존 repository 문맥으로 사용됐고, **18:51:15 KST 운영 GET HTTP200**. 사용자에게 Secret 등록/화면 조작을 다시 요구하지 않는다.
+- 내부 설정8개 **2 PASS/6 FAIL**: 관리 GET/메일 provider 활성만 PASS. 한국어 초대 HTML·제목, custom SMTP host·sender, 운영 Site URL, activation callback 허용이 FAIL. TTL3600초, autoconfirm=false. 실제 메일 발송이나 계정 변경 없이 확인했다. 관리 인증 부재는 해결됐으며 SMTP 네트워크 고장으로 단정하지 않는다.
+- 내장 SMTP를 대체하는 Send Email Hook 여부·기본/다른 템플릿 여부·사이트 URL 분류를 **bool/enum만** 추가 진단한다. 미제공 hook 상태는 UNKNOWN, hook 존재만으로 SMTP/브랜드/실수신 실패를 성공 처리하지 않는다.
+- **승인할 수 있는 구체적 설정안:** 저장소 한국어 invite HTML(SHA256 접두 ae300e5409e99792), 제목 `[백억커피] 매장 관리자 계정 초대 안내`, Site URL `https://koith.github.io/attendance-proto/`, 기존 redirect 전부 유지하고 `https://koith.github.io/attendance-proto/owner_activation.html`을 정확히 추가. 이미 일치하는 항목은 바꾸지 않는다. 다른 OAuth·signup·autoconfirm·세션 정책 변경 없음. 메일 공급자/검증 발신자는 승인된 기존 설정을 확보해야 하며 임의 생성하지 않는다.
+- **발송 방식 근거:** [공식 SMTP 문서](https://supabase.com/docs/guides/auth/auth-smtp)는 기본 서버를 조직 팀 주소로 제한하고 운영용이 아니라고 설명한다. [Send Email Hook](https://supabase.com/docs/guides/auth/auth-hooks/send-email-hook)은 내장 발송을 대체하므로 GET 진단 결과에 따라 기존 hook 검토 또는 승인 SMTP 준비를 구분한다.
+- **변경·복구:** 현재 읽기 Secret 권한은 유지. 별도 운영 설정 변경 승인과 프로젝트 Auth Config Write(`auth_config_write`) 실행 경로가 있어야 최소 필드만 적용 가능. 승인 직전 정확한 이전 변경 필드는 비공개 보관→필드별 최소 변경→GET 재검증→실패시 해당 필드만 이전 상태 복구. 인증정보/원문 config를 공개 기록하지 않는다.
+- **이후 실제 인증 순서:** 설정 통과→동의된 시험 이메일/지점·허용 작업범위 확정→승인된 발송1회→수신자 본인 수신·수락/비밀번호·로그인→대표·보조/취소·만료·재초대/해임·타점 경계→승인된 원본 전후 증거. 기존 계정 recovery는 별도 메일이므로 한국어 invite 감사로 대체하지 않는다. 발송·본인 인증 미실행은 PENDING 유지, READY로 STAGED 경계를 우회하지 않음.
+- SEC01은 §10의 영향/최소diff/실기기/복구 계획 유지, 이번 활성화 없음. 앱 v0.355·전체38/완료19/잔여19. 원장§73 및 #1243에 CI/실제 추가 진단·최종 개통점검 증거를 연결한다.
