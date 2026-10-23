@@ -3,6 +3,12 @@ name: Store opening full journey QA
 on:
   pull_request:
     paths:
+      # Any root QA scenario or disposable SQL fixture change must rerun the
+      # complete invite -> role -> staff -> payroll -> Sheet -> recipe journey.
+      # Previously many qa_*.mjs/sql fixtures were omitted, so they could
+      # change without triggering this required integration workflow.
+      - 'qa_*.mjs'
+      - 'qa_*.sql'
       - 'qa_store_opening_*'
       - 'operations_*.js'
       - 'qa_inventory_*.mjs'
@@ -40,6 +46,12 @@ on:
   push:
     branches: [main]
     paths:
+      # Any root QA scenario or disposable SQL fixture change must rerun the
+      # complete invite -> role -> staff -> payroll -> Sheet -> recipe journey.
+      # Previously many qa_*.mjs/sql fixtures were omitted, so they could
+      # change without triggering this required integration workflow.
+      - 'qa_*.mjs'
+      - 'qa_*.sql'
       - 'qa_store_opening_*'
       - 'operations_*.js'
       - 'qa_inventory_*.mjs'
