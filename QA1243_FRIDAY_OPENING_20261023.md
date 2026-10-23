@@ -287,3 +287,31 @@ POS·배달·공급사·장바구니 자동화 자체는 관리자/근태/급여
 - 기존 repository/확인된 production에서 알려진 Auth write/legacy credential 존재만 확인. 새 토큰 발급/재로그인 요청 없음. 현재 runtime 관리 binding없음·Supabase connector Auth Config PATCH 미지원·저장 브라우저로그인없음. 실제 후보가 없으면 정확한 쓰기경로 부재로 기록하고 read문제와 구분한다.
 - 개발된 적용기는 승인 scope+기존 쓰기 자격+승인된 beforeSHA 필요, 직전 drift감지·4키 제한 PATCH·GET readback·비대상 hash 확인·인식가능한 부분 적용의 키별 복구만 지원한다. 새 CI는 --review만 수행한다.14개 synthetic QA와 P0/Google exact-diff guard PASS, 실제 Auth/메일/Google E2E/Pages 반복 없음.
 - 실제 전후/권한·PR/main 결과는 원장§76 후속 및 Issue#1243에 연결한다. v0.355/38·19·19. 별도 운영 승인 전 실점주 초대/READY/SEC01/운영 데이터 변경 금지 유지.
+
+## 16. 실제 전후 검토·쓰기 경로 결과와 최종 상태
+
+- 앱v0.355. #1328 66체크/실패0 정상 병합, 기술 main c6bddf7c4f2cf6207a07e94a9817e10551b86faa. GitHub 앱 “항상 허용”을 사용자 지시대로 plugin-specific full_access로 실제 반영해 반복 거부를 해결. Supabase 권한/전역 기본값은 그대로이고 중요한 운영 작업의 별도 승인 원칙 유지.
+- [main39962969173](https://github.com/koith/attendance-proto/actions/runs/39962969173)에서4공개값을 실제 GET했다. **다음은 실제 현재값과 수정 확정값이며 운영 변경 후 관측값은 아니다.**
+
+| 항목 | 실제 현재값(GET) | 수정 확정값(미적용) |
+|---|---|---|
+| mailer_templates_invite_content | 아래 영문 HTML 전체 | [저장소 한국어 invite.html 전체](supabase/email-templates/invite.html),4202bytes/SHA256 접두 ae300e5409e99792 |
+| mailer_subjects_invite | `You've been invited` | `[백억커피] 매장 관리자 계정 초대 안내` |
+| site_url | `http://localhost:3000` | `https://koith.github.io/attendance-proto/` |
+| uri_allow_list | `""`(빈 문자열) | `https://koith.github.io/attendance-proto/owner_activation.html` |
+
+실제 변경 전 HTML:
+
+```html
+<h2>You've been invited</h2>
+
+<p>You've been invited to create an account. Follow the link below to accept.</p>
+<p><a href="{{ .ConfirmationURL }}">Accept invitation</a></p>
+```
+
+- preimage4필드 SHA256 `d98d4b91f99b92b6fea05732eb90421ccfbad0088281d0309a20fe2b815c5f62`, target4필드 SHA256 `32e7fe537adeb19c41bdb0a766fa24a66987b3f5476373142653e707e73226fd`. before/target/PATCH/복구 JSON·HTML은 작업공간 `qa-results/qa1243-auth-four-fields-20261023/`에 준비.
+- **영향/보존:** 향후 초대문/제목, localhost이던 인증 기본복귀주소와 허용 callback만 변경대상. 기존 redirect는 보존하며 drift면 적용중지. 이미 발행한 링크·계정·세션/권한·운영자료·SMTP공급자/발신자·Hook/보안정책은 변경 대상이 아님.
+- **실제 차단:** repository에는AuthRead만 존재(scopedWrite=false/legacy=false), 확인된 기존production 문맥도write/legacy없음. GET200의 읽기문제는 해결됐고 `EXISTING_WRITE_CREDENTIAL_ABSENT`로4개 적용은 불가. runtime0/browser로그인0/connector AuthConfig PATCH 미지원까지 조사. GitHub앱 허용이 Supabase관리 쓰기를 대신하지 않음.
+- 읽기토큰을 쓰기로 바꾸거나 토큰발급/읽기 재연결을 다시 요구하지 않음. 이번4개 운영작업 승인을 다시 묻지도 않는다. 승인된 기존 관리 실행 주체의 **Auth Config Write 능력은 아직 확보되지 않음**. 실제4개 적용/PATCH·변경후GET 성공은 미실행으로 남긴다.14개 synthetic 적용기/복구 QA와66개 PR체크는 실제 완료.
+- [P039962969106](https://github.com/koith/attendance-proto/actions/runs/39962969106) SUCCESS·Pages 게시전부SKIP. Google39962968819의 실제 실행SKIP, 기존39781031886 재사용. [최종 gate39963164952](https://github.com/koith/attendance-proto/actions/runs/39963164952) **7/8 NO_GO(HOSTED_AUTH_READ)**. 실제 Auth 설정은2/8. 모의4필드 적용 후6/8이라는 결과를 운영 PASS로 쓰지 않는다.
+- READ ONLY 보호10그룹 전후 count/hash 및guard정의 동일(244지점/HQ3/직원10 포함). 운영메일·초대/계정·권한·READY·SEC01·SQL/기존Sheet 쓰기0. v0.355/38·19·19. SMTP/발신자·실수신·본인인증·개통승인/SEC01·현장 검증은 별도 차단조건이며 현재 임의 변경하지 않는다.
