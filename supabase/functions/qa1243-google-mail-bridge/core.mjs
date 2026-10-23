@@ -1,8 +1,8 @@
 // QA1243: pure, Deno/Node-compatible code. Never log links, tokens or hook bodies.
 const PROJECT_REF = 'waluhdgqhwjjwmflhrle';
-const BASE = `https://${{PROJECT_REF}.supabase.co`;
+const BASE = `https://${PROJECT_REF}.supabase.co`;
 const ROOT = 'https://koith.github.io/attendance-proto/';
-const ACTIVATION = `${{ROOT}owner_activation.html`;
+const ACTIVATION = `${ROOT}owner_activation.html`;
 const MAX_AGE_SECONDS = 300;
 const encoder = new TextEncoder();
 
@@ -38,7 +38,7 @@ export async function verifyHook(raw, headers, secret, now=Date.now()) {
   const sig = headers.get('webhook-signature');
   if (!id || !/^[\w-]{1,128}$/.test(id) || !stamp || !/^\d{10}$/.test(stamp) || !sig) throw Error('HOOK_HEADERS_INVALID');
   if (Math.abs(Math.floor(now/1000) - Number(stamp)) > MAX_AGE_SECONDS) throw Error('HOOK_TIMESTAMP_EXPIRED');
-  const expected = await hmac(hookKey(secret), `${{id}.${{stamp}.${{raw}`);
+  const expected = await hmac(hookKey(secret), `${id}.${stamp}.${raw}`);
   const candidates = sig.split(' ').filter(v => /^v1,[A-Za-z0-9+/=]+$/.test(v));
   if (!candidates.some(v => { try {return sameBytes(decodeBase64(v.slice(3)), expected);}catch{return false;} })) throw Error('HOOK_SIGNATURE_INVALID');
   let event;
@@ -59,7 +59,7 @@ function redirectUrl(v) {
 }
 function escapeHtml(v) { return v.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function verifyLink(kind, hash, redirect) {
-  const url = new URL(`${{BASE}/auth/v1/verify`);
+  const url = new URL(`${BASE}/auth/v1/verify`);
   url.searchParams.set('token', tokenHash(hash));
   url.searchParams.set('type', kind);
   url.searchParams.set('redirect_to', redirectUrl(redirect));
@@ -67,8 +67,8 @@ function verifyLink(kind, hash, redirect) {
 }
 function simpleMessage(to, kind, hash, redirect, title) {
   const link=verifyLink(kind,hash,redirect);
-  return {to,subject:`[백억커피] ${{title}`,body:`백억커피 인증 안내입니다. 다음 주소로 본인 확인을 완료하세요: ${{link}`,
-    html:`<!doctype html><html lang="ko"><body><h2>백억커피 ${{escapeHtml(title)}</h2><p>아래 주소에서 본인 확인을 완료해 주세요.</p><a href="${{escapeHtml(link)}">인증 계속하기</a><p>요청하지 않았다면 무시하세요.</p></body></html>`};
+  return {to,subject:`[백억커피] ${title}`,body:`백억커피 인증 안내입니다. 다음 주소로 본인 확인을 완료하세요: ${link}`,
+    html:`<!doctype html><html lang="ko"><body><h2>백억커피 ${escapeHtml(title)}</h2><p>아래 주소에서 본인 확인을 완료해 주세요.</p><a href="${escapeHtml(link)}">인증 계속하기</a><p>요청하지 않았다면 무시하세요.</p></body></html>`};
 }
 export function planMessages(event, inviteHTML) {
   const user = event?.user, data = event?.email_data;
@@ -80,7 +80,7 @@ export function planMessages(event, inviteHTML) {
       if (typeof inviteHTML !== 'string' || (inviteHTML.match(/\{\{ \.ConfirmationURL \}\}/g)||[]).length!==1) throw Error('INVITE_TEMPLATE_INVALID');
       const link=verifyLink('invite',data.token_hash,redirect);
       return [{to,subject:'[백억커피] 매장 관리자 계정 초대 안내',
-        body:`백억커피 관리자 계정 초대입니다. 본인 확인과 비밀번호 설정: ${{link}`,
+        body:`백억커피 관리자 계정 초대입니다. 본인 확인과 비밀번호 설정: ${link}`,
         html:inviteHTML.replace('{{ .ConfirmationURL }}',escapeHtml(link))}];
     }
     case 'signup':return [simpleMessage(to,'signup',data.token_hash,redirect,'가입 이메일 인증')];
@@ -107,7 +107,7 @@ export async function signedBridgeEnvelope(message, id, secret, now=Date.now()) 
   if (!/^[\w-]{1,128}$/.test(nonce)) throw Error('RELAY_NONCE_INVALID');
   const sent_at=Math.floor(now/1000);
   const data={to:message.to,subject:message.subject,body:message.body,html:message.html};
-  const signature=encodeBase64(await hmac(encoder.encode(secret),`${{sent_at}.${{nonce}.${{JSON.stringify(data)}`));
+  const signature=encodeBase64(await hmac(encoder.encode(secret),`${sent_at}.${nonce}.${JSON.stringify(data)}`));
   return {sent_at,nonce,data,signature};
 }
 export const BRIDGE_REF=PROJECT_REF;
