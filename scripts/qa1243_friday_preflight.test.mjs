@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import {REQUIRED,EXTERNAL_BLOCKERS,classifyWorkflow,verdict,reconcileIntegratedSqlEvidence,reconcileSafePagesEvidence,verifyGoogleOnLiveMain} from './qa1243_friday_preflight.mjs';
+import {readFileSync} from 'node:fs';
+import {REQUIRED,EXTERNAL_BLOCKERS,classifyWorkflow,verdict,reconcileIntegratedSqlEvidence,reconcileSafePagesEvidence,verifyGoogleOnLiveMain,credentialPreflightFailure} from './qa1243_friday_preflight.mjs';
 const SHA='864383ceeefa5ec9596886804efeb77505180685';
 const now=Date.parse('2026-10-21T00:00:00Z');
 const spec={id:'GENERIC_WORKFLOW',sameSha:false};
@@ -90,19 +91,28 @@ const jobName='Trusted production Edge to a new independent GAS project and Shee
 const execName='Execute real new GAS project and production Edge service-to-service QA';
 const attestName='Await verified native production Edge deployment of this exact revision';
 const validateName='Validate integration runner and OIDC isolation contract';
-const realJobs=[{name:jobName,conclusion:'success',steps:[execName,attestName,validateName].map(name=>({name,conclusion:'success'}))}];
+const realJobs=[{id:1234,name:jobName,conclusion:'success',steps:[execName,attestName,validateName].map(name=>({name,conclusion:'success'}))}];
 const skippedJobs=[{name:jobName,conclusion:'success',steps:[{name:execName,conclusion:'skipped'}]}];
 const testNow=Date.parse('2026-10-23T01:00:00Z');
 assert.equal(classifyWorkflow({id:'LIVE_EDGE_GAS_SHEETS'},[scope],current,testNow).reason,'LIVE_EXECUTION_PROOF_REQUIRED');
 async function googleCase(change={}){
- const state={runs:[scope,real],jobs:{[scope.id]:skippedJobs,[real.id]:realJobs},
+ const state={runs:[scope,real],jobs:{[scope.id]:skippedJobs,[real.id]:realJobs},logs:'',sourceBlob:'c516cde85456f0438e84794e0d4213651e1668e4',
   diff:{status:'ahead',merge_base_commit:{sha:proofSha},files:[]},...change};
  const requested=[];
- const fetcher=async url=>{
-  assert.ok(url.startsWith('https://api.github.com/repos/koith/attendance-proto/'),'No Google, OAuth, Edge or Sheets request is permitted');
+ const fetcher=async (url,options)=>{
+  assert.ok(url.startsWith('https://api.github.com/repos/koith/attendance-proto/')||url==='https://results.blob.core.windows.net/log.txt','No Google, OAuth, Edge or Sheets request is permitted');
   requested.push(url);let value;
   if(url.includes('/actions/workflows/'))value={workflow_runs:state.runs};
   else if(url.includes('/jobs?')){const id=Number(url.match(/runs\/(\d+)/)[1]);value={total_count:state.jobs[id]?.length||0,jobs:state.jobs[id]||[]};}
+  else if(url.includes('/actions/jobs/')){
+   if(state.redirect)return {ok:false,status:302,headers:{get:()=>state.redirect}};
+   return {ok:true,status:200,text:async()=>state.logs};
+  }
+  else if(url==='https://results.blob.core.windows.net/log.txt'){
+   assert.equal(options.headers,undefined,'Never forward GitHub credentials to signed log storage');
+   return {ok:true,status:200,text:async()=>state.logs};
+  }
+  else if(url.includes('/contents/'))value={sha:state.sourceBlob};
   else if(url.includes('/compare/'))value=state.diff;
   else throw Error('UNEXPECTED_READ_URL');
   return {ok:true,status:200,json:async()=>value};
@@ -133,6 +143,45 @@ const stale={...real,created_at:'2026-10-01T00:00:00Z'};
 assert.equal((await googleCase({runs:[scope,stale]})).result.reason,'RUN_STALE_OR_INVALID_DATE');
 const failure=await googleCase({runs:[{...scope,conclusion:'failure'},real]});
 assert.equal(failure.result.reason,'WORKFLOW_FAILURE');assert.equal(failure.requested.length,1);
+const expiredLog='QA1243_GOOGLE_AUTH_ROUTE_MOBILE_EPHEMERAL\nError: REMOTE_HTTP_401 for www.googleapis.com /oauth2/v3 [type=UNKNOWN]\nProcess completed with exit code 1.';
+const shortLog='QA1243_GOOGLE_AUTH_ROUTE_MOBILE_EPHEMERAL\nQA1243_OAUTH_OWNER_VERIFIED\nError: QA1243_MOBILE_TOKEN_EXPIRY_TOO_SHORT\nProcess completed with exit code 1.';
+assert.equal(credentialPreflightFailure(expiredLog),'QA_OAUTH_USERINFO_401_BEFORE_E2E');
+assert.equal(credentialPreflightFailure(shortLog),'QA_OAUTH_EXPIRY_TOO_SHORT_BEFORE_E2E');
+for(const log of ['',expiredLog.replace('exit code 1.','truncated'),expiredLog+'\nQA1243_RUNNER_OAUTH_SCOPE_VERIFIED',
+ expiredLog+'\nQA1243_EDGE_FIRST_FAILURE',expiredLog+'\nError: OTHER_FAILURE',
+ expiredLog.replace('www.googleapis.com /oauth2/v3','script.googleapis.com /v1/projects'),
+ expiredLog+'\nQA1243_OAUTH_OWNER_VERIFIED',shortLog.replace('QA1243_OAUTH_OWNER_VERIFIED','not verified')])
+ assert.equal(credentialPreflightFailure(log),null,'Unknown, later-stage or incomplete failure remains blocking');
+for(const logs of [expiredLog,shortLog]){
+ const preflight=await googleCase({runs:[scope,newerFailure,real],jobs:{[scope.id]:skippedJobs,[newerFailure.id]:badJobs,[real.id]:realJobs},logs});
+ assert.equal(preflight.result.status,'PASS');assert.equal(preflight.result.run_id,real.id);
+ assert.equal(preflight.result.credential_preflight_attempts.length,1);
+ assert.equal(preflight.result.future_rerun_auth,'REAUTH_REQUIRED_NOT_REQUESTED');
+ assert.equal(preflight.result.googleE2ERepeated,false);
+}
+const unknownBlob=await googleCase({runs:[scope,newerFailure,real],jobs:{[scope.id]:skippedJobs,[newerFailure.id]:badJobs,[real.id]:realJobs},logs:expiredLog,sourceBlob:'a'.repeat(40)});
+assert.equal(unknownBlob.result.reason,'CREDENTIAL_PREFLIGHT_RUNNER_UNREVIEWED');
+const redirected=await googleCase({runs:[scope,newerFailure,real],jobs:{[scope.id]:skippedJobs,[newerFailure.id]:badJobs,[real.id]:realJobs},logs:expiredLog,redirect:'https://results.blob.core.windows.net/log.txt'});
+assert.equal(redirected.result.status,'PASS');
+await assert.rejects(()=>googleCase({runs:[scope,newerFailure,real],jobs:{[scope.id]:skippedJobs,[newerFailure.id]:badJobs,[real.id]:realJobs},logs:expiredLog,redirect:'https://untrusted.example/log.txt'}),/ACTIONS_LOG_REDIRECT_UNTRUSTED/);
+console.log('PASS OAuth preflight expiry is distinct from a real E2E regression; unknown source, incomplete logs and later failures still block; signed storage receives no GitHub token');
+// Evidence-only fixes may update this reader without republishing the app or
+// touching the full journey fixtures merely to pass the existing scope guard.
+const pages=readFileSync('.github/workflows/p0-pages-deploy.yml','utf8');
+const from=pages.indexOf('            const allowed=new Set([');
+const last=pages.indexOf("            core.info('QA1243_NO_OPERATING_WRITE_GUARD_PASS",from);
+const to=pages.indexOf('\n',last);
+assert.ok(from>0&&last>from&&to>last);
+const actualGuard=pages.slice(from,to).split('\n').map(x=>x.startsWith('            ')?x.slice(12):x).join('\n');
+const execute=new (Object.getPrototypeOf(async function(){}).constructor)('context','github','core',actualGuard);
+async function evidenceScope(files){
+ return execute({repo:{owner:'koith',repo:'attendance-proto'},sha:'f'.repeat(40),payload:{before:'a'.repeat(40),head_commit:{message:'fix [QA1243-NO-OPERATING-WRITE] [QA1243-NO-GOOGLE-RERUN]'}}},
+  {rest:{repos:{compareCommits:async()=>({data:{files:files.map(filename=>({filename}))}})}}},{info:()=>{}});
+}
+await evidenceScope(['scripts/qa1243_friday_preflight.mjs','scripts/qa1243_friday_preflight.test.mjs','.github/workflows/p0-pages-deploy.yml','PROJECT_BACKLOG_20261017.md']);
+await assert.rejects(()=>evidenceScope(['scripts/qa1243_friday_preflight.mjs','apps_script.gs']),/QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE/);
+await assert.rejects(()=>evidenceScope(['scripts/qa1243_friday_preflight.mjs','index.html']),/QA1243_UNMARKED_APP_CHANGE/);
+console.log('PASS actual evidence-only publication guard; reject app and operating Sheet source changes');
 console.log('PASS actual GitHub evidence reader: skipped Google is not live success; historical real proof, ancestry, runner blob, failure and expiry checked without Google requests');
 
 console.log('PASS #1243 Friday prelaunch: failing current Google 403, stale run, historical green, wrong SHA, synthetic-vs-hosted boundaries all NO_GO');
