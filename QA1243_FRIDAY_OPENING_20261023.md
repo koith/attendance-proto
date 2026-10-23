@@ -277,3 +277,13 @@ POS·배달·공급사·장바구니 자동화 자체는 관리자/근태/급여
 - **실제 사람 참여는 이후:** 설정통과→동의된 테스트 수신자/발송 범위 승인→본인 수신/수락/비밀번호/로그인. 실제 점주 정보/개통 승인과 SEC01 별도 적용 승인·실기기A/B·본사3 재로그인/복구 참여도 필요. 이4개 외부 증거는 준비표나 격리 성공으로 대체하지 않는다.
 - **보존 확인:** READ ONLY 전후10그룹(count/hash) 동일: 지점244/HQ3/직원10/기존근태236/급여0/재고5/거래3323/raw0/지점override0/variant245. 세션 guard 정의 동일. 모든 Sheet셀 hash를 새 검증했다고 주장하지 않으며 실제 writer0. 운영 설정/메일/계정·권한/READY/SEC01 변경0.
 - 원장 **38/완료19/잔여19**, 분류7/2/10. 개통 후 POS·공급사·장바구니·판매량10건은 미완료 개발로 유지. **NO_GO: 실제 메일/운영URL 설정 및 수신·인증/개통·보안 승인·현장 증거 미충족.** 다음은 조회 반복이나 같은 Secret 등록이 아니라 구체적인 운영 설정 승인·메일 경로 확보 단계다.
+
+
+## 15. 승인4개 설정의 범위·영향과 안전 적용 준비
+
+- 설정 대상은 invite HTML/제목/site_url/uri_allow_list4개뿐이다. 목표 HTML은 저장소 invite.html 전체, 제목은 `[백억커피] 매장 관리자 계정 초대 안내`, site_url은 `https://koith.github.io/attendance-proto/`, 허용 callback은 `https://koith.github.io/attendance-proto/owner_activation.html`이다. 기존 허용 목록은 원문 보존하고 필요한 callback만 추가한다.
+- 미래 초대문/기본 인증 복귀주소에 영향. 기존 명시 OAuth·복구 redirect는 보존한다. SMTP 공급자/발신 계정/Hook·signup/autoconfirm·TTL·세션 정책, 실제 계정/초대·READY·SEC01·운영 자료는 범위에서 제외돼 있다.
+- 새 trusted-main review는 기존 Auth Read 연결로 **실제4개 공개 필드만** 읽어 전후 문자열/HTML과 SHA를 출력한다. 민감 문자열·URL은 출력 전 차단하고 SMTP/Hook·나머지 config 원문은 출력하지 않는다. 앞선 enum 결과만으로 실제 localhost주소/영어 제목을 추정하지 않는다.
+- 기존 repository/확인된 production에서 알려진 Auth write/legacy credential 존재만 확인. 새 토큰 발급/재로그인 요청 없음. 현재 runtime 관리 binding없음·Supabase connector Auth Config PATCH 미지원·저장 브라우저로그인없음. 실제 후보가 없으면 정확한 쓰기경로 부재로 기록하고 read문제와 구분한다.
+- 개발된 적용기는 승인 scope+기존 쓰기 자격+승인된 beforeSHA 필요, 직전 drift감지·4키 제한 PATCH·GET readback·비대상 hash 확인·인식가능한 부분 적용의 키별 복구만 지원한다. 새 CI는 --review만 수행한다.14개 synthetic QA와 P0/Google exact-diff guard PASS, 실제 Auth/메일/Google E2E/Pages 반복 없음.
+- 실제 전후/권한·PR/main 결과는 원장§76 후속 및 Issue#1243에 연결한다. v0.355/38·19·19. 별도 운영 승인 전 실점주 초대/READY/SEC01/운영 데이터 변경 금지 유지.

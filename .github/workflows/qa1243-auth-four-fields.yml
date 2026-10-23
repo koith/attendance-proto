@@ -1,0 +1,98 @@
+name: QA1243 public Auth four-field review and existing write access inspection
+on:
+  pull_request:
+    paths:
+      - 'scripts/qa1243_auth_four_fields.mjs'
+      - 'scripts/qa1243_auth_four_fields.test.mjs'
+      - '.github/workflows/qa1243-auth-four-fields.yml'
+      - '.github/workflows/p0-pages-deploy.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/qa1243_auth_four_fields.mjs'
+      - 'scripts/qa1243_auth_four_fields.test.mjs'
+      - '.github/workflows/qa1243-auth-four-fields.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    name: Four-field scope, no-secret review, concurrency and rollback QA
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check scripts/qa1243_auth_four_fields.mjs
+      - run: node scripts/qa1243_auth_four_fields.test.mjs
+  repository:
+    name: Review actual public four fields and existing repository access
+    needs: verify
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      inspect-production: ${{ steps.access.outputs.inspect-production }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - id: access
+        name: Inspect known credential presence and existing environment metadata
+        uses: actions/github-script@v7
+        env:
+          SUPABASE_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_AUTH_READ_TOKEN }}
+          SUPABASE_AUTH_WRITE_TOKEN: ${{ secrets.SUPABASE_AUTH_WRITE_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        with:
+          script: |
+            const present=name=>Boolean(String(process.env[name]||'').trim());
+            const read=present('SUPABASE_AUTH_READ_TOKEN'),write=present('SUPABASE_AUTH_WRITE_TOKEN'),legacy=present('SUPABASE_ACCESS_TOKEN');
+            const report={scopedReadPresent:read,scopedWritePresent:write,legacyManagementPresent:legacy,writeCandidatePresent:write||legacy};
+            core.setOutput('read-present',String(read||legacy));
+            core.info('QA1243_AUTH_REPOSITORY_ACCESS_PRESENCE '+JSON.stringify(report));
+            let environmentRead=null;
+            if(!write&&!legacy){
+              try{const r=await github.rest.repos.getEnvironment({...context.repo,environment_name:'production'});
+                environmentRead={status:r.status,data:r.data};
+              }catch(error){environmentRead={status:Number.isInteger(error.status)?error.status:null};}
+            }
+            const {selectHostedAuthReadContext}=await import(process.env.GITHUB_WORKSPACE+'/scripts/qa1243_auth_config_verdict.mjs');
+            const route=selectHostedAuthReadContext({dedicatedPresent:write,existingPresent:legacy,environmentRead});
+            core.setOutput('inspect-production',String(route.context==='EXISTING_PRODUCTION'));
+            core.info('QA1243_AUTH_EXISTING_WRITE_CONTEXT '+JSON.stringify(route));
+      - name: GET and review only the four explicitly requested public values
+        if: steps.access.outputs.read-present == 'true'
+        env:
+          SUPABASE_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_AUTH_READ_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/qa1243_auth_four_fields.mjs --review
+      - name: Record execution boundary
+        if: always()
+        run: echo 'REVIEW ONLY. Four-field values are screened for secrets; SMTP/hook/security values never leave the process. No PATCH, mail, account, SQL, READY, SEC01, Sheets or deployment action.' >> "$GITHUB_STEP_SUMMARY"
+  existing-production:
+    name: Inspect existing protected production write credential presence only
+    needs: repository
+    if: always() && needs.repository.outputs.inspect-production == 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    environment:
+      name: production
+      deployment: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          SUPABASE_AUTH_WRITE_TOKEN: ${{ secrets.SUPABASE_AUTH_WRITE_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        with:
+          script: |
+            const present=name=>Boolean(String(process.env[name]||'').trim());
+            const scoped=present('SUPABASE_AUTH_WRITE_TOKEN'),legacy=present('SUPABASE_ACCESS_TOKEN');
+            core.info('QA1243_AUTH_PRODUCTION_WRITE_PRESENCE '+JSON.stringify({scopedWritePresent:scoped,
+              legacyManagementPresent:legacy,writeCandidatePresent:scoped||legacy,
+              reason:scoped||legacy?'EXISTING_WRITE_CANDIDATE_REQUIRES_SCOPE_VERIFICATION':'EXISTING_WRITE_CREDENTIAL_ABSENT'}));
+            await core.summary.addRaw('Presence only. Existing protected production context retained; no deployment or write.').write();

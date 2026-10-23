@@ -693,3 +693,15 @@
 - **그다음 사람 참여:** 설정 통과 후 동의된 테스트 이메일/대상·발송 범위 승인→수신자 본인 수신·수락/비밀번호·로그인. 실제 지점명/대표 이메일·개통 승인, 별도 SEC01 운영 적용 승인과 실기기A/B/기존HQ 복구 확인. HOSTED_TEST_MAIL_RECEIPT/STORE_MANAGER_LIVE_SESSION/SEC01_SINGLE_DEVICE_ROLLOUT/PRODUCTION_PREPOST_DATA_PROOF4개는 실제 대상 실행 증거 전까지 PENDING. 이번 원본 hash 보존은 승인된 향후 지점 작업의 전후 증거를 대신하지 않는다.
 - **정본 전체38/완료19/잔여19**, 개통 전7/본인인증·승인2/개통 후10 분류 유지. POS·배달·공급사·장바구니·판매량 연동은 미완료 추가개발이며 이번 메일/인증 개통 gate에 새 필수조건으로 넣지 않았다. QA-04/AUTH-01 등 전체 완료 조건은 아직 충족하지 않아 체크하지 않음.
 - **최종 NO_GO 사유:** 운영용 메일 경로·승인 초대문/운영 URL 설정 미충족 및 실제 수신/본인 세션·개통/SEC01 승인·실기기 증거 없음. 운영 PATCH/DML/실메일·계정/권한·READY·SEC01/Sheets 쓰기0. 이 최종 증거는 문서 전용 [skip ci]로 기록해 완료 QA/배포/실패 감사를 반복하지 않는다.
+
+
+## 76. 2026-10-23 — 승인4개 Auth 필드의 실제 전후 검토·기존 쓰기 경로 검사·안전 적용기 개발
+
+- 사용자 지시 [#1243](https://github.com/koith/attendance-proto/issues/1243#issuecomment-6365519235): 읽기 연결 재요청 금지, 실제4필드 전후 제시·범위/영향 우선 보고, 기존 권한 체계로만 쓰기 가능성 확인, SMTP/발신 계정/기타 Auth·보안 설정 임의 변경 금지. 대표 초대/READY/SEC01/운영 데이터 변경은 별도 승인 전 금지.
+- **범위 확정:** `mailer_templates_invite_content`=`supabase/email-templates/invite.html` 전체(ConfirmationURL1개); `mailer_subjects_invite`=`[백억커피] 매장 관리자 계정 초대 안내`; `site_url`=`https://koith.github.io/attendance-proto/`; `uri_allow_list`는 기존 원문 전체 보존 후 `https://koith.github.io/attendance-proto/owner_activation.html` 정확한 주소만 추가. 운영 전 실제 원문은 새 전용 GET으로 확인하며 LOOPBACK/DIFFERENT enum을 실제 문자열로 추정하지 않는다.
+- **영향:** 향후 invite 메일 제목/본문 및 인증 복귀 기본주소·허용 callback만 변경. 기존 OAuth/복구 메일의 명시 redirect들은 유지되며, Site URL이 localhost에 머물렀던 기본 복귀는 운영앱으로 바뀐다. 기존 사용자/비밀번호/권한·세션/직원·근태·급여/Sheets는 수정하지 않음. SMTP·발신자/Hook/가입·autoconfirm/TTL·SEC01은 변경 대상이 아니다.
+- **기존 권한부터 조사:** 현재 cloud spec69 runtime/secret/outbound binding0, 알려진 로컬 관리변수 부재, 저장된 Supabase browser sign-in0. Supabase MCP에는 Auth Config PATCH 기능이 없다. 기존 GitHub publish는 legacy관리 Secret으로 제목/본문2개만 쓰며 새4필드의 전후·동시 변경 검증이 부족했다. 기존 repository 및 확인된 production 환경에서 scoped write/legacy관리 Secret의 **존재 bool만** 검사한다. 읽기Secret은 쓰기로 사용하지 않고 토큰 발급/재인증을 다시 요구하지 않는다.
+- **실제 개발:** `scripts/qa1243_auth_four_fields.mjs`는 명시적 요청4개 공개값만 비밀 검사 후 before/after로 반환; 전체 Auth config·SMTP·Hook/토큰 원문은 반환 안 함. `--apply`는 별도4필드 승인 scope·기존 쓰기 자격·승인된 beforeSHA가 모두 맞아야 PATCH. 직전 GET 전체 drift 감지, 허용4키만 부분 변경, GET readback/다른 설정 hash 비교, 불명확한 네트워크 결과 재조회, 인식 가능한 부분 적용만 해당 키 복구, 타인 변경은 덮어쓰지 않음. 403 이후 다른 자격/더 큰 권한으로 재시도하지 않음.
+- **새 workflow는 REVIEW ONLY:** PR은 synthetic QA만, trusted main은 기존 Auth Read로4공개값 GET·쓰기 Secret 존재 확인 및 기존 production 보호 문맥 검사만 수행. 새 환경·Secret·권한·배포 객체 생성 없음. 현재 workflow에서 --apply를 실행하지 않는다. 실제 쓰기 후보가 확인되고 전후값/범위 보고 뒤에만 승인된4개 적용을 별도 실행한다.
+- **검증:**14개 synthetic 복구/권한·동시 변경/4키 payload/403·불명확 결과·targeted rollback/비노출 PASS. 정확한7파일 변경의 실제 P0/Google guard 실행 PASS, 앱·Edge·Sheets·unknown 변경 거부 유지, 실제Google 실행false. workflow YAML 검증 PASS. SMTP가 없는 fixture는4필드 적용 후에도 내부6/8이어서 전체 PASS로 바뀌지 않는 것을 확인.
+- 앱 v0.355/38·19·19 유지. 실제4값·기존 쓰기 권한 결과/PR·main 증거를 후속 절과 #1243에 기록한다. 운영 PATCH/계정·메일/READY/SEC01/DML/기존 Sheets 변경0.
