@@ -174,3 +174,14 @@ POS·배달·공급사·장바구니 자동화 자체는 관리자/근태/급여
 - 자동8개: STORE_E2E / MANAGER_POSTGRES / HQ_STORE_POSTGRES / TEST_MAIL_GOTRUE / **HOSTED_AUTH_READ** / LIVE_EDGE_GAS_SHEETS / PAGES_PUBLISH / INDEPENDENT_PAGES. 기존7 PASS 재사용, Hosted 읽기만 미충족. 변경 후 main의 새 읽기 감사와 자동점검 결과를 Issue #1243에 연결한다.
 - 자동8개 외 실제 증거: Hosted 테스트 메일 수신, 실제 점주 세션/권한·승인, **원장 P0 SEC-01 단일 장치의 통제된 통합/활성화 증거**, 승인된 대상 작업의 운영 전후 보존. SEC-01을 보고서에서 누락하던 외부 차단 목록도 보완하며 자동 PASS로 만들지 않는다.
 - **NO_GO**: Hosted 설정/실수신/실인원·승인과 SEC-01 미완료. 실제 지점명·이메일만 받으면 즉시 READY 가능하다고 아직 주장할 수 없다. 관리 읽기 연결 후 설정 검증, 보안 P0 통합·통제된 검증/활성화, 수신자 본인인증·개통 승인을 완료해야 한다. 승인 없이 실제 운영 변경은 수행하지 않는다.
+
+
+## 9. SEC-01 승인 전 실제 세션·복구 QA 준비
+
+- 원장의 P0를 제외하지 않고, WIP #999의 서버 guard를 `scripts/qa1243_sec01/staged_guard.sql`에 **운영 비활성 후보**로 분리했다. 운영 migration 디렉터리에 넣거나 DB에 적용하지 않는다. 기존 사용자/세션/설정 변경 없이 검토 가능한 설치 후보를 준비한다.
+- 기존 후보는 latest_session 값만 비교해, 로그아웃으로 auth.sessions 행이 삭제돼도 같은 미만료 JWT를 허용할 수 있었다. 실제 Auth session의 id와 user_id 존재까지 검사하도록 보완했다. 격리 embedded PostgreSQL에서 해당 회귀와 새/구세션·익명·직원 경계 PASS.
+- 새 전용 QA는 SMTP/초대/Google 없이 **실제 GoTrue 발급 로그인·refresh JWT → 실제 PostgREST**를 검증한다. 신규 로그인→이전 JWT 차단, 다른 관리자3명·비관리자 직원·익명 정상, 최신 refresh, 이전 refresh의 권한 복원 차단, logout 뒤 미만료 JWT 거부, 새 로그인 복구, 실제 role 설정 RESET/reload와 재활성화 검증을 각각 기록한다. 기존 Auth8/8·Google E2E를 재실행하지 않는다.
+- 복구를 가리는 PGRST_DB_PRE_REQUEST 환경 override를 사용하지 않는다. 격리 role 설정을 실제 RESET/reload한 뒤 이전 JWT의 HTTP 동작이 돌아오는지 확인해야 복구 PASS다. 운영에서는 기존 유효 훅/환경을 먼저 읽고 보존해야 하며 무조건 RESET하면 다른 기존 보호를 없앨 수 있으므로 금지한다.
+- 전용 QA는 PGHOST=127.0.0.1 / PGDATABASE=qa1243_sec01 및 명시적 fixture marker로 제한된다. 실제 SMTP·운영 자격정보를 사용하지 않으며 JWT/비밀번호·Auth 응답 원문을 로그/아티팩트에 남기지 않는다.
+- 이 결과가 성공해도 **운영 활성화/실기기 PASS가 아니다**. 실제 Auth/기존 PostgREST 유효 설정, 대상/예외·HQ/직원 영향, 설치·활성화·이전 설정 복구안을 검토하고 사용자 명시 승인 후 적용해야 한다. 실제 기기와 승인된 계정의 최종 확인까지 SEC-01 [ ] 및 NO_GO를 유지한다.
+- PR/CI/최종 main 새 보안 QA 증거는 Issue #1243에 연결한다. 앱 v0.355·38/19/19 유지. SQL은 자동 적용되지 않으며 새 앱/Google 배포가 필요하지 않다.

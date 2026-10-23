@@ -196,6 +196,10 @@ jobs:
         with:
           script: |
             const allowed=new Set([
+              'scripts/qa1243_sec01/staged_guard.sql',
+              'scripts/qa1243_sec01/setup.sql',
+              'scripts/qa1243_sec01/real_auth.mjs',
+              '.github/workflows/qa1243-sec01-preactivation.yml',
               'scripts/qa1243_readonly_auth_config.mjs',
               'scripts/qa1243_auth_config_verdict.mjs',
               'scripts/qa1243_auth_config_verdict.test.mjs',
@@ -373,7 +377,8 @@ jobs:
                  'scripts/qa1243_friday_preflight.mjs',
                  'scripts/qa1243_friday_preflight.test.mjs',
                  '.github/workflows/qa1243-friday-readiness.yml',
-                 '.github/workflows/qa1243-operational-readonly.yml'
+                 '.github/workflows/qa1243-operational-readonly.yml',
+                 '.github/workflows/qa1243-sec01-preactivation.yml'
                ].includes(f))))
                throw Error('QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE');
             core.info('QA1243_NO_OPERATING_WRITE_GUARD_PASS files='+files.length);
