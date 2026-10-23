@@ -137,10 +137,22 @@ jobs:
           node --check qa_store_opening_browser_v1.mjs
           node --check qa_store_opening_journey_browser_v1.mjs
           node qa_runtime_asset_syntax_v1.mjs
-      - name: Install browser
+      - name: Install pinned browser harness
+        timeout-minutes: 4
+        run: npm install --no-save --no-audit --no-fund playwright@1.55.1
+      - name: Download Chromium
+        timeout-minutes: 5
+        run: npx playwright install chromium
+      - name: Verify Chromium launch and repair missing system libraries
+        timeout-minutes: 5
         run: |
-          npm install --no-save --no-audit --no-fund playwright@1.55.1
-          npx playwright install --with-deps chromium
+          set -euo pipefail
+          if node -e 'require("playwright").chromium.launch({headless:true}).then(b=>b.close()).catch(()=>process.exit(1))'; then
+            echo 'Actual Chromium launch passed.'
+          else
+            timeout --kill-after=15s 240s npx playwright install-deps chromium
+            node -e 'require("playwright").chromium.launch({headless:true}).then(b=>b.close()).catch(e=>{console.error(e.message);process.exit(1)})'
+          fi
       - name: Validate manager month-cards in Chromium at 320-1024px
         run: node qa_actual_attendance_month_cards_browser_v348.mjs
       - name: Validate operations title and advanced action disclosure at phone and desktop widths

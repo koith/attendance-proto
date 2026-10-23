@@ -196,6 +196,7 @@ jobs:
         with:
           script: |
             const allowed=new Set([
+              '.github/workflows/inventory-navigation-mobile-v331.yml',
               '.github/workflows/recipe-actual-tab-geometry.yml',
               'qa_auth_role_evidence_1243.mjs',
               'qa_auth_role_evidence_1243.test.mjs',
