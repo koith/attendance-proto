@@ -19,6 +19,16 @@ export const EXTERNAL_BLOCKERS = Object.freeze([
  {id:'STORE_MANAGER_LIVE_SESSION',reason:'No verified hosted store manager invite/accept/role-revoke session E2E; isolated or fake JWT does not prove it'},
  {id:'PRODUCTION_PREPOST_DATA_PROOF',reason:'A production read-only before/after evidence receipt and authorized target-scoped operation checks must be reviewed before final PASS'}
 ]);
+// These automation projects remain tracked in the backlog. They are not added
+// to the attendance/payroll/recipe store-opening gate. Existing required checks
+// and every recorded failure still participate in verdict(); nothing is filtered.
+export const POST_OPENING_WORK=Object.freeze([
+ {id:'POS_DELIVERY_AUTOMATION',backlog:['MTG-05','MTG-06','MTG-07'],label:'POS·배달 매출 자동수집·대사·판매명 연결'},
+ {id:'SUPPLIER_INGEST',backlog:['MTG-08'],label:'공급사 매입·입고 자동수집'},
+ {id:'SUPPLIER_CART',backlog:['MTG-11'],label:'공급사 장바구니 자동 반영·재조회'},
+ {id:'RECIPE_USAGE_AUTOMATION',backlog:['MTG-12','MTG-13'],label:'실판매수량·원가·레시피 소모 자동 연결'},
+ {id:'INVENTORY_FIELD_UX',backlog:['MTG-16'],label:'직원 재고 실사와 자동수집 현장 사용성'}
+]);
 export function classifyWorkflow(spec,runs,sha,now=Date.now()){
  if(!Array.isArray(runs))return {id:spec.id,status:'FAIL',reason:'WORKFLOW_RUN_LIST_INVALID'};
  const list=runs.filter(r=>r?.head_branch==='main'&&(r?.event==='push'||r?.event==='workflow_dispatch'||r?.event==='workflow_run'))
@@ -246,6 +256,13 @@ export function verdict(items,external=EXTERNAL_BLOCKERS){
   passed:items.length-failed.length,required:items.length,
   failed:failed.map(x=>x.id),external:external.map(x=>x.id)};
 }
+export function openingScope(items,external=EXTERNAL_BLOCKERS){
+ const decision=verdict(items,external);
+ return {purpose:'신규 지점 관리자·근태·급여·시트·레시피 개통',
+  openingVerdict:decision.verdict,requiredWorkflowIds:REQUIRED.map(x=>x.id),
+  unverifiedRequiredIds:decision.failed,liveApprovalEvidenceIds:decision.external,
+  postOpening:{blocksOpening:false,work:POST_OPENING_WORK}};
+}
 async function fetchWorkflowRuns(repo,wf,token,fetcher=fetch){
  const u='https://api.github.com/repos/'+repo+'/actions/workflows/'+encodeURIComponent(wf)+'/runs?branch=main&per_page=20';
  const r=await fetcher(u,{headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+token,'X-GitHub-Api-Version':'2022-11-28'},signal:AbortSignal.timeout(20000)});
@@ -282,13 +299,15 @@ export async function liveGate(env=process.env){
   plannedOpening:'2026-10-23 KST morning',environment:'GitHub Actions public run evidence only',
   pendingFridayOnly:['actual provided store name/code','real owner email delivery/acceptance and first login'],
   rules:'FAIL-CLOSED: no simulated, read-only, metadata, or HTTP403 outcome can replace live production Edge->QA GAS->Sheets',
-  ...decision,items:auditedItems,externalBlockers:EXTERNAL_BLOCKERS};
+  ...decision,items:auditedItems,externalBlockers:EXTERNAL_BLOCKERS,openingScope:openingScope(auditedItems)};
  mkdirSync('qa-results',{recursive:true});
  writeFileSync('qa-results/friday-opening-readiness.json',JSON.stringify(result,null,2)+'\n');
  let lines=['# QA1243 2026-10-23 Friday prelaunch readiness','','**'+decision.verdict+'** — '+decision.passed+'/'+decision.required+' workflow evidence; hosted external blockers '+EXTERNAL_BLOCKERS.length,
   '','| Gate | Status | Evidence or reason |','|---|---|---|'];
  for(const x of auditedItems)lines.push('| '+x.id+' | '+x.status+' | '+(x.run_id?('run #'+x.run_id+' '):'')+(x.reason||x.proof||'')+' |');
  lines.push('','## External / field proof missing',...EXTERNAL_BLOCKERS.map(x=>'- '+x.id+': '+x.reason),
+  '','## 개통 후 업무자동화 개발 · 개통 게이트에 추가하지 않음',
+  ...POST_OPENING_WORK.map(x=>'- '+x.backlog.join('/')+': '+x.label),
   '','Friday-only real store identity and actual owner email are intentionally not requested until explicit approval.');
  writeFileSync('qa-results/friday-opening-readiness.md',lines.join('\n')+'\n');
  console.log('QA1243_FRIDAY_OPENING_'+decision.verdict+' '+JSON.stringify({sha,passed:decision.passed,required:decision.required,

@@ -89,3 +89,31 @@
 5. **QA 전용 새 프로젝트**는 실제 QA Actions 실행 시 난수 공유키를 생성해 QA 스크립트에만 배포한다. QA 랜덤 키와 운영 `SHEET_SHARED_SECRET`을 혼용하지 않는다. Actions Google API 오류 본문이 토큰/키를 다시 노출하지 않도록 QA 러너의 로그를 상태코드만 남기게 강화한다.
 
 금요일 안전 판정은 최신 자동/외부 증거에 따르며, 실제 필수 항목이 미확인되면 **NO_GO**를 유지한다.
+
+
+## 7. 2026-10-23 개통 필수 조건과 후속 자동화의 분리
+
+이 문서의 2절 체크리스트는 최초 계획 이력이다. 최신 개통 판정은 아래와 Issue #1243의 실제 증거를 따른다. **38개 장기 업무원장의 완료율을 신규 지점 개통 GO 조건으로 사용하지 않는다.** v0.355/#1319/기존 Google·전체 QA·배포 성공은 재사용한다.
+
+| 구분 | 필요한 일 | 현재 근거/경계 |
+|---|---|---|
+| 개통 필수·기존 검증 재사용 | STAGED/READY, 대표/보조 역할·권한 회수, 직원·근태·급여·시트·레시피 지점 격리, 배포 무결성 | 기존 main 전체 QA·격리 실제 Auth8/8·Google #39781031886·v0.355 독립 배포 증거 유지. 실패를 자동 성공으로 전환하지 않음 |
+| 개통 필수·현재 미확인 | 운영 Hosted Auth의 한국어 초대 템플릿/제목·메일 provider·SMTP 설정 확인 | 읽기 감사에서 관리 자격정보 부재. 공개 /auth/v1/settings HTTP200은 SMTP/템플릿 증거가 아님 |
+| 실제 정보·승인 필요 | 공식 지점명/코드·대표 이메일·기존 계정 여부 확정, 운영 생성/연결·초대 발송 승인 | 승인 전 실제 지점/계정/권한/메일 발송/READY 변경 없음 |
+| 실제 사람·개통 검증 | 허용된 수신자의 초대 메일 도달·수락·비밀번호 설정·로그인·대표 권한, 대상점 시트 분리 및 보호 대조 | 비밀번호·토큰은 본인이 안전한 화면에 입력. 기존 자료 hash 보존과 실제 신규 개통 후 대상별 검증을 구분 |
+| 개통 후 자동화 | POS/배달 매출 자동수집·대사, 공급사 매입 수집/원격 장바구니, 실제 판매량/레시피 소모·원가 원천 자동연계, 재고 현장 UX | 장기 원장에 개발 잔여 유지. 관리자·근태·급여·레시피 앱 개통의 추가 차단 조건으로 사용하지 않음. 기존 POS·공급사 사이트 업무를 통해 매장 운영/발주 가능 여부는 점주 현장 준비로 확인 |
+
+### Hosted 설정 조회의 정확한 권한과 안전한 인증 경로
+
+- 조회: `GET https://api.supabase.com/v1/projects/waluhdgqhwjjwmflhrle/config/auth`.
+- 필요한 최소 권한: 대상 프로젝트의 **Auth Config / Read**, fine-grained permission **auth_config_read**, OAuth scope **auth:read**. 기존 계정에도 해당 프로젝트 설정을 볼 권한이 있어야 한다. 설정 수정 권한, DB 쓰기, 전체 조직 Owner 권한은 이 조회에 필요하지 않음.
+- 공식 근거: [Auth 설정 GET](https://supabase.com/docs/reference/api/v1-get-auth-service-config), [scoped PAT 권한](https://supabase.com/docs/guides/platform/personal-access-tokens), [2026-10-06 scoped PAT 정식 공개](https://supabase.com/changelog/scoped-personal-access-tokens-ga). scoped token은 기존 계정 권한을 좁힐 뿐 권한을 새로 부여하지 않음.
+- CI는 전용 `SUPABASE_AUTH_READ_TOKEN`을 우선 사용하고, 이것이 없으면 이미 등록된 `SUPABASE_ACCESS_TOKEN`을 재사용한다. 전용 토큰이 거부돼도 더 넓은 토큰으로 몰래 재시도하지 않음. 토큰은 GitHub Actions Secret 또는 승인된 비밀정보 연결에만 직접 등록하며 채팅/원장/로그에 입력하지 않음.
+- 2026-10-23 조회 전용 감사 #39520668442 attempt2(job120274230919)는 `MANAGEMENT_API_CREDENTIAL_ABSENT` 재확인. 현재 환경에 관리 토큰/연결 비밀정보가 없고, 연결 Supabase 도구에는 Auth 설정 GET이 노출되지 않으며, 브라우저에 Supabase 로그인 기록도 없음. 프로젝트 조회 성공을 SMTP 읽기 권한으로 확대하지 않음.
+- 앱 anon/service_role 키, DB 접속, 앱 HQ 계정, Google 토큰은 Management API 인증을 대신하지 않는다. 연결 OAuth/기존 Secret의 평문을 추출하지 않는다. 기존 로그인된 관리자 대시보드에서 직접 확인하거나, 위 최소 읽기 권한을 가진 기존/전용 관리 인증을 안전하게 연결하면 감사 재실행 가능.
+
+### 실제 초대 전 준비·QA
+
+- 브랜드 초대 템플릿과 활성화 페이지/신규·기존 계정 분기, 수신 주소·권한·서버 preflight, SMTP 오류/잘못된 사용자/중복 연결 방어를 표적 QA로 확인. 실제 메일 전송·계정/지점 생성은 수행하지 않음.
+- Hosted 감사의 6개 엄격 판정은 유지하고, 자격정보 없음/401/403/네트워크/잘못된 응답을 별도로 진단. 설정 원문·메일 서버·SMTP 비밀번호·관리 토큰은 출력하지 않음. PR 테스트 PASS는 Hosted 실조회나 메일 도달 PASS를 뜻하지 않음.
+- 기존 8개 필수 workflow와 실수신/실세션/승인·대상별 보호 증거는 모두 유지. POS·공급사 등 후속 항목을 분리해도 필수 실패·미확인은 **NO_GO**이다.
