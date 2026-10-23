@@ -196,6 +196,7 @@ jobs:
         with:
           script: |
             const allowed=new Set([
+              'qa1243_google_rerun_guard.mjs',
               'qa_auth_role_journey_1243.mjs',
               'qa_auth_role_journey_1243.sql',
               '.github/workflows/qa1243-auth-role-journey.yml',

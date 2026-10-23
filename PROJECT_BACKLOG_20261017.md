@@ -496,3 +496,11 @@
 - **실제 검증 완료(격리 서버 범위):** [PR #1314](https://github.com/koith/attendance-proto/pull/1314), 테스트 소스 SHA `46bc7f85078f6c9f360f2bf4a8b6bf78f659a102`, [실제 Auth JWT 연속 E2E #39888114566](https://github.com/koith/attendance-proto/actions/runs/39888114566) **8/8 PASS**, job `120201010509`의 GoTrue 기동·실제 migrations 설치·JWT 검증 PostgREST·시나리오 실행·아티팩트·컨테이너 정리 모두 SUCCESS. 해당 SHA **63개 CI check 완료, 실패 0건**. `auth-role-journey-1243` 아티팩트 ID `12473029198`, SHA256 `72470e31e791040e1aeaba173401826323231147ed6ae90596ca419c3b9fcf0f`. 최초 준비 오류(GoTrue 기존 auth.jwt와 CREATE 충돌)를 CREATE OR REPLACE로 수정한 뒤 재실행 성공. 운영 무쓰기 가드에 신규 workflow 포함/앱 혼입 거부 실행형 회귀 및 Node 구문 검사 PASS. 직원·근태·급여 엔진→Sheet 페이로드·TEST 제외·지점 격리 소스 통합 검사 PASS. 기존 Google 실제 성공을 재실행하지 않음. Hosted 실메일 성공으로 확대하지 않는다.
 - **운영 읽기 전용 확인:** 이번 세션 `BEGIN READ ONLY` 집계: 지점244/READY1/STAGED243/HQ3/인하대 직원10/대표0/관리자 membership0으로 이전 기준과 동일. 전체 셀/원본 행의 전후 hash를 확인한 것으로 주장하지 않는다. 앱 **v0.354 유지**, PR은 검증 코드·CI·원장만 변경하며 운영 배포·DDL 적용 없음.
 - **남은 외부 작업:** Hosted SMTP 실수신·브랜드 템플릿·실대표/보조 계정 인증·실지점 승인과 운영 전후 감사. 실제 점주 정보/승인 전 운영 초대나 STAGED→READY 전환을 하지 않는다. **NO_GO 유지**, 전체 38/완료19/잔여19(개발·통합 QA13, 외부·실인원6), 신규 완료 체크 0.
+
+
+## 60. 2026-10-23 — #1314 병합 승인 후 Google 성공 재실행 금지 보호
+
+- 사용자 후속 지시: #1314 필수 체크/무쓰기 확인→병합→main QA, QA-05/06/07·MTG-03/05/06/07/08/11/12/13/16 실제 잔여 개발·QA·PR·병합·필요 배포. 기존 Google OAuth/E2E 및 v0.354 재배포 반복 금지. #1243 원문 접수.
+- 병합 전 #1314 head ee517f21 **67 check 완료(60 SUCCESS/7 SKIPPED/0 FAIL)** 확인. main 57e52009, mergeable=true. 운영 읽기 전용 지점244/HQ3/인하대 직원10/READY1 확인.
+- **추가 발견/수정:** Google live E2E가 p0 무쓰기 가드 변경만으로도 main에서 OAuth·GAS·Sheet 검증을 반복하는 트리거였다. Auth-only 병합에는 `[QA1243-NO-GOOGLE-RERUN]`+무쓰기 마커와 정확한 파일 allowlist/실제 diff 검증을 동시에 통과할 때만 기존 Google 성공 증거를 재사용한다. Edge/GAS/Google runner/앱 파일 혼입·알 수 없는 경로·삭제/rename·불명확한 diff는 실패. 일반 Google 코드 변경은 실E2E 경로 유지. Actions 실제 스크립트 VM 실패 주입 PASS.
+- 기존 Pages/운영 Sheet skip 마커 유지. 이 CI 변경에는 운영 앱 버전 상승이나 배포·DB DML 없음. 병합 SHA/main 검증/잔여 개발 증거는 후속 갱신.

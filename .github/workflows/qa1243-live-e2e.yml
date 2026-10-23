@@ -56,9 +56,43 @@ permissions:
   statuses: read
   id-token: write
 jobs:
+  execution-scope:
+    name: Verify explicit Auth-only Google reuse scope
+    runs-on: ubuntu-latest
+    outputs:
+      run_live: ${{ steps.scope.outputs.run_live }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prove Google reuse guard rejects operating changes
+        run: node qa1243_google_rerun_guard.mjs
+      - id: scope
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const message=String(context.payload.head_commit?.message||'');
+            let runLive=context.eventName==='push';
+            if(runLive && message.includes('[QA1243-NO-GOOGLE-RERUN]')){
+              if(!message.includes('[QA1243-NO-OPERATING-WRITE]'))throw Error('GOOGLE_REUSE_REQUIRES_NO_WRITE');
+              const before=context.payload.before;
+              if(!/^[a-f0-9]{40}$/.test(String(before||'')) || /^0{40}$/.test(before))throw Error('GOOGLE_REUSE_BASE_REQUIRED');
+              const {data}=await github.rest.repos.compareCommits({...context.repo,base:before,head:context.sha,per_page:100});
+              const allowed=new Set([
+                'qa_auth_role_journey_1243.mjs','qa_auth_role_journey_1243.sql',
+                '.github/workflows/qa1243-auth-role-journey.yml',
+                'qa1243_pages_no_operating_write_guard.mjs','qa1243_google_rerun_guard.mjs',
+                '.github/workflows/p0-pages-deploy.yml','.github/workflows/qa1243-live-e2e.yml',
+                'PROJECT_BACKLOG_20261017.md'
+              ]);
+              const files=data.files||[];
+              if(!files.length || files.length>=100 || files.some(f=>!allowed.has(f.filename)||f.status==='renamed'||f.status==='removed'))throw Error('GOOGLE_REUSE_SCOPE_REJECTED');
+              runLive=false;
+              core.info('Existing Google E2E proof reused; no OAuth/Edge/GAS/Sheets call for verified Auth-only change.');
+            }
+            core.setOutput('run_live',String(runLive));
   qa1243-mobile-safari-public-http:
     name: Supabase shared-domain HTML rewrite diagnostic GET POST query
-    if: github.event_name == 'push'
+    needs: execution-scope
+    if: needs.execution-scope.outputs.run_live == 'true'
     permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 4
@@ -70,6 +104,7 @@ jobs:
       - name: Real credentialless HTTPS smoke - QA only, no DB or operating Sheets
         run: node scripts/qa1243_mobile_http_smoke.mjs
   qa1243-isolated-e2e:
+    needs: execution-scope
     name: Trusted production Edge to a new independent GAS project and Sheets
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -89,7 +124,7 @@ jobs:
           node qa1243_mobile_safari_vm.test.mjs
           node scripts/qa1243_safari_static_build.test.mjs
       - name: Await verified native production Edge deployment of this exact revision
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && needs.execution-scope.outputs.run_live == 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -120,7 +155,7 @@ jobs:
             }
             throw new Error('Production Edge deployment not attested at this SHA');
       - name: Execute real new GAS project and production Edge service-to-service QA
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && needs.execution-scope.outputs.run_live == 'true'
         env:
           QA1243_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID }}
           QA1243_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET }}
