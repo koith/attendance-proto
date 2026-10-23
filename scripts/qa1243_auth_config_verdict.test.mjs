@@ -1,13 +1,17 @@
 import assert from 'node:assert/strict';
-import {assessHostedInviteConfig,probeHostedAuthManagement,HOSTED_AUTH_READ_ACCESS} from './qa1243_auth_config_verdict.mjs';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import {assessHostedInviteConfig,probeHostedAuthManagement,HOSTED_AUTH_READ_ACCESS,
+ assessHostedInvitationUrls,HOSTED_INVITATION_URLS} from './qa1243_auth_config_verdict.mjs';
 const verified={configReadable:true,remoteTemplateMatch:true,remoteInviteSubjectMatch:true,
- emailProviderEnabled:true,smtpHostConfigured:true,smtpSenderConfigured:true};
+ emailProviderEnabled:true,smtpHostConfigured:true,smtpSenderConfigured:true,
+ siteUrlProductionMatch:true,activationRedirectAllowed:true};
 const pass=assessHostedInviteConfig(verified);
-assert.equal(pass.ready,true);assert.equal(pass.passed,6);
+assert.equal(pass.ready,true);assert.equal(pass.passed,8);
 assert.equal(pass.externalMailboxDeliveryVerified,false,'Config is not inbox receipt');
 for(const key of Object.keys(verified)){
  const bad=assessHostedInviteConfig({...verified,[key]:false});
- assert.equal(bad.ready,false,'Missing '+key+' must fail');assert.equal(bad.passed,5);
+ assert.equal(bad.ready,false,'Missing '+key+' must fail');assert.equal(bad.passed,7);
  const unknown=assessHostedInviteConfig({...verified,[key]:null});
  assert.equal(unknown.ready,false,'Null '+key+' must fail');assert.equal(unknown.failed.length,1);
 }
@@ -17,7 +21,8 @@ const expected={template:'expected html',subject:'expected subject'};
 const calls=[];
 const credential='test-scoped-management-value';
 const existing='test-existing-management-value';
-const config={mailer_templates_invite_content:expected.template,mailer_subjects_invite:expected.subject,
+const config={site_url:HOSTED_INVITATION_URLS.siteUrls[0],uri_allow_list:HOSTED_INVITATION_URLS.activationUrl,
+ mailer_templates_invite_content:expected.template,mailer_subjects_invite:expected.subject,
  smtp_host:'sensitive-host',smtp_port:587,smtp_user:'sensitive-user',smtp_pass:'sensitive-password',
  smtp_admin_email:'sensitive-sender',external_email_enabled:true,mailer_autoconfirm:false,disable_signup:true,mailer_otp_exp:3600};
 const fetcher=async(url,options)=>{calls.push({url,options});return {ok:true,status:200,json:async()=>config};};
@@ -57,3 +62,100 @@ const blank=await probeHostedAuthManagement({SUPABASE_ACCESS_TOKEN:existing},exp
 assert.equal(blank.smtpHostConfigured,false);assert.equal(assessHostedInviteConfig(blank).ready,false);
 console.log('PASS exact Auth Config Read permission, safe existing credential reuse, GET-only request, no secret output, denied/no credential remains NO_GO');
 console.log('PASS QA1243 Hosted Auth strict positive evidence + fail-closed cases');
+
+const callback=HOSTED_INVITATION_URLS.activationUrl;
+assert.equal(assessHostedInvitationUrls({site_url:HOSTED_INVITATION_URLS.siteUrls[0]}).activationRedirectSource,'SITE_ORIGIN');
+for(const site of HOSTED_INVITATION_URLS.siteUrls){
+ const urls=assessHostedInvitationUrls({site_url:site,uri_allow_list:''});
+ assert.equal(urls.siteUrlProductionMatch,true);assert.equal(urls.activationRedirectAllowed,true);
+ assert.equal(urls.activationRedirectExactListed,false,'Same-origin GoTrue redirects need no exact extra entry');
+}
+for(const site of [undefined,'','http://koith.github.io/attendance-proto/','https://koith.github.io/other-project/',
+ 'https://koith.github.io.evil.invalid/attendance-proto/','https://user:password@koith.github.io/attendance-proto/',
+ 'https://koith.github.io/attendance-proto/?token=sensitive-url-token','https://koith.github.io/attendance-proto/#access_token=sensitive-url-token',
+ 'http://localhost:3000','https://koith.github.io:8443/attendance-proto/']){
+ const urls=assessHostedInvitationUrls({site_url:site,uri_allow_list:callback});
+ assert.equal(urls.siteUrlProductionMatch,false,'Wrong default Site URL must not pass');
+ assert.equal(assessHostedInviteConfig({...verified,...urls}).ready,false);
+ assert.equal(JSON.stringify(urls).includes('sensitive-url-token'),false);
+}
+const wildcard=assessHostedInvitationUrls({site_url:'https://other.invalid/',uri_allow_list:'https://koith.github.io/**'});
+assert.equal(wildcard.activationRedirectAllowed,null,'Unimplemented glob matching is unknown, never a fabricated failure or PASS');
+assert.equal(wildcard.activationRedirectSource,'PATTERN_REQUIRES_REVIEW');
+assert.equal(assessHostedInvitationUrls({site_url:'https://other.invalid/',uri_allow_list:callback+'.evil'}).activationRedirectAllowed,false);
+const urlMissing=await probeHostedAuthManagement({SUPABASE_AUTH_READ_TOKEN:credential},expected,async()=>({ok:true,status:200,json:async()=>({...config,site_url:undefined,uri_allow_list:''})}));
+assert.equal(assessHostedInviteConfig(urlMissing).ready,false,'SMTP/template proof alone cannot authorize a broken activation route');
+const edge=readFileSync(new URL('../supabase/functions/server-sync-sheet/index.ts',import.meta.url),'utf8');
+assert.ok(edge.includes('const redirectTo="'+callback+'";'),'Audit URL must equal actual new-account and recovery dispatch URL');
+const template=readFileSync(new URL('../supabase/email-templates/invite.html',import.meta.url),'utf8');
+assert.equal((template.match(/\{\{\s*\.ConfirmationURL\s*\}\}/g)||[]).length,1);
+console.log('PASS Hosted URL checks: production default, actual activation callback, GoTrue same-origin, unsafe URL rejection, unknown wildcard and no URL/token disclosure');
+
+// Execute the deployed activation page in an isolated VM. All HTTP, storage,
+// passwords and tokens below are synthetic; no Auth account or mail is touched.
+const activation=readFileSync(new URL('../owner_activation.js',import.meta.url),'utf8');
+async function pageCase(change={}){
+ const state={preflight:{ok:true,store_id:701,intended_role:'OWNER'},
+  accepted:{ok:true,store_id:701,owner_assigned:true},context:{role:'STORE_MANAGER',store_id:701},...change};
+ const elements=Object.fromEntries(['status','activateForm','password','repeat','confirm'].map(id=>[id,{hidden:false,disabled:false,textContent:'',value:''}]));
+ const calls=[],stored=[],redirects=[],scrubbed=[];
+ const source='SUPABASE_URL: "https://synthetic.invalid", SUPABASE_ANON_KEY: "public-synthetic-key"';
+ const reply=(data,ok=true)=>({ok,json:async()=>data,text:async()=>source});
+ const fetcher=async(url,options={})=>{
+  calls.push({url,method:options.method||'GET'});
+  if(url==='./index.html')return reply({},!state.configFailure);
+  if(url.endsWith('/store_invitation_activation_preflight')){
+   if(state.preflightNetwork)throw Error('synthetic network unavailable');
+   return reply(state.preflight,!state.preflightHttpFailure);
+  }
+  if(url.endsWith('/auth/v1/user'))return reply(state.passwordFailure?{message:'PASSWORD_REJECTED'}:{},!state.passwordFailure);
+  if(url.endsWith('/store_primary_owner_accept_invitation'))return reply(state.accepted,!state.acceptHttpFailure);
+  if(url.endsWith('/admin_context'))return reply(state.context,!state.contextHttpFailure);
+  throw Error('UNEXPECTED_NETWORK_REQUEST');
+ };
+ await vm.runInNewContext(activation,{URLSearchParams,document:{getElementById:id=>elements[id]},
+  location:{hash:state.hash??'#access_token=synthetic-token&refresh_token=synthetic-refresh&expires_in=3600',pathname:'/owner_activation.html',replace:url=>redirects.push(url)},
+  history:{replaceState:(...args)=>scrubbed.push(args)},fetch:fetcher,
+  localStorage:{setItem:(key,value)=>stored.push({key,value})}});
+ async function submit(password='synthetic-password-123',repeat=password){
+  elements.password.value=password;elements.repeat.value=repeat;
+  if(elements.activateForm.onsubmit)await elements.activateForm.onsubmit({preventDefault(){}});
+ }
+ return {state,elements,calls,stored,redirects,scrubbed,submit};
+}
+let pageCases=0;
+for(const intended_role of ['OWNER','ASSISTANT']){
+ const page=await pageCase({preflight:{ok:true,store_id:701,intended_role},accepted:{ok:true,store_id:701,owner_assigned:intended_role==='OWNER'}});
+ await page.submit();pageCases++;
+ assert.deepEqual(page.calls.map(x=>x.method),['GET','POST','PUT','POST','POST']);
+ assert.deepEqual(page.redirects,['index.html?mode=store&store=701#pos']);assert.equal(page.stored.length,1);
+ assert.equal(page.elements.password.value,'');assert.equal(page.elements.repeat.value,'');
+ assert.equal(page.scrubbed[0][2],'/owner_activation.html','Tokens removed before config request');
+}
+for(const hash of ['','#error=access_denied&error_description=Expired']){
+ const page=await pageCase({hash});await page.submit();pageCases++;
+ assert.equal(page.calls.length,0);assert.equal(page.elements.activateForm.hidden,true);assert.equal(page.stored.length,0);
+}
+for(const pair of [['short','short'],['synthetic-password-123','different-password-123']]){
+ const page=await pageCase();await page.submit(...pair);pageCases++;
+ assert.equal(page.calls.length,1);assert.equal(page.stored.length,0);
+}
+for(const change of [{preflight:{ok:false,error:'INVITATION_CANCELLED_OR_NOT_FOUND'}},
+ {preflight:{ok:false,error:'OWNER_INVITATION_EXPIRED'}},{preflight:{ok:true,store_id:0,intended_role:'OWNER'}},
+ {preflight:{ok:true,store_id:701,intended_role:'HQ'}},{preflightHttpFailure:true},{preflightNetwork:true}]){
+ const page=await pageCase(change);await page.submit();pageCases++;
+ assert.equal(page.calls.some(x=>x.method==='PUT'),false,'Cancelled/expired/unauthorized invite must never change a password');
+ assert.equal(page.stored.length,0);assert.equal(page.redirects.length,0);assert.equal(page.elements.confirm.disabled,false);
+}
+for(const change of [{passwordFailure:true},{accepted:{ok:false,error:'EMAIL_CONFIRMATION_REQUIRED'}},
+ {acceptHttpFailure:true},{context:{role:'HQ',store_id:701}},{context:{role:'STORE_MANAGER',store_id:702}},
+ {contextHttpFailure:true}]){
+ const page=await pageCase(change);await page.submit();pageCases++;
+ assert.equal(page.stored.length,0);assert.equal(page.redirects.length,0);assert.equal(page.elements.confirm.disabled,false);
+}
+const unavailable=await pageCase({configFailure:true});pageCases++;
+assert.equal(unavailable.elements.activateForm.hidden,true);assert.equal(unavailable.calls.length,1);
+const retry=await pageCase({acceptHttpFailure:true});await retry.submit();
+assert.equal(retry.stored.length,0);retry.state.acceptHttpFailure=false;await retry.submit();pageCases++;
+assert.equal(retry.stored.length,1);assert.equal(retry.redirects.length,1);
+console.log('PASS actual activation source VM '+pageCases+' cases: owner/assistant, expiry/cancel, no unauthorized password PUT, failure retry and cross-store context; no live Auth/SMTP calls');

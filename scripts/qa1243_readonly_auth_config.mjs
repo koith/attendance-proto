@@ -44,6 +44,6 @@ console.log('QA1243_LOCAL_INVITE_TEMPLATE_SHA256 '+createHash('sha256').update(t
 const assessment=assessHostedInviteConfig(result);
 console.log('QA1243_HOSTED_INVITE_CONFIG_VERDICT '+JSON.stringify(assessment));
 if(!assessment.ready){
-  console.log('NO_GO_HOSTED_AUTH_CONFIG: Korean invite template, subject, provider and SMTP have not all been verified.');
+  console.log('NO_GO_HOSTED_AUTH_CONFIG: Korean invite template, subject, provider, SMTP and activation URLs have not all been verified.');
   process.exitCode=1;
 }

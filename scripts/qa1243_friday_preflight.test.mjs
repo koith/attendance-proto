@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {REQUIRED,EXTERNAL_BLOCKERS,classifyWorkflow,verdict,reconcileIntegratedSqlEvidence,reconcileSafePagesEvidence,verifyGoogleOnLiveMain,credentialPreflightFailure,openingScope,POST_OPENING_WORK} from './qa1243_friday_preflight.mjs';
+import {REQUIRED,EXTERNAL_BLOCKERS,classifyWorkflow,verdict,reconcileIntegratedSqlEvidence,reconcileSafePagesEvidence,verifyGoogleOnLiveMain,credentialPreflightFailure,openingScope,POST_OPENING_WORK,REMAINING_WORK_PHASES} from './qa1243_friday_preflight.mjs';
 const SHA='864383ceeefa5ec9596886804efeb77505180685';
 const now=Date.parse('2026-10-21T00:00:00Z');
 const spec={id:'GENERIC_WORKFLOW',sameSha:false};
@@ -30,6 +30,14 @@ assert.equal(verdict(greens,[]).verdict,'PASS','only full independently verified
 assert.equal(verdict(greens).verdict,'NO_GO','hosted mail/user and production safety may not be inferred from sandbox');
 const scopeReport=openingScope(greens);
 assert.equal(scopeReport.openingVerdict,'NO_GO');assert.equal(scopeReport.postOpening.blocksOpening,false);
+const remainingIds=[...readFileSync('PROJECT_BACKLOG_20261017.md','utf8').matchAll(/^- \[ \] \*\*([A-Z]+-\d+)\b/gm)].map(x=>x[1]);
+const classified=Object.values(REMAINING_WORK_PHASES).flat();
+assert.equal(classified.length,19);assert.equal(new Set(classified).size,19);
+assert.deepEqual([...classified].sort(),remainingIds.sort(),'All canonical unchecked rows must be classified exactly once');
+assert.deepEqual(Object.values(REMAINING_WORK_PHASES).map(x=>x.length),[7,2,10]);
+assert.ok(REMAINING_WORK_PHASES.beforeOpening.includes('SEC-01'),'Original P0 single-device rollout cannot silently become optional');
+assert.ok(EXTERNAL_BLOCKERS.some(x=>x.id==='SEC01_SINGLE_DEVICE_ROLLOUT'));
+assert.equal(scopeReport.canonicalRemainingWork.completedByClassification,0);
 assert.deepEqual(scopeReport.requiredWorkflowIds,REQUIRED.map(x=>x.id));assert.equal(scopeReport.requiredWorkflowIds.length,8);
 assert.ok(POST_OPENING_WORK.some(x=>x.id==='SUPPLIER_CART'));
 assert.ok(POST_OPENING_WORK.every(x=>!REQUIRED.some(r=>r.id===x.id)));
