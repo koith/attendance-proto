@@ -16,3 +16,11 @@ test('mobile OAuth helper remains static/no backend token handling',()=>{
  assert.ok(source.includes("'Referrer-Policy':'no-referrer'"));
  assert.ok(source.includes("function pageResponse(req:Request)"));
 });
+
+test('public static OAuth helper ignores URL query without processing or reflecting it',()=>{
+ assert.ok(!source.includes('QA1243_QUERY_NOT_ALLOWED'));
+ assert.ok(!source.includes('new URL(req.url).search'));
+ assert.ok(source.includes("if(req.method!=='GET')"));
+ assert.ok(source.includes("page.replaceAll('QA1243_NONCE',nonce)"));
+ assert.ok(!source.includes('req.url.searchParams'));
+});

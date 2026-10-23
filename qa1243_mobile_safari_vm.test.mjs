@@ -87,5 +87,5 @@ assert.equal(typeof old.callback,'undefined','Expired session cannot call Google
 assert.doesNotMatch(source,/api\.github\.com|github_pat_|SUPABASE_SERVICE_ROLE_KEY/);
 assert.doesNotMatch(source,/localStorage|sessionStorage|Deno\.env/);
 assert.match(source,/if\(req\.method!=='GET'\)/);
-assert.match(source,/QA1243_QUERY_NOT_ALLOWED/);
+assert.doesNotMatch(source,/QA1243_QUERY_NOT_ALLOWED/);
 console.log('PASS QA1243 Safari DOM VM: exact Google scopes, QA-only account, no extra Drive, 10-minute session, one-time copy, no privileged server');
