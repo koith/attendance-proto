@@ -197,6 +197,12 @@ jobs:
           script: |
             const allowed=new Set([
               '.github/workflows/recipe-actual-tab-geometry.yml',
+              'qa_auth_role_evidence_1243.mjs',
+              'qa_auth_role_evidence_1243.test.mjs',
+              'qa_sheet_failure_recovery_1243.mjs',
+              'qa_store_opening_scenario_evidence_v1.mjs',
+              '.github/workflows/qa06-scenario-evidence.yml',
+
               'operations_v1.js',
               'qa_operations_material_cost_safe_v1.mjs',
               'qa_material_cost_report_1243.sql',
@@ -357,7 +363,8 @@ jobs:
                  // normal operating Sheets deploy. This entry is included in
                  // the exact allowlist above; unrelated paths still fail.
                  '.github/workflows/store-opening-full-journey.yml',
-                 '.github/workflows/qa1243-auth-role-journey.yml'
+                 '.github/workflows/qa1243-auth-role-journey.yml',
+                 '.github/workflows/qa06-scenario-evidence.yml'
                ].includes(f))))
                throw Error('QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE');
             core.info('QA1243_NO_OPERATING_WRITE_GUARD_PASS files='+files.length);

@@ -1,6 +1,7 @@
 // Canonical #1008 QA-06: one-case/one-evidence matrix. Do not mistake synthetic PASS for field QA.
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
+import {validateAuthRoleEvidence} from './qa_auth_role_evidence_1243.mjs';
 const lanes=[
  ['STORE-REGISTER','중복·주소·READY 경계 기초 검증','qa_hq_store_onboarding_v1.mjs'],
  ['STORE-READY','비READY 지점 진입 차단','qa_store_entry_ready_lock_v1.mjs'],
@@ -53,9 +54,19 @@ for(const [id,label,file] of lanes){
  console.log((pass?'PASS ':'FAIL ')+id+' · '+label);
  if(!pass)console.error(evidence);
 }
+const authEvidencePath=process.env.QA_AUTH_ROLE_EVIDENCE;
+if(authEvidencePath){
+ try{
+  const auth=JSON.parse(fs.readFileSync(authEvidencePath,'utf8'));
+  results.push(validateAuthRoleEvidence(auth,process.env.GITHUB_SHA));
+  const at=pending.findIndex(x=>x[0]==='ADMIN-SESSION');if(at>=0)pending.splice(at,1);
+ }catch(error){results.push({id:'ADMIN-SESSION',label:'실제 발급 JWT 서버 경계',result:'FAIL',evidence:String(error.message)});}
+}else if(process.env.QA_AUTH_ROLE_REQUIRE==='1'){
+ results.push({id:'ADMIN-SESSION',result:'FAIL',evidence:'SAME_RUN_AUTH_EVIDENCE_REQUIRED'});
+}
 const evidence={issue:1008,canonicalId:'QA-06',at:new Date().toISOString(),
- environment:'executable synthetic/source fixture; no real device, live Auth/SMTP or production mutations',
- coverageNote:'Synthetic late/early paid-minutes and rehire period prorations now execute against the shipped engine; actual approved schedules, live late/early records, genuine rehire, real JWT issuance, manager review and field payroll remain unverified.',
+ environment:'executable synthetic/source fixture; no real device or production mutation; Auth scope is individually recorded',
+ coverageNote:'Synthetic late/early paid-minutes and rehire period prorations now execute against the shipped engine; actual approved schedules, live late/early records, genuine rehire, Hosted identity authentication, manager review and field payroll remain unverified.',
  verified:results.filter(x=>x.result==='PASS').length,
  failed:results.filter(x=>x.result==='FAIL').length,
  unresolved:pending.map(([id,label])=>({id,label,result:'GAP_FIELD_OR_MISSING_EVIDENCE'})),
@@ -68,5 +79,5 @@ fs.writeFileSync('qa-results/store-opening-qa06-evidence.md',
  pending.map(x=>'| '+x[0]+' | '+x[1]+' | GAP_FIELD_OR_MISSING_EVIDENCE |').join('\n')+
  '\n\n현장 PC·실인원·원천 급여 미검증을 PASS로 계산하지 않음.\n');
 if(results.some(x=>x.result==='FAIL'))process.exitCode=1;
-console.log('QA-06 actual executable cases '+evidence.verified+'/'+lanes.length+
+console.log('QA-06 actual executable cases '+evidence.verified+'/'+results.length+
  '; gaps '+pending.length+'; status '+evidence.overall);

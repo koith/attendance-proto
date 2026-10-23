@@ -132,6 +132,7 @@ await proveJourneyRepair([
  'supabase/migrations/20261023023009_qa1243_inventory_valuation_fail_closed.sql',
  'supabase/migrations/20261023023246_qa1243_import_source_conflict_guard.sql'
 ],true);
+await proveJourneyRepair(['.github/workflows/qa06-scenario-evidence.yml','qa_sheet_failure_recovery_1243.mjs','qa_auth_role_evidence_1243.mjs'],true);
 await proveJourneyRepair(['.github/workflows/p0-pages-deploy.yml'],false);
 await proveJourneyRepair(['.github/workflows/store-opening-full-journey.yml','index.html'],false);
 await proveJourneyRepair(['.github/workflows/store-opening-full-journey.yml',
