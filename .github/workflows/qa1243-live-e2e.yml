@@ -78,6 +78,10 @@ jobs:
               const {data}=await github.rest.repos.compareCommits({...context.repo,base:before,head:context.sha,per_page:100});
               const costRelease=message.includes('[QA1243-COST-PAGES]')&&message.includes('[QA1243-APP-PAGES]');
               const allowed=new Set([
+                '.github/workflows/inventory-navigation-mobile-v331.yml',
+                'scripts/qa1243_friday_preflight.mjs',
+                'scripts/qa1243_friday_preflight.test.mjs',
+                '.github/workflows/qa1243-friday-readiness.yml',
                 'qa_auth_role_evidence_1243.mjs',
                 'qa_auth_role_evidence_1243.test.mjs',
                 'qa_sheet_failure_recovery_1243.mjs',

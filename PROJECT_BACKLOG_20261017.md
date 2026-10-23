@@ -566,3 +566,13 @@
 | MTG-16 | 공유POS/PIN 실사 초안·승인/모바일 검색 QA PASS | 공급사/POS 자동수집 개발 및 실직원 현장 UX |
 
 - 외부 API/원천이 필요한 어댑터 개발은 단순 현장 검증으로 전환하지 않음. 안전한 계정 인증 전 실제 지점 READY/사용자 초대 발송·운영 결제/원천 입력을 수행하지 않음. 실점주 정보·공식 인증과 승인 후 진행할 실제 개통 절차는 QA-04/AUTH-01/FIELD-01로 추적.
+
+## 66. 2026-10-23 — #1317 main 최종 QA·원본 보존 검증과 개통 게이트 실제 결함 수정
+
+- 사용자 후속 원문은 [#1243 접수](https://github.com/koith/attendance-proto/issues/1243#issuecomment-6357001116). #1316/#1317 및 v0.355/Google 성공을 반복하지 않고 최종 main 검증 후 잔여 개발 계속 지시.
+- **#1317 병합/최종 main:** PR 최종 head ef24297179e20789788ef4cf58589845436dae12 **70개 체크 완료/실패0**, squash `cbd98e062c4db04746a291025ca7e91e366135de`. [전체 개통 #39896729154](https://github.com/koith/attendance-proto/actions/runs/39896729154) 소스·실제 브라우저·격리PG·실패보고 job 모두 SUCCESS. [실제 Auth #39896729116](https://github.com/koith/attendance-proto/actions/runs/39896729116) 및 [QA-06 #39896729157](https://github.com/koith/attendance-proto/actions/runs/39896729157) SUCCESS. [P0 #39896729012](https://github.com/koith/attendance-proto/actions/runs/39896729012) gate SUCCESS, 모든 Pages/Sheet 게시 job SKIPPED. Google #39896729146 scope/static만 SUCCESS, 실제 OAuth/Edge/GAS/Sheets 단계 SKIPPED.
+- **원본 데이터 보존 최종 읽기 검증:** 지점244/HQ3/직원10/급여snapshot0/재고이동5/거래3323/raw0/지점레시피override0/원본variant245의 전체 행 hash는 초기와 동일. 근태는 검증 중 236→238건으로 증가했으나 기존236건(id≤5578) hash `60a45419247811b866d09ae303353cbd`가 초기와 정확히 동일해 원본 변경/삭제 없음. 새2건은 03:58:12·03:58:35 UTC 이후 추가됐으며 이 작업에서 근태 DML/되돌리기 없음. 자연 증가를 무변경 실패나 복구 대상으로 취급하지 않음. 기존 Google Sheets writer 호출 없음; 전체 셀 hash 검증으로 과장하지 않음.
+- **QA-05/07 개통 게이트 실제 오류 수정:** scope/static만 성공하고 실Google을 SKIP한 최신 workflow가 실E2E 성공으로 분류될 수 있던 허점을 차단. 실제 Edge attestation·사전 contract·GAS/Sheets 실행 단계의 SUCCESS, 최근성·main·조상 SHA·실행 관련 소스 diff를 검증해 기존 실제 성공 #39781031886을 재사용. 그 이후 runner의 실패 로그 비밀정보 제거만 검토된 정확한 proof SHA/runner blob 조합으로 허용하고 다른 원천 변경·실패·삭제·rename·불완전 diff는 거부. Google/OAuth/Sheets 재실행 없음. 실제 GitHub MCP 조회 snapshot을 새 판정기에 입력해 해당 기존 실증으로 PASS를 산출한 근거 보존.
+- **QA-06/07 미완료 판정 갱신:** 기존 readiness workflow는 전체 개통 QA가 아직 실행 중일 때 STORE_E2E=FAIL을 기록한 후 완료 시 다시 평가하지 않았다. 전체 개통 완료 event를 구독해 최종 상태로 재평가. v0.355 Pages 증거는 index/HQ뿐 아니라 실제 원가 JS hash도 필수로 확인. Hosted Auth·실수신·실사용자·개통 승인 미확인은 계속 NO_GO이며 녹색 CI로 대신하지 않음.
+- **검증 지연 실제 수정:** 전체 개통/모바일 재고 CI가 무조건 Chromium system apt 설치를 수행하며 장시간 대기. npm/브라우저 다운로드/필요시 의존성 설치 각각 제한시간, 실제 Chromium launch probe 후 필요한 경우만 system repair, 최종 실제 launch 실패 시 FAIL. 모든 기존 브라우저 시나리오는 보존. 새 PR/최종CI/병합/main 증거는 #1243에 연결.
+- 앱 **v0.355 유지**, 이번 변경은 QA 판정/설치 경로라 Pages·운영 DB·Sheet 배포 없음. 총38/완료19/잔여19, 개통 **NO_GO**. 실원천·공식 API/인증 없이 외부 어댑터를 완료로 위장하지 않음. 담당자 직접 로그인과 공식 연동 경로 확인이 필요한 온리원 원격 장바구니/매입 수집은 §64/65에서 계속 추적.
