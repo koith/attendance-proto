@@ -13,6 +13,8 @@ on:
       - 'supabase/functions/qa1243-google-mail-bridge/**'
       - 'gas/qa1243-auth-mail/**'
       - 'qa/qa1243_google_mail_bridge.test.mjs'
+      - 'supabase/functions/qa1243-mobile-auth/**'
+      - 'qa/qa1243_mobile_oauth_prefill.test.mjs'
       - '.github/workflows/qa1243-google-mail-bridge.yml'
   push:
     branches: [main]
@@ -20,6 +22,8 @@ on:
       - 'supabase/functions/qa1243-google-mail-bridge/**'
       - 'gas/qa1243-auth-mail/**'
       - 'qa/qa1243_google_mail_bridge.test.mjs'
+      - 'supabase/functions/qa1243-mobile-auth/**'
+      - 'qa/qa1243_mobile_oauth_prefill.test.mjs'
       - '.github/workflows/qa1243-google-mail-bridge.yml'
 permissions:
   contents: read
@@ -36,6 +40,8 @@ jobs:
           node-version: '22'
       - name: Verify signed-hook, exact Korean HTML, secure email-change and GAS dedup
         run: node --test qa/qa1243_google_mail_bridge.test.mjs
+      - name: Verify isolated Safari OAuth helper security and client ID defaults
+        run: node --test qa/qa1243_mobile_oauth_prefill.test.mjs
       - name: Proof of zero operating writes
         run: |
           echo 'This synthetic test job makes no production writes. A separate main-only job may provision the standalone QA GAS source; it never enables Auth Hook or sends email.' >> "$GITHUB_STEP_SUMMARY"
