@@ -504,3 +504,12 @@
 - 병합 전 #1314 head ee517f21 **67 check 완료(60 SUCCESS/7 SKIPPED/0 FAIL)** 확인. main 57e52009, mergeable=true. 운영 읽기 전용 지점244/HQ3/인하대 직원10/READY1 확인.
 - **추가 발견/수정:** Google live E2E가 p0 무쓰기 가드 변경만으로도 main에서 OAuth·GAS·Sheet 검증을 반복하는 트리거였다. Auth-only 병합에는 `[QA1243-NO-GOOGLE-RERUN]`+무쓰기 마커와 정확한 파일 allowlist/실제 diff 검증을 동시에 통과할 때만 기존 Google 성공 증거를 재사용한다. Edge/GAS/Google runner/앱 파일 혼입·알 수 없는 경로·삭제/rename·불명확한 diff는 실패. 일반 Google 코드 변경은 실E2E 경로 유지. Actions 실제 스크립트 VM 실패 주입 PASS.
 - 기존 Pages/운영 Sheet skip 마커 유지. 이 CI 변경에는 운영 앱 버전 상승이나 배포·DB DML 없음. 병합 SHA/main 검증/잔여 개발 증거는 후속 갱신.
+
+
+## 61. 2026-10-23 — #1314 main 검증과 MTG-05/06/08/12 실제 원장 보호 결함 수정
+
+- **#1314 병합 완료:** squash main `8a6e9760b208e9b56d11de0f707e6a0e785ef817`; 최종 PR head `7dced43e` 68 check 완료/실패0. main 실제 Auth/SMTP/JWT/PostgREST [#39890295884](https://github.com/koith/attendance-proto/actions/runs/39890295884) SUCCESS. [P0 main #39890295883](https://github.com/koith/attendance-proto/actions/runs/39890295883) 게이트 SUCCESS, 표준/QA Pages build·publish·same-run 검증 SKIPPED. [Google workflow #39890296034](https://github.com/koith/attendance-proto/actions/runs/39890296034) scope/static PASS, OAuth/Edge attestation/실GAS·Sheets 단계 SKIPPED로 기존 성공 #39781031886 재실행 안 함. 앱 v0.354 유지. 전체 main 개통 QA #39890296010은 완료 상태 후 후속 증거 추가.
+- **MTG-12 실제 결함:** 운영 `admin_store_inventory_overview_v3`가 미입력 단가를 COALESCE(...,0)으로 평가해 부분/전부 미확인 원가를 확정 0원처럼 반환. 동일 가격 자료 없는 출고도 일부 재고평가에서 누락되고 미래 입고도 현재 잔고에 포함됐다. 기존 API/권한/인하대 store_id NULL 호환을 유지한 함수-only migration으로 단가·수량이 유효하고 비음수인 평가액만 반환, 미확인/부분단가/비정상수량/음수자산은 NULL, 미래 이동 제외. 명시적 실제 단가0·수량0은 보존. 운영 가격이나 수량을 임의 채우지 않음.
+- **MTG-05/06/08 실제 결함:** 같은 CSV 안의 중복 원천키가 마지막 행으로 덮어써지고 긴 키는 180자 잘림으로 서로 다른 영수증/매입 원본이 충돌할 수 있었다. 중복/긴 키를 행번호 포함 오류로 원자적 거부하고, 기존 정상 재업로드·수정 및 지점/원천/파일 경계 유지. 이 기능은 공급사 인증·POS 1/2번 단말 실제 의미를 추정하지 않음.
+- **실행 검증:** 새 SQL fixture 2개가 실제 임베디드 PostgreSQL에서 PASS. 원래 재고 함수에 같은 테스트를 적용해 `UNKNOWN_PRICE_IS_NOT_ZERO` 실패를 검출하는 변이 증거 확보. PG16 CI에 2개 fixture 편입, 기존 및 신규 운영 무쓰기/Google 성공 재사용 guard 실행형 회귀 PASS. 운영에는 아직 함수 교체하지 않았으며 PR/CI/병합 후 명시적 함수 배포와 원본 hash 대조 예정.
+- **완료 기준:** 두 결함 수정은 MTG-05/06/08/12의 전체 실제 원천 연결·재료비 계산 완료와 다르다. 체크박스 선변경 없음. 실제 외부 자동수집/공급사 원격 장바구니/실재료비·판매량 소스에 아직 개발이 필요한 부분은 현장 검증으로 숨기지 않는다. 전체38/완료19/잔여19 유지.

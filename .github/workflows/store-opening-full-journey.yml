@@ -217,6 +217,8 @@ jobs:
             qa_store_opening_recipe_postgres_v1.sql
             qa_payroll_close_postgres_integration.sql
             qa_payroll_weekly_postgres_integration.sql
+            qa_inventory_valuation_1243.sql
+            qa_import_identity_1243.sql
             qa_inventory_manual_rls_store_scope.sql
             qa_store_stocktake_postgres_integration.sql
             qa_staff_stocktake_proposals_postgres.sql
