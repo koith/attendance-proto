@@ -1,0 +1,33 @@
+name: QA1243 isolated Google mail bridge (synthetic only)
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/qa1243-google-mail-bridge/**'
+      - 'gas/qa1243-auth-mail/**'
+      - 'qa/qa1243_google_mail_bridge.test.mjs'
+      - '.github/workflows/qa1243-google-mail-bridge.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/qa1243-google-mail-bridge/**'
+      - 'gas/qa1243-auth-mail/**'
+      - 'qa/qa1243_google_mail_bridge.test.mjs'
+      - '.github/workflows/qa1243-google-mail-bridge.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic-security-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify signed-hook, exact Korean HTML, secure email-change and GAS dedup
+        run: node --test qa/qa1243_google_mail_bridge.test.mjs
+      - name: Proof of zero operating writes
+        run: |
+          echo 'Synthetic only: no Auth Hook enabling, GAS deployment, SMTP, account creation, emails, Sheets, SQL or Edge writes.' >> "$GITHUB_STEP_SUMMARY"
