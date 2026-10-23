@@ -1,3 +1,4 @@
+# QA1243 release sentinel: isolated synthetic tests; never production mail/Sheets writes.
 name: QA1243 isolated Google mail bridge (synthetic only)
 on:
   pull_request:

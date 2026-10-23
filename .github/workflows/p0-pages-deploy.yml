@@ -430,7 +430,9 @@ jobs:
                  'scripts/qa1243_readonly_auth_config.mjs',
                  'scripts/qa1243_auth_config_verdict.mjs',
                  'scripts/qa1243_auth_config_verdict.test.mjs',
-                 '.github/workflows/qa1243-sec01-preactivation.yml'
+                 '.github/workflows/qa1243-sec01-preactivation.yml',
+                 // Isolated Google mail bridge has only synthetic checks; never Sheets.
+                 '.github/workflows/qa1243-google-mail-bridge.yml'
                ].includes(f))))
                throw Error('QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE');
             core.info('QA1243_NO_OPERATING_WRITE_GUARD_PASS files='+files.length);
