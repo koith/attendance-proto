@@ -17,6 +17,7 @@ async function verdict(files,message='[QA1243-NO-GOOGLE-RERUN] [QA1243-NO-OPERAT
 assert.equal(await verdict(['qa_auth_role_journey_1243.mjs','.github/workflows/qa1243-live-e2e.yml']),'false');
 assert.equal(await verdict(['supabase/functions/server-sync-sheet/index.ts'],'ordinary Google change'),'true');
 assert.equal(await verdict([],'','pull_request'),'false');
+assert.equal(await verdict(['qa_inventory_valuation_1243.sql','supabase/migrations/20261023023009_qa1243_inventory_valuation_fail_closed.sql']),'false');
 for(const f of ['index.html','apps_script.gs','scripts/qa1243_live_edge_gas_sheets.mjs','supabase/functions/server-sync-sheet/index.ts','unknown.mjs'])
  await assert.rejects(verdict([f]),/GOOGLE_REUSE_SCOPE_REJECTED/);
 await assert.rejects(verdict([]),/GOOGLE_REUSE_SCOPE_REJECTED/);

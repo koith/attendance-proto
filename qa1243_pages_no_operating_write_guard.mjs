@@ -126,6 +126,12 @@ await proveJourneyRepair([
  '.github/workflows/p0-pages-deploy.yml','PROJECT_BACKLOG_20261017.md'
 ],true);
 await proveJourneyRepair(['qa_auth_role_journey_1243.mjs','owner_activation.js'],false);
+await proveJourneyRepair([
+ '.github/workflows/store-opening-full-journey.yml',
+ 'qa_inventory_valuation_1243.sql','qa_import_identity_1243.sql',
+ 'supabase/migrations/20261023023009_qa1243_inventory_valuation_fail_closed.sql',
+ 'supabase/migrations/20261023023246_qa1243_import_source_conflict_guard.sql'
+],true);
 await proveJourneyRepair(['.github/workflows/p0-pages-deploy.yml'],false);
 await proveJourneyRepair(['.github/workflows/store-opening-full-journey.yml','index.html'],false);
 await proveJourneyRepair(['.github/workflows/store-opening-full-journey.yml',

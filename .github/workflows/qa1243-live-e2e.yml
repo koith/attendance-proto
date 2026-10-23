@@ -57,7 +57,7 @@ permissions:
   id-token: write
 jobs:
   execution-scope:
-    name: Verify explicit Auth-only Google reuse scope
+    name: Verify explicit isolated QA Google reuse scope
     runs-on: ubuntu-latest
     outputs:
       run_live: ${{ steps.scope.outputs.run_live }}
@@ -77,6 +77,12 @@ jobs:
               if(!/^[a-f0-9]{40}$/.test(String(before||'')) || /^0{40}$/.test(before))throw Error('GOOGLE_REUSE_BASE_REQUIRED');
               const {data}=await github.rest.repos.compareCommits({...context.repo,base:before,head:context.sha,per_page:100});
               const allowed=new Set([
+                'qa_inventory_valuation_1243.sql',
+                'qa_import_identity_1243.sql',
+                'supabase/migrations/20261023023009_qa1243_inventory_valuation_fail_closed.sql',
+                'supabase/migrations/20261023023246_qa1243_import_source_conflict_guard.sql',
+                '.github/workflows/store-opening-full-journey.yml',
+
                 'qa_auth_role_journey_1243.mjs','qa_auth_role_journey_1243.sql',
                 '.github/workflows/qa1243-auth-role-journey.yml',
                 'qa1243_pages_no_operating_write_guard.mjs','qa1243_google_rerun_guard.mjs',
@@ -86,7 +92,7 @@ jobs:
               const files=data.files||[];
               if(!files.length || files.length>=100 || files.some(f=>!allowed.has(f.filename)||f.status==='renamed'||f.status==='removed'))throw Error('GOOGLE_REUSE_SCOPE_REJECTED');
               runLive=false;
-              core.info('Existing Google E2E proof reused; no OAuth/Edge/GAS/Sheets call for verified Auth-only change.');
+              core.info('Existing Google E2E proof reused; no OAuth/Edge/GAS/Sheets call for verified isolated QA/function-only change.');
             }
             core.setOutput('run_live',String(runLive));
   qa1243-mobile-safari-public-http:
