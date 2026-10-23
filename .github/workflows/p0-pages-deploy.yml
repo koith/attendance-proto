@@ -288,6 +288,7 @@ jobs:
             const releaseMessage=String(context.payload.head_commit?.message||'');
             const safeAppRelease=releaseMessage.includes('[QA1243-APP-PAGES]');
             const safeCostRelease=releaseMessage.includes('[QA1243-COST-PAGES]');
+            const safeActivationRelease=releaseMessage.includes('[QA1243-ACTIVATION-PAGES]');
             // One-time, fail-closed retry for verified v0.354 already merged at
             // the exact parent SHA. Do not permit an unreviewed app diff or Sheet write.
             const safePagesRetry=releaseMessage.includes('[QA1243-APP-PAGES-RETRY]');
@@ -306,6 +307,32 @@ jobs:
               if(!parentMessage.includes('[QA1243-NO-OPERATING-WRITE]') ||
                  !parentMessage.includes('[QA1243-APP-PAGES]'))
                 throw Error('QA1243_SAFE_RETRY_PARENT_UNVERIFIED');
+            }
+            if(safeActivationRelease){
+              const scope=new Set([
+                'owner_activation.js','owner_activation.html','index.html',
+                'qa_owner_invite_autoactivation_921.mjs','qa_owner_activation_retry_browser_1243.mjs',
+                'scripts/qa1243_auth_config_verdict.test.mjs','scripts/qa1243_activation_pages_smoke.mjs',
+                '.github/workflows/p0-pages-deploy.yml','.github/workflows/qa1243-live-e2e.yml',
+                '.github/workflows/qa1243-owner-ready-pages-independent.yml',
+                '.github/workflows/store-opening-full-journey.yml',
+                'qa1243_pages_no_operating_write_guard.mjs','qa1243_google_rerun_guard.mjs',
+                'PROJECT_BACKLOG_20261017.md'
+              ]);
+              if(!safeAppRelease||safeCostRelease||files.some(f=>!scope.has(f))||
+                 !['index.html','owner_activation.html','owner_activation.js'].every(f=>files.includes(f)))
+                throw Error('ACTIVATION_RELEASE_SCOPE');
+              for(const f of scope)allowed.add(f);
+              const changes=name=>String(diff.files.find(f=>f.filename===name)?.patch||'').split('\n').filter(l=>/^[-+]/.test(l)&&!/^---|^\+\+\+/.test(l));
+              const html=changes('index.html'),before=html.filter(l=>l[0]==='-').map(l=>l.slice(1)),after=html.filter(l=>l[0]==='+').map(l=>l.slice(1));
+              if(before.length!==2||after.length!==2||
+                 !before.every((l,i)=>after[i]===l.replaceAll('v0.355','v0.356'))||
+                 !before.some(l=>l.includes('const APP_VERSION="v0.355";'))||
+                 !before.some(l=>l.includes('id="appVersion"')))
+                throw Error('ACTIVATION_RELEASE_VERSION_DIFF');
+              const callback=changes('owner_activation.html');
+              if(callback.length!==2||callback[0]!=='-<script src="owner_activation.js?v=20261020v353"></script>'||callback[1]!=='+<script src="owner_activation.js?v=20261023v356"></script>')
+                throw Error('ACTIVATION_RELEASE_CALLBACK_DIFF');
             }
             const appAssets=new Set([
               'hq_store_onboarding_ui.js','index.html',
@@ -333,7 +360,7 @@ jobs:
                  !before.some(l=>l.includes('operations_v1.js?v=20261019v345')))
                 throw Error('MATERIAL_COST_HTML_DIFF');
             }
-            if(safeAppRelease && !safePagesRetry && !safeCostRelease){
+            if(safeAppRelease && !safePagesRetry && !safeCostRelease && !safeActivationRelease){
               for(const expected of ['index.html','hq_store_onboarding_ui.js',
                 'supabase/migrations/20261022225500_qa1243_confirmed_primary_owner_ready.sql']){
                 if(!files.includes(expected))throw Error('QA1243_APP_RELEASE_REQUIRED_FILE_MISSING: '+expected);
@@ -650,7 +677,9 @@ jobs:
       - name: Capture unchanged operating public asset digests before safe app release
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-COST-PAGES]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-ACTIVATION-PAGES]') }}" == "true" ]]; then
+            node scripts/qa1243_activation_pages_smoke.mjs --before
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-COST-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_material_cost_pages_smoke.mjs --before
           else
             node scripts/qa1243_owner_ready_pages_smoke.mjs --before
@@ -670,7 +699,9 @@ jobs:
       - name: Confirm public v0.354 HQ readiness UI and unchanged other operating assets
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-COST-PAGES]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-ACTIVATION-PAGES]') }}" == "true" ]]; then
+            node scripts/qa1243_activation_pages_smoke.mjs --after
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-COST-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_material_cost_pages_smoke.mjs --after
           else
             node scripts/qa1243_owner_ready_pages_smoke.mjs --after

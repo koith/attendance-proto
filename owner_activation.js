@@ -55,7 +55,12 @@ form.onsubmit=async event=>{
      "Content-Type":"application/json"},body:JSON.stringify({password})
   });
   const updated=await change.json().catch(()=>({}));
-  if(!change.ok)throw Error(updated.msg||updated.message||"PASSWORD_SETUP_FAILED");
+  // GoTrue returns 422/same_password when the password was saved but the
+  // response or following appointment request was lost. The authenticated
+  // preflight above still runs on every attempt; the server appointment and
+  // store-context checks below remain mandatory for this idempotent retry.
+  if(!change.ok&&!(change.status===422&&updated.code==="same_password"))
+    throw Error(updated.msg||updated.message||"PASSWORD_SETUP_FAILED");
   // HQ representative invites are bound to the signed-in user and confirmed email.
   // The server atomically promotes the recipient only when HQ registered the intent.
   // Delegated store-manager invitations have no owner intent and remain delegated.

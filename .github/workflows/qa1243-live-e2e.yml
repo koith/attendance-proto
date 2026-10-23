@@ -112,6 +112,7 @@ jobs:
                 '.github/workflows/p0-pages-deploy.yml','.github/workflows/qa1243-live-e2e.yml',
                 'PROJECT_BACKLOG_20261017.md'
               ]);
+              if(message.includes('[QA1243-ACTIVATION-PAGES]')&&message.includes('[QA1243-APP-PAGES]'))for(const f of ['owner_activation.js','owner_activation.html','index.html','qa_owner_invite_autoactivation_921.mjs','qa_owner_activation_retry_browser_1243.mjs','scripts/qa1243_activation_pages_smoke.mjs','.github/workflows/qa1243-owner-ready-pages-independent.yml'])allowed.add(f);
               if(costRelease)for(const f of ['.github/workflows/recipe-actual-tab-geometry.yml','.github/workflows/qa1243-owner-ready-pages-independent.yml','index.html', 'operations_v1.js', 'qa_operations_material_cost_safe_v1.mjs', 'qa_material_cost_report_1243.sql', 'supabase/migrations/20261023024132_qa1243_verified_material_cost_report.sql', 'scripts/qa1243_material_cost_pages_smoke.mjs'])allowed.add(f);
               const files=data.files||[];
               if(!files.length || files.length>=100 || files.some(f=>!allowed.has(f.filename)||f.status==='renamed'||f.status==='removed'))throw Error('GOOGLE_REUSE_SCOPE_REJECTED');
