@@ -31,7 +31,7 @@ jobs:
         run: node --test qa/qa1243_google_mail_bridge.test.mjs
       - name: Proof of zero operating writes
         run: |
-          echo 'Synthetic only: no Auth Hook enabling, GAS deployment, SMTP, account creation, emails, Sheets, SQL or Edge writes.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This synthetic test job makes no production writes. A separate main-only job may provision the standalone QA GAS source; it never enables Auth Hook or sends email.' >> "$GITHUB_STEP_SUMMARY"
   isolated-gas-provision:
     name: QA1243 isolated Google MailApp script provisioning (no email)
     needs: synthetic-security-tests
