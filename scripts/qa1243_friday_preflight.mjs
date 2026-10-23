@@ -111,6 +111,34 @@ const googleInput=path=>GOOGLE_INPUTS.has(path)||
 // change, renamed source, or another historical run cannot use this exception.
 const LOGGING_REVIEW={run:39781031886,sha:'50690f26e31b5ef9ae9bce830fcdd17bd4dd6551',
  runnerBlob:'c516cde85456f0438e84794e0d4213651e1668e4'};
+export function credentialPreflightFailure(log){
+ if(typeof log!=='string'||!log||log.length>1024*1024||
+    !log.includes('QA1243_GOOGLE_AUTH_ROUTE_MOBILE_EPHEMERAL')||
+    !log.includes('Process completed with exit code 1.')||
+    /QA1243_(?:RUNNER_OAUTH_SCOPE_VERIFIED|OPERATING_FILE_DENY_PROBE|GAS_PROJECT_REUSED|REMOTE_SCRIPT_OWNER_VERIFIED|EDGE_FIRST)/.test(log))return null;
+ const errors=[...log.matchAll(/(?:^|\n)(?:\d{4}-[^\n]+Z\s+)?Error: ([^\r\n]+)/g)].map(x=>x[1].trim());
+ if(errors.length!==1)return null;
+ if(errors[0]==='REMOTE_HTTP_401 for www.googleapis.com /oauth2/v3 [type=UNKNOWN]'&&
+    !log.includes('QA1243_OAUTH_OWNER_VERIFIED'))return 'QA_OAUTH_USERINFO_401_BEFORE_E2E';
+ if(errors[0]==='QA1243_MOBILE_TOKEN_EXPIRY_TOO_SHORT'&&
+    log.includes('QA1243_OAUTH_OWNER_VERIFIED'))return 'QA_OAUTH_EXPIRY_TOO_SHORT_BEFORE_E2E';
+ return null;
+}
+async function fetchJobLogs(repo,jobId,token,fetcher){
+ if(!Number.isSafeInteger(jobId))throw Error('GOOGLE_FAILED_JOB_ID_UNVERIFIED');
+ let response=await fetcher('https://api.github.com/repos/'+repo+'/actions/jobs/'+jobId+'/logs',
+  {headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+token},redirect:'manual',signal:AbortSignal.timeout(20000)});
+ if([301,302,303,307,308].includes(response.status)){
+  const destination=new URL(response.headers.get('location'));
+  if(destination.protocol!=='https:'||
+     !['.blob.core.windows.net','.actions.githubusercontent.com'].some(s=>destination.hostname.endsWith(s)))
+   throw Error('ACTIONS_LOG_REDIRECT_UNTRUSTED');
+  // Signed log storage receives no GitHub Authorization header.
+  response=await fetcher(destination.href,{redirect:'error',signal:AbortSignal.timeout(20000)});
+ }
+ if(!response.ok)throw Error('ACTIONS_LOG_READ_HTTP_'+response.status);
+ return response.text();
+}
 export async function verifyGoogleOnLiveMain(repo,token,sha,fetcher=fetch,now=Date.now()){
  const spec=REQUIRED.find(x=>x.id==='LIVE_EDGE_GAS_SHEETS');
  const runs=await fetchWorkflowRuns(repo,spec.workflow,token,fetcher);
@@ -118,13 +146,28 @@ export async function verifyGoogleOnLiveMain(repo,token,sha,fetcher=fetch,now=Da
  if(classified.reason!=='LIVE_EXECUTION_PROOF_REQUIRED')return classified;
  const candidates=runs.filter(r=>r?.head_branch==='main'&&['push','workflow_dispatch','workflow_run'].includes(r.event))
   .sort((a,b)=>Date.parse(b.created_at||0)-Date.parse(a.created_at||0));
+ const credentialAttempts=[];
  for(const run of candidates.slice(0,20)){
   const jobs=await fetchRunJobs(repo,run.id,token,fetcher);
   const job=jobs.find(x=>x.name===GOOGLE_JOB);
   const step=job?.steps?.find(x=>x.name===GOOGLE_EXEC);
   if(!step||step.conclusion==='skipped')continue;
-  if(step.conclusion!=='success'||job.conclusion!=='success')
-   return {id:spec.id,status:'FAIL',reason:'LATEST_REAL_GOOGLE_EXECUTION_NOT_SUCCESS',run_id:run.id};
+  if(step.conclusion!=='success'||job.conclusion!=='success'){
+   const failure={id:spec.id,status:'FAIL',reason:'LATEST_REAL_GOOGLE_EXECUTION_NOT_SUCCESS',run_id:run.id};
+   if(run.status!=='completed'||run.conclusion!=='failure'||step.conclusion!=='failure'||job.conclusion!=='failure'||
+      ![GOOGLE_ATTEST,GOOGLE_VALIDATE].every(name=>job.steps?.some(x=>x.name===name&&x.conclusion==='success'))||
+      !/^[a-f0-9]{40}$/.test(run.head_sha||''))return failure;
+   const at=Date.parse(run.created_at||'');
+   if(!Number.isFinite(at)||at>now+60000||now-at>7*24*3600000)return failure;
+   const reason=credentialPreflightFailure(await fetchJobLogs(repo,job.id,token,fetcher));
+   if(!reason)return failure;
+   const source=await fetcher('https://api.github.com/repos/'+repo+'/contents/scripts/qa1243_live_edge_gas_sheets.mjs?ref='+run.head_sha,
+    {headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+token},signal:AbortSignal.timeout(20000)});
+   if(!source.ok)throw Error('GOOGLE_PREFLIGHT_SOURCE_READ_HTTP_'+source.status);
+   if((await source.json()).sha!==LOGGING_REVIEW.runnerBlob)return {...failure,reason:'CREDENTIAL_PREFLIGHT_RUNNER_UNREVIEWED'};
+   credentialAttempts.push({run_id:run.id,job_id:job.id,reason,stage:'BEFORE_SCRIPT_OR_SHEETS_WRITE'});
+   continue;
+  }
   const prior=classifyWorkflow({...spec,id:'REAL_GOOGLE_CANDIDATE'},[run],sha,now);
   if(prior.status!=='PASS')return {...prior,id:spec.id};
   if(!completedJob(jobs,GOOGLE_JOB,GOOGLE_ATTEST)||!completedJob(jobs,GOOGLE_JOB,GOOGLE_VALIDATE))
@@ -148,7 +191,9 @@ export async function verifyGoogleOnLiveMain(repo,token,sha,fetcher=fetch,now=Da
   }
   return {id:spec.id,status:'PASS',run_id:run.id,head_sha:run.head_sha,current_head_sha:sha,
    proof:'actual successful Edge attestation and GAS/Sheets execution; GitHub source ancestry verified',
-   reuse_basis:reviewedLogging?'REVIEWED_FAILURE_LOGGING_ONLY':'UNCHANGED_GOOGLE_EXECUTION_SOURCES',googleE2ERepeated:false};
+   reuse_basis:reviewedLogging?'REVIEWED_FAILURE_LOGGING_ONLY':'UNCHANGED_GOOGLE_EXECUTION_SOURCES',googleE2ERepeated:false,
+   credential_preflight_attempts:credentialAttempts,
+   future_rerun_auth:credentialAttempts.length?'REAUTH_REQUIRED_NOT_REQUESTED':'NOT_RECHECKED'};
  }
  return {id:spec.id,status:'FAIL',reason:'NO_SUCCESSFUL_REAL_GOOGLE_EXECUTION_PROOF'};
 }
@@ -247,7 +292,8 @@ export async function liveGate(env=process.env){
   '','Friday-only real store identity and actual owner email are intentionally not requested until explicit approval.');
  writeFileSync('qa-results/friday-opening-readiness.md',lines.join('\n')+'\n');
  console.log('QA1243_FRIDAY_OPENING_'+decision.verdict+' '+JSON.stringify({sha,passed:decision.passed,required:decision.required,
-   failures:decision.failed,external:decision.external}));
+   failures:decision.failed,details:auditedItems.filter(x=>x.status!=='PASS').map(x=>({id:x.id,reason:x.reason,run_id:x.run_id})),
+   googleProof:auditedItems.find(x=>x.id==='LIVE_EDGE_GAS_SHEETS'),external:decision.external}));
  return result;
 }
 if(process.argv[1]?.replaceAll('\\','/').endsWith('/qa1243_friday_preflight.mjs')){
