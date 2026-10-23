@@ -22,7 +22,10 @@ export function githubClient(repo,{token=process.env.GITHUB_TOKEN,fetchImpl=fetc
       if(response.ok)return response.status===204?null:response.json();
       const retryAfter=response.headers.get('retry-after');
       const rate=response.status===429||(response.status===403&&(retryAfter||response.headers.get('x-ratelimit-remaining')==='0'));
-      if(!rate&&[401,403].includes(response.status))throw new Blocked('AUTH_OR_PERMISSION_DENIED','Use an existing authorized GitHub connection for this operation; do not create tokens or expand privileges.');
+      if(response.status===403&&response.headers.get('x-github-sso')?.startsWith('required'))
+        throw new Blocked('CONSENT_REQUIRED','Complete the required SSO consent for the existing connection; do not create a token or expand scope.');
+      if(!rate&&[401,403].includes(response.status))throw new Blocked(response.status===401?'AUTHENTICATION_FAILED':'PERMISSION_DENIED','Use an existing authorized GitHub connection for this operation; do not create tokens or expand privileges.');
+      if(rate&&Number(retryAfter)>3)throw new Blocked('RATE_LIMIT_DEFERRED','Retry after the server requested delay; continue independent local QA.');
       if(response.status===404)throw new Blocked('NOT_FOUND_OR_NOT_VISIBLE','Confirm issue/ref/evidence identity and existing read access.');
       if(method==='GET'&&(rate||[502,503,504].includes(response.status))&&attempt<2){
         await sleep(Math.min(3000,Math.max(250,Number(retryAfter)*1000||250*(attempt+1))));continue;

@@ -34,3 +34,12 @@ test('permission-blocked task retains next action and leaves independent task re
  assert.equal(tasks['local-tests'].latest.record.state,'IN_PROGRESS');
  assert.throws(()=>prepare({...input,state:'ACCEPTED'},[],context,{headSha:a}),/INDEPENDENT_GATE/);
 });
+
+test('resume retains final evidence notes and harmless Markdown whitespace without treating prose as proof',()=>{
+ const r=resume({number:1331,title:'Build',body:'Canonical instructions'},[
+  {...comment(one),body:comment(one).body+'\n  '},
+  {body:'Final report: read the independent acceptance artifact before claiming completion.',user:{login:'koith'},html_url:'https://github.com/koith/attendance-proto/issues/1331#issuecomment-2'}
+ ],context);
+ assert.equal(r.recent_notes.length,1);assert.match(r.recent_notes[0].body,/independent acceptance/);
+ assert.equal(r.tasks.resume.completion,'CANNOT_VERIFY');
+});

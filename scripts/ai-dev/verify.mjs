@@ -37,6 +37,9 @@ if(mode==='unit') {
  const result=JSON.parse(run('scripts/ai-dev/cli.mjs','resume',repository,String(issue)));
  if(result.issue!==issue||!result.definition?.trim()||!Object.keys(result.tasks).length||result.conversation_recovery!==false)throw Error('LIVE_ISSUE_RESUME_NOT_VERIFIED');
  fs.writeFileSync('live-resume.json',JSON.stringify(result,null,2)+'\n');
+ const drill=JSON.parse(run('scripts/ai-dev/rehearsal.mjs',repository,String(issue)));
+ if(drill.result!=='PASS')throw Error('LIVE_RECOVERY_REHEARSAL_FAILED');
+ fs.writeFileSync('recovery-rehearsal.json',JSON.stringify(drill,null,2)+'\n');
 }else throw Error('UNKNOWN_VERIFICATION_MODE');
 if(!process.env.GITHUB_RUN_ID){console.log('LOCAL_QA_PASS; no live Actions receipt emitted');process.exit(0);}
 const file='evidence.json',bundle=fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):{version:1,receipts:[]};
