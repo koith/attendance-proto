@@ -91,6 +91,6 @@ BEGIN
  SELECT count(*) INTO v_imports FROM public.operations_import_batches
  WHERE store_id=p_store_id AND created_at::date BETWEEN p_from AND p_to;
  RETURN json_build_object('sales',v_sales,'purchases',v_purchases,
-   'material_cost',public.admin_store_material_cost_report(p_store_id,p_from,p_to),
+   'material_cost',CASE WHEN p_to-p_from>366 THEN jsonb_build_object('status','RANGE_TOO_WIDE','material_cost',NULL) ELSE public.admin_store_material_cost_report(p_store_id,p_from,p_to) END,
    'refunds',v_refunds,'transaction_count',v_tx,'active_items',v_items,'import_count',v_imports);
 END $function$;

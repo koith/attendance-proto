@@ -38,6 +38,7 @@ DO $$ DECLARE r jsonb; BEGIN
  IF public.admin_store_material_cost_report(701,'2026-10-01','2026-10-20')->>'status'<>'FINAL_COUNTS_REQUIRED' THEN RAISE EXCEPTION 'UNFINALIZED_COUNT'; END IF;
  IF public.admin_store_material_cost_report(701,current_date-1,current_date+1)->>'status'<>'PERIOD_NOT_CLOSED' THEN RAISE EXCEPTION 'FUTURE_COST'; END IF;
  BEGIN PERFORM public.admin_store_material_cost_report(702,'2026-10-01','2026-10-20');RAISE EXCEPTION 'FOREIGN_COST';EXCEPTION WHEN OTHERS THEN IF SQLERRM<>'NOT_AUTHORIZED' THEN RAISE;END IF;END;
+ IF public.admin_store_operations_summary(701,'2020-01-01','2026-10-20')->'material_cost'->>'status'<>'RANGE_TOO_WIDE' THEN RAISE EXCEPTION 'LONG_REPORT_REGRESSION'; END IF;
  IF has_function_privilege('anon','public.admin_store_material_cost_report(bigint,date,date)','EXECUTE') THEN RAISE EXCEPTION 'ANON_COST';END IF;
 END $$;
 \echo PASS actual cost: opening + receipts - returns - closing = usage, waste/service separate, missing/foreign/demo/future/draft guards
