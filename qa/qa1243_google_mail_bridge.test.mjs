@@ -114,7 +114,7 @@ test('GAS fails closed on missing properties, malformed POST, quota and unsafe c
  const env=await signedBridgeEnvelope(msg,'evt_safe_1',bridgeSecret,stamp*1000);
  assert.equal(gas.ctx.qa1243HandleMail_(null).code,'BAD_REQUEST');
  assert.equal(gas.ctx.qa1243HandleMail_({postData:{contents:'{'}}).code,'BAD_JSON');
- assert.equal(gas.ctx.qa1243HandleMail_({postData:{contents:JSON.stringify({...env,data:{...env.data,to:'bad\\nBCC:someone@example.org'}})}}).code,'BAD_MAIL');
+ assert.equal(gas.ctx.qa1243HandleMail_({postData:{contents:JSON.stringify({...env,data:{...env.data,to:'bad'+String.fromCharCode(13,10)+'BCC:someone@example.org'}})}}).code,'BAD_MAIL');
  assert.equal(gas.ctx.qa1243HandleMail_({postData:{contents:JSON.stringify({...env,data:{...env.data,html:'<script>alert(1)</script>'}})}}).code,'BAD_MAIL');
  assert.equal(gas.sends.length,0);
  gas.ctx.MailApp.getRemainingDailyQuota=()=>0;
