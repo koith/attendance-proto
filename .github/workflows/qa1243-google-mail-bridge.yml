@@ -228,7 +228,7 @@ jobs:
           const deploys=await call(api+'/'+encodeURIComponent(id)+'/deployments',{headers:authHeader});
           if(deploys.deployments!==undefined&&!Array.isArray(deploys.deployments))
            throw Error(badPrefix+'DEPLOYMENT_LIST_INVALID');
-          const list=deploys.deployments||[];
+          const list=(deploys.deployments||[]).filter(d=>Number(d.deploymentConfig?.versionNumber)>0);
           if(list.length>1)throw Error(badPrefix+'MULTIPLE_DEPLOYMENTS_STOP');
           let deployment=list[0];
           if(!deployment){
