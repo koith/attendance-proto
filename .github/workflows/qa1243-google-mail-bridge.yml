@@ -8,8 +8,8 @@ on:
         required: true
         type: boolean
         default: false
-  # Manual-only live network probe: invalid JSON cannot send email.
-  # No OAuth or Supabase credentials are needed.
+  # Live network probe also runs automatically on main after synthetic tests.
+  # Invalid JSON cannot send email; no OAuth or Supabase credentials needed.
   pull_request:
     paths:
       - 'supabase/functions/qa1243-google-mail-bridge/**'
@@ -51,7 +51,8 @@ jobs:
 
   isolated-gas-post-connectivity:
     name: QA1243 isolated GAS POST connectivity (no mail)
-    if: github.event_name == 'workflow_dispatch' && inputs.provision == false
+    needs: synthetic-security-tests
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.provision == false))
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
