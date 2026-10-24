@@ -31,3 +31,14 @@
 - 배포 결과에는 스크립트 ID·배포 ID·소스 SHA256·웹앱 배포 메타데이터만 기록한다. 비밀키·OAuth 액세스 토큰·메일 수신자·본문은 로그에 기록하지 않는다.
 - **이 단계는 실제 메일 발송이 아니다.** GAS `QA1243_GMAIL_BRIDGE_SECRET` Script Properties 설정과 MailApp 소유자 동의, Edge Secrets/URL 설정, 격리 메일 E2E 및 Auth Hook 전환은 완료라고 판정하지 않는다.
 - 실발송 성공·운영 Auth Hook 전환은 별도의 안전 승인/검증 게이트다. 운영 Auth Hook은 계속 OFF, 신규 지점 개통은 NO_GO로 유지한다.
+
+
+## 2026-10-24 비발송 연결 검증 구현 (PR #1361 후속)
+
+- 기존 Script/Deployment/공유 키는 그대로 유지한다. `data.operation=connectivity` 한 필드만 허용하고 기존 HMAC·5분 유효기간·잠금·10분 캐시를 적용한다. MailApp와 쿼터에는 접근하지 않는다. `mailSent:false`는 비발송 처리의 영수증이며 실제 메일 성공 증거가 아니다.
+- 격리 Edge `/connectivity`는 GitHub OIDC의 서명/issuer/audience/repository/정확한 workflow/main 또는 승인된 PR1361을 검증한다. 수신자나 메일 본문을 입력받지 않으며 기존 Edge Secret을 내부에서만 사용한다. Auth Hook 활성화 플래그와 독립된 QA 경로이고 운영 Hook은 OFF를 유지한다.
+- 실제 순서: 잘못된 JSON → BAD_JSON, 잘못된 HMAC → UNAUTHORIZED, 정상 비발송 서명 → 최초 처리, 같은 서명 재전송 → 중복 처리 차단. 하나라도 실패하면 중단하고 FAIL이다. 실서버 성공을 합성 테스트로 대체하지 않는다.
+- ContentService의 302/303은 지정된 `script.googleusercontent.com/macros/echo`로 GET한다. 서명 POST·인증 헤더는 넘기지 않고 리디렉션 query는 출력하지 않는다. 다른 host/경로 및 307/308은 거부한다.
+- 관측된 실서버 응답: 첫 `script.google.com` 요청에서 HTTP403, HTML `Access Denied`/`You need access`, 리디렉션0. 코드 런타임 전 Google 접근 거절이며 SMTP/HMAC/JSON 파서 장애로 단정하지 않는다. 소유자 OAuth 미승인과의 인과 확정은 승인 후 실통신 성공까지 필요하다.
+- API 재사용 시도: 기존 provision job 재실행 #40049753672, job120794530695는 `QA1243_MAIL_GAS_EPHEMERAL_TOKEN_EXPIRED_OR_INVALID`로 원격 변경 전에 실패. QA client ID/secret/refresh 3종이 해당 job에 없었다. 공유 HMAC 키는 재생성하거나 출력하지 않았다.
+- 현재 코드 QA 통과와 실제 배포·GAS 통신 PASS는 별개다. PR1361의 실서버 체크가 실패한 동안 병합/1번 일감 완료를 선언하지 않는다.

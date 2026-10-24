@@ -102,11 +102,16 @@ export function validGasUrl(input) {
   try {const u=new URL(input);return u.protocol==='https:' && u.hostname==='script.google.com' && /^\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(u.pathname) && !u.username && !u.password && !u.search && !u.hash;}catch{return false;}
 }
 export async function signedBridgeEnvelope(message, id, secret, now=Date.now()) {
+  return signedData({to:message.to,subject:message.subject,body:message.body,html:message.html},id,secret,now);
+}
+export async function signedConnectivityEnvelope(id, secret, now=Date.now()) {
+  return signedData({operation:'connectivity'},id,secret,now);
+}
+async function signedData(data, id, secret, now) {
   if (typeof secret!=='string' || secret.length<32) throw Error('BRIDGE_SECRET_MISSING');
   const nonce = id;
   if (!/^[\w-]{1,128}$/.test(nonce)) throw Error('RELAY_NONCE_INVALID');
   const sent_at=Math.floor(now/1000);
-  const data={to:message.to,subject:message.subject,body:message.body,html:message.html};
   const signature=encodeBase64(await hmac(encoder.encode(secret),`${sent_at}.${nonce}.${JSON.stringify(data)}`));
   return {sent_at,nonce,data,signature};
 }

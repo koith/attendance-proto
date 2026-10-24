@@ -774,3 +774,14 @@
 - **동시 main 변화 및 실제 판정 결함:** #1333/Issue1331이 main2217d87ad90ccc753d9e700bcac823e585ca8fc4로 병합하며 Google39981309610을 새로 실행. 이 #1243 작업자가 dispatch한 실행이 아니며 NO_GOOGLE_RERUN 표지 누락으로 실행된 실제 최초오류는 oauth2/v3 HTTP401, Script/Sheets 쓰기 전. 기존39781031886 성공과 runner/Edge/GAS 불변 증거는 유지. 최신 workflow가 FAILURE이면 기존 reader가 자격 preflight 로그를 확인하기도 전에 반환하는 별도 결함을 재현·수정. 정확히 알려진401/토큰만료+immutable runner+실제성공/조상 증거일 때만재사용; 미확인/취소·실제GAS/Sheets/변경source는계속FAIL. 새 회귀 PASS. 로컬 추가 실조회는 Azure 서명로그 저장소에 대한 fetch 제약이 있어 성공으로 표시하지 않으며, 승인 GitHub연결로 같은 실제로그를 확인했고 병합 후 Actions 읽기 전용 게이트에서 최종검증한다. 새 코드로 Google/OAuth/E2E·Pages를 다시 실행하지 않음.
 - **보호9그룹 전후 완전 일치:** stores244/HQ3/INHAemployees10/기존attendance236(id≤5578)/payroll0/inventory5/transactions3323/recipeOverrides0/recipeVariants245. HQ digest6112d7a3700c07bdcbb6479149dc21bd. 관리자 전체4(HQ3+기존STORE_MANAGER1)는 별도 보존. 이번 작업의 운영 DML/실초대/계정·권한/READY/SEC01/기존Sheet writer0; 모든 Sheet 셀 hash까지 새로 확인했다고 확대하지 않음.
 - **완료와 대기 구분:** 이번 초대 재시도 코드·격리QA·실제웹배포는 완료. 운영 Auth 네 설정 적용/변경후 감사, 승인 수신자의 새 한국어메일→수락→비밀번호→실제관리자 로그인, SEC01 운영승인·실기기, 실제지점·점주·READY개통승인/대상전후증빙은 미완료. POS·배달·공급사·장바구니·실판매수량 어댑터는 개통후 추가개발/실자료검증으로 유지하며 새 개통필수조건으로 추가하지 않음. **전체38/완료19/잔여19(개통전7·본인확인/승인2·개통후10)**, 신규 전체완료 ID0. 최종8항목 개별결과·새PR/CI/병합 SHA는 #1243 최신 연결 댓글로 확정하며 실제 Hosted 인증 미검증 상태에서 GO로 바꾸지 않는다.
+
+
+## 81. QA1243 비발송 HMAC 연결 검증 개발 — 2026-10-24
+
+- 앱 **v0.356 유지**. 기존 Google/Sheets E2E와 Pages 배포를 반복하지 않는다. 기존 dirty 작업영역의 수정·미추적 파일은 별도 patch/압축으로 보존하고 최신 main 별도 작업영역에서 이어간다.
+- 기존 PR **#1361**에 비발송 정상 서명·중복 방지 경로를 추가한다. 기존 GAS Script/Deployment/공유 키를 재사용하고 운영 Auth Hook OFF, 실제 메일·운영 데이터·권한·READY/SEC01 변경0 원칙을 유지한다.
+- 합성 QA는 실제 GAS `doPost`를 실행하여 잘못된 JSON·서명/만료·정상 HMAC 비발송·중복·MailApp 접근0 및 기존 발송 회귀를 검증한다. Google OIDC 신원/리디렉션 유출 방지도 검증한다. 합성 PASS는 실서버 PASS가 아니다.
+- 실서버는 Google Access Denied 403/리디렉션0이며 기존 API 실행은 만료된 QA 액세스 토큰 및 갱신 인증정보3종 부재로 배포 전 실패했다: [#40049753672](https://github.com/koith/attendance-proto/actions/runs/40049753672), job120794530695. 동일 실패를 반복 조사하지 않는다.
+- **1번 연결 일감 미완료**: 기존 QA 소유자의 유효한 Apps Script 관리 인증/필요한 본인 승인 → 기존 배포 업데이트 → 실제 비발송 POST·UNAUTHORIZED·정상 서명·중복 방지 검증이 남았다. CI 실패를 무시하고 병합하지 않는다.
+- **2~5번**: MailApp 소유자 동의, 승인된 QA 수신자 실메일·수신, 관리자 초대/수락·지점 생애주기 E2E, 승인된 운영 전환·복구 검증. 실제 점주 초대/운영 Hook 전환은 별도 승인 전 금지.
+- 전체38/완료19/잔여19 유지. QA-04/AUTH-01 전체 완료 조건 미충족이며 완료 체크0. 후속 SHA·PR·실행/배포 결과는 #1243 체크포인트에 연결한다.

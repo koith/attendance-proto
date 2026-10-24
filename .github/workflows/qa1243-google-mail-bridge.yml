@@ -8,13 +8,14 @@ on:
         required: true
         type: boolean
         default: false
-  # Live network probe runs on PR and main after synthetic tests.
+  # Live network probe also runs automatically on main after synthetic tests.
   # Invalid JSON cannot send email; no OAuth or Supabase credentials needed.
   pull_request:
     paths:
       - 'supabase/functions/qa1243-google-mail-bridge/**'
       - 'gas/qa1243-auth-mail/**'
       - 'qa/qa1243_google_mail_bridge.test.mjs'
+      - 'qa/qa1243_mail_connectivity.test.mjs'
       - 'supabase/functions/qa1243-mobile-auth/**'
       - 'qa/qa1243_mobile_oauth_prefill.test.mjs'
       - '.github/workflows/qa1243-google-mail-bridge.yml'
@@ -25,6 +26,7 @@ on:
       - 'supabase/functions/qa1243-google-mail-bridge/**'
       - 'gas/qa1243-auth-mail/**'
       - 'qa/qa1243_google_mail_bridge.test.mjs'
+      - 'qa/qa1243_mail_connectivity.test.mjs'
       - 'supabase/functions/qa1243-mobile-auth/**'
       - 'qa/qa1243_mobile_oauth_prefill.test.mjs'
       - '.github/workflows/qa1243-google-mail-bridge.yml'
@@ -43,6 +45,8 @@ jobs:
           node-version: '22'
       - name: Verify signed-hook, exact Korean HTML, secure email-change and GAS dedup
         run: node --test qa/qa1243_google_mail_bridge.test.mjs
+      - name: Verify no-mail HMAC, redirect isolation and GitHub identity
+        run: node qa/qa1243_mail_connectivity.test.mjs
       - name: Verify isolated Safari OAuth helper security and client ID defaults
         run: node --test qa/qa1243_mobile_oauth_prefill.test.mjs
       - name: Proof of zero operating writes
@@ -54,7 +58,10 @@ jobs:
     needs: synthetic-security-tests
     if: github.event_name == 'pull_request' || (github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.provision == false)))
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,6 +70,11 @@ jobs:
         with:
           node-version: '22'
       - name: Confirm malformed POST reaches isolated GAS doPost without sending mail
+        run: node scripts/qa1243_gas_post_connectivity.mjs
+      - name: Verify signed no-mail request and duplicate through isolated Edge
+        if: github.ref == 'refs/heads/main' || github.event.pull_request.number == 1361
+        env:
+          QA1243_VERIFY_SIGNED_CONNECTIVITY: 'true'
         run: node scripts/qa1243_gas_post_connectivity.mjs
   isolated-gas-provision:
     name: QA1243 isolated Google MailApp script provisioning (no email)
