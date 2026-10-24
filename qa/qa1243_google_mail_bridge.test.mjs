@@ -106,3 +106,31 @@ test('GAS bridge refuses mail quota exhaustion and safe disabled secret',async()
  const msg=planMessages(invite,INVITE_HTML)[0];const env=await signedBridgeEnvelope(msg,'evt_456_0',bridgeSecret,stamp*1000);
  gas.props.QA1243_GMAIL_BRIDGE_SECRET='';assert.equal(gas.ctx.qa1243HandleMail_({postData:{contents:JSON.stringify(env)}}).code,'NOT_CONFIGURED');
 });
+
+test('GAS fails closed on missing properties, malformed POST, quota and unsafe content without sending',async()=>{
+ const gas=gasMock();
+ vm.runInNewContext(await readFile(new URL('../gas/qa1243-auth-mail/Code.gs',import.meta.url),'utf8'),gas.ctx);
+ const msg=planMessages(invite,INVITE_HTML)[0];
+ const env=await signedBridgeEnvelope(msg,'evt_safe_1',bridgeSecret,stamp*1000);
+ assert.equal(gas.ctx.qa1243HandleMail_(null).code,'BAD_REQUEST');
+ assert.equal(gas.ctx.qa1243HandleMail_({postData:{contents:'{'}}).code,'BAD_JSON');
+ assert.equal(gas.ctx.qa1243HandleMail_({postData:{contents:JSON.stringify({...env,data:{...env.data,to:'bad'+String.fromCharCode(13,10)+'BCC:someone@example.org'}})}}).code,'BAD_MAIL');
+ assert.equal(gas.ctx.qa1243HandleMail_({postData:{contents:JSON.stringify({...env,data:{...env.data,html:'<script>alert(1)</script>'}})}}).code,'BAD_MAIL');
+ assert.equal(gas.sends.length,0);
+ gas.ctx.MailApp.getRemainingDailyQuota=()=>0;
+ assert.equal(gas.ctx.qa1243HandleMail_({postData:{contents:JSON.stringify(env)}}).code,'QUOTA_EXHAUSTED');
+ assert.equal(gas.sends.length,0);
+ gas.props.QA1243_GMAIL_BRIDGE_SECRET='short';
+ assert.equal(gas.ctx.qa1243HandleMail_({postData:{contents:JSON.stringify(env)}}).code,'NOT_CONFIGURED');
+ assert.equal(gas.sends.length,0);
+});
+test('GAS MailApp send failure never caches a successful receipt',async()=>{
+ const gas=gasMock();
+ vm.runInNewContext(await readFile(new URL('../gas/qa1243-auth-mail/Code.gs',import.meta.url),'utf8'),gas.ctx);
+ const msg=planMessages(invite,INVITE_HTML)[0];
+ const env=await signedBridgeEnvelope(msg,'evt_failed_send_1',bridgeSecret,stamp*1000);
+ gas.ctx.MailApp.sendEmail=()=>{throw Error('isolated test simulated mail outage');};
+ assert.throws(()=>gas.ctx.qa1243HandleMail_({postData:{contents:JSON.stringify(env)}}),/simulated mail outage/);
+ assert.equal(gas.cache.size,0);
+ assert.equal(gas.sends.length,0);
+});
