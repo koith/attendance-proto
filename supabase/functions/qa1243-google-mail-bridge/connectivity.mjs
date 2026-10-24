@@ -14,6 +14,20 @@ export function assertConnectivityIdentity(claims) {
   return String(claims.run_id);
 }
 
+export async function handleConnectivity(request,{authenticate,configuration,fetcher=fetch}) {
+  if(!/^Bearer \S+$/i.test(request.headers.get('authorization')||''))
+    return Response.json({error:'CONNECTIVITY_IDENTITY_REQUIRED'},{status:401});
+  let runId;
+  try{runId=assertConnectivityIdentity(await authenticate(request));}
+  catch{return Response.json({error:'CONNECTIVITY_IDENTITY_REJECTED'},{status:403});}
+  const body=await request.text();
+  if(body!==''&&body!=='{}')return Response.json({error:'CONNECTIVITY_BODY_REJECTED'},{status:400});
+  try {
+    const result=await verifyConnectivity({...configuration(),runId,fetcher});
+    return Response.json(result,{status:result.ok?200:502});
+  }catch{return Response.json({error:'CONNECTIVITY_TRANSPORT_UNAVAILABLE'},{status:503});}
+}
+
 // Follow ContentService as GET; never forward a signed POST or credentials.
 export async function postGas(body, {fetcher=fetch,endpoint=QA_GAS_URL}={}) {
   if(endpoint!==QA_GAS_URL)throw Error('CONNECTIVITY_TARGET_REJECTED');

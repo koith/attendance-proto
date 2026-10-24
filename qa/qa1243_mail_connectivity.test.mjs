@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createHmac} from 'node:crypto';
 import vm from 'node:vm';
-import {postGas,verifyConnectivity,assertConnectivityIdentity,QA_GAS_URL,QA_AUDIENCE} from '../supabase/functions/qa1243-google-mail-bridge/connectivity.mjs';
+import {postGas,verifyConnectivity,handleConnectivity,assertConnectivityIdentity,QA_GAS_URL,QA_AUDIENCE} from '../supabase/functions/qa1243-google-mail-bridge/connectivity.mjs';
 
 const secret='qa1243-synthetic-only-connectivity-secret';
 const json=value=>Response.json(value);
@@ -74,4 +74,23 @@ test('unreachable GAS stops after one failure and cannot be marked successful',a
  const result=await verifyConnectivity({secret,endpoint:QA_GAS_URL,runId:'123',fetcher:async()=>{calls++;return new Response('Access Denied',{status:403});}});
  assert.equal(calls,1);assert.equal(result.ok,false);assert.equal(result.checks[0].pass,false);
  assert.equal(result.checks.length,1);assert.equal(result.mailSent,false);
+});
+
+test('Edge rejects absent/invalid identity before accessing secrets or making network calls',async()=>{
+ const configuration=()=>{throw Error('Secrets must not be accessed');};
+ const fetcher=()=>{throw Error('Network must not be accessed');};
+ const req=headers=>new Request(QA_AUDIENCE+'/connectivity',{method:'POST',headers,body:'{}'});
+ assert.equal((await handleConnectivity(req({}),{configuration,fetcher,authenticate:()=>{throw Error('must not verify absent token');}})).status,401);
+ assert.equal((await handleConnectivity(req({authorization:'Bearer invalid'}),{configuration,fetcher,authenticate:()=>{throw Error('invalid JWT');}})).status,403);
+});
+
+test('Edge rejects caller-selected message data and distinguishes missing configuration from authorization',async()=>{
+ const authenticate=async()=>({iss:'https://token.actions.githubusercontent.com',aud:QA_AUDIENCE,repository:'koith/attendance-proto',
+  ref:'refs/heads/main',event_name:'push',run_id:'123',workflow_ref:'koith/attendance-proto/.github/workflows/qa1243-google-mail-bridge.yml@refs/heads/main'});
+ const req=body=>new Request(QA_AUDIENCE+'/connectivity',{method:'POST',headers:{authorization:'Bearer synthetic'},body});
+ const rejected=await handleConnectivity(req('{"to":"owner@example.org"}'),{authenticate,configuration:()=>{throw Error('must not read config');}});
+ assert.equal(rejected.status,400);
+ const unavailable=await handleConnectivity(req('{}'),{authenticate,configuration:()=>({secret:'',endpoint:QA_GAS_URL})});
+ assert.equal(unavailable.status,503);
+ assert.deepEqual(await unavailable.json(),{error:'CONNECTIVITY_TRANSPORT_UNAVAILABLE'});
 });

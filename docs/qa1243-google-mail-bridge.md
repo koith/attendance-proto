@@ -42,3 +42,12 @@
 - 관측된 실서버 응답: 첫 `script.google.com` 요청에서 HTTP403, HTML `Access Denied`/`You need access`, 리디렉션0. 코드 런타임 전 Google 접근 거절이며 SMTP/HMAC/JSON 파서 장애로 단정하지 않는다. 소유자 OAuth 미승인과의 인과 확정은 승인 후 실통신 성공까지 필요하다.
 - API 재사용 시도: 기존 provision job 재실행 #40049753672, job120794530695는 `QA1243_MAIL_GAS_EPHEMERAL_TOKEN_EXPIRED_OR_INVALID`로 원격 변경 전에 실패. QA client ID/secret/refresh 3종이 해당 job에 없었다. 공유 HMAC 키는 재생성하거나 출력하지 않았다.
 - 현재 코드 QA 통과와 실제 배포·GAS 통신 PASS는 별개다. PR1361의 실서버 체크가 실패한 동안 병합/1번 일감 완료를 선언하지 않는다.
+
+
+### 기존 배포 갱신 실행 경로
+
+`qa1243_repair_mail_gas.mjs`는 승인된 기존 소스 SHA256 `79ff2a94ddc61cb1c21b48961a4e739df2a768989d305138ed3430f57dcf1fc7` 또는 현재 대상 소스만 수용한다. owner·Script ID·Deployment ID·URL·익명/실행주체·현재 버전 소스를 모두 읽은 뒤에만 QA 소스를 PUT한다. 새 버전의 소스와 기존 배포 PUT 결과를 다시 읽는다. Script Properties/공유 키와 운영 GAS/Sheets는 접근하지 않는다. 소스·권한 drift 또는 쓰기/재조회 실패 시 성공을 보고하거나 같은 쓰기를 자동 반복하지 않는다.
+
+유효한 기존 QA 관리 인증이 연결된 후 실행할 명령은 `gh workflow run qa1243-google-mail-bridge.yml --ref qa1243/probe-pr-merge-gate -f provision=true --repo koith/attendance-proto`이다. 승인된 기존 PR 브랜치의 명시적 수동 실행만 추가 허용하며, PR 이벤트가 OAuth 비밀을 사용하는 배포를 자동 실행하지 않는다. 인증정보 원문을 채팅/로그로 전달하지 않는다. 이후 PR1361의 실패한 통신 job만 다시 실행하여 실제 GAS/Edge 경로를 확인한다.
+
+독립 코드 QA: 기존 메일+비발송 회귀17 / 연결·OIDC·리디렉션8 / 기존 배포 갱신·drift·실패7 = **32/32 PASS**. 원격 API/메일 성공과 구분한다. [첫 후속 CI40070409616](https://github.com/koith/attendance-proto/actions/runs/40070409616)는 합성 job PASS, 실제 GAS POST job FAIL이다.

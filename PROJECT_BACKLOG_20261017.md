@@ -785,3 +785,6 @@
 - **1번 연결 일감 미완료**: 기존 QA 소유자의 유효한 Apps Script 관리 인증/필요한 본인 승인 → 기존 배포 업데이트 → 실제 비발송 POST·UNAUTHORIZED·정상 서명·중복 방지 검증이 남았다. CI 실패를 무시하고 병합하지 않는다.
 - **2~5번**: MailApp 소유자 동의, 승인된 QA 수신자 실메일·수신, 관리자 초대/수락·지점 생애주기 E2E, 승인된 운영 전환·복구 검증. 실제 점주 초대/운영 Hook 전환은 별도 승인 전 금지.
 - 전체38/완료19/잔여19 유지. QA-04/AUTH-01 전체 완료 조건 미충족이며 완료 체크0. 후속 SHA·PR·실행/배포 결과는 #1243 체크포인트에 연결한다.
+
+- 후속 실제 개발: 기존 QA 배포 전용 API updater를 완성했다. 승인된 v1 소스 SHA 또는 현재 소스만 허용하고 동일 배포 ID/URL을 새 버전으로 갱신한다. owner/프로젝트/배포/소스 drift·PUT 실패·잘못된 readback은 배포 승격 전 중단한다. Script Properties·공유 키 변경0. 인증 후에는 기존 PR 브랜치의 명시적 provision=true 수동 실행으로 이어갈 수 있다.
+- 코드·QA 보존 커밋 [b03e658c234e7221b33b089ce377031344196518](https://github.com/koith/attendance-proto/commit/b03e658c234e7221b33b089ce377031344196518), [PR1361](https://github.com/koith/attendance-proto/pull/1361). 후속 독립 QA **32/32**(메일/GAS17+연결/OIDC8+기존 배포 갱신7), TypeScript syntax/diff PASS. [CI40070409616](https://github.com/koith/attendance-proto/actions/runs/40070409616) 합성 PASS / 실제 POST FAIL이므로 미병합·실통신 미완료 유지. 인증을 코드 결함으로 처리하지 않는다.
