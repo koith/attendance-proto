@@ -1,4 +1,4 @@
-/** QA1243: Deploy as a NEW isolated Apps Script web app. Never merge into payroll Sheets script.
+/** QA1243: Reuse the existing isolated Apps Script web app. Never merge into payroll Sheets script.
  * Execute as deploying user; access anonymous (signed HMAC payload only).
  * Script Properties: QA1243_GMAIL_BRIDGE_SECRET (>=32 chars), never commit its value.
  */
@@ -19,12 +19,15 @@ function qa1243HandleMail_(e) {
       typeof obj.nonce!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(obj.nonce)||
       !obj.data||typeof obj.signature!=='string')return {ok:false,code:'BAD_ENVELOPE'};
   var data=obj.data;
-  if(typeof data.to!=='string'||data.to.length>254||!(/^[^@\s<>,]+@[^@\s<>,]+\.[^@\s<>,]+$/).test(data.to)||
+  var probe=data.operation==='connectivity';
+  if(Object.prototype.hasOwnProperty.call(data,'operation') &&
+     (!probe || Object.keys(data).length!==1)) return {ok:false,code:'BAD_PROBE'};
+  if(!probe && (typeof data.to!=='string'||data.to.length>254||!(/^[^@\s<>,]+@[^@\s<>,]+\.[^@\s<>,]+$/).test(data.to)||
      typeof data.subject!=='string'||data.subject.length>150||data.subject.indexOf('[백억커피] ')!==0||
      typeof data.body!=='string'||data.body.length>10000||
      typeof data.html!=='string'||data.html.length>20000||
      data.html.indexOf('https://waluhdgqhwjjwmflhrle.supabase.co/auth/v1/verify?')<0||
-     /<script\b|<iframe\b|<form\b|onerror\s*=|onload\s*=/i.test(data.html)) return {ok:false,code:'BAD_MAIL'};
+     /<script\b|<iframe\b|<form\b|onerror\s*=|onload\s*=/i.test(data.html))) return {ok:false,code:'BAD_MAIL'};
   var material=obj.sent_at+'.'+obj.nonce+'.'+JSON.stringify(data);
   var computed=Utilities.base64Encode(Utilities.computeHmacSha256Signature(material,secret));
   if (!qa1243Equal_(computed,obj.signature)) return {ok:false,code:'UNAUTHORIZED'};
@@ -32,7 +35,13 @@ function qa1243HandleMail_(e) {
   if(!lock.tryLock(6000))return {ok:false,code:'BUSY'};
   try {
     var cache=CacheService.getScriptCache();
-    var receipt='qa1243_mail_'+obj.nonce;
+    var receipt=(probe?'qa1243_probe_':'qa1243_mail_')+obj.nonce;
+    if(probe) {
+      // Authenticate first; never touch MailApp, quota, recipients or Sheets.
+      var duplicate=cache.get(receipt)==='checked';
+      if(!duplicate)cache.put(receipt,'checked',600);
+      return {ok:true,operation:'connectivity',mailSent:false,duplicate:duplicate};
+    }
     if (cache.get(receipt)==='sent')return {ok:true,duplicate:true};
     if (MailApp.getRemainingDailyQuota()<1)return {ok:false,code:'QUOTA_EXHAUSTED'};
     // Only mark success AFTER MailApp returns without error.

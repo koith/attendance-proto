@@ -1,21 +1,31 @@
-// QA1243: isolated, non-sending live GAS connectivity probe.
-// Run only against the known QA-only deployment. Never send valid signed mail.
-const endpoint='https://script.google.com/macros/s/AKfycbwV1kpYbMKcYtWs909gyryhY3_Pal4afO-6hDKwxqGrUf2wWtjV1gjs48_mWaOykzyF/exec';
-const controller=new AbortController();
-const timer=setTimeout(()=>controller.abort(),18000);
-try {
- const response=await fetch(endpoint,{
-  method:'POST',
-  headers:{'Content-Type':'text/plain;charset=utf-8'},
-  body:'{',
-  redirect:'follow',
-  signal:controller.signal
- });
- const raw=await response.text();
- // Never print response body, tokens, secrets or recipient details.
- let result;
- try {result=JSON.parse(raw);}catch {throw Error('QA1243_GAS_POST_NON_JSON_HTTP_'+response.status);}
- if(!response.ok||result?.ok!==false||result?.code!=='BAD_JSON')
-  throw Error('QA1243_GAS_POST_UNEXPECTED_HTTP_'+response.status+'_CODE_'+String(result?.code||'UNKNOWN').replace(/[^A-Z_]/g,''));
- console.log('QA1243_GAS_POST_BAD_JSON_VERIFIED_HTTP_'+response.status);
-} finally {clearTimeout(timer);}
+// Real no-mail traffic only. Print safe metadata; never a token or redirect query.
+import assert from 'node:assert/strict';
+import {postGas,QA_AUDIENCE} from '../supabase/functions/qa1243-google-mail-bridge/connectivity.mjs';
+
+if(process.env.QA1243_VERIFY_SIGNED_CONNECTIVITY==='true') {
+  const issuerUrl=process.env.ACTIONS_ID_TOKEN_REQUEST_URL;
+  const issuerToken=process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
+  if(!issuerUrl||!issuerToken)throw Error('QA1243_GAS_OIDC_UNAVAILABLE');
+  const url=new URL(issuerUrl);url.searchParams.set('audience',QA_AUDIENCE);
+  const tokenResponse=await fetch(url,{headers:{Authorization:`Bearer ${issuerToken}`},redirect:'error',signal:AbortSignal.timeout(15000)});
+  assert.equal(tokenResponse.status,200,'QA1243_GAS_OIDC_FAILED');
+  const {value}=await tokenResponse.json();
+  if(typeof value!=='string')throw Error('QA1243_GAS_OIDC_INVALID');
+  const response=await fetch(QA_AUDIENCE+'/connectivity',{
+    method:'POST',headers:{Authorization:`Bearer ${value}`,'Content-Type':'application/json'},
+    body:'{}',redirect:'error',signal:AbortSignal.timeout(150000)});
+  const result=await response.json();
+  for(const check of result.checks||[])console.log(JSON.stringify(check));
+  assert.equal(response.status,200,'QA1243_GAS_SIGNED_CONNECTIVITY_HTTP_'+response.status);
+  assert.equal(result.ok,true);assert.equal(result.mailSent,false);
+  assert.deepEqual(result.checks.map(x=>[x.id,x.pass]),[
+    ['POST_BAD_JSON',true],['BAD_SIGNATURE',true],['SIGNED_NO_MAIL',true],['DUPLICATE_BLOCKED',true]
+  ]);
+  console.log('QA1243_GAS_REAL_POST_HMAC_REPLAY_NO_MAIL_PASS');
+} else {
+  const result=await postGas('{');
+  const {receipt,...safe}=result;console.log(JSON.stringify(safe));
+  assert.equal(result.httpStatus,200,'QA1243_GAS_POST_HTTP_'+result.httpStatus+'_'+result.classification);
+  assert.deepEqual(receipt,{ok:false,code:'BAD_JSON'});
+  console.log('QA1243_GAS_POST_BAD_JSON_VERIFIED_HTTP_200');
+}
