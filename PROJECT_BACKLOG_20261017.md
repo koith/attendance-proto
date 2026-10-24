@@ -788,3 +788,14 @@
 
 - 후속 실제 개발: 기존 QA 배포 전용 API updater를 완성했다. 승인된 v1 소스 SHA 또는 현재 소스만 허용하고 동일 배포 ID/URL을 새 버전으로 갱신한다. owner/프로젝트/배포/소스 drift·PUT 실패·잘못된 readback은 배포 승격 전 중단한다. Script Properties·공유 키 변경0. 인증 후에는 기존 PR 브랜치의 명시적 provision=true 수동 실행으로 이어갈 수 있다.
 - 코드·QA 보존 커밋 [b03e658c234e7221b33b089ce377031344196518](https://github.com/koith/attendance-proto/commit/b03e658c234e7221b33b089ce377031344196518), [PR1361](https://github.com/koith/attendance-proto/pull/1361). 후속 독립 QA **32/32**(메일/GAS17+연결/OIDC8+기존 배포 갱신7), TypeScript syntax/diff PASS. [CI40070409616](https://github.com/koith/attendance-proto/actions/runs/40070409616) 합성 PASS / 실제 POST FAIL이므로 미병합·실통신 미완료 유지. 인증을 코드 결함으로 처리하지 않는다.
+
+
+## 82. QA1243 격리 Edge v4 실제 배포·접근 차단 검증 — 2026-10-24
+
+- 코드 커밋 **668c01e5463dacdff14ac1c0c4e17bddcf03eb75**, 기존 PR **#1361 미병합**. 기존32개 독립 QA와 성공한 Google/Sheets E2E·Pages를 다시 실행하지 않았다. [최신 코드 CI40070815610](https://github.com/koith/attendance-proto/actions/runs/40070815610) 합성 job120803639646 PASS, 실제 GAS POST job120803702272 HTTP403 FAIL, 후속 서명 실통신 step SKIP이므로 성공으로 간주하지 않는다.
+- **독립 실제 완료:** 격리 `qa1243-google-mail-bridge`를 **v4 ACTIVE**로 배포했다. 배포된 index/core/connectivity/invite_template 4개 소스가 코드668c01e5와 바이트 단위로 일치한다. bundle SHA256 `a7cccb138fad0cfcdf653087e5f39bcb6fd735a55ea622da2674c5bc6fe70f65`. 운영 Hook 전환이 아닌 기존 비활성 QA 함수의 코드 배포이다.
+- **배포 후 실서버4/4 PASS** (2026-10-24 14:40:58 UTC): 기본 메일 relay 비활성503, connectivity 인증 없음401, 잘못된 JWT403, GET405. 인증 없이 Secret/메일 발송 경로를 사용할 수 없다. 이4개는 GAS 정상 POST/HMAC 통과 증거가 아니다. JSON 근거: `docs/evidence/qa1243-mail-bridge-edge-v4-20261024.json`.
+- **GAS는 승인 대기:** 기존 QA 프로젝트/배포v1/공유키 보존, 실제 소스 갱신0. 이미 확인한403·QA 토큰 만료·갱신 인증정보3종 부재를 재조사하지 않는다. QA 계정 소유자의 유효한 기존 Apps Script 관리 OAuth 갱신 및 GAS의 필요한 액세스 승인·본인확인 뒤에만 같은 배포 업데이트를 수행한다. 토큰/비밀번호 원문을 채팅에 요구하지 않는다.
+- 인증 후 재개: 기존 PR1361 브랜치에서 provision=true 명시 실행 → 같은 배포의 새 버전/readback → PR의 실패한 실통신 job만 재시도. 먼저 BAD_JSON, 이어 Edge OIDC→GAS 잘못된 서명/정상 비발송 HMAC/중복 방지가 모두 실제 PASS여야 1번 완료 및 병합을 판정한다. 실제 메일은 여기에 포함하지 않는다.
+- **상태:** 1번 연결 일감 미완료/NO_GO. 2~5번은 MailApp 승인, 동의된 QA 실메일 수신, 관리자 초대·수락/지점 E2E, 승인된 운영 전환·복구. 기존 지점244/HQ3/인하대직원10/레시피136 및 근태·급여/Sheets에 대한 데이터 쓰기·실제 초대·READY·SEC01 변경0. 전체38/완료19/잔여19 유지.
+- 코드·수정파일·QA 결과를 로컬 보존 경로 `/workspace/qa1243-preserved-20261024/mail-repair/final`에도 추가 백업했다. 이 증거 기록은 문서 전용 [skip ci]로 보존하여 완료한 QA/배포를 반복하지 않는다.
