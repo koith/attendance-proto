@@ -8,7 +8,7 @@ on:
         required: true
         type: boolean
         default: false
-  # Live network probe also runs automatically on main after synthetic tests.
+  # Live network probe runs on PR and main after synthetic tests.
   # Invalid JSON cannot send email; no OAuth or Supabase credentials needed.
   pull_request:
     paths:
@@ -52,7 +52,7 @@ jobs:
   isolated-gas-post-connectivity:
     name: QA1243 isolated GAS POST connectivity (no mail)
     needs: synthetic-security-tests
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.provision == false))
+    if: github.event_name == 'pull_request' || (github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.provision == false)))
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
