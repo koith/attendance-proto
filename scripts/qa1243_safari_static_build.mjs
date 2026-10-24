@@ -45,6 +45,11 @@ const csp="default-src 'none'; script-src 'self' https://accounts.google.com/gsi
 html=html.replace('<meta charset="utf-8">','<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="'+csp+'">');
 assert.ok(html.includes('<meta name="referrer" content="no-referrer">'));
 assert.ok(html.includes('<script src="./oauth.js" defer></script>'));
+// Require a real UTF-8 HTML document, not a text/plain diagnostic response.
+// This generated artifact must be served by GitHub Pages, never by Supabase Edge.
+assert.match(html,/^<!doctype html><html lang="ko"><head>/i);
+assert.match(html,/<meta charset="utf-8">/);
+assert.match(html,/<button id="login" type="button">/);
 assert.ok(!html.includes('QA1243_NONCE')&&!html.includes('QA1243_SCOPE_LIST'));
 assert.doesNotMatch(html,/<script>([\s\S]*?)<\/script>/i);
 assert.doesNotMatch(html,/<style>([\s\S]*?)<\/style>/i);
