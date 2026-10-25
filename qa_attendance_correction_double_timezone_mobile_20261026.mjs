@@ -46,10 +46,10 @@ assert.match(source,/CORRECTION_TIME_MISMATCH/,'Post-write readback rejects nine
 assert.doesNotMatch(source,/row\.querySelector\(':scope > div:first-child'\)\?\.appendChild\(actions\)/,
  'Buttons must remain directly under each session row');
 const css=fs.readFileSync('actual_attendance.css','utf8')+'\n'+fs.readFileSync('actual_attendance_correction.css','utf8');
-assert.match(css,/grid-template-columns:max-content minmax\(0,1fr\) max-content max-content!important/,'Normal shift stays one line with actions and status');
-assert.match(css,/\.records-group \.session\.needs-review>\.session-actions\{\s*grid-column:2\/-1;grid-row:2/,'Only anomaly row moves action controls below');
+assert.match(css,/grid-template-columns:max-content minmax\(0,1fr\) max-content 70px!important/,'All phone shifts keep four inline fields');
+assert.match(css,/\.records-group \.session\.needs-review>\.session-actions\{\s*grid-column:3;grid-row:1/,'Anomaly actions remain on the original row');
 assert.match(css,/flex-wrap:wrap/,'Badges and buttons can wrap on small screens');
 const html=fs.readFileSync('actual_attendance.html','utf8');
-assert.match(html,/actual_attendance\.js\?v=20261026inline358/,'Safari must refresh fixed browser JS');
-assert.match(html,/actual_attendance\.css\?v=20261026inline358/,'Safari must refresh fixed layout CSS');
+assert.match(html,/actual_attendance\.js\?v=20261026inline359/,'Safari must refresh fixed browser JS');
+assert.match(html,/actual_attendance\.css\?v=20261026inline359/,'Safari must refresh fixed layout CSS');
 console.log('PASS attendance correction: real-shaped duplicate fixture, append-only VOID_ADD recovery, correct shift/clock, server/UI guards and iPhone layout/cache');

@@ -276,105 +276,107 @@
   .monthly-employee-body small{font-size:.5rem}
 }
 
-/* v0.358: preserve the original compact one-line attendance record layout.
-   Normal: employee | time | correction/delete | status; only anomalous
-   sessions may use an additional row for explanation/actions.
-   Keep stable DOM & original raw/event/correction data untouched. */
+
+/* v0.358 restoration: original employee | time | actions | status order.
+   A missing-punch event must not convert the row into multiple action/hint lines.
+   Only the genuinely 320px-or-narrower viewport gets a safe 2-line fallback.
+   Other calendar, graph and card geometry is deliberately untouched. */
 .records-group .sessions{
   max-height:none!important;overflow:visible!important;
   overscroll-behavior:auto!important;scrollbar-gutter:auto!important;
 }
-.records-group .session{
+.records-group .session,
+.records-group .session.needs-review{
   display:grid!important;
-  grid-template-columns:max-content minmax(0,1fr) max-content max-content!important;
-  width:100%;min-width:0;max-width:100%;
-  align-items:center!important;column-gap:5px;row-gap:6px;
-  padding:9px 0;
+  grid-template-columns:max-content minmax(0,1fr) max-content 70px!important;
+  align-items:center!important;column-gap:4px;row-gap:4px;
+  width:100%;max-width:100%;min-width:0;padding:9px 0;
 }
 .records-group .session>div:first-child{
-  /* Allow existing employee name and time to occupy the first two
-     columns without moving any buttons or touching their handlers. */
   display:contents!important;
 }
 .records-group .session>div:first-child>b{
   grid-column:1;grid-row:1;display:flex;flex-direction:column;
-  align-items:flex-start;justify-content:center;
-  min-width:0;max-width:100%;line-height:1.23;white-space:nowrap;
-  font-size:.78rem;font-weight:800;
+  align-items:flex-start;justify-content:center;max-width:100%;
+  min-width:0;white-space:nowrap;line-height:1.2;
+  font-size:.77rem;font-weight:800;
 }
 .records-group .session>div:first-child .employee-no-sub{
-  margin-top:2px;
+  display:block;margin-top:2px;
 }
 .records-group .session .meta{
-  grid-column:2;grid-row:1;
-  display:block;min-width:0;max-width:100%;overflow:hidden;
-  text-overflow:ellipsis;white-space:nowrap;
-  font-size:.75rem;line-height:1.3;color:var(--sub);
+  grid-column:2;grid-row:1;min-width:0;max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:.73rem;line-height:1.3;color:var(--sub);
 }
-.records-group .session>.session-actions{
-  grid-column:3;grid-row:1;
-  display:inline-flex!important;align-items:center;
-  justify-content:flex-start;flex-wrap:nowrap;
+.records-group .session>.session-actions,
+.records-group .session.needs-review>.session-actions{
+  grid-column:3;grid-row:1;position:relative;
+  display:inline-flex!important;align-items:center!important;
+  justify-content:flex-start!important;flex-wrap:nowrap!important;
   width:auto!important;min-width:0;max-width:100%;
-  gap:5px;justify-self:start!important;text-align:left!important;
+  margin:0!important;gap:4px;justify-self:start!important;
+  text-align:left!important;
 }
 .records-group .session>.session-actions .session-fix{
   display:inline-flex;align-items:center;justify-content:center;
-  flex:0 0 auto;min-height:34px;padding:0 9px;
-  font-size:.72rem;white-space:nowrap;line-height:1.1;
+  flex:0 0 auto;min-height:33px;padding:0 7px;
+  font-size:.70rem;white-space:nowrap;line-height:1.1;
 }
-.records-group .session>div:nth-child(2){
+.records-group .session>div:nth-child(2),
+.records-group .session.needs-review>div:nth-child(2){
   grid-column:4;grid-row:1;
-  display:flex;align-items:center;justify-content:flex-end;
-  justify-self:end;flex-wrap:wrap;gap:4px;
-  width:auto!important;min-width:0!important;max-width:150px;
+  width:70px!important;min-width:0!important;max-width:70px!important;
+  justify-self:end;display:flex;justify-content:flex-end;
+  align-items:center;flex-wrap:wrap;gap:3px;
 }
 .records-group .session .pill{
-  max-width:100%;margin:0;white-space:nowrap;
-  padding:3px 7px;font-size:.67rem;
+  margin:0;max-width:100%;white-space:nowrap;
+  font-size:.64rem;padding:3px 6px;
 }
-/* Bad records are the only exception: explain the problem below the
-   original identity/time/status line, without squeezing action buttons
-   against one another or clipping the badge column. */
-.records-group .session.needs-review{
-  grid-template-columns:max-content minmax(0,1fr) auto!important;
-  align-items:start!important;
+/* The visible status badge already names the error, and the correction
+   button carries a reason-aware aria-label. Retain the extra hint for
+   assistive technology without expanding the original one-line controls. */
+.records-group .session .session-fix-hint{
+  position:absolute!important;width:1px!important;height:1px!important;
+  padding:0!important;margin:0!important;overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;clip-path:inset(50%)!important;
+  white-space:nowrap!important;border:0!important;
 }
 .records-group .session.needs-review>div:nth-child(2){
-  grid-column:3;grid-row:1;max-width:160px;
-}
-.records-group .session.needs-review>.session-actions{
-  grid-column:2/-1;grid-row:2;display:flex!important;
-  flex-wrap:wrap;gap:7px;align-items:center;min-width:0;
-}
-.records-group .session.needs-review .session-fix-hint{
-  flex:1 1 100%;max-width:none;margin:0;
-  font-size:.7rem;line-height:1.4;text-align:left;
+  flex-direction:column;align-items:flex-end;flex-wrap:nowrap;
 }
 .records-duplicate-notice{
   margin:4px 12px 12px;padding:10px 12px;
   border:1px solid #ead9ab;border-radius:9px;
   background:#fff8e9;color:#845300;font-size:.76rem;line-height:1.5;
 }
-@media(max-width:520px){
-  .records-group .session{column-gap:4px}
-  .records-group .session>.session-actions{gap:4px}
-  .records-group .session>.session-actions .session-fix{
-    min-height:32px;padding:0 7px;font-size:.7rem;
+@media(min-width:600px){
+  .records-group .session,
+  .records-group .session.needs-review{
+    grid-template-columns:max-content minmax(0,1fr) max-content 152px!important;
+    column-gap:10px;
   }
-  .records-group .session>div:first-child>b{font-size:.76rem}
-  .records-group .session .meta{font-size:.73rem}
+  .records-group .session>div:nth-child(2),
+  .records-group .session.needs-review>div:nth-child(2){
+    width:152px!important;max-width:152px!important;
+    flex-direction:row;flex-wrap:wrap;align-items:center;
+  }
+  .records-group .session>.session-actions .session-fix{
+    min-height:36px;padding:0 11px;font-size:.76rem;
+  }
 }
 @media(max-width:350px){
-  /* Very narrow phones: allow controls on a second line rather than
-     sacrifice the visible work time or cause horizontal scrolling. */
-  .records-group .session:not(.needs-review){
-    grid-template-columns:max-content minmax(0,1fr) auto!important;
+  .records-group .session,
+  .records-group .session.needs-review{
+    grid-template-columns:max-content minmax(0,1fr) 65px!important;
   }
-  .records-group .session:not(.needs-review)>div:nth-child(2){
-    grid-column:3;grid-row:1;
+  .records-group .session>div:nth-child(2),
+  .records-group .session.needs-review>div:nth-child(2){
+    grid-column:3;grid-row:1;width:65px!important;max-width:65px!important;
   }
-  .records-group .session:not(.needs-review)>.session-actions{
+  .records-group .session>.session-actions,
+  .records-group .session.needs-review>.session-actions{
     grid-column:2/-1;grid-row:2;
   }
 }
