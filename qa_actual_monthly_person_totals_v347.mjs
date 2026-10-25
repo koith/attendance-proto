@@ -70,8 +70,8 @@ assert.match(js,/staff_actual_attendance/,'staff mode maintains employee-specifi
 assert.match(js,/staffAuth\.employee_id/);
 assert.match(css,/\.monthly-work-summary\.manager>summary/);
 assert.match(css,/@media\(max-width:520px\)/);
-assert.match(html,/actual_attendance\.js\?v=20261019below349/);
-assert.match(html,/actual_attendance\.css\?v=20261019below349/);
+assert.match(html,/actual_attendance\.js\?v=20261026correction1/);
+assert.match(html,/actual_attendance\.css\?v=20261026correction1/);
 const appMinor=Number(index.match(/const APP_VERSION="v0\.(\d+)";/)?.[1]);
 assert.ok(Number.isInteger(appMinor)&&appMinor>=349,'monthly hours must remain supported after v0.349');
 new Function(js);
