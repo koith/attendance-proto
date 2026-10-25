@@ -8,10 +8,10 @@ import {chromium,webkit} from 'playwright';
 const js=fs.readFileSync('actual_attendance.js','utf8');
 const css=fs.readFileSync('actual_attendance.css','utf8')+'\n'+
   fs.readFileSync('actual_attendance_correction.css','utf8');
-// The original V0.51 wrapper moved every action toolbar into the name field.
-assert.doesNotMatch(js,/row\.querySelector\(':scope > div:first-child'\)\?\.appendChild\(actions\)/,
- 'Actions must not be relocated inside employee names');
-assert.match(js,/actions\.parentElement!==row\)row\.appendChild\(actions\)/);
+// Original one-line design: actions belong beside the person's time.
+assert.match(js,/identity\.appendChild\(actions\)/);
+assert.doesNotMatch(js,/actions\.parentElement!==row\)row\.appendChild\(actions\)/);
+assert.match(css,/flex-direction:row!important;flex-wrap:nowrap!important/);
 assert.match(js,/records-duplicate-notice/);
 assert.match(css,/max-height:none!important;overflow:visible!important/,
  'Day record history must scroll with the full page, not clip the first row');
@@ -34,14 +34,15 @@ assert.equal(context.check(932,'IN','2026-10-24T04:08'),false);
 assert.equal(context.check(931,'OUT','2026-10-24T04:08'),false);
 
 const sample=(name,time,badges,hint,buttons)=>`
-  <div class="session">
+  <div class="session${hint?' needs-review':''}">
     <div><b><span>${name}</span><small class="employee-no-sub">No. 08</small></b>
-      <div class="meta">${time}</div></div>
-    <div>${badges.map(b=>'<span class="pill '+b[0]+'">'+b[1]+'</span>').join('')}</div>
-    <div class="session-actions">
+      <div class="meta">${time}</div>
+      <div class="session-actions">
       ${hint?'<div class="session-fix-hint">'+hint+'</div>':''}
       ${buttons.map(b=>'<button type="button" class="session-fix '+b[0]+'">'+b[1]+'</button>').join('')}
+      </div>
     </div>
+    <div>${badges.map(b=>'<span class="pill '+b[0]+'">'+b[1]+'</span>').join('')}</div>
   </div>`;
 const html=`<!doctype html><html lang="ko"><head>
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -50,6 +51,8 @@ const html=`<!doctype html><html lang="ko"><head>
       <button class="session-fix">근무 기록 생성</button></h3>
       <p class="records-duplicate-notice" role="status">동일 직원의 같은 시각 출퇴근 기록이 중복돼 있습니다. 자동으로 삭제하지 않았으니 정정 이력을 확인하세요.</p>
       <div class="sessions">
+        ${sample('정재우','07:00–15:00 · 8시간 0분',[['correction-status','정정됨']],
+          '',[['','정정'],['session-delete','삭제']])}
         ${sample('직원08','출근 누락–04:08',[['correction-status','정정됨'],['warn','출근 누락']],
           '출근 누락 · 확인 후 정정하세요.',[['urgent','바로 정정'],['session-delete','삭제']])}
         ${sample('직원08','출근 누락–04:08',[['correction-status','정정됨'],['warn','출근 누락']],
@@ -82,9 +85,10 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
        return {
         within:inside(r,cr),
         childrenWithin:items.every(el=>inside(el.getBoundingClientRect(),r)),
-        directActions:actions?.parentElement===row,
-        actionsBelow:actions.getBoundingClientRect().top>=
-          Math.max(row.children[0].getBoundingClientRect().bottom,row.children[1].getBoundingClientRect().bottom)-1,
+        nestedActions:actions?.parentElement===row.children[0],
+        inlineNormal:row.classList.contains('needs-review')||
+          (Math.abs(actions.getBoundingClientRect().top-row.querySelector('b').getBoundingClientRect().top)<16),
+        normalHeight:row.classList.contains('needs-review')||r.height<80,
         badges:row.querySelectorAll('.pill').length,
         buttons:row.querySelectorAll('button').length,
         badgeText:[...row.querySelectorAll('.pill')].map(x=>x.textContent).join('/')
@@ -92,12 +96,13 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
       })
     };
    });
-   assert.equal(got.count,3,'Historical distinct rows must not be hidden');
+   assert.equal(got.count,4,'Historical distinct rows must not be hidden');
    assert.ok(got.bodyWidth<=got.viewport+1,`${engine} ${width} horizontal overflow: ${JSON.stringify(got)}`);
    assert.equal(got.scroller,'visible',`${engine} ${width} nested record scroll`);
-   assert.ok(got.entries.every(e=>e.within&&e.childrenWithin&&e.directActions&&e.actionsBelow),
+   assert.ok(got.entries.every(e=>e.within&&e.childrenWithin&&e.nestedActions&&e.inlineNormal&&e.normalHeight),
     `${engine} ${width} clipped/overlapped controls: ${JSON.stringify(got)}`);
-   assert.equal(got.entries[0].badges,2);
+   assert.equal(got.entries[0].badges,1);
+   assert.equal(got.entries[1].badges,2);
    assert.equal(got.entries[0].buttons,2);
    if(width===393)await page.screenshot({path:`qa-results/actual-attendance-day-record-${engine}-393-v357.png`,fullPage:true});
    console.log(`PASS ${engine} ${width}px mobile day records: no clipped pills/buttons or nested scrollbar`);
@@ -105,4 +110,4 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
   }
  }finally{await browser.close()}
 }
-console.log('PASS v0.357 screenshot regression and duplicate-effective-punch guard, no production writes');
+console.log('PASS v0.358 restored normal inline rows and anomaly-safe wrapping, no production writes');
