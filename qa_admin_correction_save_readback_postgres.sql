@@ -1,7 +1,8 @@
 \set ON_ERROR_STOP on
 -- True PostgreSQL integration, synthetic rows only in disposable CI PostgreSQL.
--- Reuse historical UTC/KST consumer fixture, then install the fixed mutation RPC.
-\ir qa_attendance_consumer_timezone_postgres.sql
+-- CI executes qa_attendance_consumer_timezone_postgres.sql immediately before
+-- this extension in the SAME disposable PostgreSQL database. Roles are
+-- cluster-global, so sourcing the fixture twice would conflict on anon.
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql
 AS $$ SELECT '{"email":"synthetic-manager@example.invalid"}'::jsonb $$;
