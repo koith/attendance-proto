@@ -34,7 +34,7 @@ assert.equal(context.check(932,'IN','2026-10-24T04:08'),false);
 assert.equal(context.check(931,'OUT','2026-10-24T04:08'),false);
 
 // Mirror the user's ORIGINAL good screenshot: identity, long time, actions and
-// "정정됨" all on the SAME row. Only anomalous sessions can expand below it.
+// "정정됨" all on the SAME row, including missing IN / missing OUT.
 const sample=(name,time,badges,hint,buttons,issue=false)=>`
   <div class="session${issue?' needs-review':''}">
     <div><b><span>${name}</span><small class="employee-no-sub">No. 05</small></b>
@@ -130,12 +130,19 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
      assert.ok(got.entries.slice(0,3).every(e=>e.actionsBelow),
        `${engine} ${width}px narrow-phone fallback must fit: ${JSON.stringify(got)}`);
    }
-   assert.ok(got.entries.slice(3).every(e=>e.issue&&e.actionsBelow),
-     `${engine} ${width}px anomalies must use separate explanation/action row: ${JSON.stringify(got)}`);
+   if(width>=375){
+     assert.ok(got.entries.slice(3).every(e=>e.issue&&e.inline&&!e.actionsBelow&&e.rowHeight<76),
+       `${engine} ${width}px MISSING-PUNCH rows must retain original one-line layout: ${JSON.stringify(got)}`);
+   }else{
+     assert.ok(got.entries.slice(3).every(e=>e.issue&&e.actionsBelow),
+       `${engine} ${width}px extreme-narrow fallback must not overlap: ${JSON.stringify(got)}`);
+   }
+   assert.ok(got.entries.every(e=>e.metaWidth>=28),
+     `${engine} ${width}px time content must keep meaningful visible space: ${JSON.stringify(got)}`);
    if(width===414)await page.screenshot({
-     path:`qa-results/actual-attendance-original-inline-${engine}-414-v358.png`,fullPage:true
+     path:`qa-results/actual-attendance-restored-inline-${engine}-414-v359.png`,fullPage:true
    });
-   console.log(`PASS ${engine} ${width}px: normal single-row preserved, anomalies fit, no clipping`);
+   console.log(`PASS ${engine} ${width}px: normal and anomalous records single-row preserved, no clipping`);
    await page.close();
   }
  }finally{await browser.close()}
