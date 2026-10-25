@@ -276,51 +276,78 @@
   .monthly-employee-body small{font-size:.5rem}
 }
 
-/* v0.357: iPhone/Safari day records - separate identity, badges, actions.
-   Previous v0.51 !important 70px status grid and nested buttons overflowed. */
+/* v0.358: Restore the verified compact, single-line day-record layout.
+   Ordinary rows retain name/No., time, correction buttons and status on ONE
+   line exactly as before. Only anomaly/very narrow rows wrap. */
 .records-group .sessions{
   max-height:none!important;overflow:visible!important;
   overscroll-behavior:auto!important;scrollbar-gutter:auto!important;
 }
 .records-group .session{
-  display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;
-  column-gap:10px;row-gap:8px;align-items:start!important;
-  width:100%;max-width:100%;min-width:0;padding:12px 0;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) max-content!important;
+  gap:5px!important;align-items:center!important;
+  min-width:0;width:100%;padding:9px 0!important;
 }
 .records-group .session>div:first-child{
-  grid-column:1;grid-row:1;display:flex!important;flex-direction:column!important;
-  align-items:flex-start!important;gap:3px!important;min-width:0;
-  overflow-wrap:anywhere;
+  display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;
+  grid-column:1;grid-row:1;align-items:center!important;gap:5px!important;
+  min-width:0;max-width:100%;
 }
-.records-group .session>div:first-child b{font-size:.84rem;line-height:1.3}
-.records-group .session .meta{font-size:.76rem;line-height:1.35;overflow-wrap:anywhere}
+.records-group .session>div:first-child>b{
+  display:block;flex:0 0 auto;font-size:.78rem;line-height:1.25;white-space:nowrap;
+}
+.records-group .session>div:first-child .meta{
+  flex:0 1 auto;min-width:0;overflow:hidden;
+  white-space:nowrap;text-overflow:ellipsis;
+  font-size:.74rem;line-height:1.3;
+}
 .records-group .session>div:nth-child(2){
-  grid-column:2;grid-row:1;justify-self:end;display:flex;align-items:flex-start;
-  justify-content:flex-end;flex-wrap:wrap;gap:4px;
-  width:auto!important;min-width:0!important;max-width:150px;
+  grid-column:2;grid-row:1;justify-self:end;
+  display:flex!important;align-items:center!important;justify-content:flex-end!important;
+  gap:3px!important;flex-wrap:nowrap!important;
+  min-width:0!important;width:auto!important;max-width:none!important;
 }
-.records-group .session .pill{margin:0;max-width:100%;white-space:nowrap}
-.records-group .session>.session-actions{
-  grid-column:1/-1;grid-row:2;min-width:0;width:100%!important;max-width:100%;
-  justify-self:stretch!important;display:flex!important;
-  align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:7px;
-  text-align:left!important;
+.records-group .session .pill{
+  flex:0 0 auto;margin:0!important;padding:3px 7px;font-size:.7rem;
+  white-space:nowrap;
 }
-.records-group .session .session-fix{min-height:36px;padding:0 12px;white-space:nowrap}
-.records-group .session .session-fix-hint{
-  flex:1 1 100%;max-width:none;margin:0;font-size:.7rem;
-  line-height:1.4;text-align:left;
+.records-group .session>div:first-child>.session-actions{
+  display:inline-flex!important;flex:0 0 auto;align-items:center;
+  width:auto!important;max-width:100%;gap:4px!important;
+  margin:0!important;text-align:left!important;white-space:nowrap;
+}
+.records-group .session .session-fix{
+  min-height:32px!important;padding:0 9px!important;font-size:.71rem!important;
+  white-space:nowrap;
+}
+.records-group .session.needs-review>div:first-child{
+  flex-wrap:wrap!important;align-content:center;row-gap:5px!important;
+}
+.records-group .session.needs-review>div:first-child>.session-actions{
+  flex:1 0 100%;min-width:0;flex-wrap:wrap;white-space:normal;
+}
+.records-group .session.needs-review .session-fix-hint{
+  order:3;flex:1 0 100%;max-width:none!important;width:100%;
+  margin:0!important;text-align:left!important;
+  font-size:.68rem;line-height:1.35;
+}
+.records-group .session.needs-review>div:nth-child(2){
+  flex-wrap:wrap!important;max-width:min(45vw,158px)!important;
 }
 .records-duplicate-notice{
   margin:4px 12px 12px;padding:10px 12px;
   border:1px solid #ead9ab;border-radius:9px;
   background:#fff8e9;color:#845300;font-size:.76rem;line-height:1.5;
 }
-@media(min-width:600px){
-  .records-group .session .session-fix-hint{flex:1 1 190px}
-}
-@media(max-width:360px){
-  .records-group .session{column-gap:6px}
-  .records-group .session>div:nth-child(2){max-width:120px}
-  .records-group .session .pill{font-size:.68rem;padding:3px 7px}
+@media(max-width:390px){
+  .records-group .session{gap:4px!important}
+  .records-group .session>div:first-child{gap:4px!important;flex-wrap:wrap!important}
+  .records-group .session>div:first-child .meta{
+    max-width:calc(100% - 55px);overflow:visible;
+    white-space:normal;text-overflow:clip;
+  }
+  .records-group .session>div:first-child>.session-actions{flex-wrap:wrap}
+  .records-group .session .session-fix{padding:0 8px!important;font-size:.69rem!important}
+  .records-group .session .pill{padding:3px 6px;font-size:.66rem}
 }
