@@ -50,5 +50,5 @@ assert.match(css,/grid-column:1\/-1/,'Mobile action row spans both content colum
 assert.match(css,/flex-wrap:wrap/,'Badges and buttons can wrap on small screens');
 const html=fs.readFileSync('actual_attendance.html','utf8');
 assert.match(html,/actual_attendance\.js\?v=20261026records358/,'Safari must refresh fixed browser JS');
-assert.match(html,/actual_attendance_correction\.css\?v=20261026records358/,'Safari must refresh CSS');
+assert.match(html,/actual_attendance\.css\?v=20261026records358/,'Safari must refresh fixed layout CSS');
 console.log('PASS attendance correction: real-shaped duplicate fixture, append-only VOID_ADD recovery, correct shift/clock, server/UI guards and iPhone layout/cache');
