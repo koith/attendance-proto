@@ -33,9 +33,11 @@ assert.equal(context.check(932,'OUT','2026-10-24T04:09'),false);
 assert.equal(context.check(932,'IN','2026-10-24T04:08'),false);
 assert.equal(context.check(931,'OUT','2026-10-24T04:08'),false);
 
-const sample=(name,time,badges,hint,buttons)=>`
-  <div class="session">
-    <div><b><span>${name}</span><small class="employee-no-sub">No. 08</small></b>
+// Mirror the user's ORIGINAL good screenshot: identity, long time, actions and
+// "정정됨" all on the SAME row. Only anomalous sessions can expand below it.
+const sample=(name,time,badges,hint,buttons,issue=false)=>`
+  <div class="session${issue?' needs-review':''}">
+    <div><b><span>${name}</span><small class="employee-no-sub">No. 05</small></b>
       <div class="meta">${time}</div></div>
     <div>${badges.map(b=>'<span class="pill '+b[0]+'">'+b[1]+'</span>').join('')}</div>
     <div class="session-actions">
@@ -48,14 +50,23 @@ const html=`<!doctype html><html lang="ko"><head>
   <style>${css}</style></head><body><main class="wrap"><section class="dayview">
     <section class="records-group"><h3>근무 기록 및 정정
       <button class="session-fix">근무 기록 생성</button></h3>
-      <p class="records-duplicate-notice" role="status">동일 직원의 같은 시각 출퇴근 기록이 중복돼 있습니다. 자동으로 삭제하지 않았으니 정정 이력을 확인하세요.</p>
       <div class="sessions">
-        ${sample('직원08','출근 누락–04:08',[['correction-status','정정됨'],['warn','출근 누락']],
-          '출근 누락 · 확인 후 정정하세요.',[['urgent','바로 정정'],['session-delete','삭제']])}
-        ${sample('직원08','출근 누락–04:08',[['correction-status','정정됨'],['warn','출근 누락']],
-          '출근 누락 · 확인 후 정정하세요.',[['urgent','바로 정정'],['session-delete','삭제']])}
-        ${sample('직원08','07:02–퇴근 누락',[['warn','퇴근 누락']],
-          '퇴근 누락 · 확인 후 정정하세요.',[['urgent','바로 정정'],['session-delete','삭제']])}
+        ${sample('정재우','07:00–15:00 · 8시간 0분',
+          [['correction-status','정정됨']],'',
+          [['','정정'],['session-delete','삭제']])}
+        ${sample('이서현','14:51–19:57 · 5시간 5분',
+          [],'',[['','정정'],['session-delete','삭제']])}
+        ${sample('이현진','19:57–25:28 · 5시간 31분',
+          [['correction-status','정정됨']],'',
+          [['','정정'],['session-delete','삭제']])}
+        ${sample('이현서','출근 누락–04:08',
+          [['correction-status','정정됨'],['warn','출근 누락']],
+          '출근 누락 · 확인 후 정정하세요.',
+          [['urgent','바로 정정'],['session-delete','삭제']],true)}
+        ${sample('이현서','07:02–퇴근 누락',
+          [['warn','퇴근 누락']],
+          '퇴근 누락 · 확인 후 정정하세요.',
+          [['urgent','바로 정정'],['session-delete','삭제']],true)}
       </div><p class="records-note">정정 이력은 원본 출퇴근 기록을 변경하지 않습니다.</p>
     </section></section></main></body></html>`;
 
@@ -63,46 +74,70 @@ fs.mkdirSync('qa-results',{recursive:true});
 for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
  const browser=await type.launch({headless:true});
  try{
-  for(const width of [320,375,393,430,768]){
+  for(const width of [320,375,393,414,430,768]){
    const page=await browser.newPage({viewport:{width,height:880},deviceScaleFactor:1});
    await page.setContent(html);
    const got=await page.evaluate(()=>{
     const rows=[...document.querySelectorAll('.records-group .session')];
     const container=document.querySelector('.records-group .sessions');
     const cr=container.getBoundingClientRect();
-    const inside=(rect,outer)=>rect.left>=outer.left-1.1&&rect.right<=outer.right+1.1&&
-       rect.top>=outer.top-1.1&&rect.bottom<=outer.bottom+1.1;
+    const center=r=>(r.top+r.bottom)/2;
+    const inside=(r,o)=>r.left>=o.left-1.1&&r.right<=o.right+1.1&&
+       r.top>=o.top-1.1&&r.bottom<=o.bottom+1.1;
+    const noOverlap=(a,b)=>a.right<=b.left+1.1||b.right<=a.left+1.1||
+       a.bottom<=b.top+1.1||b.bottom<=a.top+1.1;
     return {
       bodyWidth:document.documentElement.scrollWidth,viewport:innerWidth,
-      scroller:getComputedStyle(container).overflowY,
-      count:rows.length,
+      scroller:getComputedStyle(container).overflowY,count:rows.length,
       entries:rows.map(row=>{
-       const r=row.getBoundingClientRect(),items=[...row.querySelectorAll('.pill,.session-fix,.session-fix-hint')];
-       const actions=row.querySelector('.session-actions');
+       const r=row.getBoundingClientRect(),b=row.querySelector('b').getBoundingClientRect(),
+         meta=row.querySelector('.meta').getBoundingClientRect(),
+         badges=[...row.querySelectorAll('.pill')].map(x=>x.getBoundingClientRect()),
+         buttons=[...row.querySelectorAll('button')].map(x=>x.getBoundingClientRect()),
+         hint=row.querySelector('.session-fix-hint')?.getBoundingClientRect(),
+         actions=row.querySelector('.session-actions');
+       const items=[b,meta,...badges,...buttons,...(hint?[hint]:[])];
        return {
-        within:inside(r,cr),
-        childrenWithin:items.every(el=>inside(el.getBoundingClientRect(),r)),
+        issue:row.classList.contains('needs-review'),
+        within:inside(r,cr)&&items.every(item=>inside(item,r)),
         directActions:actions?.parentElement===row,
-        actionsBelow:actions.getBoundingClientRect().top>=
-          Math.max(row.children[0].getBoundingClientRect().bottom,row.children[1].getBoundingClientRect().bottom)-1,
-        badges:row.querySelectorAll('.pill').length,
-        buttons:row.querySelectorAll('button').length,
-        badgeText:[...row.querySelectorAll('.pill')].map(x=>x.textContent).join('/')
+        identityToTime:b.right<=meta.left+1,
+        timeToButtons:meta.right<=buttons[0].left+1||
+          buttons[0].top>=meta.bottom-1,
+        buttonsNoOverlap:buttons.every((v,i)=>i===0||noOverlap(buttons[i-1],v)),
+        buttonsToBadges:badges.every(v=>buttons.every(q=>noOverlap(q,v))),
+        inline:Math.abs(center(b)-center(meta))<16&&
+          Math.abs(center(meta)-center(buttons[0]))<16&&
+          badges.every(v=>Math.abs(center(meta)-center(v))<16),
+        actionsBelow:buttons[0].top>=meta.bottom-1,
+        metaWidth:meta.width,rowHeight:r.height
        };
       })
     };
    });
-   assert.equal(got.count,3,'Historical distinct rows must not be hidden');
-   assert.ok(got.bodyWidth<=got.viewport+1,`${engine} ${width} horizontal overflow: ${JSON.stringify(got)}`);
-   assert.equal(got.scroller,'visible',`${engine} ${width} nested record scroll`);
-   assert.ok(got.entries.every(e=>e.within&&e.childrenWithin&&e.directActions&&e.actionsBelow),
-    `${engine} ${width} clipped/overlapped controls: ${JSON.stringify(got)}`);
-   assert.equal(got.entries[0].badges,2);
-   assert.equal(got.entries[0].buttons,2);
-   if(width===393)await page.screenshot({path:`qa-results/actual-attendance-day-record-${engine}-393-v357.png`,fullPage:true});
-   console.log(`PASS ${engine} ${width}px mobile day records: no clipped pills/buttons or nested scrollbar`);
+   assert.equal(got.count,5,'No shift may be lost or merged for visual reasons');
+   assert.ok(got.bodyWidth<=got.viewport+1,
+     `${engine} ${width}px page horizontal overflow: ${JSON.stringify(got)}`);
+   assert.equal(got.scroller,'visible',`${engine} ${width}px nested scroll`);
+   assert.ok(got.entries.every(e=>e.within&&e.directActions&&e.buttonsNoOverlap&&e.buttonsToBadges),
+     `${engine} ${width}px clipping or action/badge overlap: ${JSON.stringify(got)}`);
+   assert.ok(got.entries.slice(0,3).every(e=>e.identityToTime&&e.timeToButtons),
+     `${engine} ${width}px failed preserved identity/time/actions order: ${JSON.stringify(got)}`);
+   if(width>=375){
+     assert.ok(got.entries.slice(0,3).every(e=>e.inline&&e.rowHeight<70),
+       `${engine} ${width}px NORMAL rows must remain one line with right-side badge: ${JSON.stringify(got)}`);
+   } else {
+     assert.ok(got.entries.slice(0,3).every(e=>e.actionsBelow),
+       `${engine} ${width}px narrow-phone fallback must fit: ${JSON.stringify(got)}`);
+   }
+   assert.ok(got.entries.slice(3).every(e=>e.issue&&e.actionsBelow),
+     `${engine} ${width}px anomalies must use separate explanation/action row: ${JSON.stringify(got)}`);
+   if(width===414)await page.screenshot({
+     path:`qa-results/actual-attendance-original-inline-${engine}-414-v358.png`,fullPage:true
+   });
+   console.log(`PASS ${engine} ${width}px: normal single-row preserved, anomalies fit, no clipping`);
    await page.close();
   }
  }finally{await browser.close()}
 }
-console.log('PASS v0.357 screenshot regression and duplicate-effective-punch guard, no production writes');
+console.log('PASS inline layout visual regression and duplicate-effective-punch guard, no production writes');
