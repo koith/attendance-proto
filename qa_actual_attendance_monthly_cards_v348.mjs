@@ -54,8 +54,8 @@ assert.match(css,/\.monthly-work-list\s*\{[^}]*grid-template-columns:repeat\(2,m
  'two-column compact phone cards must be explicit');
 assert.match(css,/\.monthly-work-note\s*\{[^}]*position:absolute!important/s,
  'redundant disclaimer is offscreen but remains accessible');
-assert.match(html,/actual_attendance\.css\?v=20261019below349/);
-assert.match(html,/actual_attendance\.js\?v=20261019below349/);
+assert.match(html,/actual_attendance\.css\?v=20261026correction1/);
+assert.match(html,/actual_attendance\.js\?v=20261026correction1/);
 const appMinor=Number(index.match(/const APP_VERSION="v0\.(\d+)"/)?.[1]);
 assert.ok(Number.isInteger(appMinor)&&appMinor>=349,'monthly summary must remain supported after v0.349');
 assert.ok(index.includes(`aria-label="현재 앱 버전 v0.${appMinor}">v0.${appMinor}</button>`),
