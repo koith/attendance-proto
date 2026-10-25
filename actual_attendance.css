@@ -276,51 +276,105 @@
   .monthly-employee-body small{font-size:.5rem}
 }
 
-/* v0.357: iPhone/Safari day records - separate identity, badges, actions.
-   Previous v0.51 !important 70px status grid and nested buttons overflowed. */
+/* v0.358: preserve the original compact one-line attendance record layout.
+   Normal: employee | time | correction/delete | status; only anomalous
+   sessions may use an additional row for explanation/actions.
+   Keep stable DOM & original raw/event/correction data untouched. */
 .records-group .sessions{
   max-height:none!important;overflow:visible!important;
   overscroll-behavior:auto!important;scrollbar-gutter:auto!important;
 }
 .records-group .session{
-  display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;
-  column-gap:10px;row-gap:8px;align-items:start!important;
-  width:100%;max-width:100%;min-width:0;padding:12px 0;
+  display:grid!important;
+  grid-template-columns:max-content minmax(0,1fr) max-content max-content!important;
+  width:100%;min-width:0;max-width:100%;
+  align-items:center!important;column-gap:5px;row-gap:6px;
+  padding:9px 0;
 }
 .records-group .session>div:first-child{
-  grid-column:1;grid-row:1;display:flex!important;flex-direction:column!important;
-  align-items:flex-start!important;gap:3px!important;min-width:0;
-  overflow-wrap:anywhere;
+  /* Allow existing employee name and time to occupy the first two
+     columns without moving any buttons or touching their handlers. */
+  display:contents!important;
 }
-.records-group .session>div:first-child b{font-size:.84rem;line-height:1.3}
-.records-group .session .meta{font-size:.76rem;line-height:1.35;overflow-wrap:anywhere}
+.records-group .session>div:first-child>b{
+  grid-column:1;grid-row:1;display:flex;flex-direction:column;
+  align-items:flex-start;justify-content:center;
+  min-width:0;max-width:100%;line-height:1.23;white-space:nowrap;
+  font-size:.78rem;font-weight:800;
+}
+.records-group .session>div:first-child .employee-no-sub{
+  margin-top:2px;
+}
+.records-group .session .meta{
+  grid-column:2;grid-row:1;
+  display:block;min-width:0;max-width:100%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;
+  font-size:.75rem;line-height:1.3;color:var(--sub);
+}
+.records-group .session>.session-actions{
+  grid-column:3;grid-row:1;
+  display:inline-flex!important;align-items:center;
+  justify-content:flex-start;flex-wrap:nowrap;
+  width:auto!important;min-width:0;max-width:100%;
+  gap:5px;justify-self:start!important;text-align:left!important;
+}
+.records-group .session>.session-actions .session-fix{
+  display:inline-flex;align-items:center;justify-content:center;
+  flex:0 0 auto;min-height:34px;padding:0 9px;
+  font-size:.72rem;white-space:nowrap;line-height:1.1;
+}
 .records-group .session>div:nth-child(2){
-  grid-column:2;grid-row:1;justify-self:end;display:flex;align-items:flex-start;
-  justify-content:flex-end;flex-wrap:wrap;gap:4px;
+  grid-column:4;grid-row:1;
+  display:flex;align-items:center;justify-content:flex-end;
+  justify-self:end;flex-wrap:wrap;gap:4px;
   width:auto!important;min-width:0!important;max-width:150px;
 }
-.records-group .session .pill{margin:0;max-width:100%;white-space:nowrap}
-.records-group .session>.session-actions{
-  grid-column:1/-1;grid-row:2;min-width:0;width:100%!important;max-width:100%;
-  justify-self:stretch!important;display:flex!important;
-  align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:7px;
-  text-align:left!important;
+.records-group .session .pill{
+  max-width:100%;margin:0;white-space:nowrap;
+  padding:3px 7px;font-size:.67rem;
 }
-.records-group .session .session-fix{min-height:36px;padding:0 12px;white-space:nowrap}
-.records-group .session .session-fix-hint{
-  flex:1 1 100%;max-width:none;margin:0;font-size:.7rem;
-  line-height:1.4;text-align:left;
+/* Bad records are the only exception: explain the problem below the
+   original identity/time/status line, without squeezing action buttons
+   against one another or clipping the badge column. */
+.records-group .session.needs-review{
+  grid-template-columns:max-content minmax(0,1fr) auto!important;
+  align-items:start!important;
+}
+.records-group .session.needs-review>div:nth-child(2){
+  grid-column:3;grid-row:1;max-width:160px;
+}
+.records-group .session.needs-review>.session-actions{
+  grid-column:2/-1;grid-row:2;display:flex!important;
+  flex-wrap:wrap;gap:7px;align-items:center;min-width:0;
+}
+.records-group .session.needs-review .session-fix-hint{
+  flex:1 1 100%;max-width:none;margin:0;
+  font-size:.7rem;line-height:1.4;text-align:left;
 }
 .records-duplicate-notice{
   margin:4px 12px 12px;padding:10px 12px;
   border:1px solid #ead9ab;border-radius:9px;
   background:#fff8e9;color:#845300;font-size:.76rem;line-height:1.5;
 }
-@media(min-width:600px){
-  .records-group .session .session-fix-hint{flex:1 1 190px}
+@media(max-width:520px){
+  .records-group .session{column-gap:4px}
+  .records-group .session>.session-actions{gap:4px}
+  .records-group .session>.session-actions .session-fix{
+    min-height:32px;padding:0 7px;font-size:.7rem;
+  }
+  .records-group .session>div:first-child>b{font-size:.76rem}
+  .records-group .session .meta{font-size:.73rem}
 }
-@media(max-width:360px){
-  .records-group .session{column-gap:6px}
-  .records-group .session>div:nth-child(2){max-width:120px}
-  .records-group .session .pill{font-size:.68rem;padding:3px 7px}
+@media(max-width:350px){
+  /* Very narrow phones: allow controls on a second line rather than
+     sacrifice the visible work time or cause horizontal scrolling. */
+  .records-group .session:not(.needs-review){
+    grid-template-columns:max-content minmax(0,1fr) auto!important;
+  }
+  .records-group .session:not(.needs-review)>div:nth-child(2){
+    grid-column:3;grid-row:1;
+  }
+  .records-group .session:not(.needs-review)>.session-actions{
+    grid-column:2/-1;grid-row:2;
+  }
 }
