@@ -159,6 +159,8 @@ jobs:
           if ! node -e 'require("playwright").webkit.launch({headless:true}).then(b=>b.close()).catch(()=>process.exit(1))'; then
             timeout --kill-after=15s 240s npx playwright install-deps webkit
           fi
+      - name: iPhone record history geometry and duplicate-punch guard (Chromium + WebKit)
+        run: node qa_actual_attendance_day_records_mobile_v357.mjs
       - name: Activation recovery on Chromium and WebKit (synthetic requests only)
         run: node qa_owner_activation_retry_browser_1243.mjs
       - name: Validate manager month-cards in Chromium at 320-1024px
