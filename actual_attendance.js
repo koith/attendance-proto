@@ -175,13 +175,26 @@ function renderDay(day){
     }
     rows+=`<div class="person-row"><div class="person">${escapeHtml(emp?.name||'직원 정보 없음')}</div><div class="track">${bars}</div></div>`
   }
+  // Surface repeated effective punches without hiding, merging, or deleting
+  // any payroll-relevant event/correction in this read-only view.
+  const punchCounts=new Map();
+  for(const s of ss){
+    for(const [type,time] of [['IN',s.in],['OUT',s.out]]){
+      if(!time||isNaN(time))continue;
+      const key=String(s.employee_id)+'|'+type+'|'+dayKey(time)+'T'+hm(time);
+      punchCounts.set(key,(punchCounts.get(key)||0)+1);
+    }
+  }
+  const duplicateCount=[...punchCounts.values()].filter(n=>n>1).length;
+  const duplicateNotice=duplicateCount?
+    '<p class="records-duplicate-notice" role="status">동일 직원의 같은 시각 출퇴근 기록이 중복돼 있습니다. 자동으로 삭제하지 않았으니 정정 이력을 확인하세요.</p>':'';
   let detail='';
   for(const s of ss){
     const emp=S.employees.find(x=>Number(x.id)===Number(s.employee_id)),issue=isIssue(s,day),
       label=s.status==='COMPLETE'?`${hm(s.in)}–${hm(s.out)} · ${dur(s.sec)}`:s.status==='WORKING'?`${hm(s.in)}–진행 중`:s.status==='INCOMPLETE'?`${hm(s.in)}–퇴근 누락`:`출근 누락–${hm(s.out)}`;
     detail+=`<div class="session"><div><b>${escapeHtml(emp?.name||'직원 정보 없음')}</b><div class="meta">${label}</div></div><div>${s.corrected?'<span class="pill correction-status">정정됨</span> ':''}${issue?'<span class="pill warn">확인 필요</span>':''}</div></div>`
   }
-  el('app').innerHTML=`<section class="dayview"><div class="dayhead"><button class="day-nav" id="prevDay" aria-label="이전 날짜">‹</button><div class="date">${day}</div><div class="dayhead-actions"><button class="day-nav" id="nextDay" aria-label="다음 날짜">›</button><button class="day-close" id="dayClose" aria-label="월력으로 돌아가기">×</button></div></div><section class="timeline-group"><h3>직원별 실근무 시간</h3><div class="axis-wrap"><div class="axis"><div class="axis-labels">${labels}</div>${rows||'<div class="empty">이 날의 실제 출퇴근 기록이 없습니다.</div>'}</div></div></section><section class="records-group"><h3>근무 기록 및 정정</h3><div class="sessions">${detail}</div><p class="records-note">정정은 원본 출퇴근 기록을 변경하지 않고 정정 이력을 추가합니다.</p></section></section>`;
+  el('app').innerHTML=`<section class="dayview"><div class="dayhead"><button class="day-nav" id="prevDay" aria-label="이전 날짜">‹</button><div class="date">${day}</div><div class="dayhead-actions"><button class="day-nav" id="nextDay" aria-label="다음 날짜">›</button><button class="day-close" id="dayClose" aria-label="월력으로 돌아가기">×</button></div></div><section class="timeline-group"><h3>직원별 실근무 시간</h3><div class="axis-wrap"><div class="axis"><div class="axis-labels">${labels}</div>${rows||'<div class="empty">이 날의 실제 출퇴근 기록이 없습니다.</div>'}</div></div></section><section class="records-group"><h3>근무 기록 및 정정</h3>${duplicateNotice}<div class="sessions">${detail}</div><p class="records-note">정정은 원본 출퇴근 기록을 변경하지 않고 정정 이력을 추가합니다.</p></section></section>`;
   el('dayClose').onclick=renderMonth;
   el('prevDay').onclick=()=>navigateDay(day,-1);
   el('nextDay').onclick=()=>navigateDay(day,1);
@@ -276,6 +289,14 @@ init();
   const originalRenderDay=renderDay;
   const dtValue=d=>d&&!isNaN(d)?`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`:'';
   const wallValue=v=>String(v||'').replace('T',' ').slice(0,16)+':00';
+  // Reject an extra ADD at a timestamp already represented by a distinct
+  // effective event. Keep all historic correction rows untouched for audit.
+  const duplicateEffectivePunch=(employeeId,type,at)=>{
+    const minute=String(at||'').replace(' ','T').slice(0,16);
+    if(!minute)return false;
+    return (S.sessions||[]).some(s=>Number(s.employee_id)===Number(employeeId)&&
+      dtValue(type==='IN'?s.in:s.out)===minute);
+  };
   function closeCorrection(){document.getElementById('actualCorrectionVeil')?.remove()}
   function toastCorrection(msg,err=false){const t=el('toast');t.textContent=msg;t.className='toast show'+(err?' err':'');clearTimeout(toastCorrection.t);toastCorrection.t=setTimeout(()=>t.className='toast',2200)}
   function addAttendance(day){
@@ -322,6 +343,10 @@ init();
       if(complete&&(!outDay||!/^([01]\d|2[0-3]):[0-5]\d$/.test(outTime)))return error('퇴근 날짜와 시각을 입력하세요.');
       if(complete&&outDay+'T'+outTime<=inDay+'T'+inTime)return error('퇴근은 출근보다 늦어야 합니다. 익일 퇴근은 다음 날짜를 선택하세요.');
       if(!reason)return error('생성 사유를 입력하세요.');
+      if(duplicateEffectivePunch(employeeId,'IN',inDay+'T'+inTime))
+        return error('같은 시각의 출근 기록이 이미 있습니다. 기존 기록을 정정하세요.');
+      if(complete&&duplicateEffectivePunch(employeeId,'OUT',outDay+'T'+outTime))
+        return error('같은 시각의 퇴근 기록이 이미 있습니다. 기존 기록을 정정하세요.');
       const save=field('manualAttendanceSave');save.disabled=true;error('');
       try{
         const addedIn=await rpc('admin_correct_event',{p_action:'ADD',p_event_id:null,p_employee_id:employeeId,p_new_at:inDay+' '+inTime+':00',p_new_type:'IN',p_reason:reason});
@@ -382,6 +407,9 @@ init();
       if(source.outId&&nextOut&&dtValue(source.out)!==outLocal)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.outId),p_employee_id:Number(source.employee_id),p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
       if(!source.outId&&nextOut)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:Number(source.employee_id),p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
       if(!calls.length)return toastCorrection('변경된 시각이 없습니다.',true);
+      if(calls.some(c=>c.p_action==='ADD' &&
+         duplicateEffectivePunch(c.p_employee_id,c.p_new_type,c.p_new_at)))
+        return toastCorrection('같은 직원·시각의 출퇴근 기록이 이미 있습니다. 기존 기록을 정정하세요.',true);
       save.disabled=true;
       try{for(const args of calls)await rpc('admin_correct_event',args);closeCorrection();toastCorrection('근태 정정을 반영했습니다.');await loadMonth();renderDay(day)}catch(e){console.error('[actual-correction]',e);toastCorrection('정정을 저장하지 못했습니다.',true);save.disabled=false}
     };
@@ -558,7 +586,12 @@ init();
   const baseDay=renderDay;
   renderDay=function(day){
     baseDay(day);
-    document.querySelectorAll('.sessions .session').forEach(row=>{const actions=row.querySelector('.session-actions');if(actions)row.querySelector(':scope > div:first-child')?.appendChild(actions)});
+    // Keep action buttons in their own full-width grid row, not inside the
+    // narrow employee identity cell (Safari clipped status pills and buttons).
+    document.querySelectorAll('.sessions .session').forEach(row=>{
+      const actions=row.querySelector('.session-actions');
+      if(actions&&actions.parentElement!==row)row.appendChild(actions);
+    });
   };
 })();
 
