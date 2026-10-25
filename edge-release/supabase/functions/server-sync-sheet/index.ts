@@ -85,6 +85,19 @@ function approvedQaSheetRoute(storeId,store){
      secret.length<64||secret===operatingSecret)return null;
   return {url,secret,storeKey:`QA1243_${storeId}`};
 }
+// Explicit store-01 operating approval (2026-10-25). Production workbooks are
+// isolated by immutable DB store ID, not by a shared source_store_key.
+// QA-labelled stores remain on the separate approvedQaSheetRoute path.
+function approvedStore01SheetRoute(storeId,store){
+  if(storeId!==80||String(store?.code||"")!=="REAL_1"||
+     String(store?.name||"")!=="1호점"||
+     store?.onboarding_status!=="READY"||store?.is_active!==true)return null;
+  const url=Deno.env.get("SHEET_WEBAPP_URL")||"";
+  const secret=Deno.env.get("SHEET_SHARED_SECRET")||"";
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]{15,}\/exec$/.test(url)||!secret)
+    return null;
+  return {url,secret,storeKey:"STORE_80"};
+}
 async function sourceFor(ym,storeId){
   const {data,error}=await client.rpc("sheet_server_payroll_source",{p_store_id:storeId,p_ym:ym});
   if(error||!data)throw new Error("SERVER_PAYROLL_SOURCE_FAILED: "+(error?.code||"NO_DATA"));
@@ -245,7 +258,8 @@ async function buildReport(ym,storeId){
   return {source:data,report,workingAttendance,closed:!!closedPayroll,closedPayroll};
 }
 async function googleWrite(ym,payload,closed,closedPayroll,workingAttendance,storeId=1,qaRoute=null){
-  // QA store may NEVER share the operating Apps Script URL, credentials or workbook key.
+  // Every non-primary branch requires an explicit route with a unique workbook key;
+  // synthetic QA stores must remain on independent credentials.
   if(storeId!==1&&!qaRoute)throw new HttpError(403,"QA_SHEET_ROUTE_NOT_APPROVED");
   const url=qaRoute?.url||Deno.env.get("SHEET_WEBAPP_URL");
   const secret=qaRoute?.secret||Deno.env.get("SHEET_SHARED_SECRET");
@@ -480,7 +494,8 @@ Deno.serve(async req=>{
     if(storeError||!store||!store.is_active||store.onboarding_status!=="READY")
       throw new HttpError(403,"STORE_NOT_ONBOARDED");
     const qaRoute=storeId===1?null:approvedQaSheetRoute(storeId,store);
-    if(["sync","parity"].includes(mode)&&storeId!==1&&!qaRoute)
+    const sheetRoute=qaRoute||approvedStore01SheetRoute(storeId,store);
+    if(["sync","parity"].includes(mode)&&storeId!==1&&!sheetRoute)
       throw new HttpError(403,"STORE_SHEET_SYNC_NOT_CONFIGURED");
     if(!actor.internal && actor.adminRole!=="HQ" && !(actor.adminRole==="STORE_MANAGER"&&Number(actor.storeId)===storeId))
       throw new HttpError(403,"STORE_NOT_AUTHORIZED");
@@ -587,7 +602,7 @@ Deno.serve(async req=>{
     // Reject changes to existing manual projection until parity is proven.
     if(parity&&(!parity.payroll_identical||!parity.attendance_identical))
       throw new HttpError(409,"SERVER_CLIENT_PARITY_MISMATCH");
-    const result=await writeClaimed(ym,storeId,prepared,release,true,qaRoute);
+    const result=await writeClaimed(ym,storeId,prepared,release,true,sheetRoute);
     return reply({...result,parity});
   }catch(error){
     const status=error instanceof HttpError?error.status:502;
