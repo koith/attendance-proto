@@ -119,10 +119,10 @@ async function loadMonth(){const app=el('app');app.innerHTML='<div class="loadin
   if(S.staffMode){
     const a=S.staffAuth,data=await rpc('staff_actual_attendance',{p_employee_id:Number(a.employee_id),p_pin:String(a.pin),p_from:addDays(first,-7)+'T00:00:00',p_to:addDays(next,7)+'T00:00:00'});
     if(!data?.ok)throw new Error(data?.error||'STAFF_AUTH_FAILED');
-    S.employees=[data.employee];S.sessions=pairEvents(applyCorrections(data.events||[],data.corrections||[])).filter(s=>Number(s.employee_id)===Number(a.employee_id));renderMonth();return;
+    S.employees=[data.employee];S.sessions=pairEvents(applyCorrections(data.events||[],data.corrections||[])).filter(s=>Number(s.employee_id)===Number(a.employee_id));renderMonth();return true;
   }
-  const storeId=Number(sessionStorage.getItem('baekeok_store_id'))||1;const employees=await rpc('list_store_employees',{p_store_id:storeId});let hours;try{hours=await rpc('admin_store_settings_get',{p_store_id:storeId});if(hours)S.storeHours=hours}catch(_){}const data=await rpc('admin_store_events_with_corrections',{p_store_id:storeId,p_from:addDays(first,-7)+'T00:00:00',p_to:addDays(next,7)+'T00:00:00'});S.employees=(employees||[]).filter(e=>!e.store_id||Number(e.store_id)===storeId).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko-KR'));const allowedIds=new Set(S.employees.map(e=>Number(e.id)));S.sessions=pairEvents(applyCorrections(data?.events||[],data?.corrections||[])).filter(s=>allowedIds.has(Number(s.employee_id)));renderMonth()
-}catch(e){console.error('[actual-attendance]',e);const msg=String(e?.message||e);app.innerHTML=`<div class="empty">실근무 현황을 불러오지 못했습니다.<br><span style="font-size:.72rem;color:var(--text-muted)">${escapeHtml(msg.slice(0,160))}</span><br><button id="retry">다시 시도</button></div>`;el('retry').onclick=loadMonth}}
+  const storeId=Number(sessionStorage.getItem('baekeok_store_id'))||1;const employees=await rpc('list_store_employees',{p_store_id:storeId});let hours;try{hours=await rpc('admin_store_settings_get',{p_store_id:storeId});if(hours)S.storeHours=hours}catch(_){}const data=await rpc('admin_store_events_with_corrections',{p_store_id:storeId,p_from:addDays(first,-7)+'T00:00:00',p_to:addDays(next,7)+'T00:00:00'});S.employees=(employees||[]).filter(e=>!e.store_id||Number(e.store_id)===storeId).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko-KR'));const allowedIds=new Set(S.employees.map(e=>Number(e.id)));S.sessions=pairEvents(applyCorrections(data?.events||[],data?.corrections||[])).filter(s=>allowedIds.has(Number(s.employee_id)));renderMonth();return true;
+}catch(e){console.error('[actual-attendance]',e);const msg=String(e?.message||e);app.innerHTML=`<div class="empty">실근무 현황을 불러오지 못했습니다.<br><span style="font-size:.72rem;color:var(--text-muted)">${escapeHtml(msg.slice(0,160))}</span><br><button id="retry">다시 시도</button></div>`;el('retry').onclick=loadMonth;return false}}
 function renderMonth(){
   S.selectedDay=null;
   const [y,m]=S.ym.split('-').map(Number),days=new Date(y,m,0).getDate(),offset=new Date(y,m-1,1).getDay(),today=dayKey(kstToday());
@@ -364,6 +364,18 @@ init();
     const initialIn=splitDateTime(source.in),initialOut=splitDateTime(source.out);
     inDate.value=initialIn.date;inTime.value=initialIn.time;outDate.value=initialOut.date;outTime.value=initialOut.time;
     const isWorking=source.status==='WORKING'&&!source.outId;
+    // Only a real attendance_events ID supports EDIT_TIME. A synthetic ADD
+    // uses add_<correction_id> and Number('add_...') is NaN; the old code sent
+    // null event IDs and encouraged repeated orphan/ADD attempts.
+    const isAddedId=id=>/^add_\d+$/.test(String(id||''));
+    const eventAt=(session,type)=>type==='IN'?session.in:session.out;
+    const eventId=(session,type)=>type==='IN'?session.inId:session.outId;
+    const alreadyHas=(type,local,ownId)=>S.sessions.some(other=>{
+      if(Number(other.employee_id)!==Number(source.employee_id))return false;
+      const when=eventAt(other,type),id=eventId(other,type);
+      return when instanceof Date && Math.abs(when-parseWall(local))<60000 &&
+        String(id||'')!==String(ownId||'');
+    });
     if(isWorking){outDate.title='누락된 퇴근 날짜를 입력하세요.';outTime.title='누락된 퇴근 시각을 입력하세요.';}
     const combined=(dateEl,timeEl)=>dateEl.value&&timeEl.value?`${dateEl.value}T${timeEl.value}`:'';
     const refresh=()=>{const av=combined(inDate,inTime),bv=combined(outDate,outTime),a=av?parseWall(av):null,b=bv?parseWall(bv):null;if(isWorking&&!b){preview.textContent='퇴근을 입력하지 않으면 출근시간만 정정합니다.';preview.classList.remove('bad');save.disabled=!a;return}if(a&&b&&b<=a){preview.textContent='퇴근 시각은 출근 시각보다 늦어야 합니다.';preview.classList.add('bad');save.disabled=true}else{preview.textContent=a&&b?`예상 근무 ${dur((b-a)/1000)}`:'날짜와 시간을 각각 선택하세요.';preview.classList.remove('bad');save.disabled=false}};
@@ -376,14 +388,49 @@ init();
       const nextIn=inLocal?wallValue(inLocal):null,nextOut=outLocal?wallValue(outLocal):null;
       if(!nextIn&&!nextOut)return toastCorrection('출근 또는 퇴근 시각을 입력하세요.',true);
       const a=nextIn?parseWall(nextIn):null,b=nextOut?parseWall(nextOut):null;if(a&&b&&b<=a)return toastCorrection('퇴근 시각을 확인하세요.',true);
-      const calls=[];
-      if(source.inId&&nextIn&&dtValue(source.in)!==inLocal)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.inId),p_employee_id:Number(source.employee_id),p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
-      if(!source.inId&&nextIn)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:Number(source.employee_id),p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
-      if(source.outId&&nextOut&&dtValue(source.out)!==outLocal)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.outId),p_employee_id:Number(source.employee_id),p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
-      if(!source.outId&&nextOut)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:Number(source.employee_id),p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
+      const calls=[],empId=Number(source.employee_id);
+      const changedIn=!!nextIn&&dtValue(source.in)!==inLocal;
+      const changedOut=!!nextOut&&dtValue(source.out)!==outLocal;
+      if((changedIn&&isAddedId(source.inId))||(changedOut&&isAddedId(source.outId))){
+        toastCorrection('관리자가 추가한 기록은 삭제 후 다시 생성하세요. 기존 기록은 변경되지 않았습니다.',true);return;
+      }
+      if(changedIn&&alreadyHas('IN',nextIn,source.inId)){
+        toastCorrection('같은 시각의 출근 기록이 이미 있습니다. 중복 추가를 중단했습니다.',true);return;
+      }
+      if(changedOut&&alreadyHas('OUT',nextOut,source.outId)){
+        toastCorrection('같은 시각의 퇴근 기록이 이미 있습니다. 중복 추가를 중단했습니다.',true);return;
+      }
+      if(source.inId&&changedIn)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.inId),p_employee_id:empId,p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
+      if(!source.inId&&nextIn)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:empId,p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
+      if(source.outId&&changedOut)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.outId),p_employee_id:empId,p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
+      if(!source.outId&&nextOut)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:empId,p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
       if(!calls.length)return toastCorrection('변경된 시각이 없습니다.',true);
       save.disabled=true;
-      try{for(const args of calls)await rpc('admin_correct_event',args);closeCorrection();toastCorrection('근태 정정을 반영했습니다.');await loadMonth();renderDay(day)}catch(e){console.error('[actual-correction]',e);toastCorrection('정정을 저장하지 못했습니다.',true);save.disabled=false}
+      let writes=0;
+      try{
+        const receipt=[];
+        for(const args of calls){
+          const id=await rpc('admin_correct_event',args);
+          if(!Number.isSafeInteger(Number(id))||Number(id)<=0)throw Error('CORRECTION_RECEIPT_MISSING');
+          receipt.push({args,id:Number(id)});writes++;
+        }
+        if(await loadMonth()!==true)throw Error('CORRECTION_READBACK_FAILED');
+        const valid=receipt.every(({args,id})=>{
+          const eventKey=args.p_action==='ADD'?'add_'+id:String(args.p_event_id);
+          const expected=parseWall(args.p_new_at).getTime();
+          const type=args.p_new_type;
+          return S.sessions.some(item=>Number(item.employee_id)===empId&&
+            String(eventId(item,type))===eventKey&&
+            eventAt(item,type) instanceof Date&&
+            Math.abs(eventAt(item,type).getTime()-expected)<60000);
+        });
+        if(!valid)throw Error('CORRECTION_TIME_MISMATCH');
+        closeCorrection();renderDay(day);toastCorrection('근태 정정을 저장하고 시각을 확인했습니다.');
+      }catch(e){
+        console.error('[actual-correction]',e);
+        if(writes){closeCorrection();toastCorrection('일부 기록은 저장됐으나 확인에 실패했습니다. 중복 저장하지 말고 새로고침해 확인하세요.',true)}
+        else {toastCorrection('정정을 저장하지 못했습니다. 중복 기록을 만들지 않았는지 확인하세요.',true);save.disabled=false}
+      }
     };
   }
   renderDay=function(day){
@@ -558,7 +605,8 @@ init();
   const baseDay=renderDay;
   renderDay=function(day){
     baseDay(day);
-    document.querySelectorAll('.sessions .session').forEach(row=>{const actions=row.querySelector('.session-actions');if(actions)row.querySelector(':scope > div:first-child')?.appendChild(actions)});
+    // Keep action buttons as a direct .session child. Moving them inside the
+    // identity flex column caused the iPhone overflow and clipped status pills.
   };
 })();
 
