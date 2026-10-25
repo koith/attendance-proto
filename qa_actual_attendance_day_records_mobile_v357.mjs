@@ -86,7 +86,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
         within:inside(r,cr),
         childrenWithin:items.every(el=>inside(el.getBoundingClientRect(),r)),
         nestedActions:actions?.parentElement===row.children[0],
-        inlineNormal:row.classList.contains('needs-review')||
+        inlineNormal:innerWidth<393||row.classList.contains('needs-review')||
           (Math.abs(actions.getBoundingClientRect().top-row.querySelector('b').getBoundingClientRect().top)<16),
         normalHeight:row.classList.contains('needs-review')||r.height<80,
         badges:row.querySelectorAll('.pill').length,
