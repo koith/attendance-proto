@@ -70,6 +70,4 @@ jobs:
       - name: Execute real production function definitions with synthetic employee fixtures
         run: psql -v ON_ERROR_STOP=1 -f qa_attendance_consumer_timezone_postgres.sql
       - name: Verify human manager correction KST is not converted twice and duplicates are blocked
-        run: |
-          psql -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE qa_attendance_correction'
-          PGDATABASE=qa_attendance_correction psql -v ON_ERROR_STOP=1 -f qa_admin_correction_save_readback_postgres.sql
+        run: psql -v ON_ERROR_STOP=1 -f qa_admin_correction_save_readback_postgres.sql
