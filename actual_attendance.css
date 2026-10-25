@@ -311,7 +311,7 @@
   width:auto!important;text-align:left!important;margin:0;
 }
 .records-group .session .session-fix{
-  min-height:34px;padding:0 8px;font-size:.69rem;
+  min-height:34px;padding:0 6px;font-size:.66rem;
   white-space:nowrap;
 }
 .records-group .session .session-fix-hint{
@@ -328,7 +328,7 @@
 }
 .records-group .session .pill{
   margin:0;max-width:100%;white-space:nowrap;
-  font-size:.67rem;padding:3px 7px;
+  font-size:.64rem;padding:3px 5px;
 }
 .records-duplicate-notice{
   margin:4px 12px 12px;padding:10px 12px;
@@ -337,10 +337,10 @@
 }
 @media(max-width:520px){
   .records-group .session>div:first-child{
-    gap:3px 4px!important;
+    gap:3px 3px!important;
   }
   .records-group .session>div:first-child>b{font-size:.76rem}
-  .records-group .session>div:first-child .meta{font-size:.68rem}
+  .records-group .session>div:first-child .meta{font-size:.66rem}
 }
 @media(max-width:360px){
   .records-group .session{column-gap:4px!important}
