@@ -1,11 +1,21 @@
-# Read-only audit of previously configured Google OAuth secrets. No Apps Script, Sheets, or Drive writes.
+# Existing refresh grants only; no TinyFish, interactive login, mail, or operating writes.
 name: QA1243 existing Google OAuth compatibility (read-only)
 on:
   pull_request:
     paths:
       - '.github/workflows/qa1243-existing-google-oauth-probe.yml'
-      - 'scripts/qa1243_existing_google_credential_probe.mjs'
+      - 'scripts/qa1243_google_unattended_auth.mjs'
+      - 'qa/qa1243_google_unattended_auth.test.mjs'
+      - 'scripts/qa1243_resume_mail_connectivity.mjs'
+      - 'qa/qa1243_resume_mail_connectivity.test.mjs'
   workflow_dispatch:
+    inputs:
+      credential_action:
+        description: 'audit reads existing refresh grants and QA metadata; deploy updates only the exact existing QA deployment'
+        type: choice
+        options: [audit, deploy]
+        default: audit
+        required: true
 permissions:
   contents: read
 jobs:
@@ -18,17 +28,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --check scripts/qa1243_existing_google_credential_probe.mjs
-      - run: node --test qa/qa1243_google_mail_bridge.test.mjs
+      - run: node qa/qa1243_google_unattended_auth.test.mjs
+      - run: node qa/qa1243_resume_mail_connectivity.test.mjs
   legacy-credential-probe:
     needs: syntax
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/qa1243/probe-pr-merge-gate')
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
+    outputs:
+      deployed: ${{ steps.credential.outputs.deployed }}
     env:
+      QA1243_CREDENTIAL_ACTION: ${{ inputs.credential_action }}
+      QA1243_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID }}
+      QA1243_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET }}
+      QA1243_GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN }}
       GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
       GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
       GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+      QA1243_GCP_SERVICE_ACCOUNT_JSON: ${{ secrets.QA1243_GCP_SERVICE_ACCOUNT_JSON }}
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,5 +56,38 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Read-only OAuth identity and exact-scope audit
-        run: node scripts/qa1243_existing_google_credential_probe.mjs
+      - name: Inspect existing refresh grants or upgrade verified existing QA deployment
+        id: credential
+        run: |
+          node scripts/qa1243_google_unattended_auth.mjs
+          node --input-type=module <<'NODE'
+          import {readFileSync,appendFileSync} from 'node:fs';
+          const r=JSON.parse(readFileSync('qa-results/qa1243-unattended-auth.json','utf8'));
+          appendFileSync(process.env.GITHUB_OUTPUT,'deployed='+String(r.deployment?.status==='DEPLOYED')+'\n');
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa1243-unattended-auth-evidence
+          path: qa-results/qa1243-unattended-auth.json
+          if-no-files-found: error
+          retention-days: 30
+  verify-upgraded-deployment:
+    needs: legacy-credential-probe
+    if: needs.legacy-credential-probe.outputs.deployed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const {resumeMailConnectivity}=await import(`${process.env.GITHUB_WORKSPACE}/scripts/qa1243_resume_mail_connectivity.mjs`);
+            const result=await resumeMailConnectivity(github);
+            core.info(JSON.stringify(result));
+            await core.summary.addHeading('Actual QA GAS verification resume').addCodeBlock(JSON.stringify(result,null,2),'json').write();
