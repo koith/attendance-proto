@@ -19,7 +19,7 @@ assert.match(edge,/QA1243_SBX_/);
 assert.match(edge,/QA_SANDBOX_ISOLATION_REJECTED/);
 assert.ok(edge.indexOf('if(mode==="qa1243_sandbox_e2e"){')<edge.indexOf('if(mode==="deployment"){\n      // A trusted post-release workflow alone can bootstrap'),
   'No operating sync path may be called to perform QA writes');
-const qaBlock=edge.split('    if(mode==="qa1243_sandbox_e2e"){')[1].split('    if(mode==="deployment"){\n      // A trusted post-release workflow alone can bootstrap;')[0];
+const qaBlock=edge.split('    if(mode==="qa1243_sandbox_e2e"){')[1].split('    if(mode==="deployment"){\n      // A trusted post-release workflow alone can bootstrap')[0];
 assert.doesNotMatch(qaBlock,/client\.from\(|client\.rpc\(|client\.auth\.|SHEET_SHARED_SECRET\);/,'QA payload must not modify DB/Auth');
 assert.match(qaBlock,/const result=await googleWrite\(ym,payload,false,null,null,999999999,route\)/);
 assert.match(wf,/github\.event_name == 'push'/);
