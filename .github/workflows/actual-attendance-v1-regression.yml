@@ -37,6 +37,8 @@ jobs:
         run: node qa_actual_attendance_day_slices_v1.mjs
       - name: Actual attendance correction V1 QA
         run: node qa_actual_attendance_correction_v1.mjs
+      - name: Incident regression - 9h drift, repeated OUTs, iPhone correction layout
+        run: node qa_attendance_correction_double_timezone_mobile_20261026.mjs
       - name: Overnight correction and 26h+ timeline QA
         run: node qa_actual_attendance_overnight_fix_v1.mjs
       - name: Actual attendance anomaly V1 QA
