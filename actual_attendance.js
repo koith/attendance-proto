@@ -364,7 +364,7 @@ init();
     const initialIn=splitDateTime(source.in),initialOut=splitDateTime(source.out);
     inDate.value=initialIn.date;inTime.value=initialIn.time;outDate.value=initialOut.date;outTime.value=initialOut.time;
     const isWorking=source.status==='WORKING'&&!source.outId;
-    // Only a real attendance_events ID supports EDIT_TIME. A synthetic ADD
+    // Only an actual punched-event ID supports EDIT_TIME. A synthetic ADD
     // uses add_<correction_id> and Number('add_...') is NaN; the old code sent
     // null event IDs and encouraged repeated orphan/ADD attempts.
     const isAddedId=id=>/^add_\d+$/.test(String(id||''));
