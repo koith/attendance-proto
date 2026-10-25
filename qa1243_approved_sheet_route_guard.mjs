@@ -21,7 +21,7 @@ const context={Deno:{env:{get:key=>configs.get(key)}},
       resized_columns:1,verified_column_widths:12}})};},
  console,Error};
 vm.runInNewContext('class HttpError extends Error{constructor(status,message){super(message);this.status=status}}\n'+routeCode+'\n'+writeCode+
- ';globalThis.checkedRoute=approvedQaSheetRoute;globalThis.checkedWrite=googleWrite;',context);
+ ';globalThis.checkedRoute=approvedQaSheetRoute;globalThis.checkedStore01Route=approvedStore01SheetRoute;globalThis.checkedWrite=googleWrite;',context);
 const route=(id,store)=>context.checkedRoute(id,store);
 const store={code:'QA1243_705',name:'[QA #1243] TEST A'};
 const sections={header:['value'],rows:[['only-synthetic-data']]};
@@ -57,9 +57,29 @@ await context.checkedWrite('2026-10',payload,false,null,null,1,null);
 assert.equal(lastFetch.url,prodUrl,'Existing operating store remains routed to existing web app');
 assert.equal(lastFetch.body.secret,prodSecret);
 assert.equal(lastFetch.body.store_key,'705','Legacy behavior unchanged for operating store');
-assert.match(source,/if\(\["sync","parity"\]\.includes\(mode\)&&storeId!==1&&!qaRoute\)/,
+assert.match(source,/if\(\["sync","parity"\]\.includes\(mode\)&&storeId!==1&&!sheetRoute\)/,
   'Both write and parity must reject unapproved QA stores');
 assert.match(source,/\.select\("id,name,code,is_active,onboarding_status"\)/,
   'QA store code is fetched from server');
 assert.match(source,/if\(!actor.internal && actor.adminRole!=="HQ"/,'Existing manager authorization must survive');
+// Explicitly authorized real store 80: isolated workbook key on the existing
+// production Apps Script. No QA store or unrelated registered store may borrow it.
+const real=(id,store)=>context.checkedStore01Route(id,store);
+const realStore={code:'REAL_1',name:'1호점',onboarding_status:'READY',is_active:true};
+assert.equal(real(79,realStore),null,'Different store ID denied');
+assert.equal(real(81,realStore),null,'Other store denied');
+assert.equal(real(80,{...realStore,code:'QA1243_80'}),null,'QA store denied');
+assert.equal(real(80,{...realStore,name:'[QA #1243] fake'}),null,'Wrong store name denied');
+assert.equal(real(80,{...realStore,onboarding_status:'STAGED'}),null,'STAGED denied');
+assert.equal(real(80,{...realStore,is_active:false}),null,'Inactive denied');
+const approvedReal=real(80,realStore);
+assert.ok(approvedReal,'Exact READY and active store approved');
+assert.equal(approvedReal.storeKey,'STORE_80','Stable isolated ID, not shared source_store_key');
+assert.equal(approvedReal.url,prodUrl);
+lastFetch=null;
+await context.checkedWrite('2026-10',{...payload,store_key:'official_demo',store_name:'1호점'},false,null,null,80,approvedReal);
+assert.equal(lastFetch.url,prodUrl,'Approved real store uses operating Google account');
+assert.equal(lastFetch.body.store_key,'STORE_80','Never use reused official_demo key');
+assert.ok(source.includes('const sheetRoute=qaRoute||approvedStore01SheetRoute(storeId,store)'),
+ 'Explicit QA precedence and exact real store route');
 console.log('PASS #1243 QA opt-in store route: absent flags, wrong store/secret/URL, no fallback, isolated write, legacy unchanged (read/write network stubs only; NOT live Edge→Apps Script)');
