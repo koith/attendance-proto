@@ -542,9 +542,21 @@ jobs:
       - name: Parse HQ owner console before any Pages publication
         run: node --check hq_owner_console.js
       - name: Install HQ browser acceptance harness
+        timeout-minutes: 8
         run: |
+          set -euo pipefail
           npm install --no-save --no-audit --no-fund playwright@1.55.1
-          npx playwright install --with-deps chromium
+          # Avoid unconditional apt install-deps: Ubuntu runners commonly have
+          # Chromium dependencies already; apt metadata can stall for minutes.
+          # Keep the actual browser-launch acceptance mandatory.
+          npx playwright install chromium
+          if node -e 'require("playwright").chromium.launch({headless:true}).then(b=>b.close()).catch(()=>process.exit(1))'; then
+            echo "Chromium runtime launch: PASS (existing system libraries)"
+          else
+            timeout --kill-after=15s 240s npx playwright install-deps chromium
+            node -e 'require("playwright").chromium.launch({headless:true}).then(b=>b.close()).catch(e=>{console.error(e.message);process.exit(1)})'
+            echo "Chromium runtime launch: PASS (repaired system libraries)"
+          fi
       - name: Actual test UI version-button toggle (Chromium mobile and desktop)
         run: node qa_version_test_controls_browser_v1.mjs
       - name: Preproduction synthetic roster cleanup must preserve real payroll and attendance
@@ -839,9 +851,21 @@ jobs:
             sleep $((attempt * 15))
           done
       - name: Install Chromium acceptance harness
+        timeout-minutes: 8
         run: |
+          set -euo pipefail
           npm install --no-save --no-audit --no-fund playwright@1.55.1
-          npx playwright install --with-deps chromium
+          # Avoid unconditional apt install-deps: Ubuntu runners commonly have
+          # Chromium dependencies already; apt metadata can stall for minutes.
+          # Keep the actual browser-launch acceptance mandatory.
+          npx playwright install chromium
+          if node -e 'require("playwright").chromium.launch({headless:true}).then(b=>b.close()).catch(()=>process.exit(1))'; then
+            echo "Chromium runtime launch: PASS (existing system libraries)"
+          else
+            timeout --kill-after=15s 240s npx playwright install-deps chromium
+            node -e 'require("playwright").chromium.launch({headless:true}).then(b=>b.close()).catch(e=>{console.error(e.message);process.exit(1)})'
+            echo "Chromium runtime launch: PASS (repaired system libraries)"
+          fi
       - name: Exercise actual published mobile and desktop routes
         id: browser_health
         env:
