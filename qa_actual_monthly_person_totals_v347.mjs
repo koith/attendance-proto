@@ -70,8 +70,10 @@ assert.match(js,/staff_actual_attendance/,'staff mode maintains employee-specifi
 assert.match(js,/staffAuth\.employee_id/);
 assert.match(css,/\.monthly-work-summary\.manager>summary/);
 assert.match(css,/@media\(max-width:520px\)/);
-assert.match(html,/actual_attendance\.js\?v=20261019below349/);
-assert.match(html,/actual_attendance\.css\?v=20261019below349/);
+const jsAssetVersion=html.match(/actual_attendance\.js\?v=([A-Za-z0-9_-]+)/)?.[1];
+const cssAssetVersion=html.match(/actual_attendance\.css\?v=([A-Za-z0-9_-]+)/)?.[1];
+assert.ok(jsAssetVersion&&cssAssetVersion,'Shipped attendance JS and CSS need cache-busting versions');
+assert.equal(jsAssetVersion,cssAssetVersion,'JS/CSS must load from same release');
 const appMinor=Number(index.match(/const APP_VERSION="v0\.(\d+)";/)?.[1]);
 assert.ok(Number.isInteger(appMinor)&&appMinor>=349,'monthly hours must remain supported after v0.349');
 new Function(js);
