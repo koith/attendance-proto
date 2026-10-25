@@ -630,11 +630,12 @@ init();
   const baseDay=renderDay;
   renderDay=function(day){
     baseDay(day);
-    // Keep action buttons in their own full-width grid row, not inside the
-    // narrow employee identity cell (Safari clipped status pills and buttons).
+    // Restore the established compact horizontal row. Only a record with
+    // insufficient room may wrap; never force every record into two rows.
     document.querySelectorAll('.sessions .session').forEach(row=>{
       const actions=row.querySelector('.session-actions');
-      if(actions&&actions.parentElement!==row)row.appendChild(actions);
+      const identity=row.querySelector(':scope > div:first-child');
+      if(actions&&identity&&actions.parentElement!==identity)identity.appendChild(actions);
     });
   };
 })();
