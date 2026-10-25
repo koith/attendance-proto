@@ -43,12 +43,18 @@ assert.match(sql,/VALUES\(p_event_id,p_employee_id,p_action,p_new_at,p_new_type,
 assert.match(sql,/DUPLICATE_ATTENDANCE_CORRECTION/,'Server-side repeated ADD guard');
 assert.match(source,/alreadyHas\('OUT',nextOut,source\.outId\)/,'Browser blocks existing effective OUT');
 assert.match(source,/CORRECTION_TIME_MISMATCH/,'Post-write readback rejects nine-hour drift');
-assert.doesNotMatch(source,/row\.querySelector\(':scope > div:first-child'\)\?\.appendChild\(actions\)/,
- 'Buttons must remain directly under each session row');
+assert.match(source,/identity\.appendChild\(actions\)/,
+ 'Keep original horizontal employee-time-actions grouping');
 const css=fs.readFileSync('actual_attendance.css','utf8')+'\n'+fs.readFileSync('actual_attendance_correction.css','utf8');
-assert.match(css,/grid-column:1\/-1/,'Mobile action row spans both content columns');
-assert.match(css,/flex-wrap:wrap/,'Badges and buttons can wrap on small screens');
+const compact=css.slice(css.indexOf('/* v0.358: preserve original single-line'));
+assert.match(compact,/grid-template-columns:minmax\(0,1fr\) max-content!important/,
+ 'Restore original content-left, badges-right compact row');
+assert.doesNotMatch(compact,/grid-column:1\/-1;grid-row:2/,
+ 'No blanket forced second action row');
+assert.match(compact,/flex-flow:row wrap/,'Only genuinely tight records may wrap');
 const html=fs.readFileSync('actual_attendance.html','utf8');
-assert.match(html,/actual_attendance\.js\?v=20261026records358/,'Safari must refresh fixed browser JS');
-assert.match(html,/actual_attendance\.css\?v=20261026records358/,'Safari must refresh fixed layout CSS');
+const jsKey=html.match(/actual_attendance\.js\?v=([a-zA-Z0-9_-]+)/)?.[1];
+const cssKey=html.match(/actual_attendance\.css\?v=([a-zA-Z0-9_-]+)/)?.[1];
+assert.ok(jsKey&&jsKey===cssKey&&jsKey.startsWith('20261026compact'),
+ 'Safari loads same refreshed compact assets');
 console.log('PASS attendance correction: real-shaped duplicate fixture, append-only VOID_ADD recovery, correct shift/clock, server/UI guards and iPhone layout/cache');
