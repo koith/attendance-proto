@@ -9,20 +9,20 @@ AS $$ SELECT '{"email":"synthetic-manager@example.invalid"}'::jsonb $$;
 \ir supabase/migrations/20261026001000_fix_manager_correction_double_utc.sql
 DO $qa$
 DECLARE
- id bigint; added bigint; actual timestamp; kst timestamp; utc_clock timestamp;
+ v_correction_id bigint; added bigint; actual timestamp; kst timestamp; utc_clock timestamp;
  initial_events int;
 BEGIN
  PERFORM set_config('fixture.allowed_store','1',true);
  SELECT count(*) INTO initial_events FROM public.attendance_events;
  -- 13:08 KST must stay 13:08 for manager/PIN payroll/UI, and become 04:08
  -- in effective UTC for Sheets projection. Never subtract nine hours twice.
- id:=public.admin_correct_event('EDIT_TIME',4,931,
+ v_correction_id:=public.admin_correct_event('EDIT_TIME',4,931,
    timestamp '2026-10-12 13:08:00','OUT','QA corrected check-out');
  SELECT c.new_event_at,
    public.attendance_correction_effective_kst(c.new_event_at,c.created_by,c.created_at),
    public.attendance_correction_effective_utc(c.new_event_at,c.created_by,c.created_at)
  INTO actual,kst,utc_clock
- FROM public.event_corrections c WHERE c.id=id;
+ FROM public.event_corrections c WHERE c.id=v_correction_id;
  IF actual<>timestamp '2026-10-12 13:08' OR
     kst<>timestamp '2026-10-12 13:08' OR
     utc_clock<>timestamp '2026-10-12 04:08'
