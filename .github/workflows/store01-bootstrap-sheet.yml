@@ -1,0 +1,46 @@
+name: Store01 approved annual Sheets bootstrap
+
+on:
+  workflow_run:
+    workflows: ["Production payroll Edge deployment"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: store01-approved-sheet-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  store01-bootstrap:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bootstrap only the verified real 1호점 workbook via signed GitHub OIDC
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const audience = 'https://waluhdgqhwjjwmflhrle.supabase.co/functions/v1/server-sync-sheet';
+            const token = await core.getIDToken(audience);
+            const response = await fetch(audience, {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({mode: 'deployment'})
+            });
+            const result = await response.json().catch(() => null);
+            if (!response.ok || result?.ok !== true || result?.written !== true
+                || result?.store_id !== 80 || !result?.spreadsheet_id
+                || !/^https:\/\/docs\.google\.com\/spreadsheets\/d\//.test(result?.spreadsheet_url || '')) {
+              core.setFailed('STORE01_BOOTSTRAP_NOT_VERIFIED: status=' + response.status
+                + ' error=' + String(result?.error || 'MISSING_RECEIPT').slice(0, 150));
+              return;
+            }
+            core.info('STORE01_SHEET_ID=' + result.spreadsheet_id);
+            core.info('STORE01_SHEET_URL=' + result.spreadsheet_url);
+            core.info('STORE01_STATUS=BOOTSTRAP_WRITTEN');
