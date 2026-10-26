@@ -13,9 +13,43 @@ if(hash.get("type")==="recovery"&&token&&refresh){
 }
 history.replaceState(null,"",location.pathname);
 const status=document.getElementById("status"),form=document.getElementById("activateForm");
+const resendForm=document.getElementById("recoveryResendForm");
 if(error||!token){
  form.hidden=true;
- status.textContent=error||"초대 인증 정보가 없습니다. 본사 초대 이메일의 최신 링크를 다시 열어주세요.";
+ resendForm.hidden=false;
+ const suggested=new URLSearchParams(location.search).get("email");
+ if(suggested&&suggested.length<=254)document.getElementById("recoveryEmail").value=suggested;
+ status.textContent=error?"인증 링크가 만료되었거나 이미 사용되었습니다. 아래에서 새 인증 메일을 받으세요.":"유효한 인증 링크가 없습니다. 점주 이메일로 새 인증 메일을 요청할 수 있습니다.";
+ resendForm.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const address=document.getElementById("recoveryEmail").value.trim().toLowerCase();
+  const button=document.getElementById("resendRecovery");
+  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(address)||address.length>254){
+   status.textContent="이메일 주소를 확인하세요.";return;
+  }
+  button.disabled=true;status.textContent="새 인증 메일을 요청하고 있습니다.";
+  try{
+   const source=await fetch("./index.html",{cache:"no-cache"}).then(r=>{
+    if(!r.ok)throw Error("APP_CONFIG_UNAVAILABLE");return r.text();
+   });
+   const url=source.match(/SUPABASE_URL:\\s*"(https:\\/\\/[^"]+)"/)?.[1];
+   const key=source.match(/SUPABASE_ANON_KEY:\\s*"([^"]+)"/)?.[1];
+   if(!url||!key)throw Error("APP_CONFIG_UNAVAILABLE");
+   const redirect="https://koith.github.io/attendance-proto/owner_activation.html";
+   const response=await fetch(url+"/auth/v1/recover?redirect_to="+encodeURIComponent(redirect),{
+    method:"POST",
+    headers:{apikey:key,"Content-Type":"application/json"},
+    body:JSON.stringify({email:address})
+   });
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok)throw Error(result.code||result.error_code||result.error||response.status);
+   status.textContent="새 인증 메일을 요청했습니다. 받은편지함 또는 스팸함에서 가장 최근에 도착한 메일의 링크를 열어주세요.";
+   resendForm.hidden=true;
+  }catch(ex){
+   status.textContent="메일 요청 실패: "+String(ex.message||ex)+". 잠시 뒤 다시 시도해 주세요.";
+   button.disabled=false;
+  }
+ });
  return;
 }
 let config;
