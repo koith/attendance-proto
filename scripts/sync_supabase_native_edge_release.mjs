@@ -11,7 +11,8 @@ const src=path.join(root,'supabase/functions/server-sync-sheet');
 const output=path.join(root,'edge-release/supabase/functions/server-sync-sheet');
 const base=path.join(root,'edge-release/supabase');
 const names=['index.ts','engine.mjs','payroll_policy.mjs',
- 'sheet_minute_reconciliation.mjs','sheet_working_payable.mjs'];
+ 'sheet_minute_reconciliation.mjs','sheet_working_payable.mjs',
+ 'owner_invitation_email.mjs'];
 const args=process.argv.slice(2);
 assert.ok(args.length===0||(args.length===1&&['--check','--sync'].includes(args[0])),
  'Only --check or --sync is supported');
@@ -34,4 +35,4 @@ for(const name of names){
 const entries=fs.readdirSync(output).sort();
 assert.deepEqual(entries,names.slice().sort(),'Unexpected function dependency in release mirror');
 console.log((sync?'SYNCHRONIZED':'PASS')+
- ' tokenless native Supabase Edge mirror: 5 exact files, no historical migrations, no secrets');
+ ' tokenless native Supabase Edge mirror: '+names.length+' exact files, no historical migrations, no secrets');
