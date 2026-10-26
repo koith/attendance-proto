@@ -155,7 +155,7 @@ GRANT EXECUTE ON FUNCTION public.store_owner_temp_complete(text) TO authenticate
 CREATE OR REPLACE FUNCTION public.hq_store_owner_temp_pending_list()
  RETURNS TABLE(store_id bigint,email text,expires_at timestamptz)
  LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public','pg_temp'
-AS $
+AS $$
  SELECT c.store_id,c.email,c.expires_at
  FROM public.store_owner_temp_first_logins c
  WHERE EXISTS (
@@ -165,7 +165,7 @@ AS $
     AND NOT u.is_anonymous AND (u.banned_until IS NULL OR u.banned_until<now())
  )
  ORDER BY c.store_id;
-$;
+$$;
 REVOKE ALL ON FUNCTION public.hq_store_owner_temp_pending_list() FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.hq_store_owner_temp_pending_list() TO authenticated;
 
