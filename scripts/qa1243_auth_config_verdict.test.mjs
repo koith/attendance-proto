@@ -171,7 +171,7 @@ const activation=readFileSync(new URL('../owner_activation.js',import.meta.url),
 async function pageCase(change={}){
  const state={preflight:{ok:true,store_id:701,intended_role:'OWNER'},
   accepted:{ok:true,store_id:701,owner_assigned:true},context:{role:'STORE_MANAGER',store_id:701},...change};
- const elements=Object.fromEntries(['status','activateForm','password','repeat','confirm','recoveryResendForm','recoveryEmail','resendRecovery'].map(id=>[id,{hidden:false,disabled:false,textContent:'',value:''}]));
+ const elements=Object.fromEntries(['status','activateForm','password','repeat','confirm','recoveryResendForm','recoveryEmail','resendRecovery'].map(id=>[id,{hidden:false,disabled:false,textContent:'',value:'',addEventListener(type,callback){this[type]=callback}}]));
  const calls=[],stored=[],redirects=[],scrubbed=[];
  const source='SUPABASE_URL: "https://synthetic.invalid", SUPABASE_ANON_KEY: "public-synthetic-key"';
  const reply=(data,ok=true,status=ok?200:422)=>({ok,status,json:async()=>data,text:async()=>source});
