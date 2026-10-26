@@ -99,8 +99,8 @@ try{
       await page.waitForURL(base+'/index.html?mode=store&store=701#pos');
       assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('baekeok_auth')).access_token),'synthetic-token');
       if(scenario==='native-owner-activation'){
-       assert.equal(calls.filter(x=>x==='/native_owner_invitation_complete').length,1);
-       assert.equal(calls.some(x=>x==='/store_primary_owner_accept_invitation'),false);
+       assert.equal(calls.filter(x=>x.endsWith('/native_owner_invitation_complete')).length,1);
+       assert.equal(calls.some(x=>x.endsWith('/store_primary_owner_accept_invitation')),false);
       }
      }
     }
