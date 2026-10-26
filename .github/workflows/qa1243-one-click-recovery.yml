@@ -87,8 +87,8 @@ jobs:
           import assert from 'node:assert/strict';
           import {readFileSync} from 'node:fs';
           const index=readFileSync('index.html','utf8');
-          const origin=index.match(/SUPABASE_URL:\\s*"(https:\\/\\/[^"]+)"/)?.[1];
-          const anon=index.match(/SUPABASE_ANON_KEY:\\s*"([^"]+)"/)?.[1];
+          const origin=index.match(/SUPABASE_URL:\s*"(https:\/\/[^"]+)"/)?.[1];
+          const anon=index.match(/SUPABASE_ANON_KEY:\s*"([^"]+)"/)?.[1];
           assert.equal(origin,'https://waluhdgqhwjjwmflhrle.supabase.co');
           assert.ok(anon,'PUBLIC_ANON_NOT_FOUND');
           const redirect='https://koith.github.io/attendance-proto/owner_activation.html';
