@@ -10,8 +10,30 @@ const description=document.getElementById("storeDescription");
 const callback=new URLSearchParams(location.hash.slice(1));
 const recoverySession=callback.get("type")==="recovery"&&callback.get("access_token")&&callback.get("refresh_token")
  ? {access_token:callback.get("access_token"),refresh_token:callback.get("refresh_token")} : null;
+const pendingKey="baekeok_owner_activation_pending_v1";
+const pendingLifetime=60*60*1000;
+const forgetPending=()=>{try{sessionStorage.removeItem(pendingKey);}catch{}};
+const pending=(()=>{
+ try{
+  const entry=JSON.parse(sessionStorage.getItem(pendingKey)||"null");
+  if(entry?.version===1&&typeof entry.session?.access_token==="string"&&
+    Number.isFinite(entry.deadline)&&entry.deadline>Date.now()&&
+    entry.deadline<=Date.now()+pendingLifetime)return entry;
+ }catch{}
+ forgetPending();return null;
+})();
+let saved=recoverySession||pending?.session||(()=>{try{return JSON.parse(localStorage.getItem("baekeok_auth")||"null")}catch{return null}})();
+let ownerBoundary=recoverySession?null:pending?.owner||null;
+let pendingDeadline=recoverySession?Date.now()+pendingLifetime:pending?.deadline||Date.now()+pendingLifetime;
+function rememberPending(){
+ if(!saved?.access_token)return;
+ try{sessionStorage.setItem(pendingKey,JSON.stringify({version:1,deadline:pendingDeadline,
+  session:{access_token:saved.access_token,refresh_token:saved.refresh_token},owner:ownerBoundary}));}catch{}
+}
+// Keep the redeemed session in this tab before removing the one-use URL.
+// Never replace an existing HQ/main-app session before verified owner login.
+if(recoverySession)rememberPending();
 if(recoverySession)history.replaceState(null,"",location.pathname);
-const saved=recoverySession||(()=>{try{return JSON.parse(localStorage.getItem("baekeok_auth")||"null")}catch{return null}})();
 if(!saved?.access_token){
  status.textContent="로그인 정보가 없습니다. 점주 개통 메일 또는 비밀번호 재설정 메일의 최신 링크를 열어주세요.";
  return;
@@ -31,23 +53,48 @@ try{
 }
 const call=async(path,method,body,token)=>{
  const headers={apikey:cfg.key,"Content-Type":"application/json",
-  Authorization:"Bearer "+String(token||saved.access_token)};
+  ...(token===false?{}:{Authorization:"Bearer "+String(token||saved.access_token)})};
  const r=await fetch(cfg.url+path,{method,headers,...(body===undefined?{}:{body:JSON.stringify(body)})});
  const data=await r.json().catch(()=>({}));
- if(!r.ok)throw Error(String(data.message||data.msg||data.error_description||data.code||r.status));
+ if(!r.ok){const error=Error(String(data.message||data.msg||data.error_description||data.code||r.status));error.status=r.status;throw error;}
  return data;
 };
-try{
+async function verifyOwner(){
  identity=await call("/auth/v1/user","GET",undefined);
+ if(ownerBoundary?.user_id&&identity?.id!==ownerBoundary.user_id)
+   throw Error("TEMP_OWNER_IDENTITY_MISMATCH");
  claim=await call("/rest/v1/rpc/store_owner_temp_preflight","POST",{});
  if(claim?.ok!==true||claim?.password_change_required!==true||
    !Number.isSafeInteger(Number(claim.store_id))||Number(claim.store_id)<=0||
-   String(identity?.email||"").toLowerCase()!==String(claim.email||"").toLowerCase())
+   String(identity?.email||"").toLowerCase()!==String(claim.email||"").toLowerCase()||
+   (ownerBoundary?.store_id&&Number(ownerBoundary.store_id)!==Number(claim.store_id)))
     throw Error("TEMP_OWNER_IDENTITY_MISMATCH");
+ ownerBoundary={user_id:identity.id,store_id:Number(claim.store_id)};
+ pendingDeadline=Math.min(pendingDeadline,Date.parse(claim.expires_at));
+ if(!Number.isFinite(pendingDeadline)||pendingDeadline<=Date.now())throw Error("TEMP_OWNER_CREDENTIAL_EXPIRED");
+ rememberPending();
+}
+async function refreshOwnerSession(){
+ if(!saved?.refresh_token)throw Error("OWNER_SESSION_EXPIRED");
+ const fresh=await call("/auth/v1/token?grant_type=refresh_token","POST",{refresh_token:saved.refresh_token},false);
+ const expected=ownerBoundary?.user_id||identity?.id;
+ if(!fresh?.access_token||!fresh?.refresh_token||!fresh.user?.id||
+   (expected&&fresh.user.id!==expected))throw Error("TEMP_OWNER_IDENTITY_MISMATCH");
+ saved={access_token:fresh.access_token,refresh_token:fresh.refresh_token};
+ rememberPending();
+}
+try{
+ try{await verifyOwner();}
+ catch(error){
+  if(error.status!==401)throw error;
+  try{await refreshOwnerSession();}catch(refreshError){forgetPending();throw refreshError;}
+  await verifyOwner();
+ }
  description.textContent=claim.email+" · 지점 번호 "+claim.store_id+" · 임시 비밀번호 만료 "+new Date(claim.expires_at).toLocaleString("ko-KR");
  status.textContent="본인 비밀번호를 설정하면 지점 대표 관리자 권한이 활성화됩니다.";
  form.hidden=false;
 }catch(e){
+ if(e?.status===401||/TEMP_OWNER_|NO_TEMP_OWNER_INVITATION|AUTH_IDENTITY|OWNER_SESSION_EXPIRED/.test(String(e?.message||e)))forgetPending();
  status.textContent="최초 로그인 활성화 불가: "+String(e?.message||e)+". 만료되었거나 초대가 없으면 본사에 재발급을 요청하세요.";
 }
 form.addEventListener("submit",async event=>{
@@ -83,6 +130,7 @@ form.addEventListener("submit",async event=>{
   if(context?.role!=="STORE_MANAGER"||Number(context.store_id)!==Number(claim.store_id))
     throw Error("STORE_OWNER_ROLE_NOT_VERIFIED");
   localStorage.setItem("baekeok_auth",JSON.stringify(session));
+  forgetPending();
   status.textContent="대표 관리자 등록 완료. 지점 개통은 본사 승인이 필요합니다.";
   location.replace("./index.html?mode=store&store="+encodeURIComponent(claim.store_id)+"#pos");
  }catch(e){

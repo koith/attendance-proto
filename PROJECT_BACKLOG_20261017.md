@@ -774,3 +774,13 @@
 - **동시 main 변화 및 실제 판정 결함:** #1333/Issue1331이 main2217d87ad90ccc753d9e700bcac823e585ca8fc4로 병합하며 Google39981309610을 새로 실행. 이 #1243 작업자가 dispatch한 실행이 아니며 NO_GOOGLE_RERUN 표지 누락으로 실행된 실제 최초오류는 oauth2/v3 HTTP401, Script/Sheets 쓰기 전. 기존39781031886 성공과 runner/Edge/GAS 불변 증거는 유지. 최신 workflow가 FAILURE이면 기존 reader가 자격 preflight 로그를 확인하기도 전에 반환하는 별도 결함을 재현·수정. 정확히 알려진401/토큰만료+immutable runner+실제성공/조상 증거일 때만재사용; 미확인/취소·실제GAS/Sheets/변경source는계속FAIL. 새 회귀 PASS. 로컬 추가 실조회는 Azure 서명로그 저장소에 대한 fetch 제약이 있어 성공으로 표시하지 않으며, 승인 GitHub연결로 같은 실제로그를 확인했고 병합 후 Actions 읽기 전용 게이트에서 최종검증한다. 새 코드로 Google/OAuth/E2E·Pages를 다시 실행하지 않음.
 - **보호9그룹 전후 완전 일치:** stores244/HQ3/INHAemployees10/기존attendance236(id≤5578)/payroll0/inventory5/transactions3323/recipeOverrides0/recipeVariants245. HQ digest6112d7a3700c07bdcbb6479149dc21bd. 관리자 전체4(HQ3+기존STORE_MANAGER1)는 별도 보존. 이번 작업의 운영 DML/실초대/계정·권한/READY/SEC01/기존Sheet writer0; 모든 Sheet 셀 hash까지 새로 확인했다고 확대하지 않음.
 - **완료와 대기 구분:** 이번 초대 재시도 코드·격리QA·실제웹배포는 완료. 운영 Auth 네 설정 적용/변경후 감사, 승인 수신자의 새 한국어메일→수락→비밀번호→실제관리자 로그인, SEC01 운영승인·실기기, 실제지점·점주·READY개통승인/대상전후증빙은 미완료. POS·배달·공급사·장바구니·실판매수량 어댑터는 개통후 추가개발/실자료검증으로 유지하며 새 개통필수조건으로 추가하지 않음. **전체38/완료19/잔여19(개통전7·본인확인/승인2·개통후10)**, 신규 전체완료 ID0. 최종8항목 개별결과·새PR/CI/병합 SHA는 #1243 최신 연결 댓글로 확정하며 실제 Hosted 인증 미검증 상태에서 GO로 바꾸지 않는다.
+
+
+## 81. 2026-10-26 — Codex 재개·최초 점주 로그인 복구·최신 개통 상태
+
+- 최신 기준 main3f3d5cdd/v0.363(PR1392·82workflow/Pages40341823100)은 재사용. 과거v0.358 로컬수정은백업하고 최신main에서재개했다. 근무현황·중복정정은PR1381/1383·v0.360·VOID_ADD124/125로이미완료, 실제DB에서ADD108/109취소와원본5590/EDIT_TIME107보존을확인해반복하지않았다.
+- **새 실제 결함 수정:** 일회용recovery링크소비후새로고침/초기통신실패시인증이사라져진행불가하던2건을수정전FAIL재현했다. 한탭에토큰만최대1시간보존하고 실제Auth사용자/서버초대·동일지점을재검증한다. 취소/만료/다른사용자·지점은실패및캐시제거. access만료는refresh1회만허용하고갱신사용자도동일해야한다. 비밀번호저장0, 기존HQ세션교체는실제권한+새비밀번호로그인성공후에만수행.
+- **코드QA:** 새session복구9/기존password재시도4/정적운영무쓰기배포범위4 =17PASS. 기존임시점주보안계약·Google/Pages무쓰기guard·YAML/diff PASS. 실제메일송수신/개인비밀번호/실점주세션PASS와구분한다. 배포후운영자산해시/신규3개파일공개바이트확인절차를기존정적Pages/독립검증에연결했다.
+- **읽기전용실상태:** store80 REAL_1 STAGED/비활성, admin_users0/primary_owners0. 실제점주의유효링크수신·본인비밀번호확정·실로그인/대표등록 및 HQ개통승인은미완료다. PR1365의READY/대표확정가정은현재DB와달라최신Edge재대조전병합/실Sheets생성을실행하지않는다. PR1361대체GAS메일경로403미완료를Native Auth실메일상태와혼동하지않음.
+- 후보버전v0.364, 실제PR/CI/병합/배포증거는Issue1243후속체크포인트로확정. 운영DB쓰기·실초대/권한/READY/SEC01·기존Sheets변경0. TinyFish/결제/완료Google E2E재실행0.
+- 실제수용조건이남아전체38/완료19/잔여19유지, 전체완료체크0. 기술준비/실인증·승인/개통후추가자동화를 `docs/qa1243-owner-opening-readiness.md`에분리했다.

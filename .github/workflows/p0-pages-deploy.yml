@@ -302,6 +302,12 @@ jobs:
               core.info('AI1331 automation-only scope verified; operating jobs remain skipped');
               return;
             }
+            if(releaseMessage.includes('[QA1243-TEMP-OWNER-PAGES]')){
+              const {assertTempOwnerRelease}=await import(process.cwd()+'/scripts/qa1243_temp_owner_release.mjs');
+              assertTempOwnerRelease(diff.files,releaseMessage);
+              core.info('Reviewed temporary-owner static release: no operating Sheet writes');
+              return;
+            }
             const safeAppRelease=releaseMessage.includes('[QA1243-APP-PAGES]');
             const safeCostRelease=releaseMessage.includes('[QA1243-COST-PAGES]');
             const safeActivationRelease=releaseMessage.includes('[QA1243-ACTIVATION-PAGES]');
@@ -697,7 +703,9 @@ jobs:
       - name: Capture unchanged operating public asset digests before safe app release
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-ACTIVATION-PAGES]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-TEMP-OWNER-PAGES]') }}" == "true" ]]; then
+            node scripts/qa1243_temp_owner_pages_smoke.mjs --before
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-ACTIVATION-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_activation_pages_smoke.mjs --before
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-COST-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_material_cost_pages_smoke.mjs --before
@@ -719,7 +727,9 @@ jobs:
       - name: Confirm public v0.354 HQ readiness UI and unchanged other operating assets
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-ACTIVATION-PAGES]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-TEMP-OWNER-PAGES]') }}" == "true" ]]; then
+            node scripts/qa1243_temp_owner_pages_smoke.mjs --after
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-ACTIVATION-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_activation_pages_smoke.mjs --after
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-COST-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_material_cost_pages_smoke.mjs --after
