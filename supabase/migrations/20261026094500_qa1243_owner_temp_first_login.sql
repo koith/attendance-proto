@@ -169,4 +169,51 @@ $$;
 REVOKE ALL ON FUNCTION public.hq_store_owner_temp_pending_list() FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.hq_store_owner_temp_pending_list() TO authenticated;
 
+
+-- Re-onboard an EXISTING confirmed mailbox when the store's prior manager
+-- appointment has already been safely removed. Preserve its immutable Auth UID.
+CREATE OR REPLACE FUNCTION public.service_store_owner_temp_existing_lookup(
+ p_store_id bigint,p_email text,p_actor_id uuid
+) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path TO 'public','pg_temp'
+AS $existing$
+DECLARE v_uid uuid;v_email text;v_state text;v_active boolean;
+BEGIN
+ IF coalesce(auth.jwt()->>'role','') <> 'service_role' THEN RAISE EXCEPTION 'SERVICE_ONLY'; END IF;
+ IF p_store_id IS NULL OR p_store_id<=0 OR p_email IS NULL OR p_actor_id IS NULL THEN
+   RAISE EXCEPTION 'INVALID_EXISTING_OWNER_LOOKUP';
+ END IF;
+ IF NOT EXISTS(
+  SELECT 1 FROM public.admin_users a JOIN auth.users u ON u.id=a.user_id
+  WHERE a.user_id=p_actor_id AND a.admin_role='HQ'
+   AND u.email_confirmed_at IS NOT NULL AND u.deleted_at IS NULL
+   AND NOT u.is_anonymous AND (u.banned_until IS NULL OR u.banned_until<now())
+ ) THEN RAISE EXCEPTION 'HQ_ONLY'; END IF;
+ SELECT s.onboarding_status,s.is_active INTO v_state,v_active
+ FROM public.stores s WHERE s.id=p_store_id;
+ IF NOT FOUND OR v_state<>'STAGED' OR v_active IS DISTINCT FROM false THEN
+   RAISE EXCEPTION 'STAGED_STORE_REQUIRED';
+ END IF;
+ IF EXISTS(SELECT 1 FROM public.store_primary_owners WHERE store_id=p_store_id)
+  OR EXISTS(SELECT 1 FROM public.store_primary_owner_invitation_intents WHERE store_id=p_store_id)
+  OR EXISTS(SELECT 1 FROM public.store_owner_temp_first_logins WHERE store_id=p_store_id)
+ THEN RAISE EXCEPTION 'OWNER_ALREADY_ASSIGNED'; END IF;
+ v_email:=lower(btrim(p_email));
+ SELECT u.id INTO v_uid FROM auth.users u
+ WHERE lower(btrim(u.email))=v_email AND u.email_confirmed_at IS NOT NULL
+   AND u.deleted_at IS NULL AND NOT u.is_anonymous
+   AND (u.banned_until IS NULL OR u.banned_until<now())
+   AND coalesce(length(u.encrypted_password),0)>0;
+ IF v_uid IS NULL THEN RAISE EXCEPTION 'EXISTING_CONFIRMED_AUTH_NOT_FOUND'; END IF;
+ IF EXISTS(SELECT 1 FROM public.admin_users WHERE user_id=v_uid)
+  OR EXISTS(SELECT 1 FROM public.store_primary_owners WHERE user_id=v_uid)
+  OR EXISTS(SELECT 1 FROM public.store_primary_owner_invitation_intents WHERE user_id=v_uid)
+  OR EXISTS(SELECT 1 FROM public.store_owner_temp_first_logins WHERE user_id=v_uid)
+ THEN RAISE EXCEPTION 'ACCOUNT_ALREADY_ASSIGNED'; END IF;
+ RETURN jsonb_build_object('ok',true,'user_id',v_uid,'store_id',p_store_id,'email',v_email);
+END;
+$existing$;
+REVOKE ALL ON FUNCTION public.service_store_owner_temp_existing_lookup(bigint,text,uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.service_store_owner_temp_existing_lookup(bigint,text,uuid) TO service_role;
+
 COMMIT;
