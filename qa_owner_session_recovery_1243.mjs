@@ -74,13 +74,13 @@ function setup({refresh='saved-refresh',email='owner@example.test',role='STORE_M
 }
 // An existing session for another email does not permit password modification.
 {
- const app=setup({email:'other@example.test'});await app.submit('recover');await app.submit('change');
- assert.equal(app.puts(),0);assert.match(app.ids.status.textContent,/다른 계정/);
+ const app=setup({email:'other@example.test'});await app.submit('recover');
+ assert.match(app.ids.status.textContent,/다른 계정/);await app.submit('change');assert.equal(app.puts(),0);
 }
 // Valid user outside the owner store is denied even if Auth session refresh succeeds.
 {
- const app=setup({role:'HQ'});await app.submit('recover');await app.submit('change');
- assert.equal(app.puts(),0);assert.match(app.ids.status.textContent,/1호점 관리자 권한/);
+ const app=setup({role:'HQ'});await app.submit('recover');
+ assert.match(app.ids.status.textContent,/1호점 관리자 권한/);await app.submit('change');assert.equal(app.puts(),0);
 }
 {
  const app=setup({store:1});await app.submit('recover');await app.submit('change');
