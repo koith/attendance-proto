@@ -7,9 +7,13 @@ const status=document.getElementById("status");
 const form=document.getElementById("firstLoginForm");
 const button=document.getElementById("confirm");
 const description=document.getElementById("storeDescription");
-const saved=(()=>{try{return JSON.parse(localStorage.getItem("baekeok_auth")||"null")}catch{return null}})();
+const callback=new URLSearchParams(location.hash.slice(1));
+const recoverySession=callback.get("type")==="recovery"&&callback.get("access_token")&&callback.get("refresh_token")
+ ? {access_token:callback.get("access_token"),refresh_token:callback.get("refresh_token")} : null;
+if(recoverySession)history.replaceState(null,"",location.pathname);
+const saved=recoverySession||(()=>{try{return JSON.parse(localStorage.getItem("baekeok_auth")||"null")}catch{return null}})();
 if(!saved?.access_token){
- status.textContent="로그인 정보가 없습니다. 먼저 지점 관리자 로그인 화면에서 이메일과 임시 비밀번호로 로그인하세요.";
+ status.textContent="로그인 정보가 없습니다. 점주 개통 메일 또는 비밀번호 재설정 메일의 최신 링크를 열어주세요.";
  return;
 }
 let cfg=null, identity=null, claim=null;
