@@ -8,7 +8,7 @@ const js=readFileSync(new URL('../owner_activation.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('../owner_activation.html',import.meta.url),'utf8');
 const mail=readFileSync(new URL('../supabase/email-templates/recovery.html',import.meta.url),'utf8');
 const url='https://waluhdgqhwjjwmflhrle.supabase.co';
-const hash='a'.repeat(64);
+const hash='a'.repeat(56);
 const publicCfg='SUPABASE_URL: "'+url+'", SUPABASE_ANON_KEY: "test-public-anon"';
 
 function browser({token=hash,verifyStatus=200,invalidConfig=false}={}){
@@ -59,6 +59,13 @@ test('one click redeems OTP via POST and enters existing first-login page',async
  assert.equal(saved.owner,null);
  assert.equal(saved.session.access_token,'synthetic-access');
  assert.ok(saved.deadline>Date.now());
+});
+
+test('valid 64-character provider token hash also redeems by POST',async()=>{
+ const b=browser({token:'b'.repeat(64)});
+ await b.done;
+ assert.equal(b.location.replaced,'./owner_temp_activation.html');
+ assert.equal(b.requests[1].method,'POST');
 });
 
 test('invalid token fails closed without network verification or any resend',async()=>{
