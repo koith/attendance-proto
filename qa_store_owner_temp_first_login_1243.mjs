@@ -38,7 +38,7 @@ assert.match(sql,/TEMP_OWNER_CREDENTIAL_EXPIRED/);
 assert.match(sql,/PERSONAL_PASSWORD_NOT_VERIFIED/);
 assert.match(sql,/length\(p_new_password\)<12/);
 assert.match(sql,/extensions\.crypt\(p_new_password,v_auth\.encrypted_password\)/);
-const complete=sql.split("CREATE OR REPLACE FUNCTION public.store_owner_temp_complete()")[1].split("COMMIT;")[0];
+const complete=sql.split("CREATE OR REPLACE FUNCTION public.store_owner_temp_complete(p_new_password text)")[1].split("COMMIT;")[0];
 assert.ok(complete.indexOf("v_auth.encrypted_password=v_claim.temporary_auth_hash")<
   complete.indexOf("INSERT INTO public.admin_users"),"cannot grant admin role before genuine credential change");
 assert.ok(complete.indexOf("INSERT INTO public.admin_users")<
