@@ -7,6 +7,7 @@ CREATE SCHEMA IF NOT EXISTS auth;
 CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql
 AS $$ SELECT '{"email":"synthetic-manager@example.invalid"}'::jsonb $$;
 \ir supabase/migrations/20261026001000_fix_manager_correction_double_utc.sql
+\ir supabase/migrations/20261026015000_prevent_duplicate_effective_attendance_add.sql
 DO $qa$
 DECLARE
  v_correction_id bigint; added bigint; actual timestamp; kst timestamp; utc_clock timestamp;
@@ -27,6 +28,23 @@ BEGIN
     kst<>timestamp '2026-10-12 13:08' OR
     utc_clock<>timestamp '2026-10-12 04:08'
  THEN RAISE EXCEPTION 'DOUBLE_TIMEZONE_CONVERSION actual=% kst=% utc=%',actual,kst,utc_clock; END IF;
+ -- An existing OUT edited to 13:08 is an effective punch. The first
+ -- competing ADD must be rejected, not only the second repeated ADD.
+ BEGIN
+   PERFORM public.admin_correct_event('ADD',null,931,
+     timestamp '2026-10-12 13:08','OUT','QA duplicate corrected raw OUT');
+   RAISE EXCEPTION 'DUPLICATE_EDITED_RAW_ALLOWED';
+ EXCEPTION WHEN raise_exception THEN
+   IF SQLERRM <> 'DUPLICATE_ATTENDANCE_CORRECTION' THEN RAISE; END IF;
+ END;
+ -- An untouched source IN is equally authoritative (10:57 UTC=19:57 KST).
+ BEGIN
+   PERFORM public.admin_correct_event('ADD',null,930,
+     timestamp '2026-10-12 19:57','IN','QA duplicate original raw IN');
+   RAISE EXCEPTION 'DUPLICATE_ORIGINAL_RAW_ALLOWED';
+ EXCEPTION WHEN raise_exception THEN
+   IF SQLERRM <> 'DUPLICATE_ATTENDANCE_CORRECTION' THEN RAISE; END IF;
+ END;
  -- A failed/uncertain network response must not allow repeated ADD at same
  -- employee + type + wallclock to manufacture multiple orphan sessions.
  added:=public.admin_correct_event('ADD',null,931,
