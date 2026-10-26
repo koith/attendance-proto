@@ -39,7 +39,7 @@ const redirectStep=activation.indexOf('location.replace("index.html?mode=store')
 assert.ok(preflightStep>=0 && preflightStep<passwordStep && passwordStep<acceptStep && acceptStep<contextStep && contextStep<redirectStep);
 assert.match(activation,/acceptedResponse\.ok\|\|accepted\?\.ok!==true/);
 assert.match(activation,/Number\(accepted\.store_id\)!==storeId/);
-assert.match(page,/owner_activation\.js\?v=20261023v356/);
+assert.match(page,/owner_activation\.js\?v=20261026v362/);
 
 // HQ must display pending vs appointed separately, with no second manual click.
 assert.match(hq,/rpc\("hq_store_primary_owner_invitation_list"\)/);
