@@ -42,6 +42,13 @@ assert.match(edge,/crypto\.getRandomValues\(new Uint8Array\(32\)\)/);
 assert.match(edge,/client\.auth\.admin\.createUser/);
 assert.doesNotMatch(edge,/client\.auth\.admin\.updateUserById/);
 assert.ok(edge.includes('delivery:"AUTH_RECOVERY_ACCEPTED"'));
+assert.match(edge,/OWNER_INVITE_USE_RESEND/);
+assert.match(edge,/AUTH_INVITE_ACCEPTED/);
+assert.match(hq,/AUTH_INVITE_ACCEPTED/);
+assert.match(edge,/dispatchInvitation\(email,storeId,actor\.userId,"HQ_OWNER"\)/);
+assert.match(edge,/service_store_manager_attach_invited_user/);
+assert.ok(edge.indexOf('Deno.env.get("OWNER_INVITE_USE_RESEND")!=="true"')<
+  edge.indexOf('Deno.env.get("RESEND_API_KEY")'),"native invite must be default before optional Resend gate");
 assert.ok(edge.includes("/auth/v1/recover?redirect_to="));
 assert.ok(hq.includes("AUTH_RECOVERY_ACCEPTED"));
 assert.ok(js.includes("recoverySession"));
