@@ -12,7 +12,7 @@ const css=fs.readFileSync('actual_attendance.css','utf8')+'\n'+
 assert.doesNotMatch(js,/row\.querySelector\(':scope > div:first-child'\)\?\.appendChild\(actions\)/,
  'Actions must not be relocated inside employee names');
 assert.match(js,/actions\.parentElement!==row\)row\.appendChild\(actions\)/);
-assert.match(js,/records-duplicate-notice/);
+assert.doesNotMatch(js,/records-duplicate-notice/,'No duplicate warning banner in day records');
 assert.match(css,/max-height:none!important;overflow:visible!important/,
  'Day record history must scroll with the full page, not clip the first row');
 

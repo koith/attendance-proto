@@ -380,3 +380,37 @@
     grid-column:2/-1;grid-row:2;
   }
 }
+
+/* v0.359: original employee | time | buttons | horizontal badges. */
+@media(min-width:351px){
+  .records-group .session,.records-group .session.needs-review{
+    grid-template-columns:max-content minmax(0,1fr) max-content max-content!important;
+    column-gap:4px!important;
+  }
+  .records-group .session>div:nth-child(2),
+  .records-group .session.needs-review>div:nth-child(2){
+    grid-column:4!important;grid-row:1!important;
+    display:flex!important;flex-direction:row!important;
+    flex-wrap:nowrap!important;align-items:center!important;
+    justify-content:flex-end!important;
+    width:auto!important;max-width:none!important;gap:3px!important;
+  }
+  .records-group .session .pill{
+    flex:0 0 auto;font-size:.60rem!important;padding:3px 4px!important;
+    white-space:nowrap!important;
+  }
+  .records-group .session>.session-actions{
+    grid-column:3!important;grid-row:1!important;
+    justify-self:start!important;margin:0!important;
+  }
+  .records-group .session>.session-actions .session-fix{
+    padding:0 6px!important;font-size:.68rem!important;
+  }
+}
+@media(min-width:600px){
+  .records-group .session,.records-group .session.needs-review{
+    grid-template-columns:max-content minmax(0,1fr) max-content max-content!important;
+    column-gap:10px!important;
+  }
+  .records-group .session .pill{font-size:.74rem!important;padding:4px 8px!important}
+}

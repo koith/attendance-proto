@@ -177,24 +177,13 @@ function renderDay(day){
   }
   // Surface repeated effective punches without hiding, merging, or deleting
   // any payroll-relevant event/correction in this read-only view.
-  const punchCounts=new Map();
-  for(const s of ss){
-    for(const [type,time] of [['IN',s.in],['OUT',s.out]]){
-      if(!time||isNaN(time))continue;
-      const key=String(s.employee_id)+'|'+type+'|'+dayKey(time)+'T'+hm(time);
-      punchCounts.set(key,(punchCounts.get(key)||0)+1);
-    }
-  }
-  const duplicateCount=[...punchCounts.values()].filter(n=>n>1).length;
-  const duplicateNotice=duplicateCount?
-    '<p class="records-duplicate-notice" role="status">동일 직원의 같은 시각 출퇴근 기록이 중복돼 있습니다. 자동으로 삭제하지 않았으니 정정 이력을 확인하세요.</p>':'';
   let detail='';
   for(const s of ss){
     const emp=S.employees.find(x=>Number(x.id)===Number(s.employee_id)),issue=isIssue(s,day),
       label=s.status==='COMPLETE'?`${hm(s.in)}–${hm(s.out)} · ${dur(s.sec)}`:s.status==='WORKING'?`${hm(s.in)}–진행 중`:s.status==='INCOMPLETE'?`${hm(s.in)}–퇴근 누락`:`출근 누락–${hm(s.out)}`;
     detail+=`<div class="session"><div><b>${escapeHtml(emp?.name||'직원 정보 없음')}</b><div class="meta">${label}</div></div><div>${s.corrected?'<span class="pill correction-status">정정됨</span> ':''}${issue?'<span class="pill warn">확인 필요</span>':''}</div></div>`
   }
-  el('app').innerHTML=`<section class="dayview"><div class="dayhead"><button class="day-nav" id="prevDay" aria-label="이전 날짜">‹</button><div class="date">${day}</div><div class="dayhead-actions"><button class="day-nav" id="nextDay" aria-label="다음 날짜">›</button><button class="day-close" id="dayClose" aria-label="월력으로 돌아가기">×</button></div></div><section class="timeline-group"><h3>직원별 실근무 시간</h3><div class="axis-wrap"><div class="axis"><div class="axis-labels">${labels}</div>${rows||'<div class="empty">이 날의 실제 출퇴근 기록이 없습니다.</div>'}</div></div></section><section class="records-group"><h3>근무 기록 및 정정</h3>${duplicateNotice}<div class="sessions">${detail}</div><p class="records-note">정정은 원본 출퇴근 기록을 변경하지 않고 정정 이력을 추가합니다.</p></section></section>`;
+  el('app').innerHTML=`<section class="dayview"><div class="dayhead"><button class="day-nav" id="prevDay" aria-label="이전 날짜">‹</button><div class="date">${day}</div><div class="dayhead-actions"><button class="day-nav" id="nextDay" aria-label="다음 날짜">›</button><button class="day-close" id="dayClose" aria-label="월력으로 돌아가기">×</button></div></div><section class="timeline-group"><h3>직원별 실근무 시간</h3><div class="axis-wrap"><div class="axis"><div class="axis-labels">${labels}</div>${rows||'<div class="empty">이 날의 실제 출퇴근 기록이 없습니다.</div>'}</div></div></section><section class="records-group"><h3>근무 기록 및 정정</h3><div class="sessions">${detail}</div><p class="records-note">정정은 원본 출퇴근 기록을 변경하지 않고 정정 이력을 추가합니다.</p></section></section>`;
   el('dayClose').onclick=renderMonth;
   el('prevDay').onclick=()=>navigateDay(day,-1);
   el('nextDay').onclick=()=>navigateDay(day,1);

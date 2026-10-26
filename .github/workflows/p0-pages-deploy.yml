@@ -181,7 +181,7 @@ concurrency:
 jobs:
   p0-gate:
     name: P0 deployment gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -680,7 +680,7 @@ jobs:
     environment:
       name: github-pages
       url: https://koith.github.io/attendance-proto/qa1243-safari/
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -729,7 +729,7 @@ jobs:
     name: Build Pages artifact
     if: ${{ github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[QA1243-NO-OPERATING-WRITE]') }}
     needs: p0-gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
@@ -741,7 +741,7 @@ jobs:
     name: Same-run Pages validation (final alert only after independent verification)
     if: ${{ always() && github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[QA1243-NO-OPERATING-WRITE]') }}
     needs: [p0-gate, build-pages, deploy-pages]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency:
       group: verified-deployment-alert-${{ github.run_id }}
       cancel-in-progress: false
@@ -811,7 +811,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Deploy only after P0 gate passed
         id: deployment
