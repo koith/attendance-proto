@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createHmac} from 'node:crypto';
 import vm from 'node:vm';
-import {verifyHook,planMessages,validGasUrl,signedBridgeEnvelope} from '../supabase/functions/qa1243-google-mail-bridge/core.mjs';
+import {verifyHook,planMessages,validGasUrl,signedBridgeEnvelope,signedConnectivityEnvelope} from '../supabase/functions/qa1243-google-mail-bridge/core.mjs';
 import {INVITE_HTML} from '../supabase/functions/qa1243-google-mail-bridge/invite_template.mjs';
 
 const ROOT='https://koith.github.io/attendance-proto/';
@@ -133,4 +133,41 @@ test('GAS MailApp send failure never caches a successful receipt',async()=>{
  assert.throws(()=>gas.ctx.qa1243HandleMail_({postData:{contents:JSON.stringify(env)}}),/simulated mail outage/);
  assert.equal(gas.cache.size,0);
  assert.equal(gas.sends.length,0);
+});
+
+test('signed connectivity and replay use real GAS handler without touching MailApp',async()=>{
+ const gas=gasMock();
+ gas.ctx.MailApp=new Proxy({}, {get(){throw Error('MailApp must not be touched by connectivity');}});
+ vm.runInNewContext(await readFile(new URL('../gas/qa1243-auth-mail/Code.gs',import.meta.url),'utf8'),gas.ctx);
+ const envelope=await signedConnectivityEnvelope('probe_verified',bridgeSecret,stamp*1000);
+ const invoke=obj=>JSON.parse(gas.ctx.doPost({postData:{contents:JSON.stringify(obj)}}));
+ assert.deepEqual(invoke(envelope),{ok:true,operation:'connectivity',mailSent:false,duplicate:false});
+ assert.deepEqual(invoke(envelope),{ok:true,operation:'connectivity',mailSent:false,duplicate:true});
+ assert.equal(gas.cache.size,1);assert.equal(gas.sends.length,0);
+});
+
+test('probe authentication, expiry and strict shape cannot become mail or populate replay cache',async()=>{
+ const gas=gasMock();
+ gas.ctx.MailApp=new Proxy({}, {get(){throw Error('MailApp must not be touched');}});
+ vm.runInNewContext(await readFile(new URL('../gas/qa1243-auth-mail/Code.gs',import.meta.url),'utf8'),gas.ctx);
+ const envelope=await signedConnectivityEnvelope('probe_invalid',bridgeSecret,stamp*1000);
+ const invoke=obj=>gas.ctx.qa1243HandleMail_({postData:{contents:JSON.stringify(obj)}});
+ assert.equal(invoke({...envelope,signature:'bad'}).code,'UNAUTHORIZED');
+ assert.equal(invoke({...envelope,sent_at:stamp-301}).code,'BAD_ENVELOPE');
+ assert.equal(invoke({...envelope,sent_at:stamp+301}).code,'BAD_ENVELOPE');
+ for(const data of [{operation:'send'},{operation:'connectivity',to:'owner@example.org'}])
+  assert.equal(invoke({...envelope,data}).code,'BAD_PROBE');
+ assert.equal(gas.cache.size,0);
+ gas.ctx.LockService.getScriptLock=()=>({tryLock:()=>false});
+ assert.equal(invoke(envelope).code,'BUSY');assert.equal(gas.cache.size,0);
+});
+
+test('probe receipt never suppresses actual mail with the same nonce',async()=>{
+ const gas=gasMock();
+ vm.runInNewContext(await readFile(new URL('../gas/qa1243-auth-mail/Code.gs',import.meta.url),'utf8'),gas.ctx);
+ const invoke=obj=>gas.ctx.qa1243HandleMail_({postData:{contents:JSON.stringify(obj)}});
+ assert.equal(invoke(await signedConnectivityEnvelope('shared_nonce',bridgeSecret,stamp*1000)).ok,true);
+ const mail=await signedBridgeEnvelope(planMessages(invite,INVITE_HTML)[0],'shared_nonce',bridgeSecret,stamp*1000);
+ assert.equal(invoke(mail).ok,true);assert.equal(gas.sends.length,1);
+ assert.equal(invoke(mail).duplicate,true);assert.equal(gas.sends.length,1);
 });

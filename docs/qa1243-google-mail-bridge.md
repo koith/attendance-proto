@@ -31,3 +31,23 @@
 - 배포 결과에는 스크립트 ID·배포 ID·소스 SHA256·웹앱 배포 메타데이터만 기록한다. 비밀키·OAuth 액세스 토큰·메일 수신자·본문은 로그에 기록하지 않는다.
 - **이 단계는 실제 메일 발송이 아니다.** GAS `QA1243_GMAIL_BRIDGE_SECRET` Script Properties 설정과 MailApp 소유자 동의, Edge Secrets/URL 설정, 격리 메일 E2E 및 Auth Hook 전환은 완료라고 판정하지 않는다.
 - 실발송 성공·운영 Auth Hook 전환은 별도의 안전 승인/검증 게이트다. 운영 Auth Hook은 계속 OFF, 신규 지점 개통은 NO_GO로 유지한다.
+
+
+## 2026-10-24 비발송 연결 검증 구현 (PR #1361 후속)
+
+- 기존 Script/Deployment/공유 키는 그대로 유지한다. `data.operation=connectivity` 한 필드만 허용하고 기존 HMAC·5분 유효기간·잠금·10분 캐시를 적용한다. MailApp와 쿼터에는 접근하지 않는다. `mailSent:false`는 비발송 처리의 영수증이며 실제 메일 성공 증거가 아니다.
+- 격리 Edge `/connectivity`는 GitHub OIDC의 서명/issuer/audience/repository/정확한 workflow/main 또는 승인된 PR1361을 검증한다. 수신자나 메일 본문을 입력받지 않으며 기존 Edge Secret을 내부에서만 사용한다. Auth Hook 활성화 플래그와 독립된 QA 경로이고 운영 Hook은 OFF를 유지한다.
+- 실제 순서: 잘못된 JSON → BAD_JSON, 잘못된 HMAC → UNAUTHORIZED, 정상 비발송 서명 → 최초 처리, 같은 서명 재전송 → 중복 처리 차단. 하나라도 실패하면 중단하고 FAIL이다. 실서버 성공을 합성 테스트로 대체하지 않는다.
+- ContentService의 302/303은 지정된 `script.googleusercontent.com/macros/echo`로 GET한다. 서명 POST·인증 헤더는 넘기지 않고 리디렉션 query는 출력하지 않는다. 다른 host/경로 및 307/308은 거부한다.
+- 관측된 실서버 응답: 첫 `script.google.com` 요청에서 HTTP403, HTML `Access Denied`/`You need access`, 리디렉션0. 코드 런타임 전 Google 접근 거절이며 SMTP/HMAC/JSON 파서 장애로 단정하지 않는다. 소유자 OAuth 미승인과의 인과 확정은 승인 후 실통신 성공까지 필요하다.
+- API 재사용 시도: 기존 provision job 재실행 #40049753672, job120794530695는 `QA1243_MAIL_GAS_EPHEMERAL_TOKEN_EXPIRED_OR_INVALID`로 원격 변경 전에 실패. QA client ID/secret/refresh 3종이 해당 job에 없었다. 공유 HMAC 키는 재생성하거나 출력하지 않았다.
+- 현재 코드 QA 통과와 실제 배포·GAS 통신 PASS는 별개다. PR1361의 실서버 체크가 실패한 동안 병합/1번 일감 완료를 선언하지 않는다.
+
+
+### 기존 배포 갱신 실행 경로
+
+`qa1243_repair_mail_gas.mjs`는 승인된 기존 소스 SHA256 `79ff2a94ddc61cb1c21b48961a4e739df2a768989d305138ed3430f57dcf1fc7` 또는 현재 대상 소스만 수용한다. owner·Script ID·Deployment ID·URL·익명/실행주체·현재 버전 소스를 모두 읽은 뒤에만 QA 소스를 PUT한다. 새 버전의 소스와 기존 배포 PUT 결과를 다시 읽는다. Script Properties/공유 키와 운영 GAS/Sheets는 접근하지 않는다. 소스·권한 drift 또는 쓰기/재조회 실패 시 성공을 보고하거나 같은 쓰기를 자동 반복하지 않는다.
+
+유효한 기존 QA 관리 인증이 연결된 후 실행할 명령은 `gh workflow run qa1243-google-mail-bridge.yml --ref qa1243/probe-pr-merge-gate -f provision=true --repo koith/attendance-proto`이다. 승인된 기존 PR 브랜치의 명시적 수동 실행만 추가 허용하며, PR 이벤트가 OAuth 비밀을 사용하는 배포를 자동 실행하지 않는다. 인증정보 원문을 채팅/로그로 전달하지 않는다. 이후 PR1361의 실패한 통신 job만 다시 실행하여 실제 GAS/Edge 경로를 확인한다.
+
+독립 코드 QA: 기존 메일+비발송 회귀17 / 연결·OIDC·리디렉션8 / 기존 배포 갱신·drift·실패7 = **32/32 PASS**. 원격 API/메일 성공과 구분한다. [첫 후속 CI40070409616](https://github.com/koith/attendance-proto/actions/runs/40070409616)는 합성 job PASS, 실제 GAS POST job FAIL이다.

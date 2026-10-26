@@ -1,0 +1,68 @@
+{
+  "issue": 1243,
+  "appVersion": "v0.356",
+  "sourceCommit": "668c01e5463dacdff14ac1c0c4e17bddcf03eb75",
+  "pr": 1361,
+  "deployment": {
+    "version": 4,
+    "status": "ACTIVE",
+    "verifyJwt": false,
+    "sha": "a7cccb138fad0cfcdf653087e5f39bcb6fd735a55ea622da2674c5bc6fe70f65",
+    "sourceExact": true,
+    "files": 4,
+    "sourceCommit": "668c01e5463dacdff14ac1c0c4e17bddcf03eb75"
+  },
+  "http": {
+    "time": "2026-10-24T14:40:58.990822+00:00",
+    "edgeVersion": 4,
+    "sourceCommit": "668c01e5463dacdff14ac1c0c4e17bddcf03eb75",
+    "checks": [
+      {
+        "check": "disabled_mail_relay",
+        "http": 503,
+        "expected": 503,
+        "pass": true
+      },
+      {
+        "check": "no_identity",
+        "http": 401,
+        "expected": 401,
+        "pass": true
+      },
+      {
+        "check": "invalid_identity",
+        "http": 403,
+        "expected": 403,
+        "pass": true
+      },
+      {
+        "check": "wrong_method",
+        "http": 405,
+        "expected": 405,
+        "pass": true
+      }
+    ],
+    "productionWrites": 0,
+    "mailSent": false
+  },
+  "codeQA": {
+    "status": "PASS",
+    "count": 32,
+    "reused": true,
+    "repeatedThisCheckpoint": false
+  },
+  "ci": {
+    "url": "https://github.com/koith/attendance-proto/actions/runs/40070815610",
+    "syntheticJob": 120803639646,
+    "syntheticStatus": "PASS",
+    "liveGasJob": 120803702272,
+    "liveGasStatus": "FAIL_HTTP_403",
+    "signedConnectivityStep": "SKIPPED_AFTER_DIRECT_POST_FAILURE"
+  },
+  "gasDeployment": "EXISTING_V1_UNCHANGED_GOOGLE_AUTHORIZATION_PENDING",
+  "authHookActivationPerformed": false,
+  "operatingDataWrites": 0,
+  "realMailSent": false,
+  "task1": "INCOMPLETE",
+  "decision": "NO_GO"
+}

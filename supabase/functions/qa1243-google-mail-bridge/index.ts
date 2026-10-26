@@ -3,9 +3,28 @@
 // Deployment alone must not configure production Auth Hooks.
 import {verifyHook,planMessages,validGasUrl,signedBridgeEnvelope} from './core.mjs';
 import {INVITE_HTML} from './invite_template.mjs';
+import {handleConnectivity,QA_AUDIENCE} from './connectivity.mjs';
+import {createRemoteJWKSet,jwtVerify} from 'https://esm.sh/jose@5.9.6';
+
+const githubKeys=createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'));
 
 Deno.serve(async (request: Request): Promise<Response> => {
   if (request.method !== 'POST') return new Response('method not allowed',{status:405});
+  if(new URL(request.url).pathname.endsWith('/connectivity')) {
+    // Independent no-mail QA; does not enable/invoke the production Auth Hook.
+    return handleConnectivity(request,{
+      authenticate:async (req: Request)=>{
+        const token=/^Bearer (\S+)$/i.exec(req.headers.get('Authorization')||'');
+        const {payload}=await jwtVerify(token![1],githubKeys,{
+          issuer:'https://token.actions.githubusercontent.com',audience:QA_AUDIENCE,algorithms:['RS256']
+        });
+        return payload;
+      },
+      configuration:()=>({
+        secret:Deno.env.get('QA1243_GMAIL_BRIDGE_SECRET')||'',
+        endpoint:Deno.env.get('QA1243_GMAIL_BRIDGE_URL')||''})
+    });
+  }
   if (Deno.env.get('QA1243_GMAIL_BRIDGE_ENABLED') !== 'true') return new Response('not enabled',{status:503});
   const hookSecret=Deno.env.get('QA1243_SEND_EMAIL_HOOK_SECRET') || '';
   const sharedSecret=Deno.env.get('QA1243_GMAIL_BRIDGE_SECRET') || '';

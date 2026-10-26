@@ -774,3 +774,38 @@
 - **동시 main 변화 및 실제 판정 결함:** #1333/Issue1331이 main2217d87ad90ccc753d9e700bcac823e585ca8fc4로 병합하며 Google39981309610을 새로 실행. 이 #1243 작업자가 dispatch한 실행이 아니며 NO_GOOGLE_RERUN 표지 누락으로 실행된 실제 최초오류는 oauth2/v3 HTTP401, Script/Sheets 쓰기 전. 기존39781031886 성공과 runner/Edge/GAS 불변 증거는 유지. 최신 workflow가 FAILURE이면 기존 reader가 자격 preflight 로그를 확인하기도 전에 반환하는 별도 결함을 재현·수정. 정확히 알려진401/토큰만료+immutable runner+실제성공/조상 증거일 때만재사용; 미확인/취소·실제GAS/Sheets/변경source는계속FAIL. 새 회귀 PASS. 로컬 추가 실조회는 Azure 서명로그 저장소에 대한 fetch 제약이 있어 성공으로 표시하지 않으며, 승인 GitHub연결로 같은 실제로그를 확인했고 병합 후 Actions 읽기 전용 게이트에서 최종검증한다. 새 코드로 Google/OAuth/E2E·Pages를 다시 실행하지 않음.
 - **보호9그룹 전후 완전 일치:** stores244/HQ3/INHAemployees10/기존attendance236(id≤5578)/payroll0/inventory5/transactions3323/recipeOverrides0/recipeVariants245. HQ digest6112d7a3700c07bdcbb6479149dc21bd. 관리자 전체4(HQ3+기존STORE_MANAGER1)는 별도 보존. 이번 작업의 운영 DML/실초대/계정·권한/READY/SEC01/기존Sheet writer0; 모든 Sheet 셀 hash까지 새로 확인했다고 확대하지 않음.
 - **완료와 대기 구분:** 이번 초대 재시도 코드·격리QA·실제웹배포는 완료. 운영 Auth 네 설정 적용/변경후 감사, 승인 수신자의 새 한국어메일→수락→비밀번호→실제관리자 로그인, SEC01 운영승인·실기기, 실제지점·점주·READY개통승인/대상전후증빙은 미완료. POS·배달·공급사·장바구니·실판매수량 어댑터는 개통후 추가개발/실자료검증으로 유지하며 새 개통필수조건으로 추가하지 않음. **전체38/완료19/잔여19(개통전7·본인확인/승인2·개통후10)**, 신규 전체완료 ID0. 최종8항목 개별결과·새PR/CI/병합 SHA는 #1243 최신 연결 댓글로 확정하며 실제 Hosted 인증 미검증 상태에서 GO로 바꾸지 않는다.
+
+
+## 81. QA1243 비발송 HMAC 연결 검증 개발 — 2026-10-24
+
+- 앱 **v0.356 유지**. 기존 Google/Sheets E2E와 Pages 배포를 반복하지 않는다. 기존 dirty 작업영역의 수정·미추적 파일은 별도 patch/압축으로 보존하고 최신 main 별도 작업영역에서 이어간다.
+- 기존 PR **#1361**에 비발송 정상 서명·중복 방지 경로를 추가한다. 기존 GAS Script/Deployment/공유 키를 재사용하고 운영 Auth Hook OFF, 실제 메일·운영 데이터·권한·READY/SEC01 변경0 원칙을 유지한다.
+- 합성 QA는 실제 GAS `doPost`를 실행하여 잘못된 JSON·서명/만료·정상 HMAC 비발송·중복·MailApp 접근0 및 기존 발송 회귀를 검증한다. Google OIDC 신원/리디렉션 유출 방지도 검증한다. 합성 PASS는 실서버 PASS가 아니다.
+- 실서버는 Google Access Denied 403/리디렉션0이며 기존 API 실행은 만료된 QA 액세스 토큰 및 갱신 인증정보3종 부재로 배포 전 실패했다: [#40049753672](https://github.com/koith/attendance-proto/actions/runs/40049753672), job120794530695. 동일 실패를 반복 조사하지 않는다.
+- **1번 연결 일감 미완료**: 기존 QA 소유자의 유효한 Apps Script 관리 인증/필요한 본인 승인 → 기존 배포 업데이트 → 실제 비발송 POST·UNAUTHORIZED·정상 서명·중복 방지 검증이 남았다. CI 실패를 무시하고 병합하지 않는다.
+- **2~5번**: MailApp 소유자 동의, 승인된 QA 수신자 실메일·수신, 관리자 초대/수락·지점 생애주기 E2E, 승인된 운영 전환·복구 검증. 실제 점주 초대/운영 Hook 전환은 별도 승인 전 금지.
+- 전체38/완료19/잔여19 유지. QA-04/AUTH-01 전체 완료 조건 미충족이며 완료 체크0. 후속 SHA·PR·실행/배포 결과는 #1243 체크포인트에 연결한다.
+
+- 후속 실제 개발: 기존 QA 배포 전용 API updater를 완성했다. 승인된 v1 소스 SHA 또는 현재 소스만 허용하고 동일 배포 ID/URL을 새 버전으로 갱신한다. owner/프로젝트/배포/소스 drift·PUT 실패·잘못된 readback은 배포 승격 전 중단한다. Script Properties·공유 키 변경0. 인증 후에는 기존 PR 브랜치의 명시적 provision=true 수동 실행으로 이어갈 수 있다.
+- 코드·QA 보존 커밋 [b03e658c234e7221b33b089ce377031344196518](https://github.com/koith/attendance-proto/commit/b03e658c234e7221b33b089ce377031344196518), [PR1361](https://github.com/koith/attendance-proto/pull/1361). 후속 독립 QA **32/32**(메일/GAS17+연결/OIDC8+기존 배포 갱신7), TypeScript syntax/diff PASS. [CI40070409616](https://github.com/koith/attendance-proto/actions/runs/40070409616) 합성 PASS / 실제 POST FAIL이므로 미병합·실통신 미완료 유지. 인증을 코드 결함으로 처리하지 않는다.
+
+
+## 82. QA1243 격리 Edge v4 실제 배포·접근 차단 검증 — 2026-10-24
+
+- 코드 커밋 **668c01e5463dacdff14ac1c0c4e17bddcf03eb75**, 기존 PR **#1361 미병합**. 기존32개 독립 QA와 성공한 Google/Sheets E2E·Pages를 다시 실행하지 않았다. [최신 코드 CI40070815610](https://github.com/koith/attendance-proto/actions/runs/40070815610) 합성 job120803639646 PASS, 실제 GAS POST job120803702272 HTTP403 FAIL, 후속 서명 실통신 step SKIP이므로 성공으로 간주하지 않는다.
+- **독립 실제 완료:** 격리 `qa1243-google-mail-bridge`를 **v4 ACTIVE**로 배포했다. 배포된 index/core/connectivity/invite_template 4개 소스가 코드668c01e5와 바이트 단위로 일치한다. bundle SHA256 `a7cccb138fad0cfcdf653087e5f39bcb6fd735a55ea622da2674c5bc6fe70f65`. 운영 Hook 전환이 아닌 기존 비활성 QA 함수의 코드 배포이다.
+- **배포 후 실서버4/4 PASS** (2026-10-24 14:40:58 UTC): 기본 메일 relay 비활성503, connectivity 인증 없음401, 잘못된 JWT403, GET405. 인증 없이 Secret/메일 발송 경로를 사용할 수 없다. 이4개는 GAS 정상 POST/HMAC 통과 증거가 아니다. JSON 근거: `docs/evidence/qa1243-mail-bridge-edge-v4-20261024.json`.
+- **GAS는 승인 대기:** 기존 QA 프로젝트/배포v1/공유키 보존, 실제 소스 갱신0. 이미 확인한403·QA 토큰 만료·갱신 인증정보3종 부재를 재조사하지 않는다. QA 계정 소유자의 유효한 기존 Apps Script 관리 OAuth 갱신 및 GAS의 필요한 액세스 승인·본인확인 뒤에만 같은 배포 업데이트를 수행한다. 토큰/비밀번호 원문을 채팅에 요구하지 않는다.
+- 인증 후 재개: 기존 PR1361 브랜치에서 provision=true 명시 실행 → 같은 배포의 새 버전/readback → PR의 실패한 실통신 job만 재시도. 먼저 BAD_JSON, 이어 Edge OIDC→GAS 잘못된 서명/정상 비발송 HMAC/중복 방지가 모두 실제 PASS여야 1번 완료 및 병합을 판정한다. 실제 메일은 여기에 포함하지 않는다.
+- **상태:** 1번 연결 일감 미완료/NO_GO. 2~5번은 MailApp 승인, 동의된 QA 실메일 수신, 관리자 초대·수락/지점 E2E, 승인된 운영 전환·복구. 기존 지점244/HQ3/인하대직원10/레시피136 및 근태·급여/Sheets에 대한 데이터 쓰기·실제 초대·READY·SEC01 변경0. 전체38/완료19/잔여19 유지.
+- 코드·수정파일·QA 결과를 로컬 보존 경로 `/workspace/qa1243-preserved-20261024/mail-repair/final`에도 추가 백업했다. 이 증거 기록은 문서 전용 [skip ci]로 보존하여 완료한 QA/배포를 반복하지 않는다.
+
+
+## 83. QA1243 Google 소유자 승인 화면 진입 — 2026-10-24
+
+- 사용자 지시에 따라 기존 QA Google 프로필과 기존 GAS 프로젝트에서 배포관리→기존배포 편집→배포→액세스 승인까지 자동 진행했다. [브라우저 실행44db5faf-63f8-473b-acf9-2395c911d774](https://agent.tinyfish.ai/runs/44db5faf-63f8-473b-acf9-2395c911d774),12단계/64초 COMPLETED. 실제 화면은 `webuielf@gmail.com`의 **Google 패스키 본인확인**이었다. 최종 OAuth 권한 동의 화면에는 아직 도달하지 않았으며 권한 동의를 대신 승인하지 않았다.
+- 코드·manifest·Script Properties·공유키 변경0, GAS 재배포/메일발송0, 운영 Auth Hook 활성화0. Edgev4/독립32/배포후4PASS는 재사용하고 반복하지 않았다. 브라우저 소유자 승인으로 기존 배포를 갱신할 수 있으면 불필요한 CI용 토큰 재등록은 요구하지 않는다.
+- 사용자에게 바로 열 수 있는 완전한 Google 승인 URL을 확보하려는 후속 자동화는 **시작 전 wallet_out_of_funds / non_retryable**로 거절되었다. 첫 실행은 성공했으며 이를 브라우저 실행 실패나 Google 승인 완료로 바꾸어 기록하지 않는다. 같은 잔액부족 호출을 반복하지 않았다.
+- 기존 프로필의 수동 인증 handoff 링크 생성은 성공했다. `setup_started=false`이므로 사용자가 링크를 열기 전 실제 사용자 인증 세션이 시작됐다고 주장하지 않는다. 이 링크는 기존 프로젝트 주소에서 시작하며 패스키 화면에 직접 연결된 영속 URL을 확보한 것은 아니다. 개인 인증/handoff/결제 URL과 flow 매개변수는 공개 저장소에 기록하지 않는다.
+- 현재 필요한 사람 단계는 QA 계정의 Google 패스키/기기 본인확인이다. 최종 OAuth 동의는 실제 화면이 나타났을 때 해당 범위를 확인한 뒤 요청한다. 자동화 재개에는 TinyFish 잔액 충전도 필요하다. 비용 결제는 대신 실행하지 않는다.
+- 이후 승인된 기존 소유자 권한으로 GAS의 같은 배포 URL을 갱신→실제 BAD_JSON/UNAUTHORIZED/정상 비발송 서명/중복 방지 검증→PR1361 정상 병합 순서 유지. 인증·실통신 전 임의 병합 금지. 앱v0.356 / 전체38·완료19·잔여19 / 1번 미완료·NO_GO 유지. 로컬 owner-authorization-checkpoint.json에 다음 동작과 실제 도달단계를 보존했다.
