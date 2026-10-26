@@ -40,6 +40,14 @@ assert.ok(!js.includes("SUPABASE_SERVICE_ROLE_KEY"));
 assert.ok(!html.includes("123456789012"));
 assert.match(edge,/crypto\.getRandomValues\(new Uint8Array\(32\)\)/);
 assert.match(edge,/client\.auth\.admin\.createUser/);
+assert.match(edge,/client\.auth\.admin\.updateUserById/);
+assert.match(edge,/service_store_owner_temp_existing_lookup/);
+assert.match(edge,/verifiedExistingUserId/);
+assert.match(sql,/CREATE OR REPLACE FUNCTION public\.service_store_owner_temp_existing_lookup/);
+assert.match(sql,/REVOKE ALL ON FUNCTION public\.service_store_owner_temp_existing_lookup\(bigint,text,uuid\) FROM PUBLIC,anon,authenticated/);
+assert.match(sql,/IF EXISTS\(SELECT 1 FROM public\.admin_users WHERE user_id=v_uid\)/);
+assert.match(edge,/if\(!verifiedExistingUserId\)/);
+
 assert.match(edge,/email_confirm:true/);
 assert.match(edge,/delivery:"EMAIL_ACCEPTED"/);
 assert.match(edge,/sendOwnerOnboardingEmail/);
