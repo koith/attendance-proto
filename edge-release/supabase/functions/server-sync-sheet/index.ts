@@ -386,8 +386,8 @@ Deno.serve(async req=>{
     if(!["cron","dryrun","deployment","qa1243_sandbox_e2e","payroll","parity","sync","weekly_approve","weekly_decide","payroll_close_preview","payroll_close","payroll_reopen","invite_store_manager","invite_store_assistant_by_hq","invite_store_delegated_manager","issue_store_owner_temporary_password"].includes(mode))throw new HttpError(400,"BAD_MODE");
     const actor=await authenticate(req,mode);
     if(mode==="issue_store_owner_temporary_password"){
-      // HQ-only, ONE-TIME 100-bit random credential. The credential is returned
-      // to the authenticated HQ operator over TLS once; never persisted/logged.
+      // HQ-only one-time random credential mailed to the recipient; never
+      // returned in any HQ API response, URL, audit record or log.
       // No manager role is granted before the recipient changes it.
       if(actor.internal||actor.adminRole!=="HQ"||!actor.userId)
         throw new HttpError(403,"HQ_ONLY");
@@ -407,8 +407,19 @@ Deno.serve(async req=>{
       const {data:gate,error:preflightError}=await client.rpc("service_store_invitation_dispatch_preflight",{
         p_store_id:storeId,p_email:email,p_actor_id:actor.userId,p_mode:"HQ_OWNER"
       });
-      if(preflightError||gate?.ok!==true||gate?.existing_auth_user!==false||gate?.user_id)
-        throw new HttpError(409,"NEW_EMAIL_ACCOUNT_REQUIRED");
+      // Existing verified accounts without any remaining HQ/other-store owner
+      // role (e.g. QA 1호점 credential was never delivered) retain their
+      // original immutable Auth UID. This path does NOT delete/recreate them.
+      let verifiedExistingUserId=null;
+      if(preflightError||gate?.ok!==true||gate?.existing_auth_user!==false||gate?.user_id){
+        const {data:existing,error:lookupError}=await client.rpc("service_store_owner_temp_existing_lookup",{
+          p_store_id:storeId,p_email:email,p_actor_id:actor.userId
+        });
+        if(lookupError||existing?.ok!==true||!existing?.user_id||
+           String(existing.email)!==email||Number(existing.store_id)!==storeId)
+          throw new HttpError(409,"OWNER_ACCOUNT_NOT_ELIGIBLE_FOR_ONBOARDING");
+        verifiedExistingUserId=existing.user_id;
+      }
       // Reject a race with an existing temp-owner claim before creating any Auth user.
       const {data:pending,error:pendingError}=await client.from("store_owner_temp_first_logins")
         .select("store_id").eq("store_id",storeId).maybeSingle();
@@ -416,21 +427,32 @@ Deno.serve(async req=>{
       const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
       const bytes=crypto.getRandomValues(new Uint8Array(32));
       const temporaryPassword=Array.from(bytes,b=>alphabet[b%alphabet.length]).join("");
-      const {data:created,error:creationError}=await client.auth.admin.createUser({
-        email,password:temporaryPassword,email_confirm:true
-      });
-      if(creationError||!created?.user?.id)
-        throw new HttpError(409,"TEMP_OWNER_AUTH_CREATION_FAILED");
-      const createdId=created.user.id;
+      let createdId=verifiedExistingUserId;
+      if(createdId){
+        // Explicit HQ-approved account recovery, no identity deletion.
+        const {data:updated,error:updateError}=await client.auth.admin.updateUserById(
+          createdId,{password:temporaryPassword});
+        if(updateError||updated?.user?.id!==createdId)
+          throw new HttpError(409,"EXISTING_OWNER_AUTH_RESET_FAILED");
+      }else{
+        const {data:created,error:creationError}=await client.auth.admin.createUser({
+          email,password:temporaryPassword,email_confirm:true
+        });
+        if(creationError||!created?.user?.id)
+          throw new HttpError(409,"TEMP_OWNER_AUTH_CREATION_FAILED");
+        createdId=created.user.id;
+      }
       const {data:issued,error:issueError}=await client.rpc("service_store_owner_temp_issue",{
         p_store_id:storeId,p_user_id:createdId,p_actor_id:actor.userId
       });
       if(issueError||issued?.ok!==true){
         // Cleanup is allowed ONLY for the brand-new Auth identity created above;
         // never touch a pre-existing verified owner/HQ/delegated account.
-        const {error:cleanupError}=await client.auth.admin.deleteUser(createdId);
-        if(cleanupError)
-          throw new HttpError(503,"TEMP_OWNER_PENDING_MANUAL_CLEANUP");
+        if(!verifiedExistingUserId){
+          const {error:cleanupError}=await client.auth.admin.deleteUser(createdId);
+          if(cleanupError)
+            throw new HttpError(503,"TEMP_OWNER_PENDING_MANUAL_CLEANUP");
+        }
         throw new HttpError(409,"TEMP_OWNER_ISSUE_REJECTED");
       }
       let mail;
@@ -445,9 +467,12 @@ Deno.serve(async req=>{
         // On network/5xx ambiguity, do NOT destroy an account that may have
         // already received valid credentials, and do NOT issue another password.
         if(String(error?.message)==="OWNER_INVITE_MAIL_REJECTED"){
-          const {error:cleanError}=await client.auth.admin.deleteUser(createdId);
-          if(cleanError)throw new HttpError(503,"OWNER_INVITE_UNDELIVERED_CLEANUP_REQUIRED");
-          throw new HttpError(502,"OWNER_INVITE_MAIL_REJECTED_CLEANED");
+          if(!verifiedExistingUserId){
+            const {error:cleanError}=await client.auth.admin.deleteUser(createdId);
+            if(cleanError)throw new HttpError(503,"OWNER_INVITE_UNDELIVERED_CLEANUP_REQUIRED");
+            throw new HttpError(502,"OWNER_INVITE_MAIL_REJECTED_CLEANED");
+          }
+          throw new HttpError(502,"EXISTING_OWNER_MAIL_REJECTED_REISSUE_REQUIRED");
         }
         throw new HttpError(503,"OWNER_INVITE_MAIL_STATUS_UNCERTAIN");
       }
