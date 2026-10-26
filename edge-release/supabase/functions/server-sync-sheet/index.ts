@@ -459,6 +459,23 @@ Deno.serve(async req=>{
           expires_at:recoveryClaim.expires_at,delivery:"AUTH_RECOVERY_ACCEPTED",
           password_change_required:true});
       }
+      // Default to the built-in GoTrue invite mailer for NEW owners. This
+      // reuses the existing HQ scoped invite + pending owner acceptance path,
+      // without demanding a separate Resend account/domain/API key for every
+      // store. It never returns credentials to HQ.
+      if(Deno.env.get("OWNER_INVITE_USE_RESEND")!=="true"){
+        const sent=await dispatchInvitation(email,storeId,actor.userId,"HQ_OWNER");
+        if(sent.delivery!=="INVITE"||!sent.userId)
+          throw new HttpError(409,"NEW_OWNER_EMAIL_INVITATION_NOT_ISSUED");
+        const {data:pendingOwner,error:ownerError}=await client.rpc("service_native_owner_invitation_issue",{
+          p_store_id:storeId,p_user_id:sent.userId,p_actor_id:actor.userId,p_email:email
+        });
+        if(ownerError||pendingOwner?.ok!==true)
+          throw new HttpError(502,"AUTH_INVITE_SENT_PENDING_ROLE_CLAIM_FAILED: "+String(ownerError?.message||"UNKNOWN"));
+        return reply({ok:true,store_id:storeId,email,user_id:sent.userId,
+          delivery:"AUTH_INVITE_ACCEPTED",password_change_required:true,
+          owner_invitation:"PENDING_ACTIVATION"});
+      }
       // Only fresh Auth identities need a separate transactional password email.
       if(!Deno.env.get("RESEND_API_KEY")||!Deno.env.get("OWNER_INVITE_FROM_EMAIL"))
         throw new HttpError(503,"OWNER_INVITE_MAIL_NOT_CONFIGURED");

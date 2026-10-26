@@ -58,6 +58,6 @@ assert.doesNotMatch(store,/초대 수락 전 계정은 대표·보조 관리자 
 assert.match(index,/APP_VERSION="v\d+\.\d+"/);
 assert.match(index,/hq_owner_console\.js\?v=20261020v352/);
 assert.match(index,/store_manager_tab\.js\?v=20261017v300/);
-assert.match(index,/hq_store_onboarding_ui\.js\?v=20261022v354/);
+assert.match(index,/hq_store_onboarding_ui\.js\?v=20261026v362/);
 assert.match(index,/지점을 선택하여 관리자를 관리합니다/);
 console.log("PASS #932: two state groups, role tags, pending date, central empties, guarded mutations, refresh removed");

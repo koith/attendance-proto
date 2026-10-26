@@ -4,6 +4,7 @@ import fs from "node:fs";
 import vm from "node:vm";
 const read=x=>fs.readFileSync(new URL("./"+x,import.meta.url),"utf8");
 const sql=read("supabase/migrations/20261026094500_qa1243_owner_temp_first_login.sql");
+const nativeSql=read("supabase/migrations/20261026115000_qa1243_native_owner_invite_after_password.sql");
 const edge=read("supabase/functions/server-sync-sheet/index.ts");
 const deployed=read("edge-release/supabase/functions/server-sync-sheet/index.ts");
 const hq=read("hq_store_onboarding_ui.js");
@@ -42,6 +43,29 @@ assert.match(edge,/crypto\.getRandomValues\(new Uint8Array\(32\)\)/);
 assert.match(edge,/client\.auth\.admin\.createUser/);
 assert.doesNotMatch(edge,/client\.auth\.admin\.updateUserById/);
 assert.ok(edge.includes('delivery:"AUTH_RECOVERY_ACCEPTED"'));
+assert.match(edge,/OWNER_INVITE_USE_RESEND/);
+assert.match(edge,/AUTH_INVITE_ACCEPTED/);
+assert.match(hq,/AUTH_INVITE_ACCEPTED/);
+assert.match(edge,/dispatchInvitation\(email,storeId,actor\.userId,"HQ_OWNER"\)/);
+assert.match(edge,/service_native_owner_invitation_issue/);
+assert.match(edge,/delivery:"AUTH_INVITE_ACCEPTED"/);
+assert.match(nativeSql,/REVOKE ALL ON FUNCTION public\.service_native_owner_invitation_issue\(bigint,uuid,uuid,text\) FROM PUBLIC,anon,authenticated/);
+assert.match(nativeSql,/REVOKE ALL ON FUNCTION public\.native_owner_invitation_complete\(text\) FROM PUBLIC,anon/);
+assert.match(nativeSql,/IF coalesce\(auth\.jwt\(\)->>'role',''\) <> 'service_role'/);
+assert.match(nativeSql,/i\.source='native_mail_v1'/);
+const issuer=nativeSql.split('CREATE OR REPLACE FUNCTION public.service_native_owner_invitation_issue(')[1]
+  .split('CREATE OR REPLACE FUNCTION public.native_owner_invitation_preflight()')[0];
+assert.doesNotMatch(issuer,/INSERT INTO public\.admin_users|INSERT INTO public\.store_primary_owners/);
+const promoter=nativeSql.split('CREATE OR REPLACE FUNCTION public.native_owner_invitation_complete(p_new_password text)')[1];
+assert.ok(promoter.indexOf("extensions.crypt(p_new_password,v_auth.encrypted_password)")<
+  promoter.indexOf("INSERT INTO public.admin_users"),"native invite cannot grant admin before real Auth password proof");
+assert.ok(promoter.indexOf("INSERT INTO public.admin_users")<
+  promoter.indexOf("INSERT INTO public.store_primary_owners"),"native owner assignment requires role");
+assert.match(read("owner_activation.js"),/native_owner_invitation_preflight/);
+assert.match(read("owner_activation.js"),/native_owner_invitation_complete/);
+
+assert.ok(edge.indexOf('Deno.env.get("OWNER_INVITE_USE_RESEND")!=="true"')<
+  edge.indexOf('Deno.env.get("RESEND_API_KEY")'),"native invite must be default before optional Resend gate");
 assert.ok(edge.includes("/auth/v1/recover?redirect_to="));
 assert.ok(hq.includes("AUTH_RECOVERY_ACCEPTED"));
 assert.ok(js.includes("recoverySession"));
