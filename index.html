@@ -1337,6 +1337,7 @@ const SupaBE = (()=>{
     async staffStocktakeProposals(){ return rpc("admin_store_staff_stocktake_list",{p_store_id:CURRENT_STORE_ID||1},true); },
     async staffStocktakeDecide(id,accept){ return rpc("admin_store_staff_stocktake_decide",{p_store_id:CURRENT_STORE_ID||1,p_proposal_id:id,p_accept:accept},true); },
     async adminContext(){ return rpc("admin_context",{},true); },
+    async tempOwnerPreflight(){ return rpc("store_owner_temp_preflight",{},true); },
     async delegatedPermissionsSelf(){ return rpc("store_delegated_permissions_self",{},true); },
     async storeRecipeList(storeId){ return rpc("admin_store_recipe_list",{p_store_id:storeId||CURRENT_STORE_ID||1},true); },
     async publicStoreRecipeList(storeId){ return publicRpc("store_recipe_list_public",{p_store_id:storeId||CURRENT_STORE_ID||1}); },
@@ -1851,6 +1852,15 @@ function requireAuth(then){
       let loginContext=null;
       try{ loginContext=await BE.adminContext(); }catch(_){ loginContext=null; }
       if(!["HQ","STORE_MANAGER"].includes(loginContext?.role)){
+        // A newly issued temporary owner has no admin privileges yet. Only
+        // the server-side pending-first-login record authorizes the rotation
+        // screen; all other non-manager accounts still fail closed.
+        let firstLogin=null;
+        try{firstLogin=await BE.tempOwnerPreflight();}catch(_){firstLogin=null;}
+        if(firstLogin?.ok===true&&firstLogin?.password_change_required===true){
+          location.assign("./owner_temp_activation.html");
+          return;
+        }
         Auth.clear();
         errEl.textContent="이 계정은 관리자 권한이 없습니다. 관리자에게 문의하세요.";
         document.getElementById("loginBtn").textContent="로그인";
