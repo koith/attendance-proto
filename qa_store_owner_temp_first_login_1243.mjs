@@ -35,7 +35,9 @@ assert.match(sql,/REVOKE ALL ON TABLE public\.store_owner_temp_first_logins FROM
 assert.match(sql,/REVOKE ALL ON FUNCTION public\.service_store_owner_temp_issue\(bigint,uuid,uuid\) FROM PUBLIC,anon,authenticated/);
 assert.match(sql,/NEW_EMAIL_ACCOUNT_REQUIRED|ACCOUNT_ALREADY_ASSIGNED/);
 assert.match(sql,/TEMP_OWNER_CREDENTIAL_EXPIRED/);
-assert.match(sql,/PERSONAL_PASSWORD_NOT_SET/);
+assert.match(sql,/PERSONAL_PASSWORD_NOT_VERIFIED/);
+assert.match(sql,/length\(p_new_password\)<12/);
+assert.match(sql,/extensions\.crypt\(p_new_password,v_auth\.encrypted_password\)/);
 const complete=sql.split("CREATE OR REPLACE FUNCTION public.store_owner_temp_complete()")[1].split("COMMIT;")[0];
 assert.ok(complete.indexOf("v_auth.encrypted_password=v_claim.temporary_auth_hash")<
   complete.indexOf("INSERT INTO public.admin_users"),"cannot grant admin role before genuine credential change");
@@ -71,7 +73,7 @@ function mock({token=true,claimOk=true,store=301,userEmail="recipient@example.te
    if(url.endsWith("/auth/v1/user")&&opts.method==="GET")return {ok:true,json:async()=>({id:authId,email:userEmail})};
    if(url.endsWith("/rest/v1/rpc/store_owner_temp_preflight"))return {ok:true,json:async()=>({ok:claimOk,password_change_required:claimOk,store_id:store,email:"recipient@example.test",expires_at:"2027-01-01T00:00:00Z"})};
    if(url.endsWith("/auth/v1/user")&&opts.method==="PUT"){history.push("PASSWORD_UPDATED");return {ok:true,json:async()=>({})};}
-   if(url.endsWith("/rest/v1/rpc/store_owner_temp_complete")){history.push("OWNER_ASSIGNED");return {ok:true,json:async()=>({ok:true,owner_assigned:true,store_id:store})};}
+   if(url.endsWith("/rest/v1/rpc/store_owner_temp_complete")){assert.equal(JSON.parse(opts.body).p_new_password,"VerySecurePersonal2026!");history.push("OWNER_ASSIGNED");return {ok:true,json:async()=>({ok:true,owner_assigned:true,store_id:store})};}
    if(url.endsWith("/auth/v1/token?grant_type=password")){history.push("LOGIN_VERIFIED");return {ok:true,json:async()=>({access_token:"personal-token",refresh_token:"fresh",user:{id:authId}})};}
    if(url.endsWith("/rest/v1/rpc/admin_context")){history.push("ROLE_VERIFIED");return {ok:true,json:async()=>({role:"STORE_MANAGER",store_id:store})};}
    throw Error("Unexpected URL "+url);
