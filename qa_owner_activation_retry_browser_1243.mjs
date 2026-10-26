@@ -22,7 +22,7 @@ try{
  for(const engine of [chromium,webkit]){
   const browser=await engine.launch({headless:true});
   try{
-   for(const scenario of ['owner-appointment-retry','assistant-lost-password-response','existing-matching-password','cancelled-retry','wrong-store-context','expired-link']){
+   for(const scenario of ['owner-appointment-retry','assistant-lost-password-response','existing-matching-password','cancelled-retry','wrong-store-context','expired-link','expired-link-self-resend']){
     const context=await browser.newContext({viewport:{width:390,height:844}});
     const page=await context.newPage();
     const calls=[];let saved=scenario==='existing-matching-password',failed=false,cancelled=false;
@@ -33,6 +33,14 @@ try{
      assert.equal(url.origin,'https://activation-qa.invalid','Never call operating Auth or any external server');
      calls.push(url.pathname);
      const reply=(data,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});
+     if(url.pathname.endsWith('/auth/v1/recover')){
+      assert.equal(scenario,'expired-link-self-resend');
+      assert.equal(request.method(),'POST');
+      const body=JSON.parse(request.postData());
+      assert.equal(body.email,'recipient@example.test');
+      assert.equal(url.searchParams.get('redirect_to'),'https://koith.github.io/attendance-proto/owner_activation.html');
+      return reply({});
+     }
      if(url.pathname.endsWith('/store_invitation_activation_preflight'))return cancelled?
       reply({message:'INVITATION_CANCELLED_OR_NOT_FOUND'},403):
       reply({ok:true,store_id:701,intended_role:scenario.startsWith('assistant')?'ASSISTANT':'OWNER'});
@@ -49,12 +57,20 @@ try{
      if(url.pathname.endsWith('/admin_context'))return reply({role:'STORE_MANAGER',store_id:scenario==='wrong-store-context'?702:701});
      throw Error('UNEXPECTED_SYNTHETIC_REQUEST');
     });
-    const fragment=scenario==='expired-link'?'#error=access_denied&error_description=Expired':'#access_token=synthetic-token&refresh_token=synthetic-refresh&expires_in=3600';
+    const fragment=scenario.startsWith('expired-link')?'#error=access_denied&error_description=Expired':'#access_token=synthetic-token&refresh_token=synthetic-refresh&expires_in=3600';
     await page.goto(base+'/owner_activation.html'+fragment);
     await page.waitForFunction(()=>location.hash==='');
-    if(scenario==='expired-link'){
+    if(scenario.startsWith('expired-link')){
      await page.waitForFunction(()=>document.getElementById('activateForm').hidden);
+     await page.waitForFunction(()=>!document.getElementById('recoveryResendForm').hidden);
      assert.equal(calls.length,0);
+     if(scenario==='expired-link-self-resend'){
+      await page.fill('#recoveryEmail','recipient@example.test');
+      await page.click('#resendRecovery');
+      await page.waitForFunction(()=>document.getElementById('status').textContent.includes('새 인증 메일을 요청했습니다'));
+      assert.equal(calls.filter(x=>x==='/auth/v1/recover').length,1);
+      assert.equal(await page.evaluate(()=>localStorage.getItem('baekeok_auth')),null);
+     }
     }else{
      await page.fill('#password','synthetic-password-1243');
      await page.fill('#repeat','synthetic-password-1243');
@@ -85,4 +101,4 @@ try{
  mkdirSync('qa-results',{recursive:true});
  writeFileSync('qa-results/owner-activation-retry-1243.json',JSON.stringify({results,hostedAuthVerified:false},null,2));
 }
-assert.equal(results.length,12);
+assert.equal(results.length,14);
