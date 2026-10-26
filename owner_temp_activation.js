@@ -56,7 +56,7 @@ form.addEventListener("submit",async event=>{
   status.textContent="새 비밀번호와 관리자 권한을 확인하고 있습니다.";
   // GoTrue refuses reusing the current temporary password.
   await call("/auth/v1/user","PUT",{password});
-  const accepted=await call("/rest/v1/rpc/store_owner_temp_complete","POST",{});
+  const accepted=await call("/rest/v1/rpc/store_owner_temp_complete","POST",{p_new_password:password});
   if(accepted?.ok!==true||accepted?.owner_assigned!==true||Number(accepted.store_id)!==Number(claim.store_id))
     throw Error("OWNER_ACTIVATION_UNVERIFIED");
   const session=await call("/auth/v1/token?grant_type=password","POST",{email:identity.email,password});
