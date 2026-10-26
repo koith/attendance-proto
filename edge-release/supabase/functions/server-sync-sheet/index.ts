@@ -398,8 +398,7 @@ Deno.serve(async req=>{
         throw new HttpError(400,"INVALID_TEMP_OWNER");
       // Never provision a credential that cannot be sent to the recipient.
       // The From address must belong to an already verified sending domain.
-      if(!Deno.env.get("RESEND_API_KEY")||!Deno.env.get("OWNER_INVITE_FROM_EMAIL"))
-        throw new HttpError(503,"OWNER_INVITE_MAIL_NOT_CONFIGURED");
+
       const {data:targetStore,error:targetStoreError}=await client.from("stores")
         .select("name,onboarding_status,is_active").eq("id",storeId).maybeSingle();
       if(targetStoreError||!targetStore||targetStore.onboarding_status!=="STAGED"||targetStore.is_active!==false)
@@ -424,24 +423,54 @@ Deno.serve(async req=>{
       const {data:pending,error:pendingError}=await client.from("store_owner_temp_first_logins")
         .select("store_id").eq("store_id",storeId).maybeSingle();
       if(pendingError||pending)throw new HttpError(409,"TEMP_OWNER_ALREADY_ISSUED");
+      if(verifiedExistingUserId){
+        // Existing confirmed Auth accounts use the native GoTrue recovery mail.
+        // No administrator password reset, new identity, or third-party mail key.
+        const origin=Deno.env.get("SUPABASE_URL");
+        const anonKey=Deno.env.get("SUPABASE_ANON_KEY");
+        if(!origin||!anonKey)throw new HttpError(503,"AUTH_RECOVERY_NOT_CONFIGURED");
+        const {data:recoveryClaim,error:claimError}=await client.rpc("service_store_owner_temp_issue",{
+          p_store_id:storeId,p_user_id:verifiedExistingUserId,p_actor_id:actor.userId
+        });
+        if(claimError||recoveryClaim?.ok!==true)
+          throw new HttpError(409,"AUTH_RECOVERY_CLAIM_REJECTED");
+        // Reuse the existing allow-listed callback page; its recovery handler
+        // transfers the Auth session to the scoped password-change screen.
+        const redirect="https://koith.github.io/attendance-proto/owner_activation.html";
+        let recoverResponse=null;
+        try{
+          recoverResponse=await fetch(origin+"/auth/v1/recover?redirect_to="+encodeURIComponent(redirect),{
+            method:"POST",
+            headers:{"Content-Type":"application/json",apikey:anonKey},
+            body:JSON.stringify({email}),signal:AbortSignal.timeout(12000)
+          });
+        }catch{
+          // Transport uncertainty is not proof that no email was sent.
+          throw new HttpError(503,"AUTH_RECOVERY_DELIVERY_UNKNOWN");
+        }
+        if(!recoverResponse.ok){
+          // The API explicitly rejected the request. Safe to remove only this
+          // issuance claim, allowing HQ to retry later with same Auth identity.
+          await client.from("store_owner_temp_first_logins").delete()
+            .eq("store_id",storeId).eq("user_id",verifiedExistingUserId);
+          throw new HttpError(502,"AUTH_RECOVERY_EMAIL_REJECTED");
+        }
+        return reply({ok:true,store_id:storeId,email,user_id:verifiedExistingUserId,
+          expires_at:recoveryClaim.expires_at,delivery:"AUTH_RECOVERY_ACCEPTED",
+          password_change_required:true});
+      }
+      // Only fresh Auth identities need a separate transactional password email.
+      if(!Deno.env.get("RESEND_API_KEY")||!Deno.env.get("OWNER_INVITE_FROM_EMAIL"))
+        throw new HttpError(503,"OWNER_INVITE_MAIL_NOT_CONFIGURED");
       const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
       const bytes=crypto.getRandomValues(new Uint8Array(32));
       const temporaryPassword=Array.from(bytes,b=>alphabet[b%alphabet.length]).join("");
-      let createdId=verifiedExistingUserId;
-      if(createdId){
-        // Explicit HQ-approved account recovery, no identity deletion.
-        const {data:updated,error:updateError}=await client.auth.admin.updateUserById(
-          createdId,{password:temporaryPassword});
-        if(updateError||updated?.user?.id!==createdId)
-          throw new HttpError(409,"EXISTING_OWNER_AUTH_RESET_FAILED");
-      }else{
-        const {data:created,error:creationError}=await client.auth.admin.createUser({
-          email,password:temporaryPassword,email_confirm:true
-        });
-        if(creationError||!created?.user?.id)
-          throw new HttpError(409,"TEMP_OWNER_AUTH_CREATION_FAILED");
-        createdId=created.user.id;
-      }
+      const {data:created,error:creationError}=await client.auth.admin.createUser({
+        email,password:temporaryPassword,email_confirm:true
+      });
+      if(creationError||!created?.user?.id)
+        throw new HttpError(409,"TEMP_OWNER_AUTH_CREATION_FAILED");
+      const createdId=created.user.id;
       const {data:issued,error:issueError}=await client.rpc("service_store_owner_temp_issue",{
         p_store_id:storeId,p_user_id:createdId,p_actor_id:actor.userId
       });
