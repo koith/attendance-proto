@@ -6,6 +6,7 @@ import {createRemoteJWKSet,jwtVerify} from "https://esm.sh/jose@5";
 import {createPayrollEngine} from "./engine.mjs";
 import {verifiedWeeklySource} from "./payroll_policy.mjs";
 import {attendanceWithWorkingPayable} from "./sheet_working_payable.mjs";
+import {sendOwnerOnboardingEmail} from "./owner_invitation_email.mjs";
 
 const CORS={
   "Access-Control-Allow-Origin":"*",
@@ -395,6 +396,14 @@ Deno.serve(async req=>{
       if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||
          !Number.isSafeInteger(storeId)||storeId<=0)
         throw new HttpError(400,"INVALID_TEMP_OWNER");
+      // Never provision a credential that cannot be sent to the recipient.
+      // The From address must belong to an already verified sending domain.
+      if(!Deno.env.get("RESEND_API_KEY")||!Deno.env.get("OWNER_INVITE_FROM_EMAIL"))
+        throw new HttpError(503,"OWNER_INVITE_MAIL_NOT_CONFIGURED");
+      const {data:targetStore,error:targetStoreError}=await client.from("stores")
+        .select("name,onboarding_status,is_active").eq("id",storeId).maybeSingle();
+      if(targetStoreError||!targetStore||targetStore.onboarding_status!=="STAGED"||targetStore.is_active!==false)
+        throw new HttpError(409,"STAGED_STORE_REQUIRED");
       const {data:gate,error:preflightError}=await client.rpc("service_store_invitation_dispatch_preflight",{
         p_store_id:storeId,p_email:email,p_actor_id:actor.userId,p_mode:"HQ_OWNER"
       });
@@ -424,9 +433,29 @@ Deno.serve(async req=>{
           throw new HttpError(503,"TEMP_OWNER_PENDING_MANUAL_CLEANUP");
         throw new HttpError(409,"TEMP_OWNER_ISSUE_REJECTED");
       }
+      let mail;
+      try{
+        mail=await sendOwnerOnboardingEmail({
+          storeName:targetStore.name,storeId,email,temporaryPassword,
+          expiresAt:issued.expires_at,issuanceId:createdId
+        });
+      }catch(error){
+        // A provider rejection means no mail was accepted; roll back only the
+        // brand-new identity created here (FK cascade removes its pending claim).
+        // On network/5xx ambiguity, do NOT destroy an account that may have
+        // already received valid credentials, and do NOT issue another password.
+        if(String(error?.message)==="OWNER_INVITE_MAIL_REJECTED"){
+          const {error:cleanError}=await client.auth.admin.deleteUser(createdId);
+          if(cleanError)throw new HttpError(503,"OWNER_INVITE_UNDELIVERED_CLEANUP_REQUIRED");
+          throw new HttpError(502,"OWNER_INVITE_MAIL_REJECTED_CLEANED");
+        }
+        throw new HttpError(503,"OWNER_INVITE_MAIL_STATUS_UNCERTAIN");
+      }
+      // Provider acceptance is not proof of inbox delivery. Never return a
+      // secret to HQ or put a temporary password into logs/URLs/audit records.
       return reply({ok:true,store_id:storeId,email,user_id:createdId,
-        expires_at:issued.expires_at,temporary_password:temporaryPassword,
-        delivery:"HQ_ONE_TIME_VIEW",password_change_required:true});
+        expires_at:issued.expires_at,delivery:"EMAIL_ACCEPTED",
+        email_message_id:mail.messageId,password_change_required:true});
     }
     if(mode==="invite_store_manager"||mode==="invite_store_assistant_by_hq"){
       const isAssistant=mode==="invite_store_assistant_by_hq";
