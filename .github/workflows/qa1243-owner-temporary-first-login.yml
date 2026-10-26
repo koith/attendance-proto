@@ -1,0 +1,34 @@
+name: qa1243-owner-temporary-first-login
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261026094500_qa1243_owner_temp_first_login.sql'
+      - 'supabase/functions/server-sync-sheet/index.ts'
+      - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
+      - 'hq_store_onboarding_ui.js'
+      - 'owner_temp_activation.html'
+      - 'owner_temp_activation.js'
+      - 'index.html'
+      - 'qa_store_owner_temp_first_login_1243.mjs'
+      - '.github/workflows/qa1243-owner-temporary-first-login.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  temporary-owner-security-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Owner first-login security contract
+        run: node qa_store_owner_temp_first_login_1243.mjs
+      - name: Existing auth and owner eligibility regressions
+        run: |
+          node qa_confirmed_owner_permission_v1.mjs
+          node qa_admin_context_active_gate_v1.mjs
+          node scripts/sync_supabase_native_edge_release.mjs --check
