@@ -80,11 +80,22 @@ form.onsubmit=async event=>{
   // A canceled/expired or cross-store invite may still have a valid Supabase
   // access token. Refuse any password PUT until scoped server authorization
   // verifies the invite's current owner/delegated status.
-  const preflightResponse=await fetch(config.url+"/rest/v1/rpc/store_invitation_activation_preflight",{
+  // Native emailed invites are deliberately unprivileged until personal
+  // password setup. This scoped preflight runs before the legacy owner and
+  // delegated-manager preflight, which only recognizes pre-existing roles.
+  const nativeResponse=await fetch(config.url+"/rest/v1/rpc/native_owner_invitation_preflight",{
     method:"POST",headers:{apikey:config.key,Authorization:"Bearer "+token,
       "Content-Type":"application/json"},body:"{}"
   });
-  const preflight=await preflightResponse.json().catch(()=>({}));
+  const nativeData=await nativeResponse.json().catch(()=>({}));
+  const nativeOwner=nativeResponse.ok&&nativeData?.ok===true&&
+    nativeData?.password_change_required===true&&nativeData?.intended_role==="OWNER";
+  const preflightResponse=nativeOwner?nativeResponse:
+    await fetch(config.url+"/rest/v1/rpc/store_invitation_activation_preflight",{
+      method:"POST",headers:{apikey:config.key,Authorization:"Bearer "+token,
+        "Content-Type":"application/json"},body:"{}"
+    });
+  const preflight=nativeOwner?nativeData:await preflightResponse.json().catch(()=>({}));
   if(!preflightResponse.ok||preflight?.ok!==true||
      !Number.isSafeInteger(Number(preflight.store_id))||Number(preflight.store_id)<1||
      !["OWNER","ASSISTANT"].includes(preflight.intended_role))
@@ -104,12 +115,14 @@ form.onsubmit=async event=>{
   // HQ representative invites are bound to the signed-in user and confirmed email.
   // The server atomically promotes the recipient only when HQ registered the intent.
   // Delegated store-manager invitations have no owner intent and remain delegated.
-  const acceptedResponse=await fetch(config.url+"/rest/v1/rpc/store_primary_owner_accept_invitation",{
+  const activationRpc=nativeOwner?"native_owner_invitation_complete":"store_primary_owner_accept_invitation";
+  const acceptedResponse=await fetch(config.url+"/rest/v1/rpc/"+activationRpc,{
    method:"POST",headers:{apikey:config.key,Authorization:"Bearer "+token,
-      "Content-Type":"application/json"},body:"{}"
+      "Content-Type":"application/json"},
+   body:nativeOwner?JSON.stringify({p_new_password:password}):"{}"
   });
   const accepted=await acceptedResponse.json().catch(()=>({}));
-  if(!acceptedResponse.ok||accepted?.ok!==true)
+  if(!acceptedResponse.ok||accepted?.ok!==true||(nativeOwner&&accepted?.owner_assigned!==true))
     throw Error("비밀번호 설정은 완료됐지만 대표 관리자 자동 지정 확인에 실패했습니다: "+
       (accepted?.message||accepted?.error||"ACTIVATION_NOT_CONFIRMED")+
       ". 이 페이지에서 다시 시도하거나 본사에 문의하세요.");
