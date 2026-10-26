@@ -19,11 +19,42 @@ async function invite(email,store_id,invitationRole="OWNER"){
   if(!Auth.token)throw Error("LOGIN_REQUIRED");
   const response=await fetch(CONFIG.SUPABASE_URL+"/functions/v1/server-sync-sheet",{
     method:"POST",headers:{Authorization:"Bearer "+Auth.token,"Content-Type":"application/json"},
-    body:JSON.stringify({mode:invitationRole==="ASSISTANT"?"invite_store_assistant_by_hq":"invite_store_manager",email,store_id})
+    body:JSON.stringify({mode:invitationRole==="ASSISTANT"?"invite_store_assistant_by_hq":"issue_store_owner_temporary_password",email,store_id})
   });
   const data=await response.json().catch(()=>null);
   if(!response.ok||data?.ok!==true)throw Error(data?.error||"INVITE_FAILED");
   return data;
+}
+// A temporary password is shown once only to the authenticated HQ operator,
+// after explicit issuance. It is never persisted in browser storage, URL or logs.
+function showOneTimeOwnerCredential(receipt){
+  if(!receipt?.temporary_password||receipt?.delivery!=="HQ_ONE_TIME_VIEW")return;
+  const dialog=document.createElement("dialog");
+  dialog.style.cssText="border:1px solid #ccd9d0;border-radius:12px;padding:22px;max-width:min(94vw,470px);color:var(--text)";
+  const heading=document.createElement("h3");
+  heading.textContent="점주 임시 비밀번호 발급 완료";
+  const note=document.createElement("p");
+  note.textContent=receipt.email+" · 24시간 이내 첫 로그인 후 새 비밀번호 설정 필수. 이 비밀번호는 다시 표시되지 않습니다. 점주에게 안전하게 전달하세요.";
+  const field=document.createElement("input");
+  field.type="text";field.readOnly=true;field.autocomplete="off";
+  field.value=receipt.temporary_password;
+  field.style.cssText="display:block;width:100%;font-size:16px;padding:11px;margin:12px 0";
+  const copy=document.createElement("button");
+  copy.type="button";copy.className="btn btn-primary";copy.textContent="임시 비밀번호 복사";
+  copy.onclick=async()=>{
+    try{await navigator.clipboard.writeText(field.value);copy.textContent="복사 완료";}
+    catch{field.focus();field.select();copy.textContent="선택된 비밀번호를 복사하세요";}
+  };
+  const close=document.createElement("button");
+  close.type="button";close.className="btn btn-secondary";close.textContent="확인 후 닫기";
+  close.onclick=()=>dialog.close();
+  const actions=document.createElement("div");
+  actions.style.cssText="display:flex;flex-wrap:wrap;gap:8px";
+  actions.append(copy,close);
+  dialog.append(heading,note,field,actions);
+  dialog.addEventListener("close",()=>{field.value="";dialog.remove();},{once:true});
+  document.body.appendChild(dialog);
+  dialog.showModal();
 }
 // Readiness export contains no PINs or owner emails. Keep all registered
 // stores, regardless of the current filtered HQ picker, so a single CSV is
@@ -117,21 +148,21 @@ window.mountHqStoreOnboarding=async function(box){
     '<div id="hqOnboardingBody" aria-live="polite">지점 정보를 불러오는 중…</div>';
   box.appendChild(section);
   const body=section.querySelector("#hqOnboardingBody");
-  let stores=[],managers=[],proofs=[],sampleCounts=[],primaryOwners=[],ownerInvitations=[],selected=1,busy=false,searchTerm="",statusFilter="ALL";
+  let stores=[],managers=[],proofs=[],sampleCounts=[],primaryOwners=[],ownerInvitations=[],ownerTemps=[],selected=1,busy=false,searchTerm="",statusFilter="ALL";
   const message=(title,detail)=>{if(typeof toast==="function")toast("in",title,detail);};
   const err=error=>{if(typeof toast==="function")toast("err","지점 설정 실패",String(error?.message||error));};
   async function refresh(){
     // Never render READY or export an eligible rollout from a partial/malformed HQ response.
-    const result=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_provenance_list"),rpc("hq_store_sample_roster_counts"),rpc("hq_store_primary_owner_list"),rpc("hq_store_primary_owner_invitation_list")]);
+    const result=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_provenance_list"),rpc("hq_store_sample_roster_counts"),rpc("hq_store_primary_owner_list"),rpc("hq_store_primary_owner_invitation_list"),rpc("hq_store_owner_temp_pending_list")]);
     if(!result.every(Array.isArray))throw Error("HQ_ONBOARDING_INVALID_RESPONSE");
-    [stores,managers,proofs,sampleCounts,primaryOwners,ownerInvitations]=result;
+    [stores,managers,proofs,sampleCounts,primaryOwners,ownerInvitations,ownerTemps]=result;
     if(!stores.some(s=>Number(s.id)===selected))selected=Number(stores[0]?.id||1);
     render();
   }
   async function act(work,notice){
     if(busy)return;
     busy=true;
-    try{await work();await refresh();message("지점 관리",notice);}
+    try{const output=await work();if(output?.temporary_password)showOneTimeOwnerCredential(output);await refresh();message("지점 관리",notice);}
     catch(e){err(e);}
     finally{busy=false;}
   }
@@ -140,7 +171,8 @@ window.mountHqStoreOnboarding=async function(box){
     const store=stores.find(s=>Number(s.id)===selected);
     const list=managers.filter(m=>Number(m.store_id)===selected);
     const primaryOwnerId=primaryOwners.find(o=>Number(o.store_id)===selected)?.user_id;
-    const pendingOwnerId=ownerInvitations.find(o=>Number(o.store_id)===selected)?.user_id;
+    const tempOwner=ownerTemps.find(o=>Number(o.store_id)===selected);
+    const pendingOwnerId=ownerInvitations.find(o=>Number(o.store_id)===selected)?.user_id||(tempOwner?"TEMP_PENDING":null);
     const ready=store?.onboarding_status==="READY";
     const ownerEmail=list.find(m=>m.user_id===primaryOwnerId)?.email||"";
     const ownerStage=managerStage(store,primaryOwnerId,list,pendingOwnerId);
@@ -175,13 +207,13 @@ window.mountHqStoreOnboarding=async function(box){
       '<div class="hq-hint">선택한 지점: <strong>'+escapeHTML(store?.name||"없음")+'</strong></div>'+
       managerMilestones(ownerStage,store?.name,ownerEmail)+
       '<div class="hq-compact-card" id="hqManagerCard"><h4>대표 관리자 지정 · 계정 관리</h4>'+
-      '<div class="hq-hint">대표 점주: <strong>'+escapeHTML(list.find(m=>m.user_id===primaryOwnerId)?.email||"미지정")+'</strong> · 등록 '+list.length+'명'+(pendingOwnerId?' · 대표 초대 대기: '+escapeHTML(list.find(m=>m.user_id===pendingOwnerId)?.email||"인증 대기 계정"):'')+'</div>'+
+      '<div class="hq-hint">대표 점주: <strong>'+escapeHTML(list.find(m=>m.user_id===primaryOwnerId)?.email||"미지정")+'</strong> · 등록 '+list.length+'명'+(pendingOwnerId?' · 대표 초대 대기: '+escapeHTML(tempOwner?.email||list.find(m=>m.user_id===pendingOwnerId)?.email||"인증 대기 계정"):'')+'</div>'+
       '<div class="field"><label for="hqManagerRole">초대할 관리자 역할</label><select id="hqManagerRole" class="form-control"><option value="OWNER">대표 관리자</option><option value="ASSISTANT">보조 관리자</option></select></div>'+ 
       '<div class="field"><label for="hqManagerEmail">점주 로그인 이메일</label><input id="hqManagerEmail" class="form-control" type="email" autocomplete="off" placeholder="owner@example.com"></div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px">'+
       '<button type="button" class="btn btn-secondary btn-sm" id="hqManagerAssign">기존 계정에 점주 권한 부여</button>'+
-      '<button type="button" class="btn btn-primary btn-sm" id="hqManagerInvite">대표 관리자 이메일 초대</button></div>'+
-      '<div class="hq-hint">대표 초대는 계정 활성화 후 자동 대표 지정, 보조 초대는 대표가 지정된 지점에만 허용됩니다. 초대 역할은 먼저 선택합니다.</div>'+
+      '<button type="button" class="btn btn-primary btn-sm" id="hqManagerInvite">점주 계정 개통·임시 비밀번호 발급</button></div>'+
+      '<div class="hq-hint">신규 대표는 임시 비밀번호로 첫 로그인 후 반드시 본인 비밀번호를 설정해야 합니다. 그 전에는 관리자 권한이 없습니다. 보조 관리자는 기존 이메일 초대 방식을 사용합니다.</div>'+
       '<div style="margin:10px 0">'+(list.length?list.map(m=>
         '<div class="hq-manager-row"><span class="hq-manager-email">'+
         escapeHTML(m.email)+(primaryOwnerId===m.user_id?' <strong style="color:var(--brand-700)">· 대표 점주</strong>':'')+'</span>'+
@@ -294,8 +326,11 @@ window.mountHqStoreOnboarding=async function(box){
       if(assistant&&!primaryOwnerId)return err("보조 관리자는 대표 관리자 활성화 후 초대할 수 있습니다.");
       const email=body.querySelector("#hqManagerEmail").value.trim().toLowerCase();
       if(!email)return;
-      if(!confirm(email+" 주소로 "+store.name+" "+(assistant?"보조":"대표")+" 관리자 초대 메일을 보내시겠습니까?"))return;
-      act(()=>invite(email,selected,role),assistant?"보조 관리자 초대가 접수됐습니다. 계정 활성화 후 대표가 허용 업무를 설정합니다.":"대표 관리자 초대가 접수됐습니다. 이메일 인증·비밀번호 설정을 완료하면 자동 지정됩니다.");
+      if(!assistant&&store?.onboarding_status!=="STAGED")return err("임시 점주 계정은 준비 중(STAGED) 지점에만 발급됩니다.");
+       if(!confirm(assistant
+        ?email+" 주소로 "+store.name+" 보조 관리자 초대 메일을 보내시겠습니까?"
+        :email+" 주소로 "+store.name+" 신규 대표 관리자 계정을 만들고 임시 비밀번호를 한 번만 표시하시겠습니까?"))return;
+      act(()=>invite(email,selected,role),assistant?"보조 관리자 초대가 접수됐습니다. 계정 활성화 후 대표가 허용 업무를 설정합니다.":"임시 비밀번호를 발급했습니다. 점주가 첫 로그인 후 개인 비밀번호를 설정하면 대표로 지정됩니다.");
     };
     body.querySelectorAll("[data-owner-resend]").forEach(button=>{
       button.onclick=()=>{
