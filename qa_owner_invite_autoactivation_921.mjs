@@ -33,7 +33,9 @@ assert.match(sql,/legacy_hq_invite_20261014/);
 // Password PUT must precede server-only appointment. Never trust client store_id.
 const preflightStep=activation.indexOf('"/rest/v1/rpc/store_invitation_activation_preflight"');
 const passwordStep=activation.indexOf('"/auth/v1/user"');
-const acceptStep=activation.indexOf('"/rest/v1/rpc/store_primary_owner_accept_invitation"');
+const acceptStep=activation.indexOf('const activationRpc=nativeOwner?');
+assert.match(activation,/store_primary_owner_accept_invitation/);
+assert.match(activation,/native_owner_invitation_complete/);
 const contextStep=activation.indexOf('"/rest/v1/rpc/admin_context"');
 const redirectStep=activation.indexOf('location.replace("index.html?mode=store');
 assert.ok(preflightStep>=0 && preflightStep<passwordStep && passwordStep<acceptStep && acceptStep<contextStep && contextStep<redirectStep);
