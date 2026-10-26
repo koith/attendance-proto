@@ -40,7 +40,12 @@ assert.ok(!js.includes("SUPABASE_SERVICE_ROLE_KEY"));
 assert.ok(!html.includes("123456789012"));
 assert.match(edge,/crypto\.getRandomValues\(new Uint8Array\(32\)\)/);
 assert.match(edge,/client\.auth\.admin\.createUser/);
-assert.match(edge,/client\.auth\.admin\.updateUserById/);
+assert.doesNotMatch(edge,/client\.auth\.admin\.updateUserById/);
+assert.ok(edge.includes('delivery:"AUTH_RECOVERY_ACCEPTED"'));
+assert.ok(edge.includes("/auth/v1/recover?redirect_to="));
+assert.ok(hq.includes("AUTH_RECOVERY_ACCEPTED"));
+assert.ok(js.includes("recoverySession"));
+assert.ok(read("owner_activation.js").includes('hash.get("type")==="recovery"'));
 assert.match(edge,/service_store_owner_temp_existing_lookup/);
 assert.match(edge,/verifiedExistingUserId/);
 assert.match(sql,/CREATE OR REPLACE FUNCTION public\.service_store_owner_temp_existing_lookup/);
@@ -79,7 +84,7 @@ assert.match(js,/NEW_PASSWORD_LOGIN_NOT_VERIFIED/);
 assert.ok(js.indexOf('store_owner_temp_complete')<
   js.indexOf('localStorage.setItem("baekeok_auth"'),"role activation must precede saving new session");
 
-function mock({token=true,claimOk=true,store=301,userEmail="recipient@example.test",authId="new-user"}={}){
+function mock({token=true,recovery=false,claimOk=true,store=301,userEmail="recipient@example.test",authId="new-user"}={}){
  const nodes={};
  for(const id of ["status","firstLoginForm","confirm","storeDescription","password","repeat"]){
   nodes[id]={textContent:"",hidden:id==="firstLoginForm",disabled:false,value:"",handlers:{},
@@ -93,7 +98,8 @@ function mock({token=true,claimOk=true,store=301,userEmail="recipient@example.te
  const context={
   document:{getElementById:id=>nodes[id]},
   localStorage:{getItem:()=>saved,setItem:()=>{history.push("SESSION_SAVED")}},
-  location:{replace:()=>{redirected=true}},
+  location:{hash:recovery?"#type=recovery&access_token=verified-email-token&refresh_token=rotatable-token":"",pathname:"/owner_temp_activation.html",replace:()=>{redirected=true}},
+  history:{replaceState:()=>{history.push("RECOVERY_TOKEN_STRIPPED")}},
   fetch:async(url,opts={})=>{
    if(url==="./index.html")return {ok:true,text:async()=> 'SUPABASE_URL: "https://example.supabase.co", SUPABASE_ANON_KEY: "pub-anon-key"'};
    if(url.endsWith("/auth/v1/user")&&opts.method==="GET")return {ok:true,json:async()=>({id:authId,email:userEmail})};
@@ -125,6 +131,13 @@ async function run(options){
  const app=await run({token:false});
  assert.equal(app.nodes.firstLoginForm.hidden,true);
  assert.deepEqual(app.history,[]);
+}
+{
+ const app=await run({token:false,recovery:true});
+ assert.equal(app.nodes.firstLoginForm.hidden,false,"GoTrue verified-email recovery works without old login");
+ await app.nodes.firstLoginForm.handlers.submit({preventDefault(){}});
+ assert.deepEqual(app.history,["RECOVERY_TOKEN_STRIPPED","PASSWORD_UPDATED","OWNER_ASSIGNED","LOGIN_VERIFIED","ROLE_VERIFIED","SESSION_SAVED"]);
+ assert.equal(app.redirected(),true);
 }
 {
  const app=await run({claimOk:false});
