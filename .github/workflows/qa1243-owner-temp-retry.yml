@@ -5,6 +5,9 @@ on:
       - 'owner_temp_activation.js'
       - 'owner_temp_activation.html'
       - 'tests/qa1243_owner_temp_retry.test.mjs'
+      - 'tests/qa1243_owner_temp_session.test.mjs'
+      - 'tests/qa1243_temp_owner_release.test.mjs'
+      - 'scripts/qa1243_temp_owner_release.mjs'
       - '.github/workflows/qa1243-owner-temp-retry.yml'
   workflow_dispatch:
 permissions:
@@ -21,4 +24,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/qa1243_owner_temp_retry.test.mjs
+      - run: node --test tests/qa1243_owner_temp_retry.test.mjs tests/qa1243_owner_temp_session.test.mjs tests/qa1243_temp_owner_release.test.mjs
