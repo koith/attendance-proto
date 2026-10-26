@@ -5,6 +5,8 @@ on:
     paths:
       - 'supabase/migrations/20261026094500_qa1243_owner_temp_first_login.sql'
       - 'supabase/functions/server-sync-sheet/index.ts'
+      - 'supabase/functions/server-sync-sheet/owner_invitation_email.mjs'
+      - 'edge-release/supabase/functions/server-sync-sheet/owner_invitation_email.mjs'
       - 'edge-release/supabase/functions/server-sync-sheet/index.ts'
       - 'hq_store_onboarding_ui.js'
       - 'owner_temp_activation.html'
@@ -25,6 +27,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Branded invitation mail module syntax
+        run: node --check supabase/functions/server-sync-sheet/owner_invitation_email.mjs
       - name: Owner first-login security contract
         run: node qa_store_owner_temp_first_login_1243.mjs
       - name: Existing auth and owner eligibility regressions
