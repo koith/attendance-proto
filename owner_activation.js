@@ -28,8 +28,8 @@ if(pastedLinkForm){
    const source=await fetch("./index.html",{cache:"no-store"}).then(r=>{
     if(!r.ok)throw Error("APP_CONFIG_UNAVAILABLE");return r.text();
    });
-   const url=source.match(/SUPABASE_URL:\\s*"(https:\\/\\/[^"]+)"/)?.[1];
-   const key=source.match(/SUPABASE_ANON_KEY:\\s*"([^"]+)"/)?.[1];
+   const url=source.match(/SUPABASE_URL:\s*"(https:\/\/[^"]+)"/)?.[1];
+   const key=source.match(/SUPABASE_ANON_KEY:\s*"([^"]+)"/)?.[1];
    if(!url||!key)throw Error("APP_CONFIG_UNAVAILABLE");
    // Parse the link locally. Never navigate to the single-use GET URL or
    // send its token to any host other than the configured Auth origin.
@@ -38,7 +38,7 @@ if(pastedLinkForm){
    const tokenHash=link.searchParams.get("token_hash")||link.searchParams.get("token");
    if(link.origin!==url||link.pathname!=="/auth/v1/verify"||
       link.searchParams.get("type")!=="recovery"||
-      !tokenHash||tokenHash.length>1024||/\\s/.test(tokenHash))
+      !tokenHash||tokenHash.length>1024||/\s/.test(tokenHash))
     throw Error("백억커피 공식 비밀번호 재설정 링크만 사용할 수 있습니다.");
    const response=await fetch(url+"/auth/v1/verify",{
     method:"POST",headers:{apikey:key,"Content-Type":"application/json"},
