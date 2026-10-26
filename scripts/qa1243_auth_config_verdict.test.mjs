@@ -178,6 +178,15 @@ async function pageCase(change={}){
  const fetcher=async(url,options={})=>{
   calls.push({url,method:options.method||'GET'});
   if(url==='./index.html')return reply({},!state.configFailure);
+  if(url.endsWith('/native_owner_invitation_preflight')){
+   return state.nativeOwner?
+    reply({ok:true,store_id:701,intended_role:'OWNER',password_change_required:true}):
+    reply({message:'NO_VALID_NATIVE_OWNER_INVITATION'},false,403);
+  }
+  if(url.endsWith('/native_owner_invitation_complete')){
+   assert.equal(JSON.parse(options.body).p_new_password,state.passwordValue);
+   return reply(state.accepted,!state.acceptHttpFailure);
+  }
   if(url.endsWith('/store_invitation_activation_preflight')){
    if(state.preflightNetwork)throw Error('synthetic network unavailable');
    return reply(state.preflight,!state.preflightHttpFailure);
@@ -209,10 +218,18 @@ let pageCases=0;
 for(const intended_role of ['OWNER','ASSISTANT']){
  const page=await pageCase({preflight:{ok:true,store_id:701,intended_role},accepted:{ok:true,store_id:701,owner_assigned:intended_role==='OWNER'}});
  await page.submit();pageCases++;
- assert.deepEqual(page.calls.map(x=>x.method),['GET','POST','PUT','POST','POST']);
+ assert.deepEqual(page.calls.map(x=>x.method),['GET','POST','POST','PUT','POST','POST']);
  assert.deepEqual(page.redirects,['index.html?mode=store&store=701#pos']);assert.equal(page.stored.length,1);
  assert.equal(page.elements.password.value,'');assert.equal(page.elements.repeat.value,'');
  assert.equal(page.scrubbed[0][2],'/owner_activation.html','Tokens removed before config request');
+}
+{
+ const page=await pageCase({nativeOwner:true});
+ await page.submit();pageCases++;
+ assert.equal(page.stored.length,1,'Native verified owner must complete before role session saved');
+ assert.equal(page.calls.filter(c=>c.url.endsWith('/native_owner_invitation_complete')).length,1);
+ assert.equal(page.calls.filter(c=>c.url.endsWith('/store_invitation_activation_preflight')).length,0);
+ assert.equal(page.calls.filter(c=>c.url.endsWith('/store_primary_owner_accept_invitation')).length,0);
 }
 for(const hash of ['','#error=access_denied&error_description=Expired']){
  const page=await pageCase({hash});await page.submit();pageCases++;
@@ -266,6 +283,6 @@ for(const change of [
 const cancelledRetry=await pageCase({acceptHttpFailure:true});await cancelledRetry.submit();
 cancelledRetry.state.preflight={ok:false,error:'INVITATION_CANCELLED_OR_NOT_FOUND'};
 const requestsBefore=cancelledRetry.calls.length;await cancelledRetry.submit();pageCases++;
-assert.equal(cancelledRetry.calls.length,requestsBefore+1,'Re-check cancelled invitation before repeat password request');
+assert.equal(cancelledRetry.calls.length,requestsBefore+2,'Re-check both native and legacy invitation before repeat password request');
 assert.equal(cancelledRetry.stored.length,0);assert.equal(cancelledRetry.redirects.length,0);
 console.log('PASS actual activation source VM '+pageCases+' cases: owner/assistant, expiry/cancel, no unauthorized password PUT, failure retry and cross-store context; no live Auth/SMTP calls');
