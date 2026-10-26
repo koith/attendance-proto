@@ -104,6 +104,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
         identityToTime:b.right<=meta.left+1,
         timeToButtons:meta.right<=buttons[0].left+1||
           buttons[0].top>=meta.bottom-1,
+        timeButtonGap:buttons[0].left-meta.right,
         buttonsNoOverlap:buttons.every((v,i)=>i===0||noOverlap(buttons[i-1],v)),
         buttonsToBadges:badges.every(v=>buttons.every(q=>noOverlap(q,v))),
         inline:Math.abs(center(b)-center(meta))<16&&
@@ -124,6 +125,8 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
    assert.ok(got.entries.slice(0,3).every(e=>e.identityToTime&&e.timeToButtons),
      `${engine} ${width}px failed preserved identity/time/actions order: ${JSON.stringify(got)}`);
    if(width>=375){
+     assert.ok(got.entries.every(e=>e.timeButtonGap>=-1&&e.timeButtonGap<=15),
+       `${engine} ${width}px buttons must sit immediately beside the time, never right-aligned: ${JSON.stringify(got)}`);
      assert.ok(got.entries.slice(0,3).every(e=>e.inline&&e.rowHeight<70),
        `${engine} ${width}px NORMAL rows must remain one line with right-side badge: ${JSON.stringify(got)}`);
    } else {
