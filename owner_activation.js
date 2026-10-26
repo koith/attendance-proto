@@ -24,7 +24,7 @@ if(error||!token){
   e.preventDefault();
   const address=document.getElementById("recoveryEmail").value.trim().toLowerCase();
   const button=document.getElementById("resendRecovery");
-  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(address)||address.length>254){
+  if(!/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(address)||address.length>254){
    status.textContent="이메일 주소를 확인하세요.";return;
   }
   button.disabled=true;status.textContent="새 인증 메일을 요청하고 있습니다.";
@@ -32,8 +32,8 @@ if(error||!token){
    const source=await fetch("./index.html",{cache:"no-cache"}).then(r=>{
     if(!r.ok)throw Error("APP_CONFIG_UNAVAILABLE");return r.text();
    });
-   const url=source.match(/SUPABASE_URL:\\s*"(https:\\/\\/[^"]+)"/)?.[1];
-   const key=source.match(/SUPABASE_ANON_KEY:\\s*"([^"]+)"/)?.[1];
+   const url=source.match(/SUPABASE_URL:\s*"(https:\/\/[^"]+)"/)?.[1];
+   const key=source.match(/SUPABASE_ANON_KEY:\s*"([^"]+)"/)?.[1];
    if(!url||!key)throw Error("APP_CONFIG_UNAVAILABLE");
    const redirect="https://koith.github.io/attendance-proto/owner_activation.html";
    const response=await fetch(url+"/auth/v1/recover?redirect_to="+encodeURIComponent(redirect),{
