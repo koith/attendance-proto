@@ -24,7 +24,7 @@ if(error||!token){
   e.preventDefault();
   const address=document.getElementById("recoveryEmail").value.trim().toLowerCase();
   const button=document.getElementById("resendRecovery");
-  if(!/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(address)||address.length>254){
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)||address.length>254){
    status.textContent="이메일 주소를 확인하세요.";return;
   }
   button.disabled=true;status.textContent="새 인증 메일을 요청하고 있습니다.";
