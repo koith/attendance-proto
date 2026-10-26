@@ -112,6 +112,7 @@ jobs:
                 'scripts/qa1243_friday_preflight.mjs',
                 'scripts/qa1243_friday_preflight.test.mjs',
                 '.github/workflows/qa1243-friday-readiness.yml',
+                '.github/workflows/verified-pages-deployment-notification.yml',
                 'qa_auth_role_evidence_1243.mjs',
                 'qa_auth_role_evidence_1243.test.mjs',
                 'qa_sheet_failure_recovery_1243.mjs',

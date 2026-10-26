@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {REQUIRED,EXTERNAL_BLOCKERS,classifyWorkflow,verdict,reconcileIntegratedSqlEvidence,reconcileSafePagesEvidence,verifyGoogleOnLiveMain,credentialPreflightFailure,openingScope,POST_OPENING_WORK,REMAINING_WORK_PHASES} from './qa1243_friday_preflight.mjs';
+import {REQUIRED,EXTERNAL_BLOCKERS,classifyWorkflow,verdict,reconcileIntegratedSqlEvidence,reconcileSafePagesEvidence,verifyGoogleOnLiveMain,credentialPreflightFailure,openingScope,POST_OPENING_WORK,REMAINING_WORK_PHASES,safePagesAssetPaths} from './qa1243_friday_preflight.mjs';
 const SHA='864383ceeefa5ec9596886804efeb77505180685';
 const now=Date.parse('2026-10-21T00:00:00Z');
 const spec={id:'GENERIC_WORKFLOW',sameSha:false};
@@ -85,6 +85,10 @@ const validReceipt={published:{run_id:1001,head_sha:SHA,verified:true},
  independent:{run_id:1002,head_sha:SHA,verified:true},
  liveHashMatch:true,assetSha256:{'index.html':'a'.repeat(64),'hq_store_onboarding_ui.js':'b'.repeat(64),'operations_v1.js':'c'.repeat(64)}};
 const accepted=reconcileSafePagesEvidence(pageFailures,validReceipt);
+assert.deepEqual(safePagesAssetPaths('ordinary app release'),Object.keys(validReceipt.assetSha256));
+assert.deepEqual(safePagesAssetPaths('[QA1243-TEMP-OWNER-PAGES]'),
+ [...Object.keys(validReceipt.assetSha256),'owner_temp_activation.html','owner_temp_activation.js'],
+ 'Owner release readback must hash the actual invitation callback HTML and JS as well');
 assert.deepEqual(accepted.map(x=>x.status),['PASS','PASS','FAIL'],
  'Only verified Pages gates may be promoted; hosted Auth remains blocked');
 assert.deepEqual(accepted.slice(0,2).map(x=>x.run_id),[1001,1002]);

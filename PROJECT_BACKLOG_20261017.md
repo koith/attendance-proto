@@ -784,3 +784,13 @@
 - **읽기전용실상태:** store80 REAL_1 STAGED/비활성, admin_users0/primary_owners0. 실제점주의유효링크수신·본인비밀번호확정·실로그인/대표등록 및 HQ개통승인은미완료다. PR1365의READY/대표확정가정은현재DB와달라최신Edge재대조전병합/실Sheets생성을실행하지않는다. PR1361대체GAS메일경로403미완료를Native Auth실메일상태와혼동하지않음.
 - 후보버전v0.364, 실제PR/CI/병합/배포증거는Issue1243후속체크포인트로확정. 운영DB쓰기·실초대/권한/READY/SEC01·기존Sheets변경0. TinyFish/결제/완료Google E2E재실행0.
 - 실제수용조건이남아전체38/완료19/잔여19유지, 전체완료체크0. 기술준비/실인증·승인/개통후추가자동화를 `docs/qa1243-owner-opening-readiness.md`에분리했다.
+
+## 82. 2026-10-26 — v0.364 실제 배포·독립 검증 및 남은 개통 조건
+
+- PR1394/main e79ca85a0040f969201ac738c4f6fa8813893bd6 병합. Pages40362549251/독립40364553260 성공. 실제 공개 index·점주콜백HTML/JS 바이트일치와 다른운영자산불변 확인; operating Sheet writer jobs skipped, mailSent=false. 새로운점주세션복구17개QA PASS를 개인메일수신/본인로그인 성공으로 확대하지않음.
+- 최신개통40364573219 6/8 NO_GO. STORE_E2E/MANAGER_POSTGRES/HQ_STORE_POSTGRES/TEST_MAIL_GOTRUE/PAGES_PUBLISH/INDEPENDENT_PAGES PASS, HOSTED_AUTH_READ/LIVE_EDGE_GAS_SHEETS FAIL. 실제수신/실관리자세션/SEC01실기기승인/대상작업전후운영증빙4조건 미충족유지.
+- Hosted GET40358247538 HTTP200/strict4/8: 운영Site URL·정확한복귀URL정상, 한국어HTML·제목불일치, SMTP host·발신자미설정. DEFAULT_SUPABASE_MAILER/HookOFF. 기본메일수신보고를SMTP장애로단정하지않음.
+- 기존four-field REVIEW39962969173의재실행(job121738176917/121738303790)은저장소·production에서scopedRead=true/write=false/legacy=false를실제확인. CLI401뒤정상GitHub연결로전환했으며읽기인증재발급요청0/APPLY0. 승인네필드적용에는단일프로젝트 Auth Config+Project Settings Read-write writer가필요하고 SMTP공급자/발신자는별도승인범위.
+- Google39781031886성공은삭제/실패처리하지않음. 원성공SHA50690f26→e79ca85a 비교142파일중실행Edge두경로가변경됐으므로현재소스통신PASS로재사용불가. 기존실패GAS403/GoogleOAuth자격범위부족을모의성공으로대체하지않고, 완료Google E2E재실행0.
+- 실제독립검증40342537778은Playwright1.55.1/ubuntu26.04미지원이원인. 지원ubuntu24.04로고정하고점주정적독립검증완료→기존개통게이트자동갱신·실제콜백HTML/JS공개해시확인을추가. CI-only 수정으로앱v0.364/운영데이터/Sheets/메일/Auth/권한/READY/SEC01은변경하지않음. 관련실제guard/evidence QA와YAML/diff PASS; 후속PR/CI/병합은Issue1243증거연결.
+- 정본38/완료19/잔여19유지. 개통전7·본인확인/승인2·개통후10을구분하며, 이번기술결함수정만으로전체수용완료체크하지않음.
