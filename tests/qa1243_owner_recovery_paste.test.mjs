@@ -1,101 +1,95 @@
-// QA1243 copied recovery URL: no production HTTP and no one-use GET verification.
-// The code runs in an isolated synthetic browser-like VM.
+// QA1243 ordinary one-click recovery: synthetic test; NEVER call production Auth.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
-const script=readFileSync(new URL('../owner_activation.js',import.meta.url),'utf8');
+const js=readFileSync(new URL('../owner_activation.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('../owner_activation.html',import.meta.url),'utf8');
-const origin='https://qa-auth.invalid';
-const config='const CONFIG = { SUPABASE_URL: "'+origin+'", SUPABASE_ANON_KEY: "synthetic-anon" };';
+const mail=readFileSync(new URL('../supabase/email-templates/recovery.html',import.meta.url),'utf8');
+const url='https://waluhdgqhwjjwmflhrle.supabase.co';
+const hash='a'.repeat(56);
+const publicCfg='SUPABASE_URL: "'+url+'", SUPABASE_ANON_KEY: "test-public-anon"';
 
-async function scenario({link,verifyOk=true}={}){
- const calls=[],writes=new Map();
- const ids=['status','activateForm','recoveryResendForm','recoveryEmail',
-   'resendRecovery','recoveryPastedLinkForm','recoveryPastedLink',
-   'verifyPastedLink'];
- const nodes=Object.fromEntries(ids.map(id=>[id,{
-  id,value:'',textContent:'',hidden:false,disabled:false,listeners:{},
-  addEventListener(type,fn){this.listeners[type]=fn;}
- }]));
- const location={hash:'#error=access_denied',search:'',pathname:'/owner_activation.html',
-  replaced:null,replace(url){this.replaced=url;}};
- const fetch=async(url,options={})=>{
-  calls.push({url:String(url),method:options.method||'GET',body:options.body});
-  if(url==='./index.html')return {ok:true,text:async()=>config};
-  if(url===origin+'/auth/v1/verify'){
-   return verifyOk?{ok:true,json:async()=>({
+function browser({token=hash,verifyStatus=200,invalidConfig=false}={}){
+ const requests=[],writes=new Map();
+ const status={textContent:''},form={hidden:false};
+ const location={hash:'#type=recovery&token_hash='+token,pathname:'/owner_activation.html',replaced:null,
+  replace(v){this.replaced=v}};
+ const history={replaceState(...args){if(args.length!==3)throw Error('HISTORY_REPLACE_INVALID');}};
+ const document={getElementById:id=>({status,activateForm:form})[id]};
+ const fetch=async(u,opt={})=>{
+  requests.push({url:u,method:opt.method||'GET',body:opt.body});
+  if(u==='./index.html')return {ok:true,text:async()=>invalidConfig?'SUPABASE_URL: "https://foreign.invalid"':publicCfg};
+  if(u===url+'/auth/v1/verify')
+   return {ok:verifyStatus===200,json:async()=>verifyStatus===200?{
     access_token:'synthetic-access',refresh_token:'synthetic-refresh',
-    user:{id:'synthetic-user-id',email:'recipient@example.test'}
-   })}:{ok:false,json:async()=>({code:'otp_expired'})};
-  }
-  throw Error('UNEXPECTED_EXTERNAL_REQUEST');
+    user:{id:'synthetic-user-id',email:'owner@example.test'}
+   }:{code:'otp_expired'}};
+  throw Error('UNEXPECTED_HTTP_TARGET');
  };
- vm.runInNewContext(script,{
-  document:{getElementById:id=>nodes[id]},
-  location,history:{replaceState(){}},fetch,
-  URL,URLSearchParams,sessionStorage:{
-   setItem:(k,v)=>writes.set(k,v),getItem:k=>writes.get(k)||null
-  },
-  Date,encodeURIComponent,console
- },{filename:'owner_activation.js'});
- assert.match(html,/id="recoveryPastedLinkForm"/);
- assert.match(html,/id="recoveryPastedLink"/);
- assert.match(html,/id="verifyPastedLink"/);
- assert.equal(nodes.activateForm.hidden,true);
- assert.equal(nodes.recoveryPastedLinkForm.hidden,false);
- nodes.recoveryPastedLink.value=link;
- await nodes.recoveryPastedLinkForm.listeners.submit({preventDefault(){}});
- return {calls,writes,nodes,location};
+ const sessionStorage={setItem(k,v){writes.set(k,v)},getItem(k){return writes.get(k)||null}};
+ const context={document,location,history,sessionStorage,fetch,URLSearchParams,Date,console};
+ // IIFE returns an async promise. Node VM returns the final expression result.
+ const done=vm.runInNewContext(js,context,{filename:'owner_activation.js'});
+ return {done,location,form,status,requests,writes};
 }
 
-test('copied latest Supabase recovery link is redeemed by POST only',async()=>{
- const link=origin+'/auth/v1/verify?token=synthetic-onetime-hash&type=recovery&redirect_to=https%3A%2F%2Fexample.test';
- const state=await scenario({link});
- assert.deepEqual(state.calls.map(x=>[x.url,x.method]),[
-  ['./index.html','GET'],[origin+'/auth/v1/verify','POST']]);
- assert.deepEqual(JSON.parse(state.calls[1].body),{
-  type:'recovery',token_hash:'synthetic-onetime-hash'
- });
- assert.equal(state.nodes.recoveryPastedLink.value,'');
- assert.equal(state.location.replaced,'./owner_temp_activation.html');
- const saved=JSON.parse(state.writes.get('baekeok_owner_activation_pending_v1'));
+test('single email click renders user-owned static callback, not Supabase GET',()=>{
+ assert.match(mail,/href="https:\/\/koith\.github\.io\/attendance-proto\/owner_activation\.html#type=recovery&amp;token_hash=\{\{ \.TokenHash \}\}"/);
+ assert.doesNotMatch(mail,/\.ConfirmationURL/);
+ assert.doesNotMatch(mail,/href="https:\/\/waluhdgqhwjjwmflhrle\.supabase\.co\/auth\/v1\/verify/);
+ assert.match(html,/owner_activation\.js\?v=20261027oneclick1/);
+ assert.doesNotMatch(html,/recoveryPastedLinkForm|복사한 인증 링크/);
+});
+
+test('one click redeems OTP via POST and enters existing first-login page',async()=>{
+ const b=browser();
+ await b.done;
+ assert.equal(b.form.hidden,true);
+ assert.equal(b.location.replaced,'./owner_temp_activation.html');
+ assert.equal(b.requests.length,2);
+ assert.equal(b.requests[0].url,'./index.html');
+ assert.equal(b.requests[1].url,url+'/auth/v1/verify');
+ assert.equal(b.requests[1].method,'POST');
+ assert.deepEqual(JSON.parse(b.requests[1].body),{type:'recovery',token_hash:hash});
+ assert.ok(b.writes.has('baekeok_owner_activation_pending_v1'));
+ const saved=JSON.parse(b.writes.get('baekeok_owner_activation_pending_v1'));
  assert.equal(saved.version,1);
- assert.equal(saved.session.access_token,'synthetic-access');
- assert.equal(saved.session.refresh_token,'synthetic-refresh');
  assert.equal(saved.owner,null);
+ assert.equal(saved.session.access_token,'synthetic-access');
  assert.ok(saved.deadline>Date.now());
 });
 
-test('foreign hostname rejected without sending recovery token anywhere',async()=>{
- const state=await scenario({link:'https://phishing.invalid/auth/v1/verify?token=secret-value&type=recovery'});
- assert.deepEqual(state.calls.map(x=>x.url),['./index.html']);
- assert.equal(state.location.replaced,null);
- assert.equal(state.writes.size,0);
- assert.doesNotMatch(state.nodes.status.textContent,/secret-value/);
+test('valid 64-character provider token hash also redeems by POST',async()=>{
+ const b=browser({token:'b'.repeat(64)});
+ await b.done;
+ assert.equal(b.location.replaced,'./owner_temp_activation.html');
+ assert.equal(b.requests[1].method,'POST');
 });
 
-test('wrong Auth endpoint or OTP type rejected before verification',async()=>{
- for(const link of [
-  origin+'/auth/v1/admin/users?token=synthetic&type=recovery',
-  origin+'/auth/v1/verify?token=synthetic&type=invite'
- ]){
-  const state=await scenario({link});
-  assert.deepEqual(state.calls.map(x=>x.url),['./index.html']);
-  assert.equal(state.location.replaced,null);
-  assert.equal(state.writes.size,0);
- }
+test('invalid token fails closed without network verification or any resend',async()=>{
+ const b=browser({token:'INVALID'});
+ await b.done;
+ assert.equal(b.requests.length,0);
+ assert.equal(b.writes.size,0);
+ assert.equal(b.location.replaced,null);
+ assert.match(b.status.textContent,/인증에 실패/);
 });
 
-test('expired/reused token fails closed without sending another email',async()=>{
- const state=await scenario({
-  link:origin+'/auth/v1/verify?token=synthetic-old-token&type=recovery',
-  verifyOk:false
- });
- assert.deepEqual(state.calls.map(x=>x.url),['./index.html',origin+'/auth/v1/verify']);
- assert.equal(state.location.replaced,null);
- assert.equal(state.writes.size,0);
- assert.match(state.nodes.status.textContent,/인증 실패/);
- assert.equal(state.nodes.verifyPastedLink.disabled,false);
+test('invalid/reused token fails closed; no new recovery email',async()=>{
+ const b=browser({verifyStatus:403});
+ await b.done;
+ assert.deepEqual(b.requests.map(x=>x.method),['GET','POST']);
+ assert.equal(b.location.replaced,null);
+ assert.equal(b.writes.size,0);
+ assert.ok(!b.requests.some(x=>x.url.includes('/recover')));
+});
+
+test('unexpected Auth origin is rejected before OTP redemption',async()=>{
+ const b=browser({invalidConfig:true});
+ await b.done;
+ assert.equal(b.requests.length,1);
+ assert.equal(b.writes.size,0);
+ assert.equal(b.location.replaced,null);
 });

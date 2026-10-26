@@ -1,0 +1,110 @@
+name: QA1243 ordinary one-click recovery mail publication
+on:
+  pull_request:
+    paths:
+      - 'owner_activation.js'
+      - 'owner_activation.html'
+      - 'supabase/email-templates/recovery.html'
+      - 'scripts/qa1243_recovery_template.mjs'
+      - 'tests/qa1243_recovery_template.test.mjs'
+      - 'tests/qa1243_owner_recovery_paste.test.mjs'
+      - '.github/workflows/qa1243-one-click-recovery.yml'
+  workflow_run:
+    workflows: ['p0-pages-deploy']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      apply:
+        type: boolean
+        description: 'Apply the two approved recovery email fields when Pages v0.366 is verified'
+        default: false
+permissions:
+  contents: read
+jobs:
+  security-and-contract:
+    name: Official app-first email and Auth settings scope tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check owner_activation.js
+      - run: node --test tests/qa1243_owner_recovery_paste.test.mjs tests/qa1243_recovery_template.test.mjs
+  publish-recovery:
+    name: Verify public Pages then publish only the recovery email template
+    needs: security-and-contract
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.run_attempt == 1 &&
+       contains(github.event.workflow_run.head_commit.message, '[QA1243-ONECLICK-AUTH]')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.apply == true && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      SUPABASE_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_AUTH_READ_TOKEN }}
+      SUPABASE_AUTH_WRITE_TOKEN: ${{ secrets.SUPABASE_AUTH_WRITE_TOKEN }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify live Pages v0.366 and the one-click recovery callback
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const base='https://koith.github.io/attendance-proto/';
+          async function read(file){
+            const response=await fetch(base+file+'?qa1243='+encodeURIComponent(process.env.GITHUB_RUN_ID),{
+              cache:'no-store',signal:AbortSignal.timeout(15000)});
+            assert.equal(response.status,200,'LIVE_PAGES_HTTP_FAILED');
+            return response.text();
+          }
+          const [app,page,script]=await Promise.all([
+            read('index.html'),read('owner_activation.html'),read('owner_activation.js')]);
+          assert.match(app,/APP_VERSION="v0\.366"/,'LIVE_VERSION_NOT_DEPLOYED');
+          assert.match(page,/owner_activation\.js\?v=20261027oneclick1/);
+          assert.match(script,/type:"recovery",token_hash:oneTimeHash/);
+          assert.doesNotMatch(page,/recoveryPastedLinkForm/);
+          console.log('QA1243_PUBLIC_STANDARD_EMAIL_ONE_CLICK_CALLBACK_VERIFIED');
+          NODE
+      - name: GET / PATCH / GET only the two official recovery mail fields
+        run: node scripts/qa1243_recovery_template.mjs --apply
+      - name: Request one new one-click email after verified provider configuration
+        if: github.event_name == 'workflow_run'
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          const index=readFileSync('index.html','utf8');
+          const origin=index.match(/SUPABASE_URL:\s*"(https:\/\/[^"]+)"/)?.[1];
+          const anon=index.match(/SUPABASE_ANON_KEY:\s*"([^"]+)"/)?.[1];
+          assert.equal(origin,'https://waluhdgqhwjjwmflhrle.supabase.co');
+          assert.ok(anon,'PUBLIC_ANON_NOT_FOUND');
+          const redirect='https://koith.github.io/attendance-proto/owner_activation.html';
+          const result=await fetch(origin+'/auth/v1/recover?redirect_to='+encodeURIComponent(redirect),{
+            method:'POST',headers:{apikey:anon,'Content-Type':'application/json'},
+            body:JSON.stringify({email:'webuielf@gmail.com'}),
+            signal:AbortSignal.timeout(20000)
+          });
+          const details=await result.json().catch(()=>({}));
+          console.log('QA1243_ONE_CLICK_MAIL_REQUEST '+JSON.stringify({
+            status:result.status,accepted:result.ok,
+            errorCode:String(details?.code||details?.error_code||'').slice(0,60),
+            note:'Provider accepted, inbox and owner login remain independently unverified'
+          }));
+          assert.equal(result.ok,true,'NORMAL_RECOVERY_MAIL_REQUEST_FAILED');
+          NODE
+      - name: Account and operating data protection
+        if: always()
+        run: echo 'No password, Auth identity, table, SMTP, Sheets, or store READY mutations. A missing management permission is a hard failure, never a silent success.' >> "$GITHUB_STEP_SUMMARY"

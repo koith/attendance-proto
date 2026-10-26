@@ -14,7 +14,7 @@ label{display:block;margin:16px 0 7px;font-size:.9rem;font-weight:600}
 input{width:100%;border:1px solid #becfc3;border-radius:9px;padding:13px;font-size:16px}
 button{width:100%;background:#1d5d3a;color:white;font-weight:700;border:0;border-radius:9px;padding:14px;margin-top:18px;font-size:1rem}
 button:disabled{opacity:.55}#status{margin-top:14px;font-size:.85rem;white-space:pre-wrap;color:#985f00}
-[hidden]{display:none!important}#recoveryResendForm,#recoveryPastedLinkForm{margin-top:18px;border-top:1px solid #e3eae5;padding-top:16px}
+[hidden]{display:none!important}#recoveryResendForm{margin-top:18px;border-top:1px solid #e3eae5;padding-top:16px}
 #recoveryResendForm label{display:block;color:#354f3c}#recoveryResendForm small{display:block;margin-top:8px;color:#69786f}
 </style>
 </head>
@@ -29,12 +29,6 @@ button:disabled{opacity:.55}#status{margin-top:14px;font-size:.85rem;white-space
 <input id="repeat" type="password" minlength="12" maxlength="128" autocomplete="new-password" required>
 <button id="confirm" type="submit">비밀번호 설정 및 지점 입장</button>
 </form>
-<form id="recoveryPastedLinkForm" hidden>
-<label for="recoveryPastedLink">계속 만료되나요? 메일의 인증 버튼을 길게 눌러 '링크 복사' 후 이곳에 붙여넣으세요.</label>
-<input id="recoveryPastedLink" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="복사한 인증 링크" required>
-<button id="verifyPastedLink" type="submit">복사한 링크로 인증하기</button>
-<p>링크를 열지 않고 주소만 복사합니다. 링크 주소를 채팅에 보내지 마세요.</p>
-</form>
 <form id="recoveryResendForm" hidden>
 <label for="recoveryEmail">인증 메일이 만료됐나요? 이메일 주소를 입력해 새 링크를 받으세요.</label>
 <input id="recoveryEmail" type="email" autocomplete="email" maxlength="254" placeholder="점주 이메일" required>
@@ -43,6 +37,6 @@ button:disabled{opacity:.55}#status{margin-top:14px;font-size:.85rem;white-space
 </form>
 <div id="status" role="status" aria-live="polite"></div>
 </main>
-<script src="owner_activation.js?v=20261027paste1"></script>
+<script src="owner_activation.js?v=20261027oneclick1"></script>
 </body>
 </html>
