@@ -414,3 +414,25 @@
   }
   .records-group .session .pill{font-size:.74rem!important;padding:4px 8px!important}
 }
+
+/* v0.360: anchor inline correction controls to the immediately preceding time.
+   The last flexible track holds right-aligned one-line status badges. Unlike
+   the old flexible TIME track, this never pushes buttons to the right edge. */
+@media(min-width:351px){
+  .records-group .session,
+  .records-group .session.needs-review{
+    grid-template-columns:max-content minmax(0,max-content) max-content minmax(0,1fr)!important;
+    column-gap:4px!important;
+  }
+  .records-group .session>.session-actions,
+  .records-group .session.needs-review>.session-actions{
+    grid-column:3!important;grid-row:1!important;
+    justify-self:start!important;margin:0!important;
+  }
+  .records-group .session>div:nth-child(2),
+  .records-group .session.needs-review>div:nth-child(2){
+    grid-column:4!important;grid-row:1!important;
+    justify-self:end!important;
+    flex-direction:row!important;flex-wrap:nowrap!important;
+  }
+}
