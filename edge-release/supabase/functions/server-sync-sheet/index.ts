@@ -38,7 +38,7 @@ async function authenticate(req,mode){
       const jwks=createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"));
       const {payload}=await jwtVerify(header[1],jwks,{issuer:"https://token.actions.githubusercontent.com",audience:"https://waluhdgqhwjjwmflhrle.supabase.co/functions/v1/server-sync-sheet"});
       const workflow=String(payload.workflow_ref||"");
-      const workflows=mode==="deployment"?["p0-pages-deploy.yml","apps-script-deploy.yml"]:["qa1243-live-e2e.yml"];
+      const workflows=mode==="deployment"?["p0-pages-deploy.yml","apps-script-deploy.yml","store01-bootstrap-sheet.yml"]:["qa1243-live-e2e.yml"];
       const accepted=workflows.some(file=>workflow===`koith/attendance-proto/.github/workflows/${file}@refs/heads/main`);
       if(mode==="qa1243_sandbox_e2e"&&payload.event_name!=="push")throw new Error("QA_MAIN_PUSH_ONLY");
       if(!accepted||payload.repository!=="koith/attendance-proto"||payload.ref!=="refs/heads/main")throw new Error("UNTRUSTED_WORKFLOW");
@@ -467,12 +467,40 @@ Deno.serve(async req=>{
         sheet_format:result.sheet_format,counts:result.counts});
     }
     if(mode==="deployment"){
+      // A trusted post-release workflow alone can bootstrap the first
+      // production workbook for real store 80. Existing deployments remain
+      // permanently pinned to INHA/store 1 regardless of request body.
+      const isStore01Bootstrap=actor.workflow===
+        "koith/attendance-proto/.github/workflows/store01-bootstrap-sheet.yml@refs/heads/main";
+      const targetStoreId=isStore01Bootstrap?80:1;
+      let targetRoute=null;
+      if(isStore01Bootstrap){
+        const {data:store,error:storeError}=await client.from("stores")
+          .select("id,name,code,is_active,onboarding_status").eq("id",80).maybeSingle();
+        if(storeError)throw new HttpError(503,"STORE01_LOOKUP_FAILED");
+        targetRoute=approvedStore01SheetRoute(80,store);
+        if(!targetRoute)throw new HttpError(403,"STORE01_NOT_READY_FOR_SHEET_BOOTSTRAP");
+        const {data:reviews,error:reviewError}=await client.from("store_provenance_reviews")
+          .select("decision").eq("store_id",80).order("id",{ascending:false}).limit(1);
+        if(reviewError||reviews?.[0]?.decision!=="VERIFIED")
+          throw new HttpError(403,"STORE01_PROVENANCE_REQUIRED");
+        const {data:owner,error:ownerError}=await client.from("store_primary_owners")
+          .select("user_id").eq("store_id",80).maybeSingle();
+        if(ownerError||!owner?.user_id)throw new HttpError(403,"STORE01_OWNER_REQUIRED");
+        const {data:manager,error:managerError}=await client.from("admin_users")
+          .select("user_id,email,admin_role,store_id").eq("user_id",owner.user_id).maybeSingle();
+        if(managerError||manager?.email!=="webuielf@gmail.com"||
+           manager?.admin_role!=="STORE_MANAGER"||manager?.store_id!==80)
+          throw new HttpError(403,"STORE01_MANAGER_MISMATCH");
+      }
       const ym=currentYm();
-      const prepared=await buildReport(ym,1);
+      const prepared=await buildReport(ym,targetStoreId);
       const release=await reportRelease();
-      const result=await writeClaimed(ym,1,prepared,release,true);
+      const result=await writeClaimed(ym,targetStoreId,prepared,release,true,targetRoute);
       if(!result.written)throw new HttpError(409,"SHEET_WRITE_IN_PROGRESS");
-      return reply({ok:true,written:true,ym,spreadsheet_id:result.result.spreadsheet_id,
+      return reply({ok:true,written:true,ym,store_id:targetStoreId,
+        spreadsheet_id:result.result.spreadsheet_id,
+        ...(isStore01Bootstrap?{spreadsheet_url:result.result.spreadsheet_url}:{}),
         column_resize_applied:result.result.sheet_format?.column_resize_applied===true});
     }
     if(mode==="dryrun"){

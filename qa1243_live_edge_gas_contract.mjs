@@ -9,7 +9,7 @@ const wf=fs.readFileSync('.github/workflows/qa1243-live-e2e.yml','utf8');
 assert.equal(edge,mirrored,'Native release must match source exactly');
 const mode='qa1243_sandbox_e2e';
 assert.match(edge,/if\(mode==="deployment"\|\|mode==="qa1243_sandbox_e2e"\)/);
-assert.match(edge,/mode==="deployment"\?\["p0-pages-deploy\.yml","apps-script-deploy\.yml"\]:\["qa1243-live-e2e\.yml"\]/);
+assert.match(edge,/mode==="deployment"\?\["p0-pages-deploy\.yml","apps-script-deploy\.yml","store01-bootstrap-sheet\.yml"\]:\["qa1243-live-e2e\.yml"\]/);
 assert.match(edge,/payload\.repository!=="koith\/attendance-proto"/);
 assert.match(edge,/payload\.ref!=="refs\/heads\/main"/);
 assert.match(edge,/payload\.event_name!=="push"/);
@@ -17,9 +17,9 @@ assert.match(edge,/qaUrl===\(Deno\.env\.get\("SHEET_WEBAPP_URL"\)\|\|""\)/);
 assert.match(edge,/qaSecret===\(Deno\.env\.get\("SHEET_SHARED_SECRET"\)\|\|""\)/);
 assert.match(edge,/QA1243_SBX_/);
 assert.match(edge,/QA_SANDBOX_ISOLATION_REJECTED/);
-assert.ok(edge.indexOf('if(mode==="qa1243_sandbox_e2e"){')<edge.indexOf('if(mode==="deployment"){\n      const ym=currentYm()'),
+assert.ok(edge.indexOf('if(mode==="qa1243_sandbox_e2e"){')<edge.indexOf('if(mode==="deployment"){\n      // A trusted post-release workflow alone can bootstrap'),
   'No operating sync path may be called to perform QA writes');
-const qaBlock=edge.split('    if(mode==="qa1243_sandbox_e2e"){')[1].split('    if(mode==="deployment"){\n      const ym=currentYm();')[0];
+const qaBlock=edge.split('    if(mode==="qa1243_sandbox_e2e"){')[1].split('    if(mode==="deployment"){\n      // A trusted post-release workflow alone can bootstrap')[0];
 assert.doesNotMatch(qaBlock,/client\.from\(|client\.rpc\(|client\.auth\.|SHEET_SHARED_SECRET\);/,'QA payload must not modify DB/Auth');
 assert.match(qaBlock,/const result=await googleWrite\(ym,payload,false,null,null,999999999,route\)/);
 assert.match(wf,/github\.event_name == 'push'/);

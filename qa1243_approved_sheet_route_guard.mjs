@@ -82,4 +82,15 @@ assert.equal(lastFetch.url,prodUrl,'Approved real store uses operating Google ac
 assert.equal(lastFetch.body.store_key,'STORE_80','Never use reused official_demo key');
 assert.ok(source.includes('const sheetRoute=qaRoute||approvedStore01SheetRoute(storeId,store)'),
  'Explicit QA precedence and exact real store route');
+// The release bootstrap is immutable and cannot target any supplied store ID.
+assert.match(source,/store01-bootstrap-sheet\.yml/,'Only signed exact bootstrap workflow permitted');
+assert.match(source,/const targetStoreId=isStore01Bootstrap\?80:1/,'Legacy deploy pins store 1; bootstrap pins 80');
+assert.match(source,/approvedStore01SheetRoute\(80,store\)/,'Bootstrap must check store 80 route');
+assert.match(source,/STORE01_PROVENANCE_REQUIRED/,'Bootstrap must require actual verified provenance');
+assert.match(source,/STORE01_MANAGER_MISMATCH/,'Bootstrap must require exact real manager');
+const bootstrapYml=fs.readFileSync('.github/workflows/store01-bootstrap-sheet.yml','utf8');
+assert.match(bootstrapYml,/workflow_run:/,'Only trusted successful native deploy triggers');
+assert.match(bootstrapYml,/id-token: write/,'Signed OIDC only, no application service role in CI');
+assert.match(bootstrapYml,/workflow_run\.conclusion == 'success'/,'Reject failed production release');
+assert.match(bootstrapYml,/body: JSON\.stringify\(\{mode: 'deployment'\}\)/,'No caller-chosen store ID');
 console.log('PASS #1243 QA opt-in store route: absent flags, wrong store/secret/URL, no fallback, isolated write, legacy unchanged (read/write network stubs only; NOT live Edge→Apps Script)');
