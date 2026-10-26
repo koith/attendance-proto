@@ -14,12 +14,60 @@ if(hash.get("type")==="recovery"&&token&&refresh){
 history.replaceState(null,"",location.pathname);
 const status=document.getElementById("status"),form=document.getElementById("activateForm");
 const resendForm=document.getElementById("recoveryResendForm");
+const pastedLinkForm=document.getElementById("recoveryPastedLinkForm");
+const pastedLinkInput=document.getElementById("recoveryPastedLink");
+if(pastedLinkForm){
+ pastedLinkForm.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const pasted=pastedLinkInput.value.trim();
+  pastedLinkInput.value="";
+  const button=document.getElementById("verifyPastedLink");
+  button.disabled=true;
+  status.textContent="복사한 인증 링크를 확인하고 있습니다.";
+  try{
+   const source=await fetch("./index.html",{cache:"no-store"}).then(r=>{
+    if(!r.ok)throw Error("APP_CONFIG_UNAVAILABLE");return r.text();
+   });
+   const url=source.match(/SUPABASE_URL:\s*"(https:\/\/[^"]+)"/)?.[1];
+   const key=source.match(/SUPABASE_ANON_KEY:\s*"([^"]+)"/)?.[1];
+   if(!url||!key)throw Error("APP_CONFIG_UNAVAILABLE");
+   // Parse the link locally. Never navigate to the single-use GET URL or
+   // send its token to any host other than the configured Auth origin.
+   let link;
+   try{link=new URL(pasted);}catch{throw Error("복사한 링크 주소를 확인하세요.");}
+   const tokenHash=link.searchParams.get("token_hash")||link.searchParams.get("token");
+   if(link.origin!==url||link.pathname!=="/auth/v1/verify"||
+      link.searchParams.get("type")!=="recovery"||
+      !tokenHash||tokenHash.length>1024||/\s/.test(tokenHash))
+    throw Error("백억커피 공식 비밀번호 재설정 링크만 사용할 수 있습니다.");
+   const response=await fetch(url+"/auth/v1/verify",{
+    method:"POST",headers:{apikey:key,"Content-Type":"application/json"},
+    body:JSON.stringify({type:"recovery",token_hash:tokenHash})
+   });
+   const session=await response.json().catch(()=>({}));
+   if(!response.ok||!session?.access_token||!session?.refresh_token||!session?.user?.id)
+    throw Error("이 링크가 유효하지 않습니다. Gmail에서 가장 최근 메시지를 펼쳐 그 안의 링크를 복사하세요.");
+   // The next page independently verifies the recipient, store, and pending
+   // owner claim before any password update or manager appointment.
+   sessionStorage.setItem("baekeok_owner_activation_pending_v1",JSON.stringify({
+    version:1,deadline:Date.now()+60*60*1000,
+    session:{access_token:session.access_token,refresh_token:session.refresh_token},owner:null
+   }));
+   location.replace("./owner_temp_activation.html");
+  }catch(ex){
+   status.textContent="복사한 링크 인증 실패: "+String(ex?.message||"알 수 없는 오류");
+   button.disabled=false;
+  }
+ });
+}
+
 if(error||!token){
  form.hidden=true;
+ pastedLinkForm.hidden=false;
  resendForm.hidden=false;
  const suggested=new URLSearchParams(location.search).get("email");
  if(suggested&&suggested.length<=254)document.getElementById("recoveryEmail").value=suggested;
- status.textContent=error?"인증 링크가 만료되었거나 이미 사용되었습니다. 아래에서 새 인증 메일을 받으세요.":"유효한 인증 링크가 없습니다. 점주 이메일로 새 인증 메일을 요청할 수 있습니다.";
+ status.textContent=error?"이전 링크는 사용할 수 없습니다. Gmail에서 가장 최근에 도착한 메일의 버튼을 길게 눌러 링크 주소를 복사한 후 아래에서 인증하세요. 새 메일을 반복 요청하면 이전 링크는 무효화됩니다.":"유효한 인증 링크가 없습니다. 가장 최근 이메일의 인증 버튼을 길게 눌러 링크 주소를 복사하고 아래에서 인증하세요.";
  resendForm.addEventListener("submit",async e=>{
   e.preventDefault();
   const address=document.getElementById("recoveryEmail").value.trim().toLowerCase();
