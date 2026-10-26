@@ -22,7 +22,7 @@ try{
  for(const engine of [chromium,webkit]){
   const browser=await engine.launch({headless:true});
   try{
-   for(const scenario of ['owner-appointment-retry','assistant-lost-password-response','existing-matching-password','cancelled-retry','wrong-store-context','expired-link','expired-link-self-resend']){
+   for(const scenario of ['owner-appointment-retry','assistant-lost-password-response','existing-matching-password','cancelled-retry','wrong-store-context','expired-link','expired-link-self-resend','native-owner-activation']){
     const context=await browser.newContext({viewport:{width:390,height:844}});
     const page=await context.newPage();
     const calls=[];let saved=scenario==='existing-matching-password',failed=false,cancelled=false;
@@ -40,6 +40,16 @@ try{
       assert.equal(body.email,'recipient@example.test');
       assert.equal(url.searchParams.get('redirect_to'),'https://koith.github.io/attendance-proto/owner_activation.html');
       return reply({});
+     }
+     if(url.pathname.endsWith('/native_owner_invitation_preflight')){
+      return scenario==='native-owner-activation'?
+       reply({ok:true,store_id:701,intended_role:'OWNER',password_change_required:true}):
+       reply({message:'NO_VALID_NATIVE_OWNER_INVITATION'},403);
+     }
+     if(url.pathname.endsWith('/native_owner_invitation_complete')){
+      assert.equal(scenario,'native-owner-activation');
+      assert.equal(JSON.parse(request.postData()).p_new_password,'synthetic-password-1243');
+      return reply({ok:true,store_id:701,owner_assigned:true});
      }
      if(url.pathname.endsWith('/store_invitation_activation_preflight'))return cancelled?
       reply({message:'INVITATION_CANCELLED_OR_NOT_FOUND'},403):
@@ -88,6 +98,10 @@ try{
      }else{
       await page.waitForURL(base+'/index.html?mode=store&store=701#pos');
       assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('baekeok_auth')).access_token),'synthetic-token');
+      if(scenario==='native-owner-activation'){
+       assert.equal(calls.filter(x=>x==='/native_owner_invitation_complete').length,1);
+       assert.equal(calls.some(x=>x==='/store_primary_owner_accept_invitation'),false);
+      }
      }
     }
     results.push({engine:engine.name(),scenario,result:'PASS',operatingRequests:0});
@@ -101,4 +115,4 @@ try{
  mkdirSync('qa-results',{recursive:true});
  writeFileSync('qa-results/owner-activation-retry-1243.json',JSON.stringify({results,hostedAuthVerified:false},null,2));
 }
-assert.equal(results.length,14);
+assert.equal(results.length,16);
