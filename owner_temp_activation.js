@@ -59,7 +59,20 @@ form.addEventListener("submit",async event=>{
   if(password.length<12||password!==repeat)throw Error("비밀번호는 12자 이상으로 두 번 동일하게 입력하세요.");
   status.textContent="새 비밀번호와 관리자 권한을 확인하고 있습니다.";
   // GoTrue refuses reusing the current temporary password.
-  await call("/auth/v1/user","PUT",{password});
+  // A timeout or lost response can occur after GoTrue already saved the new
+  // password. Retrying with the same chosen password yields 422/same_password.
+  // This is safe to continue ONLY because store_owner_temp_complete independently
+  // verifies the current GoTrue password and that the temporary hash changed.
+  const update=await fetch(cfg.url+"/auth/v1/user",{
+   method:"PUT",headers:{apikey:cfg.key,"Content-Type":"application/json",
+    Authorization:"Bearer "+saved.access_token},body:JSON.stringify({password})
+  });
+  const updateResult=await update.json().catch(()=>({}));
+  const savedAlready=update.status===422&&
+   (updateResult.code==="same_password"||updateResult.error_code==="same_password");
+  if(!update.ok&&!savedAlready)
+   throw Error(String(updateResult.message||updateResult.msg||
+    updateResult.error_description||updateResult.code||update.status));
   const accepted=await call("/rest/v1/rpc/store_owner_temp_complete","POST",{p_new_password:password});
   if(accepted?.ok!==true||accepted?.owner_assigned!==true||Number(accepted.store_id)!==Number(claim.store_id))
     throw Error("OWNER_ACTIVATION_UNVERIFIED");
@@ -70,7 +83,7 @@ form.addEventListener("submit",async event=>{
   if(context?.role!=="STORE_MANAGER"||Number(context.store_id)!==Number(claim.store_id))
     throw Error("STORE_OWNER_ROLE_NOT_VERIFIED");
   localStorage.setItem("baekeok_auth",JSON.stringify(session));
-  status.textContent="개통 완료. 지점 관리 화면으로 이동합니다.";
+  status.textContent="대표 관리자 등록 완료. 지점 개통은 본사 승인이 필요합니다.";
   location.replace("./index.html?mode=store&store="+encodeURIComponent(claim.store_id)+"#pos");
  }catch(e){
   status.textContent="처리 실패: "+String(e?.message||e)+". 비밀번호 설정은 완료됐을 수 있으니 본사에 문의하세요.";
