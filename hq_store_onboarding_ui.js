@@ -23,8 +23,10 @@ async function invite(email,store_id,invitationRole="OWNER"){
   });
   const data=await response.json().catch(()=>null);
   if(!response.ok||data?.ok!==true)throw Error(data?.error||"INVITE_FAILED");
-  if(invitationRole!=="ASSISTANT"&&(data?.delivery!=="EMAIL_ACCEPTED"||!data?.email_message_id))
-    throw Error("OWNER_INVITE_EMAIL_NOT_ACCEPTED");
+  if(invitationRole!=="ASSISTANT"&&!(
+    (data?.delivery==="EMAIL_ACCEPTED"&&data?.email_message_id)||
+    data?.delivery==="AUTH_RECOVERY_ACCEPTED"
+  ))throw Error("OWNER_INVITE_EMAIL_NOT_ACCEPTED");
   return data;
 }
 // Readiness export contains no PINs or owner emails. Keep all registered
@@ -136,6 +138,8 @@ window.mountHqStoreOnboarding=async function(box){
     try{const output=await work();await refresh();
       if(output?.delivery==="EMAIL_ACCEPTED")
         message("점주 개통 메일 발송 접수",output.email+" 계정의 임시 비밀번호 및 최초 로그인 주소가 포함된 안내 메일을 메일 제공업체가 접수했습니다. 점주 수신과 최초 로그인은 별도 확인이 필요합니다.");
+      else if(output?.delivery==="AUTH_RECOVERY_ACCEPTED")
+        message("점주 인증 메일 요청 완료",output.email+" 주소로 공식 비밀번호 재설정 메일을 요청했습니다. 수신자가 링크를 열어 새 비밀번호를 설정하면 해당 지점 대표 권한이 활성화됩니다.");
       else message("지점 관리",notice);}
     catch(e){err(e);}
     finally{busy=false;}
@@ -187,7 +191,7 @@ window.mountHqStoreOnboarding=async function(box){
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px">'+
       '<button type="button" class="btn btn-secondary btn-sm" id="hqManagerAssign">기존 계정에 점주 권한 부여</button>'+
       '<button type="button" class="btn btn-primary btn-sm" id="hqManagerInvite">점주 개통 안내 메일 발송</button></div>'+
-      '<div class="hq-hint">신규 대표에게 임시 비밀번호·최초 로그인 주소·사용 기한이 포함된 개통 메일이 자동 발송됩니다. 최초 개인 비밀번호 설정 전에는 관리자 권한이 없습니다. 보조 관리자는 기존 이메일 초대 방식을 사용합니다.</div>'+
+      '<div class="hq-hint">신규 이메일에는 최초 로그인용 개통 메일을 보내고, 기존 인증 계정에는 Supabase 공식 비밀번호 재설정 링크를 발송합니다. 본인이 새 비밀번호를 설정하기 전에는 대표 관리자 권한이 없습니다.</div>'+
       '<div style="margin:10px 0">'+(list.length?list.map(m=>
         '<div class="hq-manager-row"><span class="hq-manager-email">'+
         escapeHTML(m.email)+(primaryOwnerId===m.user_id?' <strong style="color:var(--brand-700)">· 대표 점주</strong>':'')+'</span>'+
@@ -303,8 +307,8 @@ window.mountHqStoreOnboarding=async function(box){
       if(!assistant&&store?.onboarding_status!=="STAGED")return err("임시 점주 계정은 준비 중(STAGED) 지점에만 발급됩니다.");
        if(!confirm(assistant
         ?email+" 주소로 "+store.name+" 보조 관리자 초대 메일을 보내시겠습니까?"
-        :email+" 주소로 "+store.name+" 신규 대표 관리자 계정을 개통하고 임시 비밀번호·최초 로그인 주소가 포함된 안내 메일을 자동 발송하시겠습니까?"))return;
-      act(()=>invite(email,selected,role),assistant?"보조 관리자 초대가 접수됐습니다. 계정 활성화 후 대표가 허용 업무를 설정합니다.":"개통 메일을 발송 접수했습니다. 점주가 이메일로 안내받은 임시 비밀번호를 사용해 첫 로그인 후 개인 비밀번호를 설정하면 대표로 지정됩니다.");
+        :email+" 주소로 "+store.name+" 점주 계정 개통 안내 메일을 자동 발송하시겠습니까? 기존 계정은 본인 인증 후 비밀번호를 재설정합니다."))return;
+      act(()=>invite(email,selected,role),assistant?"보조 관리자 초대가 접수됐습니다. 계정 활성화 후 대표가 허용 업무를 설정합니다.":"점주 개통 메일 접수 완료. 신규 계정은 임시 비밀번호 로그인, 기존 계정은 이메일 본인 인증 후 새 비밀번호 설정으로 대표 권한을 활성화합니다.");
     };
     body.querySelectorAll("[data-owner-resend]").forEach(button=>{
       button.onclick=()=>{
