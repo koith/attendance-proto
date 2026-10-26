@@ -15,6 +15,7 @@ on:
   workflow_run:
     workflows:
       - verified-pages-deployment-notification
+      - QA1243 independent v0.354 owner READY Pages readback
       - QA1243 isolated live production Edge GAS Sheets E2E
       - QA1243 live hosted Auth and SMTP config read-only audit
       - Store opening full journey QA
