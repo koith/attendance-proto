@@ -467,11 +467,11 @@ Deno.serve(async req=>{
         const sent=await dispatchInvitation(email,storeId,actor.userId,"HQ_OWNER");
         if(sent.delivery!=="INVITE"||!sent.userId)
           throw new HttpError(409,"NEW_OWNER_EMAIL_INVITATION_NOT_ISSUED");
-        const {data:pendingOwner,error:ownerError}=await client.rpc("service_store_manager_attach_invited_user",{
-          p_store_id:storeId,p_user_id:sent.userId,p_actor_id:actor.userId
+        const {data:pendingOwner,error:ownerError}=await client.rpc("service_native_owner_invitation_issue",{
+          p_store_id:storeId,p_user_id:sent.userId,p_actor_id:actor.userId,p_email:email
         });
         if(ownerError||pendingOwner?.ok!==true)
-          throw new HttpError(502,"AUTH_INVITE_SENT_ROLE_PENDING: "+String(ownerError?.message||"UNKNOWN"));
+          throw new HttpError(502,"AUTH_INVITE_SENT_PENDING_ROLE_CLAIM_FAILED: "+String(ownerError?.message||"UNKNOWN"));
         return reply({ok:true,store_id:storeId,email,user_id:sent.userId,
           delivery:"AUTH_INVITE_ACCEPTED",password_change_required:true,
           owner_invitation:"PENDING_ACTIVATION"});
