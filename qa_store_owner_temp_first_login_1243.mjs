@@ -31,7 +31,7 @@ new vm.Script(js,{filename:"owner_temp_activation.js"});
 assert.match(html,/minlength="12"/);
 assert.match(html,/src="owner_temp_activation\.js/);
 assert.match(hq,/issue_store_owner_temporary_password/);
-assert.doesNotMatch(hq,/showOneTimeOwnerCredential|temporary_password/);
+assert.doesNotMatch(hq,/showOneTimeOwnerCredential|output\?\.temporary_password|data\?\.temporary_password/);
 assert.match(hq,/OWNER_INVITE_EMAIL_NOT_ACCEPTED/);
 assert.match(hq,/store_owner_temp|ownerTemps/);
 assert.match(index,/tempOwnerPreflight\(\)/);
