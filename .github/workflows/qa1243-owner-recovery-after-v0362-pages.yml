@@ -1,0 +1,76 @@
+# One approved owner recovery resend, after the v0.362 Pages release is live.
+# Never resends for subsequent app changes or unrelated workflow reruns.
+name: QA1243 one-shot owner recovery after v0.362 publication
+on:
+  workflow_run:
+    workflows: ['p0-pages-deploy']
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  one-shot:
+    name: Only the same-commit owner recovery link resend
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Prove this exact commit introduced the one-shot workflow
+        id: gate
+        shell: bash
+        run: |
+          if git diff-tree --no-commit-id --name-only -r HEAD | grep -Fxq '.github/workflows/qa1243-owner-recovery-after-v0362-pages.yml'; then
+            echo 'eligible=true' >> "$GITHUB_OUTPUT"
+            echo 'QA1243_RESEND_ONE_SHOT_COMMIT_MATCH'
+          else
+            echo 'eligible=false' >> "$GITHUB_OUTPUT"
+            echo 'QA1243_RESEND_SKIP_UNRELATED_RELEASE'
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.eligible == 'true'
+        with:
+          node-version: '22'
+      - name: Recheck actually published activation JS and request exactly one recovery email
+        if: steps.gate.outputs.eligible == 'true'
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          import assert from 'node:assert/strict';
+          const local=readFileSync('index.html','utf8');
+          const origin=local.match(/SUPABASE_URL:\s*"(https:\/\/[^"]+)"/)?.[1];
+          const anon=local.match(/SUPABASE_ANON_KEY:\s*"([^"]+)"/)?.[1];
+          assert.equal(origin,'https://waluhdgqhwjjwmflhrle.supabase.co');
+          assert.ok(anon,'PUBLIC_ANON_NOT_FOUND');
+          const web='https://koith.github.io/attendance-proto/';
+          async function read(url){
+           const res=await fetch(url+'?v='+encodeURIComponent(process.env.GITHUB_RUN_ID),{
+             cache:'no-store',signal:AbortSignal.timeout(12000)});
+           if(!res.ok)throw Error('LIVE_PAGES_UNAVAILABLE_'+res.status);
+           return res.text();
+          }
+          const [index,activation,script]=await Promise.all([
+            read(web+'index.html'),read(web+'owner_activation.html'),read(web+'owner_activation.js')]);
+          assert.match(index,/APP_VERSION="v0\.362"/);
+          assert.match(activation,/recoveryResendForm/);
+          assert.match(script,/native_owner_invitation_preflight/);
+          assert.match(script,/resendForm\.addEventListener/);
+          const redirect=web+'owner_activation.html';
+          const response=await fetch(origin+'/auth/v1/recover?redirect_to='+encodeURIComponent(redirect),{
+            method:'POST',headers:{apikey:anon,'Content-Type':'application/json'},
+            body:JSON.stringify({email:'webuielf@gmail.com'}),
+            signal:AbortSignal.timeout(15000)});
+          const result=await response.json().catch(()=>({}));
+          console.log('QA1243_V0362_LIVE_OWNER_RECOVERY '+JSON.stringify({
+           pagesVerified:true,status:response.status,accepted:response.ok,
+           code:String(result?.code||result?.error_code||'').slice(0,60),
+           recipient:'webuielf@gmail.com',note:'accepted does not prove Gmail inbox receipt'
+          }));
+          if(!response.ok)process.exitCode=1;
+          NODE
