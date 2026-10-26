@@ -99,7 +99,7 @@ GRANT EXECUTE ON FUNCTION public.store_owner_temp_preflight() TO authenticated;
 -- The only elevation path for a temporary user. It requires the Auth password
 -- hash to have CHANGED since issuance and refuses expired/canceled claims.
 -- NOTE: GoTrue rejects same-password update; the page checks that response.
-CREATE OR REPLACE FUNCTION public.store_owner_temp_complete()
+CREATE OR REPLACE FUNCTION public.store_owner_temp_complete(p_new_password text)
  RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','pg_temp'
 AS $$
 DECLARE v_uid uuid; v_claim record; v_auth record; v_store record;
@@ -124,8 +124,15 @@ BEGIN
     OR v_auth.email_confirmed_at IS NULL OR v_auth.deleted_at IS NOT NULL
     OR v_auth.is_anonymous OR (v_auth.banned_until IS NOT NULL AND v_auth.banned_until>now())
  THEN RAISE EXCEPTION 'AUTH_IDENTITY_CHANGED'; END IF;
- IF v_auth.encrypted_password IS NULL OR v_auth.encrypted_password=v_claim.temporary_auth_hash
- THEN RAISE EXCEPTION 'PERSONAL_PASSWORD_NOT_SET'; END IF;
+ -- Independently prove the *new* password is at least 12 characters and is
+ -- the current GoTrue password. Otherwise users could bypass the browser
+ -- length check by calling /auth/v1/user directly with a weak password.
+ -- The plaintext is used only for this check; it is never stored or returned.
+ IF p_new_password IS NULL OR length(p_new_password)<12 OR length(p_new_password)>128
+    OR v_auth.encrypted_password IS NULL
+    OR v_auth.encrypted_password=v_claim.temporary_auth_hash
+    OR extensions.crypt(p_new_password,v_auth.encrypted_password) IS DISTINCT FROM v_auth.encrypted_password
+ THEN RAISE EXCEPTION 'PERSONAL_PASSWORD_NOT_VERIFIED'; END IF;
  IF EXISTS(SELECT 1 FROM public.admin_users WHERE user_id=v_uid)
    OR EXISTS(SELECT 1 FROM public.store_primary_owners WHERE store_id=v_claim.store_id OR user_id=v_uid)
    OR EXISTS(SELECT 1 FROM public.store_primary_owner_invitation_intents WHERE store_id=v_claim.store_id OR user_id=v_uid)
@@ -139,8 +146,8 @@ BEGIN
  RETURN jsonb_build_object('ok',true,'owner_assigned',true,'store_id',v_claim.store_id);
 END;
 $$;
-REVOKE ALL ON FUNCTION public.store_owner_temp_complete() FROM PUBLIC,anon;
-GRANT EXECUTE ON FUNCTION public.store_owner_temp_complete() TO authenticated;
+REVOKE ALL ON FUNCTION public.store_owner_temp_complete(text) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.store_owner_temp_complete(text) TO authenticated;
 
 
 -- HQ-only pending list for one-time-credential issuance visibility.
