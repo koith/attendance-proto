@@ -382,8 +382,52 @@ Deno.serve(async req=>{
   if(req.method!=="POST")return reply({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   try{
     const body=await req.json(),mode=String(body?.mode||"sync");
-    if(!["cron","dryrun","deployment","qa1243_sandbox_e2e","payroll","parity","sync","weekly_approve","weekly_decide","payroll_close_preview","payroll_close","payroll_reopen","invite_store_manager","invite_store_assistant_by_hq","invite_store_delegated_manager"].includes(mode))throw new HttpError(400,"BAD_MODE");
+    if(!["cron","dryrun","deployment","qa1243_sandbox_e2e","payroll","parity","sync","weekly_approve","weekly_decide","payroll_close_preview","payroll_close","payroll_reopen","invite_store_manager","invite_store_assistant_by_hq","invite_store_delegated_manager","issue_store_owner_temporary_password"].includes(mode))throw new HttpError(400,"BAD_MODE");
     const actor=await authenticate(req,mode);
+    if(mode==="issue_store_owner_temporary_password"){
+      // HQ-only, ONE-TIME 100-bit random credential. The credential is returned
+      // to the authenticated HQ operator over TLS once; never persisted/logged.
+      // No manager role is granted before the recipient changes it.
+      if(actor.internal||actor.adminRole!=="HQ"||!actor.userId)
+        throw new HttpError(403,"HQ_ONLY");
+      const email=String(body.email||"").trim().toLowerCase();
+      const storeId=Number(body.store_id);
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||
+         !Number.isSafeInteger(storeId)||storeId<=0)
+        throw new HttpError(400,"INVALID_TEMP_OWNER");
+      const {data:gate,error:preflightError}=await client.rpc("service_store_invitation_dispatch_preflight",{
+        p_store_id:storeId,p_email:email,p_actor_id:actor.userId,p_mode:"HQ_OWNER"
+      });
+      if(preflightError||gate?.ok!==true||gate?.existing_auth_user!==false||gate?.user_id)
+        throw new HttpError(409,"NEW_EMAIL_ACCOUNT_REQUIRED");
+      // Reject a race with an existing temp-owner claim before creating any Auth user.
+      const {data:pending,error:pendingError}=await client.from("store_owner_temp_first_logins")
+        .select("store_id").eq("store_id",storeId).maybeSingle();
+      if(pendingError||pending)throw new HttpError(409,"TEMP_OWNER_ALREADY_ISSUED");
+      const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+      const bytes=crypto.getRandomValues(new Uint8Array(32));
+      const temporaryPassword=Array.from(bytes,b=>alphabet[b%alphabet.length]).join("");
+      const {data:created,error:creationError}=await client.auth.admin.createUser({
+        email,password:temporaryPassword,email_confirm:true
+      });
+      if(creationError||!created?.user?.id)
+        throw new HttpError(409,"TEMP_OWNER_AUTH_CREATION_FAILED");
+      const createdId=created.user.id;
+      const {data:issued,error:issueError}=await client.rpc("service_store_owner_temp_issue",{
+        p_store_id:storeId,p_user_id:createdId,p_actor_id:actor.userId
+      });
+      if(issueError||issued?.ok!==true){
+        // Cleanup is allowed ONLY for the brand-new Auth identity created above;
+        // never touch a pre-existing verified owner/HQ/delegated account.
+        const {error:cleanupError}=await client.auth.admin.deleteUser(createdId);
+        if(cleanupError)
+          throw new HttpError(503,"TEMP_OWNER_PENDING_MANUAL_CLEANUP");
+        throw new HttpError(409,"TEMP_OWNER_ISSUE_REJECTED");
+      }
+      return reply({ok:true,store_id:storeId,email,user_id:createdId,
+        expires_at:issued.expires_at,temporary_password:temporaryPassword,
+        delivery:"HQ_ONE_TIME_VIEW",password_change_required:true});
+    }
     if(mode==="invite_store_manager"||mode==="invite_store_assistant_by_hq"){
       const isAssistant=mode==="invite_store_assistant_by_hq";
       if(actor.internal||actor.adminRole!=="HQ"||!actor.userId)
