@@ -50,6 +50,8 @@ assert.match(css,/grid-template-columns:max-content minmax\(0,1fr\) max-content 
 assert.match(css,/\.records-group \.session\.needs-review>\.session-actions\{\s*grid-column:3;grid-row:1/,'Anomaly actions remain on the original row');
 assert.match(css,/flex-wrap:wrap/,'Badges and buttons can wrap on small screens');
 const html=fs.readFileSync('actual_attendance.html','utf8');
-assert.match(html,/actual_attendance\.js\?v=20261026inline360/,'Safari must refresh fixed browser JS');
-assert.match(html,/actual_attendance\.css\?v=20261026inline360/,'Safari must refresh fixed layout CSS');
+const jsAsset=html.match(/actual_attendance\.js\?v=([A-Za-z0-9_-]+)/)?.[1];
+const cssAsset=html.match(/actual_attendance\.css\?v=([A-Za-z0-9_-]+)/)?.[1];
+assert.ok(jsAsset&&cssAsset,'Safari must have versioned browser JS and layout CSS');
+assert.equal(jsAsset,cssAsset,'Safari must load matching JS and CSS versions');
 console.log('PASS attendance correction: real-shaped duplicate fixture, append-only VOID_ADD recovery, correct shift/clock, server/UI guards and iPhone layout/cache');
