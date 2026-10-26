@@ -135,7 +135,7 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
     if(args.mode==='issue_store_owner_temporary_password'){
       if(args.store_id!==2||args.email!=='owner@example.invalid')return reply(route,{ok:false,error:'BAD_INVITE_ARGS'},403);
       ownerInvited=true;return reply(route,{ok:true,store_id:2,email:args.email,
-        temporary_password:'QAonly-Credential-A1',delivery:'HQ_ONE_TIME_VIEW',
+        email_message_id:'qa-provider-message-id',delivery:'EMAIL_ACCEPTED',
         expires_at:'2026-10-27T00:00:00Z'});
     }
     if(args.mode==='payroll_close_preview')return reply(route,{ok:true,ym:args.ym,employee_count:1,gross:54000,net:52210,fingerprint:'a'.repeat(64)});
@@ -339,7 +339,6 @@ async function smoke(browser,label,viewport){
   assert.equal(await page.locator('#hqStoreReady').isDisabled(),true,'Unverified store must not activate '+label);
   await page.locator('#hqManagerEmail').fill('owner@example.invalid');
   await page.locator('#hqManagerInvite').click();
-  await page.getByRole('button',{name:'확인 후 닫기'}).click();
   await page.waitForFunction(()=>document.querySelector('#hqOnboardingBody')?.innerText.includes('owner@example.invalid'),null,{timeout:12000});
   assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='issue_store_owner_temporary_password'&&x.args.store_id===2),
     'HQ invite service not called '+label);
