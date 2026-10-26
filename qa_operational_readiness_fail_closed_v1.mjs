@@ -10,7 +10,7 @@ assert.ok(storeStart>0&&storeEnd>storeStart,'HQ refresh function found');
 const makeRefresh=(responses)=>{
  let nextResponses=responses,renderCount=0;
  const factory=new Function('rpc','render',
-  'let stores=[],managers=[],proofs=[],sampleCounts=[],primaryOwners=[],ownerInvitations=[],selected=1;'+
+  'let stores=[],managers=[],proofs=[],sampleCounts=[],primaryOwners=[],ownerInvitations=[],ownerTemps=[],selected=1;'+
   storeSource.slice(storeStart,storeEnd)+
   '\nreturn {refresh, state:()=>({stores,managers,proofs,sampleCounts,selected})};');
  const result=factory(async name=>nextResponses[name],()=>renderCount++);
@@ -22,7 +22,8 @@ const valid={
  hq_store_provenance_list:[],
  hq_store_sample_roster_counts:[],
  hq_store_primary_owner_list:[],
- hq_store_primary_owner_invitation_list:[]
+ hq_store_primary_owner_invitation_list:[],
+ hq_store_owner_temp_pending_list:[]
 };
 const store=makeRefresh(valid);
 await store.refresh();

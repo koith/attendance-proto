@@ -19,10 +19,14 @@ async function invite(email,store_id,invitationRole="OWNER"){
   if(!Auth.token)throw Error("LOGIN_REQUIRED");
   const response=await fetch(CONFIG.SUPABASE_URL+"/functions/v1/server-sync-sheet",{
     method:"POST",headers:{Authorization:"Bearer "+Auth.token,"Content-Type":"application/json"},
-    body:JSON.stringify({mode:invitationRole==="ASSISTANT"?"invite_store_assistant_by_hq":"invite_store_manager",email,store_id})
+    body:JSON.stringify({mode:invitationRole==="ASSISTANT"?"invite_store_assistant_by_hq":"issue_store_owner_temporary_password",email,store_id})
   });
   const data=await response.json().catch(()=>null);
   if(!response.ok||data?.ok!==true)throw Error(data?.error||"INVITE_FAILED");
+  if(invitationRole!=="ASSISTANT"&&!(
+    (data?.delivery==="EMAIL_ACCEPTED"&&data?.email_message_id)||
+    data?.delivery==="AUTH_RECOVERY_ACCEPTED"
+  ))throw Error("OWNER_INVITE_EMAIL_NOT_ACCEPTED");
   return data;
 }
 // Readiness export contains no PINs or owner emails. Keep all registered
@@ -117,21 +121,26 @@ window.mountHqStoreOnboarding=async function(box){
     '<div id="hqOnboardingBody" aria-live="polite">지점 정보를 불러오는 중…</div>';
   box.appendChild(section);
   const body=section.querySelector("#hqOnboardingBody");
-  let stores=[],managers=[],proofs=[],sampleCounts=[],primaryOwners=[],ownerInvitations=[],selected=1,busy=false,searchTerm="",statusFilter="ALL";
+  let stores=[],managers=[],proofs=[],sampleCounts=[],primaryOwners=[],ownerInvitations=[],ownerTemps=[],selected=1,busy=false,searchTerm="",statusFilter="ALL";
   const message=(title,detail)=>{if(typeof toast==="function")toast("in",title,detail);};
   const err=error=>{if(typeof toast==="function")toast("err","지점 설정 실패",String(error?.message||error));};
   async function refresh(){
     // Never render READY or export an eligible rollout from a partial/malformed HQ response.
-    const result=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_provenance_list"),rpc("hq_store_sample_roster_counts"),rpc("hq_store_primary_owner_list"),rpc("hq_store_primary_owner_invitation_list")]);
+    const result=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_provenance_list"),rpc("hq_store_sample_roster_counts"),rpc("hq_store_primary_owner_list"),rpc("hq_store_primary_owner_invitation_list"),rpc("hq_store_owner_temp_pending_list")]);
     if(!result.every(Array.isArray))throw Error("HQ_ONBOARDING_INVALID_RESPONSE");
-    [stores,managers,proofs,sampleCounts,primaryOwners,ownerInvitations]=result;
+    [stores,managers,proofs,sampleCounts,primaryOwners,ownerInvitations,ownerTemps]=result;
     if(!stores.some(s=>Number(s.id)===selected))selected=Number(stores[0]?.id||1);
     render();
   }
   async function act(work,notice){
     if(busy)return;
     busy=true;
-    try{await work();await refresh();message("지점 관리",notice);}
+    try{const output=await work();await refresh();
+      if(output?.delivery==="EMAIL_ACCEPTED")
+        message("점주 개통 메일 발송 접수",output.email+" 계정의 임시 비밀번호 및 최초 로그인 주소가 포함된 안내 메일을 메일 제공업체가 접수했습니다. 점주 수신과 최초 로그인은 별도 확인이 필요합니다.");
+      else if(output?.delivery==="AUTH_RECOVERY_ACCEPTED")
+        message("점주 인증 메일 요청 완료",output.email+" 주소로 공식 비밀번호 재설정 메일을 요청했습니다. 수신자가 링크를 열어 새 비밀번호를 설정하면 해당 지점 대표 권한이 활성화됩니다.");
+      else message("지점 관리",notice);}
     catch(e){err(e);}
     finally{busy=false;}
   }
@@ -140,7 +149,8 @@ window.mountHqStoreOnboarding=async function(box){
     const store=stores.find(s=>Number(s.id)===selected);
     const list=managers.filter(m=>Number(m.store_id)===selected);
     const primaryOwnerId=primaryOwners.find(o=>Number(o.store_id)===selected)?.user_id;
-    const pendingOwnerId=ownerInvitations.find(o=>Number(o.store_id)===selected)?.user_id;
+    const tempOwner=ownerTemps.find(o=>Number(o.store_id)===selected);
+    const pendingOwnerId=ownerInvitations.find(o=>Number(o.store_id)===selected)?.user_id||(tempOwner?"TEMP_PENDING":null);
     const ready=store?.onboarding_status==="READY";
     const ownerEmail=list.find(m=>m.user_id===primaryOwnerId)?.email||"";
     const ownerStage=managerStage(store,primaryOwnerId,list,pendingOwnerId);
@@ -175,13 +185,13 @@ window.mountHqStoreOnboarding=async function(box){
       '<div class="hq-hint">선택한 지점: <strong>'+escapeHTML(store?.name||"없음")+'</strong></div>'+
       managerMilestones(ownerStage,store?.name,ownerEmail)+
       '<div class="hq-compact-card" id="hqManagerCard"><h4>대표 관리자 지정 · 계정 관리</h4>'+
-      '<div class="hq-hint">대표 점주: <strong>'+escapeHTML(list.find(m=>m.user_id===primaryOwnerId)?.email||"미지정")+'</strong> · 등록 '+list.length+'명'+(pendingOwnerId?' · 대표 초대 대기: '+escapeHTML(list.find(m=>m.user_id===pendingOwnerId)?.email||"인증 대기 계정"):'')+'</div>'+
+      '<div class="hq-hint">대표 점주: <strong>'+escapeHTML(list.find(m=>m.user_id===primaryOwnerId)?.email||"미지정")+'</strong> · 등록 '+list.length+'명'+(pendingOwnerId?' · 대표 초대 대기: '+escapeHTML(tempOwner?.email||list.find(m=>m.user_id===pendingOwnerId)?.email||"인증 대기 계정"):'')+'</div>'+
       '<div class="field"><label for="hqManagerRole">초대할 관리자 역할</label><select id="hqManagerRole" class="form-control"><option value="OWNER">대표 관리자</option><option value="ASSISTANT">보조 관리자</option></select></div>'+ 
       '<div class="field"><label for="hqManagerEmail">점주 로그인 이메일</label><input id="hqManagerEmail" class="form-control" type="email" autocomplete="off" placeholder="owner@example.com"></div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px">'+
       '<button type="button" class="btn btn-secondary btn-sm" id="hqManagerAssign">기존 계정에 점주 권한 부여</button>'+
-      '<button type="button" class="btn btn-primary btn-sm" id="hqManagerInvite">대표 관리자 이메일 초대</button></div>'+
-      '<div class="hq-hint">대표 초대는 계정 활성화 후 자동 대표 지정, 보조 초대는 대표가 지정된 지점에만 허용됩니다. 초대 역할은 먼저 선택합니다.</div>'+
+      '<button type="button" class="btn btn-primary btn-sm" id="hqManagerInvite">점주 개통 안내 메일 발송</button></div>'+
+      '<div class="hq-hint">신규 이메일에는 최초 로그인용 개통 메일을 보내고, 기존 인증 계정에는 Supabase 공식 비밀번호 재설정 링크를 발송합니다. 본인이 새 비밀번호를 설정하기 전에는 대표 관리자 권한이 없습니다.</div>'+
       '<div style="margin:10px 0">'+(list.length?list.map(m=>
         '<div class="hq-manager-row"><span class="hq-manager-email">'+
         escapeHTML(m.email)+(primaryOwnerId===m.user_id?' <strong style="color:var(--brand-700)">· 대표 점주</strong>':'')+'</span>'+
@@ -294,8 +304,11 @@ window.mountHqStoreOnboarding=async function(box){
       if(assistant&&!primaryOwnerId)return err("보조 관리자는 대표 관리자 활성화 후 초대할 수 있습니다.");
       const email=body.querySelector("#hqManagerEmail").value.trim().toLowerCase();
       if(!email)return;
-      if(!confirm(email+" 주소로 "+store.name+" "+(assistant?"보조":"대표")+" 관리자 초대 메일을 보내시겠습니까?"))return;
-      act(()=>invite(email,selected,role),assistant?"보조 관리자 초대가 접수됐습니다. 계정 활성화 후 대표가 허용 업무를 설정합니다.":"대표 관리자 초대가 접수됐습니다. 이메일 인증·비밀번호 설정을 완료하면 자동 지정됩니다.");
+      if(!assistant&&store?.onboarding_status!=="STAGED")return err("임시 점주 계정은 준비 중(STAGED) 지점에만 발급됩니다.");
+       if(!confirm(assistant
+        ?email+" 주소로 "+store.name+" 보조 관리자 초대 메일을 보내시겠습니까?"
+        :email+" 주소로 "+store.name+" 점주 계정 개통 안내 메일을 자동 발송하시겠습니까? 기존 계정은 본인 인증 후 비밀번호를 재설정합니다."))return;
+      act(()=>invite(email,selected,role),assistant?"보조 관리자 초대가 접수됐습니다. 계정 활성화 후 대표가 허용 업무를 설정합니다.":"점주 개통 메일 접수 완료. 신규 계정은 임시 비밀번호 로그인, 기존 계정은 이메일 본인 인증 후 새 비밀번호 설정으로 대표 권한을 활성화합니다.");
     };
     body.querySelectorAll("[data-owner-resend]").forEach(button=>{
       button.onclick=()=>{

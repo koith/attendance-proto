@@ -5,6 +5,12 @@
 const hash=new URLSearchParams(location.hash.replace(/^#/,""));
 const token=hash.get("access_token"),refresh=hash.get("refresh_token");
 const error=hash.get("error_description")||hash.get("error");
+// Supabase Auth verified the mailbox via a recovery link. Route this session
+// to the scoped first-login screen; it alone checks a live owner claim.
+if(hash.get("type")==="recovery"&&token&&refresh){
+ location.replace("./owner_temp_activation.html"+location.hash);
+ return;
+}
 history.replaceState(null,"",location.pathname);
 const status=document.getElementById("status"),form=document.getElementById("activateForm");
 if(error||!token){
