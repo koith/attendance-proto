@@ -17,7 +17,7 @@ if(hash.get("type")==="recovery"&&hash.get("token_hash")){
  history.replaceState(null,"",location.pathname);
  status.textContent="이메일 인증을 확인하고 있습니다.";
  try{
-  if(!/^[a-fA-F0-9]{64}$/.test(oneTimeHash))
+  if(!/^(?:[a-fA-F0-9]{56}|[a-fA-F0-9]{64})$/.test(oneTimeHash))
    throw Error("INVALID_RECOVERY_LINK");
   const cfgHtml=await fetch("./index.html",{cache:"no-store"}).then(r=>{
    if(!r.ok)throw Error("APP_CONFIG_UNAVAILABLE");return r.text();
