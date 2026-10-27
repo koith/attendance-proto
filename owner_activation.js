@@ -180,7 +180,7 @@ form.onsubmit=async event=>{
   }));
   document.getElementById("password").value="";
   document.getElementById("repeat").value="";
-  location.replace("index.html?mode=store&store="+encodeURIComponent(storeId)+"#pos");
+  location.replace("index.html?mode=store&store="+encodeURIComponent(storeId)+"#admin");
  }catch(e){
   status.textContent="활성화 실패: "+String(e?.message||e);
   button.disabled=false;

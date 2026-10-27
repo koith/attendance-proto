@@ -131,8 +131,8 @@ form.addEventListener("submit",async event=>{
     throw Error("STORE_OWNER_ROLE_NOT_VERIFIED");
   localStorage.setItem("baekeok_auth",JSON.stringify(session));
   forgetPending();
-  status.textContent="대표 관리자 등록 완료. 지점 개통은 본사 승인이 필요합니다.";
-  location.replace("./index.html?mode=store&store="+encodeURIComponent(claim.store_id)+"#pos");
+  status.textContent=accepted.store_opened===true?"대표 관리자 등록과 지점 개통이 완료됐습니다.":"대표 관리자 등록 완료. 지점 개통은 본사 승인이 필요합니다.";
+  location.replace("./index.html?mode=store&store="+encodeURIComponent(claim.store_id)+"#admin");
  }catch(e){
   status.textContent="처리 실패: "+String(e?.message||e)+". 비밀번호 설정은 완료됐을 수 있으니 본사에 문의하세요.";
   button.disabled=false;
