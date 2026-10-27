@@ -37,7 +37,7 @@ async function runScenario(path){
    access_token:token,refresh_token:'synthetic-expired-revoked-refresh'
   }));
  },expiredJwt);
- const call={refresh:0,publicStore:0,deniedPrivileged:0};
+ const call={refresh:0,publicStore:0,deniedPrivileged:0,unrecognizedPaths:[]};
  await page.route('**/*',async route=>{
   const request=route.request();
   const url=request.url();
@@ -62,6 +62,7 @@ async function runScenario(path){
      path==='/rest/v1/rpc/pos_public_staff_cards')
    return route.fulfill({status:200,headers,body:'[]'});
   call.deniedPrivileged++;
+  call.unrecognizedPaths.push(path);
   return route.fulfill({status:401,headers,body:JSON.stringify({code:'not_authorized'})});
  });
  await page.goto(origin+'/attendance-proto/index.html'+path,{waitUntil:'domcontentloaded'});
@@ -84,7 +85,7 @@ async function runScenario(path){
  assert.equal(result.savedSession,null,'Only invalid local admin session is removed');
  assert.ok(call.refresh>=1,'Expired Safari JWT must request official refresh once');
  assert.ok(call.publicStore>=1,'Public store readiness must still be independently verified');
- assert.equal(call.deniedPrivileged,0,'Expired token cannot call an authorized RPC');
+ assert.equal(call.deniedPrivileged,0,'Expired token cannot call an authorized RPC: '+call.unrecognizedPaths.join(','));
  report.push({path,refresh:call.refresh,publicStore:call.publicStore,
   legacySafariRecovered:true,version:result.version});
  await context.close();
