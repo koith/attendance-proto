@@ -80,6 +80,14 @@ jobs:
               runLive=false;
               core.info('AI1331 automation-only change: no Google, OAuth or Edge E2E repeated.');
             }
+            if(runLive && message.includes('[QA1243-OWNER-REINVITE]')){
+              const before=context.payload.before;
+              const {data}=await github.rest.repos.compareCommits({...context.repo,base:before,head:context.sha,per_page:100});
+              const {assertHqReinviteRelease}=await import(process.cwd()+'/scripts/qa1243_hq_reinvite_release.mjs');
+              assertHqReinviteRelease(data.files,message,before);
+              runLive=false;
+              core.info('HQ static reinvite correction: no Google/OAuth/Edge/Sheets execution');
+            }
             if(runLive && message.includes('[QA1243-OWNER-OPENING]')){
               const before=context.payload.before;
               const {data}=await github.rest.repos.compareCommits({...context.repo,base:before,head:context.sha,per_page:100});

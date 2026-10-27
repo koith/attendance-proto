@@ -140,6 +140,28 @@ try{
  console.log('PASS new approved native SMTP/password/login/READY without second HQ action');
  const recoveryEmail='approved-existing@journey1243.invalid',initial='Initial-personal-1243!';
  const existing=await success(http(AUTH,'/admin/users',service,{email:recoveryEmail,password:initial,email_confirm:true}));uuid(existing.id);
+ // Match the production test precondition: this identity previously completed
+ // owner setup, then HQ explicitly revoked it and returned its store to STAGED.
+ const formerPassword='Previous-owner-personal-1243!';
+ const firstSession=await success(http(AUTH,'/token?grant_type=password',null,{email:recoveryEmail,password:initial}));
+ await success(rpc('service_store_owner_temp_issue_for_opening',{
+  p_store_id:704,p_user_id:existing.id,p_actor_id:hq.id,p_auto_open_after_accept:true},service));
+ await success(http(AUTH,'/user',firstSession.access_token,{password:formerPassword},'PUT'));
+ assert.equal((await success(rpc('store_owner_temp_complete',{p_new_password:formerPassword},firstSession.access_token))).store_opened,true);
+ sql(`BEGIN; UPDATE public.stores SET onboarding_status='STAGED',is_active=false WHERE id=704;
+ DELETE FROM public.store_primary_owners WHERE user_id='${uuid(existing.id)}' AND store_id=704;
+ DELETE FROM public.store_admin_memberships WHERE user_id='${uuid(existing.id)}' AND store_id=704;
+ DELETE FROM public.store_delegated_permissions WHERE user_id='${uuid(existing.id)}' AND store_id=704;
+ DELETE FROM public.admin_users WHERE user_id='${uuid(existing.id)}' AND store_id=704;
+ DELETE FROM auth.refresh_tokens WHERE user_id='${uuid(existing.id)}';
+ DELETE FROM auth.sessions WHERE user_id='${uuid(existing.id)}'; COMMIT;`);
+ assert.equal((await success(rpc('admin_context',{},firstSession.access_token))).role,null);
+ assert.equal(await success(rpc('can_manage_store',{p_store_id:704},firstSession.access_token)),false);
+ await denied(rpc('service_store_invitation_dispatch_preflight',{
+  p_store_id:704,p_email:recoveryEmail,p_actor_id:hq.id,p_mode:'HQ_OWNER'},service),'USE_EXISTING_VERIFIED_ACCOUNT');
+ const sameOwner=await success(rpc('service_store_owner_temp_existing_lookup',{
+  p_store_id:704,p_email:recoveryEmail,p_actor_id:hq.id},service));
+ assert.equal(sameOwner.user_id,existing.id);
  await success(rpc('service_store_owner_temp_issue_for_opening',{
   p_store_id:704,p_user_id:existing.id,p_actor_id:hq.id,p_auto_open_after_accept:true},service));
  const claimBefore=sql("SELECT jsonb_build_object('expiry',expires_at,'approved',auto_open_after_accept)::text FROM public.store_owner_temp_first_logins WHERE store_id=704");
@@ -150,7 +172,7 @@ try{
  const recoverySeen=await inboxIds();await success(http(AUTH,'/recover',null,{email:recoveryEmail}));
  const recovered=await redeem(recoveryEmail,recoverySeen);assert.equal(recovered.id,existing.id);
  await success(rpc('store_owner_temp_preflight',{},recovered.token));
- await denied(rpc('store_owner_temp_complete',{p_new_password:initial},recovered.token),'PERSONAL_PASSWORD_NOT_VERIFIED');
+ await denied(rpc('store_owner_temp_complete',{p_new_password:formerPassword},recovered.token),'PERSONAL_PASSWORD_NOT_VERIFIED');
  await success(http(AUTH,'/user',recovered.token,{password:pass},'PUT'));
  const recoveredDone=await success(rpc('store_owner_temp_complete',{p_new_password:pass},recovered.token));
  assert.equal(recoveredDone.store_opened,true);assert.equal(recoveredDone.store_id,704);
@@ -161,7 +183,7 @@ try{
  assert.equal(await success(rpc('can_manage_store',{p_store_id:703},recoveredLogin.access_token)),false);
  assert.equal((await success(rpc('store_owner_temp_complete',{p_new_password:pass},recoveredLogin.access_token))).already_completed,true);
  approvedOwnerOpening.push({name:'existing-mail-password-login-atomic-ready',result:'PASS'});
- console.log('PASS new approved recovery SMTP/current UID/password/login/READY and response replay');
+ console.log('PASS former owner revoked and STAGED: same UID recovery SMTP/new password/login/READY and response replay');
  // Cancellation must not force deletion/recreation of an unconfirmed Auth user.
  const cancelEmail='cancel-unconfirmed@journey1243.invalid';
  const originalInvite=await success(http(AUTH,'/invite',service,{email:cancelEmail}));uuid(originalInvite.id);

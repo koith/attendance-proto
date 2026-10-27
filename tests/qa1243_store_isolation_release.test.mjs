@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {assertStoreIsolationRelease,ISOLATION_BASE,ISOLATION_ASSETS} from '../scripts/qa1243_store_isolation_release.mjs';
 const files=()=>Object.keys(ISOLATION_ASSETS).map(filename=>({filename,status:'modified'}));
 // Reconstruct only the released v0.368 index; production old-release guard stays strict.
-const reviewed=p=>{const s=readFileSync(p,'utf8');return p==='index.html'?s.replaceAll('v0.369','v0.368')
+const reviewed=p=>{const s=readFileSync(p,'utf8');return p==='index.html'?s.replaceAll('v0.370','v0.369').replaceAll('20261027v370','20261027v369').replaceAll('v0.369','v0.368')
  .replaceAll('hq_owner_console.js?v=20261027v369','hq_owner_console.js?v=20261020v352')
  .replaceAll('hq_store_onboarding_ui.js?v=20261027v369','hq_store_onboarding_ui.js?v=20261026v362'):s;};
 const message='[QA1243-STORE-ISOLATION] [QA1243-APP-PAGES] [QA1243-NO-OPERATING-WRITE] [QA1243-NO-GOOGLE-RERUN]';

@@ -234,8 +234,8 @@ window.mountHqOwnerConsole=async function(box){
  const invitePanel='<div class="hq-manager-invite-panel" role="tabpanel" aria-label="관리자 초대">'+
    '<label for="hqInviteRole">역할</label><select class="form-control" id="hqInviteRole"><option value="OWNER">대표 관리자</option><option value="ASSISTANT">보조 관리자</option></select>'+
    '<label for="hqOwnerEmail">이메일</label><input class="form-control" id="hqOwnerEmail" type="email" placeholder="manager@example.com" autocomplete="off">'+
-   '<div class="hq-owner-buttons" style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-primary btn-sm" id="hqOwnerInvite">신규 계정 초대 메일 발송</button><button type="button" class="btn btn-secondary btn-sm" id="hqOwnerConnectExisting">기존 인증 계정 연결 (메일 없음)</button></div>'+
-   '<p class="hq-owner-help">이미 가입해 이메일·비밀번호 인증을 완료한 계정은 별도 버튼으로 연결합니다. 본사·타 지점 계정은 연결할 수 없으며, 보조 관리자 권한은 기본적으로 모두 꺼집니다.</p>'+
+   '<div class="hq-owner-buttons" style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-primary btn-sm" id="hqOwnerInvite">대표 초대·개통 승인 메일 발송</button><button type="button" class="btn btn-secondary btn-sm" id="hqOwnerConnectExisting" hidden style="display:none">기존 인증 계정 연결 (메일 없음)</button></div>'+
+   '<p class="hq-owner-help" id="hqInviteHelp">대표는 신규·기존 계정 모두 인증 메일을 받습니다. 수신자가 새 비밀번호를 설정하면 대표 등록과 지점 개통이 함께 완료됩니다. 본사·타 지점 계정은 초대할 수 없습니다.</p>'+
    '<h4>초대 대기중</h4>'+
    (waitingRows.length?waitingRows.map(m=>
      '<div class="hq-manager-invite-row"><span><strong>'+h(m.email)+'</strong><small>'+h(roleName(m))+' · '+(m.account_state==="EXPIRED"?"기한 만료":"인증 대기")+'</small></span>'+
@@ -324,8 +324,21 @@ window.mountHqOwnerConsole=async function(box){
  });
  if(activeTab==="invite"){
    const email=()=>body.querySelector("#hqOwnerEmail").value.trim().toLowerCase();
+   const syncInviteRole=()=>{
+     const assistant=body.querySelector("#hqInviteRole").value==="ASSISTANT";
+     body.querySelector("#hqOwnerConnectExisting").hidden=!assistant;
+     body.querySelector("#hqOwnerConnectExisting").style.display=assistant?"":"none";
+     body.querySelector("#hqOwnerInvite").textContent=assistant?"보조 관리자 초대 메일 발송":"대표 초대·개통 승인 메일 발송";
+     body.querySelector("#hqInviteHelp").textContent=assistant
+       ?"이미 인증한 보조 관리자 계정은 메일 없이 연결할 수 있습니다. 허용 업무는 기본적으로 모두 꺼집니다."
+       :"대표는 신규·기존 계정 모두 인증 메일을 받습니다. 수신자가 새 비밀번호를 설정하면 대표 등록과 지점 개통이 함께 완료됩니다. 본사·타 지점 계정은 초대할 수 없습니다.";
+   };
+   body.querySelector("#hqInviteRole").onchange=syncInviteRole;
+   syncInviteRole();
    body.querySelector("#hqOwnerConnectExisting").onclick=()=>{
      const role=body.querySelector("#hqInviteRole").value,assistant=role==="ASSISTANT";
+     // Legacy/programmatic OWNER clicks must use the same explicit mail approval.
+     if(!assistant)return body.querySelector("#hqOwnerInvite").click();
      if(!assistant&&(current||waiting))
        return alert("대표 관리자 또는 대기 중인 대표 초대가 있습니다. 먼저 기존 역할을 확인하세요.");
      if(assistant&&!current)return alert("대표 관리자 활성화 후 보조 관리자를 연결할 수 있습니다.");

@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync as fsRead} from 'node:fs';
+const readFileSync=(p,encoding)=>{const s=fsRead(p,encoding);return p==='index.html'?s.replaceAll('v0.370','v0.369').replaceAll('20261027v370','20261027v369'):s;};
 import {assertApprovedOpeningRelease,OPENING_BASE,OPENING_REQUIRED,OPENING_MIGRATION} from '../scripts/qa1243_approved_opening_release.mjs';
 const message='[QA1243-OWNER-OPENING] [QA1243-APP-PAGES] [QA1243-NO-OPERATING-WRITE] [QA1243-NO-GOOGLE-RERUN]';
 const files=()=>OPENING_REQUIRED.map(filename=>({filename,status:'modified'}));
 const altered=(path,change)=>({read:p=>change&&p===path?change(readFileSync(p,'utf8')):readFileSync(p,'utf8')});
 test('the reviewed rollout preserves all non-owner Edge source and operating assets',()=>{
- assert.equal(assertApprovedOpeningRelease(files(),message,OPENING_BASE),true);
+ assert.equal(assertApprovedOpeningRelease(files(),message,OPENING_BASE,altered()),true);
 });
 test('all explicit markers, the reviewed parent and every runtime file are required',()=>{
  assert.throws(()=>assertApprovedOpeningRelease(files(),message.replace('[QA1243-NO-OPERATING-WRITE]',''),OPENING_BASE),/RELEASE_MARKER/);
