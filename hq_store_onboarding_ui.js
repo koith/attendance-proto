@@ -133,7 +133,7 @@ window.mountHqStoreOnboarding=async function(box){
   const err=error=>{if(typeof toast==="function")toast("err","지점 설정 실패",String(error?.message||error));};
   async function refresh(){
     // Never render READY or export an eligible rollout from a partial/malformed HQ response.
-    const result=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_provenance_list"),rpc("hq_store_sample_roster_counts"),rpc("hq_store_primary_owner_list"),rpc("hq_store_primary_owner_invitation_list"),rpc("hq_store_owner_temp_pending_list")]);
+    const result=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_provenance_list"),rpc("hq_store_sample_roster_counts"),rpc("hq_store_primary_owner_list"),rpc("hq_store_owner_pending_list"),rpc("hq_store_owner_temp_pending_list")]);
     if(!result.every(Array.isArray))throw Error("HQ_ONBOARDING_INVALID_RESPONSE");
     [stores,managers,proofs,sampleCounts,primaryOwners,ownerInvitations,ownerTemps]=result;
     if(!stores.some(s=>Number(s.id)===selected))selected=Number(stores[0]?.id||1);
@@ -157,6 +157,7 @@ window.mountHqStoreOnboarding=async function(box){
     if(!section.isConnected)return;
     const store=stores.find(s=>Number(s.id)===selected);
     const list=managers.filter(m=>Number(m.store_id)===selected);
+    for(const pending of ownerInvitations.filter(x=>Number(x.store_id)===selected)){if(!list.some(m=>m.user_id===pending.user_id))list.push({...pending,email_confirmed:false});}
     const primaryOwnerId=primaryOwners.find(o=>Number(o.store_id)===selected)?.user_id;
     const tempOwner=ownerTemps.find(o=>Number(o.store_id)===selected);
     const pendingOwnerId=ownerInvitations.find(o=>Number(o.store_id)===selected)?.user_id||(tempOwner?"TEMP_PENDING":null);
@@ -207,7 +208,7 @@ window.mountHqStoreOnboarding=async function(box){
         (primaryOwnerId!==m.user_id?'<button type="button" class="btn btn-secondary btn-sm" data-primary-assign="'+escapeHTML(m.user_id)+'"'+(pendingOwnerId===m.user_id?' disabled title="계정 활성화 시 대표 자동 지정"':'')+'>'+(pendingOwnerId===m.user_id?'자동 지정 대기':'대표 지정')+'</button>':'')+
         (pendingOwnerId===m.user_id?'<button type="button" class="btn btn-secondary btn-sm" data-owner-resend="'+escapeHTML(m.user_id)+'">초대 메일 재발송</button>':'')+
         (primaryOwnerId===m.user_id?'<span style="font-size:.72rem;color:var(--text-muted)">대표 교체 후 해제 가능</span>':
-          '<button type="button" class="btn btn-secondary btn-sm" data-owner-revoke="'+escapeHTML(m.user_id)+'">권한 해제</button>')+'</div>').join(""):
+          '<button type="button" class="btn btn-secondary btn-sm" data-owner-revoke="'+escapeHTML(m.user_id)+'">'+(pendingOwnerId===m.user_id?"초대 취소":"권한 해제")+'</button>')+'</div>').join(""):
         '<div class="hq-hint">등록된 점주가 없습니다. 이메일로 계정을 연결하거나 초대하세요.</div>')+'</div></div>'+
       '<details class="hq-compact-card" id="hqStoreOperations"'+(previousOperationsOpen?' open':'')+'><summary style="cursor:pointer;font-weight:600">운영 상태 · 실재 확인 <span style="font-size:.75rem;color:var(--text-muted)">('+escapeHTML(store?.onboarding_status||"UNKNOWN")+')</span></summary>'+
       '<div class="hq-hint">실재 확인: '+escapeHTML(selected===1?"기존 운영점":proof?.decision||"미확인")+' · 인증 점주 '+Number(store?.manager_count||0)+'명</div>'+
@@ -339,8 +340,13 @@ window.mountHqStoreOnboarding=async function(box){
     body.querySelectorAll("[data-owner-revoke]").forEach(button=>{
       button.onclick=()=>{
         const id=button.getAttribute("data-owner-revoke");
-        if(!confirm("점주 계정 권한을 해제하시겠습니까?"))return;
-        act(()=>rpc("hq_store_manager_revoke",{p_user_id:id}),"점주 권한을 해제했습니다.");
+        if(pendingOwnerId===id&&!primaryOwnerId){
+          if(!confirm("이 대표 초대를 취소하시겠습니까? 기존 메일 링크로 관리자 등록이나 개통이 되지 않습니다."))return;
+          act(()=>rpc("hq_store_owner_invitation_cancel",{p_store_id:selected,p_user_id:id}),"대표 초대를 취소했습니다.");
+        }else{
+          if(!confirm("점주 계정 권한을 해제하시겠습니까?"))return;
+          act(()=>rpc("hq_store_manager_revoke",{p_user_id:id}),"점주 권한을 해제했습니다.");
+        }
       };
     });
     body.querySelector("#hqNewStoreCreate").onclick=()=>{

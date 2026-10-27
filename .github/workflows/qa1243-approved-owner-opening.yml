@@ -5,6 +5,8 @@ on:
       - 'supabase/migrations/20261027070217_approved_owner_auto_opening.sql'
       - 'qa_store_owner_approved_opening.sql'
       - 'qa_store_owner_approved_opening.mjs'
+      - 'scripts/qa1243_approved_opening_release.mjs'
+      - 'tests/qa1243_approved_opening_release.test.mjs'
       - 'hq_owner_console.js'
       - 'hq_store_onboarding_ui.js'
       - 'owner_activation.js'
@@ -17,6 +19,8 @@ on:
       - 'supabase/migrations/20261027070217_approved_owner_auto_opening.sql'
       - 'qa_store_owner_approved_opening.sql'
       - 'qa_store_owner_approved_opening.mjs'
+      - 'scripts/qa1243_approved_opening_release.mjs'
+      - 'tests/qa1243_approved_opening_release.test.mjs'
       - '.github/workflows/qa1243-approved-owner-opening.yml'
 permissions:
   contents: read
@@ -49,6 +53,8 @@ jobs:
           node-version: '22'
       - name: HQ approval, owner issue and read-only resend contracts
         run: node qa_store_owner_approved_opening.mjs
+      - name: Strict owner-only release and no operating data mutation boundary
+        run: node tests/qa1243_approved_opening_release.test.mjs
       - name: Execute actual migration and acceptance/cancel/revoke/retry cases in disposable PostgreSQL
         run: |
           test "$PGHOST" = 127.0.0.1

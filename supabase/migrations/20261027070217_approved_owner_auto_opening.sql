@@ -40,8 +40,8 @@ END $preflight$;
 REVOKE ALL ON FUNCTION public.service_store_owner_opening_preflight(bigint,uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.service_store_owner_opening_preflight(bigint,uuid) TO service_role;
 
--- Explicit overloads preserve the legacy 3/4-argument, non-opening contracts.
-CREATE OR REPLACE FUNCTION public.service_store_owner_temp_issue(
+-- Dedicated RPCs preserve the legacy 3/4-argument, non-opening contracts.
+CREATE OR REPLACE FUNCTION public.service_store_owner_temp_issue_for_opening(
  p_store_id bigint,p_user_id uuid,p_actor_id uuid,p_auto_open_after_accept boolean)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','pg_temp'
 AS $issue_temp$
@@ -56,10 +56,10 @@ BEGIN
  END IF;
  RETURN result||jsonb_build_object('auto_open_after_accept',p_auto_open_after_accept IS TRUE);
 END $issue_temp$;
-REVOKE ALL ON FUNCTION public.service_store_owner_temp_issue(bigint,uuid,uuid,boolean) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.service_store_owner_temp_issue(bigint,uuid,uuid,boolean) TO service_role;
+REVOKE ALL ON FUNCTION public.service_store_owner_temp_issue_for_opening(bigint,uuid,uuid,boolean) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.service_store_owner_temp_issue_for_opening(bigint,uuid,uuid,boolean) TO service_role;
 
-CREATE OR REPLACE FUNCTION public.service_native_owner_invitation_issue(
+CREATE OR REPLACE FUNCTION public.service_native_owner_invitation_issue_for_opening(
  p_store_id bigint,p_user_id uuid,p_actor_id uuid,p_email text,p_auto_open_after_accept boolean)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','pg_temp'
 AS $issue_native$
@@ -74,8 +74,8 @@ BEGIN
  END IF;
  RETURN result||jsonb_build_object('auto_open_after_accept',p_auto_open_after_accept IS TRUE);
 END $issue_native$;
-REVOKE ALL ON FUNCTION public.service_native_owner_invitation_issue(bigint,uuid,uuid,text,boolean) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.service_native_owner_invitation_issue(bigint,uuid,uuid,text,boolean) TO service_role;
+REVOKE ALL ON FUNCTION public.service_native_owner_invitation_issue_for_opening(bigint,uuid,uuid,text,boolean) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.service_native_owner_invitation_issue_for_opening(bigint,uuid,uuid,text,boolean) TO service_role;
 
 CREATE OR REPLACE FUNCTION private.finish_approved_owner_opening(
  p_store_id bigint,p_owner_id uuid,p_approved_by uuid)
@@ -317,6 +317,64 @@ END;
 $native_complete$;
 REVOKE ALL ON FUNCTION public.native_owner_invitation_complete(text) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.native_owner_invitation_complete(text) TO authenticated;
+
+-- HQ can see and cancel native AND temporary pending owners before acceptance.
+-- These RPCs never grant a role or change the Auth identity/password.
+CREATE OR REPLACE FUNCTION public.hq_store_owner_pending_list()
+RETURNS SETOF jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public','pg_temp'
+AS $pending_list$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM public.admin_users a JOIN auth.users u ON u.id=a.user_id
+  WHERE a.user_id=auth.uid() AND a.admin_role='HQ' AND u.email_confirmed_at IS NOT NULL
+   AND u.deleted_at IS NULL AND NOT u.is_anonymous AND (u.banned_until IS NULL OR u.banned_until<now()))
+ THEN RAISE EXCEPTION 'HQ_ONLY'; END IF;
+ RETURN QUERY
+ SELECT jsonb_build_object('store_id',c.store_id,'user_id',c.user_id,'email',c.email,
+  'expires_at',c.expires_at,'auto_open_after_accept',c.auto_open_after_accept,
+  'intended_role','OWNER','invitation_kind','TEMP',
+  'account_state',CASE WHEN c.expires_at<=now() THEN 'EXPIRED' ELSE 'INVITED' END)
+ FROM public.store_owner_temp_first_logins c
+ UNION ALL
+ SELECT jsonb_build_object('store_id',i.store_id,'user_id',i.user_id,'email',u.email,
+  'expires_at',i.expires_at,'auto_open_after_accept',i.auto_open_after_accept,
+  'intended_role','OWNER','invitation_kind',CASE WHEN i.source='native_mail_v1' THEN 'NATIVE' ELSE 'LEGACY' END,
+  'account_state',CASE WHEN i.expires_at<=now() THEN 'EXPIRED' ELSE 'INVITED' END)
+ FROM public.store_primary_owner_invitation_intents i JOIN auth.users u ON u.id=i.user_id;
+END $pending_list$;
+REVOKE ALL ON FUNCTION public.hq_store_owner_pending_list() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.hq_store_owner_pending_list() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.hq_store_owner_invitation_cancel(p_store_id bigint,p_user_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','pg_temp'
+AS $cancel_owner$
+DECLARE removed jsonb;
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM public.admin_users a JOIN auth.users u ON u.id=a.user_id
+  WHERE a.user_id=auth.uid() AND a.admin_role='HQ' AND u.email_confirmed_at IS NOT NULL
+   AND u.deleted_at IS NULL AND NOT u.is_anonymous AND (u.banned_until IS NULL OR u.banned_until<now()))
+ THEN RAISE EXCEPTION 'HQ_ONLY'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended('admin_users_mutation',0));
+ PERFORM 1 FROM public.stores WHERE id=p_store_id FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'STORE_NOT_FOUND'; END IF;
+ IF EXISTS(SELECT 1 FROM public.store_primary_owners WHERE store_id=p_store_id OR user_id=p_user_id)
+ THEN RAISE EXCEPTION 'OWNER_ALREADY_ASSIGNED'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.store_owner_temp_first_logins WHERE store_id=p_store_id AND user_id=p_user_id)
+  AND NOT EXISTS(SELECT 1 FROM public.store_primary_owner_invitation_intents WHERE store_id=p_store_id AND user_id=p_user_id)
+ THEN RAISE EXCEPTION 'NO_VALID_OWNER_INVITATION'; END IF;
+ IF EXISTS(SELECT 1 FROM public.admin_users WHERE user_id=p_user_id
+  AND (admin_role<>'STORE_MANAGER' OR store_id IS DISTINCT FROM p_store_id))
+ THEN RAISE EXCEPTION 'ACCOUNT_ALREADY_ASSIGNED'; END IF;
+ IF EXISTS(SELECT 1 FROM public.admin_users WHERE user_id=p_user_id) THEN
+  -- Keep the existing legacy role/session removal policy for old invitations.
+  removed:=public.hq_store_manager_remove(p_store_id,p_user_id);
+  IF removed->>'ok' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'LEGACY_CANCEL_NOT_CONFIRMED'; END IF;
+ END IF;
+ DELETE FROM public.store_owner_temp_first_logins WHERE store_id=p_store_id AND user_id=p_user_id;
+ DELETE FROM public.store_primary_owner_invitation_intents WHERE store_id=p_store_id AND user_id=p_user_id;
+ RETURN jsonb_build_object('ok',true,'store_id',p_store_id,'user_id',p_user_id,'invitation_cancelled',true);
+END $cancel_owner$;
+REVOKE ALL ON FUNCTION public.hq_store_owner_invitation_cancel(bigint,uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.hq_store_owner_invitation_cancel(bigint,uuid) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
 COMMIT;

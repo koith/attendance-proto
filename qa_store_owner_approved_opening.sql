@@ -77,7 +77,7 @@ SELECT 'PASS legacy temp claim never becomes implicit opening approval';
 
 -- A new, explicitly approved temp invitation atomically appoints and opens.
 SELECT public.fixture_identity('service_role',1);
-SELECT public.service_store_owner_temp_issue(702,public.fixture_uid(702),public.fixture_uid(1),true);
+SELECT public.service_store_owner_temp_issue_for_opening(702,public.fixture_uid(702),public.fixture_uid(1),true);
 SELECT public.fixture_identity('authenticated',702);
 SELECT public.fixture_expect($q$SELECT public.store_owner_temp_complete('Initial password 123!')$q$,'PERSONAL_PASSWORD_NOT_VERIFIED');
 SELECT public.fixture_assert((SELECT count(*)=0 FROM public.admin_users WHERE store_id=702),'password proof before role');
@@ -93,7 +93,7 @@ SELECT 'PASS approved temp password/owner/READY atomicity and response-loss retr
 -- Native invites likewise require mailbox confirmation and matching password.
 UPDATE auth.users SET email_confirmed_at=NULL,encrypted_password=NULL WHERE id=public.fixture_uid(703);
 SELECT public.fixture_identity('service_role',1);
-SELECT public.service_native_owner_invitation_issue(703,public.fixture_uid(703),public.fixture_uid(1),'owner703@qa.invalid',true);
+SELECT public.service_native_owner_invitation_issue_for_opening(703,public.fixture_uid(703),public.fixture_uid(1),'owner703@qa.invalid',true);
 SELECT public.fixture_identity('authenticated',703);
 SELECT public.fixture_expect($q$SELECT public.native_owner_invitation_preflight()$q$,'AUTH_CONFIRMATION_REQUIRED');
 SELECT public.fixture_personal(703);
@@ -111,76 +111,87 @@ SELECT public.fixture_assert((public.native_owner_invitation_complete('Personal 
 -- Invalid source/sample data rejects the new claim, without a half approval.
 INSERT INTO public.store_provenance_reviews(store_id,decision) VALUES(705,'REJECTED');
 SELECT public.fixture_identity('service_role',1);
-SELECT public.fixture_expect($q$SELECT public.service_store_owner_temp_issue(705,public.fixture_uid(705),public.fixture_uid(1),true)$q$,'PROVENANCE_VERIFICATION_REQUIRED');
+SELECT public.fixture_expect($q$SELECT public.service_store_owner_temp_issue_for_opening(705,public.fixture_uid(705),public.fixture_uid(1),true)$q$,'PROVENANCE_VERIFICATION_REQUIRED');
 SELECT public.fixture_assert((SELECT count(*)=0 FROM public.store_owner_temp_first_logins WHERE store_id=705),'bad proof rolls back claim');
 INSERT INTO public.employees VALUES(1,706,'직원','데모 샘플');
-SELECT public.fixture_expect($q$SELECT public.service_native_owner_invitation_issue(706,public.fixture_uid(706),public.fixture_uid(1),'owner706@qa.invalid',true)$q$,'DEMO_EMPLOYEES_REQUIRE_REVIEW');
+SELECT public.fixture_expect($q$SELECT public.service_native_owner_invitation_issue_for_opening(706,public.fixture_uid(706),public.fixture_uid(1),'owner706@qa.invalid',true)$q$,'DEMO_EMPLOYEES_REQUIRE_REVIEW');
 SELECT public.fixture_assert((SELECT count(*)=0 FROM public.store_primary_owner_invitation_intents WHERE store_id=706),'sample rejection rolls back claim');
 
 -- Recheck source and HQ validity at acceptance; failure rolls all role writes back.
-SELECT public.service_store_owner_temp_issue(707,public.fixture_uid(707),public.fixture_uid(1),true);
+SELECT public.service_store_owner_temp_issue_for_opening(707,public.fixture_uid(707),public.fixture_uid(1),true);
 INSERT INTO public.store_provenance_reviews(store_id,decision) VALUES(707,'REJECTED');
 SELECT public.fixture_personal(707),public.fixture_identity('authenticated',707);
 SELECT public.fixture_expect($q$SELECT public.store_owner_temp_complete('Personal password 123!')$q$,'PROVENANCE_VERIFICATION_REQUIRED');
 SELECT public.fixture_assert((SELECT count(*)=0 FROM public.admin_users WHERE store_id=707),'role rollback on changed provenance');
 SELECT public.fixture_assert((SELECT count(*)=1 FROM public.store_owner_temp_first_logins WHERE store_id=707),'failed acceptance preserves claim');
+INSERT INTO public.store_provenance_reviews(store_id,decision) VALUES(707,'VERIFIED');
+SELECT public.fixture_assert((public.store_owner_temp_complete('Personal password 123!')->>'store_opened')::boolean,'fixed proof resumes without password reset');
 SELECT public.fixture_identity('service_role',1);
-SELECT public.service_native_owner_invitation_issue(708,public.fixture_uid(708),public.fixture_uid(1),'owner708@qa.invalid',true);
+SELECT public.service_native_owner_invitation_issue_for_opening(708,public.fixture_uid(708),public.fixture_uid(1),'owner708@qa.invalid',true);
 UPDATE auth.users SET banned_until=now()+interval '1 day' WHERE id=public.fixture_uid(1);
 SELECT public.fixture_personal(708),public.fixture_identity('authenticated',708);
 SELECT public.fixture_expect($q$SELECT public.native_owner_invitation_complete('Personal password 123!')$q$,'HQ_OPENING_APPROVAL_REQUIRED');
 SELECT public.fixture_assert((SELECT count(*)=0 FROM public.admin_users WHERE store_id=708),'revoked HQ rollback');
 UPDATE auth.users SET banned_until=NULL WHERE id=public.fixture_uid(1);
+SELECT public.fixture_assert((public.native_owner_invitation_complete('Personal password 123!')->>'store_opened')::boolean,'restored HQ approval resumes existing password');
 SELECT 'PASS changed provenance or revoked HQ cannot open or partially appoint';
 
 -- Suspended, expired, canceled and cross-user invitations remain closed.
 SELECT public.fixture_identity('service_role',1);
-SELECT public.service_store_owner_temp_issue(709,public.fixture_uid(709),public.fixture_uid(1),true);
+SELECT public.service_store_owner_temp_issue_for_opening(709,public.fixture_uid(709),public.fixture_uid(1),true);
 UPDATE public.stores SET onboarding_status='SUSPENDED' WHERE id=709;
 SELECT public.fixture_personal(709),public.fixture_identity('authenticated',709);
 SELECT public.fixture_expect($q$SELECT public.store_owner_temp_complete('Personal password 123!')$q$,'STAGED_STORE_REQUIRED');
 SELECT public.fixture_identity('service_role',1);
-SELECT public.service_store_owner_temp_issue(710,public.fixture_uid(710),public.fixture_uid(1),true);
+SELECT public.service_store_owner_temp_issue_for_opening(710,public.fixture_uid(710),public.fixture_uid(1),true);
 UPDATE public.store_owner_temp_first_logins SET issued_at=now()-interval '2 days',expires_at=now()-interval '1 day' WHERE store_id=710;
 SELECT public.fixture_personal(710),public.fixture_identity('authenticated',710);
 SELECT public.fixture_expect($q$SELECT public.store_owner_temp_complete('Personal password 123!')$q$,'TEMP_OWNER_CREDENTIAL_EXPIRED');
 SELECT public.fixture_identity('service_role',1);
-SELECT public.service_store_owner_temp_issue(711,public.fixture_uid(711),public.fixture_uid(1),true);
-DELETE FROM public.store_owner_temp_first_logins WHERE store_id=711;
+SELECT public.service_store_owner_temp_issue_for_opening(711,public.fixture_uid(711),public.fixture_uid(1),true);
+SELECT public.fixture_identity('authenticated',1);
+SELECT public.hq_store_owner_invitation_cancel(711,public.fixture_uid(711));
 SELECT public.fixture_personal(711),public.fixture_identity('authenticated',711);
 SELECT public.fixture_expect($q$SELECT public.store_owner_temp_complete('Personal password 123!')$q$,'NO_VERIFIED_COMPLETED_OWNER');
 SELECT public.fixture_identity('service_role',1);
-SELECT public.service_store_owner_temp_issue(712,public.fixture_uid(712),public.fixture_uid(1),true);
+SELECT public.service_store_owner_temp_issue_for_opening(712,public.fixture_uid(712),public.fixture_uid(1),true);
 SELECT public.fixture_personal(713),public.fixture_identity('authenticated',713);
 SELECT public.fixture_expect($q$SELECT public.store_owner_temp_complete('Personal password 123!')$q$,'NO_VERIFIED_COMPLETED_OWNER');
 SELECT public.fixture_assert((SELECT onboarding_status='STAGED' AND NOT is_active FROM public.stores WHERE id=712),'cross-user never opens target');
 
 -- Reinvitation without a fresh approval cannot inherit a canceled approval.
 SELECT public.fixture_identity('service_role',1);
-SELECT public.service_native_owner_invitation_issue(714,public.fixture_uid(714),public.fixture_uid(1),'owner714@qa.invalid',true);
+SELECT public.service_native_owner_invitation_issue_for_opening(714,public.fixture_uid(714),public.fixture_uid(1),'owner714@qa.invalid',true);
 DELETE FROM public.store_primary_owner_invitation_intents WHERE store_id=714;
-SELECT public.service_native_owner_invitation_issue(714,public.fixture_uid(714),public.fixture_uid(1),'owner714@qa.invalid',false);
+SELECT public.service_native_owner_invitation_issue_for_opening(714,public.fixture_uid(714),public.fixture_uid(1),'owner714@qa.invalid',false);
 SELECT public.fixture_personal(714),public.fixture_identity('authenticated',714);
 SELECT public.fixture_assert((public.native_owner_invitation_complete('Personal password 123!')->>'store_opened')::boolean=false,'reinvite approval not inherited');
 
 -- Resend is read-only: approval and expiry remain exactly the same.
 SELECT public.fixture_identity('service_role',1);
-SELECT public.service_store_owner_temp_issue(715,public.fixture_uid(715),public.fixture_uid(1),true);
+SELECT public.service_store_owner_temp_issue_for_opening(715,public.fixture_uid(715),public.fixture_uid(1),true);
 CREATE TEMP TABLE resend_before AS SELECT to_jsonb(c) data FROM public.store_owner_temp_first_logins c WHERE store_id=715;
 SELECT public.fixture_assert((public.service_store_owner_invitation_resend_preflight(715,'owner715@qa.invalid',public.fixture_uid(1))->>'auto_open_after_accept')::boolean,'resend retains approval');
 SELECT public.fixture_assert((SELECT data=(SELECT to_jsonb(c) FROM public.store_owner_temp_first_logins c WHERE store_id=715) FROM resend_before),'resend no claim changes');
 SELECT public.fixture_expect($q$SELECT public.service_store_owner_invitation_resend_preflight(715,'wrong@qa.invalid',public.fixture_uid(1))$q$,'NO_VALID_OWNER_INVITATION');
 SELECT public.fixture_expect($q$SELECT public.service_store_owner_invitation_resend_preflight(710,'owner710@qa.invalid',public.fixture_uid(1))$q$,'NO_VALID_OWNER_INVITATION');
-SELECT public.fixture_expect($q$SELECT public.service_store_owner_temp_issue(715,public.fixture_uid(715),public.fixture_uid(1),true)$q$,'OWNER_OR_INVITATION_ALREADY_EXISTS');
-SELECT public.fixture_expect($q$SELECT public.service_store_owner_temp_issue(716,public.fixture_uid(715),public.fixture_uid(1),true)$q$,'ACCOUNT_ALREADY_ASSIGNED');
+SELECT public.fixture_expect($q$SELECT public.service_store_owner_temp_issue_for_opening(715,public.fixture_uid(715),public.fixture_uid(1),true)$q$,'OWNER_OR_INVITATION_ALREADY_EXISTS');
+SELECT public.fixture_expect($q$SELECT public.service_store_owner_temp_issue_for_opening(716,public.fixture_uid(715),public.fixture_uid(1),true)$q$,'ACCOUNT_ALREADY_ASSIGNED');
 SELECT 'PASS cancel/expire/suspend/cross-user/resend/reinvite boundaries';
 
 -- A normal recipient/assistant cannot forge the HQ-approved overload.
 SELECT public.fixture_identity('authenticated',716);
-SELECT public.fixture_expect($q$SELECT public.service_store_owner_temp_issue(716,public.fixture_uid(716),public.fixture_uid(1),true)$q$,'SERVICE_ONLY');
+SELECT public.fixture_expect($q$SELECT public.service_store_owner_temp_issue_for_opening(716,public.fixture_uid(716),public.fixture_uid(1),true)$q$,'SERVICE_ONLY');
 SELECT public.fixture_identity('service_role',1);
 SELECT public.fixture_expect($q$SELECT public.service_store_owner_opening_preflight(716,public.fixture_uid(701))$q$,'HQ_OPENING_APPROVAL_REQUIRED');
-SELECT public.fixture_assert(NOT has_function_privilege('authenticated','public.service_store_owner_temp_issue(bigint,uuid,uuid,boolean)','EXECUTE'),'recipient cannot approve');
+SELECT public.fixture_identity('authenticated',1);
+SELECT public.fixture_assert(EXISTS(SELECT 1 FROM public.hq_store_owner_pending_list() p WHERE p->>'store_id'='715' AND p->>'user_id'=public.fixture_uid(715)::text),'HQ pending list includes temporary owner');
+SELECT public.fixture_assert(EXISTS(SELECT 1 FROM public.hq_store_owner_pending_list() p WHERE p->>'store_id'='710' AND p->>'account_state'='EXPIRED'),'HQ can cancel expired claims');
+SELECT public.fixture_expect($q$SELECT public.hq_store_owner_invitation_cancel(703,public.fixture_uid(703))$q$,'OWNER_ALREADY_ASSIGNED');
+SELECT public.fixture_identity('authenticated',715);
+SELECT public.fixture_expect($q$SELECT * FROM public.hq_store_owner_pending_list()$q$,'HQ_ONLY');
+SELECT public.fixture_expect($q$SELECT public.hq_store_owner_invitation_cancel(715,public.fixture_uid(715))$q$,'HQ_ONLY');
+SELECT public.fixture_assert(NOT has_function_privilege('authenticated','public.service_store_owner_temp_issue_for_opening(bigint,uuid,uuid,boolean)','EXECUTE'),'recipient cannot approve');
 SELECT public.fixture_assert(NOT has_function_privilege('anon','public.store_owner_temp_complete(text)','EXECUTE'),'anonymous cannot complete');
 SELECT public.fixture_assert(NOT has_function_privilege('authenticated','private.finish_approved_owner_opening(bigint,uuid,uuid)','EXECUTE'),'private opener not public');
 SELECT public.fixture_assert(NOT has_table_privilege('authenticated','public.store_owner_temp_first_logins','UPDATE'),'approval flag not recipient writable');

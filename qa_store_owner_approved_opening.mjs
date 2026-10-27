@@ -5,6 +5,8 @@ const edge=readFileSync('supabase/functions/server-sync-sheet/index.ts','utf8');
 const start=edge.indexOf('    if(mode==="issue_store_owner_temporary_password"){');
 const end=edge.indexOf('\n    if(mode===',start+20);
 const block=edge.slice(start,end);
+assert.ok(block.indexOf('actor.adminRole!=="HQ"')>=0);
+assert.ok(block.indexOf('service_store_owner_opening_preflight')>=0);
 assert.ok(block.indexOf('actor.adminRole!=="HQ"')<block.indexOf('service_store_owner_opening_preflight'));
 assert.ok(block.indexOf('service_store_owner_opening_preflight')<block.indexOf('service_store_owner_temp_existing_lookup'));
 assert.equal((block.match(/p_auto_open_after_accept:autoOpen/g)||[]).length,3);

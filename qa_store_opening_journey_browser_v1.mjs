@@ -41,7 +41,7 @@ function api(name,body,token,method='POST'){
  if(name==='hq_store_primary_owner_list')return isHQ?{result:[...managers.values()].filter(m=>m.role==='OWNER'&&m.active).map(m=>({store_id:m.store_id,user_id:m.id}))}:denial();
  if(name==='hq_store_locations_list')return isHQ?{result:[{store_id:STORE,province:'경기도',district:'수원시',address:'가상 주소 (외부 전송 금지)'},{store_id:OTHER,province:'경기도',district:'수원시'}]}:denial();
  if(name==='hq_store_manager_eligibility_list')return isHQ?{result:[...managers.values()].filter(m=>m.active).map(m=>({store_id:m.store_id,user_id:m.id,eligible:true}))}:denial();
- if(name==='hq_store_primary_owner_invitation_list')return isHQ?{result:[...managers.values()].filter(m=>m.role==='OWNER'&&!m.active).map(m=>({store_id:m.store_id,user_id:m.id,expires_at:'2026-11-01T00:00:00Z'}))}:denial();
+ if(name==='hq_store_owner_pending_list')return isHQ?{result:[...managers.values()].filter(m=>m.role==='OWNER'&&!m.active).map(m=>({store_id:m.store_id,user_id:m.id,expires_at:'2026-11-01T00:00:00Z'}))}:denial();
  if(name==='hq_store_manager_directory')return isHQ?{result:[...managers.values()].map(m=>({store_id:m.store_id,user_id:m.id,email:m.email,intended_role:m.role,account_state:m.active?'ACTIVE':'PENDING',registered_at:m.registered_at}))}:denial();
  if(name==='hq_store_sample_flags_list')return isHQ?{result:[]}:denial();
  if(name==='hq_store_onboarding_set'){
@@ -49,6 +49,20 @@ function api(name,body,token,method='POST'){
    if(body.p_status==='READY'&&![...managers.values()].some(m=>m.store_id===scoped&&m.role==='OWNER'&&m.active))return failing('CONFIRMED_STORE_MANAGER_REQUIRED',409);
    stores.get(scoped).onboarding_status=body.p_status;stores.get(scoped).is_active=body.p_status==='READY';
    return {result:{ok:true,store_id:scoped,status:body.p_status}};
+ }
+ if(name==='native_owner_invitation_preflight'){
+   if(!user||user.role!=='OWNER'||!user.approvedOpening)return denial('NO_VALID_NATIVE_OWNER_INVITATION');
+   const pending=managers.get(user.id);
+   if(!pending||pending.active)return denial('NO_VALID_NATIVE_OWNER_INVITATION');
+   return {result:{ok:true,store_id:pending.store_id,intended_role:'OWNER',password_change_required:true,auto_open_after_accept:true}};
+ }
+ if(name==='native_owner_invitation_complete'){
+   if(!user||user.role!=='OWNER'||!user.approvedOpening||!user.passwordSet||!user.emailConfirmed)
+     return denial('PERSONAL_PASSWORD_NOT_VERIFIED');
+   const pending=managers.get(user.id),store=stores.get(user.store_id);
+   if(!pending||pending.active||store.onboarding_status!=='STAGED')return denial('STAGED_STORE_REQUIRED');
+   pending.active=true;user.active=true;store.onboarding_status='READY';store.is_active=true;
+   return {result:{ok:true,store_id:pending.store_id,owner_assigned:true,store_opened:true}};
  }
  if(name==='store_invitation_activation_preflight'){
    if(!user)return failing('AUTHENTICATED_USER_REQUIRED',403);
@@ -219,13 +233,13 @@ function edge(body,token){
  const user=who(token),email=String(body.email||'').toLowerCase(),store_id=Number(body.store_id);
  if(!email.endsWith('@opening-qa.invalid'))return failing('QA_MAILBOX_ONLY',400);
  let role;
- if(body.mode==='invite_store_manager'&&user?.role==='HQ')role='OWNER';
+ if(body.mode==='issue_store_owner_temporary_password'&&user?.role==='HQ'&&body.auto_open_after_accept===true&&body.resend_only===false)role='OWNER';
  else if(body.mode==='invite_store_delegated_manager'&&user?.role==='OWNER'&&user.active&&user.store_id===STORE&&stores.get(STORE).is_active)role='ASSISTANT';
  else return failing('ROLE_INVITE_DENIED');
  if(store_id!==STORE)return failing('CROSS_STORE_INVITE',403);
  if([...managers.values()].some(m=>m.email===email))return failing('ACCOUNT_ALREADY_ASSIGNED',409);
  const id=role==='OWNER'?'owner-qa-id':'assistant-qa-id',newToken=role==='OWNER'?'qa-owner':'qa-assistant';
- const account={id,email,role,store_id,active:false,emailConfirmed:true,passwordSet:false};
+ const account={id,email,role,store_id,active:false,emailConfirmed:true,passwordSet:false,approvedOpening:role==='OWNER'};
  users.set(newToken,account);
  managers.set(id,{id,email,store_id,role,active:false,registered_at:'2026-10-17T00:00:00Z'});
  if(role==='ASSISTANT')permissions.set(id,{staff_edit:false,attendance_approve:false,payroll_view:false});
@@ -328,7 +342,7 @@ async function activation(href,password){
  await page.locator('#password').fill(password);await page.locator('#repeat').fill(password);
  await page.route('**/index.html?mode=store*',r=>r.fulfill({status:200,contentType:'text/html',body:'<h1>QA STORE LANDING</h1>'}));
  await page.locator('#confirm').click();
- await page.waitForURL(/index\.html\?mode=store&store=800001#pos/,{timeout:12000});
+ await page.waitForURL(/index\.html\?mode=store&store=800001#admin/,{timeout:12000});
  const auth=await page.evaluate(()=>JSON.parse(localStorage.getItem('baekeok_auth')||'null'));
  verify(auth?.access_token===new URL(href,'http://localhost').hash.match(/access_token=([^&]+)/)?.[1],'real activation page stores authenticated token and enters scoped store');
  await page.close();
@@ -345,8 +359,7 @@ try{
  verify(premature.status===409&&!stores.get(STORE).is_active,'store opening blocked until confirmed owner');
  await activation(mail[0].href,'qa-owner-password-16');
  verify(managers.get('owner-qa-id').active&&users.get('qa-owner').passwordSet,'email-linked owner password setup and owner appointment');
- const opened=api('hq_store_onboarding_set',{p_store_id:STORE,p_status:'READY'},'qa-hq');
- verify(opened.result?.ok===true&&stores.get(STORE).is_active,'HQ opens synthetic store only after owner activation');
+ verify(stores.get(STORE).onboarding_status==='READY'&&stores.get(STORE).is_active,'HQ-approved invitation opens synthetic store immediately on verified owner acceptance, without a second HQ action');
  await hq.close();
 
  const owner=await contextPage('/qa/manager?token=qa-owner');

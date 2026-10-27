@@ -461,7 +461,7 @@ Deno.serve(async req=>{
         const origin=Deno.env.get("SUPABASE_URL");
         const anonKey=Deno.env.get("SUPABASE_ANON_KEY");
         if(!origin||!anonKey)throw new HttpError(503,"AUTH_RECOVERY_NOT_CONFIGURED");
-        const {data:recoveryClaim,error:claimError}=await client.rpc("service_store_owner_temp_issue",{
+        const {data:recoveryClaim,error:claimError}=await client.rpc("service_store_owner_temp_issue_for_opening",{
           p_store_id:storeId,p_user_id:verifiedExistingUserId,p_actor_id:actor.userId,p_auto_open_after_accept:autoOpen
         });
         if(claimError||recoveryClaim?.ok!==true)
@@ -499,7 +499,7 @@ Deno.serve(async req=>{
         const sent=await dispatchInvitation(email,storeId,actor.userId,"HQ_OWNER");
         if(sent.delivery!=="INVITE"||!sent.userId)
           throw new HttpError(409,"NEW_OWNER_EMAIL_INVITATION_NOT_ISSUED");
-        const {data:pendingOwner,error:ownerError}=await client.rpc("service_native_owner_invitation_issue",{
+        const {data:pendingOwner,error:ownerError}=await client.rpc("service_native_owner_invitation_issue_for_opening",{
           p_store_id:storeId,p_user_id:sent.userId,p_actor_id:actor.userId,p_email:email,p_auto_open_after_accept:autoOpen
         });
         if(ownerError||pendingOwner?.ok!==true)
@@ -520,7 +520,7 @@ Deno.serve(async req=>{
       if(creationError||!created?.user?.id)
         throw new HttpError(409,"TEMP_OWNER_AUTH_CREATION_FAILED");
       const createdId=created.user.id;
-      const {data:issued,error:issueError}=await client.rpc("service_store_owner_temp_issue",{
+      const {data:issued,error:issueError}=await client.rpc("service_store_owner_temp_issue_for_opening",{
         p_store_id:storeId,p_user_id:createdId,p_actor_id:actor.userId,p_auto_open_after_accept:autoOpen
       });
       if(issueError||issued?.ok!==true){

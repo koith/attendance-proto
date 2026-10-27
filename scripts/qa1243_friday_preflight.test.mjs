@@ -86,6 +86,7 @@ const validReceipt={published:{run_id:1001,head_sha:SHA,verified:true},
  liveHashMatch:true,assetSha256:{'index.html':'a'.repeat(64),'hq_store_onboarding_ui.js':'b'.repeat(64),'operations_v1.js':'c'.repeat(64)}};
 const accepted=reconcileSafePagesEvidence(pageFailures,validReceipt);
 assert.deepEqual(safePagesAssetPaths('ordinary app release'),Object.keys(validReceipt.assetSha256));
+assert.deepEqual(safePagesAssetPaths('[QA1243-OWNER-OPENING]'),[...Object.keys(validReceipt.assetSha256),'hq_owner_console.js','owner_activation.html','owner_activation.js','owner_temp_activation.html','owner_temp_activation.js']);
 assert.deepEqual(safePagesAssetPaths('[QA1243-TEMP-OWNER-PAGES]'),
  [...Object.keys(validReceipt.assetSha256),'owner_temp_activation.html','owner_temp_activation.js'],
  'Owner release readback must hash the actual invitation callback HTML and JS as well');
