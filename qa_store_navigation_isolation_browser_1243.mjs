@@ -10,7 +10,14 @@ for(const engine of [chromium,webkit]){
   for(const scenario of ['generic','foreign','attendance-close','legacy-attendance','foreign-attendance','revoked','hq']){
    const calls=[],context=await browser.newContext({viewport:{width,height:844}}),page=await context.newPage();
    await context.addInitScript(({scenario})=>{
-    localStorage.setItem('baekeok_auth',JSON.stringify({access_token:'isolated-token'}));
+    // Model a valid, not-yet-expired manager JWT in the fully intercepted
+    // synthetic browser. v0.371 rejects malformed/expired saved sessions,
+    // which are tested independently by Safari legacy-link regression.
+    const payload={exp:Math.floor(Date.now()/1000)+7200,sub:'synthetic-owner'};
+    const encoded=btoa(JSON.stringify(payload)).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');
+    localStorage.setItem('baekeok_auth',JSON.stringify({
+     access_token:'synthetic.'+encoded+'.signature',refresh_token:'synthetic-refresh'
+    }));
     sessionStorage.setItem('baekeok_store_id','1');sessionStorage.setItem('baekeok_store_name','이전 지점');
    },{scenario});
    await page.route('**/*',async route=>{
