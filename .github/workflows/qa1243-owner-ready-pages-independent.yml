@@ -21,7 +21,9 @@ jobs:
           node-version: '22'
       - name: Independent HTTP readback of live index.html and owner-ready JS digest
         run: |
-          if [[ "${{ contains(github.event.workflow_run.head_commit.message, '[QA1243-STORE-ISOLATION]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.workflow_run.head_commit.message, '[QA1243-OWNER-OPENING]') }}" == "true" ]]; then
+            node scripts/qa1243_approved_opening_pages_smoke.mjs --independent
+          elif [[ "${{ contains(github.event.workflow_run.head_commit.message, '[QA1243-STORE-ISOLATION]') }}" == "true" ]]; then
             node scripts/qa1243_store_isolation_pages_smoke.mjs --independent
           elif [[ "${{ contains(github.event.workflow_run.head_commit.message, '[QA1243-TEMP-OWNER-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_temp_owner_pages_smoke.mjs --independent

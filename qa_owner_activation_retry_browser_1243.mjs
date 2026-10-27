@@ -96,7 +96,7 @@ try{
       assert.equal(new URL(page.url()).pathname,'/owner_activation.html');
       if(scenario==='cancelled-retry')assert.equal(calls.filter(x=>x==='/auth/v1/user').length,1);
      }else{
-      await page.waitForURL(base+'/index.html?mode=store&store=701#pos');
+      await page.waitForURL(base+'/index.html?mode=store&store=701#admin');
       assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('baekeok_auth')).access_token),'synthetic-token');
       if(scenario==='native-owner-activation'){
        assert.equal(calls.filter(x=>x.endsWith('/native_owner_invitation_complete')).length,1);

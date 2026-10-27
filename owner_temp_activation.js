@@ -38,7 +38,7 @@ if(!saved?.access_token){
  status.textContent="로그인 정보가 없습니다. 점주 개통 메일 또는 비밀번호 재설정 메일의 최신 링크를 열어주세요.";
  return;
 }
-let cfg=null, identity=null, claim=null;
+let cfg=null, identity=null, claim=null, nativeOwner=false;
 try{
  const response=await fetch("./index.html",{cache:"no-store"});
  if(!response.ok)throw Error("APP_CONFIG_UNAVAILABLE");
@@ -63,7 +63,17 @@ async function verifyOwner(){
  identity=await call("/auth/v1/user","GET",undefined);
  if(ownerBoundary?.user_id&&identity?.id!==ownerBoundary.user_id)
    throw Error("TEMP_OWNER_IDENTITY_MISMATCH");
- claim=await call("/rest/v1/rpc/store_owner_temp_preflight","POST",{});
+ nativeOwner=false;
+ try{claim=await call("/rest/v1/rpc/store_owner_temp_preflight","POST",{});}
+ catch(error){
+  if(!String(error.message).includes("NO_TEMP_OWNER_INVITATION"))throw error;
+  // A confirmed account that never set a password still owns a native claim.
+  // Recovery links enter this same page; only the server-bound native intent
+  // permits the fallback, never a user-editable profile or cached store ID.
+  const native=await call("/rest/v1/rpc/native_owner_invitation_preflight","POST",{});
+  if(native?.intended_role!=="OWNER")throw Error("TEMP_OWNER_IDENTITY_MISMATCH");
+  claim={...native,email:identity.email};nativeOwner=true;
+ }
  if(claim?.ok!==true||claim?.password_change_required!==true||
    !Number.isSafeInteger(Number(claim.store_id))||Number(claim.store_id)<=0||
    String(identity?.email||"").toLowerCase()!==String(claim.email||"").toLowerCase()||
@@ -90,11 +100,11 @@ try{
   try{await refreshOwnerSession();}catch(refreshError){forgetPending();throw refreshError;}
   await verifyOwner();
  }
- description.textContent=claim.email+" · 지점 번호 "+claim.store_id+" · 임시 비밀번호 만료 "+new Date(claim.expires_at).toLocaleString("ko-KR");
+ description.textContent=claim.email+" · 지점 번호 "+claim.store_id+(nativeOwner?" · 초대 유효기한 ":" · 임시 비밀번호 만료 ")+new Date(claim.expires_at).toLocaleString("ko-KR");
  status.textContent="본인 비밀번호를 설정하면 지점 대표 관리자 권한이 활성화됩니다.";
  form.hidden=false;
 }catch(e){
- if(e?.status===401||/TEMP_OWNER_|NO_TEMP_OWNER_INVITATION|AUTH_IDENTITY|OWNER_SESSION_EXPIRED/.test(String(e?.message||e)))forgetPending();
+ if(e?.status===401||/TEMP_OWNER_|NATIVE_OWNER_|NO_VALID_NATIVE_OWNER_INVITATION|NO_TEMP_OWNER_INVITATION|AUTH_IDENTITY|OWNER_SESSION_EXPIRED/.test(String(e?.message||e)))forgetPending();
  status.textContent="최초 로그인 활성화 불가: "+String(e?.message||e)+". 만료되었거나 초대가 없으면 본사에 재발급을 요청하세요.";
 }
 form.addEventListener("submit",async event=>{
@@ -120,7 +130,8 @@ form.addEventListener("submit",async event=>{
   if(!update.ok&&!savedAlready)
    throw Error(String(updateResult.message||updateResult.msg||
     updateResult.error_description||updateResult.code||update.status));
-  const accepted=await call("/rest/v1/rpc/store_owner_temp_complete","POST",{p_new_password:password});
+  const completePath=nativeOwner?"/rest/v1/rpc/native_owner_invitation_complete":"/rest/v1/rpc/store_owner_temp_complete";
+  const accepted=await call(completePath,"POST",{p_new_password:password});
   if(accepted?.ok!==true||accepted?.owner_assigned!==true||Number(accepted.store_id)!==Number(claim.store_id))
     throw Error("OWNER_ACTIVATION_UNVERIFIED");
   const session=await call("/auth/v1/token?grant_type=password","POST",{email:identity.email,password});
@@ -131,8 +142,8 @@ form.addEventListener("submit",async event=>{
     throw Error("STORE_OWNER_ROLE_NOT_VERIFIED");
   localStorage.setItem("baekeok_auth",JSON.stringify(session));
   forgetPending();
-  status.textContent="대표 관리자 등록 완료. 지점 개통은 본사 승인이 필요합니다.";
-  location.replace("./index.html?mode=store&store="+encodeURIComponent(claim.store_id)+"#pos");
+  status.textContent=accepted.store_opened===true?"대표 관리자 등록과 지점 개통이 완료됐습니다.":"대표 관리자 등록 완료. 지점 개통은 본사 승인이 필요합니다.";
+  location.replace("./index.html?mode=store&store="+encodeURIComponent(claim.store_id)+"#admin");
  }catch(e){
   status.textContent="처리 실패: "+String(e?.message||e)+". 비밀번호 설정은 완료됐을 수 있으니 본사에 문의하세요.";
   button.disabled=false;

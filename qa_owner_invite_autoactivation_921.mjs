@@ -41,10 +41,10 @@ const redirectStep=activation.indexOf('location.replace("index.html?mode=store')
 assert.ok(preflightStep>=0 && preflightStep<passwordStep && passwordStep<acceptStep && acceptStep<contextStep && contextStep<redirectStep);
 assert.match(activation,/acceptedResponse\.ok\|\|accepted\?\.ok!==true/);
 assert.match(activation,/Number\(accepted\.store_id\)!==storeId/);
-assert.match(page,/owner_activation\.js\?v=20261027oneclick1/);
+assert.match(page,/owner_activation\.js\?v=20261027opening1/);
 
 // HQ must display pending vs appointed separately, with no second manual click.
-assert.match(hq,/rpc\("hq_store_primary_owner_invitation_list"\)/);
+assert.match(hq,/rpc\("hq_store_owner_pending_list"\)/);
 assert.match(hq,/const pendingOwner=id=>/);
 assert.match(hq,/대표 관리자는 동시에 여러 계정을 초대할 수 없습니다/);
 assert.match(hq,/data-owner-resend/);
@@ -53,6 +53,6 @@ assert.match(hq,/비밀번호 설정/);
 assert.match(hq,/대표 관리자는 동시에 여러 계정을 초대할 수 없습니다/);
 assert.match(html,/APP_VERSION="v\d+\.\d+"/);
 assert.match(html,/id="appVersion"[^>]*>v\d+\.\d+<\/button>/);
-assert.match(html,/hq_owner_console\.js\?v=20261020v352/);
+assert.match(html,/hq_owner_console\.js\?v=20261027v369/);
 assert.match(inviteMail,/대표 권한 자동 확정 후 매장 입장/);
 console.log('PASS #921: HQ owner invite, email+password guard, atomic activation, pending UX and versions');

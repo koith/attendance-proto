@@ -830,3 +830,16 @@
 - **현재 판정:** 이번 계정의 잘못된 지점 전환 결함은 수정·QA·병합·실배포/독립 검증 완료. 1호점은 활성 상태이며 새 비밀번호 설정·재초대가 필요하지 않다. 실제 사용자의 배포후 재확인은 아직 대신 통과시키지 않는다. 본사 사원·급여 scoped RPC의 서버 can_manage_store는 기존대로 유지; 익명 공용 POS의 기존 공개 직원 표시 정책을 SEC01 승인 없이 비공개로 바꿨다고 주장하지 않음.
 - **전체 개통 게이트는 별도 NO_GO:** [40482763799](https://github.com/koith/attendance-proto/actions/runs/40482763799)5/8: STORE_E2E/MANAGER_POSTGRES/HQ_STORE_POSTGRES/PAGES_PUBLISH/INDEPENDENT_PAGES PASS; TEST_MAIL_GOTRUE는 기존39377974348 증거 기한 경과(RUN_STALE_OR_INVALID_DATE), HOSTED_AUTH_READ는 실제 한국어 메일 설정 미충족, LIVE_EDGE_GAS_SHEETS는 현재 소스의 실제 성공 증거 부재. 새 합성28PASS나 실제 대표1명 수신을 전체 Hosted SMTP/권한회수/SEC01/현장수용 PASS로 바꾸지 않는다.
 - **보존한 잔여:** 자동개통 개선 PR1404/61ff858c는 draft로 보존·미배포. 이 긴급 main 이후 재동기화/다음 버전/배포 경계 재검증이 필요하다. 한국어 운영 메일 적용 권한·GAS 소유자 인증/실통신·SEC01 운영 승인·보조 관리자 실세션/현장 수용은 별도 남음. POS/공급사/장바구니 등의 추가 자동화는 개통 이후 개발로 구분한다. 정본 전체38/완료19/잔여19 유지.
+
+## 87. 2026-10-27 — 대표 초대·본인 비밀번호 설정 후 즉시 개통 운영 적용 재개
+
+- 사용자 원문 “실제로 적용해”에 따라 보존 PR1404/61ff858c를 최신 main3ef375e7(v0.368)과 통합했다. 기존 작업공간은 보존하고 release/qa1243-approved-owner-v369 새 worktree에서 개발한다. 근무현황 복귀/초기 admin_context 지점 격리 코드는 main과 정확히 동일하고 후보 index 변경은 버전v0.369·HQ 캐시3곳뿐이다.
+- 새 본사 대표 초대 확인창은 이메일 발송과 수신자 인증 후 개통까지 승인하는 동작임을 명시한다. service-only 승인 claim에만 auto_open_after_accept=true를 저장하고, 이메일 확정·현재 개인 비밀번호 검증·대표 등록·지점 READY를 한 트랜잭션으로 처리한다. 수락 시에도 원래 본사 승인자·실재 검증·샘플 제외·STAGED 조건을 다시 확인한다. 기존 claim 기본false/보조/취소·만료·중지/타지점/권한 회수는 소급 개통하지 않는다.
+- 새 임시/기존/native 초대를 하나의 HQ 대기 목록·취소 경로로 연결했다. 재발송은 역할·지점·승인·만료기한을 유지한다. 비밀번호 저장/완료 응답 유실 재시도는 실제 암호·기존 대표 연결을 확인하며 새 권한을 부여하지 않는다. 수락 후 POS 대신 해당 지점 #admin으로 이동한다.
+- 실제 검증을 확장했다. 기존 격리 GoTrue+Mailpit+PostgREST+PostgreSQL 환경에 새 migration을 설치하고, 새 native 이메일 수신·개인암호·실제 로그인JWT·즉시READY와 기존 계정 복구메일·UID보존·새암호·즉시READY/타점거부 두 시나리오를 추가했다. 기존 8개 증거와 별도 필드로 기록하고 새2개가 같은head에서 실제 통과해야 한다. Google/Hosted운영 초대 없이 실행한다.
+- 로컬 release guard7/기존 v0.368 guard4/지점복귀7/본사 body·기존 인증/증거 검증·YAML PASS. 기존 v0.368 배포 보호 guard는 완화하지 않고 테스트만 정확한 이전 index를 재구성해 검증한다. Supabase 현재 schema/ACL·관리읽기 연결·native Edge71 ACTIVE를 확인. 아직 새SQL/Edge/Pages 적용 전이며, CI/병합/실배포 결과는 Issue1243 후속증거로 확정한다.
+- 적용 범위는 기본false 승인컬럼2개와 제한된 RPC, owner issue 분기 및 HQ/콜백 정적 자산이다. 다른 Edge·급여·Google writer 코드는 바이트 불변. 기존 운영자료/계정/초대·SEC01/다른 지점 READY/실메일/Sheets 직접쓰기 금지. 전체38/완료19/잔여19 유지, 실제수신자 수용을 합성QA로 통과시키지 않는다.
+
+- CI 실행797b0d7a에서 새 실제SMTP/Auth/JWT/PostgREST2/2와 실제SQL/전체연속브라우저/P0는통과. 별도Chrome/WebKit job122139109478만azure.archive.ubuntu.com OS패키지다운로드가12분초과해앱실행전cancelled. 공식Playwright v1.55.1-noble 이미지에포함된동일버전브라우저/라이브러리를재사용하도록해설치지연을해결하고모든동일검사를유지한다. Python별도설치대신Node표준HTTP로127.0.0.1정적preview만구동한다. 운영앱/SQL/Edge소스는변경없다.
+
+- 추가 실제 결함 수정: 취소 후 아직 미인증된 기존Auth계정을 신규대표경로가 confirmed+password lookup으로잘못보내재초대를거부했다. 실제Edge분기VM에서FAIL재현후기존UID의native claim을메일전에검증·등록해재초대/비밀번호미설정복구를지원한다. 이미다른지점/역할/초대가연결된계정은메일전에거부하고기존Auth를삭제/초기화하지않는다. Recovery콜백은같은임시설정화면에서server native preflight로만검증해native complete로연결한다. 취소후재초대·confirmed passwordless recovery까지실제SMTP/Auth/JWT 시나리오를4개로확장하고완료전동일head PASS를확인한다.

@@ -3,12 +3,14 @@ on:
   pull_request:
     paths:
       - 'qa_auth_role_journey_1243.*'
+      - 'qa_store_owner_approved_opening.mjs'
       - 'supabase/migrations/**'
       - '.github/workflows/qa1243-auth-role-journey.yml'
   push:
     branches: [main]
     paths:
       - 'qa_auth_role_journey_1243.*'
+      - 'qa_store_owner_approved_opening.mjs'
       - 'supabase/migrations/**'
       - '.github/workflows/qa1243-auth-role-journey.yml'
   workflow_call:
@@ -118,6 +120,8 @@ jobs:
           exit 1
       - name: Actual SMTP to Auth JWT to owner READY and delegated revocation journey
         run: node qa_auth_role_journey_1243.mjs
+      - name: Verify same-run real approved owner opening evidence
+        run: node qa_store_owner_approved_opening.mjs --real-proof
       - name: Preserve per-scenario evidence
         if: always()
         uses: actions/upload-artifact@v4

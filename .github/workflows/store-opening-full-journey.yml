@@ -125,6 +125,12 @@ jobs:
     name: Real application code + fake inbox/roles/recipes (mobile, desktop)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -140,25 +146,9 @@ jobs:
       - name: Install pinned browser harness
         timeout-minutes: 4
         run: npm install --no-save --no-audit --no-fund playwright@1.55.1
-      - name: Download Chromium
-        timeout-minutes: 5
-        run: npx playwright install chromium webkit
-      - name: Verify Chromium launch and repair missing system libraries
-        timeout-minutes: 5
+      - name: Verify pinned image Chromium and WebKit launch
         run: |
-          set -euo pipefail
-          if node -e 'require("playwright").chromium.launch({headless:true}).then(b=>b.close()).catch(()=>process.exit(1))'; then
-            echo 'Actual Chromium launch passed.'
-          else
-            timeout --kill-after=15s 240s npx playwright install-deps chromium webkit
-            node -e 'require("playwright").chromium.launch({headless:true}).then(b=>b.close()).catch(e=>{console.error(e.message);process.exit(1)})'
-          fi
-      - name: Verify WebKit runtime dependencies
-        timeout-minutes: 5
-        run: |
-          if ! node -e 'require("playwright").webkit.launch({headless:true}).then(b=>b.close()).catch(()=>process.exit(1))'; then
-            timeout --kill-after=15s 240s npx playwright install-deps webkit
-          fi
+          node -e 'Promise.all(["chromium","webkit"].map(async name=>{const browser=await require("playwright")[name].launch({headless:true});await browser.close()})).catch(error=>{console.error(error);process.exit(1)})'
       - name: iPhone record history geometry and duplicate-punch guard (Chromium + WebKit)
         run: node qa_actual_attendance_day_records_mobile_v357.mjs
       - name: Activation recovery on Chromium and WebKit (synthetic requests only)
@@ -177,7 +167,7 @@ jobs:
         run: node qa_store_opening_mutation_proof_v1.mjs browser
       - name: Start isolated static preview for real main-app workflow
         run: |
-          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/store-opening-web.log 2>&1 &
+          node scripts/qa_browser_static_preview.mjs >/tmp/store-opening-web.log 2>&1 &
           for attempt in $(seq 1 20); do
             if curl -fsS http://127.0.0.1:4173/index.html -o /dev/null; then exit 0; fi
             sleep 1

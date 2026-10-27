@@ -183,6 +183,12 @@ jobs:
     name: P0 deployment gate
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -300,6 +306,12 @@ jobs:
               const {assertAutomationOnly}=await import(process.cwd()+'/scripts/ai-dev/release-scope.mjs');
               assertAutomationOnly(diff.files,releaseMessage);
               core.info('AI1331 automation-only scope verified; operating jobs remain skipped');
+              return;
+            }
+            if(releaseMessage.includes('[QA1243-OWNER-OPENING]')){
+              const {assertApprovedOpeningRelease}=await import(process.cwd()+'/scripts/qa1243_approved_opening_release.mjs');
+              assertApprovedOpeningRelease(diff.files,releaseMessage,before);
+              core.info('Approved owner-only release: existing data unchanged; no operating Sheet writer');
               return;
             }
             if(releaseMessage.includes('[QA1243-STORE-ISOLATION]')){
@@ -558,7 +570,7 @@ jobs:
       - name: Install HQ browser acceptance harness
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.55.1
-          npx playwright install --with-deps chromium
+          node -e 'require("playwright").chromium.launch({headless:true}).then(browser=>browser.close()).catch(error=>{console.error(error);process.exit(1)})'
       - name: Actual test UI version-button toggle (Chromium mobile and desktop)
         run: node qa_version_test_controls_browser_v1.mjs
       - name: Preproduction synthetic roster cleanup must preserve real payroll and attendance
@@ -709,7 +721,9 @@ jobs:
       - name: Capture unchanged operating public asset digests before safe app release
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-STORE-ISOLATION]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-OPENING]') }}" == "true" ]]; then
+            node scripts/qa1243_approved_opening_pages_smoke.mjs --before
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-STORE-ISOLATION]') }}" == "true" ]]; then
             node scripts/qa1243_store_isolation_pages_smoke.mjs --before
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-TEMP-OWNER-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_temp_owner_pages_smoke.mjs --before
@@ -735,7 +749,9 @@ jobs:
       - name: Confirm public v0.354 HQ readiness UI and unchanged other operating assets
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-STORE-ISOLATION]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-OPENING]') }}" == "true" ]]; then
+            node scripts/qa1243_approved_opening_pages_smoke.mjs --after
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-STORE-ISOLATION]') }}" == "true" ]]; then
             node scripts/qa1243_store_isolation_pages_smoke.mjs --after
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-TEMP-OWNER-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_temp_owner_pages_smoke.mjs --after

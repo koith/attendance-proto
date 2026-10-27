@@ -219,7 +219,7 @@ for(const intended_role of ['OWNER','ASSISTANT']){
  const page=await pageCase({preflight:{ok:true,store_id:701,intended_role},accepted:{ok:true,store_id:701,owner_assigned:intended_role==='OWNER'}});
  await page.submit();pageCases++;
  assert.deepEqual(page.calls.map(x=>x.method),['GET','POST','POST','PUT','POST','POST']);
- assert.deepEqual(page.redirects,['index.html?mode=store&store=701#pos']);assert.equal(page.stored.length,1);
+ assert.deepEqual(page.redirects,['index.html?mode=store&store=701#admin']);assert.equal(page.stored.length,1);
  assert.equal(page.elements.password.value,'');assert.equal(page.elements.repeat.value,'');
  assert.equal(page.scrubbed[0][2],'/owner_activation.html','Tokens removed before config request');
 }

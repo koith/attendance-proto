@@ -107,7 +107,8 @@ assert.match(js,/const update=await fetch\(cfg\.url\+"\/auth\/v1\/user"/);
 assert.match(js,/savedAlready=update\.status===422/);
 assert.match(js,/updateResult\.code==="same_password"/);
 assert.match(js,/if\(!update\.ok&&!savedAlready\)/);
-assert.match(js,/await call\("\/rest\/v1\/rpc\/store_owner_temp_complete"/);
+assert.match(js,/const completePath=nativeOwner\?"\/rest\/v1\/rpc\/native_owner_invitation_complete":"\/rest\/v1\/rpc\/store_owner_temp_complete"/);
+assert.match(js,/await call\(completePath,"POST",\{p_new_password:password\}\)/);
 assert.match(js,/NEW_PASSWORD_LOGIN_NOT_VERIFIED/);
 assert.ok(js.indexOf('store_owner_temp_complete')<
   js.indexOf('localStorage.setItem("baekeok_auth"'),"role activation must precede saving new session");

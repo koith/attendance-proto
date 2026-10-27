@@ -22,7 +22,7 @@ const valid={
  hq_store_provenance_list:[],
  hq_store_sample_roster_counts:[],
  hq_store_primary_owner_list:[],
- hq_store_primary_owner_invitation_list:[],
+ hq_store_owner_pending_list:[],
  hq_store_owner_temp_pending_list:[]
 };
 const store=makeRefresh(valid);

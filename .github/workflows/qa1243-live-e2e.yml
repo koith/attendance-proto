@@ -80,6 +80,14 @@ jobs:
               runLive=false;
               core.info('AI1331 automation-only change: no Google, OAuth or Edge E2E repeated.');
             }
+            if(runLive && message.includes('[QA1243-OWNER-OPENING]')){
+              const before=context.payload.before;
+              const {data}=await github.rest.repos.compareCommits({...context.repo,base:before,head:context.sha,per_page:100});
+              const {assertApprovedOpeningRelease}=await import(process.cwd()+'/scripts/qa1243_approved_opening_release.mjs');
+              assertApprovedOpeningRelease(data.files,message,before);
+              runLive=false;
+              core.info('Owner opening release: no Google or operating Sheets requests');
+            }
             if(runLive && message.includes('[QA1243-STORE-ISOLATION]')){
               const before=context.payload.before;
               const {data}=await github.rest.repos.compareCommits({...context.repo,base:before,head:context.sha,per_page:100});

@@ -403,12 +403,62 @@ Deno.serve(async req=>{
         .select("name,onboarding_status,is_active").eq("id",storeId).maybeSingle();
       if(targetStoreError||!targetStore||targetStore.onboarding_status!=="STAGED"||targetStore.is_active!==false)
         throw new HttpError(409,"STAGED_STORE_REQUIRED");
+      if((body.auto_open_after_accept!==undefined&&typeof body.auto_open_after_accept!=="boolean")||
+         (body.resend_only!==undefined&&typeof body.resend_only!=="boolean"))
+        throw new HttpError(400,"INVALID_OWNER_OPENING_OPTIONS");
+      const autoOpen=body.auto_open_after_accept===true;
+      if(body.resend_only===true){
+        if(autoOpen)throw new HttpError(400,"RESEND_CANNOT_CHANGE_OPENING_APPROVAL");
+        const {data:pendingInvite,error:pendingInviteError}=await client.rpc("service_store_owner_invitation_resend_preflight",{
+          p_store_id:storeId,p_email:email,p_actor_id:actor.userId
+        });
+        if(pendingInviteError||pendingInvite?.ok!==true||!pendingInvite?.user_id||
+           !["INVITE","RECOVERY"].includes(pendingInvite.delivery))
+          throw new HttpError(409,"OWNER_RESEND_PRECHECK_FAILED: "+String(pendingInviteError?.message||"UNKNOWN"));
+        const redirectTo="https://koith.github.io/attendance-proto/owner_activation.html";
+        if(pendingInvite.delivery==="RECOVERY"){
+          const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo});
+          if(error)throw new HttpError(502,"OWNER_RESEND_DELIVERY_FAILED");
+        }else{
+          const {data:resent,error}=await client.auth.admin.inviteUserByEmail(email,{redirectTo});
+          if(error||resent?.user?.id!==pendingInvite.user_id)
+            throw new HttpError(502,"OWNER_RESEND_DELIVERY_FAILED");
+        }
+        return reply({ok:true,store_id:storeId,email,user_id:pendingInvite.user_id,
+          delivery:pendingInvite.delivery==="RECOVERY"?"AUTH_RECOVERY_ACCEPTED":"AUTH_INVITE_ACCEPTED",
+          auto_open_after_accept:pendingInvite.auto_open_after_accept===true});
+      }
+      if(autoOpen){
+        const {data:opening,error:openingError}=await client.rpc("service_store_owner_opening_preflight",{
+          p_store_id:storeId,p_actor_id:actor.userId
+        });
+        if(openingError||opening?.ok!==true)
+          throw new HttpError(409,"OWNER_OPENING_PRECHECK_FAILED: "+String(openingError?.message||"UNKNOWN"));
+      }
       const {data:gate,error:preflightError}=await client.rpc("service_store_invitation_dispatch_preflight",{
         p_store_id:storeId,p_email:email,p_actor_id:actor.userId,p_mode:"HQ_OWNER"
       });
       // Existing verified accounts without any remaining HQ/other-store owner
       // role (e.g. QA 1호점 credential was never delivered) retain their
       // original immutable Auth UID. This path does NOT delete/recreate them.
+      // Canceled/unaccepted invitations keep their Auth identity. Bind the
+      // checked native claim BEFORE sending again; a pending/foreign/linked
+      // identity is rejected by the RPC before any email or privilege change.
+      if(!preflightError&&gate?.ok===true&&gate.existing_auth_user===true&&
+         typeof gate.user_id==="string"&&gate.user_id&&Number(gate.store_id)===storeId&&
+         ["INVITE","RECOVERY"].includes(gate.delivery)){
+        const {data:reissued,error:reissueError}=await client.rpc("service_native_owner_invitation_issue_for_opening",{
+          p_store_id:storeId,p_user_id:gate.user_id,p_actor_id:actor.userId,p_email:email,p_auto_open_after_accept:autoOpen
+        });
+        if(reissueError||reissued?.ok!==true)
+          throw new HttpError(409,"NATIVE_OWNER_CLAIM_REJECTED: "+String(reissueError?.message||"UNKNOWN"));
+        const sent=await dispatchInvitation(email,storeId,actor.userId,"HQ_OWNER");
+        if(sent.userId!==gate.user_id||sent.delivery!==gate.delivery)
+          throw new HttpError(503,"NATIVE_OWNER_DELIVERY_UNVERIFIED");
+        return reply({ok:true,store_id:storeId,email,user_id:sent.userId,
+          delivery:sent.delivery==="INVITE"?"AUTH_INVITE_ACCEPTED":"AUTH_RECOVERY_ACCEPTED",
+          password_change_required:true,owner_invitation:"PENDING_ACTIVATION"});
+      }
       let verifiedExistingUserId=null;
       if(preflightError||gate?.ok!==true||gate?.existing_auth_user!==false||gate?.user_id){
         const {data:existing,error:lookupError}=await client.rpc("service_store_owner_temp_existing_lookup",{
@@ -429,8 +479,8 @@ Deno.serve(async req=>{
         const origin=Deno.env.get("SUPABASE_URL");
         const anonKey=Deno.env.get("SUPABASE_ANON_KEY");
         if(!origin||!anonKey)throw new HttpError(503,"AUTH_RECOVERY_NOT_CONFIGURED");
-        const {data:recoveryClaim,error:claimError}=await client.rpc("service_store_owner_temp_issue",{
-          p_store_id:storeId,p_user_id:verifiedExistingUserId,p_actor_id:actor.userId
+        const {data:recoveryClaim,error:claimError}=await client.rpc("service_store_owner_temp_issue_for_opening",{
+          p_store_id:storeId,p_user_id:verifiedExistingUserId,p_actor_id:actor.userId,p_auto_open_after_accept:autoOpen
         });
         if(claimError||recoveryClaim?.ok!==true)
           throw new HttpError(409,"AUTH_RECOVERY_CLAIM_REJECTED");
@@ -467,8 +517,8 @@ Deno.serve(async req=>{
         const sent=await dispatchInvitation(email,storeId,actor.userId,"HQ_OWNER");
         if(sent.delivery!=="INVITE"||!sent.userId)
           throw new HttpError(409,"NEW_OWNER_EMAIL_INVITATION_NOT_ISSUED");
-        const {data:pendingOwner,error:ownerError}=await client.rpc("service_native_owner_invitation_issue",{
-          p_store_id:storeId,p_user_id:sent.userId,p_actor_id:actor.userId,p_email:email
+        const {data:pendingOwner,error:ownerError}=await client.rpc("service_native_owner_invitation_issue_for_opening",{
+          p_store_id:storeId,p_user_id:sent.userId,p_actor_id:actor.userId,p_email:email,p_auto_open_after_accept:autoOpen
         });
         if(ownerError||pendingOwner?.ok!==true)
           throw new HttpError(502,"AUTH_INVITE_SENT_PENDING_ROLE_CLAIM_FAILED: "+String(ownerError?.message||"UNKNOWN"));
@@ -488,8 +538,8 @@ Deno.serve(async req=>{
       if(creationError||!created?.user?.id)
         throw new HttpError(409,"TEMP_OWNER_AUTH_CREATION_FAILED");
       const createdId=created.user.id;
-      const {data:issued,error:issueError}=await client.rpc("service_store_owner_temp_issue",{
-        p_store_id:storeId,p_user_id:createdId,p_actor_id:actor.userId
+      const {data:issued,error:issueError}=await client.rpc("service_store_owner_temp_issue_for_opening",{
+        p_store_id:storeId,p_user_id:createdId,p_actor_id:actor.userId,p_auto_open_after_accept:autoOpen
       });
       if(issueError||issued?.ok!==true){
         // Cleanup is allowed ONLY for the brand-new Auth identity created above;

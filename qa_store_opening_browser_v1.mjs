@@ -143,7 +143,7 @@ async function activate(u,{password='SyntheticPassword-123!',confirm=password,
    form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
  else await page.locator('#confirm').click();
  if(success){
-  await page.waitForURL(new RegExp('/index[.]html[?]mode=store&store='+u.store+'#pos'),{timeout:8000});
+  await page.waitForURL(new RegExp('/index[.]html[?]mode=store&store='+u.store+'#admin'),{timeout:8000});
   ok(calls.indexOf('store_invitation_activation_preflight')>=0&&
     calls.indexOf('store_invitation_activation_preflight')<calls.indexOf('user'),
     'Preflight must validate current authorization before password PUT');

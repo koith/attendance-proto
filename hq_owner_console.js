@@ -6,9 +6,15 @@ async function rpc(name,args={}){
  const r=await fetch(CONFIG.SUPABASE_URL+"/rest/v1/rpc/"+name,{method:"POST",headers:{apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:"Bearer "+Auth.token,"Content-Type":"application/json"},body:JSON.stringify(args)});
  const data=await r.json().catch(()=>null);if(!r.ok)throw Error(data?.message||name+" "+r.status);return data;
 }
-async function invite(email,store_id,invitationRole="OWNER"){
- const r=await fetch(CONFIG.SUPABASE_URL+"/functions/v1/server-sync-sheet",{method:"POST",headers:{Authorization:"Bearer "+Auth.token,"Content-Type":"application/json"},body:JSON.stringify({mode:invitationRole==="ASSISTANT"?"invite_store_assistant_by_hq":"invite_store_manager",email,store_id})});
- const d=await r.json().catch(()=>null);if(!r.ok||d?.ok!==true)throw Error(d?.error||"INVITE_FAILED");
+async function invite(email,store_id,invitationRole="OWNER",resendOnly=false){
+ const r=await fetch(CONFIG.SUPABASE_URL+"/functions/v1/server-sync-sheet",{method:"POST",headers:{Authorization:"Bearer "+Auth.token,"Content-Type":"application/json"},body:JSON.stringify({mode:invitationRole==="ASSISTANT"?"invite_store_assistant_by_hq":"issue_store_owner_temporary_password",email,store_id,auto_open_after_accept:invitationRole==="OWNER"&&!resendOnly,resend_only:invitationRole==="OWNER"&&resendOnly})});
+ const d=await r.json().catch(()=>null);if(!r.ok||d?.ok!==true){
+  const reason=String(d?.error||"INVITE_FAILED");
+  if(reason.includes("PROVENANCE_VERIFICATION_REQUIRED"))throw Error("본사에서 실제 지점 정보를 확인한 뒤 대표 초대와 개통을 승인해 주세요.");
+  if(reason.includes("DEMO_EMPLOYEES_REQUIRE_REVIEW"))throw Error("샘플 직원 정보를 먼저 확인한 뒤 개통 초대를 진행해 주세요.");
+  if(reason.includes("NO_VALID_OWNER_INVITATION"))throw Error("유효한 초대가 없거나 기한이 지났습니다. 기존 초대를 취소한 뒤 새 대표 초대를 진행해 주세요.");
+  throw Error(reason);
+ }
 }
 window.mountHqOwnerConsole=async function(box){
  // Reopening the HQ panel must clean up keyboard listeners from its prior mount.
@@ -164,7 +170,7 @@ window.mountHqOwnerConsole=async function(box){
  const managerIds=()=>new Set(managers.map(m=>m.user_id));
  const isHqAccount=a=>a?.is_admin===true&&!managerIds().has(a.user_id);
  const canAppoint=m=>!!m&&managerEligibility.some(e=>e.user_id===m.user_id&&Number(e.store_id)===Number(m.store_id)&&e.eligible===true);
- async function load(){const data=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_primary_owner_list"),BE.listAuthUsers(),rpc("hq_store_locations_list"),rpc("hq_store_manager_eligibility_list"),rpc("hq_store_primary_owner_invitation_list"),rpc("hq_store_manager_directory")]);if(!data.every(Array.isArray))throw Error("INVALID_HQ_RESPONSE");[stores,managers,owners,accounts,,managerEligibility,ownerInvitations,directory]=data;const locations=new Map(data[4].map(l=>[Number(l.store_id),l]));const flagRows=await rpc("hq_store_sample_flags_list").catch(()=>[]);const samples=new Set((Array.isArray(flagRows)?flagRows:[]).filter(x=>x.is_sample===true).map(x=>Number(x.store_id)));stores=stores.filter(s=>!samples.has(Number(s.id))).map(s=>Object.assign({},s,locations.get(Number(s.id))||{},{is_sample:false}));render();}
+ async function load(){const data=await Promise.all([rpc("hq_stores_onboarding_list"),rpc("hq_store_manager_list"),rpc("hq_store_primary_owner_list"),BE.listAuthUsers(),rpc("hq_store_locations_list"),rpc("hq_store_manager_eligibility_list"),rpc("hq_store_owner_pending_list"),rpc("hq_store_manager_directory")]);if(!data.every(Array.isArray))throw Error("INVALID_HQ_RESPONSE");[stores,managers,owners,accounts,,managerEligibility,ownerInvitations,directory]=data;for(const pending of ownerInvitations){if(!directory.some(row=>row.user_id===pending.user_id&&Number(row.store_id)===Number(pending.store_id)))directory.push({...pending,registered_at:null});}const locations=new Map(data[4].map(l=>[Number(l.store_id),l]));const flagRows=await rpc("hq_store_sample_flags_list").catch(()=>[]);const samples=new Set((Array.isArray(flagRows)?flagRows:[]).filter(x=>x.is_sample===true).map(x=>Number(x.store_id)));stores=stores.filter(s=>!samples.has(Number(s.id))).map(s=>Object.assign({},s,locations.get(Number(s.id))||{},{is_sample:false}));render();}
  const friendlyError=e=>{const message=String(e?.message||e||"");if(/already been registered|already registered|user already exists|email_exists|INVITE_FAILED.*registered/i.test(message))return "이미 등록된 이메일입니다. 기존 연결 계정을 확인하세요. 이 계정이 다른 지점에 연결되어 있는지도 확인하세요.";
  if(/CONFIRMED_STORE_MANAGER_REQUIRED/i.test(message))return "대표로 지정하려면 계정 소유자가 초대 이메일 확인(이메일 인증)을 완료해야 합니다. 이메일 인증 후 다시 대표 지정을 누르세요.";if(/CANNOT_DOWNGRADE_HQ/i.test(message))return "본사 관리자 계정은 지점 점주로 연결할 수 없습니다. 일반 계정을 선택하세요.";return message;};
  async function run(fn,onSuccess){if(busy)return;busy=true;
@@ -352,9 +358,11 @@ window.mountHqOwnerConsole=async function(box){
      const found=accounts.find(a=>String(a.email||"").toLowerCase()===v);
      if(found){
        const linkedManager=managers.find(m=>m.user_id===found.user_id);
-       return alert(linkedManager?"이미 연결된 계정입니다. 관리자 현황 또는 해제 탭에서 상태를 확인하세요.":isHqAccount(found)?"본사 관리자 계정은 지점 관리자로 초대할 수 없습니다.":"이미 가입한 일반 계정입니다. 아래 ‘기존 인증 계정 연결 (메일 없음)’ 버튼을 사용하세요.");
+       if(linkedManager)return alert("이미 연결된 계정입니다. 관리자 현황 또는 해제 탭에서 상태를 확인하세요.");
+       if(isHqAccount(found))return alert("본사 관리자 계정은 지점 관리자로 초대할 수 없습니다.");
+       if(assistant)return alert("이미 가입한 계정은 기존 인증 계정 연결로 보조 관리자를 연결하세요.");
      }
-     if(confirm("관리자 초대 메일을 발송하시겠습니까?\n\n지점: "+store.name+"\n이메일: "+v+"\n역할: "+(assistant?"보조 관리자":"대표 관리자")+"\n\n이메일이 발송되며, 수신인이 인증·비밀번호 설정을 완료하면 "+(assistant?"해당 지점의 보조 관리자 계정으로 활성화됩니다.":"해당 지점의 대표 관리자로 자동 등록됩니다.")+"\n\n발송을 진행할까요?")){
+     if(confirm("관리자 초대 메일을 발송하시겠습니까?\n\n지점: "+store.name+"\n이메일: "+v+"\n역할: "+(assistant?"보조 관리자":"대표 관리자")+"\n\n이메일이 발송되며, 수신인이 인증·비밀번호 설정을 완료하면 "+(assistant?"해당 지점의 보조 관리자 계정으로 활성화됩니다.":"대표 관리자로 등록되고, 본사가 승인한 이 지점이 즉시 운영 개통됩니다. 이 초대는 인증 완료 후 개통까지 승인하는 동작입니다.")+"\n\n발송을 진행할까요?")){
        run(()=>invite(v,selected,role),()=>{
          activeTab="status";notice={title:"초대 요청 처리됨",message:"해당 지점 관리자 초대 상태를 갱신했습니다. 받는 사람의 실제 이메일 수신 및 인증을 확인해 주세요."};
        });
@@ -367,7 +375,7 @@ window.mountHqOwnerConsole=async function(box){
      if(!confirm("초대 메일을 다시 발송하시겠습니까?\n\n지점: "+store.name+
        "\n이메일: "+m.email+"\n역할: "+roleName(m)+
        "\n\n새 초대 링크로 이메일 인증·비밀번호 설정을 진행하게 됩니다. 기존 링크는 사용하지 않도록 안내합니다.\n\n재발송할까요?"))return;
-     run(()=>invite(m.email,selected,m.intended_role==="ASSISTANT"?"ASSISTANT":"OWNER"),()=>{
+     run(()=>invite(m.email,selected,m.intended_role==="ASSISTANT"?"ASSISTANT":"OWNER",true),()=>{
        activeTab="status";notice={title:"초대 메일 재발송 요청 완료",message:store.name+" · "+m.email+" · "+roleName(m)+"의 재발송 요청이 처리됐습니다. 실제 이메일 수신은 계정 소유자가 확인해야 합니다."};
      });
    });
@@ -378,7 +386,7 @@ window.mountHqOwnerConsole=async function(box){
        "\n이메일: "+m.email+"\n역할: "+roleName(m)+
        "\n\n취소하면 초대 대기 및 해당 지점의 관리자 권한 연결이 즉시 제거됩니다. 기존 이메일 링크로 인증해도 이 지점의 관리자 권한은 부여되지 않습니다.\n\n초대를 취소할까요?"))return;
      run(async()=>{
-       const result=await rpc("hq_store_manager_remove",{p_store_id:selected,p_user_id:m.user_id});
+       const result=await rpc(m.intended_role==="OWNER"?"hq_store_owner_invitation_cancel":"hq_store_manager_remove",{p_store_id:selected,p_user_id:m.user_id});
        if(result?.ok!==true)throw Error("INVITATION_CANCEL_NOT_CONFIRMED");
      },()=>{
        activeTab="status";notice={title:"초대 취소 완료",message:store.name+" · "+m.email+"의 "+roleName(m)+" 초대를 취소했습니다."};
