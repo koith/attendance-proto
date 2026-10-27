@@ -11,7 +11,8 @@ export const OPENING_REQUIRED=Object.freeze(['index.html','hq_owner_console.js',
 const allowed=new Set([...OPENING_REQUIRED,'qa_store_owner_approved_opening.sql','qa_store_owner_approved_opening.mjs',
  'qa_owner_activation_retry_browser_1243.mjs','tests/qa1243_owner_temp_retry.test.mjs',
  'qa_owner_invite_autoactivation_921.mjs','qa_store_admin_ui_polish_932.mjs','qa_hq_store_admin_tabs_929.mjs',
- 'qa_operational_readiness_fail_closed_v1.mjs','qa_store_opening_journey_browser_v1.mjs',
+ 'qa_operational_readiness_fail_closed_v1.mjs','qa_store_opening_journey_browser_v1.mjs','qa_store_opening_browser_v1.mjs',
+ 'qa_hq_manager_fixed_height_938.mjs','qa_manager_invitation_roles_926.mjs','qa_hq_store_onboarding_v1.mjs','qa_manager_ux_feedback_935.mjs','qa_store_delegated_manager_v1.mjs','qa_hq_store_search_owner_activation_v1.mjs','qa_hq_owner_role_guard_914.mjs','qa_store_provenance_gate_v1.mjs','qa_manager_milestones_v1.mjs','scripts/qa1243_auth_config_verdict.test.mjs',
  'tests/qa1243_owner_recovery_paste.test.mjs','tests/qa1243_approved_opening_release.test.mjs',
  'scripts/qa1243_approved_opening_release.mjs','scripts/qa1243_approved_opening_pages_smoke.mjs',
  '.github/workflows/qa1243-approved-owner-opening.yml','.github/workflows/p0-pages-deploy.yml',
@@ -38,8 +39,8 @@ export function assertApprovedOpeningRelease(files,message,before,{read=p=>readF
  const index=read('index.html');
  if(!index.includes('const APP_VERSION="v0.368";')||
   sha(index.replaceAll('v0.368','v0.367')
-   .replaceAll('hq_owner_console.js?v=20261027opening1','hq_owner_console.js?v=20261020v352')
-   .replaceAll('hq_store_onboarding_ui.js?v=20261027opening1','hq_store_onboarding_ui.js?v=20261026v362'))
+   .replaceAll('hq_owner_console.js?v=20261027v368','hq_owner_console.js?v=20261020v352')
+   .replaceAll('hq_store_onboarding_ui.js?v=20261027v368','hq_store_onboarding_ui.js?v=20261026v362'))
   !=='c642133de76f3e7ba27b9430807426c2dd8d64cc5c8e423861a877d2b79b241f')throw Error('OWNER_OPENING_INDEX_DIFF');
  const activation=read('owner_activation.html');
  if(!activation.includes('owner_activation.js?v=20261027opening1')||
