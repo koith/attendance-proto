@@ -557,6 +557,8 @@ jobs:
         run: node qa_actual_attendance_overnight_pairing_v1.mjs
       - name: POS white screen and stalled mobile store lookup regression
         run: node qa_pos_startup_network_timeout_v1.mjs
+      - name: Expired admin session refresh and guest-store access recovery (v0.371)
+        run: node qa_store_startup_expired_auth_v371.mjs
       - name: Owner authenticated session recovery and role isolation (#1243)
         run: node qa_owner_session_recovery_1243.mjs
       - name: index-startup-smoke-v1
