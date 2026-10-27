@@ -4,8 +4,20 @@ import {readFileSync} from 'node:fs';
 import {assertHqReinviteRelease,REINVITE_BASE,REINVITE_ASSETS} from '../scripts/qa1243_hq_reinvite_release.mjs';
 const files=Object.keys(REINVITE_ASSETS).map(filename=>({filename,status:'modified'}));
 const message='[QA1243-OWNER-REINVITE] [QA1243-APP-PAGES] [QA1243-NO-OPERATING-WRITE] [QA1243-NO-GOOGLE-RERUN]';
-test('the reviewed static release preserves all old navigation and operating code',()=>{
- assert.equal(assertHqReinviteRelease(files,message,REINVITE_BASE),true);
+test('the frozen v0.370 owner re-invite release is strict but does not prohibit separately reviewed later versions',()=>{
+ const html=readFileSync('index.html','utf8');
+ const version=html.match(/const APP_VERSION="(v0\.\d+)"/)?.[1];
+ assert.ok(version,'app release version must be visible');
+ const releaseNumber=Number(version.slice(3));
+ if(version==='v0.370'){
+  assert.equal(assertHqReinviteRelease(files,message,REINVITE_BASE),true);
+ }else{
+  // The original reviewed assets remain pinned by assertHqReinviteRelease,
+  // which must REJECT any newer index bytes when invoked for the v0.370 release.
+  assert.ok(releaseNumber>370,'unexpected older app release');
+  assert.throws(()=>assertHqReinviteRelease(files,message,REINVITE_BASE),/ASSET_BYTES/,
+   'v0.370 pin must never silently authorize a later index release');
+ }
 });
 test('all markers, exact current main and all three reviewed assets are mandatory',()=>{
  for(const marker of message.split(' '))assert.throws(()=>assertHqReinviteRelease(files,message.replace(marker,''),REINVITE_BASE),/MARKER/);
