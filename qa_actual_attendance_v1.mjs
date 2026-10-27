@@ -9,7 +9,7 @@ a(js.includes('applyCorrections'),'correction layer missing');
 a(js.includes('data-day')&&js.includes('renderDay'),'calendar drilldown missing');
 a(js.includes('axisStart=')&&js.includes('axisEnd='),'dynamic timeline axis missing');
 a(!js.includes('admin_schedule_list'),'planned schedule leaked into actual view');
-a(index.includes('location.href="actual_attendance.html"'),'admin actual-attendance route missing');
+a(index.includes('location.href=attendanceEntryUrl()'),'admin actual-attendance route missing');
 a(html.includes('actual_attendance.css?v=')&&html.includes('actual_attendance.js?v='),'cache-busted runtime missing');
 a(css.includes('.calendar')&&css.includes('.track'),'attendance layout missing');
 a(js.includes('ORPHAN_OUT')&&js.includes('INCOMPLETE'),'issue semantics missing');

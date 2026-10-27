@@ -40,7 +40,8 @@ async function scenario(mode) {
   if(u.includes("/store_owner_temp_complete")){
    completed++;
    assert.equal(JSON.parse(options.body).p_new_password,"valid-new-password-123");
-   return reply(200,{ok:true,owner_assigned:true,store_id:80});
+   if(mode==="completion-loss"&&completed===1)throw Error("completion response lost after commit");
+   return reply(200,{ok:true,owner_assigned:true,store_id:80,store_opened:mode==="completion-loss",already_completed:mode==="completion-loss"});
   }
   if(u.includes("/auth/v1/token?grant_type=password")){
    logins++;
@@ -62,8 +63,8 @@ async function scenario(mode) {
  assert.equal(typeof submit,"function","The signed-in owner should see the password form");
  const event={preventDefault(){}};
  await submit(event);
- if(mode==="network-loss"){
-  assert.equal(completed,0,"Do not claim ownership after a lost password update");
+ if(mode==="network-loss"||mode==="completion-loss"){
+  assert.equal(completed,mode==="completion-loss"?1:0,"Do not claim ownership after a lost password update");
   element("password").value="valid-new-password-123";
   element("repeat").value="valid-new-password-123";
   await submit(event);
@@ -74,11 +75,11 @@ async function scenario(mode) {
   assert.equal(redirect,null);
   assert.match(element("status").textContent,/처리 실패/);
  } else {
-  assert.equal(completed,1);
+  assert.equal(completed,mode==="completion-loss"?2:1);
   assert.equal(logins,1);
   assert.equal(savedSession.access_token,"new-token");
   assert.match(redirect,/store=80/);
-  assert.match(element("status").textContent,/본사 승인/);
+  assert.match(element("status").textContent,mode==="completion-loss"?/대표 관리자 등록과 지점 개통이 완료/:/본사 승인/);
  }
  return {changes,completed,calls};
 }
@@ -93,4 +94,8 @@ test("lost PUT response followed by 422 resumes without premature promotion",asy
 });
 test("unrelated GoTrue 422 never promotes owner",async()=>{
  assert.equal((await scenario("unrelated-error")).changes,1);
+});
+
+test("a lost committed owner completion retries without a new invitation or role grant",async()=>{
+ assert.equal((await scenario("completion-loss")).completed,2);
 });

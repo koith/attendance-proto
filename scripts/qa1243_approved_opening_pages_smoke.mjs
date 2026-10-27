@@ -14,7 +14,7 @@ async function get(file){const r=await fetch(base+file+'?qa1243_opening='+Date.n
  assert.equal(r.status,200,'LIVE_OWNER_ASSET_HTTP '+file);return r.text();}
 async function hashes(paths){return Object.fromEntries(await Promise.all(paths.map(async p=>[p,sha(await get(p))])));}
 async function published(){
- assert.match(readFileSync('index.html','utf8'),/const APP_VERSION="v0\.368";/);
+ assert.match(readFileSync('index.html','utf8'),/const APP_VERSION="v0\.369";/);
  const expected=Object.fromEntries(changed.map(p=>[p,sha(readFileSync(p,'utf8'))]));
  for(let n=0;n<18;n++){
   const observed=await hashes(changed);
@@ -30,5 +30,5 @@ if(mode==='--before'){
 }else if(['--after','--independent'].includes(mode)){
  const proof=await published();
  if(mode==='--after')assert.deepEqual(await hashes(unchanged),JSON.parse(readFileSync(receipt,'utf8')));
- console.log('APPROVED_OWNER_V368_PAGES_PASS '+JSON.stringify({mode,proof,mailSent:false,operatingDataWrite:false}));
+ console.log('APPROVED_OWNER_V369_PAGES_PASS '+JSON.stringify({mode,proof,mailSent:false,operatingDataWrite:false}));
 }else throw Error('READ_ONLY_PUBLIC_MODE_REQUIRED');

@@ -86,7 +86,15 @@ jobs:
               const {assertApprovedOpeningRelease}=await import(process.cwd()+'/scripts/qa1243_approved_opening_release.mjs');
               assertApprovedOpeningRelease(data.files,message,before);
               runLive=false;
-              core.info('Owner-only Edge branch verified: Google/calculation code unchanged; no Google or Sheets call');
+              core.info('Owner opening release: no Google or operating Sheets requests');
+            }
+            if(runLive && message.includes('[QA1243-STORE-ISOLATION]')){
+              const before=context.payload.before;
+              const {data}=await github.rest.repos.compareCommits({...context.repo,base:before,head:context.sha,per_page:100});
+              const {assertStoreIsolationRelease}=await import(process.cwd()+'/scripts/qa1243_store_isolation_release.mjs');
+              assertStoreIsolationRelease(data.files,message,before);
+              runLive=false;
+              core.info('Store isolation static fix: no Google or operating Sheets requests');
             }
             if(runLive && message.includes('[QA1243-TEMP-OWNER-PAGES]')){
               const before=context.payload.before;

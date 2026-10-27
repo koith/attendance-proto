@@ -47,10 +47,18 @@ CREATE FUNCTION public.can_manage_store(bigint) RETURNS boolean LANGUAGE sql AS 
 \i supabase/migrations/20261020093000_hq_verified_existing_account_reconnect.sql
 \i supabase/migrations/20261020121000_invitation_dispatch_activation_preflight_1243.sql
 \i supabase/migrations/20261022225500_qa1243_confirmed_primary_owner_ready.sql
+CREATE SCHEMA IF NOT EXISTS extensions;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+\i supabase/migrations/20261011132000_admin_context_active_identity_guard.sql
+\i supabase/migrations/20261026094500_qa1243_owner_temp_first_login.sql
+\i supabase/migrations/20261026115000_qa1243_native_owner_invite_after_password.sql
+\i supabase/migrations/20261027070217_approved_owner_auto_opening.sql
 INSERT INTO public.stores VALUES(1,'PROTECTED','Protected synthetic branch','protected','READY',true),
  (701,'QA701','Disposable Alpha','qa-alpha','STAGED',false),
- (702,'QA702','Disposable Beta','qa-beta','STAGED',false);
-INSERT INTO public.store_provenance_reviews(store_id,decision) VALUES(701,'VERIFIED'),(702,'VERIFIED');
+ (702,'QA702','Disposable Beta','qa-beta','STAGED',false),
+ (703,'QA703','Approved native owner','qa-native','STAGED',false),
+ (704,'QA704','Approved existing owner','qa-recovery','STAGED',false);
+INSERT INTO public.store_provenance_reviews(store_id,decision) VALUES(701,'VERIFIED'),(702,'VERIFIED'),(703,'VERIFIED'),(704,'VERIFIED');
 INSERT INTO public.employees(id,store_id,name,employee_no,memo)
  SELECT i,1,'Protected employee '||i,i,'protected' FROM generate_series(1,10)i;
 INSERT INTO public.employees VALUES(70101,701,'Alpha employee',1,'alpha',true),

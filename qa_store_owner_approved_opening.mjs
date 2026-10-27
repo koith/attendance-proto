@@ -43,3 +43,14 @@ assert.match(migration,/REVOKE ALL ON FUNCTION private\.finish_approved_owner_op
 assert.match(migration,/auth\.uid\(\) IS DISTINCT FROM p_owner_id/);
 assert.match(migration,/PERSONAL_PASSWORD_NOT_VERIFIED/);
 console.log('PASS actual HQ invite bodies: explicit approval, existing-user recovery, resend preserves intent, assistants never open stores; SQL contract remains recipient-bound');
+
+if(process.argv.includes('--real-proof')){
+ const proof=JSON.parse(readFileSync('qa-results/auth-role-journey-1243.json','utf8'));
+ assert.equal(proof.commit,process.env.GITHUB_SHA);
+ assert.equal(proof.scope,'ISOLATED_REAL_AUTH_SMTP_POSTGREST');
+ assert.equal(proof.hostedAuthTested,false);assert.equal(proof.googleE2ERepeated,false);
+ assert.deepEqual(proof.approvedOwnerOpening,[
+  {name:'native-mail-password-login-atomic-ready',result:'PASS'},
+  {name:'existing-mail-password-login-atomic-ready',result:'PASS'}]);
+ console.log('PASS same-run real SMTP/Auth/JWT/PostgREST approved native and existing owner opening 2/2');
+}

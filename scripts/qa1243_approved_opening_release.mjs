@@ -2,7 +2,7 @@
 // approval to run payroll, Sheets, mail, account changes or store activation.
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-export const OPENING_BASE='0362f20506ab27bcd2c7268765b0fa690e82da80';
+export const OPENING_BASE='3ef375e716d07dc88836e65d57d5636fbc0493c8';
 export const OPENING_MIGRATION='supabase/migrations/20261027070217_approved_owner_auto_opening.sql';
 export const OPENING_REQUIRED=Object.freeze(['index.html','hq_owner_console.js','hq_store_onboarding_ui.js',
  'owner_activation.html','owner_activation.js','owner_temp_activation.html','owner_temp_activation.js',
@@ -18,6 +18,8 @@ const allowed=new Set([...OPENING_REQUIRED,'qa_store_owner_approved_opening.sql'
  '.github/workflows/qa1243-approved-owner-opening.yml','.github/workflows/p0-pages-deploy.yml',
  '.github/workflows/qa1243-live-e2e.yml','.github/workflows/qa1243-owner-ready-pages-independent.yml',
  'scripts/qa1243_friday_preflight.mjs','scripts/qa1243_friday_preflight.test.mjs',
+ 'tests/qa1243_store_isolation_release.test.mjs',
+ 'qa_auth_role_journey_1243.sql','qa_auth_role_journey_1243.mjs','.github/workflows/qa1243-auth-role-journey.yml',
  'PROJECT_BACKLOG_20261017.md','docs/qa1243-approved-owner-opening.md']);
 const sha=s=>createHash('sha256').update(s).digest('hex');
 const oldDescription='점주 이메일 인증이 확인되면 새 비밀번호를 설정할 수 있습니다. 대표 권한 등록 후에도 지점 운영 개통은 본사 승인이 필요합니다.';
@@ -37,11 +39,11 @@ export function assertApprovedOpeningRelease(files,message,before,{read=p=>readF
   !allowed.has(f.filename)||['removed','renamed'].includes(f.status)))throw Error('OWNER_OPENING_RELEASE_SCOPE');
  if(!OPENING_REQUIRED.every(path=>files.some(f=>f.filename===path)))throw Error('OWNER_OPENING_RELEASE_MISSING_FILE');
  const index=read('index.html');
- if(!index.includes('const APP_VERSION="v0.368";')||
-  sha(index.replaceAll('v0.368','v0.367')
-   .replaceAll('hq_owner_console.js?v=20261027v368','hq_owner_console.js?v=20261020v352')
-   .replaceAll('hq_store_onboarding_ui.js?v=20261027v368','hq_store_onboarding_ui.js?v=20261026v362'))
-  !=='c642133de76f3e7ba27b9430807426c2dd8d64cc5c8e423861a877d2b79b241f')throw Error('OWNER_OPENING_INDEX_DIFF');
+ if(!index.includes('const APP_VERSION="v0.369";')||
+  sha(index.replaceAll('v0.369','v0.368')
+   .replaceAll('hq_owner_console.js?v=20261027v369','hq_owner_console.js?v=20261020v352')
+   .replaceAll('hq_store_onboarding_ui.js?v=20261027v369','hq_store_onboarding_ui.js?v=20261026v362'))
+  !=='5ddbc196272ce5ea292997e787c316836034345f2d873fc37685a4a34a3f7a2d')throw Error('OWNER_OPENING_INDEX_DIFF');
  const activation=read('owner_activation.html');
  if(!activation.includes('owner_activation.js?v=20261027opening1')||
   sha(activation.replace('20261027opening1','20261027oneclick1'))!==

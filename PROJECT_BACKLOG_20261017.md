@@ -810,3 +810,32 @@
 - 본사대표초대후수신자암호설정이끝났는데다시운영승인으로막히는경험을수정중이다. 본사의새초대에만 auto_open_after_accept 승인을기록하고개인암호검증·대표등록과같은트랜잭션에서조건충족지점만개통한다. 기존초대는DEFAULTfalse, 취소·만료·중지·반려·권한회수·타지점/보조는자동개통하지않는다. 두HQ초대경로를canonical로통일하고기존미배정계정은본인인증메일로연결한다. 재발송은새승인/기한연장을하지않는다.
 - 브랜치 feature/qa1243-approved-owner-auto-opening/base0362f205. CLI가생성한마이그레이션20261027070217_approved_owner_auto_opening.sql과격리PostgreSQLfixture/전용CI를준비했다. 로컬HQ요청body/재발송/보조·개인암호4/세션9/기존대표보안계약·canonical/Edge미러6파일검사는PASS. 새SQL의실제실행·전체CI·병합·SQL/Edge/Pages배포는후속증거전완료로보고하지않는다. 현재운영앱은v0.367이며개선배포후보는v0.368이다.
 - 새개발로실메일/운영Sheets/Google E2E를재실행하지않는다. 원장38/완료19/잔여19유지. 1호점시험운영활성화완료와전체실지점개통·메일브랜드·Google현재소스·SEC01/현장수용의미완료를구분한다. 후속PR/CI/실배포증거는Issue1243에연결한다.
+
+## 85. 2026-10-27 — 1호점 시험 중 인하대점 전환·직원 노출 P0 수정
+
+- 사용자 실제 보고: webuielf/1호점 시험 중 지점명이 인하대로 바뀌고 인하대 직원이 보임. 운영 조회에서 계정은 store80 STORE_MANAGER/primary_owner만 있고 HQ/다른지점 역할 없음, store80 READY/직원0, 인하대 직원10 보존. 앞선 활성화 완료를 격리 수용 완료로 확대하지 않는다.
+- 실제 경로: 근무현황 닫기에서 index.html#pos로 지점 번호를 버리고, 루트의 기본 지점1 공개 POS로 이동한다. 수정 전 실제 init의 닫기 동작으로 index.html#pos를 재현했다. 서버 list_store_employees는 can_manage_store로 지점 일치·READY/확정 Auth를 검사하며, 기존 공개 POS 카드 정책은 별도 SEC01 범위로 유지한다. 관리계정의 타점 사원·급여 권한이 생겼다고 단정하지 않는다.
+- 수정: 근무현황 진입·직원 PIN 진입·로그인 복귀·닫기에 지점 번호를 유지한다. 일반/다른 지점 URL로 들어온 로그인 점주는 공개 직원 조회 전에 서버 admin_context의 자기 지점으로 이동한다. 인증/권한 조회 실패는 인하대 공개 POS로 복구하지 않고 차단한다. 근무현황은 URL/저장소 기본값1 대신 현재 서버 계정 지점을 확인하고, 역사 이름 복구 두 경로도 같은 scoped RPC만 사용한다. HQ의 명시적 지점 선택과 직원 본인 PIN 흐름은 유지한다.
+- 회귀: 수정 전 닫기 주소·권한 없는 루트 진입을 포함한 7개 FAIL 증거를 남기고 수정 후7PASS. 배포 범위4/기존 근무현황·직원 신원·READY/Google·운영무쓰기 guard PASS. 실제 운영 데이터·권한·메일·SEC01·Edge·Sheets 코드 변경0. 최신 Chromium/WebKit 실제 페이지/다른 지점 캐시/근무현황 닫기/회수된 계정 검증은 PR CI에서 확인한다.
+- 긴급 브랜치 fix/qa1243-store-navigation-isolation/base0362f205, 후보v0.368. 자동개통 개선 PR1404/61ff858c는 draft로 보존하고 이번 격리 수정 배포가 우선이다. 병합·Pages·독립 공개 바이트 검증 전까지 이번 수정의 운영 수용은 NO_GO. 원장38/완료19/잔여19 유지. 실제 PR/CI/배포와 보호 데이터 전후 결과는 Issue1243에 연결한다.
+
+
+## 86. 2026-10-27 — v0.368 지점 복귀·계정 scope 긴급 수정 배포 완료
+
+- **실제 병합:** [PR1405](https://github.com/koith/attendance-proto/pull/1405), head f88f223c2dd0c38a8b7cc6d9b0200037b6a2b57b → main ec525d78503ca5e649b4a37c0e2a60c17b686286(09:28:32Z). 최종 PR 체크112/성공95/의도된 스킵17/실패0. WebKit 설치 mirror azure.archive 다운로드240초 초과(exit124)는 앱 실행 전 외부 준비 실패로 구분하고 해당 통합job만 재시도; [최종 통합40476314281 attempt2](https://github.com/koith/attendance-proto/actions/runs/40476314281/attempts/2) 성공. 53개 source/policy·실제 격리 PostgreSQL·연속 브라우저 QA 통과. 실패 검사를 무시하거나 제거하지 않음.
+- **새 요구사항 실증:** [40476314638/job122095303564](https://github.com/koith/attendance-proto/actions/runs/40476314638/job/122095303564)의 Chromium/WebKit × 393/1280px × 일반주소/타점주소/근무현황닫기/옛저장소/타점근무현황/회수계정/HQ =28/28 PASS. 타점 직원·이벤트 요청 전 차단, 자기 지점 복귀, 기존 mobile/desktop 관리자 권한·격리도 같은 실행에서 PASS. 실제 HTML/JS를 실행하되 모든 외부 요청은 합성 interception; 실제 수신자 세션으로 로그인했다고 확대하지 않음.
+- **실제 정적 배포:** [P0 Pages40481055741](https://github.com/koith/attendance-proto/actions/runs/40481055741), 안전 게시 job122116609604, 09:41:38Z 성공. [독립40482731211/job122116824040](https://github.com/koith/attendance-proto/actions/runs/40482731211/job/122116824040)09:41:54Z 성공. 공개 index SHA256 5ddbc196272ce5ea292997e787c316836034345f2d873fc37685a4a34a3f7a2d / actual_attendance.html a5776ddd18011c23e55923340f6d61308c9769aa11c47ebe7a9b8a00e56279de / actual_attendance.js 3d4fb7df7e83a101887a5c8f4e3371ab65e399b3f5d8f9b99c610fc2550e0f97 정확 일치. 기존 HQ·초대·레시피·운영JS·근무현황CSS10자산 전후 바이트 불변. HTML의 JS/CSS cache 주소만 같은 새 버전으로 갱신했고 레이아웃/CSS 계산은 변경0.
+- **운영 보존:** 긴급 수정 전후 stores/admin_users/primary_owners/employees/recipe_versions/recipe_components6그룹 전체 row digest 완전 일치. stores244/HQ3/인하대 직원10/활성 실메뉴136/store80직원0. 실메뉴의 역사 포함 version137행과 활성136종을 구분한다. store80=1호점/REAL_1/READY,true, webuielf는 store80 STORE_MANAGER+대표만 유지. 운영 DB DML/SQL schema/권한/초대메일/Auth설정/Edge/SEC01/기존Sheets 직접쓰기0.
+- **자동화 실행의 실제 의미:** 운영 Sheets writer가 있는 일반 Pages build/deploy/validation3job은SKIP. Google40481055423의 job이 success여도 실제 service-to-service 실행 step은SKIP이며 새 Google E2E 성공이라고 보고하지 않는다. recovery메일게시40482731217의 실발송도 실행표지 없어SKIP. 기존 Google 성공은 재실행하지 않음.
+- **현재 판정:** 이번 계정의 잘못된 지점 전환 결함은 수정·QA·병합·실배포/독립 검증 완료. 1호점은 활성 상태이며 새 비밀번호 설정·재초대가 필요하지 않다. 실제 사용자의 배포후 재확인은 아직 대신 통과시키지 않는다. 본사 사원·급여 scoped RPC의 서버 can_manage_store는 기존대로 유지; 익명 공용 POS의 기존 공개 직원 표시 정책을 SEC01 승인 없이 비공개로 바꿨다고 주장하지 않음.
+- **전체 개통 게이트는 별도 NO_GO:** [40482763799](https://github.com/koith/attendance-proto/actions/runs/40482763799)5/8: STORE_E2E/MANAGER_POSTGRES/HQ_STORE_POSTGRES/PAGES_PUBLISH/INDEPENDENT_PAGES PASS; TEST_MAIL_GOTRUE는 기존39377974348 증거 기한 경과(RUN_STALE_OR_INVALID_DATE), HOSTED_AUTH_READ는 실제 한국어 메일 설정 미충족, LIVE_EDGE_GAS_SHEETS는 현재 소스의 실제 성공 증거 부재. 새 합성28PASS나 실제 대표1명 수신을 전체 Hosted SMTP/권한회수/SEC01/현장수용 PASS로 바꾸지 않는다.
+- **보존한 잔여:** 자동개통 개선 PR1404/61ff858c는 draft로 보존·미배포. 이 긴급 main 이후 재동기화/다음 버전/배포 경계 재검증이 필요하다. 한국어 운영 메일 적용 권한·GAS 소유자 인증/실통신·SEC01 운영 승인·보조 관리자 실세션/현장 수용은 별도 남음. POS/공급사/장바구니 등의 추가 자동화는 개통 이후 개발로 구분한다. 정본 전체38/완료19/잔여19 유지.
+
+## 87. 2026-10-27 — 대표 초대·본인 비밀번호 설정 후 즉시 개통 운영 적용 재개
+
+- 사용자 원문 “실제로 적용해”에 따라 보존 PR1404/61ff858c를 최신 main3ef375e7(v0.368)과 통합했다. 기존 작업공간은 보존하고 release/qa1243-approved-owner-v369 새 worktree에서 개발한다. 근무현황 복귀/초기 admin_context 지점 격리 코드는 main과 정확히 동일하고 후보 index 변경은 버전v0.369·HQ 캐시3곳뿐이다.
+- 새 본사 대표 초대 확인창은 이메일 발송과 수신자 인증 후 개통까지 승인하는 동작임을 명시한다. service-only 승인 claim에만 auto_open_after_accept=true를 저장하고, 이메일 확정·현재 개인 비밀번호 검증·대표 등록·지점 READY를 한 트랜잭션으로 처리한다. 수락 시에도 원래 본사 승인자·실재 검증·샘플 제외·STAGED 조건을 다시 확인한다. 기존 claim 기본false/보조/취소·만료·중지/타지점/권한 회수는 소급 개통하지 않는다.
+- 새 임시/기존/native 초대를 하나의 HQ 대기 목록·취소 경로로 연결했다. 재발송은 역할·지점·승인·만료기한을 유지한다. 비밀번호 저장/완료 응답 유실 재시도는 실제 암호·기존 대표 연결을 확인하며 새 권한을 부여하지 않는다. 수락 후 POS 대신 해당 지점 #admin으로 이동한다.
+- 실제 검증을 확장했다. 기존 격리 GoTrue+Mailpit+PostgREST+PostgreSQL 환경에 새 migration을 설치하고, 새 native 이메일 수신·개인암호·실제 로그인JWT·즉시READY와 기존 계정 복구메일·UID보존·새암호·즉시READY/타점거부 두 시나리오를 추가했다. 기존 8개 증거와 별도 필드로 기록하고 새2개가 같은head에서 실제 통과해야 한다. Google/Hosted운영 초대 없이 실행한다.
+- 로컬 release guard7/기존 v0.368 guard4/지점복귀7/본사 body·기존 인증/증거 검증·YAML PASS. 기존 v0.368 배포 보호 guard는 완화하지 않고 테스트만 정확한 이전 index를 재구성해 검증한다. Supabase 현재 schema/ACL·관리읽기 연결·native Edge71 ACTIVE를 확인. 아직 새SQL/Edge/Pages 적용 전이며, CI/병합/실배포 결과는 Issue1243 후속증거로 확정한다.
+- 적용 범위는 기본false 승인컬럼2개와 제한된 RPC, owner issue 분기 및 HQ/콜백 정적 자산이다. 다른 Edge·급여·Google writer 코드는 바이트 불변. 기존 운영자료/계정/초대·SEC01/다른 지점 READY/실메일/Sheets 직접쓰기 금지. 전체38/완료19/잔여19 유지, 실제수신자 수용을 합성QA로 통과시키지 않는다.

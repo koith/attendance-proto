@@ -305,7 +305,13 @@ jobs:
             if(releaseMessage.includes('[QA1243-OWNER-OPENING]')){
               const {assertApprovedOpeningRelease}=await import(process.cwd()+'/scripts/qa1243_approved_opening_release.mjs');
               assertApprovedOpeningRelease(diff.files,releaseMessage,before);
-              core.info('Reviewed owner opening release: non-owner Edge and operating assets unchanged; no operating Sheet writer');
+              core.info('Approved owner-only release: existing data unchanged; no operating Sheet writer');
+              return;
+            }
+            if(releaseMessage.includes('[QA1243-STORE-ISOLATION]')){
+              const {assertStoreIsolationRelease}=await import(process.cwd()+'/scripts/qa1243_store_isolation_release.mjs');
+              assertStoreIsolationRelease(diff.files,releaseMessage,before);
+              core.info('Reviewed store navigation isolation fix: static client only; no operating writer');
               return;
             }
             if(releaseMessage.includes('[QA1243-TEMP-OWNER-PAGES]')){
@@ -711,6 +717,8 @@ jobs:
         run: |
           if [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-OPENING]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --before
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-STORE-ISOLATION]') }}" == "true" ]]; then
+            node scripts/qa1243_store_isolation_pages_smoke.mjs --before
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-TEMP-OWNER-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_temp_owner_pages_smoke.mjs --before
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-ACTIVATION-PAGES]') }}" == "true" ]]; then
@@ -737,6 +745,8 @@ jobs:
         run: |
           if [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-OPENING]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --after
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-STORE-ISOLATION]') }}" == "true" ]]; then
+            node scripts/qa1243_store_isolation_pages_smoke.mjs --after
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-TEMP-OWNER-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_temp_owner_pages_smoke.mjs --after
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-ACTIVATION-PAGES]') }}" == "true" ]]; then

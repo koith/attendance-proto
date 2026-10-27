@@ -41,7 +41,7 @@ assert.doesNotMatch(ui,/showOneTimeOwnerCredential/);
 assert.match(ui,/OWNER_INVITE_EMAIL_NOT_ACCEPTED/);
 assert.match(ui,/점주 개통 안내 메일 발송/);
 assert.match(ui,/entryUrl=id=>location\.origin\+location\.pathname/);
-assert.match(app,/hq_store_onboarding_ui\.js\?v=20261027v368/);
+assert.match(app,/hq_store_onboarding_ui\.js\?v=20261027v369/);
 assert.match(edge,/owner_activation\.html/);
 const activation=fs.readFileSync('owner_activation.js','utf8');
 const demoGate=fs.readFileSync('supabase/migrations/20261011032000_block_demo_store_activation.sql','utf8');
