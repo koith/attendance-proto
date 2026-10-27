@@ -110,6 +110,9 @@ jobs:
           path: issue-resume.json
           retention-days: 14
   checkpoint:
+    concurrency:
+      group: ai-dev-checkpoint-${{ inputs.issue_number }}
+      cancel-in-progress: false
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.checkpoint != ''
     needs: [guard, issue-resume]
     runs-on: ubuntu-latest
@@ -136,7 +139,7 @@ jobs:
 
   automation-readback:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: guard
+    needs: [guard, checkpoint-on-main]
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
@@ -164,6 +167,7 @@ jobs:
           path: |
             evidence.json
             live-resume.json
+            recovery-rehearsal.json
           retention-days: 30
   acceptance-report:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event != 'pull_request')
@@ -185,7 +189,7 @@ jobs:
       - name: Independently read existing QA and deployment evidence (report only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/ai-dev/report.mjs > acceptance-report.json
+        run: node scripts/ai-dev/report.mjs | tee acceptance-report.json
       - name: Summarize without blocking an existing release
         run: |
           node -e 'const r=require("./acceptance-report.json");require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY,"AI acceptance report-only: "+r.status+"\n\n"+JSON.stringify(r,null,2)+"\n")'
@@ -194,3 +198,27 @@ jobs:
           name: acceptance-report-${{ github.run_id }}
           path: acceptance-report.json
           retention-days: 30
+
+  checkpoint-on-main:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: ai-dev-checkpoint-1331
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Persist tested main revision for the next session
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ai-dev/cli.mjs checkpoint-auto "$GITHUB_REPOSITORY" 1331

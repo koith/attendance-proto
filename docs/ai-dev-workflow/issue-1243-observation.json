@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "source_url": "https://github.com/koith/attendance-proto/issues/1243",
+  "issue": 1243,
+  "issue_state": "open",
+  "issue_updated_at": "2026-10-23T16:34:54Z",
+  "observed_at": "2026-10-23T16:38:06.542Z",
+  "quotes": [
+    "- **쓰기 경로 실제 조사:** repository scopedRead=true/scopedWrite=false/legacy=false. 기존production 메타데이터GET200·보호문맥 job120445579535에서도 scopedWrite=false/legacy=false/**EXISTING_WRITE_CREDENTIAL_ABSENT**. runtime 관리binding0/저장 Supabase browser로그인0/connector AuthConfig PATCH 기능없음. 현재 두 실행문맥에는 설정쓰기 자격이 없으며 읽기문제와 구분. GitHub앱 full_access가 Supabase AuthConfigWrite를 부여하지 않음.",
+    "- **운영 미적용:** 실제4개변경/PATCH·변경후GET검증은 **미실행**. 읽기토큰으로 쓰기/권한시험을 시도하거나 새 권한/Secret을 생성하지 않음. 사용자 지시대로 토큰발급·읽기연결 재인증을 다시 요구하지 않음. 적용에 필요한 승인된 기존 관리주체의 AuthConfigWrite 실행능력은 아직 확인된 경로에 없음.",
+    "- **실제 Auth 설정2/8:** 관리GET/emailProvider만PASS, 승인한국어HTML·제목/SMTP host·sender/SiteURL·callback6FAIL. [최종개통39963164952](https://github.com/koith/attendance-proto/actions/runs/39963164952) **7/8 NO_GO**, HOSTED_AUTH_READ만FAIL. 나머지 STORE_E2E/MANAGER_POSTGRES/HQ_STORE_POSTGRES/TEST_MAIL_GOTRUE/LIVE_EDGE_GAS_SHEETS/PAGES_PUBLISH/INDEPENDENT_PAGES는 기존증거재사용PASS.",
+    "- **최종 NO_GO:** 읽기연결/GitHub승인 문제는 해결됐지만 현재쓰기실행능력과4개운영설정·SMTP/실수신·본인인증·보안/개통승인·현장증거는 미충족. 실제완료와미적용을구분해기록."
+  ],
+  "pr": {
+    "number": 1328,
+    "merged": true,
+    "merge_commit_sha": "c6bddf7c4f2cf6207a07e94a9817e10551b86faa",
+    "url": "https://github.com/koith/attendance-proto/pull/1328"
+  },
+  "runs": [
+    {
+      "id": 39962969106,
+      "head_sha": "c6bddf7c4f2cf6207a07e94a9817e10551b86faa",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/koith/attendance-proto/actions/runs/39962969106",
+      "name": "p0-pages-deploy"
+    },
+    {
+      "id": 39963164952,
+      "head_sha": "c6bddf7c4f2cf6207a07e94a9817e10551b86faa",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/koith/attendance-proto/actions/runs/39963164952",
+      "name": "QA1243 Friday opening hard readiness gate"
+    }
+  ]
+}

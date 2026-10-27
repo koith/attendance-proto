@@ -84,3 +84,19 @@ node scripts/ai-dev/report.mjs koith/attendance-proto <main-merge-sha>
 기존 Work orchestration guard가 P0 Pages/독립 Pages/Edge workflow 완료, schedule, 수동 실행에서 report-only 보고서를 저장한다. QA 아티팩트 생성 중인 동일 run을 성공으로 미리 판단하지 않는다. Actions artifact 30일 보관 후 만료되면 새 검증이 필요하며 Issue의 영구 체크포인트 링크도 만료 증거를 PASS로 바꾸지 않는다. GitHub/API만 읽고 운영 API/DB/Sheets는 호출하지 않는다. 단위 테스트의 `synthetic` provenance는 운영 성공 증거로 사용하지 않는다.
 
 영향 분석: 기존 release/required-check/보호 규칙 변경0, 새 workflow0, report job은 read 권한과 5분 상한만 갖는다. 기존 배포 결과를 변경하거나 복구 실행을 dispatch하지 않는다. 운영 기능에 확대 적용/차단 모드 활성화는 별도 영향 검토 대상이다.
+
+## 오류·중단 복구 훈련 및 계속 운영
+
+`recovery.test.mjs`는 401 인증/403 권한/SSO 동의를 각각 BLOCKED로 구분하며 즉시 필요한 최소 조치를 반환한다. 429 Retry-After가 예산보다 길면 조기 재시도하지 않고 RATE_LIMIT_DEFERRED로 남긴다. 일시 GET 오류만 최대3회, POST 결과 불명은 같은 event_id readback 전 재발송하지 않는다. 기존 `release_recovery_policy.cjs`의 stale SHA·결정적 실패·5회 상한도 재사용해 검증한다. 운영 복구를 새로 dispatch하지 않는다.
+
+`rehearsal.mjs`는 Issue snapshot을 남긴 프로세스를 실제 SIGTERM으로 종료하고, 이전 대화/메모리 없이 새 Node 프로세스가 Issue만 읽게 한다. 정의·범위·완료 조건·SHA·실패·다음 행동·근거 보존, 중복 이벤트 no-op, 미완료/성공 구분을 검증한다. main readback에서도 실제 원격 #1331을 읽어 같은 훈련을 수행하고 `recovery-rehearsal.json`을 저장한다. 이는 새 세션에 줄 입력을 검증하는 자동 리허설이며 ChatGPT 채팅 대기열 복구나 새 Codex 세션 자동 실행을 뜻하지 않는다.
+
+```sh
+node scripts/ai-dev/rehearsal.mjs koith/attendance-proto 1331
+```
+
+기존 workflow는 성공한 main 단위/통합 QA 다음에 Issue #1331 체크포인트를 자동 추가한다. writer는 main push 또는 명시 workflow_dispatch만 허용하고, 수동/자동 writer 모두 같은 issue별 concurrency를 사용한다. 운영 쓰기 없이 다음 세션에 main SHA·Actions 링크·다음 검증 행동을 남긴다. checkpoint는 진행 주장, 독립 gate artifact는 수용 판정이다. `resume`은 마지막10개 소유자/Actions 메모(최종 보고 포함)도 돌려주므로 새 세션은 해당 SHA의 acceptance 보고서로 완료 여부를 재검증할 수 있다.
+
+`issue-1243-observation.json`은 GitHub에서 읽은 기존 PR1328 병합, P0 run39962969106 성공, opening run39963164952 실패 및 #1243의 운영4필드 미적용 문구를 시각/링크와 함께 보존한다. `issue1243.test.mjs`는 이를 코드 QA PASS/운영 Auth FAIL·미적용/수용 CANNOT_VERIFY로 분리한다. 현재 운영 설정을 새로 조회한 증거가 아니며 #1243을 닫거나 수정하지 않는다.
+
+장애 시 같은 요청을 무한 재실행하지 않는다. Issue의 체크포인트/PR/CI 링크를 읽고, 권한/동의 작업만 BLOCKED로 남긴 후 독립 로컬 QA·수정 가능한 업무를 계속한다. fork/digest 충돌이면 기록을 임의 선택/삭제하지 않고 해당 두 기록을 검토한다. 각 단계 정상 병합 및 최종 보고 링크는 #1331에 영구 기록한다.
