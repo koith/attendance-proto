@@ -118,7 +118,7 @@ function fixture({refreshStatus=200,initialRefresh='synthetic-refresh',adminStat
  const t=fixture({afterRefreshRole:'STORE_MANAGER'});
  await t.run();
  assert.equal(t.context.location.replaced,
-  '/attendance-proto/index.html?mode=store&store=80#admin');
+  '/attendance-proto/index.html?mode=store&store=80#pos');
  assert.equal(t.storeCalls.length,0,'cross-store manager must never load wrong store');
  console.log('PASS refreshed store manager restricted to assigned store');
 }
