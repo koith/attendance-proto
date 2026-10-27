@@ -73,12 +73,13 @@ function browser({expiry=nowSeconds()-120,refreshResult='invalid',hasRefresh=tru
  }};
  const fn=new Function(
   'LIVE','Auth','BE','STORE_ENTRY_LOCK','STORE_ENTRY_ID','STORE_ENTRY_INVALID',
-  'location','document','sessionStorage','publicRpc','syncStoreContextUI',
+  'location','document','sessionStorage','publicRpc','syncStoreContextUI','safeHtml','syncStoreSelectDisplay',
   'let STORE_ENTRY_UNAVAILABLE=STORE_ENTRY_LOCK;\nlet STORE_ENTRY_CONNECTION_FAILED=false;\nlet CURRENT_STORE_ID=STORE_ENTRY_ID||1;\nlet STORE_NAME_BY_ID=new Map();\n'+bootSource+
   '\nreturn {loadStores,getState:()=>({unavailable:STORE_ENTRY_UNAVAILABLE,failed:STORE_ENTRY_CONNECTION_FAILED,current:CURRENT_STORE_ID})};'
  );
  const ui={updates:0};
- const runner=fn(true,Auth,BE,locked,locked?1:0,false,location,document,sessionStorage,publicRpc,()=>{ui.updates++});
+ const runner=fn(true,Auth,BE,locked,locked?1:0,false,location,document,sessionStorage,publicRpc,()=>{ui.updates++},
+  value=>String(value).replace(/[&<>"']/g,''),()=>{});
  return {Auth,localStorage,sessionStorage,location,runner,ui,stats:()=>({refreshCall,adminCall,listCount})};
 }
 
