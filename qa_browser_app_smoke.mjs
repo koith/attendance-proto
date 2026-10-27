@@ -439,7 +439,9 @@ async function ownerScopedRoute(browser,label,viewport){
   page.on('pageerror',e=>errors.push(String(e?.message||e)));
   await configure(page,calls,'STORE_MANAGER',2);
   await page.goto(host+'/index.html?mode=store&store=1#admin',{waitUntil:'domcontentloaded'});
-  await page.waitForURL(/mode=store&store=2#pos/,{timeout:20000});
+  await page.waitForURL(/mode=store&store=2#admin/,{timeout:20000});
+  await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:18000});
+  await page.evaluate(()=>{location.hash='#pos'});
   await page.locator('#empGrid .emp').first().waitFor({timeout:20000});
   await unlockPos(page,label);
   assert.ok((await page.locator('#empGrid').innerText()).includes('점주 지점 직원'),'Store owner POS scope '+label);
@@ -449,7 +451,7 @@ async function ownerScopedRoute(browser,label,viewport){
   assert.deepEqual(await page.locator('.admin-subnav-shell .admin-subtabs a').allTextContents(),
     ['직원 관리','급여','운영시간'],'Owner management tabs '+label);
   assert.ok(calls.some(x=>x.name==='list_store_employees'&&x.args.p_store_id===2),'Owner employees not scoped '+label);
-  assert.ok(!calls.some(x=>x.name==='list_store_employees'&&x.args.p_store_id===1),'Owner accessed Inha employees '+label+'; calls='+JSON.stringify(calls.filter(x=>x.name==='list_store_employees'||x.name==='admin_context')));
+  assert.ok(!calls.some(x=>Number(x.args.p_store_id)===1),'Owner accessed Inha scope '+label+'; calls='+JSON.stringify(calls.filter(x=>x.name==='list_store_employees'||x.name==='admin_context')));
   await page.evaluate(()=>{location.hash='#dashboard'});
   await page.waitForFunction(()=>location.hash==='#pos',null,{timeout:10000});
   assert.equal(errors.length,0,'Owner route browser runtime exceptions '+label+': '+JSON.stringify(errors));

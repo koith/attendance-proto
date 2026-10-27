@@ -5,7 +5,7 @@ assert(!i.includes('id="adSched"'),'duplicate planned daily shortcut must stay o
 assert(!i.includes('id="payWeeks"'),'payroll summary must not expose manual week-count clutter');
 assert(i.includes('>세전 합계</div>'),'payroll must lead with gross total');
 assert(i.includes('payMonthPrev')&&i.includes('payMonthNext'),'month arrows must remain canonical');
-assert(i.includes('location.href="actual_attendance.html"'),'admin attendance must use canonical dashboard');
+assert(i.includes('location.href=attendanceEntryUrl()'),'admin attendance must use canonical dashboard');
 
 
 assert(i.includes('employeeContractStatuses'),'employee list must load aggregate contract status once');

@@ -7,7 +7,7 @@ const root=resolve('.'),host='http://qa1243.invalid',proof=[];
 for(const engine of [chromium,webkit]){
  const browser=await engine.launch({headless:true});
  try{for(const width of [393,1280]){
-  for(const scenario of ['generic','foreign','attendance-close','legacy-attendance','revoked','hq']){
+  for(const scenario of ['generic','foreign','attendance-close','legacy-attendance','foreign-attendance','revoked','hq']){
    const calls=[],context=await browser.newContext({viewport:{width,height:844}}),page=await context.newPage();
    await context.addInitScript(({scenario})=>{
     localStorage.setItem('baekeok_auth',JSON.stringify({access_token:'isolated-token'}));
@@ -39,10 +39,17 @@ for(const engine of [chromium,webkit]){
     return route.abort();
    });
    let path=scenario==='foreign'?'/index.html?mode=store&store=1#pos':
+    scenario==='foreign-attendance'?'/actual_attendance.html?store=1':
     scenario==='attendance-close'?'/actual_attendance.html?store=80':
     scenario==='legacy-attendance'?'/actual_attendance.html':
     scenario==='hq'?'/index.html?mode=store&store=1#pos':'/index.html#pos';
    await page.goto(host+path,{waitUntil:'domcontentloaded'});
+   if(scenario==='foreign-attendance'){
+    await page.getByText('STORE_ACCOUNT_SCOPE_MISMATCH',{exact:false}).waitFor();
+    assert.ok(!calls.some(c=>/employees|events_with_corrections/.test(c.name)),'foreign attendance made private data request');
+    proof.push({engine:engine.name(),width,scenario,status:'PASS',requests:calls.length});
+    console.log('PASS '+engine.name()+' '+width+' '+scenario);await context.close();continue;
+   }
    if(scenario.includes('attendance')){
     await page.locator('.calendar').waitFor();await page.locator('#back').click();
    }
