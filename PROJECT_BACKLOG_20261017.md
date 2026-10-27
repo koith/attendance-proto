@@ -803,3 +803,18 @@
 - 엄격한기존정적Pages경로에이번정확한3줄·5파일범위만허용. 마커5개/실제diff확인·예상외라우트변경거부·DB/Edge/다른운영자산거부테스트6PASS. 기존READY격리·boot/startup·운영무쓰기guard PASS. 실제게시전후다른운영자산해시와index/점주HTML·JS공개바이트를독립검증한다. PR/병합/실배포결과는Issue1243에연결하며후보를미리운영버전으로보고하지않는다.
 - 기존PR1397/v0.366·PR1400병합은반복하지않았다. 실제운영한국어recovery메일2필드적용40429637097 재시도는repository122029380725·production122029464698 모두 RECOVERY_AUTH_WRITE_CREDENTIAL_ABSENT/applied=false. 새메일발송0, 실제권한부여는수신자의정상기존인증절차결과이며AI운영DML/AuthPATCH/비밀번호설정/READY/SEC01/Sheets쓰기0.
 - 전체38/완료19/잔여19유지. QA04전체수용/한국어운영메일/보조관리자실세션/SEC01실기기/실근태·급여·시트현장수용을이번대표1명인증으로일괄완료하지않음. 본사개통승인전전체개통GO로바꾸지않는다.
+
+## 84. 2026-10-27 — 승인된 1호점 실제 활성화·대표 수락 후 자동 개통 개발
+
+- 사용자 “1호점 활성화 해” 명시 승인에 따라 store80/REAL_1/1호점을 STAGED,false에서 READY,true로전환·커밋했다. 대표UID488139db-b765-4843-922d-481f7ca0bd3e의확정메일/개인암호/대표연결·provenance VERIFIED·샘플직원0을재검사하고, 다른지점/전체관리자·대표연결/직원/recipe_versions/recipe_components6그룹전후해시동일과대상기타필드불변을트랜잭션에서확인했다. 실제앱 list_stores HTTP200에도store80 active=true노출확인. 보호244/HQ3/인하대직원10/실레시피136 유지. HQJWT조작/기존계정·암호·Sheets/SEC01변경0.
+- 본사대표초대후수신자암호설정이끝났는데다시운영승인으로막히는경험을수정중이다. 본사의새초대에만 auto_open_after_accept 승인을기록하고개인암호검증·대표등록과같은트랜잭션에서조건충족지점만개통한다. 기존초대는DEFAULTfalse, 취소·만료·중지·반려·권한회수·타지점/보조는자동개통하지않는다. 두HQ초대경로를canonical로통일하고기존미배정계정은본인인증메일로연결한다. 재발송은새승인/기한연장을하지않는다.
+- 브랜치 feature/qa1243-approved-owner-auto-opening/base0362f205. CLI가생성한마이그레이션20261027070217_approved_owner_auto_opening.sql과격리PostgreSQLfixture/전용CI를준비했다. 로컬HQ요청body/재발송/보조·개인암호4/세션9/기존대표보안계약·canonical/Edge미러6파일검사는PASS. 새SQL의실제실행·전체CI·병합·SQL/Edge/Pages배포는후속증거전완료로보고하지않는다. 현재운영앱은v0.367이며개선배포후보는v0.368이다.
+- 새개발로실메일/운영Sheets/Google E2E를재실행하지않는다. 원장38/완료19/잔여19유지. 1호점시험운영활성화완료와전체실지점개통·메일브랜드·Google현재소스·SEC01/현장수용의미완료를구분한다. 후속PR/CI/실배포증거는Issue1243에연결한다.
+
+## 85. 2026-10-27 — 1호점 시험 중 인하대점 전환·직원 노출 P0 수정
+
+- 사용자 실제 보고: webuielf/1호점 시험 중 지점명이 인하대로 바뀌고 인하대 직원이 보임. 운영 조회에서 계정은 store80 STORE_MANAGER/primary_owner만 있고 HQ/다른지점 역할 없음, store80 READY/직원0, 인하대 직원10 보존. 앞선 활성화 완료를 격리 수용 완료로 확대하지 않는다.
+- 실제 경로: 근무현황 닫기에서 index.html#pos로 지점 번호를 버리고, 루트의 기본 지점1 공개 POS로 이동한다. 수정 전 실제 init의 닫기 동작으로 index.html#pos를 재현했다. 서버 list_store_employees는 can_manage_store로 지점 일치·READY/확정 Auth를 검사하며, 기존 공개 POS 카드 정책은 별도 SEC01 범위로 유지한다. 관리계정의 타점 사원·급여 권한이 생겼다고 단정하지 않는다.
+- 수정: 근무현황 진입·직원 PIN 진입·로그인 복귀·닫기에 지점 번호를 유지한다. 일반/다른 지점 URL로 들어온 로그인 점주는 공개 직원 조회 전에 서버 admin_context의 자기 지점으로 이동한다. 인증/권한 조회 실패는 인하대 공개 POS로 복구하지 않고 차단한다. 근무현황은 URL/저장소 기본값1 대신 현재 서버 계정 지점을 확인하고, 역사 이름 복구 두 경로도 같은 scoped RPC만 사용한다. HQ의 명시적 지점 선택과 직원 본인 PIN 흐름은 유지한다.
+- 회귀: 수정 전 닫기 주소·권한 없는 루트 진입을 포함한 7개 FAIL 증거를 남기고 수정 후7PASS. 배포 범위4/기존 근무현황·직원 신원·READY/Google·운영무쓰기 guard PASS. 실제 운영 데이터·권한·메일·SEC01·Edge·Sheets 코드 변경0. 최신 Chromium/WebKit 실제 페이지/다른 지점 캐시/근무현황 닫기/회수된 계정 검증은 PR CI에서 확인한다.
+- 긴급 브랜치 fix/qa1243-store-navigation-isolation/base0362f205, 후보v0.368. 자동개통 개선 PR1404/61ff858c는 draft로 보존하고 이번 격리 수정 배포가 우선이다. 병합·Pages·독립 공개 바이트 검증 전까지 이번 수정의 운영 수용은 NO_GO. 원장38/완료19/잔여19 유지. 실제 PR/CI/배포와 보호 데이터 전후 결과는 Issue1243에 연결한다.

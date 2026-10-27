@@ -114,14 +114,42 @@ function monthlyCompletedSummaryHtml(){
     '<div class="monthly-work-list" role="list">'+(rows||'<p class="monthly-work-empty">이번 달 완료된 근무 기록이 없습니다.</p>')+'</div>'+
     note+'</details>';
 }
+// URL/cache selects an HQ view; only server admin_context assigns a manager's scope.
+function positiveAttendanceStore(value){return /^[1-9][0-9]*$/.test(String(value||''))&&Number.isSafeInteger(Number(value))?Number(value):null}
+function attendanceReturnUrl(hash='pos'){
+ const params=new URLSearchParams(location.search);
+ let saved=null;try{saved=sessionStorage.getItem('baekeok_store_id')}catch(_){}
+ const id=positiveAttendanceStore(S.storeId)||positiveAttendanceStore(params.get('store'))||positiveAttendanceStore(saved);
+ return id?'index.html?mode=store&store='+id+'#'+hash:'index.html#admin';
+}
+async function resolveAttendanceStore(){
+ const params=new URLSearchParams(location.search),raw=params.get('store');
+ if(raw!==null&&!positiveAttendanceStore(raw))throw Error('STORE_SCOPE_INVALID');
+ const context=await rpc('admin_context');
+ let id=null;
+ if(context?.role==='STORE_MANAGER'){
+  id=positiveAttendanceStore(context.store_id);
+  if(raw!==null&&Number(raw)!==id)throw Error('STORE_ACCOUNT_SCOPE_MISMATCH');
+ }else if(context?.role==='HQ'){
+  let saved=null;try{saved=sessionStorage.getItem('baekeok_store_id')}catch(_){}
+  id=positiveAttendanceStore(raw===null?saved:raw);
+ }
+ if(!id)throw Error('STORE_ACCOUNT_SCOPE_REQUIRED');
+ S.storeId=id;
+ try{sessionStorage.setItem('baekeok_store_id',String(id))}catch(_){}
+ return id;
+}
 function isIssue(s,day){if(s.status==='INCOMPLETE'||s.status==='ORPHAN_OUT')return true;if(s.status==='WORKING'&&day!==dayKey(kstToday()))return true;if(s.status==='COMPLETE'&&s.sec>16*3600)return true;return false}
 async function loadMonth(){const app=el('app');app.innerHTML='<div class="loading">실근무 기록 불러오는 중…</div>';const {first,next}=monthBounds(S.ym);el('monthLabel').textContent=S.ym.replace('-','년 ')+'월';try{
   if(S.staffMode){
     const a=S.staffAuth,data=await rpc('staff_actual_attendance',{p_employee_id:Number(a.employee_id),p_pin:String(a.pin),p_from:addDays(first,-7)+'T00:00:00',p_to:addDays(next,7)+'T00:00:00'});
     if(!data?.ok)throw new Error(data?.error||'STAFF_AUTH_FAILED');
+    const employeeStore=positiveAttendanceStore(data.employee?.store_id),requested=new URLSearchParams(location.search).get('store');
+    if(requested!==null&&(!positiveAttendanceStore(requested)||(employeeStore&&Number(requested)!==employeeStore)))throw Error('STORE_ACCOUNT_SCOPE_MISMATCH');
+    if(employeeStore)S.storeId=employeeStore;
     S.employees=[data.employee];S.sessions=pairEvents(applyCorrections(data.events||[],data.corrections||[])).filter(s=>Number(s.employee_id)===Number(a.employee_id));renderMonth();return true;
   }
-  const storeId=Number(sessionStorage.getItem('baekeok_store_id'))||1;const employees=await rpc('list_store_employees',{p_store_id:storeId});let hours;try{hours=await rpc('admin_store_settings_get',{p_store_id:storeId});if(hours)S.storeHours=hours}catch(_){}const data=await rpc('admin_store_events_with_corrections',{p_store_id:storeId,p_from:addDays(first,-7)+'T00:00:00',p_to:addDays(next,7)+'T00:00:00'});S.employees=(employees||[]).filter(e=>!e.store_id||Number(e.store_id)===storeId).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko-KR'));const allowedIds=new Set(S.employees.map(e=>Number(e.id)));S.sessions=pairEvents(applyCorrections(data?.events||[],data?.corrections||[])).filter(s=>allowedIds.has(Number(s.employee_id)));renderMonth();return true;
+  const storeId=await resolveAttendanceStore();const employees=await rpc('list_store_employees',{p_store_id:storeId});let hours;try{hours=await rpc('admin_store_settings_get',{p_store_id:storeId});if(hours)S.storeHours=hours}catch(_){}const data=await rpc('admin_store_events_with_corrections',{p_store_id:storeId,p_from:addDays(first,-7)+'T00:00:00',p_to:addDays(next,7)+'T00:00:00'});S.employees=(employees||[]).filter(e=>!e.store_id||Number(e.store_id)===storeId).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko-KR'));const allowedIds=new Set(S.employees.map(e=>Number(e.id)));S.sessions=pairEvents(applyCorrections(data?.events||[],data?.corrections||[])).filter(s=>allowedIds.has(Number(s.employee_id)));renderMonth();return true;
 }catch(e){console.error('[actual-attendance]',e);const msg=String(e?.message||e);app.innerHTML=`<div class="empty">실근무 현황을 불러오지 못했습니다.<br><span style="font-size:.72rem;color:var(--text-muted)">${escapeHtml(msg.slice(0,160))}</span><br><button id="retry">다시 시도</button></div>`;el('retry').onclick=loadMonth;return false}}
 function renderMonth(){
   S.selectedDay=null;
@@ -189,7 +217,7 @@ function renderDay(day){
   el('nextDay').onclick=()=>navigateDay(day,1);
 }
 async function navigateDay(day,delta){const target=addDays(day,delta),ym=target.slice(0,7);if(ym!==S.ym){S.ym=ym;await loadMonth()}renderDay(target)}
-function init(){Auth.load();try{S.staffAuth=JSON.parse(sessionStorage.getItem('staff_attendance_auth')||'null');sessionStorage.removeItem('staff_attendance_auth')}catch(_){S.staffAuth=null}const forcedStaff=new URLSearchParams(location.search).get('mode')==='staff';S.staffMode=forcedStaff&&!!(S.staffAuth?.employee_id&&/^\d{4}$/.test(String(S.staffAuth?.pin||'')));if(!Auth.token&&!S.staffMode){location.href='index.html#attendance';return}if(S.staffMode){document.querySelector('.titlebox p').textContent='내 실제 출퇴근 기록';}const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;el('back').onclick=()=>location.href='index.html#pos';el('prevMonth').onclick=()=>{S.ym=monthShift(S.ym,-1);loadMonth()};el('nextMonth').onclick=()=>{S.ym=monthShift(S.ym,1);loadMonth()};el('monthLabel').onclick=()=>{const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;loadMonth()};loadMonth()}
+function init(){Auth.load();try{S.staffAuth=JSON.parse(sessionStorage.getItem('staff_attendance_auth')||'null');sessionStorage.removeItem('staff_attendance_auth')}catch(_){S.staffAuth=null}const forcedStaff=new URLSearchParams(location.search).get('mode')==='staff';S.staffMode=forcedStaff&&!!(S.staffAuth?.employee_id&&/^\d{4}$/.test(String(S.staffAuth?.pin||'')));if(!Auth.token&&!S.staffMode){location.href=attendanceReturnUrl('attendance');return}if(S.staffMode){document.querySelector('.titlebox p').textContent='내 실제 출퇴근 기록';}const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;el('back').onclick=()=>location.href=attendanceReturnUrl('pos');el('prevMonth').onclick=()=>{S.ym=monthShift(S.ym,-1);loadMonth()};el('nextMonth').onclick=()=>{S.ym=monthShift(S.ym,1);loadMonth()};el('monthLabel').onclick=()=>{const t=kstToday();S.ym=`${t.getFullYear()}-${p2(t.getMonth()+1)}`;loadMonth()};loadMonth()}
 init();
 
 /* Canonical actual-attendance modules: loaded in one owned runtime, not as HTML patch chain. */
@@ -512,7 +540,7 @@ init();
 /* Actual attendance V1.3: anomaly-first correction affordance + historical identity clarity. */
 (()=>{
   let allEmployeesPromise=null;
-  const getAllEmployees=()=>allEmployeesPromise||(allEmployeesPromise=rpc('admin_list_employees').catch(()=>[]));
+  const getAllEmployees=()=>S.staffMode?Promise.resolve(S.employees):allEmployeesPromise||(allEmployeesPromise=(async()=>{const storeId=await resolveAttendanceStore();return rpc('list_store_employees',{p_store_id:storeId})})().catch(()=>[]));
   async function patchIdentity(day){
     const all=await getAllEmployees();
     const map=new Map((all||[]).map(e=>[Number(e.id),e]));
@@ -568,7 +596,7 @@ init();
   window.__baekeokActualIdentityV2=true;
   const no=e=>`No. ${String(Number(e?.employee_no)||Number(e?.id)||0).padStart(2,'0')}`;
   let allPromise=null;
-  const all=()=>allPromise||(allPromise=rpc('admin_list_employees').then(rows=>{const sid=Number(sessionStorage.getItem('baekeok_store_id'))||1;return (rows||[]).filter(e=>!e.store_id||Number(e.store_id)===sid)}).catch(()=>[]));
+  const all=()=>S.staffMode?Promise.resolve(S.employees):allPromise||(allPromise=(async()=>{const storeId=await resolveAttendanceStore();const rows=await rpc('list_store_employees',{p_store_id:storeId});return (rows||[]).filter(e=>!e.store_id||Number(e.store_id)===storeId)})().catch(()=>[]));
   function installStyle(){if(document.getElementById('actualIdentityStyle'))return;const s=document.createElement('style');s.id='actualIdentityStyle';s.textContent=`.employee-no-sub{display:block;margin-top:2px;font-size:.62rem;line-height:1.1;color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}.employee-no-inline{font-size:.58rem;color:var(--muted);font-weight:500;margin-left:4px;font-variant-numeric:tabular-nums}.timeline-legend{display:flex;gap:12px;flex-wrap:wrap;padding:10px 12px 0;font-size:.7rem;color:var(--sub)}.timeline-legend span{display:inline-flex;align-items:center;gap:5px}.bar-key{width:18px;height:8px;border-radius:999px;display:inline-block}.bar-key.normal{background:var(--ok)}.bar-key.working{background:var(--brand)}.bar-key.issue{background:var(--warn)}`;document.head.appendChild(s)}
   async function employeeMap(){const rows=await all();return new Map((rows||[]).map(e=>[Number(e.id),e]))}
   async function patchMonth(){installStyle();const map=await employeeMap();document.querySelectorAll('.calendar .line').forEach(line=>{const b=line.querySelector('b');if(!b)return;let id=null;const m=(b.textContent||'').trim().match(/^#(\d+)$/);if(m)id=Number(m[1]);if(id==null){const s=(line.textContent||'').trim();const emp=[...map.values()].find(e=>s.startsWith(String(e.name||'')));if(emp)id=Number(emp.id)}const e=map.get(id);if(!e)return;b.textContent=e.name;line.querySelector('.employee-no-inline')?.remove()})}
