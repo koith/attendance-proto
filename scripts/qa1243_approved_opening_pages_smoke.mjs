@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 const base='https://koith.github.io/attendance-proto/';
-const changed=['index.html','hq_owner_console.js','hq_store_onboarding_ui.js',
+const reinvite=process.argv.includes('--reinvite');
+const changed=reinvite?['index.html','hq_owner_console.js','hq_store_onboarding_ui.js']:['index.html','hq_owner_console.js','hq_store_onboarding_ui.js',
  'owner_activation.html','owner_activation.js','owner_temp_activation.html','owner_temp_activation.js'];
 const unchanged=['operations_v1.js','actual_attendance.html','actual_attendance.js',
- 'actual_attendance.css','recipe_access_v220.js','recipe_access_v220.css'];
+ 'actual_attendance.css','recipe_access_v220.js','recipe_access_v220.css',...(reinvite?['owner_activation.html','owner_activation.js','owner_temp_activation.html','owner_temp_activation.js']:[])];
 const receipt='/tmp/qa1243_approved_owner_pages_before.json';
 const sha=s=>createHash('sha256').update(s).digest('hex');
 async function get(file){const r=await fetch(base+file+'?qa1243_opening='+Date.now(),{
@@ -14,7 +15,7 @@ async function get(file){const r=await fetch(base+file+'?qa1243_opening='+Date.n
  assert.equal(r.status,200,'LIVE_OWNER_ASSET_HTTP '+file);return r.text();}
 async function hashes(paths){return Object.fromEntries(await Promise.all(paths.map(async p=>[p,sha(await get(p))])));}
 async function published(){
- assert.match(readFileSync('index.html','utf8'),/const APP_VERSION="v0\.369";/);
+ assert.ok(readFileSync('index.html','utf8').includes('const APP_VERSION="'+(reinvite?'v0.370':'v0.369')+'";'));
  const expected=Object.fromEntries(changed.map(p=>[p,sha(readFileSync(p,'utf8'))]));
  for(let n=0;n<18;n++){
   const observed=await hashes(changed);
@@ -30,5 +31,5 @@ if(mode==='--before'){
 }else if(['--after','--independent'].includes(mode)){
  const proof=await published();
  if(mode==='--after')assert.deepEqual(await hashes(unchanged),JSON.parse(readFileSync(receipt,'utf8')));
- console.log('APPROVED_OWNER_V369_PAGES_PASS '+JSON.stringify({mode,proof,mailSent:false,operatingDataWrite:false}));
+ console.log((reinvite?'OWNER_REINVITE_V370_PAGES_PASS ':'APPROVED_OWNER_V369_PAGES_PASS ')+JSON.stringify({mode,proof,mailSent:false,operatingDataWrite:false}));
 }else throw Error('READ_ONLY_PUBLIC_MODE_REQUIRED');

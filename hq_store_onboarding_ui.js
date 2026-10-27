@@ -199,7 +199,7 @@ window.mountHqStoreOnboarding=async function(box){
       '<div class="field"><label for="hqManagerRole">초대할 관리자 역할</label><select id="hqManagerRole" class="form-control"><option value="OWNER">대표 관리자</option><option value="ASSISTANT">보조 관리자</option></select></div>'+ 
       '<div class="field"><label for="hqManagerEmail">점주 로그인 이메일</label><input id="hqManagerEmail" class="form-control" type="email" autocomplete="off" placeholder="owner@example.com"></div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px">'+
-      '<button type="button" class="btn btn-secondary btn-sm" id="hqManagerAssign">기존 계정에 점주 권한 부여</button>'+
+      '<button type="button" class="btn btn-secondary btn-sm" id="hqManagerAssign" hidden style="display:none">기존 보조 관리자 계정 연결 (메일 없음)</button>'+
       '<button type="button" class="btn btn-primary btn-sm" id="hqManagerInvite">점주 개통 안내 메일 발송</button></div>'+
       '<div class="hq-hint">신규 점주는 Supabase 공식 초대 링크로 비밀번호를 설정하고, 기존 인증 계정은 공식 비밀번호 재설정 링크를 받습니다. 지점은 대표의 최초 개통 수락 전까지 준비 상태로 유지됩니다.</div>'+
       '<div style="margin:10px 0">'+(list.length?list.map(m=>
@@ -297,14 +297,22 @@ window.mountHqStoreOnboarding=async function(box){
       if(!confirm(escapeHTML(store?.name)+" 지점 운영을 일시중지하시겠습니까?"))return;
       act(()=>rpc("hq_store_onboarding_set",{p_store_id:selected,p_status:"SUSPENDED"}),"지점 운영이 중지됐습니다.");
     };
+    body.querySelector("#hqManagerRole").onchange=()=>{
+      const assistant=body.querySelector("#hqManagerRole").value==="ASSISTANT";
+      body.querySelector("#hqManagerAssign").hidden=!assistant;
+      body.querySelector("#hqManagerAssign").style.display=assistant?"":"none";
+    };
     body.querySelector("#hqManagerAssign").onclick=()=>{
+      if(body.querySelector("#hqManagerRole").value!=="ASSISTANT")return body.querySelector("#hqManagerInvite").click();
+      if(!primaryOwnerId||store?.onboarding_status!=="READY"||store?.is_active!==true)
+        return err("기존 보조 관리자는 대표가 확정된 READY 지점에만 연결할 수 있습니다.");
       const email=body.querySelector("#hqManagerEmail").value.trim().toLowerCase();
       if(!email)return;
-      if(!confirm(email+" 계정을 "+store.name+" 점주로 지정할까요?"))return;
+      if(!confirm(email+" 기존 인증 계정을 "+store.name+" 보조 관리자로 연결할까요? 메일은 발송하지 않으며 허용 업무는 기본적으로 모두 꺼집니다."))return;
       act(async()=>{
-        const result=await rpc("hq_store_manager_assign",{p_email:email,p_store_id:selected});
-        if(!result?.ok)throw Error(result?.error||"ASSIGN_FAILED");
-      },"기존 점주 계정이 연결됐습니다.");
+        const result=await rpc("hq_store_existing_verified_account_connect",{p_email:email,p_store_id:selected,p_intended_role:"ASSISTANT"});
+        if(result?.ok!==true||Number(result.store_id)!==selected||result.intended_role!=="ASSISTANT")throw Error("ASSISTANT_CONNECTION_NOT_CONFIRMED");
+      },"기존 보조 관리자 계정이 연결됐습니다. 허용 업무는 기본적으로 모두 꺼집니다.");
     };
     body.querySelector("#hqManagerInvite").onclick=()=>{
       const role=body.querySelector("#hqManagerRole").value;

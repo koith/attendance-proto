@@ -6,6 +6,10 @@ on:
       - 'actual_attendance.js'
       - 'actual_attendance.html'
       - 'qa_browser_app_smoke.mjs'
+      - 'hq_owner_console.js'
+      - 'hq_store_onboarding_ui.js'
+      - 'tests/qa1243_hq_reinvite_browser.mjs'
+      - 'tests/qa1243_hq_reinvite_actions.test.mjs'
       - 'qa_store_navigation_isolation_browser_1243.mjs'
       - 'tests/qa1243_store_navigation_isolation.test.mjs'
       - 'qa_operations_header_mobile_browser_v1.mjs'
@@ -24,6 +28,10 @@ on:
       - 'actual_attendance.js'
       - 'actual_attendance.html'
       - 'qa_browser_app_smoke.mjs'
+      - 'hq_owner_console.js'
+      - 'hq_store_onboarding_ui.js'
+      - 'tests/qa1243_hq_reinvite_browser.mjs'
+      - 'tests/qa1243_hq_reinvite_actions.test.mjs'
       - 'qa_store_navigation_isolation_browser_1243.mjs'
       - 'tests/qa1243_store_navigation_isolation.test.mjs'
       - 'qa_operations_header_mobile_browser_v1.mjs'
@@ -50,10 +58,14 @@ jobs:
           node-version: '22'
       - name: Validate every referenced JavaScript asset
         run: node qa_runtime_asset_syntax_v1.mjs
+      - name: Verify actual representative reinvite button handlers
+        run: node --test tests/qa1243_hq_reinvite_actions.test.mjs tests/qa1243_hq_reinvite_release.test.mjs
       - name: Install browser harness
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.55.1
           node -e 'Promise.all(["chromium","webkit"].map(async name=>{const browser=await require("playwright")[name].launch({headless:true});await browser.close()})).catch(error=>{console.error(error);process.exit(1)})'
+      - name: HQ former-owner reinvite on Chromium and WebKit without real mail
+        run: node tests/qa1243_hq_reinvite_browser.mjs
       - name: Store return and signed-in account isolation contracts
         run: |
           node tests/qa1243_store_navigation_isolation.test.mjs

@@ -9,8 +9,13 @@ try {
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   let registered=null;
   let registeredCalls=0;
+  const ownerMailRequests=[];
   let reconnectCalls=0;
   let lastReconnect=null;
+  await page.route('**/functions/v1/server-sync-sheet',route=>{
+    ownerMailRequests.push(JSON.parse(route.request().postData()||'{}'));
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,delivery:'AUTH_RECOVERY_ACCEPTED'})});
+  });
   await page.route('**/rest/v1/rpc/**',route=>{
    const rpc=route.request().url().split('/').pop();
    if(rpc==='hq_store_existing_verified_account_connect'){
@@ -358,16 +363,16 @@ try {
   assert.equal(registered?.is_active,false,'new store cannot be READY automatically');
   assert.equal(await page.locator('.hq-owner-row').count(),284,'existing directory preserved');
   assert.match(await page.locator('.hq-owner-detail').innerText(),/합성 신규 지점/);
-  // Existing accounts use a separate explicitly confirmed HQ RPC: no email call.
+  // Former representatives always receive recipient verification mail. The
+  // legacy mail-free connection is reserved for explicitly scoped assistants.
   await page.locator('[data-manager-tab="invite"]').click();
-  assert.equal(await page.locator('#hqOwnerConnectExisting').count(),1);
+  assert.equal(await page.locator('#hqOwnerConnectExisting').isHidden(),true);
   await page.locator('#hqOwnerEmail').fill('existing@synthetic.invalid');
-  await page.locator('#hqOwnerConnectExisting').click();
+  await page.locator('#hqOwnerInvite').click();
   await page.waitForFunction(()=>document.querySelector('[data-manager-tab="status"]')?.getAttribute('aria-selected')==='true');
-  assert.equal(reconnectCalls,1,'verified existing account must use the dedicated RPC');
-  assert.equal(lastReconnect?.p_store_id,284,'existing account may only be connected to selected branch');
-  assert.equal(lastReconnect?.p_intended_role,'OWNER','explicit role selection forwarded');
-  assert.equal(lastReconnect?.p_email,'existing@synthetic.invalid');
+  assert.equal(reconnectCalls,0,'representative must never use direct mail-free connection');
+  assert.deepEqual(ownerMailRequests,[{mode:'issue_store_owner_temporary_password',email:'existing@synthetic.invalid',store_id:284,auto_open_after_accept:true,resend_only:false}]);
+  assert.equal(registered.onboarding_status,'STAGED','sending mail cannot open a store before recipient acceptance');
 
   await page.locator('[data-quick-mode="recent"]').click();
   assert.equal(await activeQuickListeners(),1,'Remounted popup has exactly one listener');

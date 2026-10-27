@@ -308,6 +308,12 @@ jobs:
               core.info('AI1331 automation-only scope verified; operating jobs remain skipped');
               return;
             }
+            if(releaseMessage.includes('[QA1243-OWNER-REINVITE]')){
+              const {assertHqReinviteRelease}=await import(process.cwd()+'/scripts/qa1243_hq_reinvite_release.mjs');
+              assertHqReinviteRelease(diff.files,releaseMessage,before);
+              core.info('Reviewed HQ reinvite static release: no SQL/Edge/operating writer');
+              return;
+            }
             if(releaseMessage.includes('[QA1243-OWNER-OPENING]')){
               const {assertApprovedOpeningRelease}=await import(process.cwd()+'/scripts/qa1243_approved_opening_release.mjs');
               assertApprovedOpeningRelease(diff.files,releaseMessage,before);
@@ -721,7 +727,9 @@ jobs:
       - name: Capture unchanged operating public asset digests before safe app release
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-OPENING]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-REINVITE]') }}" == "true" ]]; then
+            node scripts/qa1243_approved_opening_pages_smoke.mjs --before --reinvite
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-OPENING]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --before
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-STORE-ISOLATION]') }}" == "true" ]]; then
             node scripts/qa1243_store_isolation_pages_smoke.mjs --before
@@ -749,7 +757,9 @@ jobs:
       - name: Confirm public v0.354 HQ readiness UI and unchanged other operating assets
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-OPENING]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-REINVITE]') }}" == "true" ]]; then
+            node scripts/qa1243_approved_opening_pages_smoke.mjs --after --reinvite
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-OPENING]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --after
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-STORE-ISOLATION]') }}" == "true" ]]; then
             node scripts/qa1243_store_isolation_pages_smoke.mjs --after

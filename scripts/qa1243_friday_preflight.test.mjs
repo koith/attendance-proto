@@ -245,3 +245,5 @@ console.log('PASS actual evidence-only publication guard; reject app and operati
 console.log('PASS actual GitHub evidence reader: skipped Google is not live success; historical real proof, ancestry, runner blob, failure and expiry checked without Google requests');
 
 console.log('PASS #1243 Friday prelaunch: failing current Google 403, stale run, historical green, wrong SHA, synthetic-vs-hosted boundaries all NO_GO');
+
+assert.deepEqual(safePagesAssetPaths("[QA1243-OWNER-REINVITE]"),["index.html","hq_store_onboarding_ui.js","operations_v1.js","hq_owner_console.js"]);
