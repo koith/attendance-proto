@@ -9,11 +9,45 @@ assert.ok(block.indexOf('actor.adminRole!=="HQ"')>=0);
 assert.ok(block.indexOf('service_store_owner_opening_preflight')>=0);
 assert.ok(block.indexOf('actor.adminRole!=="HQ"')<block.indexOf('service_store_owner_opening_preflight'));
 assert.ok(block.indexOf('service_store_owner_opening_preflight')<block.indexOf('service_store_owner_temp_existing_lookup'));
-assert.equal((block.match(/p_auto_open_after_accept:autoOpen/g)||[]).length,3);
+assert.equal((block.match(/p_auto_open_after_accept:autoOpen/g)||[]).length,4);
 const resend=block.slice(block.indexOf('if(body.resend_only===true){'),block.indexOf('\n      if(autoOpen){'));
 assert.match(resend,/service_store_owner_invitation_resend_preflight/);
 assert.doesNotMatch(resend,/service_store_owner_temp_issue|service_native_owner_invitation_issue|updateUserById|deleteUser/);
 assert.match(resend,/RESEND_CANNOT_CHANGE_OPENING_APPROVAL/);
+// Execute the actual Edge owner branch and its real delivery helper, with
+// synthetic service RPC/Auth transports. Claim checks must precede any mail.
+const deliveryHelper=edge.slice(edge.indexOf('// Read-only eligibility gate prevents mailing'),edge.indexOf('Deno.serve(async req=>{'));
+async function pendingAccountCase(delivery,{blocked=false,changed=false}={}){
+ const calls=[],uid='00000000-0000-4000-8000-000000000701';
+ class HttpError extends Error{constructor(status,message){super(message);this.status=status}}
+ const gate={ok:true,store_id:701,existing_auth_user:true,user_id:uid,delivery};
+ const context={HttpError,mode:'issue_store_owner_temporary_password',
+  actor:{internal:false,adminRole:'HQ',userId:'00000000-0000-4000-8000-000000000001'},
+  body:{store_id:701,email:'pending@qa.invalid',auto_open_after_accept:true},
+  reply:x=>x,Deno:{env:{get:()=> 'true'}},
+  client:{from:()=>({select(){return this},eq(){return this},maybeSingle:async()=>({data:{name:'QA',onboarding_status:'STAGED',is_active:false},error:null})}),
+   rpc:async(name,args)=>{calls.push({name,args});
+    if(name==='service_store_owner_opening_preflight')return {data:{ok:true},error:null};
+    if(name==='service_store_invitation_dispatch_preflight')return {data:gate,error:null};
+    if(name==='service_native_owner_invitation_issue_for_opening')return blocked?{data:null,error:{message:'ACCOUNT_ALREADY_ASSIGNED'}}:{data:{ok:true,user_id:uid},error:null};
+    throw Error('UNEXPECTED_RPC '+name);
+   },auth:{admin:{inviteUserByEmail:async()=>{calls.push({name:'MAIL_INVITE'});return {data:{user:{id:changed?'wrong-id':uid}},error:null}}},
+    resetPasswordForEmail:async()=>{calls.push({name:'MAIL_RECOVERY'});return {error:null}}}}
+ };
+ const run=vm.runInNewContext(deliveryHelper+'\n(async()=>{'+block+'})',context);
+ if(blocked){await assert.rejects(run(),/NATIVE_OWNER_CLAIM_REJECTED/);assert.ok(!calls.some(x=>x.name.startsWith('MAIL_')));return;}
+ if(changed){await assert.rejects(run(),/INVITE_AUTH_IDENTITY_CHANGED/);return;}
+ const result=await run();assert.equal(result.user_id,uid);assert.equal(result.ok,true);
+ const bound=calls.findIndex(x=>x.name==='service_native_owner_invitation_issue_for_opening');
+ const mailed=calls.findIndex(x=>x.name==='MAIL_'+delivery);
+ assert.ok(bound>=0&&mailed>bound,'bound, checked existing identity before mail');
+ assert.equal(calls[bound].args.p_user_id,uid);assert.equal(calls[bound].args.p_auto_open_after_accept,true);
+ assert.ok(!calls.some(x=>x.name==='service_store_owner_temp_existing_lookup'));
+}
+await pendingAccountCase('INVITE');await pendingAccountCase('RECOVERY');
+await pendingAccountCase('INVITE',{blocked:true});await pendingAccountCase('INVITE',{changed:true});
+console.log('PASS actual Edge canceled unconfirmed invite and confirmed passwordless recovery: same UID, claim before mail, blocked account sends nothing');
+
 for(const file of ['hq_owner_console.js','hq_store_onboarding_ui.js']){
  const s=readFileSync(file,'utf8');
  const first=s.indexOf('async function invite('),last=s.indexOf('\n}',first)+2;
@@ -51,6 +85,8 @@ if(process.argv.includes('--real-proof')){
  assert.equal(proof.hostedAuthTested,false);assert.equal(proof.googleE2ERepeated,false);
  assert.deepEqual(proof.approvedOwnerOpening,[
   {name:'native-mail-password-login-atomic-ready',result:'PASS'},
-  {name:'existing-mail-password-login-atomic-ready',result:'PASS'}]);
- console.log('PASS same-run real SMTP/Auth/JWT/PostgREST approved native and existing owner opening 2/2');
+  {name:'existing-mail-password-login-atomic-ready',result:'PASS'},
+  {name:'cancel-reinvite-same-uid-atomic-ready',result:'PASS'},
+  {name:'confirmed-passwordless-recovery-atomic-ready',result:'PASS'}]);
+ console.log('PASS same-run real SMTP/Auth/JWT/PostgREST approved new/existing/canceled/passwordless owner opening 4/4');
 }

@@ -21,6 +21,7 @@ function browser({failFirstPreflight=false,refreshUser='owner-1',refreshFails=fa
     expiredAccess=false;
     return response(200,{access_token:'fresh-access',refresh_token:'fresh-refresh',user:{id:refreshUser}});
    }
+   if(url.endsWith('/native_owner_invitation_preflight'))return response(400,{message:'NO_VALID_NATIVE_OWNER_INVITATION'});
    if(url.endsWith('/store_owner_temp_preflight')){
     if(failFirstPreflight&&++preflights===1)throw Error('temporary network outage');
     if(revoked)return response(400,{message:'NO_TEMP_OWNER_INVITATION'});

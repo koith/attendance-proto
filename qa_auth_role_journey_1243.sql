@@ -57,8 +57,10 @@ INSERT INTO public.stores VALUES(1,'PROTECTED','Protected synthetic branch','pro
  (701,'QA701','Disposable Alpha','qa-alpha','STAGED',false),
  (702,'QA702','Disposable Beta','qa-beta','STAGED',false),
  (703,'QA703','Approved native owner','qa-native','STAGED',false),
- (704,'QA704','Approved existing owner','qa-recovery','STAGED',false);
-INSERT INTO public.store_provenance_reviews(store_id,decision) VALUES(701,'VERIFIED'),(702,'VERIFIED'),(703,'VERIFIED'),(704,'VERIFIED');
+ (704,'QA704','Approved existing owner','qa-recovery','STAGED',false),
+ (705,'QA705','Canceled unconfirmed retry','qa-reinvite','STAGED',false),
+ (706,'QA706','Confirmed passwordless recovery','qa-passwordless','STAGED',false);
+INSERT INTO public.store_provenance_reviews(store_id,decision) VALUES(701,'VERIFIED'),(702,'VERIFIED'),(703,'VERIFIED'),(704,'VERIFIED'),(705,'VERIFIED'),(706,'VERIFIED');
 INSERT INTO public.employees(id,store_id,name,employee_no,memo)
  SELECT i,1,'Protected employee '||i,i,'protected' FROM generate_series(1,10)i;
 INSERT INTO public.employees VALUES(70101,701,'Alpha employee',1,'alpha',true),

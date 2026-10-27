@@ -26,6 +26,8 @@ async function scenario(mode) {
    'SUPABASE_URL: "https://test.supabase.co" SUPABASE_ANON_KEY: "public-test-key"')};
   if(u.endsWith("/auth/v1/user")&&method==="GET")
    return reply(200,{id:"user-1",email:"owner@example.test"});
+  if(u.includes("/store_owner_temp_preflight")&&mode==="native-recovery")return reply(403,{message:"NO_TEMP_OWNER_INVITATION"});
+  if(u.includes("/native_owner_invitation_preflight"))return reply(200,{ok:true,intended_role:"OWNER",password_change_required:true,store_id:80,expires_at:"2099-01-01T00:00:00Z"});
   if(u.includes("/store_owner_temp_preflight"))
    return reply(200,{ok:true,email:"owner@example.test",store_id:80,
     password_change_required:true,expires_at:"2099-01-01T00:00:00Z"});
@@ -37,11 +39,11 @@ async function scenario(mode) {
     return reply(422,{code:"same_password",message:"The new password should differ"});
    return reply(200,{id:"user-1"});
   }
-  if(u.includes("/store_owner_temp_complete")){
+  if(u.includes("/store_owner_temp_complete")||u.includes("/native_owner_invitation_complete")){
    completed++;
    assert.equal(JSON.parse(options.body).p_new_password,"valid-new-password-123");
    if(mode==="completion-loss"&&completed===1)throw Error("completion response lost after commit");
-   return reply(200,{ok:true,owner_assigned:true,store_id:80,store_opened:mode==="completion-loss",already_completed:mode==="completion-loss"});
+   return reply(200,{ok:true,owner_assigned:true,store_id:80,store_opened:mode==="completion-loss"||mode==="native-recovery",already_completed:mode==="completion-loss"});
   }
   if(u.includes("/auth/v1/token?grant_type=password")){
    logins++;
@@ -79,7 +81,7 @@ async function scenario(mode) {
   assert.equal(logins,1);
   assert.equal(savedSession.access_token,"new-token");
   assert.match(redirect,/store=80/);
-  assert.match(element("status").textContent,mode==="completion-loss"?/대표 관리자 등록과 지점 개통이 완료/:/본사 승인/);
+  assert.match(element("status").textContent,(mode==="completion-loss"||mode==="native-recovery")?/대표 관리자 등록과 지점 개통이 완료/:/본사 승인/);
  }
  return {changes,completed,calls};
 }
@@ -98,4 +100,10 @@ test("unrelated GoTrue 422 never promotes owner",async()=>{
 
 test("a lost committed owner completion retries without a new invitation or role grant",async()=>{
  assert.equal((await scenario("completion-loss")).completed,2);
+});
+
+test("confirmed passwordless recovery uses only its verified native claim and native completion",async()=>{
+ const result=await scenario("native-recovery");
+ assert.ok(result.calls.some(c=>c.includes("native_owner_invitation_complete")));
+ assert.ok(!result.calls.some(c=>c.includes("store_owner_temp_complete")));
 });

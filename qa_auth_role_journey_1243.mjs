@@ -162,6 +162,45 @@ try{
  assert.equal((await success(rpc('store_owner_temp_complete',{p_new_password:pass},recoveredLogin.access_token))).already_completed,true);
  approvedOwnerOpening.push({name:'existing-mail-password-login-atomic-ready',result:'PASS'});
  console.log('PASS new approved recovery SMTP/current UID/password/login/READY and response replay');
+ // Cancellation must not force deletion/recreation of an unconfirmed Auth user.
+ const cancelEmail='cancel-unconfirmed@journey1243.invalid';
+ const originalInvite=await success(http(AUTH,'/invite',service,{email:cancelEmail}));uuid(originalInvite.id);
+ await success(rpc('service_native_owner_invitation_issue_for_opening',{
+  p_store_id:705,p_user_id:originalInvite.id,p_actor_id:hq.id,p_email:cancelEmail,p_auto_open_after_accept:true},service));
+ await success(rpc('hq_store_owner_invitation_cancel',{p_store_id:705,p_user_id:originalInvite.id},hqSession.access_token));
+ assert.equal(sql(`SELECT count(*) FROM auth.users WHERE id='${uuid(originalInvite.id)}'`),'1');
+ const retryGate=await success(rpc('service_store_invitation_dispatch_preflight',{
+  p_store_id:705,p_email:cancelEmail,p_actor_id:hq.id,p_mode:'HQ_OWNER'},service));
+ assert.equal(retryGate.delivery,'INVITE');assert.equal(retryGate.user_id,originalInvite.id);
+ await success(rpc('service_native_owner_invitation_issue_for_opening',{
+  p_store_id:705,p_user_id:originalInvite.id,p_actor_id:hq.id,p_email:cancelEmail,p_auto_open_after_accept:true},service));
+ const retrySeen=await inboxIds(),reinvited=await success(http(AUTH,'/invite',service,{email:cancelEmail}));
+ assert.equal(reinvited.id,originalInvite.id);
+ const retryPerson=await redeem(cancelEmail,retrySeen);assert.equal(retryPerson.id,originalInvite.id);
+ await success(rpc('native_owner_invitation_preflight',{},retryPerson.token));
+ await success(http(AUTH,'/user',retryPerson.token,{password:pass},'PUT'));
+ assert.equal((await success(rpc('native_owner_invitation_complete',{p_new_password:pass},retryPerson.token))).store_opened,true);
+ const retryLogin=await success(http(AUTH,'/token?grant_type=password',null,{email:cancelEmail,password:pass}));
+ assert.equal((await success(rpc('admin_context',{},retryLogin.access_token))).store_id,705);
+ approvedOwnerOpening.push({name:'cancel-reinvite-same-uid-atomic-ready',result:'PASS'});
+ console.log('PASS canceled unconfirmed owner: new invite preserves original UID and opens only after personal password');
+ const noPasswordEmail='confirmed-passwordless@journey1243.invalid';
+ const passwordless=await success(http(AUTH,'/admin/users',service,{email:noPasswordEmail,email_confirm:true}));uuid(passwordless.id);
+ const passwordlessGate=await success(rpc('service_store_invitation_dispatch_preflight',{
+  p_store_id:706,p_email:noPasswordEmail,p_actor_id:hq.id,p_mode:'HQ_OWNER'},service));
+ assert.equal(passwordlessGate.delivery,'RECOVERY');assert.equal(passwordlessGate.user_id,passwordless.id);
+ await success(rpc('service_native_owner_invitation_issue_for_opening',{
+  p_store_id:706,p_user_id:passwordless.id,p_actor_id:hq.id,p_email:noPasswordEmail,p_auto_open_after_accept:true},service));
+ const noPasswordSeen=await inboxIds();await success(http(AUTH,'/recover',null,{email:noPasswordEmail}));
+ const noPasswordPerson=await redeem(noPasswordEmail,noPasswordSeen);
+ await success(rpc('native_owner_invitation_preflight',{},noPasswordPerson.token));
+ await success(http(AUTH,'/user',noPasswordPerson.token,{password:pass},'PUT'));
+ assert.equal((await success(rpc('native_owner_invitation_complete',{p_new_password:pass},noPasswordPerson.token))).store_opened,true);
+ const noPasswordLogin=await success(http(AUTH,'/token?grant_type=password',null,{email:noPasswordEmail,password:pass}));
+ assert.equal(noPasswordLogin.user.id,passwordless.id);
+ assert.equal((await success(rpc('admin_context',{},noPasswordLogin.access_token))).store_id,706);
+ approvedOwnerOpening.push({name:'confirmed-passwordless-recovery-atomic-ready',result:'PASS'});
+ console.log('PASS confirmed passwordless owner: recovery mail/native claim/new password/login/READY');
  assert.equal(protectedSnapshot(),before,'approved opening must preserve the protected branch/HQ/other staff/payroll');
 } catch(e){results.push({name:'journey',result:'FAIL',error:String(e.message)});throw e;}
 finally{mkdirSync('qa-results',{recursive:true});writeFileSync('qa-results/auth-role-journey-1243.json',JSON.stringify({scope:'ISOLATED_REAL_AUTH_SMTP_POSTGREST',commit:process.env.GITHUB_SHA||null,hostedAuthTested:false,googleE2ERepeated:false,approvedOwnerOpening,results},null,2));}

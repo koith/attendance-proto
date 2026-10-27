@@ -841,3 +841,5 @@
 - 적용 범위는 기본false 승인컬럼2개와 제한된 RPC, owner issue 분기 및 HQ/콜백 정적 자산이다. 다른 Edge·급여·Google writer 코드는 바이트 불변. 기존 운영자료/계정/초대·SEC01/다른 지점 READY/실메일/Sheets 직접쓰기 금지. 전체38/완료19/잔여19 유지, 실제수신자 수용을 합성QA로 통과시키지 않는다.
 
 - CI 실행797b0d7a에서 새 실제SMTP/Auth/JWT/PostgREST2/2와 실제SQL/전체연속브라우저/P0는통과. 별도Chrome/WebKit job122139109478만azure.archive.ubuntu.com OS패키지다운로드가12분초과해앱실행전cancelled. 공식Playwright v1.55.1-noble 이미지에포함된동일버전브라우저/라이브러리를재사용하도록해설치지연을해결하고모든동일검사를유지한다. Python별도설치대신Node표준HTTP로127.0.0.1정적preview만구동한다. 운영앱/SQL/Edge소스는변경없다.
+
+- 추가 실제 결함 수정: 취소 후 아직 미인증된 기존Auth계정을 신규대표경로가 confirmed+password lookup으로잘못보내재초대를거부했다. 실제Edge분기VM에서FAIL재현후기존UID의native claim을메일전에검증·등록해재초대/비밀번호미설정복구를지원한다. 이미다른지점/역할/초대가연결된계정은메일전에거부하고기존Auth를삭제/초기화하지않는다. Recovery콜백은같은임시설정화면에서server native preflight로만검증해native complete로연결한다. 취소후재초대·confirmed passwordless recovery까지실제SMTP/Auth/JWT 시나리오를4개로확장하고완료전동일head PASS를확인한다.

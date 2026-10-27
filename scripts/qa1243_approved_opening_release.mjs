@@ -18,8 +18,8 @@ const allowed=new Set([...OPENING_REQUIRED,'qa_store_owner_approved_opening.sql'
  '.github/workflows/qa1243-approved-owner-opening.yml','.github/workflows/p0-pages-deploy.yml',
  '.github/workflows/qa1243-live-e2e.yml','.github/workflows/qa1243-owner-ready-pages-independent.yml',
  'scripts/qa1243_friday_preflight.mjs','scripts/qa1243_friday_preflight.test.mjs',
- 'tests/qa1243_store_isolation_release.test.mjs',
- 'qa_auth_role_journey_1243.sql','qa_auth_role_journey_1243.mjs','.github/workflows/qa1243-auth-role-journey.yml',
+ 'tests/qa1243_store_isolation_release.test.mjs','tests/qa1243_owner_temp_session.test.mjs',
+ 'qa_store_owner_temp_first_login_1243.mjs','qa_auth_role_journey_1243.sql','qa_auth_role_journey_1243.mjs','.github/workflows/qa1243-auth-role-journey.yml',
  '.github/workflows/qa-browser-app-smoke.yml','scripts/qa_browser_static_preview.mjs',
  'PROJECT_BACKLOG_20261017.md','docs/qa1243-approved-owner-opening.md']);
 const sha=s=>createHash('sha256').update(s).digest('hex');

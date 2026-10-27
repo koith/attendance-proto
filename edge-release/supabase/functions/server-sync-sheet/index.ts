@@ -441,6 +441,24 @@ Deno.serve(async req=>{
       // Existing verified accounts without any remaining HQ/other-store owner
       // role (e.g. QA 1호점 credential was never delivered) retain their
       // original immutable Auth UID. This path does NOT delete/recreate them.
+      // Canceled/unaccepted invitations keep their Auth identity. Bind the
+      // checked native claim BEFORE sending again; a pending/foreign/linked
+      // identity is rejected by the RPC before any email or privilege change.
+      if(!preflightError&&gate?.ok===true&&gate.existing_auth_user===true&&
+         typeof gate.user_id==="string"&&gate.user_id&&Number(gate.store_id)===storeId&&
+         ["INVITE","RECOVERY"].includes(gate.delivery)){
+        const {data:reissued,error:reissueError}=await client.rpc("service_native_owner_invitation_issue_for_opening",{
+          p_store_id:storeId,p_user_id:gate.user_id,p_actor_id:actor.userId,p_email:email,p_auto_open_after_accept:autoOpen
+        });
+        if(reissueError||reissued?.ok!==true)
+          throw new HttpError(409,"NATIVE_OWNER_CLAIM_REJECTED: "+String(reissueError?.message||"UNKNOWN"));
+        const sent=await dispatchInvitation(email,storeId,actor.userId,"HQ_OWNER");
+        if(sent.userId!==gate.user_id||sent.delivery!==gate.delivery)
+          throw new HttpError(503,"NATIVE_OWNER_DELIVERY_UNVERIFIED");
+        return reply({ok:true,store_id:storeId,email,user_id:sent.userId,
+          delivery:sent.delivery==="INVITE"?"AUTH_INVITE_ACCEPTED":"AUTH_RECOVERY_ACCEPTED",
+          password_change_required:true,owner_invitation:"PENDING_ACTIVATION"});
+      }
       let verifiedExistingUserId=null;
       if(preflightError||gate?.ok!==true||gate?.existing_auth_user!==false||gate?.user_id){
         const {data:existing,error:lookupError}=await client.rpc("service_store_owner_temp_existing_lookup",{
