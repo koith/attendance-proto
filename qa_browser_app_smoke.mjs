@@ -19,8 +19,12 @@ function reply(route,value,status=200){
 async function configure(page,calls,role='HQ',managerStoreId=null){
   let working=false, payrollClosed=false,ownerInvited=false,ownerConfirmed=false,storeVerified=false,stageActivated=false;
   if(role!=='GUEST') await page.addInitScript(()=>{
+    // Test the authenticated UI with a valid-expiry synthetic JWT. The actual
+    // expired-token recovery path is separately covered by WebKit Safari QA.
+    const payload=btoa(JSON.stringify({exp:Math.floor(Date.now()/1000)+7200,sub:'qa-fixture'}))
+      .replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
     localStorage.setItem('baekeok_auth',JSON.stringify({
-      access_token:'qa-local-token',refresh_token:'qa-refresh-token'
+      access_token:'synthetic.'+payload+'.signature',refresh_token:'qa-refresh-token'
     }));
   });
   await page.route('**/cdnjs.cloudflare.com/**',route=>route.abort());
