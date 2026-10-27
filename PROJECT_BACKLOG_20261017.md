@@ -839,3 +839,5 @@
 - 실제 검증을 확장했다. 기존 격리 GoTrue+Mailpit+PostgREST+PostgreSQL 환경에 새 migration을 설치하고, 새 native 이메일 수신·개인암호·실제 로그인JWT·즉시READY와 기존 계정 복구메일·UID보존·새암호·즉시READY/타점거부 두 시나리오를 추가했다. 기존 8개 증거와 별도 필드로 기록하고 새2개가 같은head에서 실제 통과해야 한다. Google/Hosted운영 초대 없이 실행한다.
 - 로컬 release guard7/기존 v0.368 guard4/지점복귀7/본사 body·기존 인증/증거 검증·YAML PASS. 기존 v0.368 배포 보호 guard는 완화하지 않고 테스트만 정확한 이전 index를 재구성해 검증한다. Supabase 현재 schema/ACL·관리읽기 연결·native Edge71 ACTIVE를 확인. 아직 새SQL/Edge/Pages 적용 전이며, CI/병합/실배포 결과는 Issue1243 후속증거로 확정한다.
 - 적용 범위는 기본false 승인컬럼2개와 제한된 RPC, owner issue 분기 및 HQ/콜백 정적 자산이다. 다른 Edge·급여·Google writer 코드는 바이트 불변. 기존 운영자료/계정/초대·SEC01/다른 지점 READY/실메일/Sheets 직접쓰기 금지. 전체38/완료19/잔여19 유지, 실제수신자 수용을 합성QA로 통과시키지 않는다.
+
+- CI 실행797b0d7a에서 새 실제SMTP/Auth/JWT/PostgREST2/2와 실제SQL/전체연속브라우저/P0는통과. 별도Chrome/WebKit job122139109478만azure.archive.ubuntu.com OS패키지다운로드가12분초과해앱실행전cancelled. 공식Playwright v1.55.1-noble 이미지에포함된동일버전브라우저/라이브러리를재사용하도록해설치지연을해결하고모든동일검사를유지한다. Python별도설치대신Node표준HTTP로127.0.0.1정적preview만구동한다. 운영앱/SQL/Edge소스는변경없다.

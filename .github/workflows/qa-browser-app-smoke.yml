@@ -15,6 +15,7 @@ on:
       - 'version_test_toggle_982.js'
       - 'test_mode_ui_v1.js'
       - 'qa_runtime_asset_syntax_v1.mjs'
+      - 'scripts/qa_browser_static_preview.mjs'
       - '.github/workflows/qa-browser-app-smoke.yml'
   push:
     branches: [main]
@@ -39,6 +40,9 @@ jobs:
     name: Chromium mobile + desktop app smoke
     runs-on: ubuntu-24.04
     timeout-minutes: 12
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,7 +53,7 @@ jobs:
       - name: Install browser harness
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.55.1
-          npx playwright install --with-deps chromium webkit
+          node -e 'Promise.all(["chromium","webkit"].map(async name=>{const browser=await require("playwright")[name].launch({headless:true});await browser.close()})).catch(error=>{console.error(error);process.exit(1)})'
       - name: Store return and signed-in account isolation contracts
         run: |
           node tests/qa1243_store_navigation_isolation.test.mjs
@@ -69,7 +73,7 @@ jobs:
         run: node qa_version_test_controls_browser_v1.mjs
       - name: Start isolated static preview
         run: |
-          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/attendance-preview.log 2>&1 &
+          node scripts/qa_browser_static_preview.mjs >/tmp/attendance-preview.log 2>&1 &
           for i in $(seq 1 15); do
             if curl -fsS http://127.0.0.1:4173/index.html -o /dev/null; then exit 0; fi
             sleep 1
