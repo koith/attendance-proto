@@ -448,6 +448,10 @@ async function ownerScopedRoute(browser,label,viewport){
   assert.equal(await page.locator('#storeSelect').count(),0,'Store owner must not have HQ store switcher '+label);
   await page.evaluate(()=>{location.hash='#admin'});
   await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:18000});
+  // renderAdmin populates employee cards before its awaited work completes;
+  // route mounts the subnav only after that completion. Wait for the real
+  // route completion marker before asserting the exact permitted tab set.
+  await page.locator('.admin-subnav-shell .admin-subtabs a').first().waitFor({state:'visible',timeout:18000});
   assert.deepEqual(await page.locator('.admin-subnav-shell .admin-subtabs a').allTextContents(),
     ['직원 관리','급여','운영시간'],'Owner management tabs '+label);
   assert.ok(calls.some(x=>x.name==='list_store_employees'&&x.args.p_store_id===2),'Owner employees not scoped '+label);

@@ -20,7 +20,7 @@ const allowed=new Set([...OPENING_REQUIRED,'qa_store_owner_approved_opening.sql'
  'scripts/qa1243_friday_preflight.mjs','scripts/qa1243_friday_preflight.test.mjs',
  'tests/qa1243_store_isolation_release.test.mjs','tests/qa1243_owner_temp_session.test.mjs',
  'qa_store_owner_temp_first_login_1243.mjs','qa_auth_role_journey_1243.sql','qa_auth_role_journey_1243.mjs','.github/workflows/qa1243-auth-role-journey.yml',
- '.github/workflows/qa-browser-app-smoke.yml','.github/workflows/store-opening-full-journey.yml','scripts/qa_browser_static_preview.mjs',
+ '.github/workflows/qa-browser-app-smoke.yml','.github/workflows/store-opening-full-journey.yml','scripts/qa_browser_static_preview.mjs','qa_browser_app_smoke.mjs',
  'PROJECT_BACKLOG_20261017.md','docs/qa1243-approved-owner-opening.md']);
 const sha=s=>createHash('sha256').update(s).digest('hex');
 const oldDescription='점주 이메일 인증이 확인되면 새 비밀번호를 설정할 수 있습니다. 대표 권한 등록 후에도 지점 운영 개통은 본사 승인이 필요합니다.';
