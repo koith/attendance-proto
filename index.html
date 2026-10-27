@@ -841,7 +841,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.370">v0.370</button></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.371">v0.371</button></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -938,7 +938,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.370";
+const APP_VERSION="v0.371";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1127,6 +1127,27 @@ const Auth = {
   load(){ try{ this.token=JSON.parse(localStorage.getItem("baekeok_auth"))?.access_token||null; }catch(e){ this.token=null; } return this.token; },
   save(session){ localStorage.setItem("baekeok_auth",JSON.stringify(session)); this.token=session.access_token; },
   clear(){ localStorage.removeItem("baekeok_auth"); this.token=null; },
+  // Refresh only after the server rejects the cached access token with 401.
+  // Never treat a localStorage token's presence as proof of a live admin session.
+  async refreshSession(){
+    let previous=null;
+    try{previous=JSON.parse(localStorage.getItem("baekeok_auth")||"null");}catch(_){}
+    const refreshToken=previous?.refresh_token;
+    if(typeof refreshToken!=="string"||!refreshToken){this.clear();return false;}
+    const r=await fetch(CONFIG.SUPABASE_URL+"/auth/v1/token?grant_type=refresh_token",{
+      method:"POST",headers:{apikey:CONFIG.SUPABASE_ANON_KEY,"Content-Type":"application/json"},
+      body:JSON.stringify({refresh_token:refreshToken}),cache:"no-store"
+    });
+    // Rejected or revoked refresh credentials require an ordinary sign-in;
+    // a temporary network/server failure must NOT silently log the user out.
+    if([400,401,403].includes(r.status)){this.clear();return false;}
+    if(!r.ok)throw new Error("AUTH_REFRESH_TEMPORARILY_UNAVAILABLE");
+    const next=await r.json().catch(()=>null);
+    if(!next?.access_token||!next?.refresh_token||!next?.user?.id)
+      throw new Error("AUTH_REFRESH_INVALID_RESPONSE");
+    this.save({...previous,...next});
+    return true;
+  },
   async login(email,password){
     const r=await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=password`,{
       method:"POST", headers:{apikey:CONFIG.SUPABASE_ANON_KEY,"Content-Type":"application/json"},
@@ -1165,7 +1186,11 @@ const SupaBE = (()=>{
     const headers={apikey:CONFIG.SUPABASE_ANON_KEY,"Content-Type":"application/json",
       "Authorization":`Bearer ${useAuth&&Auth.token?Auth.token:CONFIG.SUPABASE_ANON_KEY}`};
     const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:"POST",headers,body:JSON.stringify(args)});
-    if(!r.ok){ throw new Error(await r.text()); }
+    if(!r.ok){
+      const failure=new Error(await r.text());
+      failure.httpStatus=r.status;
+      throw failure;
+    }
     const t=await r.text(); if(!t) return null;
     try{ return JSON.parse(t); }catch(e){ return null; }
   };
@@ -1449,7 +1474,17 @@ async function loadStores(){
  if(LIVE&&Auth.isLoggedIn()){
   STORE_ENTRY_UNAVAILABLE=true;
   try{
-   const context=await BE.adminContext();
+   let context=null;
+   try{
+    context=await BE.adminContext();
+   }catch(error){
+    if(error?.httpStatus!==401)throw error;
+    // Session expiry is not a store/network outage. Retry exactly once with
+    // GoTrue's official refresh grant, then re-verify the server-side role.
+    // If refresh is revoked/unavailable, safely return to the anonymous,
+    // active-store directory (no manager privileges are inherited).
+    if(await Auth.refreshSession())context=await BE.adminContext();
+   }
    if(context?.role==="STORE_MANAGER"){
     const own=Number(context.store_id);
     if(!Number.isSafeInteger(own)||own<1)throw Error("STORE_ACCOUNT_SCOPE_REQUIRED");
@@ -1458,7 +1493,7 @@ async function loadStores(){
      location.replace(location.pathname+"?mode=store&store="+own+hash);
      return;
     }
-   }else if(context?.role!=="HQ")throw Error("STORE_ACCOUNT_SCOPE_REQUIRED");
+   }else if(context&&context.role!=="HQ")throw Error("STORE_ACCOUNT_SCOPE_REQUIRED");
    STORE_ENTRY_UNAVAILABLE=STORE_ENTRY_LOCK;
   }catch(error){
    STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;
