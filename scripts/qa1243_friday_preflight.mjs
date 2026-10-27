@@ -225,7 +225,8 @@ function completedJob(jobs,name,step){
 }
 export function safePagesAssetPaths(message=''){
  const paths=['index.html','hq_store_onboarding_ui.js','operations_v1.js'];
- if(message.includes('[QA1243-TEMP-OWNER-PAGES]'))paths.push('owner_temp_activation.html','owner_temp_activation.js');
+ if(message.includes('[QA1243-STORE-ISOLATION]'))paths.push('actual_attendance.html','actual_attendance.js');
+ else if(message.includes('[QA1243-TEMP-OWNER-PAGES]'))paths.push('owner_temp_activation.html','owner_temp_activation.js');
  return paths;
 }
 async function verifySafePagesOnLiveMain(repo,token){

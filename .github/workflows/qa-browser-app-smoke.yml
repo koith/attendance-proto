@@ -6,6 +6,8 @@ on:
       - 'actual_attendance.js'
       - 'actual_attendance.html'
       - 'qa_browser_app_smoke.mjs'
+      - 'qa_store_navigation_isolation_browser_1243.mjs'
+      - 'tests/qa1243_store_navigation_isolation.test.mjs'
       - 'qa_operations_header_mobile_browser_v1.mjs'
       - 'operations_v1.js'
       - 'operations_v1.css'
@@ -21,6 +23,8 @@ on:
       - 'actual_attendance.js'
       - 'actual_attendance.html'
       - 'qa_browser_app_smoke.mjs'
+      - 'qa_store_navigation_isolation_browser_1243.mjs'
+      - 'tests/qa1243_store_navigation_isolation.test.mjs'
       - 'qa_operations_header_mobile_browser_v1.mjs'
       - 'operations_v1.js'
       - 'operations_v1.css'
@@ -45,7 +49,13 @@ jobs:
       - name: Install browser harness
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.55.1
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
+      - name: Store return and signed-in account isolation contracts
+        run: |
+          node tests/qa1243_store_navigation_isolation.test.mjs
+          node tests/qa1243_store_isolation_release.test.mjs
+      - name: Actual entry and attendance return isolation (Chromium and WebKit, no production requests)
+        run: node qa_store_navigation_isolation_browser_1243.mjs
       - name: Verify operations title and one-line toolbar in six Chromium viewports
         run: node qa_operations_header_mobile_browser_v1.mjs
       - name: Upload isolated mobile layout screenshot
