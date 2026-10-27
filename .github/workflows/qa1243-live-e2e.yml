@@ -80,6 +80,15 @@ jobs:
               runLive=false;
               core.info('AI1331 automation-only change: no Google, OAuth or Edge E2E repeated.');
             }
+            if(runLive && message.includes('[QA1243-TEMP-OWNER-PAGES]')){
+              const before=context.payload.before;
+              if(!/^[a-f0-9]{40}$/.test(String(before||''))||/^0{40}$/.test(before))throw Error('TEMP_OWNER_RELEASE_BASE_REQUIRED');
+              const {data}=await github.rest.repos.compareCommits({...context.repo,base:before,head:context.sha,per_page:100});
+              const {assertTempOwnerRelease}=await import(process.cwd()+'/scripts/qa1243_temp_owner_release.mjs');
+              assertTempOwnerRelease(data.files,message);
+              runLive=false;
+              core.info('Temporary owner static release: existing Google proof reused, no Sheets call');
+            }
             if(runLive && message.includes('[QA1243-NO-GOOGLE-RERUN]')){
               if(!message.includes('[QA1243-NO-OPERATING-WRITE]'))throw Error('GOOGLE_REUSE_REQUIRES_NO_WRITE');
               const before=context.payload.before;
@@ -103,6 +112,7 @@ jobs:
                 'scripts/qa1243_friday_preflight.mjs',
                 'scripts/qa1243_friday_preflight.test.mjs',
                 '.github/workflows/qa1243-friday-readiness.yml',
+                '.github/workflows/verified-pages-deployment-notification.yml',
                 'qa_auth_role_evidence_1243.mjs',
                 'qa_auth_role_evidence_1243.test.mjs',
                 'qa_sheet_failure_recovery_1243.mjs',

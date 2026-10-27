@@ -1,0 +1,30 @@
+name: QA1243 owner first-login recovery regression
+on:
+  pull_request:
+    paths:
+      - 'owner_temp_activation.js'
+      - 'owner_activation.js'
+      - 'owner_activation.html'
+      - 'tests/qa1243_owner_recovery_paste.test.mjs'
+      - 'owner_temp_activation.html'
+      - 'tests/qa1243_owner_temp_retry.test.mjs'
+      - 'tests/qa1243_owner_temp_session.test.mjs'
+      - 'tests/qa1243_temp_owner_release.test.mjs'
+      - 'scripts/qa1243_temp_owner_release.mjs'
+      - '.github/workflows/qa1243-owner-temp-retry.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  owner-first-login-retry:
+    name: Test password recovery retry and server preflight contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/qa1243_owner_temp_retry.test.mjs tests/qa1243_owner_temp_session.test.mjs tests/qa1243_temp_owner_release.test.mjs tests/qa1243_owner_recovery_paste.test.mjs

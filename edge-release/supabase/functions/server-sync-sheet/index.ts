@@ -6,6 +6,7 @@ import {createRemoteJWKSet,jwtVerify} from "https://esm.sh/jose@5";
 import {createPayrollEngine} from "./engine.mjs";
 import {verifiedWeeklySource} from "./payroll_policy.mjs";
 import {attendanceWithWorkingPayable} from "./sheet_working_payable.mjs";
+import {sendOwnerOnboardingEmail} from "./owner_invitation_email.mjs";
 
 const CORS={
   "Access-Control-Allow-Origin":"*",
@@ -84,6 +85,19 @@ function approvedQaSheetRoute(storeId,store){
      !operatingUrl||url===operatingUrl||
      secret.length<64||secret===operatingSecret)return null;
   return {url,secret,storeKey:`QA1243_${storeId}`};
+}
+// Explicit store-01 operating approval (2026-10-25). Production workbooks are
+// isolated by immutable DB store ID, not by a shared source_store_key.
+// QA-labelled stores remain on the separate approvedQaSheetRoute path.
+function approvedStore01SheetRoute(storeId,store){
+  if(storeId!==80||String(store?.code||"")!=="REAL_1"||
+     String(store?.name||"")!=="1호점"||
+     store?.onboarding_status!=="READY"||store?.is_active!==true)return null;
+  const url=Deno.env.get("SHEET_WEBAPP_URL")||"";
+  const secret=Deno.env.get("SHEET_SHARED_SECRET")||"";
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]{15,}\/exec$/.test(url)||!secret)
+    return null;
+  return {url,secret,storeKey:"STORE_80"};
 }
 async function sourceFor(ym,storeId){
   const {data,error}=await client.rpc("sheet_server_payroll_source",{p_store_id:storeId,p_ym:ym});
@@ -245,7 +259,8 @@ async function buildReport(ym,storeId){
   return {source:data,report,workingAttendance,closed:!!closedPayroll,closedPayroll};
 }
 async function googleWrite(ym,payload,closed,closedPayroll,workingAttendance,storeId=1,qaRoute=null){
-  // QA store may NEVER share the operating Apps Script URL, credentials or workbook key.
+  // Every non-primary branch requires an explicit route with a unique workbook key;
+  // synthetic QA stores must remain on independent credentials.
   if(storeId!==1&&!qaRoute)throw new HttpError(403,"QA_SHEET_ROUTE_NOT_APPROVED");
   const url=qaRoute?.url||Deno.env.get("SHEET_WEBAPP_URL");
   const secret=qaRoute?.secret||Deno.env.get("SHEET_SHARED_SECRET");
@@ -368,8 +383,151 @@ Deno.serve(async req=>{
   if(req.method!=="POST")return reply({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   try{
     const body=await req.json(),mode=String(body?.mode||"sync");
-    if(!["cron","dryrun","deployment","qa1243_sandbox_e2e","payroll","parity","sync","weekly_approve","weekly_decide","payroll_close_preview","payroll_close","payroll_reopen","invite_store_manager","invite_store_assistant_by_hq","invite_store_delegated_manager"].includes(mode))throw new HttpError(400,"BAD_MODE");
+    if(!["cron","dryrun","deployment","qa1243_sandbox_e2e","payroll","parity","sync","weekly_approve","weekly_decide","payroll_close_preview","payroll_close","payroll_reopen","invite_store_manager","invite_store_assistant_by_hq","invite_store_delegated_manager","issue_store_owner_temporary_password"].includes(mode))throw new HttpError(400,"BAD_MODE");
     const actor=await authenticate(req,mode);
+    if(mode==="issue_store_owner_temporary_password"){
+      // HQ-only one-time random credential mailed to the recipient; never
+      // returned in any HQ API response, URL, audit record or log.
+      // No manager role is granted before the recipient changes it.
+      if(actor.internal||actor.adminRole!=="HQ"||!actor.userId)
+        throw new HttpError(403,"HQ_ONLY");
+      const email=String(body.email||"").trim().toLowerCase();
+      const storeId=Number(body.store_id);
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||
+         !Number.isSafeInteger(storeId)||storeId<=0)
+        throw new HttpError(400,"INVALID_TEMP_OWNER");
+      // Never provision a credential that cannot be sent to the recipient.
+      // The From address must belong to an already verified sending domain.
+
+      const {data:targetStore,error:targetStoreError}=await client.from("stores")
+        .select("name,onboarding_status,is_active").eq("id",storeId).maybeSingle();
+      if(targetStoreError||!targetStore||targetStore.onboarding_status!=="STAGED"||targetStore.is_active!==false)
+        throw new HttpError(409,"STAGED_STORE_REQUIRED");
+      const {data:gate,error:preflightError}=await client.rpc("service_store_invitation_dispatch_preflight",{
+        p_store_id:storeId,p_email:email,p_actor_id:actor.userId,p_mode:"HQ_OWNER"
+      });
+      // Existing verified accounts without any remaining HQ/other-store owner
+      // role (e.g. QA 1호점 credential was never delivered) retain their
+      // original immutable Auth UID. This path does NOT delete/recreate them.
+      let verifiedExistingUserId=null;
+      if(preflightError||gate?.ok!==true||gate?.existing_auth_user!==false||gate?.user_id){
+        const {data:existing,error:lookupError}=await client.rpc("service_store_owner_temp_existing_lookup",{
+          p_store_id:storeId,p_email:email,p_actor_id:actor.userId
+        });
+        if(lookupError||existing?.ok!==true||!existing?.user_id||
+           String(existing.email)!==email||Number(existing.store_id)!==storeId)
+          throw new HttpError(409,"OWNER_ACCOUNT_NOT_ELIGIBLE_FOR_ONBOARDING");
+        verifiedExistingUserId=existing.user_id;
+      }
+      // Reject a race with an existing temp-owner claim before creating any Auth user.
+      const {data:pending,error:pendingError}=await client.from("store_owner_temp_first_logins")
+        .select("store_id").eq("store_id",storeId).maybeSingle();
+      if(pendingError||pending)throw new HttpError(409,"TEMP_OWNER_ALREADY_ISSUED");
+      if(verifiedExistingUserId){
+        // Existing confirmed Auth accounts use the native GoTrue recovery mail.
+        // No administrator password reset, new identity, or third-party mail key.
+        const origin=Deno.env.get("SUPABASE_URL");
+        const anonKey=Deno.env.get("SUPABASE_ANON_KEY");
+        if(!origin||!anonKey)throw new HttpError(503,"AUTH_RECOVERY_NOT_CONFIGURED");
+        const {data:recoveryClaim,error:claimError}=await client.rpc("service_store_owner_temp_issue",{
+          p_store_id:storeId,p_user_id:verifiedExistingUserId,p_actor_id:actor.userId
+        });
+        if(claimError||recoveryClaim?.ok!==true)
+          throw new HttpError(409,"AUTH_RECOVERY_CLAIM_REJECTED");
+        // Reuse the existing allow-listed callback page; its recovery handler
+        // transfers the Auth session to the scoped password-change screen.
+        const redirect="https://koith.github.io/attendance-proto/owner_activation.html";
+        let recoverResponse=null;
+        try{
+          recoverResponse=await fetch(origin+"/auth/v1/recover?redirect_to="+encodeURIComponent(redirect),{
+            method:"POST",
+            headers:{"Content-Type":"application/json",apikey:anonKey},
+            body:JSON.stringify({email}),signal:AbortSignal.timeout(12000)
+          });
+        }catch{
+          // Transport uncertainty is not proof that no email was sent.
+          throw new HttpError(503,"AUTH_RECOVERY_DELIVERY_UNKNOWN");
+        }
+        if(!recoverResponse.ok){
+          // The API explicitly rejected the request. Safe to remove only this
+          // issuance claim, allowing HQ to retry later with same Auth identity.
+          await client.from("store_owner_temp_first_logins").delete()
+            .eq("store_id",storeId).eq("user_id",verifiedExistingUserId);
+          throw new HttpError(502,"AUTH_RECOVERY_EMAIL_REJECTED");
+        }
+        return reply({ok:true,store_id:storeId,email,user_id:verifiedExistingUserId,
+          expires_at:recoveryClaim.expires_at,delivery:"AUTH_RECOVERY_ACCEPTED",
+          password_change_required:true});
+      }
+      // Default to the built-in GoTrue invite mailer for NEW owners. This
+      // reuses the existing HQ scoped invite + pending owner acceptance path,
+      // without demanding a separate Resend account/domain/API key for every
+      // store. It never returns credentials to HQ.
+      if(Deno.env.get("OWNER_INVITE_USE_RESEND")!=="true"){
+        const sent=await dispatchInvitation(email,storeId,actor.userId,"HQ_OWNER");
+        if(sent.delivery!=="INVITE"||!sent.userId)
+          throw new HttpError(409,"NEW_OWNER_EMAIL_INVITATION_NOT_ISSUED");
+        const {data:pendingOwner,error:ownerError}=await client.rpc("service_native_owner_invitation_issue",{
+          p_store_id:storeId,p_user_id:sent.userId,p_actor_id:actor.userId,p_email:email
+        });
+        if(ownerError||pendingOwner?.ok!==true)
+          throw new HttpError(502,"AUTH_INVITE_SENT_PENDING_ROLE_CLAIM_FAILED: "+String(ownerError?.message||"UNKNOWN"));
+        return reply({ok:true,store_id:storeId,email,user_id:sent.userId,
+          delivery:"AUTH_INVITE_ACCEPTED",password_change_required:true,
+          owner_invitation:"PENDING_ACTIVATION"});
+      }
+      // Only fresh Auth identities need a separate transactional password email.
+      if(!Deno.env.get("RESEND_API_KEY")||!Deno.env.get("OWNER_INVITE_FROM_EMAIL"))
+        throw new HttpError(503,"OWNER_INVITE_MAIL_NOT_CONFIGURED");
+      const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+      const bytes=crypto.getRandomValues(new Uint8Array(32));
+      const temporaryPassword=Array.from(bytes,b=>alphabet[b%alphabet.length]).join("");
+      const {data:created,error:creationError}=await client.auth.admin.createUser({
+        email,password:temporaryPassword,email_confirm:true
+      });
+      if(creationError||!created?.user?.id)
+        throw new HttpError(409,"TEMP_OWNER_AUTH_CREATION_FAILED");
+      const createdId=created.user.id;
+      const {data:issued,error:issueError}=await client.rpc("service_store_owner_temp_issue",{
+        p_store_id:storeId,p_user_id:createdId,p_actor_id:actor.userId
+      });
+      if(issueError||issued?.ok!==true){
+        // Cleanup is allowed ONLY for the brand-new Auth identity created above;
+        // never touch a pre-existing verified owner/HQ/delegated account.
+        if(!verifiedExistingUserId){
+          const {error:cleanupError}=await client.auth.admin.deleteUser(createdId);
+          if(cleanupError)
+            throw new HttpError(503,"TEMP_OWNER_PENDING_MANUAL_CLEANUP");
+        }
+        throw new HttpError(409,"TEMP_OWNER_ISSUE_REJECTED");
+      }
+      let mail;
+      try{
+        mail=await sendOwnerOnboardingEmail({
+          storeName:targetStore.name,storeId,email,temporaryPassword,
+          expiresAt:issued.expires_at,issuanceId:createdId
+        });
+      }catch(error){
+        // A provider rejection means no mail was accepted; roll back only the
+        // brand-new identity created here (FK cascade removes its pending claim).
+        // On network/5xx ambiguity, do NOT destroy an account that may have
+        // already received valid credentials, and do NOT issue another password.
+        if(String(error?.message)==="OWNER_INVITE_MAIL_REJECTED"){
+          if(!verifiedExistingUserId){
+            const {error:cleanError}=await client.auth.admin.deleteUser(createdId);
+            if(cleanError)throw new HttpError(503,"OWNER_INVITE_UNDELIVERED_CLEANUP_REQUIRED");
+            throw new HttpError(502,"OWNER_INVITE_MAIL_REJECTED_CLEANED");
+          }
+          throw new HttpError(502,"EXISTING_OWNER_MAIL_REJECTED_REISSUE_REQUIRED");
+        }
+        throw new HttpError(503,"OWNER_INVITE_MAIL_STATUS_UNCERTAIN");
+      }
+      // Provider acceptance is not proof of inbox delivery. Never return a
+      // secret to HQ or put a temporary password into logs/URLs/audit records.
+      return reply({ok:true,store_id:storeId,email,user_id:createdId,
+        expires_at:issued.expires_at,delivery:"EMAIL_ACCEPTED",
+        email_message_id:mail.messageId,password_change_required:true});
+    }
     if(mode==="invite_store_manager"||mode==="invite_store_assistant_by_hq"){
       const isAssistant=mode==="invite_store_assistant_by_hq";
       if(actor.internal||actor.adminRole!=="HQ"||!actor.userId)
@@ -480,7 +638,8 @@ Deno.serve(async req=>{
     if(storeError||!store||!store.is_active||store.onboarding_status!=="READY")
       throw new HttpError(403,"STORE_NOT_ONBOARDED");
     const qaRoute=storeId===1?null:approvedQaSheetRoute(storeId,store);
-    if(["sync","parity"].includes(mode)&&storeId!==1&&!qaRoute)
+    const sheetRoute=qaRoute||approvedStore01SheetRoute(storeId,store);
+    if(["sync","parity"].includes(mode)&&storeId!==1&&!sheetRoute)
       throw new HttpError(403,"STORE_SHEET_SYNC_NOT_CONFIGURED");
     if(!actor.internal && actor.adminRole!=="HQ" && !(actor.adminRole==="STORE_MANAGER"&&Number(actor.storeId)===storeId))
       throw new HttpError(403,"STORE_NOT_AUTHORIZED");
@@ -587,7 +746,7 @@ Deno.serve(async req=>{
     // Reject changes to existing manual projection until parity is proven.
     if(parity&&(!parity.payroll_identical||!parity.attendance_identical))
       throw new HttpError(409,"SERVER_CLIENT_PARITY_MISMATCH");
-    const result=await writeClaimed(ym,storeId,prepared,release,true,qaRoute);
+    const result=await writeClaimed(ym,storeId,prepared,release,true,sheetRoute);
     return reply({...result,parity});
   }catch(error){
     const status=error instanceof HttpError?error.status:502;

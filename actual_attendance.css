@@ -275,3 +275,164 @@
   .monthly-work-summary.manager>summary strong{font-size:.67rem}
   .monthly-employee-body small{font-size:.5rem}
 }
+
+
+/* v0.358 restoration: original employee | time | actions | status order.
+   A missing-punch event must not convert the row into multiple action/hint lines.
+   Only the genuinely 320px-or-narrower viewport gets a safe 2-line fallback.
+   Other calendar, graph and card geometry is deliberately untouched. */
+.records-group .sessions{
+  max-height:none!important;overflow:visible!important;
+  overscroll-behavior:auto!important;scrollbar-gutter:auto!important;
+}
+.records-group .session,
+.records-group .session.needs-review{
+  display:grid!important;
+  grid-template-columns:max-content minmax(0,1fr) max-content 70px!important;
+  align-items:center!important;column-gap:4px;row-gap:4px;
+  width:100%;max-width:100%;min-width:0;padding:9px 0;
+}
+.records-group .session>div:first-child{
+  display:contents!important;
+}
+.records-group .session>div:first-child>b{
+  grid-column:1;grid-row:1;display:flex;flex-direction:column;
+  align-items:flex-start;justify-content:center;max-width:100%;
+  min-width:0;white-space:nowrap;line-height:1.2;
+  font-size:.77rem;font-weight:800;
+}
+.records-group .session>div:first-child .employee-no-sub{
+  display:block;margin-top:2px;
+}
+.records-group .session .meta{
+  grid-column:2;grid-row:1;min-width:0;max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:.73rem;line-height:1.3;color:var(--sub);
+}
+.records-group .session>.session-actions,
+.records-group .session.needs-review>.session-actions{
+  grid-column:3;grid-row:1;position:relative;
+  display:inline-flex!important;align-items:center!important;
+  justify-content:flex-start!important;flex-wrap:nowrap!important;
+  width:auto!important;min-width:0;max-width:100%;
+  margin:0!important;gap:4px;justify-self:start!important;
+  text-align:left!important;
+}
+.records-group .session>.session-actions .session-fix{
+  display:inline-flex;align-items:center;justify-content:center;
+  flex:0 0 auto;min-height:33px;padding:0 7px;
+  font-size:.70rem;white-space:nowrap;line-height:1.1;
+}
+.records-group .session>div:nth-child(2),
+.records-group .session.needs-review>div:nth-child(2){
+  grid-column:4;grid-row:1;
+  width:70px!important;min-width:0!important;max-width:70px!important;
+  justify-self:end;display:flex;justify-content:flex-end;
+  align-items:center;flex-wrap:wrap;gap:3px;
+}
+.records-group .session .pill{
+  margin:0;max-width:100%;white-space:nowrap;
+  font-size:.64rem;padding:3px 6px;
+}
+/* The visible status badge already names the error, and the correction
+   button carries a reason-aware aria-label. Retain the extra hint for
+   assistive technology without expanding the original one-line controls. */
+.records-group .session .session-fix-hint{
+  position:absolute!important;width:1px!important;height:1px!important;
+  padding:0!important;margin:0!important;overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;clip-path:inset(50%)!important;
+  white-space:nowrap!important;border:0!important;
+}
+.records-group .session.needs-review>div:nth-child(2){
+  flex-direction:column;align-items:flex-end;flex-wrap:nowrap;
+}
+.records-duplicate-notice{
+  margin:4px 12px 12px;padding:10px 12px;
+  border:1px solid #ead9ab;border-radius:9px;
+  background:#fff8e9;color:#845300;font-size:.76rem;line-height:1.5;
+}
+@media(min-width:600px){
+  .records-group .session,
+  .records-group .session.needs-review{
+    grid-template-columns:max-content minmax(0,1fr) max-content 152px!important;
+    column-gap:10px;
+  }
+  .records-group .session>div:nth-child(2),
+  .records-group .session.needs-review>div:nth-child(2){
+    width:152px!important;max-width:152px!important;
+    flex-direction:row;flex-wrap:wrap;align-items:center;
+  }
+  .records-group .session>.session-actions .session-fix{
+    min-height:36px;padding:0 11px;font-size:.76rem;
+  }
+}
+@media(max-width:350px){
+  .records-group .session,
+  .records-group .session.needs-review{
+    grid-template-columns:max-content minmax(0,1fr) 65px!important;
+  }
+  .records-group .session>div:nth-child(2),
+  .records-group .session.needs-review>div:nth-child(2){
+    grid-column:3;grid-row:1;width:65px!important;max-width:65px!important;
+  }
+  .records-group .session>.session-actions,
+  .records-group .session.needs-review>.session-actions{
+    grid-column:2/-1;grid-row:2;
+  }
+}
+
+/* v0.359: original employee | time | buttons | horizontal badges. */
+@media(min-width:351px){
+  .records-group .session,.records-group .session.needs-review{
+    grid-template-columns:max-content minmax(0,1fr) max-content max-content!important;
+    column-gap:4px!important;
+  }
+  .records-group .session>div:nth-child(2),
+  .records-group .session.needs-review>div:nth-child(2){
+    grid-column:4!important;grid-row:1!important;
+    display:flex!important;flex-direction:row!important;
+    flex-wrap:nowrap!important;align-items:center!important;
+    justify-content:flex-end!important;
+    width:auto!important;max-width:none!important;gap:3px!important;
+  }
+  .records-group .session .pill{
+    flex:0 0 auto;font-size:.60rem!important;padding:3px 4px!important;
+    white-space:nowrap!important;
+  }
+  .records-group .session>.session-actions{
+    grid-column:3!important;grid-row:1!important;
+    justify-self:start!important;margin:0!important;
+  }
+  .records-group .session>.session-actions .session-fix{
+    padding:0 6px!important;font-size:.68rem!important;
+  }
+}
+@media(min-width:600px){
+  .records-group .session,.records-group .session.needs-review{
+    grid-template-columns:max-content minmax(0,1fr) max-content max-content!important;
+    column-gap:10px!important;
+  }
+  .records-group .session .pill{font-size:.74rem!important;padding:4px 8px!important}
+}
+
+/* v0.360: anchor inline correction controls to the immediately preceding time.
+   The last flexible track holds right-aligned one-line status badges. Unlike
+   the old flexible TIME track, this never pushes buttons to the right edge. */
+@media(min-width:351px){
+  .records-group .session,
+  .records-group .session.needs-review{
+    grid-template-columns:max-content minmax(0,max-content) max-content minmax(0,1fr)!important;
+    column-gap:4px!important;
+  }
+  .records-group .session>.session-actions,
+  .records-group .session.needs-review>.session-actions{
+    grid-column:3!important;grid-row:1!important;
+    justify-self:start!important;margin:0!important;
+  }
+  .records-group .session>div:nth-child(2),
+  .records-group .session.needs-review>div:nth-child(2){
+    grid-column:4!important;grid-row:1!important;
+    justify-self:end!important;
+    flex-direction:row!important;flex-wrap:nowrap!important;
+  }
+}

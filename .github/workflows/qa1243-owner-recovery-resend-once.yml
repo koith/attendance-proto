@@ -1,0 +1,45 @@
+# One-shot owner-authorized self-service recovery request; never changes Auth users.
+# Runs only on adding this file to the dedicated #1243 development branch.
+name: QA1243 owner recovery mail resend once
+on:
+  push:
+    branches: [feature/1243-native-owner-invite-no-resend-20261026]
+    paths: ['.github/workflows/qa1243-owner-recovery-resend-once.yml']
+permissions:
+  contents: read
+jobs:
+  send-recovery-request:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Call the ordinary public Supabase password-recovery API once
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          import assert from 'node:assert/strict';
+          const html=readFileSync('index.html','utf8');
+          const origin=html.match(/SUPABASE_URL:\s*"(https:\/\/[^"]+)"/)?.[1];
+          const anon=html.match(/SUPABASE_ANON_KEY:\s*"([^"]+)"/)?.[1];
+          assert.equal(origin,'https://waluhdgqhwjjwmflhrle.supabase.co');
+          assert.ok(anon,'PUBLIC_AUTH_API_KEY_NOT_FOUND');
+          const redirect='https://koith.github.io/attendance-proto/owner_activation.html';
+          const res=await fetch(origin+'/auth/v1/recover?redirect_to='+encodeURIComponent(redirect),{
+            method:'POST',
+            headers:{apikey:anon,'Content-Type':'application/json'},
+            body:JSON.stringify({email:'webuielf@gmail.com'}),
+            signal:AbortSignal.timeout(15000)
+          });
+          const body=await res.json().catch(()=>({}));
+          console.log('QA1243_OWNER_RECOVERY_RESEND '+JSON.stringify({
+            http_status:res.status,accepted:res.ok,
+            error_code:String(body?.code||body?.error_code||'').slice(0,80),
+            result:'Provider acceptance is not proof of inbox delivery'
+          }));
+          if(!res.ok)process.exitCode=1;
+          NODE

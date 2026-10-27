@@ -1,0 +1,40 @@
+# Read-only audit of previously configured Google OAuth secrets. No Apps Script, Sheets, or Drive writes.
+name: QA1243 existing Google OAuth compatibility (read-only)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/qa1243-existing-google-oauth-probe.yml'
+      - 'scripts/qa1243_existing_google_credential_probe.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check scripts/qa1243_existing_google_credential_probe.mjs
+      - run: node --test qa/qa1243_google_mail_bridge.test.mjs
+  legacy-credential-probe:
+    needs: syntax
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+      GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only OAuth identity and exact-scope audit
+        run: node scripts/qa1243_existing_google_credential_probe.mjs

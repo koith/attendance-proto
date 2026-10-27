@@ -44,11 +44,14 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
         is_active:false,manager_count:0
       }))
     ]);
-    if(name==='hq_store_manager_list')return reply(route,ownerInvited?[
+    if(name==='hq_store_manager_list')return reply(route,ownerConfirmed?[
       {user_id:'qa-invited-id',email:'owner@example.invalid',store_id:2,store_name:'송도점'}
     ]:[]);
     // The confirmed primary owner is a separate canonical HQ RPC; an invite
     // or a generic manager row alone must never unlock READY.
+    if(name==='hq_store_owner_temp_pending_list')return reply(route,ownerInvited&&!ownerConfirmed?[
+      {store_id:2,email:'owner@example.invalid',expires_at:'2026-10-27T00:00:00Z'}
+    ]:[]);
     if(name==='hq_store_primary_owner_list')return reply(route,ownerConfirmed?[
       {store_id:2,user_id:'qa-invited-id'}
     ]:[]);
@@ -129,9 +132,11 @@ async function configure(page,calls,role='HQ',managerStoreId=null){
   await page.route('**/functions/v1/server-sync-sheet',route=>{
     let args={};try{args=JSON.parse(route.request().postData()||'{}')}catch{}
     calls.push({name:'server-sync-sheet',args});
-    if(args.mode==='invite_store_manager'){
+    if(args.mode==='issue_store_owner_temporary_password'){
       if(args.store_id!==2||args.email!=='owner@example.invalid')return reply(route,{ok:false,error:'BAD_INVITE_ARGS'},403);
-      ownerInvited=true;return reply(route,{ok:true,invited:true,store_id:2,role:'STORE_MANAGER'});
+      ownerInvited=true;return reply(route,{ok:true,store_id:2,email:args.email,
+        email_message_id:'qa-provider-message-id',delivery:'EMAIL_ACCEPTED',
+        expires_at:'2026-10-27T00:00:00Z'});
     }
     if(args.mode==='payroll_close_preview')return reply(route,{ok:true,ym:args.ym,employee_count:1,gross:54000,net:52210,fingerprint:'a'.repeat(64)});
     if(args.mode==='payroll_close'){
@@ -335,7 +340,7 @@ async function smoke(browser,label,viewport){
   await page.locator('#hqManagerEmail').fill('owner@example.invalid');
   await page.locator('#hqManagerInvite').click();
   await page.waitForFunction(()=>document.querySelector('#hqOnboardingBody')?.innerText.includes('owner@example.invalid'),null,{timeout:12000});
-  assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='invite_store_manager'&&x.args.store_id===2),
+  assert.ok(calls.some(x=>x.name==='server-sync-sheet'&&x.args.mode==='issue_store_owner_temporary_password'&&x.args.store_id===2),
     'HQ invite service not called '+label);
   assert.equal(await page.locator('#hqStoreReady').isDisabled(),true,'Invitation without verification must not activate '+label);
   await page.locator('#hqStoreOperations summary').click();

@@ -27,7 +27,8 @@ const mobile=readFileSync('supabase/functions/qa1243-mobile-auth/index.ts','utf8
 assert.match(mobile,/google\.accounts\.oauth2\.initTokenClient/);
 assert.match(mobile,/navigator\.clipboard\.writeText\(token\)/);
 assert.match(mobile,/new Response\('QA1243_READ_ONLY_PAGE',\{status:405/);
-assert.match(mobile,/QA1243_QUERY_NOT_ALLOWED/);
+assert.doesNotMatch(mobile,/QA1243_QUERY_NOT_ALLOWED/);
+assert.doesNotMatch(mobile,/new URL\(req\.url\)\.search/);
 assert.match(mobile,/same-origin-allow-popups/);
 assert.match(mobile,/QA1243_GOOGLE_OAUTH_ACCESS_TOKEN/);
 assert.match(mobile,/https:\/\/github\.com\/koith\/attendance-proto\/settings\/secrets\/actions\/new/);

@@ -14,6 +14,8 @@ label{display:block;margin:16px 0 7px;font-size:.9rem;font-weight:600}
 input{width:100%;border:1px solid #becfc3;border-radius:9px;padding:13px;font-size:16px}
 button{width:100%;background:#1d5d3a;color:white;font-weight:700;border:0;border-radius:9px;padding:14px;margin-top:18px;font-size:1rem}
 button:disabled{opacity:.55}#status{margin-top:14px;font-size:.85rem;white-space:pre-wrap;color:#985f00}
+[hidden]{display:none!important}#recoveryResendForm{margin-top:18px;border-top:1px solid #e3eae5;padding-top:16px}
+#recoveryResendForm label{display:block;color:#354f3c}#recoveryResendForm small{display:block;margin-top:8px;color:#69786f}
 </style>
 </head>
 <body>
@@ -27,8 +29,14 @@ button:disabled{opacity:.55}#status{margin-top:14px;font-size:.85rem;white-space
 <input id="repeat" type="password" minlength="12" maxlength="128" autocomplete="new-password" required>
 <button id="confirm" type="submit">비밀번호 설정 및 지점 입장</button>
 </form>
+<form id="recoveryResendForm" hidden>
+<label for="recoveryEmail">인증 메일이 만료됐나요? 이메일 주소를 입력해 새 링크를 받으세요.</label>
+<input id="recoveryEmail" type="email" autocomplete="email" maxlength="254" placeholder="점주 이메일" required>
+<button id="resendRecovery" type="submit">새 인증 메일 보내기</button>
+<small>받은편지함이나 스팸함에서 가장 최근 메일을 열어주세요.</small>
+</form>
 <div id="status" role="status" aria-live="polite"></div>
 </main>
-<script src="owner_activation.js?v=20261023v356"></script>
+<script src="owner_activation.js?v=20261027oneclick1"></script>
 </body>
 </html>

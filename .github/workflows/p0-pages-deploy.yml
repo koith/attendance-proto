@@ -181,7 +181,7 @@ concurrency:
 jobs:
   p0-gate:
     name: P0 deployment gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -196,6 +196,14 @@ jobs:
         with:
           script: |
             const allowed=new Set([
+              'supabase/functions/qa1243-google-mail-bridge/core.mjs',
+              'supabase/functions/qa1243-google-mail-bridge/index.ts',
+              'supabase/functions/qa1243-google-mail-bridge/invite_template.mjs',
+              'gas/qa1243-auth-mail/Code.gs',
+              'gas/qa1243-auth-mail/appsscript.json',
+              'qa/qa1243_google_mail_bridge.test.mjs',
+              '.github/workflows/qa1243-google-mail-bridge.yml',
+              'docs/qa1243-google-mail-bridge.md',
               'scripts/qa1243_auth_four_fields.mjs',
               'scripts/qa1243_auth_four_fields.test.mjs',
               '.github/workflows/qa1243-auth-four-fields.yml',
@@ -292,6 +300,12 @@ jobs:
               const {assertAutomationOnly}=await import(process.cwd()+'/scripts/ai-dev/release-scope.mjs');
               assertAutomationOnly(diff.files,releaseMessage);
               core.info('AI1331 automation-only scope verified; operating jobs remain skipped');
+              return;
+            }
+            if(releaseMessage.includes('[QA1243-TEMP-OWNER-PAGES]')){
+              const {assertTempOwnerRelease}=await import(process.cwd()+'/scripts/qa1243_temp_owner_release.mjs');
+              assertTempOwnerRelease(diff.files,releaseMessage);
+              core.info('Reviewed temporary-owner static release: no operating Sheet writes');
               return;
             }
             const safeAppRelease=releaseMessage.includes('[QA1243-APP-PAGES]');
@@ -422,7 +436,9 @@ jobs:
                  'scripts/qa1243_readonly_auth_config.mjs',
                  'scripts/qa1243_auth_config_verdict.mjs',
                  'scripts/qa1243_auth_config_verdict.test.mjs',
-                 '.github/workflows/qa1243-sec01-preactivation.yml'
+                 '.github/workflows/qa1243-sec01-preactivation.yml',
+                 // Isolated Google mail bridge has only synthetic checks; never Sheets.
+                 '.github/workflows/qa1243-google-mail-bridge.yml'
                ].includes(f))))
                throw Error('QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE');
             core.info('QA1243_NO_OPERATING_WRITE_GUARD_PASS files='+files.length);
@@ -517,6 +533,8 @@ jobs:
         run: node qa_actual_attendance_overnight_pairing_v1.mjs
       - name: POS white screen and stalled mobile store lookup regression
         run: node qa_pos_startup_network_timeout_v1.mjs
+      - name: Owner authenticated session recovery and role isolation (#1243)
+        run: node qa_owner_session_recovery_1243.mjs
       - name: index-startup-smoke-v1
         run: node qa_index_startup_smoke_v1.mjs
       - name: cross-domain adversarial audit
@@ -670,7 +688,7 @@ jobs:
     environment:
       name: github-pages
       url: https://koith.github.io/attendance-proto/qa1243-safari/
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -685,7 +703,9 @@ jobs:
       - name: Capture unchanged operating public asset digests before safe app release
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-ACTIVATION-PAGES]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-TEMP-OWNER-PAGES]') }}" == "true" ]]; then
+            node scripts/qa1243_temp_owner_pages_smoke.mjs --before
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-ACTIVATION-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_activation_pages_smoke.mjs --before
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-COST-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_material_cost_pages_smoke.mjs --before
@@ -707,7 +727,9 @@ jobs:
       - name: Confirm public v0.354 HQ readiness UI and unchanged other operating assets
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-ACTIVATION-PAGES]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-TEMP-OWNER-PAGES]') }}" == "true" ]]; then
+            node scripts/qa1243_temp_owner_pages_smoke.mjs --after
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-ACTIVATION-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_activation_pages_smoke.mjs --after
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-COST-PAGES]') }}" == "true" ]]; then
             node scripts/qa1243_material_cost_pages_smoke.mjs --after
@@ -719,7 +741,7 @@ jobs:
     name: Build Pages artifact
     if: ${{ github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[QA1243-NO-OPERATING-WRITE]') }}
     needs: p0-gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
@@ -731,7 +753,7 @@ jobs:
     name: Same-run Pages validation (final alert only after independent verification)
     if: ${{ always() && github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[QA1243-NO-OPERATING-WRITE]') }}
     needs: [p0-gate, build-pages, deploy-pages]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency:
       group: verified-deployment-alert-${{ github.run_id }}
       cancel-in-progress: false
@@ -801,7 +823,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Deploy only after P0 gate passed
         id: deployment

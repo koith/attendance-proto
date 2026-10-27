@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>백억커피 1호점 계정 복구</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;color:#172019;background:#f4f7f5}
+*{box-sizing:border-box}body{min-height:100vh;display:grid;place-items:center;margin:0;padding:20px}
+main{background:white;border:1px solid #dbe4de;border-radius:18px;padding:24px;width:100%;max-width:440px;box-shadow:0 5px 18px #183a2310}
+h1{font-size:1.3rem;margin:0 0 12px;color:#16482d}p{font-size:.93rem;color:#536258;line-height:1.55}
+label{display:block;margin:16px 0 7px;font-size:.9rem;font-weight:600}
+input{display:block;width:100%;margin-top:6px;border:1px solid #becfc3;border-radius:9px;padding:13px;font-size:16px}
+button{width:100%;background:#1d5d3a;color:white;font-weight:700;border:0;border-radius:9px;padding:14px;margin-top:18px;font-size:1rem}
+button:disabled{opacity:.55}a{color:#165d3c}#status{margin-top:14px;font-size:.9rem;white-space:pre-wrap;line-height:1.55}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+<h1>1호점 대표 관리자 계정 복구</h1>
+<p>이전에 이 브라우저에서 로그인했다면 저장된 세션으로 본인 인증을 다시 진행할 수 있습니다. 기존 대표 관리자 권한과 매장 데이터는 변경하지 않습니다.</p>
+<form id="recover">
+<label for="email">기존 대표 관리자 이메일
+<input id="email" type="email" autocomplete="username" required placeholder="이메일"></label>
+<button id="sessionBtn" type="submit">저장된 로그인으로 본인 확인</button>
+</form>
+<form id="change" hidden>
+<p>본인 인증과 1호점 관리자 권한을 확인했습니다.</p>
+<label for="password">새 비밀번호 (12자 이상)
+<input id="password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required></label>
+<label for="repeat">새 비밀번호 확인
+<input id="repeat" type="password" minlength="12" maxlength="128" autocomplete="new-password" required></label>
+<button id="changeBtn" type="submit">새 비밀번호로 변경하고 로그인 확인</button>
+</form>
+<p id="status" role="status" aria-live="polite"></p>
+<p><a href="./index.html?mode=store&amp;store=80#admin">1호점 로그인으로 돌아가기</a></p>
+</main>
+<script>
+(function(){
+"use strict";
+const STORE_ID=80;
+const TARGET_EMAIL_FIELD=document.getElementById("email");
+const STATUS=document.getElementById("status");
+const RECOVER=document.getElementById("recover");
+const CHANGE=document.getElementById("change");
+const SESSION_BUTTON=document.getElementById("sessionBtn");
+const CHANGE_BUTTON=document.getElementById("changeBtn");
+let active=null, config=null;
+function message(value){STATUS.textContent=String(value)}
+function errorMessage(error){return String(error&&error.message||error||"알 수 없는 오류")}
+async function getConfig(){
+ if(config)return config;
+ const response=await fetch("./index.html",{cache:"no-store"});
+ if(!response.ok)throw Error("앱 설정을 확인할 수 없습니다.");
+ const source=await response.text();
+ const url=source.match(/SUPABASE_URL:\s*"(https:\/\/[^"]+)"/)?.[1];
+ const key=source.match(/SUPABASE_ANON_KEY:\s*"([^"]+)"/)?.[1];
+ if(!url||!key)throw Error("앱 인증 설정을 찾지 못했습니다.");
+ config={url:url,key:key};
+ return config;
+}
+async function request(path,method,data,token){
+ const cfg=await getConfig();
+ const headers={apikey:cfg.key,"Content-Type":"application/json"};
+ if(token)headers.Authorization="Bearer "+token;
+ const response=await fetch(cfg.url+path,{method:method,headers:headers,...(data===undefined?{}:{body:JSON.stringify(data)})});
+ const body=await response.json().catch(()=>({}));
+ if(!response.ok){
+  const code=body.code||body.error_code||body.error||"";
+  const reason=body.msg||body.error_description||body.message||"인증 요청 실패";
+  const err=Error(String(reason)+" ("+String(code||response.status)+")");
+  err.code=code;err.status=response.status;throw err;
+ }
+ return body;
+}
+async function contextFor(token){
+ const result=await request("/rest/v1/rpc/admin_context","POST",{},token);
+ if(result?.role!=="STORE_MANAGER"||Number(result?.store_id)!==STORE_ID)
+  throw Error("해당 계정은 1호점 관리자 권한으로 확인되지 않습니다. 다른 계정 비밀번호는 변경하지 않았습니다.");
+ return result;
+}
+RECOVER.addEventListener("submit",async function(event){
+ event.preventDefault();
+ SESSION_BUTTON.disabled=true;
+ try{
+  const expected=TARGET_EMAIL_FIELD.value.trim().toLowerCase();
+  const saved=JSON.parse(localStorage.getItem("baekeok_auth")||"null");
+  if(!saved||!saved.refresh_token)throw Error("이 브라우저에는 재사용할 로그인 세션이 없습니다. 본사 관리자에게 계정 복구를 요청하세요.");
+  message("저장된 세션의 유효성과 1호점 권한을 확인하고 있습니다.");
+  const session=await request("/auth/v1/token?grant_type=refresh_token","POST",{refresh_token:saved.refresh_token});
+  if(!session.access_token||!session.refresh_token)throw Error("새 로그인 세션을 발급받지 못했습니다.");
+  const user=await request("/auth/v1/user","GET",undefined,session.access_token);
+  localStorage.setItem("baekeok_auth",JSON.stringify(session));
+  if(!user?.id||String(user?.email||"").toLowerCase()!==expected)
+   throw Error("저장된 세션은 입력한 이메일의 계정이 아닙니다. 다른 계정 비밀번호는 변경하지 않았습니다.");
+  await contextFor(session.access_token);
+  active={email:expected,id:user.id,token:session.access_token};
+  RECOVER.hidden=true;CHANGE.hidden=false;
+  message("인증이 완료됐습니다. 이제 새 비밀번호를 설정하세요.");
+ }catch(error){message("본인 확인 실패: "+errorMessage(error));}
+ finally{SESSION_BUTTON.disabled=false}
+});
+CHANGE.addEventListener("submit",async function(event){
+ event.preventDefault();
+ CHANGE_BUTTON.disabled=true;
+ const pass=document.getElementById("password").value;
+ const repeat=document.getElementById("repeat").value;
+ try{
+  if(!active)throw Error("먼저 본인 확인이 필요합니다.");
+  if(pass.length<12||pass!==repeat)throw Error("12자 이상의 같은 비밀번호를 두 번 입력하세요.");
+  message("비밀번호를 변경하고 다시 로그인해 검증하고 있습니다.");
+  await request("/auth/v1/user","PUT",{password:pass},active.token);
+  const session=await request("/auth/v1/token?grant_type=password","POST",{email:active.email,password:pass});
+  if(!session?.access_token||!session.refresh_token||session.user?.id!==active.id)
+   throw Error("새 비밀번호 로그인 결과가 기존 계정과 일치하지 않습니다.");
+  await contextFor(session.access_token);
+  localStorage.setItem("baekeok_auth",JSON.stringify(session));
+  CHANGE.hidden=true;
+  message("비밀번호 변경 및 새 비밀번호 로그인, 1호점 관리자 권한 검증이 모두 완료됐습니다. 아래 '1호점 로그인으로 돌아가기'를 누르세요.");
+ }catch(error){message("비밀번호 변경 또는 검증 실패: "+errorMessage(error));}
+ finally{
+  document.getElementById("password").value="";
+  document.getElementById("repeat").value="";
+  CHANGE_BUTTON.disabled=false;
+ }
+});
+})();
+</script>
+</body>
+</html>

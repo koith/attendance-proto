@@ -36,9 +36,8 @@ assert.ok(!script.includes('QA1243_SCOPE_LIST'));
 const css=style[1];
 // Public QA Web client identifier, not an authentication credential.
 const qaWebClientId='293023370445-le7n6lrrbub90i96ol64tt65lss8s6p2.apps.googleusercontent.com';
-const clientPlaceholder='placeholder="숫자-...apps.googleusercontent.com"';
-assert.ok(html.includes(clientPlaceholder),'QA input anchor changed');
-html=html.replace(clientPlaceholder,clientPlaceholder+' value="'+qaWebClientId+'" readonly');
+const reviewedClientAnchor='id="client" type="text" readonly aria-readonly="true" value="'+qaWebClientId+'"';
+assert.ok(html.includes(reviewedClientAnchor),'QA prefilled read-only client anchor changed');
 html=html.replace(style[0],'<link rel="stylesheet" href="./style.css">');
 html=html.replace(sdk,'<script src="https://accounts.google.com/gsi/client" async defer></script>');
 html=html.replace(inline[0],'<script src="./oauth.js" defer></script></body>');
@@ -46,6 +45,11 @@ const csp="default-src 'none'; script-src 'self' https://accounts.google.com/gsi
 html=html.replace('<meta charset="utf-8">','<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="'+csp+'">');
 assert.ok(html.includes('<meta name="referrer" content="no-referrer">'));
 assert.ok(html.includes('<script src="./oauth.js" defer></script>'));
+// Require a real UTF-8 HTML document, not a text/plain diagnostic response.
+// This generated artifact must be served by GitHub Pages, never by Supabase Edge.
+assert.match(html,/^<!doctype html><html lang="ko"><head>/i);
+assert.match(html,/<meta charset="utf-8">/);
+assert.match(html,/<button id="login" type="button">/);
 assert.ok(!html.includes('QA1243_NONCE')&&!html.includes('QA1243_SCOPE_LIST'));
 assert.doesNotMatch(html,/<script>([\s\S]*?)<\/script>/i);
 assert.doesNotMatch(html,/<style>([\s\S]*?)<\/style>/i);

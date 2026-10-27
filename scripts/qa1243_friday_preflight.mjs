@@ -223,6 +223,11 @@ function completedJob(jobs,name,step){
  return jobs.some(job=>job.name===name&&job.conclusion==='success'&&
   job.steps?.some(x=>x.name===step&&x.conclusion==='success'));
 }
+export function safePagesAssetPaths(message=''){
+ const paths=['index.html','hq_store_onboarding_ui.js','operations_v1.js'];
+ if(message.includes('[QA1243-TEMP-OWNER-PAGES]'))paths.push('owner_temp_activation.html','owner_temp_activation.js');
+ return paths;
+}
 async function verifySafePagesOnLiveMain(repo,token){
  const [publishes,readbacks]=await Promise.all([
    fetchWorkflowRuns(repo,'p0-pages-deploy.yml',token),
@@ -246,7 +251,7 @@ async function verifySafePagesOnLiveMain(repo,token){
     'Independent HTTP readback of live index.html and owner-ready JS digest');
   if(!publishPass||!independentPass)continue;
   const hash={};let allMatch=true;
-  for(const name of ['index.html','hq_store_onboarding_ui.js','operations_v1.js']){
+  for(const name of safePagesAssetPaths(published.head_commit?.message)){
    const u='https://koith.github.io/attendance-proto/'+name+'?qa1243_prelaunch_readback='+Date.now();
    const r=await fetch(u,{redirect:'error',headers:{'cache-control':'no-cache'},signal:AbortSignal.timeout(20000)});
    if(r.status!==200){allMatch=false;break;}

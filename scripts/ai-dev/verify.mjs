@@ -39,6 +39,7 @@ if(mode==='unit') {
  fs.writeFileSync('live-resume.json',JSON.stringify(result,null,2)+'\n');
  const drill=JSON.parse(run('scripts/ai-dev/rehearsal.mjs',repository,String(issue)));
  if(drill.result!=='PASS')throw Error('LIVE_RECOVERY_REHEARSAL_FAILED');
+ console.log('RECOVERY_REHEARSAL '+JSON.stringify(drill));
  fs.writeFileSync('recovery-rehearsal.json',JSON.stringify(drill,null,2)+'\n');
 }else throw Error('UNKNOWN_VERIFICATION_MODE');
 if(!process.env.GITHUB_RUN_ID){console.log('LOCAL_QA_PASS; no live Actions receipt emitted');process.exit(0);}

@@ -189,7 +189,7 @@ jobs:
       - name: Independently read existing QA and deployment evidence (report only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/ai-dev/report.mjs > acceptance-report.json
+        run: node scripts/ai-dev/report.mjs | tee acceptance-report.json
       - name: Summarize without blocking an existing release
         run: |
           node -e 'const r=require("./acceptance-report.json");require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY,"AI acceptance report-only: "+r.status+"\n\n"+JSON.stringify(r,null,2)+"\n")'
