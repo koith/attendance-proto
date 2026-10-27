@@ -100,7 +100,7 @@ try{
   try{await refreshOwnerSession();}catch(refreshError){forgetPending();throw refreshError;}
   await verifyOwner();
  }
- description.textContent=claim.email+" · 지점 번호 "+claim.store_id+(nativeOwner?" · 인증 링크 만료 ":" · 임시 비밀번호 만료 ")+new Date(claim.expires_at).toLocaleString("ko-KR");
+ description.textContent=claim.email+" · 지점 번호 "+claim.store_id+(nativeOwner?" · 초대 유효기한 ":" · 임시 비밀번호 만료 ")+new Date(claim.expires_at).toLocaleString("ko-KR");
  status.textContent="본인 비밀번호를 설정하면 지점 대표 관리자 권한이 활성화됩니다.";
  form.hidden=false;
 }catch(e){

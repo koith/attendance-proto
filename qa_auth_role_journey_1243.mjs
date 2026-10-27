@@ -186,6 +186,11 @@ try{
  console.log('PASS canceled unconfirmed owner: new invite preserves original UID and opens only after personal password');
  const noPasswordEmail='confirmed-passwordless@journey1243.invalid';
  const passwordless=await success(http(AUTH,'/admin/users',service,{email:noPasswordEmail,email_confirm:true}));uuid(passwordless.id);
+ // GoTrue admin create auto-generates a hash even when password is omitted.
+ // Model a pre-existing provider-only/passwordless identity in THIS isolated DB;
+ // all following recovery email, password save, login JWT and RPC calls are real.
+ sql(`UPDATE auth.users SET encrypted_password=NULL WHERE id='${uuid(passwordless.id)}'`);
+ assert.equal(sql(`SELECT encrypted_password IS NULL FROM auth.users WHERE id='${uuid(passwordless.id)}'`),'t');
  const passwordlessGate=await success(rpc('service_store_invitation_dispatch_preflight',{
   p_store_id:706,p_email:noPasswordEmail,p_actor_id:hq.id,p_mode:'HQ_OWNER'},service));
  assert.equal(passwordlessGate.delivery,'RECOVERY');assert.equal(passwordlessGate.user_id,passwordless.id);
