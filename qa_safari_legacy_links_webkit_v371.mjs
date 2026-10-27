@@ -61,6 +61,13 @@ async function runScenario(path){
   if(path==='/rest/v1/rpc/pos_public_staff_picker'||
      path==='/rest/v1/rpc/pos_public_staff_cards')
    return route.fulfill({status:200,headers,body:'[]'});
+  // A POS kiosk may probe its own scoped attendance state before receiving
+  // a kiosk PIN. This is not a manager RPC; its unverified access is denied.
+  if(path==='/rest/v1/rpc/pos_employees_state'){
+   assert.ok(!String(request.headers()['authorization']||'').includes(expiredJwt),
+     'Invalidated manager JWT must never authorize a POS state request');
+   return route.fulfill({status:401,headers,body:JSON.stringify({message:'POS_AUTH_REQUIRED'})});
+  }
   call.deniedPrivileged++;
   call.unrecognizedPaths.push(path);
   return route.fulfill({status:401,headers,body:JSON.stringify({code:'not_authorized'})});
