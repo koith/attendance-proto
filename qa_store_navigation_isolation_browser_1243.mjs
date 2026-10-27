@@ -14,7 +14,7 @@ for(const engine of [chromium,webkit]){
     // synthetic browser. v0.371 rejects malformed/expired saved sessions,
     // which are tested independently by Safari legacy-link regression.
     const payload={exp:Math.floor(Date.now()/1000)+7200,sub:'synthetic-owner'};
-    const encoded=btoa(JSON.stringify(payload)).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');
+    const encoded=btoa(JSON.stringify(payload)).split('+').join('-').split('/').join('_').replace(/=+$/,'');
     localStorage.setItem('baekeok_auth',JSON.stringify({
      access_token:'synthetic.'+encoded+'.signature',refresh_token:'synthetic-refresh'
     }));
