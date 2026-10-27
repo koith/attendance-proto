@@ -841,7 +841,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.366">v0.366</button></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.367">v0.367</button></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -938,7 +938,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.366";
+const APP_VERSION="v0.367";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1764,7 +1764,7 @@ function route(){
       view.innerHTML='<div class="empty" role="alert"><b>지점 서버 연결이 지연되고 있습니다.</b><p>네트워크를 확인한 뒤 다시 시도하세요. 출퇴근 기록은 연결되기 전까지 저장되지 않습니다.</p><button type="button" class="btn btn-primary" id="retryStoreConnect">다시 연결</button></div>';
       document.getElementById("retryStoreConnect")?.addEventListener("click",retryStoreStartup);
     }else{
-      view.innerHTML='<div class="empty"><b>지점 운영 준비 중</b><p>해당 지점은 운영 승인이 완료되지 않았거나 상태를 확인할 수 없습니다. 본사에 문의하세요.</p></div>';
+      view.innerHTML='<div class="empty"><b>지점 운영 준비 중</b><p>관리자 계정 등록과 지점 운영 승인은 별도 단계입니다.</p><p>비밀번호 설정과 관리자 등록을 완료했다면 다시 설정하거나 초대 메일을 요청할 필요가 없습니다.</p><p>본사에서 지점 개통 승인과 운영 상태를 확인한 뒤 운영 메뉴를 이용할 수 있습니다.</p></div>';
     }
     return;
   }

@@ -13,7 +13,7 @@ async function get(path){const r=await fetch(root+path+'?v=qa1243-owner-resume-'
 async function baseline(){return Object.fromEntries(await Promise.all(unchanged.map(async p=>[p,digest(await get(p))])));}
 async function published(){
  const expected=Object.fromEntries(changed.map(p=>[p,digest(readFileSync(p,'utf8'))]));
- assert.match(readFileSync('index.html','utf8'),/const APP_VERSION="v0\.364";/);
+ assert.match(readFileSync('index.html','utf8'),/const APP_VERSION="v0\.(?:364|367)";/);
  for(let n=0;n<18;n++){
   const actual=Object.fromEntries(await Promise.all(changed.map(async p=>[p,digest(await get(p))])));
   if(changed.every(p=>actual[p]===expected[p]))return actual;
@@ -25,5 +25,7 @@ const mode=process.argv[2];
 if(mode==='--before'){writeFileSync(record,JSON.stringify(await baseline()));console.log('TEMP_OWNER_PAGES_BASELINE_CAPTURED');}
 else if(['--after','--independent'].includes(mode)){
  const proof=await published();if(mode==='--after')assert.deepEqual(await baseline(),JSON.parse(readFileSync(record,'utf8')));
- console.log('TEMP_OWNER_V364_PAGES_PASS '+JSON.stringify({mode,proof,operatingDataWrite:false,mailSent:false}));
+ console.log('TEMP_OWNER_PAGES_PASS '+JSON.stringify({mode,proof,
+  appVersion:readFileSync('index.html','utf8').match(/const APP_VERSION="([^"]+)";/)?.[1],
+  operatingDataWrite:false,mailSent:false}));
 }else throw Error('READBACK_MODE_REQUIRED');
