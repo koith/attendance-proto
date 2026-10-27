@@ -4,8 +4,11 @@ import {readFileSync} from 'node:fs';
 import {assertHqReinviteRelease,REINVITE_BASE,REINVITE_ASSETS} from '../scripts/qa1243_hq_reinvite_release.mjs';
 const files=Object.keys(REINVITE_ASSETS).map(filename=>({filename,status:'modified'}));
 const message='[QA1243-OWNER-REINVITE] [QA1243-APP-PAGES] [QA1243-NO-OPERATING-WRITE] [QA1243-NO-GOOGLE-RERUN]';
-test('the reviewed static release preserves all old navigation and operating code',()=>{
- assert.equal(assertHqReinviteRelease(files,message,REINVITE_BASE),true);
+test('frozen v0.370 release guard rejects the newer v0.371 application',()=>{
+ // Historical release digests must remain immutable. Never rehash the old
+ // approved v0.370 release or broaden that privileged release allowance.
+ assert.match(readFileSync('index.html','utf8'),/const APP_VERSION="v0\.371"/);
+ assert.throws(()=>assertHqReinviteRelease(files,message,REINVITE_BASE),/HQ_REINVITE_ASSET_BYTES/);
 });
 test('all markers, exact current main and all three reviewed assets are mandatory',()=>{
  for(const marker of message.split(' '))assert.throws(()=>assertHqReinviteRelease(files,message.replace(marker,''),REINVITE_BASE),/MARKER/);
