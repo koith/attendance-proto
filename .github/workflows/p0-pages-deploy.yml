@@ -754,7 +754,7 @@ jobs:
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
           if [[ "${{ contains(github.event.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}" == "true" ]]; then
-            node scripts/qa1243_legacy_pages_assets.mjs --before ${{ contains(github.event.head_commit.message, '[QA1243-OWNER-PASSWORD-FEEDBACK]') && '--owner-password-feedback' || '' }} ${{ contains(github.event.head_commit.message, '[QA1243-ASSISTANT-ATTENDANCE]') && '--assistant-attendance' || '' }}
+            node scripts/qa1243_legacy_pages_assets.mjs --before ${{ contains(github.event.head_commit.message, '[QA1243-OWNER-PASSWORD-FEEDBACK]') && '--owner-password-feedback' || '' }} ${{ contains(github.event.head_commit.message, '[QA1243-ASSISTANT-ATTENDANCE]') && '--assistant-attendance' || '' }} ${{ contains(github.event.head_commit.message, '[QA1243-PROTECTED-TAB-ENTRY]') && '--protected-tab-entry' || '' }}
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-REINVITE]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --before --reinvite
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-OPENING]') }}" == "true" ]]; then
@@ -789,7 +789,7 @@ jobs:
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
           if [[ "${{ contains(github.event.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}" == "true" ]]; then
-            node scripts/qa1243_legacy_pages_assets.mjs --after ${{ contains(github.event.head_commit.message, '[QA1243-OWNER-PASSWORD-FEEDBACK]') && '--owner-password-feedback' || '' }} ${{ contains(github.event.head_commit.message, '[QA1243-ASSISTANT-ATTENDANCE]') && '--assistant-attendance' || '' }}
+            node scripts/qa1243_legacy_pages_assets.mjs --after ${{ contains(github.event.head_commit.message, '[QA1243-OWNER-PASSWORD-FEEDBACK]') && '--owner-password-feedback' || '' }} ${{ contains(github.event.head_commit.message, '[QA1243-ASSISTANT-ATTENDANCE]') && '--assistant-attendance' || '' }} ${{ contains(github.event.head_commit.message, '[QA1243-PROTECTED-TAB-ENTRY]') && '--protected-tab-entry' || '' }}
             node scripts/qa1243_legacy_pages_readback.mjs
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-REINVITE]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --after --reinvite

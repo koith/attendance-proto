@@ -27,9 +27,9 @@ async function run(live,fail=false) {
     async myEvents(){throw Error('should not fetch records before PIN');}
   };
   const storage={removeItem(k){assert.equal(k,'staff_attendance_auth');},getItem(){return null;}};
-  const open=(new Function('BE','LIVE','sessionStorage','mrShowAuth','toast','mrRange','location',
+  const open=(new Function('BE','LIVE','sessionStorage','mrShowAuth','toast','mrRange','location','document',
     block+'\nreturn openMyRecord;'))(
-      BE,live,storage,(e,id)=>{shown={e,id};},(...args)=>{error=args;},()=>({fs:'',ts:''}),{href:''}
+      BE,live,storage,(e,id)=>{shown={e,id};},(...args)=>{error=args;},()=>({fs:'',ts:''}),{href:''},{getElementById:()=>null}
   );
   await open();
   return {publicCount,privateCount,shown,error};

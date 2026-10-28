@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'index.html'
+      - 'recipe_access_v220.js'
+      - 'qa_protected_tab_entry_v378.mjs'
+      - 'tests/qa1243_protected_tab_entry.test.mjs'
       - 'store_limited_manager.js'
       - 'store_manager_ui_v376.css'
       - 'qa_assistant_ux_v376.mjs'
@@ -71,6 +74,8 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --no-save --no-audit --no-fund playwright@1.55.1
+      - run: node --test tests/qa1243_protected_tab_entry.test.mjs
+      - run: node qa_protected_tab_entry_v378.mjs
       - run: node qa_admin_account_menu_v222.mjs
       - run: node qa_store_admin_tabs_policy_v1.mjs
       - run: node qa_assistant_permissions_browser_v375.mjs
@@ -81,6 +86,7 @@ jobs:
         with:
           name: assistant-permissions-browser
           path: |
+            qa-results/protected-tab-entry-v378
             qa-results/assistant-permissions
             qa-results/assistant-ux-v376
             qa-results/assistant-attendance

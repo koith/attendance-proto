@@ -195,6 +195,7 @@
   // Editing remains routed only through manager-authenticated RPCs.
   async function renderRecipeHub(){
     view.innerHTML='<div class="recipe-v220-loading">레시피를 불러오는 중…</div>';
+    const entry=view.firstElementChild;
     try{
       let manager=false;
       if(LIVE&&Auth.isLoggedIn()){
@@ -203,8 +204,10 @@
       const visible=manager
         ?await BE.storeRecipeList(CURRENT_STORE_ID)
         :await BE.publicStoreRecipeList(CURRENT_STORE_ID);
+      if(!entry.isConnected)return;
       renderList(visible,manager);
     }catch(error){
+      if(!entry.isConnected)return;
       view.innerHTML='<div class="recipe-v220-empty">레시피를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'+
         '<p><button type="button" class="btn btn-secondary" id="rvRetry">다시 시도</button></p></div>';
       document.getElementById('rvRetry').onclick=()=>renderRecipeHub();
