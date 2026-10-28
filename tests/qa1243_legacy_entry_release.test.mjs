@@ -26,3 +26,15 @@ test('both publication and Google exclusion validate the same reviewed repair sc
  assert.match(independent,/qa1243_legacy_pages_readback/);assert.match(independent,/qa_legacy_entry_browser_v372\.mjs --live/);
  assert.match(readFileSync('.github/workflows/p0-pages-deploy.yml','utf8'),/qa1243_legacy_release_manifest/);
 });
+
+
+test('deployed v0.373 evidence repair cannot republish or change operating source',()=>{
+ const markers='[QA1243-LEGACY-ENTRY] [QA1243-LEGACY-EVIDENCE] [QA1243-NO-OPERATING-WRITE] [QA1243-NO-GOOGLE-RERUN]';
+ const parent='7087f7c1c9ffaa3f1e09e91ebc0f4a57d7383265';
+ const qa=[{filename:'qa_legacy_entry_browser_v372.mjs',status:'modified'}];
+ assert.equal(assertLegacyEntryRelease(qa,markers,parent),true);
+ assert.throws(()=>assertLegacyEntryRelease(qa,markers+' [QA1243-APP-PAGES]',parent),/PARENT/);
+ assert.throws(()=>assertLegacyEntryRelease([...qa,{filename:'index.html',status:'modified'}],markers,parent),/SCOPE/);
+ assert.throws(()=>assertLegacyEntryRelease(qa,markers,parent,{read:p=>readFileSync(p,'utf8')+'changed'}),/BYTES/);
+ assert.throws(()=>assertLegacyEntryRelease(qa,markers,parent.replace(/^7/,'8')),/PARENT/);
+});
