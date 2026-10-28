@@ -33,7 +33,7 @@ async function prepare(context,profile){
   if(localStorage.getItem('qa_legacy_seeded'))return;
   localStorage.setItem('qa_legacy_seeded','1');localStorage.setItem('qa_preserve','unchanged');
   sessionStorage.setItem('baekeok_store_id','80');sessionStorage.setItem('baekeok_store_name','1호점');
-  if(profile!=='fresh'&&profile!=='store-network')localStorage.setItem('baekeok_auth',JSON.stringify({access_token:token,...(['reused-refresh','hosted-rejected-refresh'].includes(profile)?{refresh_token:'qa1243-invalid-refresh-no-user-v373'}:{})}));
+  if(profile!=='fresh'&&profile!=='store-network')localStorage.setItem('baekeok_auth',JSON.stringify({access_token:token,...(['reused-refresh','hosted-rejected-refresh'].includes(profile)?{refresh_token:'qa1243v373xx'}:{})}));
  },{profile,token:jwt(Math.floor(Date.now()/1000)+(profile.startsWith('expired')||['reused-refresh','hosted-rejected-refresh'].includes(profile)?-3600:3600))});
 }
 async function visit(browser,engine,path,profile,storageState){
@@ -52,7 +52,7 @@ async function visit(browser,engine,path,profile,storageState){
    if(u.pathname==='/auth/v1/token'){
     assert.equal(profile,'hosted-rejected-refresh');assert.equal(req.method(),'POST');
     assert.equal(u.search,'?grant_type=refresh_token');
-    assert.deepEqual(JSON.parse(req.postData()),{refresh_token:'qa1243-invalid-refresh-no-user-v373'});
+    assert.deepEqual(JSON.parse(req.postData()),{refresh_token:'qa1243v373xx'});
     const response=await route.fetch({timeout:15000});const body=await response.json();
     assert.equal(response.status(),400);assert.equal(body.error_code,'refresh_token_not_found');
     hostedRejection={status:response.status(),numericCode:body.code,errorCode:body.error_code};
@@ -140,5 +140,5 @@ try{
  }
 }finally{await Promise.allSettled([...activeBrowsers].map(b=>b.close()));if(server)await new Promise(done=>server.close(done));}
 mkdirSync('qa-results',{recursive:true});
-writeFileSync('qa-results/legacy-entry-v372-'+(live?'live':'fixture')+'.json',JSON.stringify({commit:process.env.GITHUB_SHA,scope:live?'DEPLOYED_URL_READ_ONLY':'REAL_APPLICATION_SYNTHETIC_NETWORK',operatingWrite:false,report},null,2));
+writeFileSync('qa-results/legacy-entry-v372-'+(live?'live':'fixture')+'.json',JSON.stringify({commit:process.env.GITHUB_SHA,harnessCommit:process.env.QA1243_HARNESS_SHA||process.env.GITHUB_SHA,scope:live?'DEPLOYED_URL_READ_ONLY':'REAL_APPLICATION_SYNTHETIC_NETWORK',operatingWrite:false,report},null,2));
 console.log('LEGACY_ENTRY_'+(live?'DEPLOYED':'FIXTURE')+'_PASS '+JSON.stringify({count:report.length,version:expectedVersion,operatingWrite:false,report}));

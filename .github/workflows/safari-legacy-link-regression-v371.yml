@@ -49,12 +49,21 @@ jobs:
         run: node qa_safari_legacy_links_webkit_v371.mjs
       - name: Legacy HQ and Inha recovery on both browser engines
         run: node qa_legacy_entry_browser_v372.mjs
+      # One-time evidence correction: pinned existing Pages release, no app deployment.
+      - name: Actual Hosted rejected-refresh recovery on the already deployed v0.373
+        if: github.event_name == 'pull_request' && github.head_ref == 'fix/qa1243-live-refresh-fixture'
+        run: |
+          GITHUB_SHA=7087f7c1c9ffaa3f1e09e91ebc0f4a57d7383265 node scripts/qa1243_legacy_pages_readback.mjs
+          QA1243_HARNESS_SHA="${{ github.event.pull_request.head.sha }}" GITHUB_SHA=7087f7c1c9ffaa3f1e09e91ebc0f4a57d7383265 node qa_legacy_entry_browser_v372.mjs --live
       - name: Retain exact case evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: legacy-entry-fixture-proof
-          path: qa-results/legacy-entry-v372-fixture.json
+          path: |
+            qa-results/legacy-entry-v372-fixture.json
+            qa-results/legacy-entry-v372-live.json
+            qa-results/legacy-entry-public-readback.json
       - name: Operate without access to production data
         if: always()
         run: echo 'The WebKit harness serves local Pages files and intercepts all external network. Production Auth and store database are not accessed or written.' >> "$GITHUB_STEP_SUMMARY"
