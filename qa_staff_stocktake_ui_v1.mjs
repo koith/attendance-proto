@@ -4,8 +4,8 @@ const app=fs.readFileSync('index.html','utf8');
 const staff=fs.readFileSync('operations_staff_stocktake_v1.js','utf8');
 const manager=fs.readFileSync('operations_stocktake_v1.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261019082000_staff_stocktake_proposals.sql','utf8');
-assert.match(app,/const APP_VERSION="v0\.350"/);
-assert.match(app,/operations_staff_stocktake_v1\.js\?v=20261019v350/);
+assert.match(app,/const APP_VERSION="v0\.374"/);
+assert.match(app,/operations_staff_stocktake_v1\.js\?v=20261028v374/);
 assert.match(app,/operations_stocktake_v1\.js\?v=20261019v340/);
 assert.match(app,/id="staffCountOpen"/);
 assert.match(app,/window\.openStaffStocktake\?\.\(\)/);
@@ -38,7 +38,7 @@ assert.equal(upsert(selected,item,'0'),1,'measured physical zero valid');
 assert.equal(selected.get(11).counted_quantity,0);
 assert.equal(upsert(selected,item,'12.125'),1,'unsaved count update not duplicate');
 for(const bad of ['',' ','-1','12.1234','Infinity','NaN','1e4','1000000001']){
- assert.throws(()=>upsert(selected,item,bad),/실사 수량/);
+ assert.throws(()=>upsert(selected,item,bad),/수량/);
  assert.equal(selected.get(11).counted_quantity,12.125);
 }
 assert.throws(()=>upsert(selected,undefined,'2'),/표준 품목/);

@@ -826,6 +826,7 @@
 @media(max-width:640px){.hq-owner-filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:6px!important;margin:7px 0!important}.hq-owner-filters .form-control{width:100%!important;min-width:0!important;height:38px!important;min-height:38px!important;padding:6px 9px!important;font-size:.82rem!important}.hq-owner-quicknav{margin:5px 0 7px!important;gap:5px!important}.hq-owner-quicknav button{min-height:34px!important;padding:5px 7px!important;font-size:.77rem!important}.hq-owner-list{max-height:320px!important}.hq-owner-row{min-height:40px!important;padding:6px 10px!important}.hq-owner-detail{margin-top:8px!important}}
 </style>
 <link rel="stylesheet" href="operations_v1.css?v=20261019v345">
+<link rel="stylesheet" href="operations_staff_stocktake_v1.css?v=20261028v374">
 <link rel="stylesheet" href="recipe_access_v220.css?v=20261001v096">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js?v=20260926p" defer></script>
@@ -915,7 +916,7 @@
 <script src="operations_sale_sku_preview_v1.js?v=20261019v341"></script>
 <script src="operations_reconciliation_v1.js?v=20261020v351"></script>
 <script src="operations_stocktake_v1.js?v=20261019v340"></script>
-<script src="operations_staff_stocktake_v1.js?v=20261019v350"></script>
+<script src="operations_staff_stocktake_v1.js?v=20261028v374"></script>
 <script src="operations_inventory_age_v1.js?v=20261018v326"></script>
 <script src="operations_supplier_handoff_v1.js?v=20261019v343"></script>
 <script src="operations_reference_ui_v208.js?v=20261019v344"></script>
@@ -2032,7 +2033,7 @@ function posAccessKey(){return "baekeok_pos_kiosk_"+Number(CURRENT_STORE_ID||1)}
 function posAccessToken(){try{return sessionStorage.getItem(posAccessKey())||""}catch(_){return ""}}
 function posClearAccessToken(){try{sessionStorage.removeItem(posAccessKey())}catch(_){}}
 async function renderPos(){
-  view.innerHTML=`<div class="pos-screen"><div class="page-title-row pos-page-title"><h2 class="page-title">출퇴근</h2><span class="page-title-meta" id="empCount">총 0명</span></div><div class="ops-head-actions" style="margin:0 0 12px;display:flex;justify-content:flex-start"><button class="btn btn-secondary btn-sm" type="button" id="staffCountOpen">근무 중 직원 재고 실사</button></div><div class="grid employee-scroll-surface" id="empGrid"></div></div>`;
+  view.innerHTML=`<div class="pos-screen"><div class="page-title-row pos-page-title"><h2 class="page-title">출퇴근</h2><span class="page-title-meta" id="empCount">총 0명</span></div><div class="ops-head-actions" style="margin:0 0 12px;display:flex;justify-content:flex-start"><button class="btn btn-secondary btn-sm" type="button" id="staffCountOpen">재고 파악(직원용)</button></div><div class="grid employee-scroll-surface" id="empGrid"></div></div>`;
   document.getElementById("staffCountOpen").onclick=()=>window.openStaffStocktake?.();
   const grid=document.getElementById("empGrid");
   let adminMode=false;

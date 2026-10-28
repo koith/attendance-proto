@@ -13,6 +13,8 @@ const server=http.createServer((req,res)=>{
  if(path==='/owner_activation.html')res.end(html);
  else if(path==='/owner_activation.js')res.end(script);
  else if(path==='/index.html')res.end(config);
+ else if(path==='/owner_onboarding_v1.css'){res.setHeader('Content-Type','text/css');res.end(readFileSync('owner_onboarding_v1.css'));}
+ else if(path==='/logo_combine.jpg'){res.setHeader('Content-Type','image/jpeg');res.end(readFileSync('logo_combine.jpg'));}
  else{res.statusCode=404;res.end();}
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
