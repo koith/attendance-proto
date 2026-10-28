@@ -1848,11 +1848,12 @@ function isHiddenInhaTestEmployee(e){
 }
 function adminSubnav(active,limited=false){
   // 인하대점은 전체 운영 탭을 표시하고, 나머지 지점은 공개된 세 개 탭만 표시한다.
-  const tabs=limited?[["admin","내 업무"]]:Number(CURRENT_STORE_ID)===1
+  const tabs=Number(CURRENT_STORE_ID)===1
     ? [["report","리포트"],["admin","직원 관리"],["pay","급여"],["hours","운영시간"],["sales","매출·매입"],["inventory","재고"]]
     : [["admin","직원 관리"],["pay","급여"],["hours","운영시간"]];
+  const visibleTabs=limited?[["admin","내 업무"]]:tabs;
   const accountIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>';
-  return '<div class="admin-subnav-shell"><div class="tabs admin-subtabs admin-subtabs-wide">'+tabs.map(([k,n])=>'<a href="#'+k+'" class="'+(active===k?"on":"")+'">'+n+'</a>').join("")+'</div><button type="button" class="admin-account-trigger" id="adminAccountTrigger" aria-label="관리자 계정 메뉴" aria-haspopup="true" aria-expanded="false">'+accountIcon+'</button><div class="admin-account-popover" id="adminAccountPopover" role="menu" hidden><div class="admin-account-label">로그인 계정</div><div class="admin-account-email" id="adminAccountEmail">불러오는 중…</div><div class="admin-account-actions"><button type="button" class="btn btn-secondary" id="adminAccountSettings">설정</button><button type="button" class="btn btn-secondary" id="adminAccountLogout">로그아웃</button></div></div></div>';
+  return '<div class="admin-subnav-shell"><div class="tabs admin-subtabs admin-subtabs-wide">'+visibleTabs.map(([k,n])=>'<a href="#'+k+'" class="'+(active===k?"on":"")+'">'+n+'</a>').join("")+'</div><button type="button" class="admin-account-trigger" id="adminAccountTrigger" aria-label="관리자 계정 메뉴" aria-haspopup="true" aria-expanded="false">'+accountIcon+'</button><div class="admin-account-popover" id="adminAccountPopover" role="menu" hidden><div class="admin-account-label">로그인 계정</div><div class="admin-account-email" id="adminAccountEmail">불러오는 중…</div><div class="admin-account-actions"><button type="button" class="btn btn-secondary" id="adminAccountSettings">설정</button><button type="button" class="btn btn-secondary" id="adminAccountLogout">로그아웃</button></div></div></div>';
 }
 async function mountAdminSubnav(active,limited=false){
   if(window._adminAccountMenuCleanup){window._adminAccountMenuCleanup();window._adminAccountMenuCleanup=null}
