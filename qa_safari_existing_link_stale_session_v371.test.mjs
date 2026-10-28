@@ -12,6 +12,8 @@ const bootEnd=html.indexOf('// Any database/user-controlled',bootStart);
 assert.ok(authStart>0&&authEnd>authStart&&bootStart>authEnd&&bootEnd>bootStart);
 const authSource=html.slice(authStart,authEnd);
 const bootSource=html.slice(bootStart,bootEnd);
+const helperStart=html.indexOf('function setStartupConnection('),helperEnd=html.indexOf('if(STORE_ENTRY_UNAVAILABLE)',helperStart);
+const startupHelpers=html.slice(helperStart,helperEnd);
 const AUTH_URL='https://supabase.qa.invalid';
 
 function memoryStore(initial={}){
@@ -27,7 +29,7 @@ function jwt(exp,subject='test-owner'){
  return 'test.'+Buffer.from(JSON.stringify({exp,sub:subject})).toString('base64url')+'.signature';
 }
 const nowSeconds=()=>Math.floor(Date.now()/1000);
-function browser({expiry=nowSeconds()-120,refreshResult='invalid',hasRefresh=true,sessionRole='HQ',storeId=1,locked=true}={}){
+function browser({expiry=nowSeconds()-120,refreshResult='invalid',hasRefresh=true,refreshCode='invalid_grant',sessionRole='HQ',storeId=1,locked=true}={}){
  const oldSession={
   access_token:jwt(expiry),
   ...(hasRefresh?{refresh_token:'synthetic-old-refresh'}:{}),
@@ -44,7 +46,7 @@ function browser({expiry=nowSeconds()-120,refreshResult='invalid',hasRefresh=tru
   if(refreshResult==='valid')return {ok:true,status:200,json:async()=>({
    access_token:jwt(nowSeconds()+3600),refresh_token:'synthetic-rotated-refresh',expires_in:3600
   })};
-  return {ok:false,status:400,json:async()=>({code:'invalid_grant'})};
+  return {ok:false,status:400,json:async()=>({code:refreshCode})};
  };
  const Auth=new Function('localStorage','CONFIG','fetch','AbortController','setTimeout','clearTimeout','atob',
   authSource+';return Auth;')(localStorage,{SUPABASE_URL:AUTH_URL,SUPABASE_ANON_KEY:'public-fixture'},fetch,
@@ -65,6 +67,8 @@ function browser({expiry=nowSeconds()-120,refreshResult='invalid',hasRefresh=tru
  };
  const BE={async adminContext(){
   adminCall++;
+  if(sessionRole==='superseded')throw Object.assign(new Error('SESSION_SUPERSEDED'),{httpStatus:403,sessionRevoked:true});
+  if(sessionRole==='forbidden')throw Object.assign(new Error('NOT_AUTHORIZED'),{httpStatus:403});
   if(sessionRole==='unauthorized')throw Object.assign(new Error('401'),{httpStatus:401});
   if(sessionRole==='network')throw new TypeError('synthetic failed browser request');
   if(sessionRole==='wrong-role')return {role:'STAFF'};
@@ -74,7 +78,7 @@ function browser({expiry=nowSeconds()-120,refreshResult='invalid',hasRefresh=tru
  const fn=new Function(
   'LIVE','Auth','BE','STORE_ENTRY_LOCK','STORE_ENTRY_ID','STORE_ENTRY_INVALID',
   'location','document','sessionStorage','publicRpc','syncStoreContextUI','safeHtml','syncStoreSelectDisplay',
-  'let STORE_ENTRY_UNAVAILABLE=STORE_ENTRY_LOCK;\nlet STORE_ENTRY_CONNECTION_FAILED=false;\nlet CURRENT_STORE_ID=STORE_ENTRY_ID||1;\nlet STORE_NAME_BY_ID=new Map();\n'+bootSource+
+  'let STORE_ENTRY_UNAVAILABLE=STORE_ENTRY_LOCK;\nlet STORE_ENTRY_CONNECTION_FAILED=false;\nlet CURRENT_STORE_ID=STORE_ENTRY_ID||1;\nlet STORE_NAME_BY_ID=new Map();\nlet STORE_ENTRY_FAILURE_KIND="",STORE_ENTRY_PHASE="STORE";\n'+startupHelpers+bootSource+
   '\nreturn {loadStores,getState:()=>({unavailable:STORE_ENTRY_UNAVAILABLE,failed:STORE_ENTRY_CONNECTION_FAILED,current:CURRENT_STORE_ID})};'
  );
  const ui={updates:0};
@@ -163,3 +167,24 @@ test('startup still requires ACTIVE store; no synthetic READY bypass',()=>{
 });
 
 console.log('Safari existing-link session bootstrap tests PASS');
+
+for(const refreshCode of ['refresh_token_already_used','refresh_token_reuse_detected']){
+ test('legacy Safari recovers a conclusively rejected rotated refresh: '+refreshCode,async()=>{
+  const b=browser({refreshCode});await b.runner.loadStores();
+  assert.equal(b.Auth.isLoggedIn(),false);
+  assert.equal(b.runner.getState().failed,false);
+  assert.equal(b.stats().listCount,1);
+ });
+}
+
+test('confirmed superseded session returns to authorized public entry without a failed refresh loop',async()=>{
+ const b=browser({expiry:nowSeconds()+3600,sessionRole:'superseded'});
+ await b.runner.loadStores();assert.equal(b.Auth.isLoggedIn(),false);
+ assert.equal(b.runner.getState().failed,false);assert.equal(b.stats().listCount,1);
+ assert.equal(b.stats().refreshCall,0);
+});
+test('forbidden account never degrades into an unrelated public store',async()=>{
+ const b=browser({expiry:nowSeconds()+3600,sessionRole:'forbidden'});
+ await b.runner.loadStores();assert.equal(b.Auth.isLoggedIn(),true);
+ assert.equal(b.stats().listCount,0);assert.equal(b.runner.getState().unavailable,true);
+});

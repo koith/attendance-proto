@@ -14,7 +14,7 @@ function fixture({search='',saved='1',context={role:'STORE_MANAGER',store_id:80}
   // Valid manager fixture: v0.371 checks session freshness before loading admin_context.
   Auth:{token:'synthetic-token',load(){},isLoggedIn:()=>true,ensureStartupAuth:async()=>true},
   rpc:async(name,args)=>{calls.push({name,args});if(context instanceof Error)throw context;return context},
-  document:{querySelector:()=>({textContent:''})},
+  document:{getElementById:()=>null,querySelector:()=>({textContent:''})},setTimeout,clearTimeout,
   el:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id)},
   kstToday:()=>new Date(2026,9,27),p2:n=>String(n).padStart(2,'0'),loadMonth(){}};
  const ctx=vm.createContext(sandbox);if(helper)vm.runInContext(helper,ctx);
@@ -50,6 +50,8 @@ async function accountBoundary({entry=0,context={role:'STORE_MANAGER',store_id:8
  const {ctx}=fixture();Object.assign(ctx,{LIVE:true,STORE_ENTRY_ID:entry,STORE_ENTRY_LOCK:entry>0,
   STORE_ENTRY_UNAVAILABLE:false,STORE_ENTRY_CONNECTION_FAILED:false,BE:{adminContext:async()=>{
    if(context instanceof Error)throw context;return context;}}});
+ const helperStart=html.indexOf('function setStartupConnection('),helperEnd=html.indexOf('if(STORE_ENTRY_UNAVAILABLE)',helperStart);
+ vm.runInContext(html.slice(helperStart,helperEnd),ctx);
  vm.runInContext(startup,ctx);const result=await vm.runInContext('loadStores()',ctx);return {ctx,result};
 }
 test('a signed-in manager entering a generic or foreign URL redirects before any public store lookup',async()=>{

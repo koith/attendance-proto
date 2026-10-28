@@ -3,6 +3,11 @@ on:
   pull_request:
     paths:
       - 'index.html'
+      - 'app_release_probe_v1.js'
+      - 'qa_legacy_entry_browser_v372.mjs'
+      - 'tests/qa1243_release_probe.test.mjs'
+      - 'tests/qa1243_legacy_entry_release.test.mjs'
+      - 'scripts/qa1243_legacy_entry_release.mjs'
       - 'qa_safari_legacy_links_webkit_v371.mjs'
       - 'qa_safari_existing_link_stale_session_v371.test.mjs'
       - '.github/workflows/safari-legacy-link-regression-v371.yml'
@@ -10,6 +15,11 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'app_release_probe_v1.js'
+      - 'qa_legacy_entry_browser_v372.mjs'
+      - 'tests/qa1243_release_probe.test.mjs'
+      - 'tests/qa1243_legacy_entry_release.test.mjs'
+      - 'scripts/qa1243_legacy_entry_release.mjs'
       - 'qa_safari_legacy_links_webkit_v371.mjs'
       - 'qa_safari_existing_link_stale_session_v371.test.mjs'
       - '.github/workflows/safari-legacy-link-regression-v371.yml'
@@ -34,9 +44,17 @@ jobs:
       - name: Node startup and Auth isolation tests
         run: |
           node qa_index_startup_smoke_v1.mjs
-          node --test qa_safari_existing_link_stale_session_v371.test.mjs
+          node --test qa_safari_existing_link_stale_session_v371.test.mjs tests/qa1243_release_probe.test.mjs tests/qa1243_legacy_entry_release.test.mjs
       - name: Reproduce actual iPhone-sized WebKit legacy bookmark after expired admin login
         run: node qa_safari_legacy_links_webkit_v371.mjs
+      - name: Legacy HQ and Inha recovery on both browser engines
+        run: node qa_legacy_entry_browser_v372.mjs
+      - name: Retain exact case evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-entry-fixture-proof
+          path: qa-results/legacy-entry-v372-fixture.json
       - name: Operate without access to production data
         if: always()
         run: echo 'The WebKit harness serves local Pages files and intercepts all external network. Production Auth and store database are not accessed or written.' >> "$GITHUB_STEP_SUMMARY"
