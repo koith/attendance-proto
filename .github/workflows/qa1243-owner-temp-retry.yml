@@ -4,6 +4,7 @@ on:
     paths:
       - 'store_manager_tab.js'
       - 'qa_assistant_permissions_browser_v375.mjs'
+      - 'qa_assistant_attendance_browser_v375.mjs'
       - 'owner_temp_activation.js'
       - 'qa_owner_password_feedback_browser_1243.mjs'
       - 'qa_staff_stocktake_dialog_v374.mjs'
@@ -67,8 +68,11 @@ jobs:
           node-version: '22'
       - run: npm install --no-save --no-audit --no-fund playwright@1.55.1
       - run: node qa_assistant_permissions_browser_v375.mjs
+      - run: node qa_assistant_attendance_browser_v375.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: assistant-permissions-browser
-          path: qa-results/assistant-permissions
+          path: |
+            qa-results/assistant-permissions
+            qa-results/assistant-attendance

@@ -103,7 +103,7 @@ function api(name,body,token,method='POST'){
    permissions.delete(manager.id);
    return {result:{ok:true,revoked:true}};
  }
- if(name==='store_assistant_permissions_set'){
+ if(name==='store_assistant_permissions_set'||name==='store_delegated_permissions_set'){
    if(!isOwner||!scopeOK)return denial();
    const m=[...managers.values()].find(x=>x.id===body.p_user_id&&x.role==='ASSISTANT'&&x.active);
    if(!m)return failing('ACTIVE_ASSISTANT_REQUIRED',409);

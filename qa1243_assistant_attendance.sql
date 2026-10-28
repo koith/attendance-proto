@@ -81,6 +81,7 @@ BEGIN
  ) THEN RAISE EXCEPTION 'EVENT_EMPLOYEE_MISMATCH'; END IF;
  v_actor:=coalesce(auth.jwt()->>'email','admin');
 
+ IF nullif(btrim(coalesce(p_reason,'')),'') IS NULL THEN RAISE EXCEPTION 'CORRECTION_REASON_REQUIRED'; END IF;
  IF p_action='VOID_ADD' THEN
    IF p_event_id IS NULL THEN RAISE EXCEPTION 'CORRECTION_ID_REQUIRED'; END IF;
    SELECT id INTO v_target FROM public.event_corrections
@@ -166,7 +167,7 @@ BEGIN
  THEN RAISE EXCEPTION 'OWNER_PERMISSIONS_IMMUTABLE'; END IF;
  INSERT INTO public.store_delegated_permissions(store_id,user_id,attendance_view,attendance_approve,staff_edit,payroll_view,granted_by)
  VALUES(p_store_id,p_user_id,p_attendance_view OR p_attendance_manage,p_attendance_manage,p_staff_edit,false,auth.uid())
- ON CONFLICT(store_id,user_id) DO UPDATE SET attendance_view=excluded.attendance_view,attendance_approve=excluded.attendance_approve,staff_edit=excluded.staff_edit,payroll_view=false,granted_by=excluded.granted_by;
+ ON CONFLICT(store_id,user_id) DO UPDATE SET attendance_view=excluded.attendance_view,attendance_approve=excluded.attendance_approve,staff_edit=excluded.staff_edit,payroll_view=false,granted_by=excluded.granted_by,changed_at=now();
  RETURN jsonb_build_object('ok',true,'store_id',p_store_id,'user_id',p_user_id);
 END $fn$;
 CREATE OR REPLACE FUNCTION public.store_delegated_permissions_self()
@@ -225,8 +226,16 @@ CREATE OR REPLACE FUNCTION public.store_limited_payroll_read(p_store_id bigint, 
  SET search_path TO 'public', 'pg_temp'
 AS $function$
 BEGIN
- RAISE EXCEPTION 'ASSISTANT_PAYROLL_FORBIDDEN';
-END $function$;
+ IF NOT public.can_manage_store(p_store_id) THEN RAISE EXCEPTION 'ASSISTANT_PAYROLL_FORBIDDEN'; END IF;
+ IF NOT public.store_scope_can(p_store_id,'PAYROLL_VIEW') THEN RAISE EXCEPTION 'NOT_AUTHORIZED'; END IF;
+ IF p_ym !~ '^20[0-9]{2}-(0[1-9]|1[0-2])$' THEN RAISE EXCEPTION 'INVALID_PERIOD'; END IF;
+ RETURN QUERY SELECT p.employee_name,p.gross_pay,p.net_pay,p.base_pay,p.juhyu_pay
+ FROM public.payroll_snapshot p JOIN public.payroll_period pp
+ ON pp.store_id=p.store_id AND pp.ym=p.ym AND pp.status='CLOSED'
+ WHERE p.store_id=p_store_id AND p.ym=p_ym ORDER BY p.employee_name;
+END $function$
+;
+
 CREATE OR REPLACE FUNCTION public.store_scope_can(p_store_id bigint, p_scope text)
  RETURNS boolean
  LANGUAGE sql
@@ -245,7 +254,7 @@ SELECT public.is_hq_admin() OR EXISTS(
  OR CASE p_scope
   WHEN 'STAFF_EDIT' THEN coalesce(d.staff_edit,true)
   WHEN 'ATTENDANCE_APPROVE' THEN coalesce(d.attendance_approve,true)
-  WHEN 'PAYROLL_VIEW' THEN false
+  WHEN 'PAYROLL_VIEW' THEN public.can_manage_store(p_store_id)
   ELSE false END)
 );
 $function$
