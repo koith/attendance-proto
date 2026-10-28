@@ -138,8 +138,8 @@ window.mountStoreManagerTab=function(){
           '<label><input data-allow="attendance" type="checkbox" '+(rights.attendance_approve?'checked':'')+'> 근태 관리 · 기록 정정 및 요청 승인</label>'+
           '<p class="smt-small">급여 정보는 보조 관리자에게 공개되지 않습니다. 직원 관리는 이름·메모 수정에 한정됩니다.</p>'+
           '<p class="smt-small">근태 관리를 켜면 근태 조회도 함께 허용됩니다. 대표 지정·관리자 권한 변경은 대표만 할 수 있습니다.</p>'+
-          '<button type="button" class="btn btn-secondary btn-sm" data-permission-save="'+esc(entry.user_id)+'">권한 변경 저장</button>'+
-          '<button type="button" class="btn btn-secondary btn-sm" data-manager-revoke="'+esc(entry.user_id)+'">이 지점 관리자 해임</button></div>':
+          '<button type="button" class="btn btn-primary" data-permission-save="'+esc(entry.user_id)+'">권한 변경 저장</button>'+
+          '<button type="button" class="btn btn-danger" data-manager-revoke="'+esc(entry.user_id)+'">이 지점 관리자 해임</button></div>':
           '보조 관리자의 허용 업무는 대표 관리자가 설정합니다.';
         return '<details class="smt-member smt-delegate" data-manager-kind="delegate">'+
           '<summary><span class="smt-avatar" aria-hidden="true">♙</span>'+

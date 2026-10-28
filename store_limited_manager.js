@@ -17,14 +17,13 @@ window.mountScopedManagerPortal=async function(scope,storeId){
   if(!target)return;
   if(!Number.isSafeInteger(storeId)||storeId<1){target.textContent="매장 권한을 확인할 수 없습니다.";return;}
   target.innerHTML='<section class="store-manager-limited">'+
-    '<div class="page-title-row"><h2 class="page-title">보조 관리자 업무</h2><button type="button" id="limitedManagerLogout" class="btn btn-secondary">로그아웃</button></div>'+
-    '<p class="muted" style="margin-bottom:12px">대표 점주가 허용한 업무만 사용할 수 있습니다. 권한 변경은 대표 점주에게 문의하세요.</p>'+
-    ((scope.attendance_view||scope.attendance_approve)?'<a class="btn btn-primary" href="actual_attendance.html?store='+storeId+'">전체 직원 근무현황'+(scope.attendance_approve?' 관리':' 조회')+'</a>':'')+
+    '<p class="scoped-manager-intro">대표 관리자가 허용한 업무를 이용할 수 있습니다.</p>'+
+    ((scope.attendance_view||scope.attendance_approve)?'<section class="scoped-work-entry"><div class="scoped-work-copy"><h3>근무현황</h3><p>전체 직원 · '+(scope.attendance_approve?'조회 및 정정':'조회')+'</p></div><a class="btn btn-secondary btn-sm" aria-label="전체 직원 근무현황 열기" href="actual_attendance.html?store='+storeId+'">열기</a></section>':'')+
     '<div id="limitedManagerNotice" role="status" aria-live="polite"></div>'+
-    (scope.staff_edit?'<section class="store-manager-section"><div class="store-manager-section-head"><h3>직원 기본정보 수정</h3></div><div class="store-manager-section-body" id="limitedStaff">직원 정보를 불러오는 중…</div></section>':'')+
-    (scope.attendance_approve?'<section class="store-manager-section"><div class="store-manager-section-head"><h3>근태 정정 승인</h3></div><div class="store-manager-section-body" id="limitedRequests">요청을 불러오는 중…</div></section>':'')+
-    (!scope.staff_edit&&!scope.attendance_approve&&!scope.attendance_view?'<p class="empty">부여된 업무 권한이 없습니다.</p>':'')+'</section>';
-  document.getElementById("limitedManagerLogout").onclick=()=>{Auth.clear();location.reload()};
+    (scope.staff_edit?'<details class="store-manager-section scoped-work-details" data-scoped-area="staff"><summary class="scoped-work-details-head"><span>직원 관리</span><small>기본정보 수정</small></summary><div class="store-manager-section-body" id="limitedStaff">직원 정보를 불러오는 중…</div></details>':'')+
+    (scope.attendance_approve?'<details class="store-manager-section scoped-work-details" data-scoped-area="requests"><summary class="scoped-work-details-head"><span>정정요청</span><small>승인·반려</small></summary><div class="store-manager-section-body" id="limitedRequests">요청을 불러오는 중…</div></details>':'')+
+    (!scope.staff_edit&&!scope.attendance_approve&&!scope.attendance_view?'<p class="scoped-empty">부여된 업무 권한이 없습니다.</p>':'')+'</section>';
+  if(typeof window.mountAdminSubnav==="function")await window.mountAdminSubnav("admin",true);
   const current=()=>document.getElementById("view")===target&&target.querySelector(".store-manager-limited");
   async function staff(){
     const holder=document.getElementById("limitedStaff");if(!holder)return;

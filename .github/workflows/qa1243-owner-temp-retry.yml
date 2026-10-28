@@ -2,6 +2,10 @@ name: QA1243 owner first-login recovery regression
 on:
   pull_request:
     paths:
+      - 'index.html'
+      - 'store_limited_manager.js'
+      - 'store_manager_ui_v376.css'
+      - 'qa_assistant_ux_v376.mjs'
       - 'store_manager_tab.js'
       - 'qa_assistant_permissions_browser_v375.mjs'
       - 'qa_assistant_attendance_browser_v375.mjs'
@@ -67,7 +71,10 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --no-save --no-audit --no-fund playwright@1.55.1
+      - run: node qa_admin_account_menu_v222.mjs
+      - run: node qa_store_admin_tabs_policy_v1.mjs
       - run: node qa_assistant_permissions_browser_v375.mjs
+      - run: node qa_assistant_ux_v376.mjs
       - run: node qa_assistant_attendance_browser_v375.mjs
       - uses: actions/upload-artifact@v4
         if: always()
@@ -75,4 +82,5 @@ jobs:
           name: assistant-permissions-browser
           path: |
             qa-results/assistant-permissions
+            qa-results/assistant-ux-v376
             qa-results/assistant-attendance

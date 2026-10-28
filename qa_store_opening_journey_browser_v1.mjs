@@ -387,6 +387,7 @@ try{
  verify(api('store_delegated_permissions_set',{p_store_id:STORE,p_user_id:'assistant-qa-id',p_payroll_view:true},'qa-assistant').status===403,'backend denies assistant self-escalation');
  verify(api('store_limited_employee_update',{p_store_id:OTHER,p_employee_id:900101,p_name:'변조',p_memo:''},'qa-assistant').status===403,'backend rejects cross-store staff mutation');
  const limited=await contextPage('/qa/limited?token=qa-assistant');
+ await limited.locator('[data-scoped-area="staff"] > summary').click();
  await limited.locator('.limited-staff-form').first().waitFor();
  await limited.locator('.limited-staff-form input[name="name"]').fill('개통 테스트 직원');
  await limited.locator('.limited-staff-form button[type="submit"]').click();

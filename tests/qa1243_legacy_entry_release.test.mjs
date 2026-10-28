@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {assertLegacyEntryRelease,LEGACY_BASE,LEGACY_BYTES} from '../scripts/qa1243_legacy_entry_release.mjs';
 const files=Object.keys(LEGACY_BYTES).map(filename=>({filename,status:'modified'}));
-const message='[QA1243-STAFF-STOCKTAKE-UI] [QA1243-AUTH-MAIL-BRANDING] [QA1243-OWNER-PASSWORD-FEEDBACK] [QA1243-LEGACY-ENTRY] [QA1243-APP-PAGES] [QA1243-NO-OPERATING-WRITE] [QA1243-NO-GOOGLE-RERUN]';
+const message='[QA1243-ASSISTANT-UX] [QA1243-STAFF-STOCKTAKE-UI] [QA1243-AUTH-MAIL-BRANDING] [QA1243-OWNER-PASSWORD-FEEDBACK] [QA1243-LEGACY-ENTRY] [QA1243-APP-PAGES] [QA1243-NO-OPERATING-WRITE] [QA1243-NO-GOOGLE-RERUN]';
 test('only the exact reviewed startup and public manifest builder may publish',()=>{
  assert.equal(assertLegacyEntryRelease(files,message,LEGACY_BASE),true);
 });
