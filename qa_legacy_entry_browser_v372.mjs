@@ -5,8 +5,10 @@ import {createServer} from 'node:http';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {resolve,sep,extname} from 'node:path';
 import {chromium,webkit} from 'playwright';
-const live=process.argv.includes('--live'),expectedVersion='v0.373',root=process.cwd();
+const live=process.argv.includes('--live'),root=process.cwd();
 const expectedIndex=readFileSync('index.html','utf8');
+const expectedVersion=expectedIndex.match(/const APP_VERSION="([^"]+)"/)?.[1];
+assert.ok(expectedVersion);
 const apiOrigin='https://waluhdgqhwjjwmflhrle.supabase.co';
 let server,base='https://koith.github.io';
 if(!live){

@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'owner_temp_activation.js'
+      - 'qa_owner_password_feedback_browser_1243.mjs'
       - 'owner_activation.js'
       - 'owner_activation.html'
       - 'tests/qa1243_owner_recovery_paste.test.mjs'
@@ -19,7 +20,10 @@ jobs:
   owner-first-login-retry:
     name: Test password recovery retry and server preflight contract
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,3 +32,12 @@ jobs:
         with:
           node-version: '22'
       - run: node --test tests/qa1243_owner_temp_retry.test.mjs tests/qa1243_owner_temp_session.test.mjs tests/qa1243_temp_owner_release.test.mjs tests/qa1243_owner_recovery_paste.test.mjs
+      - name: Install pinned browser runtime
+        run: npm install --no-save --no-audit --no-fund playwright@1.55.1
+      - name: Same password, new password and saved-response recovery on mobile and desktop
+        run: node qa_owner_password_feedback_browser_1243.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: owner-password-feedback-browser
+          path: qa-results/owner-password-feedback-browser.json

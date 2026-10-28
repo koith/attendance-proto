@@ -55,7 +55,7 @@ try{
       reply({message:'INVITATION_CANCELLED_OR_NOT_FOUND'},403):
       reply({ok:true,store_id:701,intended_role:scenario.startsWith('assistant')?'ASSISTANT':'OWNER'});
      if(url.pathname==='/auth/v1/user'){
-      if(saved)return reply({code:'same_password',msg:'New password should be different from the old password.'},422);
+      if(saved)return reply({code:422,error_code:'same_password',msg:'New password should be different from the old password.'},422);
       saved=true;
       if(scenario==='assistant-lost-password-response'&&!failed){failed=true;return route.abort('failed');}
       return reply({});

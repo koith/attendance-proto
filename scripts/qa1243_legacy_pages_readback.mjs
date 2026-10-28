@@ -29,6 +29,8 @@ const rows=await Promise.all(paths.map(async p=>{
 }));
 const helper=await get(base+'app_release_probe_v1.js');
 assert.equal(sha(helper.body),sha(readFileSync('app_release_probe_v1.js','utf8')));
+const ownerAssets=['owner_activation.html','owner_activation.js','owner_temp_activation.html','owner_temp_activation.js'];
+for(const path of ownerAssets)assert.equal(sha((await get(base+path)).body),sha(readFileSync(path,'utf8')),'Owner callback deployment mismatch: '+path);
 const manifest=JSON.parse((await get(base+'app-release.json?check='+Date.now())).body);
 assert.equal(manifest.version,version);assert.equal(manifest.index_sha256,expectedSha);assert.equal(manifest.commit,process.env.GITHUB_SHA);
 // Configuration and public READY-store discovery are real production reads.
@@ -36,6 +38,6 @@ const auth=await fetch(api+'/auth/v1/settings',{headers:{apikey:key},signal:Abor
 const storeResponse=await fetch(api+'/rest/v1/rpc/list_stores',{method:'POST',headers:{apikey:key,Authorization:'Bearer '+key,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(15000)});
 assert.equal(storeResponse.status,200);const stores=await storeResponse.json();assert.ok(stores.some(s=>Number(s.id)===1&&s.is_active!==false));
 mkdirSync('qa-results',{recursive:true});
-const proof={version,commit:manifest.commit,rows,helperExact:true,manifestExact:true,authSettingsStatus:auth.status,storeStatus:storeResponse.status,inhaActive:true,operatingWrite:false};
+const proof={version,commit:manifest.commit,rows,helperExact:true,manifestExact:true,ownerAssetsExact:true,authSettingsStatus:auth.status,storeStatus:storeResponse.status,inhaActive:true,operatingWrite:false};
 writeFileSync('qa-results/legacy-entry-public-readback.json',JSON.stringify(proof,null,2));
 console.log('LEGACY_ENTRY_PUBLIC_READBACK_PASS '+JSON.stringify(proof));

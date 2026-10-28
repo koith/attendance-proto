@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync as fsRead} from 'node:fs';
-const readFileSync=(p,encoding)=>{const s=fsRead(p,encoding);return p==='index.html'?s.replaceAll('v0.370','v0.369').replaceAll('20261027v370','20261027v369'):s;};
+// The v0.369 gate is historical: exercise its exact released index/HTML while
+// current callback logic is covered by the current release and browser tests.
+const historical=JSON.parse(fsRead('/tmp/qa1243-v369-release-fixture.json','utf8'));
+const readFileSync=(p,encoding)=>Object.hasOwn(historical,p)?historical[p]:fsRead(p,encoding);
 import {assertApprovedOpeningRelease,OPENING_BASE,OPENING_REQUIRED,OPENING_MIGRATION} from '../scripts/qa1243_approved_opening_release.mjs';
 const message='[QA1243-OWNER-OPENING] [QA1243-APP-PAGES] [QA1243-NO-OPERATING-WRITE] [QA1243-NO-GOOGLE-RERUN]';
 const files=()=>OPENING_REQUIRED.map(filename=>({filename,status:'modified'}));
