@@ -21,8 +21,8 @@ assert.match(app,/id="adAdd"/);
 assert.match(ui,/id="storeManagerPanel"/);
 assert.match(ui,/store_delegated_manager_list/);
 assert.match(ui,/store_delegated_manager_change/);
-assert.match(ui,/store_delegated_permissions_set/);
-assert.match(ui,/store_delegated_permissions_list/);
+assert.match(ui,/store_assistant_permissions_set/);
+assert.match(ui,/store_assistant_permissions_list/);
 assert.match(app,/store_limited_manager\.js\?v=20261014v254/);
 assert.match(ui,/invite_store_delegated_manager/);
 assert.match(ui,/CURRENT_STORE_ID/);
@@ -77,7 +77,7 @@ async function simulateStore(storeId,role){
  url.endsWith("store_manager_invitation_states")?[
   {user_id:"primary-id",email:"primary@synthetic.invalid",intended_role:role==="OWNER"?"OWNER":"ASSISTANT",account_state:"ACTIVE"},
   {user_id:"delegate-id",email:"delegate@synthetic.invalid",intended_role:"ASSISTANT",account_state:"ACTIVE"}]:
- url.endsWith("store_delegated_permissions_list")?
+ url.endsWith("store_assistant_permissions_list")?
  [{user_id:"delegate-id",staff_edit:true,attendance_approve:false,payroll_view:false}]:
  [{user_id:"primary-id",email:"primary@synthetic.invalid",manager_role:role==="OWNER"?"OWNER":"MANAGER"},
   {user_id:"delegate-id",email:"delegate@synthetic.invalid",manager_role:"MANAGER"}];
@@ -105,7 +105,7 @@ async function simulateStore(storeId,role){
    assert.match(html,/storeManagerInviteForm/);
    assert.match(html,/data-manager-rights="delegate-id"/);
    assert.match(html,/직원 기본정보 수정/);
-   assert.match(html,/세 항목을 모두 체크해도 전체 관리자 권한/);
+   assert.match(html,/대표 지정·관리자 권한 변경은 대표만/);
  }
  if(role!=="OWNER")assert.match(html,/\( 공석 \)/);
  if(role==="HQ"){

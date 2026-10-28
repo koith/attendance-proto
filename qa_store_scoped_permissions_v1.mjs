@@ -27,10 +27,10 @@ assert.match(actions,/REVOKE ALL ON FUNCTION public\.store_limited_correction_de
 assert.doesNotMatch(portal,/admin_(?:set_period|close_payroll|update_employee|resolve_request)\b/);
 assert.match(portal,/store_limited_employee_update/);
 assert.match(portal,/store_limited_correction_decide/);
-assert.match(portal,/store_limited_payroll_read/);
+assert.doesNotMatch(portal,/store_limited_payroll_read/);
 assert.match(portal,/scope\.staff_edit/);
 assert.match(portal,/scope\.attendance_approve/);
-assert.match(portal,/scope\.payroll_view/);
+assert.doesNotMatch(portal,/scope\.payroll_view/);
 assert.match(app,/const APP_VERSION="v0\.\d+"/);
 assert.match(app,/<button[^>]*id="appVersion"[^>]*>v\d+\.\d+<\/button>/);
 assert.match(app,/store_limited_manager\.js\?v=20261014v254/);
@@ -90,7 +90,7 @@ console.log("PASS: real Edge branch denies every limited grant, fails closed on 
 const scopedNoEscalation=read("supabase/migrations/20261014113000_delegated_scopes_not_full_admin.sql");
 assert.ok(scopedNoEscalation.includes("'limited', NOT v_owner AND d.user_id IS NOT NULL"));
 assert.ok(!scopedNoEscalation.includes("AND NOT(d.staff_edit AND d.attendance_approve AND d.payroll_view)"));
-assert.ok(ui.includes("세 항목을 모두 체크해도 전체 관리자 권한"));
+assert.ok(ui.includes("대표 지정·관리자 권한 변경은 대표만"));
 const defaultDeny=read("supabase/migrations/20261014100000_delegated_default_deny.sql");
 assert.match(defaultDeny,/AFTER INSERT ON public\.admin_users/);
 assert.match(defaultDeny,/NEW\.admin_role='STORE_MANAGER'/);

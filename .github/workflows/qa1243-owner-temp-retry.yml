@@ -2,6 +2,8 @@ name: QA1243 owner first-login recovery regression
 on:
   pull_request:
     paths:
+      - 'store_manager_tab.js'
+      - 'qa_assistant_permissions_browser_v375.mjs'
       - 'owner_temp_activation.js'
       - 'qa_owner_password_feedback_browser_1243.mjs'
       - 'qa_staff_stocktake_dialog_v374.mjs'
@@ -49,3 +51,24 @@ jobs:
             qa-results/owner-password-feedback-browser.json
             qa-results/staff-stocktake-dialog
             qa-results/owner-onboarding
+
+
+  assistant-permissions-browser:
+    name: Assistant management popup, grants, revocation and no payroll
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --no-audit --no-fund playwright@1.55.1
+      - run: node qa_assistant_permissions_browser_v375.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: assistant-permissions-browser
+          path: qa-results/assistant-permissions

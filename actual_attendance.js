@@ -2,7 +2,8 @@ const CONFIG={SUPABASE_URL:'https://waluhdgqhwjjwmflhrle.supabase.co',SUPABASE_A
 const Auth={token:null,session:null,load(){try{this.session=JSON.parse(localStorage.getItem('baekeok_auth')||'null');this.token=this.session?.access_token||null}catch(_){this.session=null;this.token=null}return this.token},save(s){if(!s?.access_token)return;this.session={...(this.session||{}),...s};this.token=this.session.access_token;localStorage.setItem('baekeok_auth',JSON.stringify(this.session))}};
 let authRefreshPromise=null;
 async function refreshAuth(){if(authRefreshPromise)return authRefreshPromise;Auth.load();const rt=Auth.session?.refresh_token;if(!rt)return null;authRefreshPromise=(async()=>{try{const r=await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:CONFIG.SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:rt})});if(!r.ok)return null;const s=await r.json();Auth.save(s);return Auth.token}catch(_){return null}finally{authRefreshPromise=null}})();return authRefreshPromise}
-async function rpc(fn,args={}){Auth.load();const call=async token=>{try{return await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:`Bearer ${token||CONFIG.SUPABASE_ANON_KEY}`,'Content-Type':'application/json'},body:JSON.stringify(args)})}catch(e){if(!(e instanceof TypeError))throw e;await new Promise(r=>setTimeout(r,220));return fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:`Bearer ${token||CONFIG.SUPABASE_ANON_KEY}`,'Content-Type':'application/json'},body:JSON.stringify(args)})}};let r=await call(Auth.token);let t=await r.text();const authFail=r.status===401||r.status===403||/JWT|NOT_AUTHORIZED|invalid claim|expired/i.test(t);if(authFail){const fresh=await refreshAuth();if(fresh){r=await call(fresh);t=await r.text()}}if(!r.ok)throw new Error(`RPC ${fn} ${r.status}: ${t||r.statusText}`);return t?JSON.parse(t):null}
+const attendanceRpcNames={list_store_employees:'store_attendance_employees',admin_store_events_with_corrections:'store_attendance_events',admin_correct_event:'store_attendance_correct_event',admin_store_settings_get:'store_attendance_settings'};
+async function rpc(fn,args={}){fn=attendanceRpcNames[fn]||fn;Auth.load();const call=async token=>{try{return await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:`Bearer ${token||CONFIG.SUPABASE_ANON_KEY}`,'Content-Type':'application/json'},body:JSON.stringify(args)})}catch(e){if(!(e instanceof TypeError))throw e;await new Promise(r=>setTimeout(r,220));return fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:`Bearer ${token||CONFIG.SUPABASE_ANON_KEY}`,'Content-Type':'application/json'},body:JSON.stringify(args)})}};let r=await call(Auth.token);let t=await r.text();const authFail=r.status===401||r.status===403||/JWT|NOT_AUTHORIZED|invalid claim|expired/i.test(t);if(authFail){const fresh=await refreshAuth();if(fresh){r=await call(fresh);t=await r.text()}}if(!r.ok)throw new Error(`RPC ${fn} ${r.status}: ${t||r.statusText}`);return t?JSON.parse(t):null}
 const el=id=>document.getElementById(id),p2=n=>String(n).padStart(2,'0');
 function parseWall(v){if(v instanceof Date)return v;const s=String(v||'').trim();const m=s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);return m?new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0)):new Date(NaN)}
 function dayKey(d){return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`}
@@ -135,6 +136,9 @@ async function resolveAttendanceStore(){
   id=positiveAttendanceStore(raw===null?saved:raw);
  }
  if(!id)throw Error('STORE_ACCOUNT_SCOPE_REQUIRED');
+ const scope=await rpc('store_delegated_permissions_self');
+ if(scope?.limited===true&&scope.attendance_view!==true&&scope.attendance_approve!==true)throw Error('ATTENDANCE_VIEW_NOT_ALLOWED');
+ S.attendanceReadOnly=scope?.limited===true&&scope.attendance_approve!==true;
  S.storeId=id;
  try{sessionStorage.setItem('baekeok_store_id',String(id))}catch(_){}
  return id;
@@ -317,7 +321,7 @@ init();
   function closeCorrection(){document.getElementById('actualCorrectionVeil')?.remove()}
   function toastCorrection(msg,err=false){const t=el('toast');t.textContent=msg;t.className='toast show'+(err?' err':'');clearTimeout(toastCorrection.t);toastCorrection.t=setTimeout(()=>t.className='toast',2200)}
   function addAttendance(day){
-    if(S.staffMode){toastCorrection('직원은 관리자에게 정정을 요청하세요.',true);return;}
+    if(S.staffMode||S.attendanceReadOnly){toastCorrection('근태 관리 권한이 필요합니다.',true);return;}
     if(!S.employees.length){toastCorrection('등록된 직원이 없습니다.',true);return;}
     closeCorrection();
     const veil=document.createElement('div');
@@ -385,6 +389,7 @@ init();
     field('manualAttendanceEmployee').focus();
   }
   function openCorrection(day,s){
+    if(S.staffMode||S.attendanceReadOnly)return;
     closeCorrection();
     // A multi-day display slice is derived UI only. Corrections always target the authoritative
     // source session endpoints/event ids so selecting a middle date can never rewrite an event to 00:00/24:00 by accident.
@@ -478,7 +483,7 @@ init();
   renderDay=function(day){
     originalRenderDay(day);
     const ss=sessionsForDay(day);
-    if(S.staffMode)return;
+    if(S.staffMode||S.attendanceReadOnly)return;
     if(!S.staffMode){
       const head=document.querySelector('.records-group h3');if(head&&!document.getElementById('attendanceAddBtn')){const b=document.createElement('button');b.id='attendanceAddBtn';b.className='session-fix';b.textContent='근무 기록 생성';b.style.marginLeft='10px';b.onclick=()=>addAttendance(day);head.appendChild(b)}
       document.querySelectorAll('.sessions .session').forEach((row,i)=>{const s=ss[i];if(!s)return;const actions=document.createElement('div');actions.className='session-actions';actions.innerHTML='<button type="button" class="session-fix">정정</button><button type="button" class="session-fix session-delete">삭제</button>';actions.querySelector('.session-fix').onclick=()=>openCorrection(day,s);actions.querySelector('.session-delete').onclick=async()=>{if(!confirm('이 근무 기록을 삭제 처리할까요? 원본은 보존되고 삭제 이력이 남습니다.'))return;const src=window.actualAttendanceSourceSession?window.actualAttendanceSourceSession(s):s;const reason=prompt('삭제 사유','관리자 근무기록 삭제');if(!reason)return;try{const targets=[];if(src.inCorrectionId)targets.push({action:'VOID_ADD',id:Number(src.inCorrectionId)});else if(src.inId&&!String(src.inId).startsWith('add_'))targets.push({action:'VOID',id:Number(src.inId)});if(src.outCorrectionId)targets.push({action:'VOID_ADD',id:Number(src.outCorrectionId)});else if(src.outId&&!String(src.outId).startsWith('add_'))targets.push({action:'VOID',id:Number(src.outId)});if(!targets.length)throw new Error('삭제 가능한 원본 또는 관리자 추가 기록 ID가 없습니다.');for(const t of targets)await rpc('admin_correct_event',{p_action:t.action,p_event_id:t.id,p_employee_id:Number(src.employee_id),p_new_at:null,p_new_type:null,p_reason:reason});await loadMonth();const still=sessionsForDay(day).some(x=>Number(x.employee_id)===Number(src.employee_id)&&((src.in&&x.in&&+x.in===+src.in)||(src.out&&x.out&&+x.out===+src.out)));if(still)throw new Error('삭제 후 기록이 여전히 조회됩니다.');toastCorrection('근무 기록을 삭제 처리했습니다.');renderDay(day)}catch(e){console.error(e);toastCorrection('삭제 처리 실패',true)}};row.appendChild(actions)});

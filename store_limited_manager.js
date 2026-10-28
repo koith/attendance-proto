@@ -19,11 +19,11 @@ window.mountScopedManagerPortal=async function(scope,storeId){
   target.innerHTML='<section class="store-manager-limited">'+
     '<div class="page-title-row"><h2 class="page-title">보조 관리자 업무</h2><button type="button" id="limitedManagerLogout" class="btn btn-secondary">로그아웃</button></div>'+
     '<p class="muted" style="margin-bottom:12px">대표 점주가 허용한 업무만 사용할 수 있습니다. 권한 변경은 대표 점주에게 문의하세요.</p>'+
+    ((scope.attendance_view||scope.attendance_approve)?'<a class="btn btn-primary" href="actual_attendance.html?store='+storeId+'">전체 직원 근무현황'+(scope.attendance_approve?' 관리':' 조회')+'</a>':'')+
     '<div id="limitedManagerNotice" role="status" aria-live="polite"></div>'+
     (scope.staff_edit?'<section class="store-manager-section"><div class="store-manager-section-head"><h3>직원 기본정보 수정</h3></div><div class="store-manager-section-body" id="limitedStaff">직원 정보를 불러오는 중…</div></section>':'')+
     (scope.attendance_approve?'<section class="store-manager-section"><div class="store-manager-section-head"><h3>근태 정정 승인</h3></div><div class="store-manager-section-body" id="limitedRequests">요청을 불러오는 중…</div></section>':'')+
-    (scope.payroll_view?'<section class="store-manager-section"><div class="store-manager-section-head"><h3>확정 급여 열람</h3></div><div class="store-manager-section-body"><label for="limitedPayrollMonth">조회 월</label> <input id="limitedPayrollMonth" type="month" class="form-control" style="max-width:220px"><button class="btn btn-secondary" type="button" id="limitedPayrollLoad">조회</button><div id="limitedPayrollRows" style="margin-top:12px">월을 선택하세요.</div></div></section>':'')+
-    (!scope.staff_edit&&!scope.attendance_approve&&!scope.payroll_view?'<p class="empty">부여된 업무 권한이 없습니다.</p>':'')+'</section>';
+    (!scope.staff_edit&&!scope.attendance_approve&&!scope.attendance_view?'<p class="empty">부여된 업무 권한이 없습니다.</p>':'')+'</section>';
   document.getElementById("limitedManagerLogout").onclick=()=>{Auth.clear();location.reload()};
   const current=()=>document.getElementById("view")===target&&target.querySelector(".store-manager-limited");
   async function staff(){
@@ -59,17 +59,6 @@ window.mountScopedManagerPortal=async function(scope,storeId){
       });
     }catch(err){holder.textContent="근태 요청 조회 실패: "+String(err.message||err)}
   }
-  async function payroll(){
-    const holder=document.getElementById("limitedPayrollRows");if(!holder)return;
-    const ym=document.getElementById("limitedPayrollMonth").value;
-    if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(ym)){notify("월을 선택하세요.",true);return;}
-    holder.textContent="확정 급여를 조회하는 중…";
-    try{
-      const items=await rpc("store_limited_payroll_read",{p_store_id:storeId,p_ym:ym});if(!current()||!Array.isArray(items))return;
-      holder.innerHTML=items.length?'<div style="display:grid;gap:8px">'+items.map(item=>'<div style="padding:12px;border:1px solid var(--border);border-radius:10px"><strong>'+e(item.employee_name)+'</strong><div>세전 '+Number(item.gross_pay||0).toLocaleString()+'원 · 세후 '+Number(item.net_pay||0).toLocaleString()+'원</div></div>').join("")+'</div>':'<p>확정된 급여 자료가 없습니다. 미마감 월은 조회되지 않습니다.</p>';
-    }catch(err){holder.textContent="급여 조회 실패: "+String(err.message||err)}
-  }
-  if(scope.payroll_view){document.getElementById("limitedPayrollMonth").value=new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"}).slice(0,7);document.getElementById("limitedPayrollLoad").onclick=payroll;}
   if(scope.staff_edit)void staff();
   if(scope.attendance_approve)void attendance();
 };

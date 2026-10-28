@@ -26,7 +26,7 @@ class Content extends Control {
     for(const match of html.matchAll(/data-manager-rights="([^"]+)"/g)){
       const uid=match[1];
       const section=new Control();
-      section.checks={staff:new Control(),attendance:new Control(),payroll:new Control()};
+      section.checks={staff:new Control(),attendance:new Control(),view:new Control(),payroll:new Control()};
       section.checks.staff.checked=html.includes('data-allow="staff" type="checkbox" checked');
       section.querySelector=selector=>{
         const key=selector.match(/data-allow="([^"]+)"/)?.[1];
@@ -92,7 +92,7 @@ async function scenario(role){
       if(fn==="store_delegated_manager_list")return response(members);
       if(fn==="store_manager_invitation_states")return response(members.map(m=>({user_id:m.user_id,email:m.email,intended_role:m.manager_role==="OWNER"?"OWNER":"ASSISTANT",account_state:m.user_id==="invited-id"?"PENDING":"ACTIVE"})));
       if(fn==="is_hq_admin")return response(role==="HQ");
-      if(fn==="store_delegated_permissions_list")return response(
+      if(fn==="store_assistant_permissions_list")return response(
         [...rights.entries()].map(([user_id,p])=>({user_id,...p})));
       if(fn==="store_delegated_manager_change"){
         if(data.p_action==="ADD"){
@@ -102,10 +102,10 @@ async function scenario(role){
         if(data.p_action==="REVOKE")members=members.filter(x=>x.user_id!==data.p_user_id);
         return response({ok:true});
       }
-      if(fn==="store_delegated_permissions_set"){
+      if(fn==="store_assistant_permissions_set"){
         if(failNextPermission){failNextPermission=false;return response({message:"SYNTHETIC_WRITE_FAILED"},false);}
         rights.set(data.p_user_id,{staff_edit:data.p_staff_edit,
-          attendance_approve:data.p_attendance_approve,payroll_view:data.p_payroll_view});
+          attendance_view:data.p_attendance_view,attendance_approve:data.p_attendance_manage,payroll_view:false});
         return response({ok:true});
       }
       if(fn==="server-sync-sheet"){
@@ -163,8 +163,8 @@ async function scenario(role){
   content.sections.get("delegate-id").checks.payroll.checked=false;
   save.trigger("click");
   await settle();
-  assert.ok(calls.some(c=>c.fn==="store_delegated_permissions_set"&&c.data.p_user_id==="delegate-id"&&
-    c.data.p_staff_edit===true&&c.data.p_attendance_approve===false&&c.data.p_payroll_view===false));
+  assert.ok(calls.some(c=>c.fn==="store_assistant_permissions_set"&&c.data.p_user_id==="delegate-id"&&
+    c.data.p_staff_edit===true&&c.data.p_attendance_manage===false&&c.data.p_attendance_view===false));
   assert.equal(mount.reload.disabled,false,"synthetic controls must recover after permission save");
 
   // Permission update rejection must not leave the controls permanently disabled.

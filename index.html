@@ -842,7 +842,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.374">v0.374</button></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.375">v0.375</button></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -940,7 +940,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.374";
+const APP_VERSION="v0.375";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1928,7 +1928,16 @@ function route(){
       }
     });
   }
-  else if(h==="attendance"){ setTab("attendance"); if(!LIVE){ location.href=attendanceEntryUrl(); return; } sessionStorage.removeItem("staff_attendance_auth"); if(Auth.isLoggedIn()){ BE.isAdmin().then(isAdmin=>{ if(isAdmin) location.href=attendanceEntryUrl(); else openMyRecord(); }).catch(()=>openMyRecord()); return; } openMyRecord(); }
+  else if(h==="attendance"){ setTab("attendance"); if(!LIVE){ location.href=attendanceEntryUrl(); return; } sessionStorage.removeItem("staff_attendance_auth"); if(Auth.isLoggedIn()){ BE.adminContext().then(async ctx=>{
+ if(ctx?.role==="HQ"){location.href=attendanceEntryUrl();return;}
+ if(ctx?.role==="STORE_MANAGER"){
+  if(Number(ctx.store_id)!==Number(CURRENT_STORE_ID)){location.assign(STORE_ENTRY_URL(Number(ctx.store_id)));return;}
+  const scope=await BE.delegatedPermissionsSelf();
+  if(scope?.limited!==true||scope.attendance_view===true||scope.attendance_approve===true){location.href=attendanceEntryUrl();return;}
+  toast("err","근무현황 권한 없음","대표 관리자에게 근태 조회 권한을 요청하세요.");return;
+ }
+ openMyRecord();
+}).catch(()=>toast("err","권한 확인 실패","잠시 후 다시 시도해 주세요.")); return; } openMyRecord(); }
   else if(h==="pay"){ setTab("pay"); requireAuth(async()=>{await renderPay();await mountAdminSubnav("pay");}); }
   // 개발 중인 운영 탭은 인하대점에서만 접근한다. 다른 지점은 직접 주소 진입도 차단.
   else if(["report","sales","inventory","ops"].includes(h)&&Number(CURRENT_STORE_ID)!==1){location.hash="#admin";return;}
@@ -4085,8 +4094,8 @@ Promise.resolve(storeStartupPromise).catch(e=>console.warn("store startup failed
 <script src="store_controls_v1.js?v=20260929v066"></script>
 <script src="hq_store_onboarding_ui.js?v=20261027v370"></script>
 <script src="hq_owner_console.js?v=20261027v370"></script>
-<script src="store_manager_tab.js?v=20261017v300"></script>
-<script src="store_limited_manager.js?v=20261014v254"></script>
+<script src="store_manager_tab.js?v=20261017v300&amp;rev=375"></script>
+<script src="store_limited_manager.js?v=20261014v254&amp;rev=375"></script>
 <script src="version_test_toggle_982.js?v=315"></script>
 <script src="admin_single_session_watch_v1.js?v=20261019v338"></script>
 </body>
