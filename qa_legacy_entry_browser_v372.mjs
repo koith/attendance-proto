@@ -5,7 +5,7 @@ import {createServer} from 'node:http';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {resolve,sep,extname} from 'node:path';
 import {chromium,webkit} from 'playwright';
-const live=process.argv.includes('--live'),expectedVersion='v0.372',root=process.cwd();
+const live=process.argv.includes('--live'),expectedVersion='v0.373',root=process.cwd();
 const expectedIndex=readFileSync('index.html','utf8');
 const apiOrigin='https://waluhdgqhwjjwmflhrle.supabase.co';
 let server,base='https://koith.github.io';
@@ -25,7 +25,7 @@ const activeBrowsers=new Set();
 const report=[],paths=['/attendance-proto/','/attendance-proto/index.html?v=24#pos',
  '/attendance-proto/#dashboard','/attendance-proto/index.html?mode=hq#dashboard',
  '/attendance-proto/?mode=store&store=1#pos','/attendance-proto/index.html?mode=store&store=1&v=0.371#pos'];
-const profiles=live?['fresh','expired-no-refresh']:['fresh','expired-no-refresh','reused-refresh','superseded','forbidden','auth-network','store-network'];
+const profiles=live?['fresh','expired-no-refresh','hosted-rejected-refresh']:['fresh','expired-no-refresh','hosted-rejected-refresh','reused-refresh','superseded','forbidden','auth-network','store-network'];
 const jwt=exp=>'qa.'+Buffer.from(JSON.stringify({exp,sub:'synthetic-identity'})).toString('base64url')+'.test';
 const readOnlyRPC=new Set(['list_stores','pos_public_staff_picker','pos_public_staff_cards','pos_employees_state']);
 async function prepare(context,profile){
@@ -33,13 +33,13 @@ async function prepare(context,profile){
   if(localStorage.getItem('qa_legacy_seeded'))return;
   localStorage.setItem('qa_legacy_seeded','1');localStorage.setItem('qa_preserve','unchanged');
   sessionStorage.setItem('baekeok_store_id','80');sessionStorage.setItem('baekeok_store_name','1호점');
-  if(profile!=='fresh'&&profile!=='store-network')localStorage.setItem('baekeok_auth',JSON.stringify({access_token:token,...(profile==='reused-refresh'?{refresh_token:'synthetic-used'}:{})}));
- },{profile,token:jwt(Math.floor(Date.now()/1000)+(profile.startsWith('expired')||profile==='reused-refresh'?-3600:3600))});
+  if(profile!=='fresh'&&profile!=='store-network')localStorage.setItem('baekeok_auth',JSON.stringify({access_token:token,...(['reused-refresh','hosted-rejected-refresh'].includes(profile)?{refresh_token:'qa1243-invalid-refresh-no-user-v373'}:{})}));
+ },{profile,token:jwt(Math.floor(Date.now()/1000)+(profile.startsWith('expired')||['reused-refresh','hosted-rejected-refresh'].includes(profile)?-3600:3600))});
 }
 async function visit(browser,engine,path,profile,storageState){
  const context=await browser.newContext({viewport:{width:engine==='webkit'?393:1280,height:900},locale:'ko-KR',timezoneId:'Asia/Seoul',...(storageState?{storageState}:{})});
  if(!storageState)await prepare(context,profile);const page=await context.newPage();page.setDefaultTimeout(12000);
- const errors=[],calls=[];let fault=true;
+ const errors=[],calls=[];let fault=true,hostedRejection;
  page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',async route=>{
   const req=route.request(),u=new URL(req.url());
@@ -49,6 +49,15 @@ async function visit(browser,engine,path,profile,storageState){
   const reply=(body,status=200)=>route.fulfill({status,headers:cors,contentType:'application/json',body:JSON.stringify(body)});
   const name=u.pathname.split('/').pop();calls.push({path:u.pathname,method:req.method()});
   if(live){
+   if(u.pathname==='/auth/v1/token'){
+    assert.equal(profile,'hosted-rejected-refresh');assert.equal(req.method(),'POST');
+    assert.equal(u.search,'?grant_type=refresh_token');
+    assert.deepEqual(JSON.parse(req.postData()),{refresh_token:'qa1243-invalid-refresh-no-user-v373'});
+    const response=await route.fetch({timeout:15000});const body=await response.json();
+    assert.equal(response.status(),400);assert.equal(body.error_code,'refresh_token_not_found');
+    hostedRejection={status:response.status(),numericCode:body.code,errorCode:body.error_code};
+    return route.fulfill({response});
+   }
    const publicAuth=u.pathname==='/auth/v1/settings',publicRPC=u.pathname.startsWith('/rest/v1/rpc/')&&readOnlyRPC.has(name);
    assert.ok((publicAuth&&['GET','OPTIONS'].includes(req.method()))||
     (publicRPC&&['POST','OPTIONS'].includes(req.method())),'OPERATING_WRITE_FORBIDDEN '+u.pathname);
@@ -58,7 +67,7 @@ async function visit(browser,engine,path,profile,storageState){
    return route.continue();
   }
   if(req.method()==='OPTIONS')return route.fulfill({status:204,headers:cors,body:''});
-  if(u.pathname==='/auth/v1/token')return reply({code:'refresh_token_already_used'},400);
+  if(u.pathname==='/auth/v1/token')return reply(profile==='hosted-rejected-refresh'?{code:400,error_code:'refresh_token_not_found',msg:'Invalid Refresh Token: Refresh Token Not Found'}:{code:'refresh_token_already_used'},400);
   if(name==='admin_context'){
    if(profile==='auth-network'&&fault)return route.abort('failed');
    if(profile==='superseded')return reply({code:'PT403',message:'SESSION_SUPERSEDED'},403);
@@ -91,6 +100,10 @@ async function visit(browser,engine,path,profile,storageState){
    fault=false;await page.locator('#retryStoreConnect').click();
    await page.waitForFunction(()=>document.querySelector('#conn')?.textContent.includes('클라우드 연결됨'));
   }
+  if(profile==='hosted-rejected-refresh'){
+   if(live)assert.equal(hostedRejection?.errorCode,'refresh_token_not_found');
+   assert.equal(await page.evaluate(()=>localStorage.getItem('baekeok_auth')),null);
+  }
   const view=await page.locator('#view').innerText();
   assert.ok(!/지점 서버 연결이 지연|지점 운영 준비 중/.test(view));
   assert.equal((await page.locator('#appVersion').innerText()).trim(),expectedVersion);
@@ -108,7 +121,7 @@ async function visit(browser,engine,path,profile,storageState){
  assert.equal(await page.evaluate(()=>localStorage.getItem('qa_preserve')),'unchanged');
  assert.deepEqual(errors,[]);
  const state=await context.storageState();
- report.push({engine,path,profile,result:'PASS',version:expectedVersion,readOnly:live,requests:calls.length});
+ report.push({engine,path,profile,result:'PASS',version:expectedVersion,readOnly:live,requests:calls.length,...(hostedRejection?{hostedRejection}:{})});
  await context.close();return state;
 }
 try{
