@@ -29,7 +29,7 @@ function jwt(exp,subject='test-owner'){
  return 'test.'+Buffer.from(JSON.stringify({exp,sub:subject})).toString('base64url')+'.signature';
 }
 const nowSeconds=()=>Math.floor(Date.now()/1000);
-function browser({expiry=nowSeconds()-120,refreshResult='invalid',hasRefresh=true,refreshCode='invalid_grant',sessionRole='HQ',storeId=1,locked=true}={}){
+function browser({expiry=nowSeconds()-120,refreshResult='invalid',hasRefresh=true,refreshCode='invalid_grant',refreshPayload,sessionRole='HQ',storeId=1,locked=true}={}){
  const oldSession={
   access_token:jwt(expiry),
   ...(hasRefresh?{refresh_token:'synthetic-old-refresh'}:{}),
@@ -46,7 +46,7 @@ function browser({expiry=nowSeconds()-120,refreshResult='invalid',hasRefresh=tru
   if(refreshResult==='valid')return {ok:true,status:200,json:async()=>({
    access_token:jwt(nowSeconds()+3600),refresh_token:'synthetic-rotated-refresh',expires_in:3600
   })};
-  return {ok:false,status:400,json:async()=>({code:refreshCode})};
+  return {ok:false,status:400,json:async()=>refreshPayload??({code:refreshCode})};
  };
  const Auth=new Function('localStorage','CONFIG','fetch','AbortController','setTimeout','clearTimeout','atob',
   authSource+';return Auth;')(localStorage,{SUPABASE_URL:AUTH_URL,SUPABASE_ANON_KEY:'public-fixture'},fetch,
@@ -187,4 +187,21 @@ test('forbidden account never degrades into an unrelated public store',async()=>
  const b=browser({expiry:nowSeconds()+3600,sessionRole:'forbidden'});
  await b.runner.loadStores();assert.equal(b.Auth.isLoggedIn(),true);
  assert.equal(b.stats().listCount,0);assert.equal(b.runner.getState().unavailable,true);
+});
+
+for(const locked of [false,true])test('Hosted GoTrue numeric code + error_code expires a rejected session, locked='+locked,async()=>{
+ const b=browser({locked,refreshPayload:{code:400,error_code:'refresh_token_not_found',msg:'Invalid Refresh Token: Refresh Token Not Found'}});
+ await b.runner.loadStores();
+ assert.equal(b.Auth.isLoggedIn(),false);
+ assert.equal(b.localStorage.has('baekeok_auth'),false);
+ assert.equal(b.runner.getState().failed,false);
+ assert.equal(b.stats().refreshCall,1);
+ assert.equal(b.stats().listCount,1);
+});
+test('unknown numeric 400 is not permission to destroy the saved login',async()=>{
+ const b=browser({refreshPayload:{code:400,error_code:'unexpected_auth_failure',msg:'Try later'}});
+ await b.runner.loadStores();
+ assert.equal(b.Auth.isLoggedIn(),true);
+ assert.equal(b.runner.getState().unavailable,true);
+ assert.equal(b.stats().listCount,0);
 });
