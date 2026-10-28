@@ -86,7 +86,7 @@ async function runScenario(path){
   lockedName:document.getElementById('lockedStoreName')?.textContent||'',
   savedSession:localStorage.getItem('baekeok_auth')
  }));
- assert.equal(result.version,'v0.371','Must test the new release');
+ assert.equal(result.version,readFileSync('index.html','utf8').match(/const APP_VERSION="([^"]+)"/)?.[1],'Must test the current release');
  assert.ok(!result.view.includes('지점 서버 연결이 지연되고 있습니다.'),'Safari must not falsely report backend down');
  assert.ok(!result.view.includes('지점 확인 필요'),'Safari must not show fake store lock');
  assert.equal(result.savedSession,null,'Only invalid local admin session is removed');

@@ -841,7 +841,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.371">v0.371</button></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.372">v0.372</button></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -920,6 +920,7 @@
 <script src="operations_supplier_handoff_v1.js?v=20261019v343"></script>
 <script src="operations_reference_ui_v208.js?v=20261019v344"></script>
 <script src="recipe_access_v220.js?v=20261018public1038"></script>
+<script src="app_release_probe_v1.js?v=20261028v372"></script>
 <script>
 /* =========================================================================
    백억커피 근태 V0.1  —  단일 파일 모바일 웹앱
@@ -938,7 +939,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.371";
+const APP_VERSION="v0.372";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1124,7 +1125,9 @@ const LocalBE = (()=>{
 /* Supabase Auth 세션 (관리자 로그인) */
 const Auth = {
   token:null,
-  load(){ try{ this.token=JSON.parse(localStorage.getItem("baekeok_auth"))?.access_token||null; }catch(e){ this.token=null; } return this.token; },
+  load(){ try{ const saved=JSON.parse(localStorage.getItem("baekeok_auth"));this.token=typeof saved?.access_token==="string"?saved.access_token:null;
+    if(this.token&&this._expiring(this.token)&&!saved?.refresh_token)this.clear();
+  }catch(e){ this.token=null; } return this.token; },
   save(session){ localStorage.setItem("baekeok_auth",JSON.stringify(session)); this.token=session.access_token; },
   clear(){ localStorage.removeItem("baekeok_auth"); this.token=null; },
   // Safari can keep a previously expired access token after a password reset.
@@ -1165,7 +1168,7 @@ const Auth = {
       }
       const errorCode=String(result?.code||result?.error_code||result?.error||"");
       if([400,401,403].includes(response.status)&&
-         /^(?:invalid_grant|invalid_refresh_token|refresh_token_not_found|session_not_found|session_expired|validation_failed|invalid_token|bad_jwt)$/.test(errorCode)){
+         /^(?:invalid_grant|invalid_refresh_token|refresh_token_not_found|refresh_token_already_used|refresh_token_reuse_detected|session_not_found|session_expired|validation_failed|invalid_token|bad_jwt)$/.test(errorCode)){
         this.clear();
         return false;
       }
@@ -1210,7 +1213,9 @@ const SupaBE = (()=>{
     const headers={apikey:CONFIG.SUPABASE_ANON_KEY,"Content-Type":"application/json",
       "Authorization":`Bearer ${useAuth&&Auth.token?Auth.token:CONFIG.SUPABASE_ANON_KEY}`};
     const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:"POST",headers,body:JSON.stringify(args)});
-    if(!r.ok){const error=new Error(await r.text());error.httpStatus=r.status;throw error;}
+    if(!r.ok){const body=await r.text();const error=new Error(body);error.httpStatus=r.status;
+      try{const detail=JSON.parse(body);error.apiCode=detail.code;error.sessionRevoked=/SESSION_SUPERSEDED|SESSION_REVOKED|session_not_found/.test(String(detail.message||detail.error||""));}catch(_){}
+      throw error;}
     const t=await r.text(); if(!t) return null;
     try{ return JSON.parse(t); }catch(e){ return null; }
   };
@@ -1437,6 +1442,25 @@ const STORE_ENTRY_URL=(id)=>location.pathname+"?mode=store&store="+encodeURIComp
 let STORE_ENTRY_UNAVAILABLE=STORE_ENTRY_LOCK&&LIVE;
 let STORE_ENTRY_LOADING=LIVE;
 let STORE_ENTRY_CONNECTION_FAILED=false;
+let STORE_ENTRY_FAILURE_KIND="";
+let STORE_ENTRY_PHASE="STORE";
+function setStartupConnection(state){
+ const el=document.getElementById("conn");if(!el)return;
+ el.className="conn "+(state==="READY"?"live":"error");
+ el.textContent=state==="READY"?"클라우드 연결됨 · Supabase":state==="AUTH"?"관리자 인증 확인 필요 · Supabase":state==="NETWORK"?"연결 확인 실패 · Supabase":"연결 확인 중 · Supabase";
+}
+function startupSessionRejected(error){
+ return [401,403].includes(error?.httpStatus)&&(error?.sessionRevoked===true||
+  ["PGRST301","PGRST303","bad_jwt","session_not_found"].includes(error?.apiCode));
+}
+async function startupAdminContext(){
+ let timer;
+ try{return await Promise.race([BE.adminContext(),new Promise((_,reject)=>{
+  timer=setTimeout(()=>reject(Error("AUTH_CONTEXT_TIMEOUT")),6000);
+ })]);}finally{clearTimeout(timer);}
+}
+
+
 if(STORE_ENTRY_UNAVAILABLE)document.querySelector(".tabwrap")?.style.setProperty("display","none");
 // A visible, non-interactive waiting screen takes the place of the blank
 // #view while anonymous store authorization is being checked.
@@ -1448,6 +1472,7 @@ function retryStoreStartup(){
   if(STORE_ENTRY_LOADING)return;
   STORE_ENTRY_LOADING=true;
   STORE_ENTRY_CONNECTION_FAILED=false;
+  STORE_ENTRY_FAILURE_KIND="";setStartupConnection("LOADING");
   showStoreStartup();
   loadStores().finally(()=>{STORE_ENTRY_LOADING=false;route();});
 }
@@ -1489,23 +1514,35 @@ function syncStoreSelectDisplay(){
  if([...sel.options].some(o=>Number(o.value)===id))sel.value=String(id);
 }
 async function loadStores(){
+ STORE_ENTRY_FAILURE_KIND="";STORE_ENTRY_CONNECTION_FAILED=false;
+ setStartupConnection("LOADING");
  // Verify existing credentials before any admin-scoped store lookup. In Safari,
  // a prior-tab token may have expired while its refresh token remains valid.
  // Invalid/expired refresh credentials clear ONLY the saved admin session;
  // all employees, POS history and store selection remain untouched.
  if(LIVE&&Auth.isLoggedIn()){
+  STORE_ENTRY_PHASE="AUTH";
   STORE_ENTRY_UNAVAILABLE=true;
   try{
    let sessionValid=await Auth.ensureStartupAuth();
    if(sessionValid){
     let context;
-    try{context=await BE.adminContext();}
+    try{context=await startupAdminContext();}
     catch(error){
      // A server-confirmed HTTP 401 can mean the token was revoked between
      // local JWT inspection and this request. Refresh exactly once.
-     if(error?.httpStatus!==401)throw error;
-     sessionValid=await Auth.ensureStartupAuth(true);
-     if(sessionValid)context=await BE.adminContext();
+     if(startupSessionRejected(error)){Auth.clear();sessionValid=false;}
+     else{
+      if(error?.httpStatus!==401)throw error;
+      sessionValid=await Auth.ensureStartupAuth(true);
+      if(sessionValid){
+       try{context=await startupAdminContext();}
+       catch(retryError){
+        if(!startupSessionRejected(retryError))throw retryError;
+        Auth.clear();sessionValid=false;
+       }
+      }
+     }
     }
     if(sessionValid){
      if(context?.role==="STORE_MANAGER"){
@@ -1524,9 +1561,11 @@ async function loadStores(){
    STORE_ENTRY_UNAVAILABLE=STORE_ENTRY_LOCK;
   }catch(error){
    STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;
-   console.warn("store account scope not verified",error);return;
+   STORE_ENTRY_FAILURE_KIND=(error?.httpStatus===403||String(error?.message||"").includes("STORE_ACCOUNT_SCOPE_REQUIRED"))?"AUTH_REQUIRED":"AUTH_NETWORK";
+   setStartupConnection("AUTH");console.warn("store account scope not verified",error);return;
   }
  }
+ STORE_ENTRY_PHASE="STORE";
  const sel=document.getElementById("storeSelect");
  if(!sel){
    if(STORE_ENTRY_LOCK){
@@ -1541,9 +1580,9 @@ async function loadStores(){
        const active=rows.find(x=>Number(x.id)===CURRENT_STORE_ID&&x.is_active!==false);
        if(!active){STORE_ENTRY_UNAVAILABLE=true;return;}
        sessionStorage.setItem("baekeok_store_name",String(active.name||""));
-       STORE_ENTRY_UNAVAILABLE=false;
-       syncStoreContextUI();
-     }catch(e){STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;console.warn("dedicated store not verified",e);}
+       STORE_ENTRY_UNAVAILABLE=false;STORE_ENTRY_CONNECTION_FAILED=false;
+       setStartupConnection("READY");syncStoreContextUI();
+     }catch(e){STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;STORE_ENTRY_FAILURE_KIND="STORE_NETWORK";setStartupConnection("NETWORK");console.warn("dedicated store not verified",e);}
    }
    return;
  }
@@ -1560,8 +1599,9 @@ async function loadStores(){
   CURRENT_STORE_ID=requested||(inha?1:Number(rows[0].id));
   sel.value=String(CURRENT_STORE_ID);sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));
   const name=STORE_NAME_BY_ID.get(CURRENT_STORE_ID);if(name)sessionStorage.setItem("baekeok_store_name",name);
-  syncStoreContextUI();
- }catch(e){console.warn("store list load failed",e);if(STORE_ENTRY_LOCK){STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;}else syncStoreSelectDisplay()}
+  STORE_ENTRY_UNAVAILABLE=false;STORE_ENTRY_CONNECTION_FAILED=false;
+  setStartupConnection("READY");syncStoreContextUI();
+ }catch(e){console.warn("store list load failed",e);STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;STORE_ENTRY_FAILURE_KIND="STORE_NETWORK";setStartupConnection("NETWORK");syncStoreSelectDisplay()}
 }
 // Any database/user-controlled text inserted through innerHTML must pass this boundary.
 function safeHtml(value){
@@ -1848,7 +1888,15 @@ function route(){
     const tabbar=document.querySelector(".tabwrap");if(tabbar)tabbar.style.display="none";
     const label=document.getElementById("lockedStoreName");
     if(label){label.textContent="지점 확인 필요";label.hidden=false;label.classList.add("show");}
-    if(STORE_ENTRY_CONNECTION_FAILED){
+    if(STORE_ENTRY_CONNECTION_FAILED&&STORE_ENTRY_FAILURE_KIND.startsWith("AUTH")){
+      const denied=STORE_ENTRY_FAILURE_KIND==="AUTH_REQUIRED";
+      view.innerHTML='<div class="empty" role="alert"><b>'+ (denied?"이 계정의 관리자 권한을 확인할 수 없습니다.":"관리자 로그인 확인 서버에 연결하지 못했습니다.")+'</b><p>'+ (denied?"지점 서버 장애가 아닙니다. 본사 또는 배정된 지점 관리자 계정으로 로그인하세요.":"저장된 계정과 지점 정보는 유지했습니다. 연결을 다시 확인하거나 관리자 계정으로 로그인할 수 있습니다.")+'</p><button type="button" class="btn btn-primary" id="retryStoreConnect">다시 확인</button> <button type="button" class="btn btn-secondary" id="startupAdminLogin">관리자 다시 로그인</button></div>';
+      document.getElementById("retryStoreConnect")?.addEventListener("click",retryStoreStartup);
+      document.getElementById("startupAdminLogin")?.addEventListener("click",()=>{
+       Auth.clear();
+       requireAuth(()=>{STORE_ENTRY_LOADING=true;showStoreStartup();loadStores().finally(()=>{STORE_ENTRY_LOADING=false;route();});});
+      });
+    }else if(STORE_ENTRY_CONNECTION_FAILED){
       view.innerHTML='<div class="empty" role="alert"><b>지점 서버 연결이 지연되고 있습니다.</b><p>네트워크를 확인한 뒤 다시 시도하세요. 출퇴근 기록은 연결되기 전까지 저장되지 않습니다.</p><button type="button" class="btn btn-primary" id="retryStoreConnect">다시 연결</button></div>';
       document.getElementById("retryStoreConnect")?.addEventListener("click",retryStoreStartup);
     }else{
@@ -3984,7 +4032,7 @@ function restoreAddModal(){
 
 document.getElementById("appVersion").textContent=APP_VERSION;
 const connEl=document.getElementById("conn");
-if(LIVE){ connEl.className="conn live"; connEl.textContent="클라우드 연결됨 · Supabase"; }else{ connEl.className="conn error"; connEl.textContent="설정 오류 · Supabase 구성 확인 필요"; }
+if(LIVE){setStartupConnection("LOADING");}else{ connEl.className="conn error"; connEl.textContent="설정 오류 · Supabase 구성 확인 필요"; }
 function tick(){ document.getElementById("clock").textContent=hms(kstNow()); }
 tick(); setInterval(tick,1000);
 // iOS Safari zoom 차단 (viewport meta는 16.4+에서 무시되므로 JS로 보강)
@@ -4017,17 +4065,18 @@ if(LIVE){showStoreStartup();document.querySelector(".tabwrap")?.style.setPropert
 // Never leave the entire application on the startup shell if the store list stalls.
 // HQ entry can fall back to the selected store while public RPC is unavailable;
 // dedicated store links still fail closed until their store is verified.
-const storeStartupPromise=loadStores();
+let appReleaseUpgrading=false;
+const storeStartupPromise=(LIVE&&window.BaekeokReleaseProbe?window.BaekeokReleaseProbe(APP_VERSION):Promise.resolve(false)).then(upgrading=>{appReleaseUpgrading=upgrading;if(!upgrading)return loadStores();});
 let storeStartupSettled=false;
 const storeStartupWatchdog=setTimeout(()=>{
- if(storeStartupSettled)return;
+ if(storeStartupSettled||appReleaseUpgrading)return;
  STORE_ENTRY_LOADING=false;
- if(STORE_ENTRY_LOCK){STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;}
+ if(STORE_ENTRY_LOCK||Auth.isLoggedIn()){STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;STORE_ENTRY_FAILURE_KIND=STORE_ENTRY_PHASE==="AUTH"?"AUTH_NETWORK":"STORE_NETWORK";setStartupConnection(STORE_ENTRY_PHASE==="AUTH"?"AUTH":"NETWORK");}
  route();
 },9000);
 Promise.resolve(storeStartupPromise).catch(e=>console.warn("store startup failed",e)).finally(()=>{
  storeStartupSettled=true;clearTimeout(storeStartupWatchdog);
- STORE_ENTRY_LOADING=false;route();
+ STORE_ENTRY_LOADING=false;if(!appReleaseUpgrading)route();
 });
 </script>
 <script src="store_controls_v1.js?v=20260929v066"></script>

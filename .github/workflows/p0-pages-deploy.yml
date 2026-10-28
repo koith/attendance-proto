@@ -308,6 +308,11 @@ jobs:
               core.info('AI1331 automation-only scope verified; operating jobs remain skipped');
               return;
             }
+            if(releaseMessage.includes('[QA1243-LEGACY-ENTRY]')){
+              const {assertLegacyEntryRelease}=await import(process.cwd()+'/scripts/qa1243_legacy_entry_release.mjs');
+              assertLegacyEntryRelease(diff.files,releaseMessage,before);
+              core.info('Reviewed legacy entry static recovery; no operating writes');return;
+            }
             if(releaseMessage.includes('[QA1243-OWNER-REINVITE]')){
               const {assertHqReinviteRelease}=await import(process.cwd()+'/scripts/qa1243_hq_reinvite_release.mjs');
               assertHqReinviteRelease(diff.files,releaseMessage,before);
@@ -727,7 +732,9 @@ jobs:
       - name: Capture unchanged operating public asset digests before safe app release
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-REINVITE]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}" == "true" ]]; then
+            node scripts/qa1243_legacy_pages_assets.mjs --before
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-REINVITE]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --before --reinvite
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-OPENING]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --before
@@ -744,6 +751,9 @@ jobs:
           fi
       - name: Build static QA-only HTML / JS / CSS (existing app files unchanged)
         run: node scripts/qa1243_safari_static_build.mjs
+      - name: Build exact public release marker for legacy bookmark recovery
+        if: ${{ contains(github.event.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}
+        run: node scripts/qa1243_legacy_release_manifest.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -757,7 +767,10 @@ jobs:
       - name: Confirm public v0.354 HQ readiness UI and unchanged other operating assets
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-REINVITE]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}" == "true" ]]; then
+            node scripts/qa1243_legacy_pages_assets.mjs --after
+            node scripts/qa1243_legacy_pages_readback.mjs
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-REINVITE]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --after --reinvite
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-OPENING]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --after
