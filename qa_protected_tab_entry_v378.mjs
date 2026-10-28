@@ -43,7 +43,7 @@ try{for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
   page.on('pageerror',e=>errors.push(String(e)));
   await page.route('**/*',route=>{assert.equal(new URL(route.request().url()).origin,base,'No external operating API');return route.continue()});
   const pass=name=>proof.push({engine,width,name,result:'PASS',operatingWrite:false});
-  const recipe=async()=>{await page.goto(base+'/#recipe');await page.locator('.recipe-v220').waitFor()};
+  const recipe=async()=>{await page.goto(base+'/?fixture='+Date.now()+'#recipe');await page.locator('.recipe-v220').waitFor()};
   const closePicker=async()=>{await page.locator('#mrEmp').waitFor();await page.locator('#addVeil').click({position:{x:2,y:2}});await page.waitForFunction(()=>!document.getElementById('addVeil').classList.contains('show'))};
   const release=async key=>{await page.waitForFunction(k=>!!window.pending[k],key);await page.evaluate(k=>{QA.delay='';pending[k]()},key)};
   await recipe();await page.locator('#tabAttendance').click();await closePicker();
