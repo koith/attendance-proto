@@ -89,7 +89,7 @@ function api(name,body,token,method='POST'){
    if(!scopeOK||!(isOwner||isAssistant||isHQ))return denial();
    return {result:[...managers.values()].filter(m=>m.store_id===STORE).map(m=>({user_id:m.id,email:m.email,intended_role:m.role,account_state:m.active?'ACTIVE':'PENDING'}))};
  }
- if(name==='store_delegated_permissions_list')return isOwner&&scopeOK?{result:[...permissions.entries()].map(([uid,p])=>({user_id:uid,...p}))}:denial();
+ if(name==='store_assistant_permissions_list')return isOwner&&scopeOK?{result:[...permissions.entries()].map(([uid,p])=>({user_id:uid,...p}))}:denial();
  if(name==='store_delegated_manager_change'){
    if(!isOwner||!scopeOK||body.p_action!=='REVOKE')return denial();
    const manager=managers.get(String(body.p_user_id));
@@ -103,11 +103,11 @@ function api(name,body,token,method='POST'){
    permissions.delete(manager.id);
    return {result:{ok:true,revoked:true}};
  }
- if(name==='store_delegated_permissions_set'){
+ if(name==='store_assistant_permissions_set'||name==='store_delegated_permissions_set'){
    if(!isOwner||!scopeOK)return denial();
    const m=[...managers.values()].find(x=>x.id===body.p_user_id&&x.role==='ASSISTANT'&&x.active);
    if(!m)return failing('ACTIVE_ASSISTANT_REQUIRED',409);
-   permissions.set(m.id,{staff_edit:!!body.p_staff_edit,attendance_approve:!!body.p_attendance_approve,payroll_view:!!body.p_payroll_view});
+   permissions.set(m.id,{staff_edit:!!body.p_staff_edit,attendance_view:!!body.p_attendance_view||!!body.p_attendance_manage,attendance_approve:!!body.p_attendance_manage,payroll_view:false});
    return {result:{ok:true}};
  }
  if(name==='store_limited_employee_list')return isAssistant&&permissions.get(user.id)?.staff_edit&&scopeOK?{result:staff.filter(x=>x.store_id===scoped)}:denial();
@@ -118,7 +118,7 @@ function api(name,body,token,method='POST'){
    employee.name=body.p_name;employee.memo=body.p_memo;return {result:{ok:true}};
  }
  if(name==='store_limited_pending_requests')return isAssistant&&permissions.get(user.id)?.attendance_approve&&scopeOK?{result:[]}:denial();
- if(name==='store_limited_payroll_read')return isAssistant&&permissions.get(user.id)?.payroll_view&&scopeOK?{result:[{employee_name:staff[0].name,gross_pay:120000,net_pay:116040}]}:denial();
+ if(name==='store_limited_payroll_read')return denial();
  if(name.startsWith('admin_store_operations_')){
    if(!scopeOK||!isOwner||stores.get(STORE).onboarding_status!=='READY')return denial();
    if(name==='admin_store_operations_import_stage'){
@@ -373,14 +373,14 @@ try{
  await activation(mail[1].href,'qa-assistant-password-16');
  verify(managers.get('assistant-qa-id').active&&managers.get('assistant-qa-id').role==='ASSISTANT','assistant activation never becomes owner');
  await owner.reload();
- await owner.locator('.smt-delegate summary').first().click();
+ await owner.locator('[data-manager-manage]').first().click();
  const rights=owner.locator('[data-manager-rights="assistant-qa-id"]');
  await rights.locator('[data-allow="staff"]').check();
  await rights.locator('[data-allow="attendance"]').check();
- await rights.locator('[data-allow="payroll"]').check();
+ await rights.locator('[data-allow="view"]').check();
  await rights.locator('[data-permission-save]').click();
- await owner.waitForFunction(()=>document.querySelector('[data-manager-rights="assistant-qa-id"] input[data-allow="payroll"]')?.checked);
- verify(Object.values(permissions.get('assistant-qa-id')).every(Boolean),'owner grants three scoped assistant permissions via real UI');
+ await owner.waitForFunction(()=>document.querySelector('[data-manager-rights="assistant-qa-id"] input[data-allow="attendance"]')?.checked);
+ verify(permissions.get('assistant-qa-id').staff_edit&&permissions.get('assistant-qa-id').attendance_approve&&!permissions.get('assistant-qa-id').payroll_view,'owner grants attendance/staff scopes via real popup, payroll remains closed');
  const assistant=await contextPage('/qa/manager?token=qa-assistant');
  await assistant.locator('#storeManagerContent').getByText('보조 관리자',{exact:false}).first().waitFor();
  verify(await assistant.locator('#storeManagerInviteForm').count()===0&&await assistant.locator('[data-permission-save]').count()===0,'assistant cannot invite/escalate permissions in manager UI');
@@ -392,10 +392,8 @@ try{
  await limited.locator('.limited-staff-form button[type="submit"]').click();
  await limited.locator('#limitedManagerNotice').getByText('직원 기본정보를 수정했습니다.').waitFor();
  verify(staff[0].name==='개통 테스트 직원'&&staff[0].store_id===STORE,'real delegated portal updates only store-scoped staff');
- await limited.locator('#limitedPayrollMonth').fill('2026-09');
- await limited.locator('#limitedPayrollLoad').click();
- await limited.locator('#limitedPayrollRows').getByText('세전',{exact:false}).waitFor();
- verify(true,'delegated payroll view renders only authorized closed month');
+ verify(await limited.locator('#limitedPayrollRows').count()===0,'assistant portal never offers payroll');
+ verify(api('store_limited_payroll_read',{p_store_id:STORE,p_ym:'2026-09'},'qa-assistant').status===403,'payroll is denied at API too');
  await limited.close();await owner.close();await assistant.close();
 
  const recipe=await contextPage('/qa/recipe?token=qa-owner');
@@ -506,6 +504,7 @@ try{
  // exercising authenticated attendance/payroll, recipe, and inventory.
  const revokedUI=await contextPage('/qa/manager?token=qa-owner');
  await revokedUI.locator('.smt-delegate summary').first().click();
+ await revokedUI.locator('[data-manager-manage]').first().click();
  const revoke=revokedUI.locator('[data-manager-revoke="assistant-qa-id"]');
  await revoke.click();
  await revokedUI.waitForFunction(()=>

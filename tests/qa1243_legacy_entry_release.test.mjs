@@ -14,7 +14,7 @@ test('missing safety marker, changed main and incomplete runtime bytes block pub
  for(const path of Object.keys(LEGACY_BYTES))assert.throws(()=>assertLegacyEntryRelease(files,message,LEGACY_BASE,{read:p=>readFileSync(p,'utf8')+(path===p?'\n// unreviewed':'')}),/BYTES/);
 });
 test('operating, SQL, Edge, Auth callback, unknown and removed assets cannot hide in static repair',()=>{
- for(const filename of ['apps_script.gs','actual_attendance.js','owner_activation_other.js','supabase/migrations/unreviewed.sql','supabase/functions/server-sync-sheet/index.ts','unknown.js'])
+ for(const filename of ['apps_script.gs','actual_attendance_unreviewed.js','owner_activation_other.js','supabase/migrations/unreviewed.sql','supabase/functions/server-sync-sheet/index.ts','unknown.js'])
   assert.throws(()=>assertLegacyEntryRelease([...files,{filename,status:'modified'}],message,LEGACY_BASE),/SCOPE/);
  assert.throws(()=>assertLegacyEntryRelease(files.map(f=>({...f,status:'removed'})),message,LEGACY_BASE),/SCOPE/);
 });

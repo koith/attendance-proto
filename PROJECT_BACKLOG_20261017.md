@@ -961,3 +961,12 @@
 - 첫 시도는 세션 하위 AMR1이 보호 비교에 포함돼 전체 ROLLBACK됨을 재조회했다. 대상 세션의 하위 행만 정확히 제외하도록 수정 후 재실행: **보호89테이블 전후 해시 일치**. 지점244/HQ3/인하대직원10/실레시피136, 1호점 READY/active=true와 실제 대표 유지.
 - 삭제 후 독립 재조회에서 해당 UID/이메일 관련 현재 public/Auth/Storage/session_guard 참조0. 실제 read-only `service_store_invitation_dispatch_preflight`(store80/STORE_ASSISTANT) 결과 **ok=true, delivery=INVITE, existing_auth_user=false, user_id=null**. 기존 계정 연결/RECOVERY 대신 신규 초대 경로로 준비 완료. 실제 수신/수락/개인 비밀번호 설정/보조 권한 수용은 사용자가 다음 초대를 보내 확인해야 하며 자동 PASS로 처리하지 않는다.
 - 작업 영수증 `qa1243-new-recipient-reset-20261028-6c46faf0`. 실제 발송0/다른 계정 삭제0/기존 Sheets 변경0. 과거 감사·복구 자료는 사용자 계정으로 조회되거나 신규 초대를 막지 않는 비공개 이력이다. 전체38/완료19/잔여19 유지. 운영 메일 브랜드 설정 쓰기 인증 등 기존 잔여는 별도 유지.
+
+
+## 100. 2026-10-28 — 보조관리자 분야별 권한·관리 팝업 개발 (v0.375 후보)
+
+- 사용자 실제 신규 초대·비밀번호·로그인 성공 보고와 1호점 제한화면 수용을 기록한다. 모든 직원 근무현황을 관리할 수 없고 PIN 창으로 연결되는 현상은 미완료로 구분한다.
+- 추가 사용자 지시: 대표가 명단 오른쪽 관리 버튼→팝업에서 근태조회/근태관리/직원관리 ON/OFF, 급여 절대 비공개, 기존 해임 포함. 근태 관리 ON은 조회도 포함, 조회 OFF는 관리도 해제한다. 관리·해임 서버 API는 현재 대표만 호출할 수 있다. 직원 관리는 기존 scoped 이름/메모 수정 범위로 명시하고 임금/계약/문서/대표지정 권한을 확장하지 않는다.
+- 신규 전용 근태 API는 실제 Auth·자기 지점 READY·현재 권한을 매 호출마다 확인한다. 조회 로스터는 임금/세금/PIN을 포함하지 않으며, 조회 전용은 수정 버튼을 숨기고 직접 API 정정도 거절한다. 추가/시간수정/원본무효/추가무효 및 중복방어는 현재 검증된 운영 정정 로직을 보존한다. 구형 관리자 API의 전체권한 판단을 완화하지 않는다.
+- 급여 토글/조회 화면을 제거하고 저장된 과거 payroll_view=true도 보조 전용 급여 API와 서버 scope에서 거절한다. 이전 setter가 급여 권한을 켜려는 요청도 거부한다. 대표의 원래 급여 기능은 유지한다. 새 attendance_view 기본false로 다른 지점 권한을 일괄 부여하지 않으며 실제 켜기/해제는 대표의 팝업 확인으로 진행한다.
+- branch fix/qa1243-assistant-attendance/base16c456cb. 로컬 실제 핸들러/기존 역할/화면 검사와 새 격리 PostgreSQL/Chromium·WebKit 검사를 준비했다. SQL은 qa1243_assistant_attendance.sql에 정확 소스로 보존. CLI는 설치본의 read-only 설정디렉터리 오류·Go 백엔드 migration 미지원으로 사용할 수 없어, 실제 운영 적용은 기존 Supabase migration 도구를 사용한다. 운영 직원/근태/급여·실메일·Google/Sheets·READY·SEC01 쓰기0. QA/PR/병합/실제 SQL·Pages 반영 결과는 후속 Issue1243의 같은SHA 증거로 확정한다. 전체38/완료19/잔여19 유지.

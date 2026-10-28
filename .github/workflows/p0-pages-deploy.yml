@@ -526,6 +526,27 @@ jobs:
           bash -n scripts/autonomous_dev_agent.sh
       - name: boot-syntax-regression
         run: node qa_boot_syntax.mjs
+      - name: Require deployed assistant attendance API before publishing its UI
+        if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[QA1243-ASSISTANT-ATTENDANCE]') }}
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          import assert from 'node:assert/strict';
+          const html=readFileSync('index.html','utf8');
+          const api=html.match(/SUPABASE_URL:\s*"([^"]+)"/)[1],key=html.match(/SUPABASE_ANON_KEY:\s*"([^"]+)"/)[1];
+          for(const fn of ['can_view_store_attendance','can_manage_store_attendance','store_attendance_employees','store_attendance_settings']){
+            let ready=false;
+            for(let attempt=0;attempt<8;attempt++){
+              const r=await fetch(api+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:key,Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({p_store_id:-1}),signal:AbortSignal.timeout(5000)});
+              const result=await r.json();
+              if([401,403].includes(r.status)&&result.code==='42501'){ready=true;break;}
+              if(result.code!=='PGRST202')throw Error('ASSISTANT_RPC_ACCESS_OR_SCHEMA_'+r.status);
+              await new Promise(resolve=>setTimeout(resolve,2000));
+            }
+            assert.ok(ready,'SQL migration not deployed: '+fn);
+          }
+          console.log('ASSISTANT_ATTENDANCE_API_DEPLOYED_AND_ANONYMOUS_DENIED');
+          NODE
       - name: HQ readiness and operations failure integrity
         run: node qa_operational_readiness_fail_closed_v1.mjs
       - name: Exclude demo inventory from actual KPIs and guard unknown ledger
@@ -733,7 +754,7 @@ jobs:
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
           if [[ "${{ contains(github.event.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}" == "true" ]]; then
-            node scripts/qa1243_legacy_pages_assets.mjs --before ${{ contains(github.event.head_commit.message, '[QA1243-OWNER-PASSWORD-FEEDBACK]') && '--owner-password-feedback' || '' }}
+            node scripts/qa1243_legacy_pages_assets.mjs --before ${{ contains(github.event.head_commit.message, '[QA1243-OWNER-PASSWORD-FEEDBACK]') && '--owner-password-feedback' || '' }} ${{ contains(github.event.head_commit.message, '[QA1243-ASSISTANT-ATTENDANCE]') && '--assistant-attendance' || '' }}
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-REINVITE]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --before --reinvite
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-OPENING]') }}" == "true" ]]; then
@@ -768,7 +789,7 @@ jobs:
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
           if [[ "${{ contains(github.event.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}" == "true" ]]; then
-            node scripts/qa1243_legacy_pages_assets.mjs --after ${{ contains(github.event.head_commit.message, '[QA1243-OWNER-PASSWORD-FEEDBACK]') && '--owner-password-feedback' || '' }}
+            node scripts/qa1243_legacy_pages_assets.mjs --after ${{ contains(github.event.head_commit.message, '[QA1243-OWNER-PASSWORD-FEEDBACK]') && '--owner-password-feedback' || '' }} ${{ contains(github.event.head_commit.message, '[QA1243-ASSISTANT-ATTENDANCE]') && '--assistant-attendance' || '' }}
             node scripts/qa1243_legacy_pages_readback.mjs
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-REINVITE]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --after --reinvite
