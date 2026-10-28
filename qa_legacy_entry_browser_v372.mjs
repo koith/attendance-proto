@@ -29,7 +29,7 @@ const report=[],paths=['/attendance-proto/','/attendance-proto/index.html?v=24#p
  '/attendance-proto/?mode=store&store=1#pos','/attendance-proto/index.html?mode=store&store=1&v=0.371#pos'];
 const profiles=live?['fresh','expired-no-refresh','hosted-rejected-refresh']:['fresh','expired-no-refresh','hosted-rejected-refresh','reused-refresh','superseded','forbidden','auth-network','store-network'];
 const jwt=exp=>'qa.'+Buffer.from(JSON.stringify({exp,sub:'synthetic-identity'})).toString('base64url')+'.test';
-const readOnlyRPC=new Set(['list_stores','pos_public_staff_picker','pos_public_staff_cards','pos_employees_state']);
+const readOnlyRPC=new Set(['list_stores','pos_public_staff_picker','pos_public_staff_cards','pos_employees_state','store_recipe_list_public']);
 async function prepare(context,profile){
  await context.addInitScript(({profile,token})=>{
   if(localStorage.getItem('qa_legacy_seeded'))return;
@@ -80,6 +80,7 @@ async function visit(browser,engine,path,profile,storageState){
    if(profile==='store-network'&&fault)return route.abort('failed');
    return reply([{id:1,name:'인하대학교점',is_active:true}]);
   }
+  if(name==='pos_public_staff_cards')return reply([{id:9999,name:'격리 직원',employee_no:1}]);
   if(name==='is_hq_admin'||name==='is_admin')return reply(true);
   if(name==='hq_field_data_readiness')return reply({store_ready:true,operational_ready:true});
   return reply([]);
@@ -125,6 +126,21 @@ async function visit(browser,engine,path,profile,storageState){
     assert.ok(await page.locator('.staff-count-sheet').evaluate(el=>el.scrollWidth<=el.clientWidth+1));
     await page.keyboard.press('Escape');
     assert.equal(await page.locator('.staff-count-modal').count(),0);
+    // Real Pages UI, public read-only RPCs only: selected attendance must not
+    // retain the recipe body after its existing employee PIN popup is closed.
+    await page.locator('#tabRecipe').click();
+    await page.locator('.recipe-v220').waitFor();
+    await page.locator('#tabAttendance').click();
+    await page.locator('#mrEmp').waitFor();
+    await page.locator('#addVeil .modal-x').click();
+    assert.equal(await page.locator('#tabAttendance.on').count(),1);
+    assert.equal(await page.locator('.recipe-v220').count(),0);
+    await page.locator('#attendanceAdminLogin').click();
+    await page.locator('#loginEmail').waitFor();
+    assert.equal(await page.locator('#tabAttendance.on').count(),1);
+    assert.equal(await page.locator('.recipe-v220').count(),0);
+    await page.locator('#tabRecipe').click();
+    await page.locator('.recipe-v220').waitFor();
    }
   }
   await page.reload({waitUntil:'domcontentloaded'});
@@ -133,7 +149,7 @@ async function visit(browser,engine,path,profile,storageState){
  assert.equal(await page.evaluate(()=>localStorage.getItem('qa_preserve')),'unchanged');
  assert.deepEqual(errors,[]);
  const state=await context.storageState();
- report.push({engine,path,profile,result:'PASS',version:expectedVersion,readOnly:live,requests:calls.length,...(hostedRejection?{hostedRejection}:{})});
+ report.push({engine,path,profile,result:'PASS',version:expectedVersion,readOnly:live,requests:calls.length,...(profile==='fresh'&&path===paths[0]?{protectedTabEntry:true}:{}),...(hostedRejection?{hostedRejection}:{})});
  await context.close();return state;
 }
 try{
