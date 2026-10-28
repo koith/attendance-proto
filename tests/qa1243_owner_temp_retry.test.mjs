@@ -33,6 +33,8 @@ async function scenario(mode) {
     password_change_required:true,expires_at:"2099-01-01T00:00:00Z"});
   if(u.endsWith("/auth/v1/user")&&method==="PUT"){
    changes++;
+   if(mode==="same-current-password"&&changes===1)
+    return reply(422,{code:422,error_code:"same_password",msg:"New password should be different from the old password."});
    if(mode==="unrelated-error")return reply(422,{code:"weak_password",message:"bad password"});
    if(mode==="network-loss"&&changes===1)throw Error("network disconnected after save");
    if(mode==="already-saved"||(mode==="network-loss"&&changes>1))
@@ -41,7 +43,8 @@ async function scenario(mode) {
   }
   if(u.includes("/store_owner_temp_complete")||u.includes("/native_owner_invitation_complete")){
    completed++;
-   assert.equal(JSON.parse(options.body).p_new_password,"valid-new-password-123");
+   assert.ok(["valid-new-password-123","another-new-password-456"].includes(JSON.parse(options.body).p_new_password));
+   if(mode==="same-current-password"&&changes===1)return reply(400,{code:"P0001",message:"PERSONAL_PASSWORD_NOT_VERIFIED"});
    if(mode==="completion-loss"&&completed===1)throw Error("completion response lost after commit");
    return reply(200,{ok:true,owner_assigned:true,store_id:80,store_opened:mode==="completion-loss"||mode==="native-recovery",already_completed:mode==="completion-loss"});
   }
@@ -65,6 +68,15 @@ async function scenario(mode) {
  assert.equal(typeof submit,"function","The signed-in owner should see the password form");
  const event={preventDefault(){}};
  await submit(event);
+ if(mode==="same-current-password"){
+  assert.equal(logins,0);assert.equal(redirect,null);
+  assert.match(element("status").textContent,/다른 새 비밀번호.*12자/);
+  assert.doesNotMatch(element("status").textContent,/PERSONAL_PASSWORD_NOT_VERIFIED|완료됐을 수/);
+  assert.equal(element("confirm").disabled,false);
+  element("password").value="another-new-password-456";
+  element("repeat").value="another-new-password-456";
+  await submit(event);
+ }
  if(mode==="network-loss"||mode==="completion-loss"){
   assert.equal(completed,mode==="completion-loss"?1:0,"Do not claim ownership after a lost password update");
   element("password").value="valid-new-password-123";
@@ -77,7 +89,7 @@ async function scenario(mode) {
   assert.equal(redirect,null);
   assert.match(element("status").textContent,/처리 실패/);
  } else {
-  assert.equal(completed,mode==="completion-loss"?2:1);
+  assert.equal(completed,["completion-loss","same-current-password"].includes(mode)?2:1);
   assert.equal(logins,1);
   assert.equal(savedSession.access_token,"new-token");
   assert.match(redirect,/store=80/);
@@ -87,6 +99,11 @@ async function scenario(mode) {
 }
 test("normal first-login password change preserves server-side verification",async()=>{
  assert.equal((await scenario("normal")).changes,1);
+});
+test("Hosted numeric same_password + unchanged hash explains the old password and permits a new one without another invitation",async()=>{
+ const result=await scenario("same-current-password");
+ assert.equal(result.changes,2);assert.equal(result.completed,2);
+ assert.ok(!result.calls.some(x=>x.includes("/recover")||x.includes("/invite")));
 });
 test("422/same_password retry resumes and verifies ownership",async()=>{
  assert.equal((await scenario("already-saved")).changes,1);

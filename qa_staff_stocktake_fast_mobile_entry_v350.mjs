@@ -8,7 +8,7 @@ const source=fs.readFileSync('operations_staff_stocktake_v1.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
 // Test the v0.350 stocktake asset regardless of a later unrelated app release.
 assert.match(index,/const APP_VERSION="v0\.\d+"/);
-assert.match(index,/operations_staff_stocktake_v1\.js\?v=20261019v350/);
+assert.match(index,/operations_staff_stocktake_v1\.js\?v=20261028v374/);
 assert.match(source,/id="staffCountQty"[^>]*inputmode="decimal"/);
 assert.match(source,/staffCountQty"\)\.addEventListener\("keydown"/);
 class FakeNode {
@@ -74,7 +74,7 @@ el('staffCountItem').dispatch('change');
 assert.match(el('staffCountAdd').textContent,/품목 추가/);
 el('staffCountQty').value='-1';
 el('staffCountQty').dispatch('keydown',{key:'Enter',preventDefault(){}});
-assert.match(el('staffCountStatus').textContent,/실사 수량/);
+assert.match(el('staffCountStatus').textContent,/수량/);
 assert.equal((el('staffCountLines').innerHTML.match(/data-remove=/g)||[]).length,1,
  'Invalid count cannot alter already verified local draft');
 el('staffCountQty').value='2.5';

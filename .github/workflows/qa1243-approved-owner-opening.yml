@@ -51,6 +51,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Fetch exact historical v0.369 objects for its frozen release guard
+        run: |
+          git fetch --no-tags --depth=1 origin d0a1d2b3c17418113e9e22a8bcca18040a8b2399
+          python3 - <<'PYFIXTURE'
+          import subprocess,json
+          from pathlib import Path
+          paths=['index.html','owner_activation.html','owner_temp_activation.html']
+          original={p:subprocess.check_output(['git','show','d0a1d2b3c17418113e9e22a8bcca18040a8b2399:'+p]).decode() for p in paths}
+          Path('/tmp/qa1243-v369-release-fixture.json').write_text(json.dumps(original))
+          PYFIXTURE
       - name: HQ approval, owner issue and read-only resend contracts
         run: node qa_store_owner_approved_opening.mjs
       - name: Strict owner-only release and no operating data mutation boundary

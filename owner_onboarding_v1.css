@@ -1,0 +1,35 @@
+:root{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:#172019;background:#f4f7f5;font-synthesis:none}
+*{box-sizing:border-box}
+body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:28px 16px}
+main{width:100%;max-width:500px;overflow:hidden;border:1px solid #dbe4de;border-radius:20px;background:#fff;box-shadow:0 8px 30px #183a230b}
+.owner-brand{display:grid;gap:9px;padding:22px 26px;background:#1d5d3a;color:#d0e6d7}
+.owner-brand img{display:block;width:218px;max-width:100%;height:auto;color:#fff;font-size:26px;font-weight:800}
+.owner-brand span{font-size:11px;letter-spacing:.03em}
+.owner-content{padding:26px}
+.owner-eyebrow{display:inline-block;margin:0 0 10px;padding:4px 8px;border-radius:6px;background:#edf5ef;color:#1d5d3a;font-size:11px;font-weight:700}
+h1{margin:0 0 12px;font-size:23px;line-height:1.4;letter-spacing:-.5px;color:#203f2d}
+h2{margin:0 0 10px;font-size:17px;line-height:1.5;color:#203f2d}
+p{margin:0 0 14px;font-size:14px;color:#647268;line-height:1.7;overflow-wrap:anywhere}
+.owner-steps{display:flex;flex-wrap:wrap;gap:10px;list-style:none;padding:12px 0 18px;margin:0 0 8px;border-bottom:1px solid #e5ece7}
+.owner-steps li{display:flex;align-items:center;gap:6px;color:#687a6f;font-size:11px}
+.owner-steps li+li::before{content:'›';margin-right:3px;color:#a0afa5}
+.owner-steps span{display:grid;place-items:center;width:19px;height:19px;border-radius:50%;background:#edf4ef;color:#366048;font-size:10px;font-weight:700}
+label{display:block;margin:17px 0 7px;font-size:13px;font-weight:650;color:#3f5145}
+input{display:block;width:100%;min-width:0;min-height:48px;margin-top:7px;padding:12px 13px;border:1px solid #cbd8cf;border-radius:10px;background:#fff;color:#172019;font:400 16px/1.4 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif}
+input:focus{outline:2px solid #c5ddcd;outline-offset:1px;border-color:#1d5d3a}
+button{display:block;width:100%;min-height:49px;margin-top:20px;padding:13px 16px;border:0;border-radius:11px;background:#1d5d3a;color:#fff;font-family:inherit;font-size:15px;font-weight:700;line-height:1.5;cursor:pointer}
+button:disabled{opacity:.55;cursor:default}
+button:focus-visible,a:focus-visible{outline:3px solid #9dbfa9;outline-offset:3px}
+a{color:#246043;text-underline-offset:3px}
+.owner-field-note{margin-top:8px;font-size:12px;line-height:1.6;color:#7b877f}
+#storeDescription{padding:12px;border:1px solid #e1eae4;border-radius:10px;background:#f8faf9;font-size:12px;line-height:1.7;color:#52675a}
+#status{margin:18px 0 0;padding:12px 13px;border:1px solid #dce7df;border-radius:10px;background:#f5f9f6;color:#4d6555;font-size:12px;white-space:pre-wrap;line-height:1.7;overflow-wrap:anywhere}
+#status:empty{display:none}
+#recoveryResendForm{padding-top:20px;margin-top:20px;border-top:1px solid #e2eae5}
+#recoveryResendForm small{display:block;margin-top:9px;color:#78887d;font-size:12px;line-height:1.6}
+.owner-backlink{margin:20px 0 0;font-size:13px}
+.owner-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 26px;border-top:1px solid #e8eee9;background:#f8faf9;color:#7a8b80;font-size:11px;line-height:1.5}
+.owner-footer a{font-size:11px}
+[hidden]{display:none!important}
+@media(max-width:430px){body{padding:16px 12px}.owner-brand{padding:20px}.owner-content{padding:23px 20px}.owner-footer{padding:15px 20px}h1{font-size:21px}.owner-brand img{width:205px}}
+@media(max-width:350px){body{padding:12px 8px}.owner-content,.owner-brand{padding:20px 16px}.owner-footer{padding:14px 16px}.owner-steps{gap:7px}.owner-steps li{font-size:10px}}

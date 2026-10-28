@@ -39,7 +39,7 @@ test('single email click renders user-owned static callback, not Supabase GET',(
  assert.match(mail,/href="https:\/\/koith\.github\.io\/attendance-proto\/owner_activation\.html#type=recovery&amp;token_hash=\{\{ \.TokenHash \}\}"/);
  assert.doesNotMatch(mail,/\.ConfirmationURL/);
  assert.doesNotMatch(mail,/href="https:\/\/waluhdgqhwjjwmflhrle\.supabase\.co\/auth\/v1\/verify/);
- assert.match(html,/owner_activation\.js\?v=20261027opening1/);
+ assert.match(html,/owner_activation\.js\?v=20261028password1/);
  assert.doesNotMatch(html,/recoveryPastedLinkForm|복사한 인증 링크/);
 });
 

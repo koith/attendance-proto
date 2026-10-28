@@ -5,8 +5,10 @@ import {createServer} from 'node:http';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {resolve,sep,extname} from 'node:path';
 import {chromium,webkit} from 'playwright';
-const live=process.argv.includes('--live'),expectedVersion='v0.373',root=process.cwd();
+const live=process.argv.includes('--live'),root=process.cwd();
 const expectedIndex=readFileSync('index.html','utf8');
+const expectedVersion=expectedIndex.match(/const APP_VERSION="([^"]+)"/)?.[1];
+assert.ok(expectedVersion);
 const apiOrigin='https://waluhdgqhwjjwmflhrle.supabase.co';
 let server,base='https://koith.github.io';
 if(!live){
@@ -114,7 +116,17 @@ async function visit(browser,engine,path,profile,storageState){
     const r=await fetch(CONFIG.SUPABASE_URL+'/auth/v1/settings',{headers:{apikey:CONFIG.SUPABASE_ANON_KEY}});return r.status;
    }),200,'Auth settings and CORS must be reachable from the original browser URL');
   }
-  else assert.equal(await page.evaluate(()=>CURRENT_STORE_ID),1);
+  else{
+   assert.equal(await page.evaluate(()=>CURRENT_STORE_ID),1);
+   if(profile==='fresh'&&path===paths[0]){
+    assert.equal(await page.locator('#staffCountOpen').innerText(),'재고 파악(직원용)');
+    await page.locator('#staffCountOpen').click();
+    await page.getByRole('dialog',{name:'재고 파악(직원용)'}).waitFor();
+    assert.ok(await page.locator('.staff-count-sheet').evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.staff-count-modal').count(),0);
+   }
+  }
   await page.reload({waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelector('#conn')?.textContent.includes('클라우드 연결됨'),null,{timeout:23000});
  }

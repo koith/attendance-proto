@@ -131,7 +131,18 @@ form.addEventListener("submit",async event=>{
    throw Error(String(updateResult.message||updateResult.msg||
     updateResult.error_description||updateResult.code||update.status));
   const completePath=nativeOwner?"/rest/v1/rpc/native_owner_invitation_complete":"/rest/v1/rpc/store_owner_temp_complete";
-  const accepted=await call(completePath,"POST",{p_new_password:password});
+  let accepted;
+  try{accepted=await call(completePath,"POST",{p_new_password:password});}
+  catch(error){
+   // A current-password refusal is not proof that this invitation's password
+   // was saved. Only the server can distinguish an unchanged pre-invite hash
+   // from a successfully saved password whose previous response was lost.
+   if(savedAlready&&!nativeOwner&&String(error?.message||"").includes("PERSONAL_PASSWORD_NOT_VERIFIED")){
+    const retry=Error("이전에 사용하던 비밀번호와 다른 새 비밀번호를 12자 이상 입력해 주세요. 현재 비밀번호는 변경되지 않았습니다. 이 화면에서 다시 설정하면 되며 초대 메일을 다시 받을 필요는 없습니다.");
+    retry.code="OWNER_NEW_PASSWORD_REQUIRED";throw retry;
+   }
+   throw error;
+  }
   if(accepted?.ok!==true||accepted?.owner_assigned!==true||Number(accepted.store_id)!==Number(claim.store_id))
     throw Error("OWNER_ACTIVATION_UNVERIFIED");
   const session=await call("/auth/v1/token?grant_type=password","POST",{email:identity.email,password});
@@ -145,7 +156,8 @@ form.addEventListener("submit",async event=>{
   status.textContent=accepted.store_opened===true?"대표 관리자 등록과 지점 개통이 완료됐습니다.":"대표 관리자 등록 완료. 지점 개통은 본사 승인이 필요합니다.";
   location.replace("./index.html?mode=store&store="+encodeURIComponent(claim.store_id)+"#admin");
  }catch(e){
-  status.textContent="처리 실패: "+String(e?.message||e)+". 비밀번호 설정은 완료됐을 수 있으니 본사에 문의하세요.";
+  status.textContent=e?.code==="OWNER_NEW_PASSWORD_REQUIRED"?e.message:
+   "처리 실패: "+String(e?.message||e)+". 비밀번호 설정은 완료됐을 수 있으니 본사에 문의하세요.";
   button.disabled=false;
  }finally{
   document.getElementById("password").value="";

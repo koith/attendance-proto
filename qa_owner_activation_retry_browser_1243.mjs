@@ -13,6 +13,8 @@ const server=http.createServer((req,res)=>{
  if(path==='/owner_activation.html')res.end(html);
  else if(path==='/owner_activation.js')res.end(script);
  else if(path==='/index.html')res.end(config);
+ else if(path==='/owner_onboarding_v1.css'){res.setHeader('Content-Type','text/css');res.end(readFileSync('owner_onboarding_v1.css'));}
+ else if(path==='/logo_combine.jpg'){res.setHeader('Content-Type','image/jpeg');res.end(readFileSync('logo_combine.jpg'));}
  else{res.statusCode=404;res.end();}
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -55,7 +57,7 @@ try{
       reply({message:'INVITATION_CANCELLED_OR_NOT_FOUND'},403):
       reply({ok:true,store_id:701,intended_role:scenario.startsWith('assistant')?'ASSISTANT':'OWNER'});
      if(url.pathname==='/auth/v1/user'){
-      if(saved)return reply({code:'same_password',msg:'New password should be different from the old password.'},422);
+      if(saved)return reply({code:422,error_code:'same_password',msg:'New password should be different from the old password.'},422);
       saved=true;
       if(scenario==='assistant-lost-password-response'&&!failed){failed=true;return route.abort('failed');}
       return reply({});

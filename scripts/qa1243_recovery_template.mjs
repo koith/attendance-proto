@@ -4,6 +4,7 @@
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
+import {approvedLogoImages} from './qa1243_auth_mail_branding.mjs';
 
 const ENDPOINT='https://api.supabase.com/v1/projects/waluhdgqhwjjwmflhrle/config/auth';
 const PUBLIC_ORIGIN='https://koith.github.io/attendance-proto/owner_activation.html';
@@ -20,7 +21,7 @@ export function validateRecoveryTemplate(html){
     (html.match(/\{\{\s*\.TokenHash\s*\}\}/g)||[]).length!==1||
     !html.includes('href="'+PUBLIC_ORIGIN+'#type=recovery&amp;token_hash={{ .TokenHash }}"')||
     /{{\s*\.ConfirmationURL\s*}}/.test(html)||
-    new RegExp('<(?:script|iframe|form|img)\\b|\\bon(?:load|click|error)\\s*=','i').test(html)||
+    !approvedLogoImages(html)||new RegExp('<(?:script|iframe|form)\\b|\\bon\\w+\\s*=','i').test(html)||
     !html.includes('백억커피'))
   throw Error('RECOVERY_TEMPLATE_INVALID');
 }

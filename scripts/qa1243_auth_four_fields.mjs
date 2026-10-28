@@ -5,6 +5,7 @@
 import {createHash} from 'node:crypto';
 import {readFile,appendFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
+import {approvedLogoImages} from './qa1243_auth_mail_branding.mjs';
 import {HOSTED_AUTH_READ_ACCESS,HOSTED_INVITATION_URLS,assessHostedInviteConfig,
  assessHostedInvitationUrls} from './qa1243_auth_config_verdict.mjs';
 
@@ -36,7 +37,7 @@ function fail(code){throw new Error(code);}
 export function validateKoreanTemplate(html){
  if(typeof html!=='string'||!/<html\s+lang="ko"/i.test(html)||!html.includes('백억커피')||
   !html.includes('계정 활성화')||(html.match(/\{\{\s*\.ConfirmationURL\s*\}\}/g)||[]).length!==1||
-  !html.includes('href="{{ .ConfirmationURL }}"')||/<script\b|<iframe\b|<form\b|<img\b|\bon\w+\s*=/i.test(html))
+  !html.includes('href="{{ .ConfirmationURL }}"')||!approvedLogoImages(html)||/<script\b|<iframe\b|<form\b|\bon\w+\s*=/i.test(html))
   fail('VERSIONED_KOREAN_TEMPLATE_INVALID');
 }
 function four(config){

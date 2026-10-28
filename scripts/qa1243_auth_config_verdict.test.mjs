@@ -195,7 +195,7 @@ async function pageCase(change={}){
    if(state.passwordFailure)return reply({message:'PASSWORD_REJECTED'} ,false);
    if(state.passwordError)return reply(state.passwordError,false,state.passwordStatus??422);
    const password=JSON.parse(options.body).password;
-   if(state.passwordValue===password)return reply({code:'same_password',msg:'New password should be different from the old password.'},false);
+   if(state.passwordValue===password)return reply({code:422,error_code:'same_password',msg:'New password should be different from the old password.'},false);
    state.passwordValue=password;
    if(state.passwordResponseLost){state.passwordResponseLost=false;throw Error('synthetic saved password response lost');}
    return reply({});

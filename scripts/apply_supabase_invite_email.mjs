@@ -3,6 +3,7 @@
 // This does not touch SMTP secrets, user accounts or authentication policies.
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import {approvedLogoImages} from './qa1243_auth_mail_branding.mjs';
 
 const PROJECT_REF = "waluhdgqhwjjwmflhrle";
 const SUBJECT = "[백억커피] 매장 관리자 계정 초대 안내";
@@ -14,7 +15,7 @@ function assertTemplate() {
     throw new Error("Invitation must contain exactly one Supabase confirmation URL");
   if (!/<html\s+lang="ko"/i.test(html) || !html.includes("백억커피") || !html.includes("계정 활성화"))
     throw new Error("Korean brand and account activation text required");
-  if (/<script\b|<iframe\b|<form\b|<img\b|onerror\s*=|onload\s*=/i.test(html))
+  if (!approvedLogoImages(html)||/<script\b|<iframe\b|<form\b|\bon\w+\s*=/i.test(html))
     throw new Error("Mail must not contain active scripts/forms or external images");
   if (!html.includes('href="' + expectedPlaceholder + '"'))
     throw new Error("Invitation button must point directly to the Supabase confirmation URL");
