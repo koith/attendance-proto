@@ -17,3 +17,16 @@ assert.ok(!html.includes('class="admin-quick-title"'), 'old large account row mu
 assert.ok(!html.includes('id="adminSettingsBtn"'), 'old standalone settings button must be removed');
 
 console.log('admin account menu v222 QA PASS');
+
+// Execute the real shared handler: a closed account menu must not steal Escape.
+const vm=await import('node:vm');
+const start=html.indexOf('async function mountAdminSubnav('),end=html.indexOf('\nfunction upgradeLegacyPageTitle(',start);
+let focuses=0;const listeners={};
+const trigger={setAttribute(){},focus(){focuses++}},popover={hidden:true},nodes={adminAccountTrigger:trigger,adminAccountPopover:popover,adminAccountSettings:{},adminAccountLogout:{}};
+const context={window:{},view:{querySelectorAll:()=>[],insertAdjacentHTML(){}},adminSubnav:()=>'',document:{getElementById:id=>nodes[id],addEventListener:(k,fn)=>{listeners[k]=fn},removeEventListener(){}},LIVE:true,Auth:{},confirm:()=>false,location:{reload(){}},openPersonalSettings(){},toast(){}};
+vm.runInNewContext(html.slice(start,end)+'\nthis.mount=mountAdminSubnav',context);
+await context.mount('admin',true);
+listeners.keydown({key:'Escape'});assert.equal(focuses,0,'Closed menu must not steal focus from another dialog');
+popover.hidden=false;listeners.keydown({key:'Escape'});assert.equal(focuses,1);assert.equal(popover.hidden,true);
+console.log('PASS shared account Escape focus stays inside its active menu');
+
