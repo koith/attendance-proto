@@ -4,6 +4,7 @@ on:
     paths:
       - 'index.html'
       - 'qa_index_startup_smoke_v1.mjs'
+      - 'qa_safari_existing_link_stale_session_v371.test.mjs'
       - '.github/workflows/index-startup-smoke-v1.yml'
   push:
     branches: [main]
@@ -16,3 +17,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: node qa_index_startup_smoke_v1.mjs
+      - run: node --test qa_safari_existing_link_stale_session_v371.test.mjs

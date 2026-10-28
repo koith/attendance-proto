@@ -11,7 +11,8 @@ function fixture({search='',saved='1',context={role:'STORE_MANAGER',store_id:80}
  const sandbox={URLSearchParams,console:{warn(){},error(){}},S:{staffMode:false,employees:[]},
   location:{search,pathname:'/index.html',hash:'#pos',href:'',replace(url){this.href=url}},
   sessionStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
-  Auth:{token:'synthetic-token',load(){},isLoggedIn:()=>true},
+  // Valid manager fixture: v0.371 checks session freshness before loading admin_context.
+  Auth:{token:'synthetic-token',load(){},isLoggedIn:()=>true,ensureStartupAuth:async()=>true},
   rpc:async(name,args)=>{calls.push({name,args});if(context instanceof Error)throw context;return context},
   document:{querySelector:()=>({textContent:''})},
   el:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id)},

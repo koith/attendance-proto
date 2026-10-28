@@ -1,0 +1,42 @@
+name: Safari legacy link browser regression v0.371
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'qa_safari_legacy_links_webkit_v371.mjs'
+      - 'qa_safari_existing_link_stale_session_v371.test.mjs'
+      - '.github/workflows/safari-legacy-link-regression-v371.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'qa_safari_legacy_links_webkit_v371.mjs'
+      - 'qa_safari_existing_link_stale_session_v371.test.mjs'
+      - '.github/workflows/safari-legacy-link-regression-v371.yml'
+permissions:
+  contents: read
+jobs:
+  webkit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser harness
+        run: npm install --no-save --no-audit --no-fund playwright@1.55.1
+      - name: Node startup and Auth isolation tests
+        run: |
+          node qa_index_startup_smoke_v1.mjs
+          node --test qa_safari_existing_link_stale_session_v371.test.mjs
+      - name: Reproduce actual iPhone-sized WebKit legacy bookmark after expired admin login
+        run: node qa_safari_legacy_links_webkit_v371.mjs
+      - name: Operate without access to production data
+        if: always()
+        run: echo 'The WebKit harness serves local Pages files and intercepts all external network. Production Auth and store database are not accessed or written.' >> "$GITHUB_STEP_SUMMARY"

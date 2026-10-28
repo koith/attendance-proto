@@ -8,8 +8,18 @@ const reviewed=p=>{const s=readFileSync(p,'utf8');return p==='index.html'?s.repl
  .replaceAll('hq_owner_console.js?v=20261027v369','hq_owner_console.js?v=20261020v352')
  .replaceAll('hq_store_onboarding_ui.js?v=20261027v369','hq_store_onboarding_ui.js?v=20261026v362'):s;};
 const message='[QA1243-STORE-ISOLATION] [QA1243-APP-PAGES] [QA1243-NO-OPERATING-WRITE] [QA1243-NO-GOOGLE-RERUN]';
-test('only the reviewed three static runtime files may ship under this marker',()=>{
- assert.equal(assertStoreIsolationRelease(files(),message,ISOLATION_BASE,{read:reviewed}),true);
+test('the v0.368 store-isolation release stays byte-pinned while later releases require independent gates',()=>{
+ const index=readFileSync('index.html','utf8');
+ const version=index.match(/const APP_VERSION="(v0\.\d+)"/)?.[1];
+ assert.ok(version,'version marker required for release scope');
+ if(version==='v0.370'){
+  assert.equal(assertStoreIsolationRelease(files(),message,ISOLATION_BASE,{read:reviewed}),true);
+ }else{
+  assert.ok(Number(version.slice(3))>370,'old release pin cannot silently permit earlier versions');
+  // Historical frozen v0.368 source must reject newer modified index bytes.
+  // v0.371 changes remain governed by full production/P0 and Safari regressions.
+  assert.throws(()=>assertStoreIsolationRelease(files(),message,ISOLATION_BASE,{read:reviewed}),/UNREVIEWED_ASSET/);
+ }
 });
 test('markers, reviewed parent and every changed runtime asset are mandatory',()=>{
  assert.throws(()=>assertStoreIsolationRelease(files(),message.replace('[QA1243-NO-GOOGLE-RERUN]',''),ISOLATION_BASE),/MARKER/);

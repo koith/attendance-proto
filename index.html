@@ -841,7 +841,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.370">v0.370</button></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.371">v0.371</button></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -938,7 +938,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.370";
+const APP_VERSION="v0.371";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1127,6 +1127,51 @@ const Auth = {
   load(){ try{ this.token=JSON.parse(localStorage.getItem("baekeok_auth"))?.access_token||null; }catch(e){ this.token=null; } return this.token; },
   save(session){ localStorage.setItem("baekeok_auth",JSON.stringify(session)); this.token=session.access_token; },
   clear(){ localStorage.removeItem("baekeok_auth"); this.token=null; },
+  // Safari can keep a previously expired access token after a password reset.
+  // An expired stored JWT is NOT a valid reason to hide the public POS.
+  _expiring(token){
+    try{
+      const payload=JSON.parse(atob(String(token).split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
+      return !Number.isFinite(Number(payload.exp))||Number(payload.exp)*1000<=Date.now()+45000;
+    }catch(_){return true;}
+  },
+  async ensureStartupAuth(forceRefresh=false){
+    if(!this.token)return false;
+    if(!forceRefresh&&!this._expiring(this.token))return true;
+    let stored;
+    try{stored=JSON.parse(localStorage.getItem("baekeok_auth")||"null");}catch(_){stored=null;}
+    if(!stored?.refresh_token){this.clear();return false;}
+    const previousRefresh=stored.refresh_token;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),5000);
+    try{
+      const response=await fetch(CONFIG.SUPABASE_URL+"/auth/v1/token?grant_type=refresh_token",{
+        method:"POST",headers:{apikey:CONFIG.SUPABASE_ANON_KEY,"Content-Type":"application/json"},
+        body:JSON.stringify({refresh_token:previousRefresh}),signal:controller.signal
+      });
+      const result=await response.json().catch(()=>({}));
+      if(response.ok){
+        if(typeof result.access_token!=="string"||typeof result.refresh_token!=="string"||
+           !result.access_token||!result.refresh_token)throw Error("AUTH_REFRESH_INVALID_RESPONSE");
+        this.save(result);
+        return true;
+      }
+      // Another Safari tab may have rotated this refresh token while we waited.
+      let latest;
+      try{latest=JSON.parse(localStorage.getItem("baekeok_auth")||"null");}catch(_){latest=null;}
+      if(latest?.refresh_token&&latest.refresh_token!==previousRefresh&&latest?.access_token){
+        this.token=latest.access_token;
+        return true;
+      }
+      const errorCode=String(result?.code||result?.error_code||result?.error||"");
+      if([400,401,403].includes(response.status)&&
+         /^(?:invalid_grant|invalid_refresh_token|refresh_token_not_found|session_not_found|session_expired|validation_failed|invalid_token|bad_jwt)$/.test(errorCode)){
+        this.clear();
+        return false;
+      }
+      throw Error("AUTH_REFRESH_UNAVAILABLE");
+    }finally{clearTimeout(timeout);}
+  },
   async login(email,password){
     const r=await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=password`,{
       method:"POST", headers:{apikey:CONFIG.SUPABASE_ANON_KEY,"Content-Type":"application/json"},
@@ -1165,7 +1210,7 @@ const SupaBE = (()=>{
     const headers={apikey:CONFIG.SUPABASE_ANON_KEY,"Content-Type":"application/json",
       "Authorization":`Bearer ${useAuth&&Auth.token?Auth.token:CONFIG.SUPABASE_ANON_KEY}`};
     const r=await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:"POST",headers,body:JSON.stringify(args)});
-    if(!r.ok){ throw new Error(await r.text()); }
+    if(!r.ok){const error=new Error(await r.text());error.httpStatus=r.status;throw error;}
     const t=await r.text(); if(!t) return null;
     try{ return JSON.parse(t); }catch(e){ return null; }
   };
@@ -1444,21 +1489,38 @@ function syncStoreSelectDisplay(){
  if([...sel.options].some(o=>Number(o.value)===id))sel.value=String(id);
 }
 async function loadStores(){
- // Verify the authenticated account BEFORE any public POS/employee request.
- // A generic return link, stale tab cache or another store's bookmark is not authority.
+ // Verify existing credentials before any admin-scoped store lookup. In Safari,
+ // a prior-tab token may have expired while its refresh token remains valid.
+ // Invalid/expired refresh credentials clear ONLY the saved admin session;
+ // all employees, POS history and store selection remain untouched.
  if(LIVE&&Auth.isLoggedIn()){
   STORE_ENTRY_UNAVAILABLE=true;
   try{
-   const context=await BE.adminContext();
-   if(context?.role==="STORE_MANAGER"){
-    const own=Number(context.store_id);
-    if(!Number.isSafeInteger(own)||own<1)throw Error("STORE_ACCOUNT_SCOPE_REQUIRED");
-    if(STORE_ENTRY_ID!==own){
-     const hash=/^#(?:pos|admin|attendance|recipe|pay|hours)$/.test(location.hash)?location.hash:"#admin";
-     location.replace(location.pathname+"?mode=store&store="+own+hash);
-     return;
+   let sessionValid=await Auth.ensureStartupAuth();
+   if(sessionValid){
+    let context;
+    try{context=await BE.adminContext();}
+    catch(error){
+     // A server-confirmed HTTP 401 can mean the token was revoked between
+     // local JWT inspection and this request. Refresh exactly once.
+     if(error?.httpStatus!==401)throw error;
+     sessionValid=await Auth.ensureStartupAuth(true);
+     if(sessionValid)context=await BE.adminContext();
     }
-   }else if(context?.role!=="HQ")throw Error("STORE_ACCOUNT_SCOPE_REQUIRED");
+    if(sessionValid){
+     if(context?.role==="STORE_MANAGER"){
+      const own=Number(context.store_id);
+      if(!Number.isSafeInteger(own)||own<1)throw Error("STORE_ACCOUNT_SCOPE_REQUIRED");
+      if(STORE_ENTRY_ID!==own){
+       const hash=/^#(?:pos|admin|attendance|recipe|pay|hours)$/.test(location.hash)?location.hash:"#admin";
+       location.replace(location.pathname+"?mode=store&store="+own+hash);
+       return;
+      }
+     }else if(context?.role!=="HQ")throw Error("STORE_ACCOUNT_SCOPE_REQUIRED");
+    }
+   }
+   // A confirmed invalid session must not masquerade as a server outage.
+   // Public POS still requires list_stores active/READY verification below.
    STORE_ENTRY_UNAVAILABLE=STORE_ENTRY_LOCK;
   }catch(error){
    STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;
