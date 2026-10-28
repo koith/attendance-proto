@@ -89,5 +89,4 @@ jobs:
 
       - name: New assistant attendance separation and payroll denial in disposable database
         run: |
-          createdb qa1243_assistant_v375
-          psql -X -v ON_ERROR_STOP=1 -d qa1243_assistant_v375 -f qa_assistant_attendance_v375.sql
+          psql -X -v ON_ERROR_STOP=1 -f qa_assistant_attendance_v375.sql

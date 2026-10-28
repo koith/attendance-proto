@@ -970,5 +970,3 @@
 - 신규 전용 근태 API는 실제 Auth·자기 지점 READY·현재 권한을 매 호출마다 확인한다. 조회 로스터는 임금/세금/PIN을 포함하지 않으며, 조회 전용은 수정 버튼을 숨기고 직접 API 정정도 거절한다. 추가/시간수정/원본무효/추가무효 및 중복방어는 현재 검증된 운영 정정 로직을 보존한다. 구형 관리자 API의 전체권한 판단을 완화하지 않는다.
 - 급여 토글/조회 화면을 제거하고 저장된 과거 payroll_view=true도 보조 전용 급여 API와 서버 scope에서 거절한다. 이전 setter가 급여 권한을 켜려는 요청도 거부한다. 대표의 원래 급여 기능은 유지한다. 새 attendance_view 기본false로 다른 지점 권한을 일괄 부여하지 않으며 실제 켜기/해제는 대표의 팝업 확인으로 진행한다.
 - branch fix/qa1243-assistant-attendance/base16c456cb. 로컬 실제 핸들러/기존 역할/화면 검사와 새 격리 PostgreSQL/Chromium·WebKit 검사를 준비했다. SQL은 qa1243_assistant_attendance.sql에 정확 소스로 보존. CLI는 설치본의 read-only 설정디렉터리 오류·Go 백엔드 migration 미지원으로 사용할 수 없어, 실제 운영 적용은 기존 Supabase migration 도구를 사용한다. 운영 직원/근태/급여·실메일·Google/Sheets·READY·SEC01 쓰기0. QA/PR/병합/실제 SQL·Pages 반영 결과는 후속 Issue1243의 같은SHA 증거로 확정한다. 전체38/완료19/잔여19 유지.
-
-
