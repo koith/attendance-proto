@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {chromium,webkit} from 'playwright';
-const html='<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{box-sizing:border-box}body{margin:12px;font:16px sans-serif;--surface:#fff;--border:#dbe4de;--brand-700:#1d5d3a;--text-muted:#66736a}.btn{min-height:44px;padding:8px 14px;border:1px solid #dbe4de;border-radius:12px;background:#fff}input{font-size:16px}</style><div class="employee-tabs"></div><div class="employee-panel"></div><script>const CURRENT_STORE_ID=80,CONFIG={SUPABASE_URL:"https://assistant-fixture.invalid",SUPABASE_ANON_KEY:"fixture-public"},Auth={token:"fixture",getUser:async()=>({id:window.TEST_ROLE==="OWNER"?"owner-id":"assistant-id",email:"test@synthetic.invalid"})};function toast(k,t,m){window.NOTICES.push({k,t,m})}</script><script src="/store_manager_tab.js"></script><script>mountStoreManagerTab()</script>';
-const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/store_manager_tab.js'?'text/javascript':'text/html; charset=utf-8');res.end(req.url==='/store_manager_tab.js'?readFileSync('store_manager_tab.js'):html);});
+const appStyles=readFileSync('index.html','utf8').match(/<style>([\s\S]*?)<\/style>/)[1];
+const html='<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+appStyles+'</style><link rel="stylesheet" href="/store_manager_ui_v376.css"><div class="employee-tabs"></div><div class="employee-panel"></div><script>const CURRENT_STORE_ID=80,CONFIG={SUPABASE_URL:"https://assistant-fixture.invalid",SUPABASE_ANON_KEY:"fixture-public"},Auth={token:"fixture",getUser:async()=>({id:window.TEST_ROLE==="OWNER"?"owner-id":"assistant-id",email:"test@synthetic.invalid"})};function toast(k,t,m){window.NOTICES.push({k,t,m})}</script><script src="/store_manager_tab.js"></script><script>mountStoreManagerTab()</script>';
+const server=createServer((req,res)=>{const p=new URL(req.url,'http://local').pathname;if(p==='/store_manager_ui_v376.css'){res.setHeader('Content-Type','text/css');res.end(readFileSync('store_manager_ui_v376.css'));return;}res.setHeader('Content-Type',p==='/store_manager_tab.js'?'text/javascript':'text/html; charset=utf-8');res.end(p==='/store_manager_tab.js'?readFileSync('store_manager_tab.js'):html);});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port,proof=[];
 mkdirSync('qa-results/assistant-permissions',{recursive:true});
 try{for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
@@ -30,6 +31,10 @@ try{for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
  await dialog.waitFor();assert.equal(await dialog.locator('input').count(),3);
  assert.match(await dialog.innerText(),/급여 정보는 보조 관리자에게 공개되지 않습니다/);
  assert.ok(await dialog.locator('[data-manager-revoke]').isVisible());
+ const saveStyle=await dialog.locator('[data-permission-save]').evaluate(n=>({background:getComputedStyle(n).backgroundColor,color:getComputedStyle(n).color,height:n.getBoundingClientRect().height}));
+ assert.notEqual(saveStyle.background,'rgb(255, 255, 255)');assert.equal(saveStyle.color,'rgb(255, 255, 255)');assert.ok(saveStyle.height>=44);
+ const dangerStyle=await dialog.locator('[data-manager-revoke]').evaluate(n=>({color:getComputedStyle(n).color,height:n.getBoundingClientRect().height}));
+ assert.equal(dangerStyle.color,'rgb(180, 35, 24)');assert.ok(dangerStyle.height>=44);
  await dialog.locator('[data-allow="attendance"]').check();assert.equal(await dialog.locator('[data-allow="view"]').isChecked(),true);
  await dialog.locator('[data-allow="view"]').uncheck();assert.equal(await dialog.locator('[data-allow="attendance"]').isChecked(),false);
  await dialog.locator('[data-allow="view"]').check();await dialog.locator('[data-permission-save]').click();await dialog.waitFor({state:'detached'});

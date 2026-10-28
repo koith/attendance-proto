@@ -827,6 +827,7 @@
 </style>
 <link rel="stylesheet" href="operations_v1.css?v=20261019v345">
 <link rel="stylesheet" href="operations_staff_stocktake_v1.css?v=20261028v374">
+<link rel="stylesheet" href="store_manager_ui_v376.css?v=376">
 <link rel="stylesheet" href="recipe_access_v220.css?v=20261001v096">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="no_double_tap_zoom.js?v=20260926p" defer></script>
@@ -842,7 +843,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.375">v0.375</button></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.376">v0.376</button></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -940,7 +941,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.375";
+const APP_VERSION="v0.376";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1845,18 +1846,19 @@ function isHiddenInhaTestEmployee(e){
   const name=String(e.name||"").trim().toLowerCase();
   return memo==="데모 지점 직원"||memo.includes("테스트")||name.startsWith("test")||name.startsWith("테스트");
 }
-function adminSubnav(active){
+function adminSubnav(active,limited=false){
   // 인하대점은 전체 운영 탭을 표시하고, 나머지 지점은 공개된 세 개 탭만 표시한다.
-  const tabs=Number(CURRENT_STORE_ID)===1
+  const tabs=limited?[["admin","내 업무"]]:Number(CURRENT_STORE_ID)===1
     ? [["report","리포트"],["admin","직원 관리"],["pay","급여"],["hours","운영시간"],["sales","매출·매입"],["inventory","재고"]]
     : [["admin","직원 관리"],["pay","급여"],["hours","운영시간"]];
   const accountIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>';
   return '<div class="admin-subnav-shell"><div class="tabs admin-subtabs admin-subtabs-wide">'+tabs.map(([k,n])=>'<a href="#'+k+'" class="'+(active===k?"on":"")+'">'+n+'</a>').join("")+'</div><button type="button" class="admin-account-trigger" id="adminAccountTrigger" aria-label="관리자 계정 메뉴" aria-haspopup="true" aria-expanded="false">'+accountIcon+'</button><div class="admin-account-popover" id="adminAccountPopover" role="menu" hidden><div class="admin-account-label">로그인 계정</div><div class="admin-account-email" id="adminAccountEmail">불러오는 중…</div><div class="admin-account-actions"><button type="button" class="btn btn-secondary" id="adminAccountSettings">설정</button><button type="button" class="btn btn-secondary" id="adminAccountLogout">로그아웃</button></div></div></div>';
 }
-async function mountAdminSubnav(active){
+async function mountAdminSubnav(active,limited=false){
+  if(window._adminAccountMenuCleanup){window._adminAccountMenuCleanup();window._adminAccountMenuCleanup=null}
   // Idempotent: operations shell may rebuild #view; always keep exactly one admin subnav.
   view.querySelectorAll(".admin-subnav-shell").forEach(el=>el.remove());
-  view.insertAdjacentHTML("afterbegin",adminSubnav(active));
+  view.insertAdjacentHTML("afterbegin",adminSubnav(active,limited));
   const trigger=document.getElementById("adminAccountTrigger"),popover=document.getElementById("adminAccountPopover");
   if(!trigger||!popover)return;
   const close=()=>{popover.hidden=true;trigger.setAttribute("aria-expanded","false")};
@@ -1872,7 +1874,7 @@ async function mountAdminSubnav(active){
   document.getElementById("adminAccountSettings").onclick=()=>{close();if(LIVE)openPersonalSettings();else toast("out","로컬 모드","설정은 클라우드 연결 후 사용할 수 있습니다.")};
   document.getElementById("adminAccountLogout").onclick=()=>{if(!confirm("로그아웃하시겠습니까?"))return;Auth.clear();location.reload()};
   const outside=e=>{if(!e.target.closest(".admin-subnav-shell"))close()};
-  const escape=e=>{if(e.key==="Escape")close()};
+  const escape=e=>{if(e.key==="Escape"){close();trigger.focus()}};
   document.addEventListener("click",outside);
   document.addEventListener("keydown",escape);
   window._adminAccountMenuCleanup=()=>{document.removeEventListener("click",outside);document.removeEventListener("keydown",escape)};
@@ -4094,8 +4096,8 @@ Promise.resolve(storeStartupPromise).catch(e=>console.warn("store startup failed
 <script src="store_controls_v1.js?v=20260929v066"></script>
 <script src="hq_store_onboarding_ui.js?v=20261027v370"></script>
 <script src="hq_owner_console.js?v=20261027v370"></script>
-<script src="store_manager_tab.js?v=20261017v300&amp;rev=375"></script>
-<script src="store_limited_manager.js?v=20261014v254&amp;rev=375"></script>
+<script src="store_manager_tab.js?v=20261017v300&amp;rev=376"></script>
+<script src="store_limited_manager.js?v=20261014v254&amp;rev=376"></script>
 <script src="version_test_toggle_982.js?v=315"></script>
 <script src="admin_single_session_watch_v1.js?v=20261019v338"></script>
 </body>

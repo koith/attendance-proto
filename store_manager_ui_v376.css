@@ -1,0 +1,34 @@
+/* Shared assistant workspace and manager dialog presentation. Authorization stays server-side. */
+.store-manager-limited{display:grid;gap:12px;max-width:100%;padding-top:8px}
+.store-manager-limited .scoped-manager-intro{margin:0;color:var(--text-muted);font-size:.8rem;line-height:1.5}
+.store-manager-limited #limitedManagerNotice:empty{display:none}
+.scoped-work-entry{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+.scoped-work-copy{display:grid;gap:4px;flex:1;min-width:0}
+.scoped-work-copy h3{margin:0;font-size:.95rem;font-weight:650;color:var(--text)}
+.scoped-work-copy p{margin:0;font-size:.76rem;line-height:1.4;color:var(--text-muted)}
+.scoped-work-entry .btn{flex:none;min-height:40px;height:40px;padding:0 14px;text-decoration:none}
+.store-manager-limited .scoped-empty{margin:0;padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--surface-muted);font-size:.85rem;line-height:1.5;color:var(--text-muted)}
+.store-manager-limited .store-manager-section{margin:0}
+.store-manager-limited .store-manager-section-head{padding:12px 14px}
+.store-manager-limited .store-manager-section-head h3{font-size:.95rem}
+.manager-permissions-modal .manager-permissions-body{padding:16px 20px 20px}
+.manager-permissions-modal .manager-permissions-body .smt-permissions{gap:12px}
+.manager-permissions-modal .manager-permissions-body label{min-height:44px;padding:10px 12px;font-size:.9rem}
+.manager-permissions-modal .manager-permissions-body .smt-small{margin:0;font-size:.78rem;line-height:1.55}
+.manager-permissions-modal .manager-permissions-body .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;height:44px;min-height:44px;padding:0 16px;border:1px solid var(--border);border-radius:12px;font-family:inherit;font-size:.9rem;font-weight:600;line-height:1;cursor:pointer;transition:background .12s,filter .12s}
+.manager-permissions-modal .manager-permissions-body .btn-primary{background:var(--brand-700,#1d5d3a);border-color:var(--brand-700,#1d5d3a);color:#fff}
+.manager-permissions-modal .manager-permissions-body .btn-primary:active{filter:brightness(.92)}
+.manager-permissions-modal .manager-permissions-body .btn-danger{margin-top:0;background:var(--surface,#fff);color:var(--danger,#b42318);border-color:var(--danger,#b42318)}
+.manager-permissions-modal .manager-permissions-body .btn-danger:active{background:#fbeae8}
+.manager-permissions-modal .manager-permissions-body .btn:focus-visible{outline:2px solid var(--brand-700);outline-offset:2px}
+.manager-permissions-modal .manager-permissions-body .btn:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:430px){.scoped-work-entry{padding:12px}.manager-permissions-modal .manager-permissions-body{padding:14px 16px 16px}}
+
+
+.scoped-work-details>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px;min-height:60px;font-size:.95rem;font-weight:650;color:var(--text)}
+.scoped-work-details>summary::-webkit-details-marker{display:none}
+.scoped-work-details>summary small{flex:1;font-size:.76rem;font-weight:400;color:var(--text-muted)}
+.scoped-work-details>summary::after{content:'›';font-size:1.3rem;color:var(--brand-700)}
+.scoped-work-details[open]>summary{border-bottom:1px solid var(--border)}
+.scoped-work-details[open]>summary::after{transform:rotate(90deg)}
+.scoped-work-details>summary:focus-visible{outline:2px solid var(--brand-700);outline-offset:-2px}

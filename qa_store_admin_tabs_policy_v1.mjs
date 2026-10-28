@@ -4,7 +4,7 @@ import fs from 'node:fs';
 // Execute the checked-in admin tab renderer against Inha and staged stores.
 // No production account, store, or payroll data is accessed or changed.
 const html=fs.readFileSync('index.html','utf8');
-const start=html.indexOf('function adminSubnav(active){');
+const start=html.indexOf('function adminSubnav(');
 const end=html.indexOf('\nasync function mountAdminSubnav(',start);
 assert.ok(start>0 && end>start,'Extract canonical admin subnav');
 const fn=new Function('CURRENT_STORE_ID','active',
@@ -31,4 +31,11 @@ assert.match(route,/location\.hash="#admin";return;/,'Direct hash navigation mus
 assert.match(html,/if\(ctx\?\.role==="STORE_MANAGER"\)/);
 assert.match(html,/Number\(CURRENT_STORE_ID\)!==ownStore/);
 assert.match(html,/location\.assign\(STORE_ENTRY_URL\(ownStore\)\)/);
+const limitedFn=new Function('CURRENT_STORE_ID',html.slice(start,end)+'\nreturn adminSubnav("admin",true);');
+for(const id of [1,80]){
+ const markup=limitedFn(id);
+ assert.deepEqual(Array.from(markup.matchAll(/href="#([^"]+)"/g),m=>m[1]),['admin']);
+ assert.equal((markup.match(/id="adminAccountTrigger"/g)||[]).length,1);
+ assert.doesNotMatch(markup,/href="#(?:pay|hours|sales|inventory)"/);
+}
 console.log('PASS Inha full management tabs, non-Inha three-tab policy and store-scoped navigation guards');
