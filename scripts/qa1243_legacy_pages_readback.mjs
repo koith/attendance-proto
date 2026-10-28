@@ -29,7 +29,7 @@ const rows=await Promise.all(paths.map(async p=>{
 }));
 const helper=await get(base+'app_release_probe_v1.js');
 assert.equal(sha(helper.body),sha(readFileSync('app_release_probe_v1.js','utf8')));
-const ownerAssets=['recipe_access_v220.js','owner_activation.html','owner_activation.js','owner_temp_activation.html','owner_temp_activation.js','operations_staff_stocktake_v1.js','operations_staff_stocktake_v1.css','owner_onboarding_v1.css','owner_session_recovery.html','actual_attendance.html','actual_attendance.js','store_manager_tab.js','store_limited_manager.js','store_manager_ui_v376.css'];
+const ownerAssets=['version_test_toggle_982.js','recipe_access_v220.js','owner_activation.html','owner_activation.js','owner_temp_activation.html','owner_temp_activation.js','operations_staff_stocktake_v1.js','operations_staff_stocktake_v1.css','owner_onboarding_v1.css','owner_session_recovery.html','actual_attendance.html','actual_attendance.js','store_manager_tab.js','store_limited_manager.js','store_manager_ui_v376.css'];
 for(const path of ownerAssets)assert.equal(sha((await get(base+path)).body),sha(readFileSync(path,'utf8')),'Owner callback deployment mismatch: '+path);
 const manifest=JSON.parse((await get(base+'app-release.json?check='+Date.now())).body);
 assert.equal(manifest.version,version);assert.equal(manifest.index_sha256,expectedSha);assert.equal(manifest.commit,process.env.GITHUB_SHA);

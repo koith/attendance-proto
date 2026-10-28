@@ -26,19 +26,22 @@ if(!live){
 const activeBrowsers=new Set();
 const report=[],paths=['/attendance-proto/','/attendance-proto/index.html?v=24#pos',
  '/attendance-proto/#dashboard','/attendance-proto/index.html?mode=hq#dashboard',
- '/attendance-proto/?mode=store&store=1#pos','/attendance-proto/index.html?mode=store&store=1&v=0.371#pos'];
+ '/attendance-proto/?mode=store&store=1#pos','/attendance-proto/index.html?mode=store&store=1&v=0.371#pos',
+ '/attendance-proto/index.html?mode=store&store=80#pos'];
 const profiles=live?['fresh','expired-no-refresh','hosted-rejected-refresh']:['fresh','expired-no-refresh','hosted-rejected-refresh','reused-refresh','superseded','forbidden','auth-network','store-network'];
 const jwt=exp=>'qa.'+Buffer.from(JSON.stringify({exp,sub:'synthetic-identity'})).toString('base64url')+'.test';
 const readOnlyRPC=new Set(['list_stores','pos_public_staff_picker','pos_public_staff_cards','pos_employees_state','store_recipe_list_public']);
 async function prepare(context,profile){
  await context.addInitScript(({profile,token})=>{
   if(localStorage.getItem('qa_legacy_seeded'))return;
+  localStorage.setItem('baekeok_test_controls_visible_v1','true');
   localStorage.setItem('qa_legacy_seeded','1');localStorage.setItem('qa_preserve','unchanged');
   sessionStorage.setItem('baekeok_store_id','80');sessionStorage.setItem('baekeok_store_name','1호점');
   if(profile!=='fresh'&&profile!=='store-network')localStorage.setItem('baekeok_auth',JSON.stringify({access_token:token,...(['reused-refresh','hosted-rejected-refresh'].includes(profile)?{refresh_token:'qa1243v373xx'}:{})}));
  },{profile,token:jwt(Math.floor(Date.now()/1000)+(profile.startsWith('expired')||['reused-refresh','hosted-rejected-refresh'].includes(profile)?-3600:3600))});
 }
 async function visit(browser,engine,path,profile,storageState){
+ const expectedStore=Number(new URL(base+path).searchParams.get('store'))||1;
  const context=await browser.newContext({viewport:{width:engine==='webkit'?393:1280,height:900},locale:'ko-KR',timezoneId:'Asia/Seoul',...(storageState?{storageState}:{})});
  if(!storageState)await prepare(context,profile);const page=await context.newPage();page.setDefaultTimeout(12000);
  const errors=[],calls=[];let fault=true,hostedRejection;
@@ -65,7 +68,7 @@ async function visit(browser,engine,path,profile,storageState){
     (publicRPC&&['POST','OPTIONS'].includes(req.method())),'OPERATING_WRITE_FORBIDDEN '+u.pathname);
    if(req.method()==='OPTIONS')return route.continue();
    const body=req.postData()?JSON.parse(req.postData()):{};
-   if(body.p_store_id!==undefined)assert.equal(Number(body.p_store_id),1,'foreign store request forbidden');
+   if(body.p_store_id!==undefined)assert.equal(Number(body.p_store_id),expectedStore,'foreign store request forbidden');
    return route.continue();
   }
   if(req.method()==='OPTIONS')return route.fulfill({status:204,headers:cors,body:''});
@@ -78,7 +81,7 @@ async function visit(browser,engine,path,profile,storageState){
   }
   if(name==='list_stores'){
    if(profile==='store-network'&&fault)return route.abort('failed');
-   return reply([{id:1,name:'인하대학교점',is_active:true}]);
+   return reply([{id:1,name:'인하대학교점',is_active:true},{id:80,name:'1호점',is_active:true}]);
   }
   if(name==='pos_public_staff_cards')return reply([{id:9999,name:'격리 직원',employee_no:1}]);
   if(name==='is_hq_admin'||name==='is_admin')return reply(true);
@@ -118,8 +121,19 @@ async function visit(browser,engine,path,profile,storageState){
    }),200,'Auth settings and CORS must be reachable from the original browser URL');
   }
   else{
-   assert.equal(await page.evaluate(()=>CURRENT_STORE_ID),1);
+   assert.equal(await page.evaluate(()=>CURRENT_STORE_ID),expectedStore);
+   if(expectedStore===80){
+    await page.locator('#testModeControls').waitFor({state:'attached'});
+    assert.equal(await page.locator('#testModeControls').isVisible(),false);
+    const before=await page.evaluate(()=>({enabled:BaekeokTest.enabled(),visible:localStorage.getItem('baekeok_test_controls_visible_v1')}));
+    await page.locator('#appVersion').click();await page.locator('#appVersion').click();
+    assert.equal(await page.locator('#testModeControls').isVisible(),false);
+    assert.deepEqual(await page.evaluate(()=>({enabled:BaekeokTest.enabled(),visible:localStorage.getItem('baekeok_test_controls_visible_v1')})),before);
+   }
    if(profile==='fresh'&&path===paths[0]){
+    await page.locator('#testModeControls').waitFor();
+    await page.locator('#appVersion').click();assert.equal(await page.locator('#testModeControls').isVisible(),false);
+    await page.locator('#appVersion').click();assert.equal(await page.locator('#testModeControls').isVisible(),true);
     assert.equal(await page.locator('#staffCountOpen').innerText(),'재고 파악(직원용)');
     await page.locator('#staffCountOpen').click();
     await page.getByRole('dialog',{name:'재고 파악(직원용)'}).waitFor();
@@ -149,7 +163,7 @@ async function visit(browser,engine,path,profile,storageState){
  assert.equal(await page.evaluate(()=>localStorage.getItem('qa_preserve')),'unchanged');
  assert.deepEqual(errors,[]);
  const state=await context.storageState();
- report.push({engine,path,profile,result:'PASS',version:expectedVersion,readOnly:live,requests:calls.length,...(profile==='fresh'&&path===paths[0]?{protectedTabEntry:true}:{}),...(hostedRejection?{hostedRejection}:{})});
+ report.push({engine,path,profile,result:'PASS',version:expectedVersion,readOnly:live,requests:calls.length,...(profile==='fresh'&&path===paths[0]?{protectedTabEntry:true,inhaTestControlsVisible:true}:{}),...(expectedStore===80?{storeId:80,testControlsHidden:true}:{}),...(hostedRejection?{hostedRejection}:{})});
  await context.close();return state;
 }
 try{

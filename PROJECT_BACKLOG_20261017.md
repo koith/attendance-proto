@@ -1010,3 +1010,13 @@
 - branch fix/qa1243-protected-tab-entry/base f5295c20a4b9debfc2011893a769a75e3be194a3. 기존 계정 메뉴/탭 정책/직원 PIN/READY 레시피 권한/정확 release scope 로컬 검사 PASS. 로컬 browser/listen 및 child-process 검사는 EPERM 실행환경 제약으로 CI의 기존 pinned Playwright 컨테이너에서 수행한다. 아직 브라우저 PASS로 표기하지 않는다.
 - 실제 index route/requireAuth/PIN 함수와 실제 recipe 모듈의 Chromium/WebKit·393/1280px 회귀를 기존 workflow에 추가한다. 이전 레시피→탭선택/모달닫기/로그인 실패·성공/늦은 로그인·권한·직원·레시피 응답/보조권한 거부와 기존 전체 개통·보조 회귀를 확인한다. PR/CI/병합/Pages·독립 기존주소 증거는 Issue1243 최종 영수증으로 연결한다.
 - 정확한 두 UI 소스만 runtime 수정. 운영 SQL/Edge/Auth 설정/초대·계정·권한·READY·직원근태급여·레시피 데이터·Google/Sheets 쓰기0. recipe JS만 검토 hash로 변경 허용하고 나머지12개 운영 공개자산 불변 검사를 유지한다. 전체38/완료19/잔여19 및 별도 메일/GAS/현장/SEC01 잔여는 유지한다.
+
+## 105. 2026-10-28 — 인하대점 전용 라이브 테스트 플로팅 UI (v0.379 후보)
+
+- 사용자 명시 요청: 인하대점만 라이브 테스트 플로팅 버튼을 유지하고 1호점을 포함한 다른 모든 지점에서 숨긴다. 기존 test_mode_ui는 모든 문맥에 UI를 생성하고 버전 버튼은 저장 표시 선호만 검사하고 있었다.
+- 확정된 사용 가능 인하대점(store1) 지점 화면에서만 허용하는 실제 공통 predicate를 추가했다. 초기 확인 중/조회 실패·미확정 지점/다른 모든 ID/본사 문맥은 기본 숨김 CSS로 차단한다. route의 지점 문맥 동기화·초기화/재연결에서도 같은 규칙을 적용한다.
+- 1호점(store80) 및 타점에서는 버전 버튼 클릭으로 테스트 UI를 되살리거나 인하대점의 저장 표시 선호를 변경하지 않는다. 버전 정보의 라벨/제목을 유지한다. 인하대점의 기존 표시 전환·시간 팝업은 유지하고 인하대점→타점 전환 시 열린 테스트 시간 팝업을 닫는다.
+- 실제 테스트 UI 모듈은 그대로 두고 표시만 제한했다. BaekeokTest.enabled/테스트 이벤트·시간·모드 저장값/운영 데이터는 변경하지 않는다. 직원 PIN·보조 권한·급여 차단·직전 v0.378 탭 인증 수정도 유지한다.
+- branch fix/qa1243-inha-test-controls-only/base cca048cdf0143ab01d277961f785af3205b55662. 실제 predicate 행렬/기본 CSS·버전 gate/기존 계정 메뉴·탭 정책·테스트 쓰기 격리·직전 탭 회귀·정확 release scope 로컬 PASS. 기존 version-browser QA를 실제 공통 predicate/CSS+UI 모듈의 Chromium/WebKit·모바일/PC·초기/지연삽입·선호저장·타점/미확정/HQ·지점전환 검사로 확장한다.
+- 독립 실제 Pages 브라우저에도 1호점 기존 URL 직접 접속을 추가하여 저장 표시=true와 버전 클릭에도 숨김을 확인하고 인하대점은 기존 표시/전환을 검증한다. 운영 읽기 외 실제 로그인/PIN 제출·초대/SQL/Edge/Auth설정/계정권한·READY/근태급여/레시피 데이터/Google·Sheets 쓰기0. 기존 다른13개 운영 공개자산 불변·runtime15자산 정확 일치 검증을 유지한다.
+- PR/CI/정상병합/Pages·독립 주소 결과는 Issue1243 최종 영수증으로 연결한다. 전체38/완료19/잔여19 및 기존 운영메일/GAS/현장/SEC01 잔여 유지.
