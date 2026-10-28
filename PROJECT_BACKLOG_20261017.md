@@ -951,3 +951,13 @@
 - **필요한 최소 외부 조치:** 운영 프로젝트 `waluhdgqhwjjwmflhrle`에 대한 **Auth Config Write** 자격을 기존 Actions Secret **SUPABASE_AUTH_WRITE_TOKEN**에 안전하게 연결하는 한 가지다. 읽기 토큰 재발급/채팅에 비밀값 제출/광범위 새 권한/SMTP 공급자·발신계정·보안설정 변경은 요구하지 않는다. 연결 후 이미 병합된 approved-mail-branding job만 재실행하여 GET→4키 PATCH→GET/기타설정 불변을 검증할 수 있다. 실제 메일 재발송은 별도 사용자 동작이며, 디자인 변경으로 기존 인증 URL을 바꾸지 않는다.
 - **운영 자료 보존:** 게시 전후 보호8그룹 digest 완전 일치. 사용자가 직접 개통/직원등록 중인 store80 관련 행은 타점 불변 비교에서 명시 제외하고 현재 상태를 별도 확인했다. 지점244/HQ3/인하대직원10/활성실메뉴136 유지; 1호점(store80)은 사용자가 다른 개인암호로 수락 성공한 **READY/active=true/직원1** 상태를 보존했다. 역사적 STAGED/대표공석 기록을 최신 상태로 오인하지 않는다. AI 운영DB/권한/초대/READY/SEC01/Sheets 직접쓰기0.
 - **판정:** 직원 팝업·연결 페이지 디자인은 배포 완료. 브랜드 메일의 운영 적용은 쓰기 인증 부재로 **미완료**, 정상 주소의 실제 보조 초대/수락도 미확인이다. 원장 **전체38/완료19/잔여19** 유지. 기존 Google·전체 개통 QA를 새로 성공했다고 주장하지 않으며, GAS/실수신자·현장수용/SEC01 등 별도 잔여를 유지한다.
+
+
+## 99. 2026-10-28 — 사용자 승인에 따른 보조관리자 테스트 계정 완전 초기화
+
+- 사용자 명시 지시: 해당 테스트 수신자의 기존 계정 처리를 제거해 처음 초대부터 시험할 것. 16:04:55 KST 운영 트랜잭션 완료. 앱 **v0.374** 유지, 앱/Edge 재배포·초대메일 발송·READY 전환 없음.
+- 정확한 UID+이메일 일치와 현재 관리자/대표/초대/직원/Storage 소유 참조 없음 확인 후 Auth 사용자1·identity1·로그인 session1·refresh1·latest_session1 및 세션 하위 AMR1을 제거했다. 과거 대상 해임감사1행은 비공개 복구본에 보관 후 현재 테이블에서 제거했다. 다른 계정의 권한이나 과거 업무자료를 지우지 않았다.
+- 운영 migration `qa1243_private_account_reset_recovery_archive`로 기존 비공개 private 스키마에 복구 보관표를 준비했다. RLS/FORCE RLS, PUBLIC/anon/authenticated/service_role 권한 회수. 원본 Auth/identity/대상 감사의 복구 정보는 DB 안에서만 보관하고 비밀번호 해시·토큰·원문은 GitHub/로그/채팅에 내보내지 않았다. 백업 무결성 PASS, anon/authenticated 조회 불가. 예전 세션·메일 액션 토큰은 복구하지 않는다.
+- 첫 시도는 세션 하위 AMR1이 보호 비교에 포함돼 전체 ROLLBACK됨을 재조회했다. 대상 세션의 하위 행만 정확히 제외하도록 수정 후 재실행: **보호89테이블 전후 해시 일치**. 지점244/HQ3/인하대직원10/실레시피136, 1호점 READY/active=true와 실제 대표 유지.
+- 삭제 후 독립 재조회에서 해당 UID/이메일 관련 현재 public/Auth/Storage/session_guard 참조0. 실제 read-only `service_store_invitation_dispatch_preflight`(store80/STORE_ASSISTANT) 결과 **ok=true, delivery=INVITE, existing_auth_user=false, user_id=null**. 기존 계정 연결/RECOVERY 대신 신규 초대 경로로 준비 완료. 실제 수신/수락/개인 비밀번호 설정/보조 권한 수용은 사용자가 다음 초대를 보내 확인해야 하며 자동 PASS로 처리하지 않는다.
+- 작업 영수증 `qa1243-new-recipient-reset-20261028-6c46faf0`. 실제 발송0/다른 계정 삭제0/기존 Sheets 변경0. 과거 감사·복구 자료는 사용자 계정으로 조회되거나 신규 초대를 막지 않는 비공개 이력이다. 전체38/완료19/잔여19 유지. 운영 메일 브랜드 설정 쓰기 인증 등 기존 잔여는 별도 유지.
