@@ -41,7 +41,7 @@ window.openStaffStocktake=async function(){
  '</section><div id="staffCountStatus" class="staff-count-status" role="status" aria-live="polite">직원을 선택하고 본인 PIN을 입력해 주세요.</div></div>'+
  '<div id="staffCountFooter" class="staff-count-footer" hidden><p>제출만으로는 재고가 바뀌지 않습니다.</p><button type="button" id="staffCountSubmit" class="btn btn-primary" disabled>점주에게 수량 제출</button></div></div>';
  document.body.appendChild(dialog);
- const el=id=>dialog.querySelector("#"+id),close=()=>{verificationEpoch++;el("staffCountPin").value="";dialog.remove();opener?.focus?.()};
+ const el=id=>dialog.querySelector("#"+id),close=()=>{verificationEpoch++;el("staffCountPin").value="";dialog.remove();document.removeEventListener?.("keydown",keyboard);opener?.focus?.()};
  dialog.querySelector(".ops-modal-close").onclick=close;
  dialog.onclick=e=>{if(e.target===dialog)close()};
  let catalog=[],selected=new Map(),verifiedEmployee=null,busy=false,verificationEpoch=0;
@@ -50,14 +50,16 @@ window.openStaffStocktake=async function(){
   el("staffCountWorkspace").hidden=true;el("staffCountFooter").hidden=true;el("staffCountSubmit").disabled=true;
   el("staffCountStatus").textContent=typeof message==="string"?message:"직원 또는 PIN이 변경됐습니다. 다시 본인 확인하세요.";
  };
- dialog.addEventListener("keydown",event=>{
+ const keyboard=event=>{
   if(event.key==="Escape"){event.preventDefault();close();return;}
   if(event.key!=="Tab")return;
   const nodes=[...dialog.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled])')].filter(x=>x.offsetParent!==null);
   const first=nodes[0],last=nodes[nodes.length-1];
+  if(!dialog.contains(document.activeElement)){event.preventDefault();first?.focus();return;}
   if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}
   else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}
- });
+ };
+ document.addEventListener?.("keydown",keyboard);
  dialog.querySelector(".ops-modal-close").focus();
  el("staffCountEmployee").addEventListener("change",invalid);
  el("staffCountEmployee").addEventListener("input",invalid);

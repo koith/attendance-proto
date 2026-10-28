@@ -20,6 +20,7 @@ test('brand logo, Korean subjects and one verification link cover invite and rec
  assert.equal(MAIL_KEYS.length,4);assert.ok(target.mailer_subjects_recovery.startsWith('[백억커피]'));
  assert.ok(!recovery.includes('대표 권한 자동 확정'),'HQ password recovery must not promise branch ownership');
  assert.throws(()=>mailTarget(invite.replace(LOGO,'https://foreign.invalid/tracker'),recovery),/INVALID/);
+ assert.throws(()=>mailTarget(invite.replace('src="'+LOGO+'"','src="https://foreign.invalid/tracker" data-src="'+LOGO+'"'),recovery),/INVALID/);
  assert.throws(()=>mailTarget(invite+'<script>bad()</script>',recovery),/INVALID/);
 });
 test('approved apply changes four mail fields and verifies every other setting unchanged',async()=>{

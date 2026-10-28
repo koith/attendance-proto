@@ -11,7 +11,10 @@ const hash=x=>createHash('sha256').update(JSON.stringify(canonical(x))).digest('
 const outside=x=>Object.fromEntries(Object.entries(x).filter(([k])=>!MAIL_KEYS.includes(k)&&k!=='updated_at'));
 export function approvedLogoImages(html){
  const images=[...String(html).matchAll(/<img\b[^>]*>/gi)].map(x=>x[0]);
- return images.length<=1&&images.every(tag=>tag.includes('src="'+LOGO+'"')&&!/srcset\s*=|\bon\w+\s*=/i.test(tag));
+ return images.length<=1&&images.every(tag=>{
+  const sources=[...tag.matchAll(/\ssrc\s*=\s*(["'])(.*?)\1/gi)].map(m=>m[2]);
+  return sources.length===1&&sources[0]===LOGO&&!/srcset\s*=|\bon\w+\s*=/i.test(tag);
+ });
 }
 export function mailTarget(invite,recovery){
  for(const [kind,html] of [['invite',invite],['recovery',recovery]]){
