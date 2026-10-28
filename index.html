@@ -1582,7 +1582,7 @@ async function loadStores(){
        sessionStorage.setItem("baekeok_store_name",String(active.name||""));
        STORE_ENTRY_UNAVAILABLE=false;STORE_ENTRY_CONNECTION_FAILED=false;
        setStartupConnection("READY");syncStoreContextUI();
-     }catch(e){STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;STORE_ENTRY_FAILURE_KIND="STORE_NETWORK";setStartupConnection("NETWORK");console.warn("dedicated store not verified",e);}
+     }catch(e){STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;console.warn("dedicated store not verified",e);STORE_ENTRY_FAILURE_KIND="STORE_NETWORK";setStartupConnection("NETWORK");}
    }
    return;
  }
