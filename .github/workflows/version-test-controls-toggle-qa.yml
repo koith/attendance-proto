@@ -2,6 +2,8 @@ name: Version test controls toggle QA
 on:
   pull_request:
     paths:
+      - 'index.html'
+      - 'tests/qa1243_inha_test_controls.test.mjs'
       - 'version_test_toggle_982.js'
       - 'test_mode_ui_v1.js'
       - 'qa_version_test_controls_browser_v1.mjs'
@@ -9,22 +11,36 @@ on:
   push:
     branches: [main]
     paths:
+      - 'index.html'
+      - 'tests/qa1243_inha_test_controls.test.mjs'
       - 'version_test_toggle_982.js'
       - 'test_mode_ui_v1.js'
       - 'qa_version_test_controls_browser_v1.mjs'
       - '.github/workflows/version-test-controls-toggle-qa.yml'
 jobs:
   toggle:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - run: node --check version_test_toggle_982.js && node --check test_mode_ui_v1.js
-      - name: Install Chromium and Playwright
+      - run: node --test tests/qa1243_inha_test_controls.test.mjs
+      - name: Install pinned Playwright
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.55.1
-          npx playwright install --with-deps chromium
-      - name: Verify actual LIVE/clock UI toggle in real browser
+      - name: Verify actual LIVE/clock UI scope in Chromium and WebKit
         run: node qa_version_test_controls_browser_v1.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: inha-only-test-controls
+          path: qa-results/inha-test-controls-v379
