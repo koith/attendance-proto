@@ -116,20 +116,20 @@ async function sourceFor(ym,storeId){
        .in("employee_id",employeeIds).lte("started_on",new Date(Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7)),0)).toISOString().slice(0,10))
     :{data:[],error:null};
   if(periodError)throw new Error("EMPLOYMENT_PERIOD_READ_FAILED: "+periodError.code);
-  // Planned start is fetched only for store-scoped employees and their
-  // contracts. This is an automatic calculation; there is no approval flow.
+  // Read the start AND end of the employee's dated hourly contract window.
+  // No consent/approval workflow and no changes to source attendance events.
   const contractIds=[...new Set((data.workdays||[]).map(w=>Number(w.contract_id))
     .filter(x=>Number.isSafeInteger(x)&&x>0))];
-  const {data:contractStarts,error:contractStartsError}=contractIds.length
+  const {data:contractWindows,error:contractWindowsError}=contractIds.length
     ?await client.from("employment_contract_workdays")
-       .select("contract_id,weekday,planned_start").in("contract_id",contractIds)
+       .select("contract_id,weekday,planned_start,planned_end").in("contract_id",contractIds)
     :{data:[],error:null};
-  if(contractStartsError)throw new Error("PLANNED_START_SOURCE_FAILED: "+contractStartsError.code);
+  if(contractWindowsError)throw new Error("PLANNED_WINDOW_SOURCE_FAILED: "+contractWindowsError.code);
   const rangeEnd=new Date(Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7)),8))
     .toISOString().slice(0,10);
   const {data:dailySchedules,error:dailyScheduleError}=employeeIds.length
     ?await client.from("work_schedules")
-       .select("employee_id,work_date,status,planned_start")
+       .select("employee_id,work_date,status,planned_start,planned_end")
        .in("employee_id",employeeIds).gte("work_date",ym+"-01")
        .lte("work_date",rangeEnd)
     :{data:[],error:null};
@@ -140,7 +140,7 @@ async function sourceFor(ym,storeId){
     payrollPeriod:async()=>({period:data.period||{weeks:null},overrides:data.overrides||[]}),
     payrollContracts:async()=>data.contracts||[],
     payrollContractWorkdays:async()=>data.workdays||[],
-    payrollShiftStartRules:async()=>({contractWeekdays:contractStarts||[],dailySchedules:dailySchedules||[]}),
+    payrollShiftStartRules:async()=>({contractWeekdays:contractWindows||[],dailySchedules:dailySchedules||[]}),
     payrollSubstitutions:async()=>data.substitutions||[],
     payrollWeeklyApprovals:async()=>weeklyApprovals||[],
     payrollEmploymentPeriods:async()=>employmentPeriods||[],
