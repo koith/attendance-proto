@@ -41,6 +41,19 @@ jobs:
           node-version: '22'
       - name: Install isolated browser harness
         run: npm install --no-save --no-audit --no-fund playwright@1.55.1
+      - name: Rehydrate immutable historic legacy release fixture
+        run: |
+          git fetch --no-tags --depth=1 origin db1897424683
+          python3 - <<'PYFIXTURE'
+          import json,re,subprocess
+          from pathlib import Path
+          source=Path('scripts/qa1243_legacy_entry_release.mjs').read_text()
+          m=re.search(r'export const LEGACY_BYTES=Object\.freeze\((\{[^;]+\})\);',source)
+          if not m: raise RuntimeError('FROZEN_LEGACY_RELEASE_MANIFEST_MISSING')
+          paths=json.loads(m.group(1))
+          historic={p:subprocess.check_output(['git','show','db1897424683:'+p]).decode() for p in paths}
+          Path('/tmp/qa1243-legacy-release-fixture.json').write_text(json.dumps(historic))
+          PYFIXTURE
       - name: Node startup and Auth isolation tests
         run: |
           node qa_index_startup_smoke_v1.mjs
