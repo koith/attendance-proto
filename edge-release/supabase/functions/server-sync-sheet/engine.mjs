@@ -213,11 +213,11 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     if(clock==null&&contract&&
       String(contract.effective_from||"0000-01-01")<=date&&
       (!contract.effective_to||String(contract.effective_to)>=date)){
-      // The contract workday schema uses ISO weekdays (Monday=1 ... Sunday=7).
-      const isoDay=shift.in.getDay()||7;
-      clock=weekdayStarts.get(String(contract.contract_id??contract.id)+"|"+isoDay);
+      // Contract workday schema uses Sunday=0 ... Saturday=6.
+      const weekday=shift.in.getDay();
+      clock=weekdayStarts.get(String(contract.contract_id??contract.id)+"|"+weekday);
     }
-    if(!/^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/.test(String(clock||"")))return null;
+    if(!/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(String(clock||"")))return null;
     const start=new Date(date+"T"+String(clock).slice(0,5)+":00");
     return Number.isFinite(start.getTime())?start:null;
   }
