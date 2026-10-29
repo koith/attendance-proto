@@ -56,7 +56,11 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       eff.push({ id:e.id, employee_id:e.employee_id,
         event_type: c.action==="EDIT_TYPE"&&c.new_event_type ? c.new_event_type : e.event_type,
         event_at: c.action==="EDIT_TIME"&&c.new_event_at ? c.new_event_at : e.event_at,
-        corrected:true, correctionReason:String(c.reason||c.correction_reason||"") });
+        corrected:true, correctionReason:String(c.reason||c.correction_reason||""),
+        // An administrator's explicit time edit acknowledges that specific
+        // clock time. Automated system corrections never approve early starts.
+        managerEnteredTime:c.action==="EDIT_TIME"&&!!c.new_event_at&&
+          !String(c.created_by||"").startsWith("system:") });
     } else {
       eff.push({ id:e.id, employee_id:e.employee_id, event_type:e.event_type, event_at:e.event_at });
     }
@@ -65,6 +69,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   for(const c of added){
     eff.push({ id:"add_"+c.id, employee_id:c.employee_id, event_type:c.new_event_type,
       event_at:c.new_event_at, corrected:true, correctionReason:String(c.reason||c.correction_reason||""), addedByAdmin:true,
+      managerEnteredTime:!String(c.created_by||"").startsWith("system:"),
       systemStoreClose:c.created_by==="system:auto-close" && c.reason==="SYSTEM_STORE_CLOSE" });
   }
   return eff;
@@ -80,12 +85,13 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     // 동일 시각 → id 차선 (raw 생성순서 보존). id는 숫자 또는 "add_N"
     return idOrder(a.id) - idOrder(b.id);
   });
-  const out=[]; let openIn=null, openInId=null, openInRaw=null, openInCorrected=false, openInReason="";
+  const out=[]; let openIn=null, openInId=null, openInRaw=null, openInCorrected=false, openInReason="", openInManagerEntered=false;
   for(const r of s){
     const when=fromIso(r.event_at);
     if(r.event_type==="IN"){
-      if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"INCOMPLETE",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null,corrected:!!openInCorrected, correctionReason:openInReason});
+      if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"INCOMPLETE",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null,corrected:!!openInCorrected, correctionReason:openInReason,inManuallyAccepted:openInManagerEntered});
       openIn=when; openInId=r.id; openInRaw=r.event_at; openInCorrected=!!r.corrected; openInReason=r.correctionReason||"";
+      openInManagerEntered=!!r.managerEnteredTime;
     }else if(r.event_type==="OUT"){
       // An automatic 26:00 OUT is a fallback only for a still-open IN.
       // Never turn an already completed late shift into a phantom next-day orphan OUT.
@@ -93,12 +99,12 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       if(openIn!==null){
         // Invalid Date 방어: 어느 한쪽이라도 파싱 실패면 sec=null(합산 제외), status로 표시
         const sec=(isNaN(openIn)||isNaN(when))?null:(when-openIn)/1000;
-        out.push({in:openIn,out:when,sec,status:sec==null?"INVALID_TIME":"COMPLETE",inId:openInId,outId:r.id,inRaw:openInRaw,outRaw:r.event_at,corrected:!!(openInCorrected||r.corrected), correctionReason:[openInReason,r.correctionReason].filter(Boolean).join(" / ")}); openIn=null; openInId=null; openInRaw=null; openInCorrected=false; openInReason="";
+        out.push({in:openIn,out:when,sec,status:sec==null?"INVALID_TIME":"COMPLETE",inId:openInId,outId:r.id,inRaw:openInRaw,outRaw:r.event_at,corrected:!!(openInCorrected||r.corrected), correctionReason:[openInReason,r.correctionReason].filter(Boolean).join(" / "),inManuallyAccepted:openInManagerEntered}); openIn=null; openInId=null; openInRaw=null; openInCorrected=false; openInReason=""; openInManagerEntered=false;
       }
       else out.push({in:null,out:when,sec:null,status:"ORPHAN_OUT",inId:null,outId:r.id,inRaw:null,outRaw:r.event_at,corrected:!!r.corrected, correctionReason:r.correctionReason||""});
     }
   }
-  if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"WORKING",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null,corrected:!!openInCorrected});
+  if(openIn!==null) out.push({in:openIn,out:null,sec:null,status:"WORKING",inId:openInId,outId:null,inRaw:openInRaw,outRaw:null,corrected:!!openInCorrected,inManuallyAccepted:openInManagerEntered});
   return out;
 }
   function idOrder(id){
@@ -198,20 +204,20 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     eventEmployeeIds.has(Number(e.id))||weeklyDecisionEmployeeIds.has(Number(e.id))||
     terminatedMonthlyEmployeeIds.has(Number(e.id)));
   const weeks = periodWeeks || weeksInMonth(ym);
-  // Calculate hourly pay from the intersection of actual punches and the
-  // contracted window. Never calculate full wages and subtract money later.
-  // Do not apply the overlap cap to MONTHLY staff or incomplete schedules.
+  // Only time before a scheduled START is excluded for hourly staff.
+  // Actual late clock-outs (including administrator corrections) remain paid.
+  // No payroll monetary deductions and no change to monthly salary rules.
   const plannedRules=typeof BE.payrollShiftStartRules==="function"
     ?await BE.payrollShiftStartRules(ym):{contractWeekdays:[],dailySchedules:[]};
-  const weekdayWindows=new Map((plannedRules?.contractWeekdays||[])
+  const weekdayStarts=new Map((plannedRules?.contractWeekdays||[])
     .filter(w=>w.weekday!=null)
-    .map(w=>[String(w.contract_id)+"|"+String(w.weekday),w]));
-  const dailyWindows=new Map((plannedRules?.dailySchedules||[])
+    .map(w=>[String(w.contract_id)+"|"+String(w.weekday),w.planned_start]));
+  const dailyStarts=new Map((plannedRules?.dailySchedules||[])
     .filter(w=>w.status==="WORK")
-    .map(w=>[String(w.employee_id)+"|"+String(w.work_date),w]));
+    .map(w=>[String(w.employee_id)+"|"+String(w.work_date),w.planned_start]));
   const p2=n=>String(n).padStart(2,"0");
   const clockValid=x=>/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(String(x||""));
-  function contractedWindow(employeeId,shift){
+  function contractedStart(employeeId,shift){
     if(!(shift.in instanceof Date)||!Number.isFinite(shift.in.getTime()))return null;
     const date=`${shift.in.getFullYear()}-${p2(shift.in.getMonth()+1)}-${p2(shift.in.getDate())}`;
     // Resolve the exact contract active on the shift's date. A missing,
@@ -221,17 +227,13 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       (!c.effective_to||String(c.effective_to)>=date));
     if(matches.length!==1||matches[0].payroll_type!=="HOURLY")return null;
     const contract=matches[0];
-    const daily=dailyWindows.get(String(employeeId)+"|"+date);
-    const weekday=weekdayWindows.get(String(contract.contract_id??contract.id)+"|"+shift.in.getDay());
-    const plan=daily||weekday;
-    // Both endpoints are mandatory. Do not default missing endpoints to
-    // opening/closing hours or infer a length from the punch itself.
-    if(!plan||!clockValid(plan.planned_start)||!clockValid(plan.planned_end))return null;
-    const start=new Date(date+"T"+String(plan.planned_start).slice(0,5)+":00");
-    const end=new Date(date+"T"+String(plan.planned_end).slice(0,5)+":00");
-    if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime()))return null;
-    if(end<=start)end.setDate(end.getDate()+1); // e.g. 22:00-06:00
-    return {start,end};
+    const dailyKey=String(employeeId)+"|"+date;
+    const clock=dailyStarts.has(dailyKey)?dailyStarts.get(dailyKey):
+      weekdayStarts.get(String(contract.contract_id??contract.id)+"|"+shift.in.getDay());
+    // Only the contracted START is relevant. No end-time limit exists.
+    if(!clockValid(clock))return null;
+    const start=new Date(date+"T"+String(clock).slice(0,5)+":00");
+    return Number.isFinite(start.getTime())?start:null;
   }
   const rows=[]; let totalNet=0, totalGross=0;
   for(const e of payrollCandidates){
@@ -255,20 +257,23 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     if(!isActive(e)&&!sess.length&&!hasMondayOwnedCompletedWeek&&
       !weeklyDecisionEmployeeIds.has(Number(e.id))&&
       !terminatedMonthlyEmployeeIds.has(Number(e.id)))continue;
-    // Keep unmodified physical IN/OUT for attendance and audit; derive
-    // payableIn/payableOut for HOURLY contracts only.
+    // Preserve raw clock-in/out for attendance; derive payable time directly.
+    // A manager-created or explicitly time-corrected IN is an acknowledged
+    // shift start and is NOT automatically clipped to the recurring schedule.
     for(const shift of sess){
       if(!(shift.in instanceof Date)||!Number.isFinite(shift.in.getTime()))continue;
-      const window=contractedWindow(e.id,shift);
-      shift.payableIn=window&&window.start>shift.in?window.start:shift.in;
+      const scheduledStart=contractedStart(e.id,shift);
+      const capEarly=scheduledStart&&!shift.inManuallyAccepted&&scheduledStart>shift.in;
+      shift.payableIn=capEarly?scheduledStart:shift.in;
       const actualOut=shift.status==="COMPLETE"?shift.out:
         shift.status==="WORKING"?kstNow():null;
       if(actualOut instanceof Date&&Number.isFinite(actualOut.getTime())){
-        shift.payableOut=window&&window.end<actualOut?window.end:actualOut;
-        shift.payableSec=Math.max(0,(shift.payableOut-shift.payableIn)/1000);
-        // These are audit metadata ONLY, never a deduction from wages.
-        shift.earlyExcludedSec=window?Math.max(0,(Math.min(actualOut,window.start)-shift.in)/1000):0;
-        shift.lateExcludedSec=window?Math.max(0,(actualOut-Math.max(shift.in,window.end))/1000):0;
+        shift.payableOut=actualOut; // Never remove late clock-out or admin OUT edits.
+        shift.payableSec=Math.max(0,(actualOut-shift.payableIn)/1000);
+        // Audit-only metadata; no after-the-fact deduction from paid wages.
+        shift.earlyExcludedSec=capEarly?
+          Math.max(0,(Math.min(actualOut,scheduledStart)-shift.in)/1000):0;
+        shift.lateExcludedSec=0;
       }
     }
     const completedSec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.payableSec??s.sec??0),0);
