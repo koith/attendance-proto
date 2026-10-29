@@ -944,7 +944,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.379";
+const APP_VERSION="v0.380";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -3636,7 +3636,7 @@ async function buildSheetSyncPayload(ym){
     const provided=mode==='PROVIDED';
     const ignored=mode==='IGNORED';
     if(shift.status!=="COMPLETE")return 0;
-    const sec=Math.max(0,Number(shift.sec||0));
+    const sec=Math.max(0,Number(shift.payableSec??shift.sec??0));
     const deduct=provided?Math.min(1800,Math.max(0,sec-14400))+Math.min(1800,Math.max(0,sec-30600)):0;
     const bonus=(provided||ignored)?0:(sec>=28800?3600:sec>14400?1800:0);
     return Math.max(0,sec-deduct)+bonus;
