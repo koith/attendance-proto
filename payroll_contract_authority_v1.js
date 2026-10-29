@@ -109,7 +109,7 @@
       const matches=matchDate(a),endMatches=matchDate(b);
       if(matches.length!==1||endMatches.length!==1||
         matches[0]!==endMatches[0])return null;
-      const sec=Number(shift.sec);
+      const sec=Number(shift.payableSec??shift.sec);
       if(!Number.isFinite(sec)||sec<=0)return null;
       const deduct=mode==='PROVIDED'
         ?Math.min(1800,Math.max(0,sec-14400))+
