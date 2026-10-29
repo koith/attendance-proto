@@ -20,7 +20,7 @@ try {
    return route.continue();
  });
  await page.goto(root+'?mode=store&store=1#pos',{waitUntil:'domcontentloaded',timeout:30000});
- await page.locator('#employeeOnboarding').waitFor({timeout:20000});
+ await page.locator('#employeeOnboarding').waitFor({state:'attached',timeout:20000});
  await page.evaluate(()=>{
   window.eval('EMP_ONBOARD=newEmployeeOnboardingState()');
   window.eval('EMP_ONBOARD.name="김민지";EMP_ONBOARD.pin="1234";EMP_ONBOARD.startedOn="2026-10-30";EMP_ONBOARD.payrollType="HOURLY";EMP_ONBOARD.amount="12500";EMP_ONBOARD.taxTreatment="BUSINESS_INCOME";EMP_ONBOARD.rate="3.3";EMP_ONBOARD.weekdays=new Set([1,3,5]);EMP_ONBOARD.start="09:00";EMP_ONBOARD.end="17:00";');
