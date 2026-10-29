@@ -1,0 +1,33 @@
+name: payroll-automatic-scheduled-start
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/server-sync-sheet/**'
+      - 'edge-release/supabase/functions/server-sync-sheet/**'
+      - 'qa_payroll_automatic_scheduled_start_v1.mjs'
+      - '.github/workflows/payroll-automatic-scheduled-start.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/server-sync-sheet/**'
+      - 'edge-release/supabase/functions/server-sync-sheet/**'
+      - 'qa_payroll_automatic_scheduled_start_v1.mjs'
+      - '.github/workflows/payroll-automatic-scheduled-start.yml'
+permissions:
+  contents: read
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          node --check supabase/functions/server-sync-sheet/engine.mjs
+          node --check qa_payroll_automatic_scheduled_start_v1.mjs
+          node scripts/sync_supabase_native_edge_release.mjs --check
+          node qa_payroll_automatic_scheduled_start_v1.mjs
+          node qa_payroll_clock_variance_v1.mjs
+          node qa_sheet_working_payable_parity_v1.mjs
+          node qa_payroll_contract_transition_fail_closed_v1.mjs

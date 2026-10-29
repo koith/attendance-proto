@@ -57,7 +57,9 @@ jobs:
           python3 - <<'PYFIXTURE'
           import subprocess,json
           from pathlib import Path
-          paths=['index.html','owner_activation.html','owner_temp_activation.html']
+          paths=['index.html','owner_activation.html','owner_temp_activation.html',
+                 'supabase/functions/server-sync-sheet/index.ts',
+                 'edge-release/supabase/functions/server-sync-sheet/index.ts']
           original={p:subprocess.check_output(['git','show','d0a1d2b3c17418113e9e22a8bcca18040a8b2399:'+p]).decode() for p in paths}
           Path('/tmp/qa1243-v369-release-fixture.json').write_text(json.dumps(original))
           PYFIXTURE
