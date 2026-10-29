@@ -8,6 +8,8 @@ on:
       - 'qa_manual_attendance_recorrection_v1.mjs'
       - 'qa_manual_attendance_recorrection_postgres.sql'
       - 'supabase/migrations/20261029134000_atomic_recorrect_admin_added_attendance.sql'
+      - 'supabase/migrations/20261029135500_ignore_void_add_in_pos_state.sql'
+      - 'qa_void_add_pos_state_patch_postgres.sql'
       - '.github/workflows/manual-attendance-recorrection-regression.yml'
   push:
     branches: [main]
@@ -17,6 +19,8 @@ on:
       - 'qa_manual_attendance_recorrection_v1.mjs'
       - 'qa_manual_attendance_recorrection_postgres.sql'
       - 'supabase/migrations/20261029134000_atomic_recorrect_admin_added_attendance.sql'
+      - 'supabase/migrations/20261029135500_ignore_void_add_in_pos_state.sql'
+      - 'qa_void_add_pos_state_patch_postgres.sql'
       - '.github/workflows/manual-attendance-recorrection-regression.yml'
 permissions:
   contents: read
@@ -62,3 +66,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f qa_admin_correction_save_readback_postgres.sql
       - name: Repeated manual correction 13:00 to 13:10 to 13:15 (audit, rollback, isolation)
         run: psql -v ON_ERROR_STOP=1 -f qa_manual_attendance_recorrection_postgres.sql
+      - name: Verify POS state, punch, and two auto-close consumers ignore VOID_ADD
+        run: |
+          createdb qa_void_add_patch
+          PGDATABASE=qa_void_add_patch psql -v ON_ERROR_STOP=1 -f qa_void_add_pos_state_patch_postgres.sql
