@@ -15,7 +15,7 @@ INSERT INTO public.event_corrections VALUES
 CREATE OR REPLACE FUNCTION public.list_employees_state(p_store_id bigint)
 RETURNS bigint LANGUAGE sql AS $fn$
 SELECT count(*) FROM public.event_corrections ec
-  WHERE ec.action='ADD' and ec.new_event_type is not null
+  where ec.action='ADD' and ec.new_event_type is not null
     and exists (select 1 from public.employees e where e.id=ec.employee_id and e.store_id=p_store_id);
 $fn$;
 CREATE OR REPLACE FUNCTION public.punch(
