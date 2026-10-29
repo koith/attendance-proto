@@ -44,7 +44,7 @@ jobs:
       - name: Rehydrate immutable historic legacy release fixture
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git fetch --no-tags --depth=1 origin db1897424683
+          git fetch --no-tags --depth=1 origin db18974246830d86a57ec10b796a73f739abfb32
           python3 - <<'PYFIXTURE'
           import json,re,subprocess
           from pathlib import Path
@@ -52,7 +52,7 @@ jobs:
           m=re.search(r'export const LEGACY_BYTES=Object\.freeze\((\{[^;]+\})\);',source)
           if not m: raise RuntimeError('FROZEN_LEGACY_RELEASE_MANIFEST_MISSING')
           paths=json.loads(m.group(1))
-          historic={p:subprocess.check_output(['git','show','db1897424683:'+p]).decode() for p in paths}
+          historic={p:subprocess.check_output(['git','show','db18974246830d86a57ec10b796a73f739abfb32:'+p]).decode() for p in paths}
           Path('/tmp/qa1243-legacy-release-fixture.json').write_text(json.dumps(historic))
           PYFIXTURE
       - name: Node startup and Auth isolation tests
