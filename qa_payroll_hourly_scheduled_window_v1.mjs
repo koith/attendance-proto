@@ -45,31 +45,31 @@ async function run({start='06:46',end='15:20',startPlan='07:00',endPlan='15:00',
 function payable(x){return x.row.sessions.reduce((n,s)=>n+Number(s.payableSec??0),0)}
 const both=await run();
 assert.equal(both.row.sessions[0].sec,secs(514));
-assert.equal(payable(both),secs(480));
-assert.equal(both.row.sec,secs(480));
-assert.equal(both.row.pay.base,96000,'base = agreed 8-hour overlap, no after-the-fact monetary deduction');
+assert.equal(payable(both),secs(500));
+assert.equal(both.row.sec,secs(500));
+assert.equal(both.row.pay.base,100000,'base = 07:00 through actual 15:20, no after-the-fact monetary deduction');
 assert.equal(both.row.sessions[0].in.getHours(),6,'actual punch preserved');
 assert.equal(both.row.sessions[0].out.getHours(),15,'actual punch preserved');
 assert.equal(both.row.sessions[0].earlyExcludedSec,secs(14));
-assert.equal(both.row.sessions[0].lateExcludedSec,secs(20));
+assert.equal(both.row.sessions[0].lateExcludedSec,0,'late clock-out must never be excluded');
 assert.equal(both.sheet.attendance.rows[0][2],'06:46');
 assert.equal(both.sheet.attendance.rows[0][3],'15:20');
 assert.equal(both.sheet.attendance.rows[0][4],'08:34');
-assert.equal(both.sheet.attendance.rows[0][10],'08:00');
+assert.equal(both.sheet.attendance.rows[0][10],'08:20');
 const early=await run({end:'15:00'});
 assert.equal(early.row.sec,secs(480));assert.equal(early.row.pay.base,96000);
 const late=await run({start:'07:10'});
-assert.equal(late.row.sec,secs(470));assert.equal(late.row.pay.base,94000);
+assert.equal(late.row.sec,secs(490));assert.equal(late.row.pay.base,98000);
 const normal=await run({start:'07:00',end:'15:00'});
 assert.equal(normal.row.pay.base,96000);
 const before=await run({start:'06:00',end:'06:45'});
 assert.equal(before.row.sec,0,'entirely before shift pays zero');
 const after=await run({start:'15:05',end:'16:00'});
-assert.equal(after.row.sec,0,'entirely after shift pays zero');
+assert.equal(after.row.sec,secs(55),'late shift still counts all 55 minutes');
 const noWindow=await run({startPlan:null});
 assert.equal(noWindow.row.sec,secs(514),'missing plan never silently removes wages');
 const missingEnd=await run({endPlan:null});
-assert.equal(missingEnd.row.sec,secs(514),'start-only record cannot cap payroll');
+assert.equal(missingEnd.row.sec,secs(500),'start-only plan is sufficient to omit just early check-in');
 const missingStart=await run({startPlan:null,daily:[{
   employee_id:id,work_date:'2026-10-01',status:'WORK',planned_start:null,planned_end:'15:00'
 }]});
@@ -80,7 +80,7 @@ const plannedDaily=await run({startPlan:'09:00',endPlan:'12:00',daily:[{
   employee_id:id,work_date:'2026-10-01',status:'WORK',
   planned_start:'07:00',planned_end:'15:00'
 }]});
-assert.equal(plannedDaily.row.sec,secs(480),'daily shift overrides recurring weekday plan');
+assert.equal(plannedDaily.row.sec,secs(500),'daily shift start overrides recurring weekday; late exit counts');
 const monthly=await run({type:'MONTHLY'});
 assert.equal(monthly.row.pay.base,2600000,'monthly salary never clipped');
 assert.equal(monthly.row.sessions[0].sec,secs(514));
@@ -92,16 +92,16 @@ const split=await run({events:[
   ...shift('10:20','15:20'),
 ]});
 assert.equal(split.row.sessions.length,2);
-assert.equal(split.row.sec,secs(460),'two completed punches intersect one window without double counting');
-assert.equal(split.row.pay.base,92000);
+assert.equal(split.row.sec,secs(480),'split sessions preserve all time after scheduled start');
+assert.equal(split.row.pay.base,96000);
 const overnight=await run({start:'21:50',end:'+06:20',startPlan:'22:00',endPlan:'06:00'});
 assert.equal(overnight.row.sessions[0].sec,secs(510));
-assert.equal(overnight.row.sec,secs(480),'22:00-06:00 crosses midnight');
-assert.equal(overnight.row.pay.base,96000);
+assert.equal(overnight.row.sec,secs(500),'22:00 to actual 06:20 across midnight');
+assert.equal(overnight.row.pay.base,100000);
 const nightly=await run({start:'21:50',end:'+06:20',startPlan:'22:00',endPlan:'06:00',night:true});
 assert.equal(nightly.row.pay.nightAllowance,48000,'night premium derives from capped overlap only');
 const dated=await run({contracts:[{
   ...baseContract,id:151,contract_id:151,effective_from:'2026-10-02',effective_to:null
 }]});
 assert.equal(dated.row.sec,secs(514),'future-dated contract must not retroactively cap prior shift');
-console.log('PASS hourly scheduled-window overlap: start/end, night, split, monthly unaffected, no-plan, dated contract and sheet parity');
+console.log('PASS early-only hourly cap: late OUT counted, monthly intact, incomplete plan, split/overnight, night premiums, sheet parity');
