@@ -116,12 +116,31 @@ async function sourceFor(ym,storeId){
        .in("employee_id",employeeIds).lte("started_on",new Date(Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7)),0)).toISOString().slice(0,10))
     :{data:[],error:null};
   if(periodError)throw new Error("EMPLOYMENT_PERIOD_READ_FAILED: "+periodError.code);
+  // Planned start is fetched only for store-scoped employees and their
+  // contracts. This is an automatic calculation; there is no approval flow.
+  const contractIds=[...new Set((data.workdays||[]).map(w=>Number(w.contract_id))
+    .filter(x=>Number.isSafeInteger(x)&&x>0))];
+  const {data:contractStarts,error:contractStartsError}=contractIds.length
+    ?await client.from("employment_contract_workdays")
+       .select("contract_id,weekday,planned_start").in("contract_id",contractIds)
+    :{data:[],error:null};
+  if(contractStartsError)throw new Error("PLANNED_START_SOURCE_FAILED: "+contractStartsError.code);
+  const rangeEnd=new Date(Date.UTC(Number(ym.slice(0,4)),Number(ym.slice(5,7)),8))
+    .toISOString().slice(0,10);
+  const {data:dailySchedules,error:dailyScheduleError}=employeeIds.length
+    ?await client.from("work_schedules")
+       .select("employee_id,work_date,status,planned_start")
+       .in("employee_id",employeeIds).gte("work_date",ym+"-01")
+       .lte("work_date",rangeEnd)
+    :{data:[],error:null};
+  if(dailyScheduleError)throw new Error("PLANNED_SCHEDULE_READ_FAILED: "+dailyScheduleError.code);
   const BE={
     allEmployees:async()=>data.employees||[],
     eventsWithCorrections:async()=>({events:data.events||[],corrections:data.corrections||[]}),
     payrollPeriod:async()=>({period:data.period||{weeks:null},overrides:data.overrides||[]}),
     payrollContracts:async()=>data.contracts||[],
     payrollContractWorkdays:async()=>data.workdays||[],
+    payrollShiftStartRules:async()=>({contractWeekdays:contractStarts||[],dailySchedules:dailySchedules||[]}),
     payrollSubstitutions:async()=>data.substitutions||[],
     payrollWeeklyApprovals:async()=>weeklyApprovals||[],
     payrollEmploymentPeriods:async()=>employmentPeriods||[],
