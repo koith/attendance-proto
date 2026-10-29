@@ -210,7 +210,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     .filter(w=>w.status==="WORK")
     .map(w=>[String(w.employee_id)+"|"+String(w.work_date),w]));
   const p2=n=>String(n).padStart(2,"0");
-  const clockValid=x=>/^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/.test(String(x||""));
+  const clockValid=x=>/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(String(x||""));
   function contractedWindow(employeeId,shift){
     if(!(shift.in instanceof Date)||!Number.isFinite(shift.in.getTime()))return null;
     const date=`${shift.in.getFullYear()}-${p2(shift.in.getMonth()+1)}-${p2(shift.in.getDate())}`;
