@@ -4,7 +4,8 @@
 CREATE OR REPLACE FUNCTION public.can_manage_store_attendance(p_store_id bigint)
 RETURNS boolean LANGUAGE sql STABLE AS $$
   SELECT public.can_manage_store(p_store_id)
-$$;
+$;
+\ir qa_store_attendance_correct_event_fixture.sql
 \ir supabase/migrations/20261029134000_atomic_recorrect_admin_added_attendance.sql
 DO $qa$
 DECLARE
