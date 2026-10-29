@@ -149,7 +149,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   const isActive=e=>e.is_active!==false && e.active!==false;
   const active=emps.filter(isActive);
   const eventEmployeeIds=new Set(events.map(x=>Number(x.employee_id)));
-  let periodWeeks=null, overrides={}, contracts={}, contractWorkdays={}, substitutions=[], weeklyApprovals=[], employmentPeriods=[];
+  let periodWeeks=null, overrides={}, contracts={}, contractVersions={}, contractWorkdays={}, substitutions=[], weeklyApprovals=[], employmentPeriods=[];
   if(LIVE){
     try{
       const pd=await BE.payrollPeriod(ym);
@@ -158,7 +158,11 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     }catch(e){ console.warn("payroll period load failed",e); }
     try{
       const cs=await BE.payrollContracts(ym);
-      (cs||[]).forEach(c=>{ contracts[Number(c.employee_id)]=c; });
+      (cs||[]).forEach(c=>{
+        const employeeId=Number(c.employee_id);
+        contracts[employeeId]=c;
+        (contractVersions[employeeId]||(contractVersions[employeeId]=[])).push(c);
+      });
       const ws=await BE.payrollContractWorkdays(ym);
       (ws||[]).forEach(w=>{
         const id=Number(w.employee_id); if(w.contract_id!=null&&contracts[id]?.contract_id!=null&&Number(w.contract_id)!==Number(contracts[id].contract_id))return;
@@ -194,32 +198,40 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     eventEmployeeIds.has(Number(e.id))||weeklyDecisionEmployeeIds.has(Number(e.id))||
     terminatedMonthlyEmployeeIds.has(Number(e.id)));
   const weeks = periodWeeks || weeksInMonth(ym);
-  // Store-local scheduled start only; a missing plan never invents unpaid
-  // minutes. Raw IN/OUT values and immutable attendance events stay untouched.
+  // Calculate hourly pay from the intersection of actual punches and the
+  // contracted window. Never calculate full wages and subtract money later.
+  // Do not apply the overlap cap to MONTHLY staff or incomplete schedules.
   const plannedRules=typeof BE.payrollShiftStartRules==="function"
     ?await BE.payrollShiftStartRules(ym):{contractWeekdays:[],dailySchedules:[]};
-  const weekdayStarts=new Map((plannedRules?.contractWeekdays||[])
-    .filter(w=>w.planned_start!=null&&w.weekday!=null)
-    .map(w=>[String(w.contract_id)+"|"+String(w.weekday),String(w.planned_start)]));
-  const dailyStarts=new Map((plannedRules?.dailySchedules||[])
-    .filter(w=>w.status==="WORK"&&w.planned_start!=null)
-    .map(w=>[String(w.employee_id)+"|"+String(w.work_date),String(w.planned_start)]));
+  const weekdayWindows=new Map((plannedRules?.contractWeekdays||[])
+    .filter(w=>w.weekday!=null)
+    .map(w=>[String(w.contract_id)+"|"+String(w.weekday),w]));
+  const dailyWindows=new Map((plannedRules?.dailySchedules||[])
+    .filter(w=>w.status==="WORK")
+    .map(w=>[String(w.employee_id)+"|"+String(w.work_date),w]));
   const p2=n=>String(n).padStart(2,"0");
-  function scheduledStart(employeeId,shift,contract){
+  const clockValid=x=>/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(String(x||""));
+  function contractedWindow(employeeId,shift){
     if(!(shift.in instanceof Date)||!Number.isFinite(shift.in.getTime()))return null;
     const date=`${shift.in.getFullYear()}-${p2(shift.in.getMonth()+1)}-${p2(shift.in.getDate())}`;
-    // Daily schedule wins over a contracted weekday. No implicit consent.
-    let clock=dailyStarts.get(String(employeeId)+"|"+date);
-    if(clock==null&&contract&&
-      String(contract.effective_from||"0000-01-01")<=date&&
-      (!contract.effective_to||String(contract.effective_to)>=date)){
-      // Contract workday schema uses Sunday=0 ... Saturday=6.
-      const weekday=shift.in.getDay();
-      clock=weekdayStarts.get(String(contract.contract_id??contract.id)+"|"+weekday);
-    }
-    if(!/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(String(clock||"")))return null;
-    const start=new Date(date+"T"+String(clock).slice(0,5)+":00");
-    return Number.isFinite(start.getTime())?start:null;
+    // Resolve the exact contract active on the shift's date. A missing,
+    // overlapping or monthly contract never silently removes payable time.
+    const matches=(contractVersions[Number(employeeId)]||[]).filter(c=>
+      String(c.effective_from||"9999-12-31")<=date&&
+      (!c.effective_to||String(c.effective_to)>=date));
+    if(matches.length!==1||matches[0].payroll_type!=="HOURLY")return null;
+    const contract=matches[0];
+    const daily=dailyWindows.get(String(employeeId)+"|"+date);
+    const weekday=weekdayWindows.get(String(contract.contract_id??contract.id)+"|"+shift.in.getDay());
+    const plan=daily||weekday;
+    // Both endpoints are mandatory. Do not default missing endpoints to
+    // opening/closing hours or infer a length from the punch itself.
+    if(!plan||!clockValid(plan.planned_start)||!clockValid(plan.planned_end))return null;
+    const start=new Date(date+"T"+String(plan.planned_start).slice(0,5)+":00");
+    const end=new Date(date+"T"+String(plan.planned_end).slice(0,5)+":00");
+    if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime()))return null;
+    if(end<=start)end.setDate(end.getDate()+1); // e.g. 22:00-06:00
+    return {start,end};
   }
   const rows=[]; let totalNet=0, totalGross=0;
   for(const e of payrollCandidates){
@@ -243,30 +255,28 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     if(!isActive(e)&&!sess.length&&!hasMondayOwnedCompletedWeek&&
       !weeklyDecisionEmployeeIds.has(Number(e.id))&&
       !terminatedMonthlyEmployeeIds.has(Number(e.id)))continue;
-    // Apply the scheduled boundary only to the first punch of a workday.
-    // Mid-shift returns and unscheduled days retain their true elapsed time.
-    const earliestByDay=new Map();
+    // Keep unmodified physical IN/OUT for attendance and audit; derive
+    // payableIn/payableOut for HOURLY contracts only.
     for(const shift of sess){
       if(!(shift.in instanceof Date)||!Number.isFinite(shift.in.getTime()))continue;
-      const key=shift.in.toDateString(),earliest=earliestByDay.get(key);
-      if(!earliest||shift.in<earliest.in)earliestByDay.set(key,shift);
-    }
-    for(const shift of sess){
-      if(!(shift.in instanceof Date)||!Number.isFinite(shift.in.getTime()))continue;
-      const planned=earliestByDay.get(shift.in.toDateString())===shift
-        ?scheduledStart(e.id,shift,contracts[Number(e.id)]):null;
-      shift.payableIn=planned&&planned>shift.in?planned:shift.in;
-      if(shift.status==="COMPLETE"){
-        shift.payableSec=Math.max(0,(shift.out-shift.payableIn)/1000);
-        shift.earlyExcludedSec=Math.max(0,Number(shift.sec||0)-shift.payableSec);
+      const window=contractedWindow(e.id,shift);
+      shift.payableIn=window&&window.start>shift.in?window.start:shift.in;
+      const actualOut=shift.status==="COMPLETE"?shift.out:
+        shift.status==="WORKING"?kstNow():null;
+      if(actualOut instanceof Date&&Number.isFinite(actualOut.getTime())){
+        shift.payableOut=window&&window.end<actualOut?window.end:actualOut;
+        shift.payableSec=Math.max(0,(shift.payableOut-shift.payableIn)/1000);
+        // These are audit metadata ONLY, never a deduction from wages.
+        shift.earlyExcludedSec=window?Math.max(0,(Math.min(actualOut,window.start)-shift.in)/1000):0;
+        shift.lateExcludedSec=window?Math.max(0,(actualOut-Math.max(shift.in,window.end))/1000):0;
       }
     }
     const completedSec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.payableSec??s.sec??0),0);
-    const liveSec=sess.filter(s=>s.status==="WORKING"&&s.in).reduce((a,x)=>a+Math.max(0,(kstNow()-(x.payableIn||x.in))/1000),0);
+    const liveSec=sess.filter(s=>s.status==="WORKING"&&s.in).reduce((a,s)=>a+(s.payableSec??Math.max(0,(kstNow()-s.in)/1000)),0);
     const sec=completedSec+liveSec;
     const hours=secToHours(sec);
     const nightMinutes=nightOverlap(sess.filter(s=>s.status==="COMPLETE"&&s.in&&s.out)
-      .map(shift=>({...shift,in:shift.payableIn||shift.in})),'22:00','06:00')/60;
+      .map(shift=>({...shift,in:shift.payableIn||shift.in,out:shift.payableOut||shift.out})),'22:00','06:00')/60;
     const eligibleBreakSessions=sess.filter(s=>s.status==="COMPLETE"&&Number(s.payableSec??s.sec??0)>4*3600);
     const breakEligibleCount=eligibleBreakSessions.length;
     const issues=sess.filter(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
@@ -443,7 +453,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       const value=Math.max(0,Number(contract.night_allowance_value||0));
       const nightWorkedSeconds=nightOverlap(
         sess.filter(x=>x.status==="COMPLETE"&&x.in&&x.out)
-          .map(x=>({...x,in:x.payableIn||x.in})),
+          .map(x=>({...x,in:x.payableIn||x.in,out:x.payableOut||x.out})),
         contract.night_allowance_start||'22:00',contract.night_allowance_end||'06:00'
       );
       const hourlyBase=payrollType==="HOURLY"?Number(effWage||0):0;
@@ -699,7 +709,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       if(matches.length!==1||endMatches.length!==1||
         matches[0]!==endMatches[0])return null;
       const sec=Number(shift.payableSec??shift.sec);
-      if(!Number.isFinite(sec)||sec<=0)return null;
+      if(!Number.isFinite(sec)||sec<0)return null;
       const deduct=mode==='PROVIDED'
         ?Math.min(1800,Math.max(0,sec-14400))+
           Math.min(1800,Math.max(0,sec-30600)):0;
@@ -762,7 +772,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       const c=row.contract,p=row.pay;
       if(p&&c?.night_allowance_enabled){
         p.nightHours=nightOverlap(row.sessions.filter(shift=>shift.status==='COMPLETE'&&shift.in&&shift.out)
-          .map(shift=>({...shift,in:shift.payableIn||shift.in})),c.night_allowance_start||'22:00',c.night_allowance_end||'06:00')/3600;
+          .map(shift=>({...shift,in:shift.payableIn||shift.in,out:shift.payableOut||shift.out})),c.night_allowance_start||'22:00',c.night_allowance_end||'06:00')/3600;
         p.night=Number(p.nightAllowance||0);
       }
     }

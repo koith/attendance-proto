@@ -3,7 +3,7 @@ import {createPayrollEngine} from './supabase/functions/server-sync-sheet/engine
 process.env.TZ='Asia/Seoul';
 const emp={id:900061,store_id:701,name:'QA scheduled clock-in',is_active:true,wage:12000,tax_rate:0,juhyu_hours:0};
 const contract={id:71,contract_id:71,employee_id:emp.id,effective_from:'2026-01-01',effective_to:null,payroll_type:'HOURLY',hourly_wage:12000,monthly_salary:0,weekly_contracted_minutes:0,tax_treatment:'BUSINESS_INCOME',business_deduction_rate:0,break_provision_mode:'IGNORED',night_allowance_enabled:false};
-function reportWith({start='06:46',finish='15:04',scheduled='07:00:00',weekday=4,daily=[],payrollMonth='2026-10'}={}){
+function reportWith({start='06:46',finish='15:04',scheduled='07:00:00',scheduledEnd='15:04:00',weekday=4,daily=[],payrollMonth='2026-10'}={}){
  const events=[
   {id:1,employee_id:emp.id,event_type:'IN',event_at:'2026-10-01T'+start+':00'},
   {id:2,employee_id:emp.id,event_type:'OUT',event_at:'2026-10-01T'+finish+':00'}
@@ -12,7 +12,7 @@ function reportWith({start='06:46',finish='15:04',scheduled='07:00:00',weekday=4
   allEmployees:async()=>[emp],eventsWithCorrections:async()=>({events,corrections:[]}),
   payrollPeriod:async()=>({period:{weeks:4},overrides:[]}),
   payrollContracts:async()=>[contract],payrollContractWorkdays:async()=>[],
-  payrollShiftStartRules:async()=>({contractWeekdays:scheduled?[{contract_id:71,weekday,planned_start:scheduled}]:[],dailySchedules:daily}),
+  payrollShiftStartRules:async()=>({contractWeekdays:scheduled?[{contract_id:71,weekday,planned_start:scheduled,planned_end:scheduledEnd}]:[],dailySchedules:daily}),
   payrollSubstitutions:async()=>[],payrollWeeklyApprovals:async()=>[],payrollEmploymentPeriods:async()=>[],
   employmentBundle:async()=>({contracts:[contract],periods:[],workdays:[]})
  };
@@ -39,7 +39,7 @@ assert.equal(noPlan.rows[0].pay.base,99600);
 const [late]=await reportWith({start:'07:12'});
 assert.equal(late.rows[0].sec,minutes(472),'late start is never moved backward');
 assert.equal(late.rows[0].pay.base,94400);
-const [daily]=await reportWith({scheduled:'08:00',daily:[{employee_id:900061,work_date:'2026-10-01',status:'WORK',planned_start:'07:00'}]});
+const [daily]=await reportWith({scheduled:'08:00',daily:[{employee_id:900061,work_date:'2026-10-01',status:'WORK',planned_start:'07:00',planned_end:'15:04'}]});
 assert.equal(daily.rows[0].sec,minutes(484),'daily schedule overrides weekday plan');
 const [offDay]=await reportWith({scheduled:'07:00',weekday:5});
 assert.equal(offDay.rows[0].sec,minutes(498),'unmatched weekday never deducts');
