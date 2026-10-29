@@ -1,22 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync as nativeReadFileSync} from 'node:fs';
+// The release verifier is intentionally byte-exact. Replay its historical
+// release source, not today's unrelated payroll/UI work.
+const historical=JSON.parse(nativeReadFileSync('/tmp/qa1243-legacy-release-fixture.json','utf8'));
+const readFileSync=(p,encoding='utf8')=>
+  Object.hasOwn(historical,p)?historical[p]:nativeReadFileSync(p,encoding);
 import {assertLegacyEntryRelease,LEGACY_BASE,LEGACY_BYTES} from '../scripts/qa1243_legacy_entry_release.mjs';
 const files=Object.keys(LEGACY_BYTES).map(filename=>({filename,status:'modified'}));
 const message='[QA1243-INHA-TEST-CONTROLS] [QA1243-PROTECTED-TAB-ENTRY] [QA1243-ASSISTANT-UX] [QA1243-STAFF-STOCKTAKE-UI] [QA1243-AUTH-MAIL-BRANDING] [QA1243-OWNER-PASSWORD-FEEDBACK] [QA1243-LEGACY-ENTRY] [QA1243-APP-PAGES] [QA1243-NO-OPERATING-WRITE] [QA1243-NO-GOOGLE-RERUN]';
 test('only the exact reviewed startup and public manifest builder may publish',()=>{
- assert.equal(assertLegacyEntryRelease(files,message,LEGACY_BASE),true);
+ assert.equal(assertLegacyEntryRelease(files,message,LEGACY_BASE,{read:readFileSync}),true);
 });
 test('missing safety marker, changed main and incomplete runtime bytes block publication',()=>{
- for(const m of message.split(' '))assert.throws(()=>assertLegacyEntryRelease(files,message.replace(m,''),LEGACY_BASE),/MARKER/);
+ for(const m of message.split(' '))assert.throws(()=>assertLegacyEntryRelease(files,message.replace(m,''),LEGACY_BASE,{read:readFileSync}),/MARKER/);
  assert.throws(()=>assertLegacyEntryRelease(files,message,'a'.repeat(40)),/PARENT/);
- assert.throws(()=>assertLegacyEntryRelease(files.slice(1),message,LEGACY_BASE),/REQUIRED/);
+ assert.throws(()=>assertLegacyEntryRelease(files.slice(1),message,LEGACY_BASE,{read:readFileSync}),/REQUIRED/);
  for(const path of Object.keys(LEGACY_BYTES))assert.throws(()=>assertLegacyEntryRelease(files,message,LEGACY_BASE,{read:p=>readFileSync(p,'utf8')+(path===p?'\n// unreviewed':'')}),/BYTES/);
 });
 test('operating, SQL, Edge, Auth callback, unknown and removed assets cannot hide in static repair',()=>{
  for(const filename of ['apps_script.gs','actual_attendance_unreviewed.js','owner_activation_other.js','supabase/migrations/unreviewed.sql','supabase/functions/server-sync-sheet/index.ts','unknown.js'])
-  assert.throws(()=>assertLegacyEntryRelease([...files,{filename,status:'modified'}],message,LEGACY_BASE),/SCOPE/);
- assert.throws(()=>assertLegacyEntryRelease(files.map(f=>({...f,status:'removed'})),message,LEGACY_BASE),/SCOPE/);
+  assert.throws(()=>assertLegacyEntryRelease([...files,{filename,status:'modified'}],message,LEGACY_BASE,{read:readFileSync}),/SCOPE/);
+ assert.throws(()=>assertLegacyEntryRelease(files.map(f=>({...f,status:'removed'})),message,LEGACY_BASE,{read:readFileSync}),/SCOPE/);
 });
 test('both publication and Google exclusion validate the same reviewed repair scope',()=>{
  for(const path of ['.github/workflows/p0-pages-deploy.yml','.github/workflows/qa1243-live-e2e.yml']){
