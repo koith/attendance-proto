@@ -437,18 +437,21 @@ init();
       const calls=[],empId=Number(source.employee_id);
       const changedIn=!!nextIn&&dtValue(source.in)!==inLocal;
       const changedOut=!!nextOut&&dtValue(source.out)!==outLocal;
-      if((changedIn&&isAddedId(source.inId))||(changedOut&&isAddedId(source.outId))){
-        toastCorrection('관리자가 추가한 기록은 삭제 후 다시 생성하세요. 기존 기록은 변경되지 않았습니다.',true);return;
-      }
       if(changedIn&&alreadyHas('IN',nextIn,source.inId)){
         toastCorrection('같은 시각의 출근 기록이 이미 있습니다. 중복 추가를 중단했습니다.',true);return;
       }
       if(changedOut&&alreadyHas('OUT',nextOut,source.outId)){
         toastCorrection('같은 시각의 퇴근 기록이 이미 있습니다. 중복 추가를 중단했습니다.',true);return;
       }
-      if(source.inId&&changedIn)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.inId),p_employee_id:empId,p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
+      if(source.inId&&changedIn){
+        if(isAddedId(source.inId))calls.push({p_action:'REPLACE_ADD',p_event_id:Number(source.inCorrectionId||String(source.inId).slice(4)),p_employee_id:empId,p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
+        else calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.inId),p_employee_id:empId,p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
+      }
       if(!source.inId&&nextIn)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:empId,p_new_at:nextIn,p_new_type:'IN',p_reason:reason});
-      if(source.outId&&changedOut)calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.outId),p_employee_id:empId,p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
+      if(source.outId&&changedOut){
+        if(isAddedId(source.outId))calls.push({p_action:'REPLACE_ADD',p_event_id:Number(source.outCorrectionId||String(source.outId).slice(4)),p_employee_id:empId,p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
+        else calls.push({p_action:'EDIT_TIME',p_event_id:Number(source.outId),p_employee_id:empId,p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
+      }
       if(!source.outId&&nextOut)calls.push({p_action:'ADD',p_event_id:null,p_employee_id:empId,p_new_at:nextOut,p_new_type:'OUT',p_reason:reason});
       if(!calls.length)return toastCorrection('변경된 시각이 없습니다.',true);
       save.disabled=true;
@@ -456,19 +459,26 @@ init();
       try{
         const receipt=[];
         for(const args of calls){
-          const id=await rpc('admin_correct_event',args);
+          const replacing=args.p_action==='REPLACE_ADD';
+          const id=await rpc(replacing?'store_attendance_replace_added_event':'admin_correct_event',
+            replacing?{p_correction_id:args.p_event_id,p_employee_id:args.p_employee_id,
+              p_new_at:args.p_new_at,p_new_type:args.p_new_type,p_reason:args.p_reason}:args);
           if(!Number.isSafeInteger(Number(id))||Number(id)<=0)throw Error('CORRECTION_RECEIPT_MISSING');
           receipt.push({args,id:Number(id)});writes++;
         }
         if(await loadMonth()!==true)throw Error('CORRECTION_READBACK_FAILED');
         const valid=receipt.every(({args,id})=>{
-          const eventKey=args.p_action==='ADD'?'add_'+id:String(args.p_event_id);
+          const eventKey=args.p_action==='ADD'||args.p_action==='REPLACE_ADD'?'add_'+id:String(args.p_event_id);
           const expected=parseWall(args.p_new_at).getTime();
           const type=args.p_new_type;
-          return S.sessions.some(item=>Number(item.employee_id)===empId&&
+          const found=S.sessions.some(item=>Number(item.employee_id)===empId&&
             String(eventId(item,type))===eventKey&&
             eventAt(item,type) instanceof Date&&
             Math.abs(eventAt(item,type).getTime()-expected)<60000);
+          // The former ADD must no longer be effective, including after a second edit.
+          const formerGone=args.p_action!=='REPLACE_ADD'||!S.sessions.some(item=>
+            Number(item.employee_id)===empId&&String(eventId(item,type))==='add_'+args.p_event_id);
+          return found&&formerGone;
         });
         if(!valid)throw Error('CORRECTION_TIME_MISMATCH');
         closeCorrection();renderDay(day);toastCorrection('근태 정정을 저장하고 시각을 확인했습니다.');
