@@ -1,0 +1,42 @@
+name: Manual Actual UI Screenshot QA (isolated)
+on:
+  push:
+    branches:
+      - qa/manual-screen-capture-20261030
+    paths:
+      - qa/manual_screenshot_capture_20261030.mjs
+      - .github/workflows/manual-screenshot-capture-qa.yml
+permissions:
+  contents: read
+jobs:
+  screenshots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright runner
+        run: npm install --no-save --no-audit --no-fund playwright@1.55.1
+      - name: Start isolated production HTML/CSS preview
+        run: |
+          node scripts/qa_browser_static_preview.mjs >/tmp/manual-preview.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:4173/index.html -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/manual-preview.log
+          exit 1
+      - name: Capture real app controls with all external requests blocked
+        run: node qa/manual_screenshot_capture_20261030.mjs
+      - name: Upload screenshots and provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manual-actual-app-ui-qa-v0381
+          path: qa-results/manual-capture/
+          if-no-files-found: warn
