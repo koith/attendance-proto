@@ -58,6 +58,39 @@ try {
  await page.evaluate(()=>{const d=document.querySelector('.payroll-detail-popover');if(!d)throw Error('Missing live-app detail markup');d.hidden=false;});
  await page.locator('.payroll-detail-popover').waitFor({state:'visible',timeout:5000});
  await page.screenshot({path:'qa-results/manual-capture/payroll-detail.png',fullPage:true,animations:'disabled'});
+
+ // Capture the real attendance add-record modal from actual_attendance.html.
+ // All RPC replies below are in-memory fixtures; the network never reaches Supabase.
+ const attendance=await ctx.newPage();
+ const fixtureToken='qa-browsers-only-not-a-real-token';
+ await attendance.addInitScript(token=>localStorage.setItem('baekeok_auth',JSON.stringify({access_token:token,refresh_token:'qa-only'})),fixtureToken);
+ await attendance.route('**/*',route=>{
+   const url=route.request().url();
+   if(url.startsWith('http://127.0.0.1:4173/'))return route.continue();
+   if(url.includes('/rest/v1/rpc/')){
+     const method=url.split('/').pop();
+     const replies={
+       admin_context:{role:'HQ',store_id:null},
+       store_delegated_permissions_self:{limited:false},
+       store_attendance_employees:[{id:991,name:'김민지',employee_no:1,store_id:1}],
+       store_attendance_settings:{open_minute:420,close_minute:1500},
+       store_attendance_events:{events:[],corrections:[]}
+     };
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(replies[method]??[])});
+   }
+   return route.abort();
+ });
+ await attendance.goto('http://127.0.0.1:4173/actual_attendance.html?store=1',{waitUntil:'domcontentloaded',timeout:30000});
+ await attendance.locator('.calendar [data-day]').first().waitFor({timeout:15000});
+ await attendance.locator('.calendar [data-day]').first().click();
+ await attendance.locator('#attendanceAddBtn').waitFor({timeout:10000});
+ await attendance.locator('#attendanceAddBtn').click();
+ await attendance.locator('#manualAttendanceTitle').waitFor({timeout:5000});
+ await attendance.locator('#manualAttendanceEmployee').selectOption('991');
+ await attendance.locator('#manualAttendanceStatus').selectOption('COMPLETE');
+ await attendance.locator('#manualAttendanceOutTime').fill('17:00');
+ await attendance.locator('.manual-attendance-modal').screenshot({path:'qa-results/manual-capture/attendance-add.png',animations:'disabled',timeout:12000});
+ await attendance.close();
  const metadata={
   generated_at:new Date().toISOString(),source:'actual GitHub repository index.html, browser-rendered',
   data:'Synthetic in-memory UI data; no operational records',backend_requests:'blocked',
@@ -65,7 +98,7 @@ try {
   screenshots:fs.readdirSync('qa-results/manual-capture').filter(x=>x.endsWith('.png'))
  };
  fs.writeFileSync('qa-results/manual-capture/PROVENANCE.json',JSON.stringify(metadata,null,2));
- assert.equal(metadata.screenshots.length,6);
+ assert.equal(metadata.screenshots.length,7);
  console.log('SCREENSHOT_CAPTURE_SUCCESS',metadata.screenshots,metadata.version);
  await ctx.close();
 }finally { await browser.close(); }
