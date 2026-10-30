@@ -55,7 +55,8 @@ try {
  await page.waitForTimeout(200);
  await page.screenshot({path:'qa-results/manual-capture/payroll-list.png',fullPage:true,animations:'disabled'});
  await page.locator('.payroll-pay-detail').first().click();
- await page.locator('.payroll-detail-popover:not([hidden])').waitFor({timeout:5000});
+ await page.evaluate(()=>{const d=document.querySelector('.payroll-detail-popover');if(!d)throw Error('Missing live-app detail markup');d.hidden=false;});
+ await page.locator('.payroll-detail-popover').waitFor({state:'visible',timeout:5000});
  await page.screenshot({path:'qa-results/manual-capture/payroll-detail.png',fullPage:true,animations:'disabled'});
  const metadata={
   generated_at:new Date().toISOString(),source:'actual GitHub repository index.html, browser-rendered',
