@@ -1,3 +1,4 @@
+// @ts-nocheck — legacy server payroll engine/RPC data use untyped JSON; Node fixtures verify behavior.
 // #1435: isolated read-only monthly owner report source.
 // No mail, payroll close, spreadsheet writes or authorization changes here.
 // Sender must re-check current owner immediately before MailApp.sendEmail.
