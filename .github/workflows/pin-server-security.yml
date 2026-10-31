@@ -1,0 +1,76 @@
+name: PIN server security isolated integration
+on:
+  pull_request:
+    paths: ['qa/pin-security/**', 'supabase/migrations/20261031043549_audit_pin_server_guard.sql', 'docs/security/pin-server-guard-1442.md', '.github/workflows/pin-server-security.yml']
+permissions:
+  contents: read
+jobs:
+  postgres:
+    strategy:
+      matrix: {pg: ['16', '17']}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_fixture_only
+          POSTGRES_DB: pin_fixture
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres -d pin_fixture" --health-interval 5s --health-timeout 5s --health-retries 12
+      postgrest:
+        image: postgrest/postgrest:v14.1
+        env:
+          PGRST_DB_URI: postgres://postgres:synthetic_fixture_only@postgres:5432/pin_fixture
+          PGRST_DB_ANON_ROLE: anon
+          PGRST_DB_SCHEMAS: public
+          PGRST_DB_TX_END: commit-allow-override
+        ports: ['3000:3000']
+    env:
+      PGHOST: postgres
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_fixture_only
+      PGDATABASE: pin_fixture
+      PIN_QA_HTTP: http://postgrest:3000
+    steps:
+      - uses: actions/checkout@v4
+      - name: Disposable PostgreSQL fixture and observed originals
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq postgresql-client
+          psql -X -v ON_ERROR_STOP=1 -f qa/pin-security/setup.sql -f qa/pin-security/baseline.sql
+      - name: Regression fails before protection
+        run: |
+          if python3 qa/pin-security/run.py --baseline > baseline-failure.log 2>&1; then
+            cat baseline-failure.log; exit 1
+          fi
+          grep -q 'baseline blocks correct PIN after repeated wrong attempts' baseline-failure.log
+          cat baseline-failure.log
+      - name: Install atomically, default OFF, actual SQL and concurrency
+        run: |
+          psql -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261031043549_audit_pin_server_guard.sql
+          python3 qa/pin-security/run.py
+          psql -c "NOTIFY pgrst,'reload schema';"
+      - name: Actual HTTP contracts and transaction-rollback bypass
+        run: |
+          for n in $(seq 1 15); do
+            if curl --fail --silent http://postgrest:3000/ >/dev/null; then break; fi
+            sleep 2
+          done
+          python3 qa/pin-security/http_checks.py
+      - name: Full unchanged app PIN pad through real isolated RPCs on PC/mobile WebKit/Chromium
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.55.1
+          node qa/pin-security/browser.mjs
+      - name: Code rollback preserves newer attendance and rejects later source drift
+        run: python3 qa/pin-security/rollback_checks.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pin-security-baseline-${{ matrix.pg }}
+          path: baseline-failure.log
