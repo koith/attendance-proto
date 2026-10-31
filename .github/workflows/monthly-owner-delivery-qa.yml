@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/monthly-owner-gmail-payroll-1435
+      - feature/monthly-owner-preview-final-1435
     paths:
       - 'gas/monthly-owner-report/**'
       - 'supabase/functions/monthly-owner-report/**'
@@ -27,6 +28,11 @@ jobs:
           node-version: '22'
       - name: Verify isolated monthly Gmail recipient, payroll and attachment contracts
         run: node qa/qa_monthly_owner_delivery_1435.test.mjs
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check the private read-only preview/final Edge
+        run: deno check supabase/functions/monthly-owner-report/index.ts
       - name: Ensure no operating deployment or recipient contact
         run: |
           echo 'PASS: synthetic test only. No Gmail, Google Sheet, or Supabase operational writes.' >> "$GITHUB_STEP_SUMMARY"
