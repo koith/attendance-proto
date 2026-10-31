@@ -37,14 +37,21 @@ async function currentOwner(storeId){
   if(oe||!owner?.user_id)throw Error("PRIMARY_OWNER_NOT_APPOINTED");
   const {data:admin,error:ae}=await client.from("admin_users")
     .select("user_id,email,admin_role,store_id").eq("user_id",owner.user_id).maybeSingle();
-  if(ae||!admin||admin.user_id!==owner.user_id||
-     admin.admin_role!=="STORE_MANAGER"||Number(admin.store_id)!==storeId)
+  if(ae||!admin||admin.user_id!==owner.user_id)
     throw Error("PRIMARY_OWNER_ROLE_INVALID");
+  const storeManager=admin.admin_role==="STORE_MANAGER"&&Number(admin.store_id)===storeId;
+  let hqDualOwner=false;
+  if(storeId===1&&admin.admin_role==="HQ"&&admin.store_id===null){
+    const {data:member,error:me}=await client.from("store_admin_memberships")
+      .select("role").eq("store_id",storeId).eq("user_id",owner.user_id).maybeSingle();
+    hqDualOwner=!me&&member?.role==="OWNER";
+  }
+  if(!storeManager&&!hqDualOwner)throw Error("PRIMARY_OWNER_ROLE_INVALID");
   const {data:auth,error:ue}=await client.auth.admin.getUserById(owner.user_id);
   const user=auth?.user;
   const email=String(user?.email||"").trim().toLowerCase();
   if(ue||!user?.email_confirmed_at||!/^[A-Za-z0-9._%+-]+@(gmail\.com|googlemail\.com)$/i.test(email)||
-      String(admin.email||"").trim().toLowerCase()!==email)
+      (storeManager&&String(admin.email||"").trim().toLowerCase()!==email))
     throw Error("PRIMARY_OWNER_EMAIL_UNVERIFIED");
   return {user_id:owner.user_id,email};
 }
