@@ -29,8 +29,8 @@ BEGIN
            WHERE m.store_id=1 AND m.role='OWNER' AND m.user_id<>v_owner) THEN
    RAISE EXCEPTION 'INHA_HAS_DIFFERENT_OWNER_MEMBERSHIP';
  END IF;
- INSERT INTO public.store_admin_memberships(store_id,user_id,role)
- VALUES(1,v_owner,'OWNER')
+ INSERT INTO public.store_admin_memberships(store_id,user_id,role,assigned_by)
+ VALUES(1,v_owner,'OWNER',v_owner)
  ON CONFLICT(store_id,user_id) DO UPDATE SET role='OWNER';
  INSERT INTO public.store_primary_owners(store_id,user_id)
  VALUES(1,v_owner)
@@ -131,8 +131,8 @@ BEGIN
  SELECT o.user_id INTO v_outgoing FROM public.store_primary_owners o
  WHERE o.store_id=p_store_id FOR UPDATE;
  IF v_role='HQ' THEN
-   INSERT INTO public.store_admin_memberships(store_id,user_id,role)
-   VALUES(p_store_id,p_user_id,'OWNER')
+   INSERT INTO public.store_admin_memberships(store_id,user_id,role,assigned_by)
+   VALUES(p_store_id,p_user_id,'OWNER',auth.uid())
    ON CONFLICT(store_id,user_id) DO UPDATE SET role='OWNER';
  END IF;
  INSERT INTO public.store_primary_owners(store_id,user_id,appointed_by)
