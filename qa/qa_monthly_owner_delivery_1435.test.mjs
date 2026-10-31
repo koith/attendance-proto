@@ -122,6 +122,7 @@ assert.equal(cfg.gmail,undefined,"do not store owner emails");
 assert.equal(run('_monthlyFetchReport_(_monthlyConfig_(1,_monthlyBooks_()["1"]),"2026-10","PREVIEW").status'),"OPEN");
 assert.equal(run('_monthlySendOne_(1,"2026-10","PREVIEW",_monthlyBooks_()["1"],true).status'),"PREVIEW_OK");
 assert.equal(sent.length,0,"preview-only must never send");
+run('_monthlyExcel_=function(){return {getBytes:function(){return [1,2,3]},setName:function(n){this.name=n;return this;}}};');
 const badName="new@gmail.com";
 reportOwner={...owner1,email:badName};
 assert.throws(()=>run('_monthlySendOne_(1,"2026-10","PREVIEW",_monthlyBooks_()["1"],false)'),/PRIMARY_OWNER_CHANGED_RETRY/);
