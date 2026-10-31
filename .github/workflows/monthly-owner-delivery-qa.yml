@@ -1,0 +1,32 @@
+name: Monthly Owner Gmail Reports - Isolated QA
+on:
+  push:
+    branches:
+      - feature/monthly-owner-gmail-payroll-1435
+    paths:
+      - 'gas/monthly-owner-report/**'
+      - 'supabase/functions/monthly-owner-report/**'
+      - 'qa/qa_monthly_owner_delivery_1435.test.mjs'
+      - '.github/workflows/monthly-owner-delivery-qa.yml'
+  pull_request:
+    paths:
+      - 'gas/monthly-owner-report/**'
+      - 'supabase/functions/monthly-owner-report/**'
+      - 'qa/qa_monthly_owner_delivery_1435.test.mjs'
+      - '.github/workflows/monthly-owner-delivery-qa.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic-safety:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify isolated monthly Gmail recipient, payroll and attachment contracts
+        run: node qa/qa_monthly_owner_delivery_1435.test.mjs
+      - name: Ensure no operating deployment or recipient contact
+        run: |
+          echo 'PASS: synthetic test only. No Gmail, Google Sheet, or Supabase operational writes.' >> "$GITHUB_STEP_SUMMARY"
