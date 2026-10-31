@@ -11,7 +11,7 @@ assert.match(source,/verifiedEmployee=null;catalog=\[\];selected\.clear\(\)/);
 assert.match(source,/if\(dialog\.isConnected&&epoch===verificationEpoch\)/);
 assert.match(source,/staffStocktakeSubmit\(verifiedEmployee,el\("staffCountPin"\)\.value/);
 assert.match(source,/result\.stock_changed!==false/);
-assert.match(index,/operations_staff_stocktake_v1\.js\?v=20261028v374/);
+assert.match(index,/operations_staff_stocktake_v1\.js\?v=20261031v382/);
 
 class FakeNode {
  constructor(){this.value='';this.hidden=false;this.disabled=false;this.textContent='';this.innerHTML='';this.isConnected=true;this.handlers={};this.nodes=new Map();}
@@ -29,7 +29,7 @@ const defer=()=>{
  const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
  return {promise,resolve,reject};
 };
-const window={};
+const window={canUseStaffStocktake:()=>true};
 const BE={
  posPublicStaffCards:async()=>[{id:101,name:'Synthetic Clocked In Staff',working:true},{id:102,name:'Other Staff',working:true}],
  staffStocktakeCatalog(id,pin){

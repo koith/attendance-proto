@@ -21,7 +21,9 @@ jobs:
           node-version: '22'
       - name: Independent HTTP readback of live index.html and owner-ready JS digest
         run: |
-          if [[ "${{ contains(github.event.workflow_run.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.workflow_run.head_commit.message, '[INHA-STAFF-STOCKTAKE]') }}" == "true" ]]; then
+            node scripts/inha_staff_stocktake_readback.mjs --independent
+          elif [[ "${{ (contains(github.event.workflow_run.head_commit.message, '[QA1243-LEGACY-ENTRY]') || contains(github.event.workflow_run.head_commit.message, '[INHA-STAFF-STOCKTAKE]')) }}" == "true" ]]; then
             GITHUB_SHA="${{ github.event.workflow_run.head_sha }}" node scripts/qa1243_legacy_pages_readback.mjs
           elif [[ "${{ contains(github.event.workflow_run.head_commit.message, '[QA1243-OWNER-REINVITE]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --independent --reinvite
@@ -45,7 +47,7 @@ jobs:
   legacy-deployed-browsers:
     name: Legacy bookmarks on deployed Pages in WebKit and Chromium (read-only)
     needs: qa1243-owner-ready-independent
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && contains(github.event.workflow_run.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && (contains(github.event.workflow_run.head_commit.message, '[QA1243-LEGACY-ENTRY]') || contains(github.event.workflow_run.head_commit.message, '[INHA-STAFF-STOCKTAKE]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     container:
@@ -64,11 +66,16 @@ jobs:
       - name: Install pinned existing browser runtime
         run: npm install --no-save --no-audit --no-fund playwright@1.55.1
       - name: Open exact deployed old and new URLs, reload and restart both browsers
-        run: node qa_legacy_entry_browser_v372.mjs --live
+        run: |
+          if [[ "${{ contains(github.event.workflow_run.head_commit.message, '[INHA-STAFF-STOCKTAKE]') }}" == "true" ]]; then
+            node qa_inha_staff_stocktake_browser.mjs --live
+          else
+            node qa_legacy_entry_browser_v372.mjs --live
+          fi
       - name: Preserve read-only actual deployed URL proof
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: legacy-entry-deployed-proof
-          path: qa-results/legacy-entry-v372-live.json
+          path: qa-results/*live.json
           if-no-files-found: warn
