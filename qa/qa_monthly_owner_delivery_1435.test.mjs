@@ -134,6 +134,8 @@ sheetRows=makeRows("PREVIEW");
 sheetRows[5][1]="100,010원";
 assert.throws(()=>run('_monthlySendOne_(1,"2026-10","PREVIEW",_monthlyBooks_()["1"],false)'),/SHEET_PAYROLL_STALE/);
 sheetRows=makeRows("PREVIEW");
+sheetRows.splice(6,0,["박연수","—"]);
+assert.equal(run('_monthlySendOne_(1,"2026-10","PREVIEW",_monthlyBooks_()["1"],true).status'),"PREVIEW_OK");
 assert.equal(run('_monthlyStatement_(_monthlyFetchReport_(_monthlyConfig_(1,_monthlyBooks_()["1"]),"2026-10","PREVIEW").rows[1],_monthlyConfig_(1,_monthlyBooks_()["1"]),"2026-10",_monthlyFetchReport_(_monthlyConfig_(1,_monthlyBooks_()["1"]),"2026-10","PREVIEW")).name'),"2026-10_검토용_급여명세서_박연수_992.pdf");
 run('_monthlyExcel_=function(){return {getBytes:function(){return [1,2,3]},setName:function(n){this.name=n;return this;}}};');
 run('_monthlyStatement_=function(row,cfg,ym,report){return {getBytes:function(){return [1,2,3]},name:ym+"_"+report.mode+"_"+row.employee_id+".pdf"};};');
