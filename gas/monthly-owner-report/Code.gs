@@ -8,6 +8,7 @@
  * Script Properties:
  *   MONTHLY_OWNER_ENABLED: true (수신자 승인·격리 수신 QA 후에만)
  *   MONTHLY_OWNER_REPORT_TOKEN: 64+ random chars, Edge MONTHLY_OWNER_REPORT_TOKEN과 일치
+ *   MONTHLY_OWNER_START_YM: 첫 발송 대상월 (예: 2026-10), 과거 월 자동발송 방지
  *   MONTHLY_OWNER_STORES_JSON: {"1":{"name":"인하대학교점","gmail":"verified@gmail.com",
  *                           "bookId":"verified_Google_spreadsheet_ID","verified":true,"enabled":true}}
  * 수신 주소·비밀값은 코드에 커밋하지 마세요.
@@ -171,6 +172,9 @@ function _monthlyStatement_(item,cfg,ym){
   }finally{DriveApp.getFileById(doc.getId()).setTrashed(true);}
 }
 function _monthlySendOne_(storeId,ym,store,preview){
+  var start=_monthlyProps_().getProperty('MONTHLY_OWNER_START_YM')||'';
+  if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(start))throw Error('START_MONTH_NOT_CONFIGURED');
+  if(ym<start)return {storeId:Number(storeId),ym:ym,status:'BEFORE_START'};
   var cfg=_monthlyConfig_(storeId,store);
   var snapshot=_monthlyFetchSnapshot_(cfg,ym);
   if(snapshot.skipped)return {storeId:cfg.storeId,ym:ym,status:'PENDING',reason:snapshot.reason};
