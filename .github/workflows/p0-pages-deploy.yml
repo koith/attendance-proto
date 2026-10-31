@@ -308,6 +308,10 @@ jobs:
               core.info('AI1331 automation-only scope verified; operating jobs remain skipped');
               return;
             }
+            if(releaseMessage.includes('[INHA-STAFF-STOCKTAKE]')){
+              const {assertInhaStocktakeRelease}=await import(process.cwd()+'/scripts/inha_staff_stocktake_release.mjs');
+              assertInhaStocktakeRelease(diff.files,releaseMessage,before);return;
+            }
             if(releaseMessage.includes('[QA1243-LEGACY-ENTRY]')){
               const {assertLegacyEntryRelease}=await import(process.cwd()+'/scripts/qa1243_legacy_entry_release.mjs');
               assertLegacyEntryRelease(diff.files,releaseMessage,before);
@@ -753,7 +757,9 @@ jobs:
       - name: Capture unchanged operating public asset digests before safe app release
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[INHA-STAFF-STOCKTAKE]') }}" == "true" ]]; then
+            node scripts/inha_staff_stocktake_readback.mjs --before
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}" == "true" ]]; then
             node scripts/qa1243_legacy_pages_assets.mjs --before ${{ contains(github.event.head_commit.message, '[QA1243-OWNER-PASSWORD-FEEDBACK]') && '--owner-password-feedback' || '' }} ${{ contains(github.event.head_commit.message, '[QA1243-ASSISTANT-ATTENDANCE]') && '--assistant-attendance' || '' }} ${{ contains(github.event.head_commit.message, '[QA1243-PROTECTED-TAB-ENTRY]') && '--protected-tab-entry' || '' }}
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-REINVITE]') }}" == "true" ]]; then
             node scripts/qa1243_approved_opening_pages_smoke.mjs --before --reinvite
@@ -773,7 +779,7 @@ jobs:
       - name: Build static QA-only HTML / JS / CSS (existing app files unchanged)
         run: node scripts/qa1243_safari_static_build.mjs
       - name: Build exact public release marker for legacy bookmark recovery
-        if: ${{ contains(github.event.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}
+        if: ${{ contains(github.event.head_commit.message, '[QA1243-LEGACY-ENTRY]') || contains(github.event.head_commit.message, '[INHA-STAFF-STOCKTAKE]') }}
         run: node scripts/qa1243_legacy_release_manifest.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
@@ -788,7 +794,9 @@ jobs:
       - name: Confirm public v0.354 HQ readiness UI and unchanged other operating assets
         if: ${{ contains(github.event.head_commit.message, '[QA1243-APP-PAGES]') }}
         run: |
-          if [[ "${{ contains(github.event.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}" == "true" ]]; then
+          if [[ "${{ contains(github.event.head_commit.message, '[INHA-STAFF-STOCKTAKE]') }}" == "true" ]]; then
+            node scripts/inha_staff_stocktake_readback.mjs --after
+          elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-LEGACY-ENTRY]') }}" == "true" ]]; then
             node scripts/qa1243_legacy_pages_assets.mjs --after ${{ contains(github.event.head_commit.message, '[QA1243-OWNER-PASSWORD-FEEDBACK]') && '--owner-password-feedback' || '' }} ${{ contains(github.event.head_commit.message, '[QA1243-ASSISTANT-ATTENDANCE]') && '--assistant-attendance' || '' }} ${{ contains(github.event.head_commit.message, '[QA1243-PROTECTED-TAB-ENTRY]') && '--protected-tab-entry' || '' }}
             node scripts/qa1243_legacy_pages_readback.mjs
           elif [[ "${{ contains(github.event.head_commit.message, '[QA1243-OWNER-REINVITE]') }}" == "true" ]]; then

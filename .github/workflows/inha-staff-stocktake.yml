@@ -1,0 +1,29 @@
+name: Inha-only staff stocktake scope
+on:
+  pull_request:
+    paths: ['index.html', 'operations_staff_stocktake_v1.js', 'tests/inha_staff_stocktake_scope.test.mjs', 'qa_inha_staff_stocktake_browser.mjs', 'scripts/inha_staff_stocktake_release.mjs', 'scripts/inha_staff_stocktake_readback.mjs', '.github/workflows/inha-staff-stocktake.yml']
+permissions:
+  contents: read
+jobs:
+  scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm install --no-save --no-audit --no-fund playwright@1.55.1
+      - run: |
+          node --check operations_staff_stocktake_v1.js
+          node --test tests/inha_staff_stocktake_scope.test.mjs
+          node qa_staff_stocktake_pin_race_v1.mjs
+          node qa_inha_staff_stocktake_browser.mjs
+          node qa_staff_stocktake_dialog_v374.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: inha-staff-stocktake-synthetic
+          path: qa-results/

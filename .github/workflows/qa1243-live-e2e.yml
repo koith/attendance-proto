@@ -80,6 +80,12 @@ jobs:
               runLive=false;
               core.info('AI1331 automation-only change: no Google, OAuth or Edge E2E repeated.');
             }
+            if(runLive && message.includes('[INHA-STAFF-STOCKTAKE]')){
+              const before=context.payload.before;
+              const {data}=await github.rest.repos.compareCommits({...context.repo,base:before,head:context.sha,per_page:100});
+              const {assertInhaStocktakeRelease}=await import(process.cwd()+'/scripts/inha_staff_stocktake_release.mjs');
+              assertInhaStocktakeRelease(data.files,message,before);runLive=false;
+            }
             if(runLive && message.includes('[QA1243-LEGACY-ENTRY]')){
               const before=context.payload.before;
               const {data}=await github.rest.repos.compareCommits({...context.repo,base:before,head:context.sha,per_page:100});

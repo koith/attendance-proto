@@ -40,7 +40,7 @@ try{
     const context=await browser.newContext({viewport:{width,height:width===1280?900:760},locale:'ko-KR'}),page=await context.newPage();
     await page.route('**/*',r=>new URL(r.request().url()).origin===base?r.continue():r.abort());
     await page.addInitScript(()=>{
-     window.LIVE=true;window.staffQACalls=[];window.confirm=()=>true;
+     window.LIVE=true;window.canUseStaffStocktake=()=>true;window.staffQACalls=[];window.confirm=()=>true;
      window.BE={
       posPublicStaffCards:async()=>[{id:101,name:'가상 직원',working:true},{id:102,name:'퇴근 직원',working:false}],
       staffStocktakeCatalog:async(id,pin)=>{

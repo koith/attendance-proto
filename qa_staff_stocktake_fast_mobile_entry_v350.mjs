@@ -8,7 +8,7 @@ const source=fs.readFileSync('operations_staff_stocktake_v1.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
 // Test the v0.350 stocktake asset regardless of a later unrelated app release.
 assert.match(index,/const APP_VERSION="v0\.\d+"/);
-assert.match(index,/operations_staff_stocktake_v1\.js\?v=20261028v374/);
+assert.match(index,/operations_staff_stocktake_v1\.js\?v=20261031v382/);
 assert.match(source,/id="staffCountQty"[^>]*inputmode="decimal"/);
 assert.match(source,/staffCountQty"\)\.addEventListener\("keydown"/);
 class FakeNode {
@@ -35,7 +35,7 @@ const BE={
  },
  staffStocktakeSubmit:async()=>{submissions++;throw Error('not permitted in UI-only QA')}
 };
-const window={};
+const window={canUseStaffStocktake:()=>true};
 vm.runInNewContext(source,{window,document,BE,LIVE:true,
  alert(message){throw Error('Unexpected alert: '+message)},confirm(){return false},console},
  {filename:'operations_staff_stocktake_v1.js'});
