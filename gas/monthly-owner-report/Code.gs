@@ -121,12 +121,22 @@ function _monthlySheet_(cfg,ym,report){
       employeeColumn=header.indexOf('직원명'),
       amountColumn=header.indexOf(report.mode==='FINAL'?'확정 세전급여':'예상 세전급여');
   if(employeeColumn<0||amountColumn<0)throw Error('SHEET_GROSS_HEADER_MISSING');
-  var sheetByName={},total=0,count=0;
+  var sheetByName=Object.create(null),total=0,count=0,
+      expected=Object.create(null);
+  report.rows.forEach(function(r){expected[String(r.employee_name||'').trim()]=true;});
   for(var i=title+2;i<rows.length;i++){
     var row=rows[i],name=String(row[employeeColumn]||'').trim();
     if(!name)break;
-    if(name.toUpperCase()==='TEST'||sheetByName[name]!==undefined)
+    if(name.toUpperCase()==='TEST'||Object.prototype.hasOwnProperty.call(sheetByName,name)||
+       !Object.prototype.hasOwnProperty.call(expected,name))
       throw Error('SHEET_EMPLOYEE_AMBIGUOUS');
+    // An unresolved employee may have no valid monthly amount yet.
+    // Keep the incomplete row for owner review without inventing a zero.
+    if(report.mode==='PREVIEW'&&report.rows.some(function(r){
+      return r.employee_name===name&&r.complete_pay!==true;
+    })){
+      sheetByName[name]=null;continue;
+    }
     var value=_monthlyNumericCell_(row[amountColumn]);
     sheetByName[name]=value;total+=value;count++;
   }
@@ -211,6 +221,7 @@ function _monthlySendOne_(storeId,ym,kind,store,previewOnly){
   if(sent)return {storeId:cfg.storeId,ym,kind,status:sent==='SENT'?'SENT':'REVIEW_REQUIRED'};
   var report=_monthlyFetchReport_(cfg,ym,kind);
   if(report.skipped)return {storeId:cfg.storeId,ym,kind,status:'PENDING',reason:report.reason};
+  cfg.name=report.store_name;
   var sheet=_monthlySheet_(cfg,ym,report);
   if(previewOnly)return {storeId:cfg.storeId,ym,kind,status:'PREVIEW_OK',
     employee_count:report.rows.length,attachment_count:report.rows.length+1};
