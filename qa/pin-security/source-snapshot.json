@@ -1,0 +1,107 @@
+[
+  {
+    "name": "my_events",
+    "signature": "my_events(p_employee_id bigint, p_pin text, p_from timestamp without time zone, p_to timestamp without time zone)",
+    "before_md5": "c0926060500a9e478e3f2a5bc295e233",
+    "after_md5": "ef5e93ac0da99f95a122a811b480a646",
+    "anon": true
+  },
+  {
+    "name": "pos_unlock_store",
+    "signature": "pos_unlock_store(p_store_id bigint, p_employee_no integer, p_pin text)",
+    "before_md5": "d8cec5117beb7e4b013fc8c6774a23d5",
+    "after_md5": "e29d372cc0a6cd7d41bee3c069ec4aa5",
+    "anon": true
+  },
+  {
+    "name": "punch",
+    "signature": "punch(p_employee_id bigint, p_pin text, p_device text, p_substitute_for_employee_id bigint)",
+    "before_md5": "8a4e60c3cc048e1572aebe6f98f92b30",
+    "after_md5": "eb8ff8f7ea971fb2ae6ef24b868440a1",
+    "anon": true
+  },
+  {
+    "name": "request_correction",
+    "signature": "request_correction(p_employee_id bigint, p_pin text, p_kind text, p_event_id bigint, p_requested_at timestamp without time zone, p_requested_type text, p_note text)",
+    "before_md5": "3f125b848f1694469d2ee3bfeda7454f",
+    "after_md5": "7eb62cb52f9368f3e4f513fb8ef5d462",
+    "anon": true
+  },
+  {
+    "name": "staff_actual_attendance",
+    "signature": "staff_actual_attendance(p_employee_id bigint, p_pin text, p_from timestamp without time zone, p_to timestamp without time zone)",
+    "before_md5": "f65a635b4b9ea0100f72e58a27949d3a",
+    "after_md5": "be9494797bd3e455784cff08d4fc5527",
+    "anon": true
+  },
+  {
+    "name": "staff_recipe_list",
+    "signature": "staff_recipe_list(p_employee_id bigint, p_pin text, p_store_id bigint)",
+    "before_md5": "cb991b936be6ab5ed9de13408e5f6b66",
+    "after_md5": "dd01966e23ae2d7439b79c88cdb43707",
+    "anon": true
+  },
+  {
+    "name": "staff_stocktake_catalog",
+    "signature": "staff_stocktake_catalog(p_store_id bigint, p_employee_id bigint, p_pin text)",
+    "before_md5": "6f0bc47de44e3aa3050c81ba73d9bc02",
+    "after_md5": "0663152354228ad328ce643ca51d0e4f",
+    "anon": true
+  },
+  {
+    "name": "staff_stocktake_submit",
+    "signature": "staff_stocktake_submit(p_store_id bigint, p_employee_id bigint, p_pin text, p_lines jsonb, p_note text)",
+    "before_md5": "1285b486ae09f2adbbc8c7d957a8835a",
+    "after_md5": "98b24f56f6e822a6a98a2d8048fda826",
+    "anon": true
+  },
+  {
+    "name": "staff_stocktake_verify",
+    "signature": "staff_stocktake_verify(p_store_id bigint, p_employee_id bigint, p_pin text)",
+    "before_md5": "c4bd6d716e61c88e840cc036dcf0f89d",
+    "after_md5": "92b96f78c085405418e6cc5f8328f80c",
+    "anon": false
+  },
+  {
+    "name": "substitution_candidate_availability",
+    "signature": "substitution_candidate_availability(p_requester bigint, p_pin text, p_start timestamp without time zone, p_end timestamp without time zone)",
+    "before_md5": "212fe47a88e02841635e78ab650516bf",
+    "after_md5": "e8ebecb986aa733678e79b7df261ac4a",
+    "anon": true
+  },
+  {
+    "name": "substitution_clock_in",
+    "signature": "substitution_clock_in(p_request bigint, p_employee bigint, p_pin text)",
+    "before_md5": "2ad89e0f796fb8dfa30f35fa26f6143c",
+    "after_md5": "932c76ab53dbb6b444e22ff778f650b2",
+    "anon": true
+  },
+  {
+    "name": "substitution_request_cancel",
+    "signature": "substitution_request_cancel(p_request bigint, p_employee bigint, p_pin text)",
+    "before_md5": "31b74f1c245a44ad2540767178d0325d",
+    "after_md5": "b7d94f961d68c86309028fc7856fd05c",
+    "anon": true
+  },
+  {
+    "name": "substitution_request_create",
+    "signature": "substitution_request_create(p_requester bigint, p_pin text, p_substitute bigint, p_start timestamp without time zone, p_end timestamp without time zone, p_note text)",
+    "before_md5": "a5762c5be0d01809406d1252f159e195",
+    "after_md5": "beb28ab343e93a3e1db10358c6517261",
+    "anon": true
+  },
+  {
+    "name": "substitution_request_list",
+    "signature": "substitution_request_list(p_employee bigint, p_pin text)",
+    "before_md5": "9b290e3b1d81e5381b6bfbc8e9bd1c6d",
+    "after_md5": "258b85e13dfa797b40491f9cfea09519",
+    "anon": true
+  },
+  {
+    "name": "substitution_request_respond",
+    "signature": "substitution_request_respond(p_request bigint, p_employee bigint, p_pin text, p_accept boolean)",
+    "before_md5": "c2029fa80ba1c1e322c96b1a39b9c865",
+    "after_md5": "4e863df869b110e44ad4e7f603acc705",
+    "anon": true
+  }
+]
