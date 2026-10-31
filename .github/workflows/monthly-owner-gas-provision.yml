@@ -1,0 +1,46 @@
+name: Monthly Owner isolated Google Apps Script provisioning (no email)
+on:
+  pull_request:
+    paths:
+      - 'scripts/provision_monthly_owner_gas.mjs'
+      - '.github/workflows/monthly-owner-gas-provision.yml'
+      - 'gas/monthly-owner-report/**'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/provision_monthly_owner_gas.mjs'
+      - '.github/workflows/monthly-owner-gas-provision.yml'
+      - 'gas/monthly-owner-report/**'
+permissions:
+  contents: read
+jobs:
+  safety:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Validate source, developer fixtures and no operating writes
+        run: |
+          node --check scripts/provision_monthly_owner_gas.mjs
+          node qa/qa_monthly_owner_delivery_1435.test.mjs
+  provision-isolated-source:
+    needs: safety
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && contains(github.event.head_commit.message, '[MONTHLY-OWNER-GAS-PROVISION]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      QA1243_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID }}
+      QA1243_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET }}
+      QA1243_GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Create/reuse and independently read back only the disabled monthly mailer code
+        run: node scripts/provision_monthly_owner_gas.mjs
+      - name: Record exact deployment boundary
+        if: success()
+        run: echo "Isolated Google Apps Script source only. No owner mail, no trigger, no script secrets or payroll reads." >> "$GITHUB_STEP_SUMMARY"
