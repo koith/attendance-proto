@@ -1020,3 +1020,12 @@
 - branch fix/qa1243-inha-test-controls-only/base cca048cdf0143ab01d277961f785af3205b55662. 실제 predicate 행렬/기본 CSS·버전 gate/기존 계정 메뉴·탭 정책·테스트 쓰기 격리·직전 탭 회귀·정확 release scope 로컬 PASS. 기존 version-browser QA를 실제 공통 predicate/CSS+UI 모듈의 Chromium/WebKit·모바일/PC·초기/지연삽입·선호저장·타점/미확정/HQ·지점전환 검사로 확장한다.
 - 독립 실제 Pages 브라우저에도 1호점 기존 URL 직접 접속을 추가하여 저장 표시=true와 버전 클릭에도 숨김을 확인하고 인하대점은 기존 표시/전환을 검증한다. 운영 읽기 외 실제 로그인/PIN 제출·초대/SQL/Edge/Auth설정/계정권한·READY/근태급여/레시피 데이터/Google·Sheets 쓰기0. 기존 다른13개 운영 공개자산 불변·runtime15자산 정확 일치 검증을 유지한다.
 - PR/CI/정상병합/Pages·독립 주소 결과는 Issue1243 최종 영수증으로 연결한다. 전체38/완료19/잔여19 및 기존 운영메일/GAS/현장/SEC01 잔여 유지.
+
+
+## 106. 2026-10-31 — 재고 파악(직원용) 인하대점 한정 노출 (#1442)
+
+- 사용자 원문: 재고파악(직원용)은 개발 중이므로 인하대점에만 노출. base28176492, 후보v0.382, branch fix/inha-only-staff-stocktake-20261031.
+- 확정된 인하대(store1)에서만 출퇴근 화면 버튼·직접 팝업 진입 허용. 1호점80/구미290/타점/HQ/연결확인중·실패에서는 숨김. 지점 전환 시 열린 팝업/PIN을 닫아 이전 인증을 재사용하지 않음.
+- 실제 PIN/SQL/급여/권한/운영재고·제출기록/Sheets 무변경. UI 노출 제한이며 서버 권한 확대/축소를 수행하지 않는다. PIN 보안은 별도 고위험 개발·운영미적용 PR로 분리한다.
+- 기존 popup/PIN 비동기 회귀와 실제 renderPos/공통 predicate 범위검사·Chromium/WebKit 및 실제 게시 원래URL 읽기 검증을 수행. 최종 PR/CI/Pages/독립 증거는 Issue1442 영수증으로 기록하며 후보를 실제 수용으로 표시하지 않는다.
+- 전체38/완료19/잔여19 기존 판정 유지. 원래 운영 writer 없는 Pages 경로와 두 런타임 파일의 정확 hash·변경범위/기준 main guard를 사용.

@@ -2,6 +2,9 @@
  Staff identity/PIN/clock status is verified in every server RPC. */
 (function(){
 "use strict";
+const allowed=()=>typeof window.canUseStaffStocktake==="function"&&window.canUseStaffStocktake();
+let closeActive=null;
+window.addEventListener?.("baekeok:store-context-change",()=>{if(!allowed())closeActive?.()});
 const esc=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 function staffCountUpsert(selected,item,raw){
  const id=Number(item?.id),text=String(raw??"").trim();
@@ -19,6 +22,8 @@ function staffVerificationMatches(epoch,currentEpoch,currentEmployee,currentPin,
    String(currentPin)===String(expectedPin);
 }
 window.openStaffStocktake=async function(){
+ if(!allowed())return;
+ closeActive?.();
  if(!LIVE){alert("지점 서버에 연결된 상태에서만 직원 실사를 제출할 수 있습니다.");return;}
  const opener=document.activeElement&&document.activeElement!==document.body?document.activeElement:document.getElementById?.("staffCountOpen");
  const dialog=document.createElement("div");dialog.className="ops-modal staff-count-modal";
@@ -41,7 +46,8 @@ window.openStaffStocktake=async function(){
  '</section><div id="staffCountStatus" class="staff-count-status" role="status" aria-live="polite">직원을 선택하고 본인 PIN을 입력해 주세요.</div></div>'+
  '<div id="staffCountFooter" class="staff-count-footer" hidden><p>제출만으로는 재고가 바뀌지 않습니다.</p><button type="button" id="staffCountSubmit" class="btn btn-primary" disabled>점주에게 수량 제출</button></div></div>';
  document.body.appendChild(dialog);
- const el=id=>dialog.querySelector("#"+id),close=()=>{verificationEpoch++;el("staffCountPin").value="";dialog.remove();document.removeEventListener?.("keydown",keyboard);opener?.focus?.()};
+ const el=id=>dialog.querySelector("#"+id),close=()=>{verificationEpoch++;el("staffCountPin").value="";closeActive=null;dialog.remove();document.removeEventListener?.("keydown",keyboard);opener?.focus?.()};
+ closeActive=close;
  dialog.querySelector(".ops-modal-close").onclick=close;
  dialog.onclick=e=>{if(e.target===dialog)close()};
  let catalog=[],selected=new Map(),verifiedEmployee=null,busy=false,verificationEpoch=0;
@@ -100,6 +106,7 @@ window.openStaffStocktake=async function(){
   if(!working.length)el("staffCountStatus").textContent="근무 중 직원이 없습니다. 출근 등록 후 제출하세요.";
  }catch(e){if(dialog.isConnected)el("staffCountStatus").textContent="직원 목록 조회 실패: "+String(e.message||e)}
  el("staffCountVerify").onclick=async()=>{
+  if(!allowed()){close();return;}
   if(busy)return;invalid();
   const epoch=verificationEpoch;
   const id=Number(el("staffCountEmployee").value),pin=el("staffCountPin").value;
@@ -111,6 +118,7 @@ window.openStaffStocktake=async function(){
    if(!Array.isArray(rows)||rows.length>500||!rows.every(x=>Number.isSafeInteger(Number(x.id))&&
      typeof x.name==="string"&&typeof x.unit==="string"))
     throw Error("품목 응답을 확인할 수 없습니다.");
+   if(!allowed()){close();return;}
    if(!dialog.isConnected||!staffVerificationMatches(epoch,verificationEpoch,
       el("staffCountEmployee").value,el("staffCountPin").value,id,pin))return;
    catalog=rows;verifiedEmployee=id;
@@ -134,6 +142,7 @@ window.openStaffStocktake=async function(){
   if(event.key==="Enter"){event.preventDefault();el("staffCountAdd").click();}
  });
  el("staffCountSubmit").onclick=async()=>{
+  if(!allowed()){close();return;}
   if(busy||!selected.size||verifiedEmployee!==Number(el("staffCountEmployee").value))return;
   if(!confirm("입력한 수량을 점주에게 제출할까요? 제출만으로 실제 재고는 변경되지 않습니다."))return;
   busy=true;el("staffCountSubmit").disabled=true;
