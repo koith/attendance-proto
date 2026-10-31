@@ -67,7 +67,7 @@ jobs:
         run: npm install --no-save --no-audit --no-fund playwright@1.55.1
       - name: Open exact deployed old and new URLs, reload and restart both browsers
         run: |
-          if [[ "${{ contains(github.event.workflow_run.head_commit.message, '[INHA-STAFF-STOCKTAKE]') }}" == "true" ]]; then
+          if [ "${{ contains(github.event.workflow_run.head_commit.message, '[INHA-STAFF-STOCKTAKE]') }}" = "true" ]; then
             node qa_inha_staff_stocktake_browser.mjs --live
           else
             node qa_legacy_entry_browser_v372.mjs --live
