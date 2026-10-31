@@ -162,7 +162,7 @@ assert.equal(sent.length,2,"uncertain send must not auto retry");
 props.set("MONTHLY_OWNER_START_YM","2026-11");
 assert.equal(run('_monthlySendOne_(1,"2026-10","FINAL",_monthlyBooks_()["1"],false).status'),"BEFORE_START");
 props.set("MONTHLY_OWNER_ENABLED","false");
-assert.equal(run('monthlyOwnerDigestTick()')[0].status',"DISABLED");
+assert.equal(run('monthlyOwnerDigestTick()')[0].status,"DISABLED");
 
 assert.ok(edge.includes('.from("store_primary_owners")'),"actual primary owner query");
 assert.ok(edge.includes('.from("admin_users")'),"verify matching store manager");
