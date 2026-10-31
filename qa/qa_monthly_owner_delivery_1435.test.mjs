@@ -56,6 +56,7 @@ function run(expression){return vm.runInContext(expression,ctx);}
 const store={name:'인하대학교점',gmail:'owner@gmail.com',bookId:'x'.repeat(32),verified:true,enabled:true};
 props.set('MONTHLY_OWNER_REPORT_TOKEN','Z'.repeat(64));
 props.set('MONTHLY_OWNER_ENABLED','true');
+props.set('MONTHLY_OWNER_START_YM','2026-09');
 props.set('MONTHLY_OWNER_STORES_JSON',JSON.stringify({1:store}));
 const snapshot={
   ok:true,store_id:1,store_name:'인하대학교점',ym:'2026-09',status:'CLOSED',source_fingerprint:'a'.repeat(64),
@@ -92,6 +93,10 @@ sheetRows[5][1]='100,000원';
 remote.value={...snapshot,store_id:2};
 assert.throws(()=>run('_monthlySendOne_(1,"2026-09",_monthlyStores_()["1"],false)'),/REPORT_SCOPE_MISMATCH/);
 remote.value=snapshot;
+props.set('MONTHLY_OWNER_START_YM','2026-10');
+assert.equal(run('_monthlySendOne_(1,"2026-09",_monthlyStores_()["1"],false)').status,'BEFORE_START');
+assert.equal(sent.length,0,'historical month must never be mailed on activation');
+props.set('MONTHLY_OWNER_START_YM','2026-09');
 // Generators are exercised independently. The send path sees tiny fixture blobs.
 assert.equal(run('_monthlyStatement_(_monthlyFetchSnapshot_(_monthlyConfig_(1,_monthlyStores_()["1"]),"2026-09").rows[0],_monthlyConfig_(1,_monthlyStores_()["1"]),"2026-09").name'),'2026-09_급여명세서_김민지_991.pdf');
 const bad={...snapshot.rows[0],night_allowance_won:120};
