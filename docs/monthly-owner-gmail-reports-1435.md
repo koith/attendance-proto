@@ -16,7 +16,7 @@
 - `gas/monthly-owner-report/Code.gs`: 독립 Apps Script 메일러. 수신자 메일 설정 없음. `MONTHLY_OWNER_WORKBOOKS_JSON`은 지점 → 연간 파일 ID만 포함. 15분마다 도는 트리거는 승인 후 생성.
 - `qa/qa_monthly_owner_delivery_1435.test.mjs`: 합성 데이터, 수신자 변경, 미확정·미마감·마감후 재발송, 중복/불확실 전송과 지점 범위 검사.
 - `.github/workflows/monthly-owner-delivery-qa.yml`: 코드/합성 QA. 운영 발송 작업 없음.
-- `supabase/migrations/20261031112000_inha_dual_hq_primary_owner.sql` 및 후속 디렉터리 호환 패치: 사용자 요청으로 `sso0ng0612@gmail.com` 계정의 기존 HQ 역할을 유지하고 **인하대학교점** `OWNER` 지점 자격을 분리 등록. `store_primary_owners`와 `store_admin_memberships(OWNER)`를 사용. 다른 지점 대표 권한은 부여하지 않음. 실제 DB 적용 여부는 SQL readback 기준.
+- `supabase/migrations/20261031112000_inha_dual_hq_primary_owner.sql` 및 후속 디렉터리 호환 패치: 사용자 요청으로 `[PRIVATE_ACCOUNT_EMAIL]` 계정의 기존 HQ 역할을 유지하고 **인하대학교점** `OWNER` 지점 자격을 분리 등록. `store_primary_owners`와 `store_admin_memberships(OWNER)`를 사용. 다른 지점 대표 권한은 부여하지 않음. 실제 DB 적용 여부는 SQL readback 기준.
 
 ## 중요: 10월 31일 말일/급여 마감 관계
 
