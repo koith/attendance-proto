@@ -2,7 +2,7 @@
 
 ## 기존 문제와 검증된 근거
 
-2026-10-14 13:42 KST, 인하대학교점 `dokodemoitsh@naver.com` 에 대한 Supabase Auth 기본 초대 메일의 영문 제목은 `You've been invited`이며, 영문 본문에 `Accept invitation` 링크가 표시되었다. 첨부 화면의 네이버 메일 스팸 사유는 **언어별 스팸 분류 설정(영어)**이다.
+2026-10-14 13:42 KST, 인하대학교점 `[PRIVATE_ACCOUNT_EMAIL]` 에 대한 Supabase Auth 기본 초대 메일의 영문 제목은 `You've been invited`이며, 영문 본문에 `Accept invitation` 링크가 표시되었다. 첨부 화면의 네이버 메일 스팸 사유는 **언어별 스팸 분류 설정(영어)**이다.
 
 문구의 한국어 변경은 해당 영어 분류 사유를 줄이는 조치이다. 그러나 **받은편지함 도달 보장은 아니다**. 발신자 평판, 수신자 필터, 도메인 인증은 별도 문제다.
 
