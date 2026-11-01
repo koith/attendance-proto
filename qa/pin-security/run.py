@@ -16,7 +16,8 @@ def ok(b,label):
  global passed
  assert b,label
  passed+=1;print('PASS',label,flush=True)
-def view(e,pin):return f"public.my_events({e},'{pin}','2026-10-01','2026-11-01')"
+# Fixed Oct-2026 test data plus newly punched events must survive month rollover.
+def view(e,pin):return f"public.my_events({e},'{pin}','2026-10-01','2099-01-01')"
 def reset(e):sql(f"select setval('pin_private.e_{e}',1,true)")
 if '--baseline' in sys.argv:
  for _ in range(6): call(view(710001,'0000'))

@@ -1,7 +1,7 @@
 name: PIN server security isolated integration
 on:
   pull_request:
-    paths: ['qa/pin-security/**', 'supabase/migrations/20261031043549_audit_pin_server_guard.sql', 'docs/security/pin-server-guard-1442.md', '.github/workflows/pin-server-security.yml']
+    paths: ['qa/pin-security/**', 'supabase/migrations/20261031043549_audit_pin_server_guard.sql', 'supabase/migrations/20261101193500_activate_audited_pin_guard.sql', 'docs/security/pin-server-guard-1442.md', '.github/workflows/pin-server-security.yml']
 permissions:
   contents: read
 jobs:
@@ -56,6 +56,11 @@ jobs:
           psql -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261031043549_audit_pin_server_guard.sql
           python3 qa/pin-security/run.py
           psql -c "NOTIFY pgrst,'reload schema';"
+      - name: Verify audit preflight activation and persisted ON state
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -c "UPDATE pin_private.settings SET enabled=false WHERE id"
+          psql -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261101193500_activate_audited_pin_guard.sql
+          test "$(psql -X -At -c 'SELECT enabled FROM pin_private.settings WHERE id')" = "t"
       - name: Actual HTTP contracts and transaction-rollback bypass
         run: |
           for n in $(seq 1 15); do
