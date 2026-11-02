@@ -38,7 +38,7 @@ END $baseline$;
 DELETE FROM public.attendance_events WHERE employee_id=710030 AND device_id='SYNTHETIC_BASELINE';
 \echo FUTURE_PUNCH_DIRECTION_BUG_REPRODUCED
 
-\ir ../supabase/migrations/20261102224000_punch_ignore_future_effective_events.sql
+\ir ../../supabase/migrations/20261102224000_punch_ignore_future_effective_events.sql
 
 DO $tests$
 DECLARE
