@@ -20,7 +20,8 @@ jobs:
         with:
           node-version: '22'
       - name: Unverified synthetic auto-out must not earn wages
-        run: node qa_payroll_auto_close_unverified_v384.mjs
+        run: |
+          node qa_payroll_auto_close_unverified_v384.mjs
           node qa_payroll_auto_close_browser_parity_v384.mjs
       - name: Existing payroll regressions
         run: |
