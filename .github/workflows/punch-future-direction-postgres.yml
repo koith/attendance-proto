@@ -1,0 +1,50 @@
+name: Punch future correction direction isolated PostgreSQL
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261102224000_punch_ignore_future_effective_events.sql'
+      - 'qa/pin-security/test_future_direction.sql'
+      - '.github/workflows/punch-future-direction-postgres.yml'
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16','17']
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_fixture_only
+          POSTGRES_DB: punch_future_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d punch_future_fixture"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_fixture_only
+      PGDATABASE: punch_future_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install psql
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Prepare exact original live PIN function fixture
+        run: |
+          test "$PGDATABASE" = "punch_future_fixture"
+          psql -X -v ON_ERROR_STOP=1 -f qa/pin-security/setup.sql -f qa/pin-security/baseline.sql
+          psql -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261031043549_audit_pin_server_guard.sql
+          psql -X -v ON_ERROR_STOP=1 -c "UPDATE pin_private.settings SET enabled=true WHERE id;"
+      - name: Reproduce original direction bug and validate fix on real PostgreSQL
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f qa/pin-security/test_future_direction.sql
