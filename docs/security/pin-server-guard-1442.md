@@ -1,6 +1,16 @@
-# PIN 서버 보호 — #1442 / 운영 미적용
+# PIN 서버 보호 — #1442 / 운영 적용, 현장 실기 검증 대기
 
 기준 main28176492/v0.381, 운영 PostgreSQL17.6. 2026-10-31 읽기 전용으로 실제 함수 정의·ACL·모든 PIN 경로를 확인했다. 운영 직원/PIN/근태/급여/권한/설정/Sheets 변경0. 독립 감사 원문은 운영 DB 접근 불가를 명시하므로 실제 정의와 구분했다.
+
+## 2026-11-01 운영 반영 증거 (VERIFIED)
+
+- GitHub PR #1444 및 #1447 병합, 운영 Supabase에 설치 마이그레이션과 활성화 마이그레이션을 별도 적용. pin_private.settings.enabled = true 직접 조회.
+- PIN 검사 RPC 15개: 기존 원본 source_archive 15개 보존, 배포 함수 source md5 15/15 일치, 직원별 시퀀스 11개, 신규 직원 트리거 1개 확인.
+- 내부 pin_private 스키마와 verify 함수는 anon 직접 사용 불가. 기존 공개 punch RPC는 그대로 호출 가능하며, 존재하지 않는 직원을 이용한 안전한 익명 요청은 NO_EMPLOYEE.
+- 설치 전후 직원 11명, 출퇴근 이벤트 308건, 근태 정정 118건, 급여 마감 스냅샷 0건. 최근 pg_cron 4종 10분간 실패 0.
+- PostgreSQL 16/17, PostgREST, Chromium/WebKit 모바일·PC, 롤백 검증은 합성/격리 QA 62 success/2 skipped/0 failed. 실제 직원 PIN으로 운영 타각하지 않았으므로 실기 사용성은 UNVERIFIED.
+- 개인 Google Drive에 핵심 운영 데이터 테이블 24개/1,054레코드 읽기 재검증된 **비공개 논리 사본** 별도 확보. 민감한 PIN bcrypt 해시 제외, Auth/Storage 실제 바이트/전체 DB·PITR 복구는 UNVERIFIED. 비공개 백업 링크는 공개 GitHub 문서에 넣지 않는다.
+- 비상 보호 OFF: 권한이 있는 담당자가 `UPDATE pin_private.settings SET enabled=false WHERE id IS TRUE;` 실행 후 결과와 현장 정상 사용을 확인. 전체 코드 복구는 `qa/pin-security/rollback.sql`을 drift 검사 후 별도 적용; 업무 기록을 삭제/덮어쓰지 않음.
 
 ## 실제 원인과 범위
 
@@ -21,7 +31,7 @@
 
 로컬 실제 PostgreSQL17.11에서 수정 전 실패를 확인했고 수정 후 SQL30건·PostgREST14.1 HTTP14건을 통과했다. 고의 ROLLBACK, tx=rollback, TABLE singular-response 오류에도 실패 횟수가 사라지지 않는다. 동시12요청, 기본OFF, 기존PC인자·모바일IN/OUT, 대타 예산공유, 재고/레시피 성공 응답, 새 직원, 비활성/타점/이벤트 소유권, 잠금 만료, 보호 업무표 불변을 포함한다. CI는 PostgreSQL16/17 별도 인스턴스에서 재실행한다.
 
-## 설치·검증·복구 (승인 후만)
+## 설치·검증·복구 절차 (적용·검증 이력 포함)
 
 1. 최신 main/운영 정의·ACL·Auth 설정을 재조회하고 read-only 복구 기준을 보관한다. 설치 대상 source hash와 15개 경로가 동일한지 확인한다. 운영 PgBouncer/PostgREST 버전도 확인한다.
 2. 명시 승인 후 단일 트랜잭션으로 migration 설치. source_archive에 그 시점의 15개 원본 정의/공개 ACL과 설치후 hash를 저장한다. 기본OFF 유지. 직원/근태/급여 등 업무표 전후 digest 비교. 신규 객체에 데이터 API 접근 권한이 없어야 한다.
@@ -29,4 +39,4 @@
 4. 장애 시 `UPDATE pin_private.settings SET enabled=false WHERE id`로 보호만 OFF하거나 검증된 `qa/pin-security/rollback.sql`로 코드 복구한다. rollback은 source drift면 중단하여 뒤에 생긴 hotfix를 덮어쓰지 않는다. 기존 업무표·새 근태/급여를 삭제/복원하지 않는다. private 상태/감사도 보존한다.
 5. 새 직원이 추가된 뒤 복구해도 직원 행을 삭제하지 않는다. source 복원과 새 근태 보존, drift 실패의 원자성을 disposable DB에서 검증했다. 기본OFF 또는 rollback은 취약점 보호도 OFF이므로 원복 상태를 보안 완료로 보고하지 않는다.
 
-sequence state는 DB 장애 복구 시 일부 실패 예산이 재설정될 수 있고 WAL/백업 수명 정책이 적용된다. 실제 운영 부하·연결 지연/브라우저 정상 사용 수용은 운영 미적용 상태에서 VERIFIED로 표시하지 않는다.
+sequence state는 DB 장애 복구 시 일부 실패 예산이 재설정될 수 있고 WAL/백업 수명 정책이 적용된다. 실제 운영 부하·연결 지연/브라우저 정상 사용 수용과 현장 iPhone 실기 PASS는 아직 VERIFIED로 표시하지 않는다.

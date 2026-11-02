@@ -26,7 +26,7 @@
 
 - `.github/workflows/qa1243-google-mail-bridge.yml`은 PR에서 기존 합성 QA만 실행한다. 운영 전환 작업을 포함하지 않는다.
 - 해당 워크플로가 main에 `[QA1243-NO-OPERATING-WRITE]` 및 `[QA1243-MAIL-GAS-DEPLOY]` 표시로 병합된 경우에만, 합성 QA 성공 후 **독립 Google Apps Script 소스 생성·읽기 검증·버전 배포** 작업을 시도한다.
-- 기존 격리 Google OAuth GitHub Secrets 3종을 재사용한다. 발신 계정은 `webuielf@gmail.com`으로 고정하며, OAuth scope는 기존 읽기·Apps Script 관리 5종에서 확대하지 않는다.
+- 기존 격리 Google OAuth GitHub Secrets 3종을 재사용한다. 발신 계정은 `[PRIVATE_ACCOUNT_EMAIL]`으로 고정하며, OAuth scope는 기존 읽기·Apps Script 관리 5종에서 확대하지 않는다.
 - 독립 프로젝트 이름은 `QA1243 isolated Auth MailApp 2026-10-24`이다. 같은 이름을 먼저 검색하여 1개면 소유자/원격 소스 확인 후 재사용하고, 2개 이상이거나 코드가 다르면 중단한다. 운영 Sheets/GAS 프로젝트는 절대 수정하지 않는다.
 - 배포 결과에는 스크립트 ID·배포 ID·소스 SHA256·웹앱 배포 메타데이터만 기록한다. 비밀키·OAuth 액세스 토큰·메일 수신자·본문은 로그에 기록하지 않는다.
 - **이 단계는 실제 메일 발송이 아니다.** GAS `QA1243_GMAIL_BRIDGE_SECRET` Script Properties 설정과 MailApp 소유자 동의, Edge Secrets/URL 설정, 격리 메일 E2E 및 Auth Hook 전환은 완료라고 판정하지 않는다.

@@ -5,17 +5,17 @@
 ## 2026-10-26 23:12 KST 인수인계 추가 검증
 
 - **이 문서의 저장 증거:** 직전 main `a10755e743d4b904d56cc550ea7d0b8f7a73303c`의 실제 파일 `docs/QA1243_HANDOFF_20261026_LATEST.md`를 읽어 확인한 뒤 보강함. PR #1387·#1389 모두 MERGED. 최신 코드는 `v0.362`, 운영 Edge `server-sync-sheet v71 ACTIVE`.
-- **운영 DB 재조회:** 1호점 store80 `STAGED`/`is_active=false`, `webuielf@gmail.com`의 `admin_users` 연결 없음, `store_primary_owners` 연결 없음, `store_owner_temp_first_logins` 1건. 만료 2026-10-27 19:01:25 KST. 이를 **실제 개통 완료라고 판단하지 말 것**.
+- **운영 DB 재조회:** 1호점 store80 `STAGED`/`is_active=false`, `[PRIVATE_ACCOUNT_EMAIL]`의 `admin_users` 연결 없음, `store_primary_owners` 연결 없음, `store_owner_temp_first_logins` 1건. 만료 2026-10-27 19:01:25 KST. 이를 **실제 개통 완료라고 판단하지 말 것**.
 - **원장 정본 재조회:** `PROJECT_BACKLOG_20261017.md`의 미완료 체크박스 **19건**. `QA-04, QA-05, QA-06, QA-07, SEC-01, AUTH-01, MTG-03, FIELD-01, FIELD-02, FIELD-03, MTG-04, MTG-05, MTG-06, MTG-07, MTG-08, MTG-11, MTG-12, MTG-13, MTG-16`. 과거 전체 38/완료19 집계 기준이며 완료 판정은 ID별 수락 기준으로만 갱신.
 - **최신 문서 main의 CI** check-runs 52건/성공38/실패2/진행0. 실패 항목 `prelaunch-readiness`, `verify-and-notify`; 이전 운영 배포의 P0/Pages/Edge 성공 근거와 분리. 실계정 비밀번호 설정 및 관리자 로그인 미확인.
 - **최근 인증 메일:** 20:59 KST 공식 Auth 메일 처리 이벤트는 증거가 있으나, 수신자가 그 **최신 링크로 비밀번호 변경에 성공했다는 증거는 아직 없음**. 과거 사용자 스크린샷의 오류는 "Email link is invalid or has expired". 문제를 모두 '사용자가 늦게 열어서'라고 단정하지 말 것.
 - **사용자가 반복 강조한 실행 원칙:** 차단이나 실패를 조회·보고만 하고 종료하지 않는다. 공식·권한 있는 대체 경로를 조사해 수정·QA·병합·배포까지 실행한다. 기존 레이아웃(근태 기록 버튼 좌측 배치 등), 운영 데이터, 레시피 원문을 임의 변경하지 않는다. 채팅에서 요청·목록이 사라져도 이 원장을 삭제·초기화하지 않는다.
-- **다음 담당자 최우선:** 코드/Pages/Edge 이미 배포된 기능을 다시 만드는 대신, `webuielf@gmail.com` **유효한 Auth 복구 링크 → 직접 개인 비밀번호 설정 → 서버 매장 대표 권한 → READY 운영 활성화** E2E를 성공시키고 재발송·만료/스팸·중복 방어를 실증한다.
+- **다음 담당자 최우선:** 코드/Pages/Edge 이미 배포된 기능을 다시 만드는 대신, `[PRIVATE_ACCOUNT_EMAIL]` **유효한 Auth 복구 링크 → 직접 개인 비밀번호 설정 → 서버 매장 대표 권한 → READY 운영 활성화** E2E를 성공시키고 재발송·만료/스팸·중복 방어를 실증한다.
 
 ## 최우선 사실
 
 - **현재 운영:** 웹앱 `v0.362`, main `6838edb805ad3133e559a94e45d34c776ff77e54`. [PR #1387](https://github.com/koith/attendance-proto/pull/1387) (merge `98576d01`, v0.361)과 [PR #1389](https://github.com/koith/attendance-proto/pull/1389) (merge `6838edb`, v0.362) 병합 완료. Pages deploy 및 P0 gate SUCCESS, Supabase `server-sync-sheet` Edge **v71 ACTIVE**.
-- **1호점 개통은 여전히 미완료:** Supabase 프로젝트 `waluhdgqhwjjwmflhrle`, store **80** / code `REAL_1` / 이름 `1호점`, `STAGED`, `is_active=false`. 기존 Auth 이메일 `webuielf@gmail.com`, UID `488139db-b765-4843-922d-481f7ca0bd3e`, 이메일 인증 상태 유지. 현재 `admin_users` 매핑 없음, `store_primary_owners` 지정 없음. **Auth 사용자/직원/근태/급여/레시피 원본을 삭제하지 않았다.**
+- **1호점 개통은 여전히 미완료:** Supabase 프로젝트 `waluhdgqhwjjwmflhrle`, store **80** / code `REAL_1` / 이름 `1호점`, `STAGED`, `is_active=false`. 기존 Auth 이메일 `[PRIVATE_ACCOUNT_EMAIL]`, UID `488139db-b765-4843-922d-481f7ca0bd3e`, 이메일 인증 상태 유지. 현재 `admin_users` 매핑 없음, `store_primary_owners` 지정 없음. **Auth 사용자/직원/근태/급여/레시피 원본을 삭제하지 않았다.**
 - 기존 점주 재개통 대기 `public.store_owner_temp_first_logins` 1건 확인. 최근 조회 만료 `2026-10-27 10:01:25 UTC` = **10/27 19:01:25 KST**. 변경될 수 있으므로 다시 조회.
 - **최신 메일 요청 근거:** v0.362 공개 앱 검증 후 [Actions #40319147638](https://github.com/koith/attendance-proto/actions/runs/40319147638)에서 `/auth/v1/recover` **HTTP 200**. Supabase `auth_logs`: **2026-10-26 11:59:48 UTC / `mail.send`**. 이것이 **20:59 KST 발송 처리** 근거다. *실제 Gmail 도착·링크 성공·비밀번호 저장은 아직 미확인*.
 - 이전 실제 사용자가 보여준 이메일은 공식 영어 `Reset your password`; 링크를 누르면 `Email link is invalid or has expired` 화면 발생. auth_logs: **20:06 KST** `email link has expired`, **20:18 KST** `One-time token not found` (/verify 303). 동일한 낡은 링크, 메일 보안 스캐너의 GET 선방문, 여러 재발송 간 토큰 무효화 등은 가설일 뿐 **원인 확정 아님**.
@@ -38,7 +38,7 @@
 
 - v0.362 운영 Pages [#40318712330](https://github.com/koith/attendance-proto/actions/runs/40318712330): **Deploy GitHub Pages SUCCESS, P0 deployment gate SUCCESS**. 운영 Edge v71 ACTIVE 및 native deploy attest SUCCESS.
 - 최신 main `6838edb`의 check runs **93건 = success 70 / skipped 15 / failure 8 / pending 0** (실조회 시점). 별개 실패 유형: `prelaunch-readiness` (여러 건), `verify-and-notify`, `Hosted Auth GET using existing repository credential`, `Trusted production Edge to a new independent GAS project and Sheets`, `Supabase shared-domain HTML rewrite diagnostic GET POST query`. P0/Pages/Edge PASS를 전체 CI PASS라고 보고하지 말고 장애 원인 분리·보완.
-- `webuielf@gmail.com` Auth 계정의 **실제 개인 비밀번호 설정, 대표 관리자 로그인, 관리자/대표 매핑 및 READY 지점 개통은 여전히 미검증**. 영문 기본 인증 메일을 한국어 브랜드 메일로 변경하는 `AUTH-01`도 남음.
+- `[PRIVATE_ACCOUNT_EMAIL]` Auth 계정의 **실제 개인 비밀번호 설정, 대표 관리자 로그인, 관리자/대표 매핑 및 READY 지점 개통은 여전히 미검증**. 영문 기본 인증 메일을 한국어 브랜드 메일로 변경하는 `AUTH-01`도 남음.
 
 ## 다음 개발자가 실제 수행할 순서
 
