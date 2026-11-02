@@ -3579,14 +3579,14 @@ async function buildSheetSyncPayload(ym){
       const daySess=byDay[day];
       let daySec=0, hasCorrected=false, issue=false;
       daySess.forEach((s,i)=>{
-        if(s.status==="COMPLETE") daySec+=(s.sec||0);
-        if(s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT") issue=true;
+        if(s.status==="COMPLETE"&&!s.autoCloseUnverified) daySec+=(s.sec||0);
+        if(s.autoCloseUnverified||s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT") issue=true;
         if(s.corrected) hasCorrected=true;
         const sessionAnchor=s.in||s.out;
         sessRows.push([day, rec.employee_name, i+1,
           s.in?sheetClock(s.in):"—", s.out?sheetClock(s.out):"—",
-          s.status==="COMPLETE"?sheetDuration(s.sec):(s.status==="WORKING"?"근무중":"—"),
-          _statusLabel(s.status), s.corrected?"정정":"", sheetCorrectionReason(s.correctionReason)]);
+          s.status==="COMPLETE"&&!s.autoCloseUnverified?sheetDuration(s.sec):(s.status==="WORKING"?"근무중":"—"),
+          s.autoCloseUnverified?"자동퇴근 확인필요":_statusLabel(s.status), s.corrected?"정정":"", sheetCorrectionReason(s.correctionReason)]);
       });
       const firstIn=daySess.find(s=>s.in), lastOut=[...daySess].reverse().find(s=>s.out);
       attRows.push([day, rec.employee_name,
