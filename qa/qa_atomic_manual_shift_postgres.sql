@@ -39,6 +39,18 @@ INSERT INTO attendance_events(employee_id,event_type,event_at)
 
 \ir ../supabase/migrations/20261102161000_atomic_manual_attendance_shift.sql
 
+-- Fail the second INSERT deliberately: the first IN must roll back as well.
+CREATE FUNCTION public.qa_reject_second_manual_out() RETURNS trigger
+LANGUAGE plpgsql AS $
+BEGIN
+ IF NEW.action='ADD' AND NEW.new_event_type='OUT'
+    AND NEW.reason='synthetic force second failure'
+ THEN RAISE EXCEPTION 'QA_SECOND_INSERT_FAILURE'; END IF;
+ RETURN NEW;
+END $;
+CREATE TRIGGER qa_second_manual_out BEFORE INSERT ON public.event_corrections
+FOR EACH ROW EXECUTE FUNCTION public.qa_reject_second_manual_out();
+
 DO $tests$
 DECLARE
   result jsonb;
@@ -62,6 +74,19 @@ BEGIN
     RAISE EXCEPTION 'Pair was not inserted atomically';
   END IF;
   RAISE NOTICE 'PASS valid nonoverlapping shift creates exactly two events';
+
+  count_before:=(SELECT count(*) FROM event_corrections);
+  error_seen:=false;
+  BEGIN
+    PERFORM public.admin_add_completed_attendance_shift(
+      10,'2026-10-10 16:15','2026-10-10 16:45',
+      'synthetic force second failure');
+  EXCEPTION WHEN raise_exception THEN
+    error_seen:=SQLERRM='QA_SECOND_INSERT_FAILURE';
+  END;
+  IF NOT error_seen OR (SELECT count(*) FROM event_corrections)<>count_before
+  THEN RAISE EXCEPTION 'Atomic rollback failed after second INSERT error'; END IF;
+  RAISE NOTICE 'PASS forced second-INSERT error rolls back first IN';
 
   count_before:=(SELECT count(*) FROM event_corrections);
   error_seen:=false;
