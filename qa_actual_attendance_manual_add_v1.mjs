@@ -10,9 +10,13 @@ assert(h.includes('S.employees.map(e=>'));
 assert(!h.includes('prompt('));
 assert(h.includes('outFields.hidden='));
 assert(h.includes('save.disabled=true'));
-assert(h.includes('addedIn?.ok===false'));
-assert(h.includes('addedOut?.ok===false'));
-assert(h.includes('출근만 저장됐습니다'));
+// Complete shifts are now one atomic server-side write; failure must not
+// leave an IN-only correction. Incomplete IN still uses the legacy RPC.
+assert(h.includes("rpc('admin_add_completed_attendance_shift'"),'complete shift uses atomic RPC');
+assert(h.includes("rpc('admin_correct_event'"),'one-sided IN path remains');
+assert(h.includes('result?.ok!==true'),'failure is surfaced');
+assert(!h.includes('출근만 저장됐습니다'),'partial pair failure no longer a supported outcome');
+assert(!h.includes('addedOut?.ok===false'),'two-request OUT is forbidden');
 assert(h.includes('await loadMonth();renderDay(inDay)'));
 console.log('PASS manual attendance form contract');
 

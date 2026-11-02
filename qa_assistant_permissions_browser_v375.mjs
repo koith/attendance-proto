@@ -45,7 +45,9 @@ try{for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});assert.equal(await manage.evaluate(n=>n===document.activeElement),true);
  await manage.click();await dialog.locator('[data-manager-revoke]').click();await dialog.waitFor({state:'detached'});
- await page.locator('.smt-delegate').waitFor({state:'detached'});assert.ok(await page.locator('.smt-owner').isVisible());
+ // Delegate disappearance and owner row repaint happen in separate async renders.
+ await page.locator('.smt-delegate').waitFor({state:'detached'});
+ await page.locator('.smt-owner').waitFor({state:'visible'});
  }else{assert.equal(await page.locator('[data-manager-manage]').count(),0);assert.equal(calls.some(x=>x.fn==='store_assistant_permissions_set'),false);}
  proof.push({engine,width,role,result:'PASS',operatingWrite:false});await context.close();
  }}finally{await browser.close();}

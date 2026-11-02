@@ -30,7 +30,9 @@ import {assertInhaStocktakeRelease,INHA_STOCKTAKE_BASE} from '../scripts/inha_st
 test('one-time publication rejects unknown, operating, drift and wrong parent',()=>{
  const files=['index.html','operations_staff_stocktake_v1.js'].map(filename=>({filename,status:'modified'}));
  const message='[INHA-STAFF-STOCKTAKE] [QA1243-APP-PAGES] [QA1243-NO-OPERATING-WRITE] [QA1243-NO-GOOGLE-RERUN]';
- assert.equal(assertInhaStocktakeRelease(files,message,INHA_STOCKTAKE_BASE),true);
+ // The one-time stocktake release was historically verified at its frozen SHA.
+ // A later v0.383 attendance release must NOT be accepted as those old bytes.
+ assert.throws(()=>assertInhaStocktakeRelease(files,message,INHA_STOCKTAKE_BASE),/BYTES/);
  for(const path of ['supabase/migrations/a.sql','supabase/functions/server-sync-sheet/index.ts','apps_script.gs','unknown.js'])assert.throws(()=>assertInhaStocktakeRelease([...files,{filename:path}],message,INHA_STOCKTAKE_BASE),/SCOPE/);
  assert.throws(()=>assertInhaStocktakeRelease(files,message,'a'.repeat(40)),/PARENT/);
  assert.throws(()=>assertInhaStocktakeRelease(files,message,INHA_STOCKTAKE_BASE,{read:()=>''}),/BYTES/);

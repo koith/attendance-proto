@@ -369,17 +369,24 @@ init();
         return error('같은 시각의 퇴근 기록이 이미 있습니다. 기존 기록을 정정하세요.');
       const save=field('manualAttendanceSave');save.disabled=true;error('');
       try{
-        const addedIn=await rpc('admin_correct_event',{p_action:'ADD',p_event_id:null,p_employee_id:employeeId,p_new_at:inDay+' '+inTime+':00',p_new_type:'IN',p_reason:reason});
-        if(addedIn?.ok===false)throw new Error(addedIn.error||'출근 기록 생성 거부');
         if(complete){
-          try{
-            const addedOut=await rpc('admin_correct_event',{p_action:'ADD',p_event_id:null,p_employee_id:employeeId,p_new_at:outDay+' '+outTime+':00',p_new_type:'OUT',p_reason:reason});
-            if(addedOut?.ok===false)throw new Error(addedOut.error||'퇴근 기록 생성 거부');
-          }catch(outError){
-            console.error('[manual-attendance-out]',outError);
-            close();await loadMonth();renderDay(inDay);
-            toastCorrection('출근만 저장됐습니다. 퇴근 기록을 확인하고 정정하세요.',true);return;
-          }
+          // Server validates overlapping effective sessions and writes both
+          // punches in one transaction. No partial IN if the OUT fails.
+          const result=await rpc('admin_add_completed_attendance_shift',{
+            p_employee_id:employeeId,
+            p_in_at:inDay+' '+inTime+':00',
+            p_out_at:outDay+' '+outTime+':00',
+            p_reason:reason
+          });
+          if(result?.ok!==true||!result.in_id||!result.out_id)
+            throw new Error(result?.error||'출퇴근 기록을 저장하지 못했습니다.');
+        }else{
+          // Preserve existing one-sided missing-IN correction behavior.
+          const addedIn=await rpc('admin_correct_event',{
+            p_action:'ADD',p_event_id:null,p_employee_id:employeeId,
+            p_new_at:inDay+' '+inTime+':00',p_new_type:'IN',p_reason:reason
+          });
+          if(addedIn?.ok===false)throw new Error(addedIn.error||'출근 기록 생성 거부');
         }
         close();await loadMonth();renderDay(inDay);
         toastCorrection(complete?'출퇴근 기록을 생성했습니다.':'출근 기록을 생성했습니다.');
