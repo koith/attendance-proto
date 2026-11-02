@@ -5,6 +5,7 @@ on:
       - 'index.html'
       - 'supabase/functions/server-sync-sheet/engine.mjs'
       - 'qa_payroll_auto_close_unverified_v384.mjs'
+      - 'qa_payroll_auto_close_browser_parity_v384.mjs'
       - '.github/workflows/payroll-auto-close-review.yml'
 permissions:
   contents: read
@@ -20,6 +21,7 @@ jobs:
           node-version: '22'
       - name: Unverified synthetic auto-out must not earn wages
         run: node qa_payroll_auto_close_unverified_v384.mjs
+          node qa_payroll_auto_close_browser_parity_v384.mjs
       - name: Existing payroll regressions
         run: |
           node qa_payroll_unfinished_month_boundary_v1.mjs
