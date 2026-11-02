@@ -167,7 +167,7 @@ function renderMonth(){
     const people=employeeIds.map(id=>{
       const emp=S.employees.find(e=>Number(e.id)===id),es=ss.filter(x=>Number(x.employee_id)===id);
       const status=es.some(x=>isIssue(x,day))?'issue':es.some(x=>x.status==='WORKING')?'working':'normal';
-      const sec=es.reduce((sum,s)=>{if(s.status==='COMPLETE')return sum+Number(s.sec||0);if(s.status==='WORKING'&&s.in&&day===today)return sum+Math.max(0,Math.floor((kstToday()-s.in)/1000));return sum},0);
+      const sec=es.reduce((sum,s)=>{if(s.status==='COMPLETE'&&!isIssue(s,day))return sum+Number(s.sec||0);if(s.status==='WORKING'&&s.in&&day===today)return sum+Math.max(0,Math.floor((kstToday()-s.in)/1000));return sum},0);
       return {name:emp?.name||'직원 정보 없음',status,sec};
     });
     const shown=people.slice(0,6),more=Math.max(0,people.length-shown.length);
