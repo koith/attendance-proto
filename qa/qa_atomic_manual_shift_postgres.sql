@@ -37,7 +37,7 @@ INSERT INTO attendance_events(employee_id,event_type,event_at) VALUES
 INSERT INTO attendance_events(employee_id,event_type,event_at)
  VALUES (20,'IN','2026-10-20 00:00:00');
 
-\ir ../../supabase/migrations/20261102161000_atomic_manual_attendance_shift.sql
+\ir ../supabase/migrations/20261102161000_atomic_manual_attendance_shift.sql
 
 DO $tests$
 DECLARE
