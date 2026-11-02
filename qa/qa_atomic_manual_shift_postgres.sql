@@ -41,13 +41,13 @@ INSERT INTO attendance_events(employee_id,event_type,event_at)
 
 -- Fail the second INSERT deliberately: the first IN must roll back as well.
 CREATE FUNCTION public.qa_reject_second_manual_out() RETURNS trigger
-LANGUAGE plpgsql AS $
+LANGUAGE plpgsql AS $qa_out$
 BEGIN
  IF NEW.action='ADD' AND NEW.new_event_type='OUT'
     AND NEW.reason='synthetic force second failure'
  THEN RAISE EXCEPTION 'QA_SECOND_INSERT_FAILURE'; END IF;
  RETURN NEW;
-END $;
+END $qa_out$;
 CREATE TRIGGER qa_second_manual_out BEFORE INSERT ON public.event_corrections
 FOR EACH ROW EXECUTE FUNCTION public.qa_reject_second_manual_out();
 
