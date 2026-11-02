@@ -517,7 +517,8 @@ init();
   window.actualAttendanceIssueReason=function(s,day){
     if(!s)return '';
     if(s.status==='ORPHAN_OUT')return '출근 누락';
-    if(s.status==='INCOMPLETE')return '퇴근 누락';
+    if(s.autoCloseUnverified)return '자동퇴근 확인 필요';
+     if(s.status==='INCOMPLETE')return '퇴근 누락';
     if(s.status==='WORKING'){
       const today=dayKey(kstToday());
       if(day!==today)return '과거 미퇴근';
