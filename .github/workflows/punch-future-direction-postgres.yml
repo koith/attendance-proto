@@ -4,6 +4,7 @@ on:
     paths:
       - 'supabase/migrations/20261102224000_punch_ignore_future_effective_events.sql'
       - 'qa/pin-security/test_future_direction.sql'
+      - 'qa/pin-security/rollback_future_direction.sql'
       - '.github/workflows/punch-future-direction-postgres.yml'
 permissions:
   contents: read
