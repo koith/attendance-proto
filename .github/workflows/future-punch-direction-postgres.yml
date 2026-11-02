@@ -1,0 +1,50 @@
+name: Future corrected punch direction (disposable PostgreSQL)
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261102223000_punch_ignore_future_effective_events.sql'
+      - 'qa/pin-security/future_punch_direction.sql'
+      - '.github/workflows/future-punch-direction-postgres.yml'
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16','17']
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_only
+          POSTGRES_DB: future_punch_fixture
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d future_punch_fixture"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_only
+      PGDATABASE: future_punch_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Load audited source and guard, update only guarded definition in fixture
+        run: |
+          test "$PGDATABASE" = future_punch_fixture
+          psql -X -v ON_ERROR_STOP=1 -f qa/pin-security/setup.sql -f qa/pin-security/baseline.sql
+          psql -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261031043549_audit_pin_server_guard.sql
+          psql -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261101193500_activate_audited_pin_guard.sql
+          psql -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20261102223000_punch_ignore_future_effective_events.sql
+      - name: Verify real PIN and future event direction without real employees
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f qa/pin-security/future_punch_direction.sql
