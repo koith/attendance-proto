@@ -388,7 +388,14 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
               // Do not silently omit a settled, under-hours week: the manager
               // needs a review reason when its automatic weekly amount is 0.
               if(mins<weeklyContractMin){
-                weeklyReviewComments.push(weekKey+': 계약상 주간 근무시간 미달 ('+Math.floor(mins)+'/'+weeklyContractMin+'분)');
+                const hasUnverifiedClose=reviewedSessions.some(s=>{
+                  if(!s.autoCloseUnverified||!s.in)return false;
+                  const d=new Date(s.in);d.setHours(0,0,0,0);
+                  d.setDate(d.getDate()-((d.getDay()+6)%7));
+                  return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`===weekKey;
+                });
+                weeklyReviewComments.push(weekKey+': '+(hasUnverifiedClose?'출퇴근 미완료·자동퇴근 확인 필요 / ':'')+
+                  '계약상 주간 근무시간 미달 ('+Math.floor(mins)+'/'+weeklyContractMin+'분)');
                 continue;
               }
               const mondayKey=weekKey;
