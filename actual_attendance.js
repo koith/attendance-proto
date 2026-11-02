@@ -142,7 +142,7 @@ async function resolveAttendanceStore(){
  try{sessionStorage.setItem('baekeok_store_id',String(id))}catch(_){}
  return id;
 }
-function isIssue(s,day){if(s.status==='INCOMPLETE'||s.status==='ORPHAN_OUT')return true;if(s.status==='WORKING'&&day!==dayKey(kstToday()))return true;if(s.status==='COMPLETE'&&s.sec>16*3600)return true;return false}
+function isIssue(s,day){if(s.autoCloseUnverified)return true;if(s.status==='INCOMPLETE'||s.status==='ORPHAN_OUT')return true;if(s.status==='WORKING'&&day!==dayKey(kstToday()))return true;if(s.status==='COMPLETE'&&s.sec>16*3600)return true;return false}
 async function loadMonth(){const app=el('app');app.innerHTML='<div class="loading">실근무 기록 불러오는 중…</div>';const {first,next}=monthBounds(S.ym);el('monthLabel').textContent=S.ym.replace('-','년 ')+'월';try{
   if(S.staffMode){
     const a=S.staffAuth,data=await rpc('staff_actual_attendance',{p_employee_id:Number(a.employee_id),p_pin:String(a.pin),p_from:addDays(first,-7)+'T00:00:00',p_to:addDays(next,7)+'T00:00:00'});
