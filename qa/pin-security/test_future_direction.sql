@@ -81,3 +81,19 @@ BEGIN
  RAISE NOTICE 'PASS protected RPC permission/guard and synthetic row invariants';
 END $tests$;
 \echo PUNCH_FUTURE_DIRECTION_PG_PASS
+\ir rollback_future_direction.sql
+DO $rollback_check$
+BEGIN
+ IF md5(pg_get_functiondef('public.punch(bigint,text,text,bigint)'::regprocedure))
+    <> 'eb8ff8f7ea971fb2ae6ef24b868440a1'
+ THEN RAISE EXCEPTION 'PUNCH_ROLLBACK_SOURCE_HASH_MISMATCH'; END IF;
+ IF (SELECT enabled FROM pin_private.settings WHERE id) IS DISTINCT FROM true THEN
+   RAISE EXCEPTION 'PUNCH_ROLLBACK_DISABLED_PIN_PROTECTION'; END IF;
+ IF (SELECT count(*) FROM pin_private.source_archive a
+      WHERE md5(pg_get_functiondef(a.signature::regprocedure))=a.installed_md5)<>15
+ THEN RAISE EXCEPTION 'PIN_ARCHIVE_DRIFT_AFTER_DIRECTION_ROLLBACK'; END IF;
+ IF (SELECT count(*) FROM public.attendance_events WHERE employee_id IN (710030,710031,710032,710033))<>5
+ THEN RAISE EXCEPTION 'ROLLBACK_CHANGED_SYNTHETIC_BUSINESS_ROWS'; END IF;
+ RAISE NOTICE 'PASS source + PIN guard + all newer attendance intact after rollback';
+END $rollback_check$;
+\echo PUNCH_DIRECTION_ROLLBACK_PG_PASS
