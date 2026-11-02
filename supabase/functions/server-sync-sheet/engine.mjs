@@ -99,7 +99,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       if(openIn!==null){
         // Invalid Date 방어: 어느 한쪽이라도 파싱 실패면 sec=null(합산 제외), status로 표시
         const sec=(isNaN(openIn)||isNaN(when))?null:(when-openIn)/1000;
-        out.push({in:openIn,out:when,sec,status:sec==null?"INVALID_TIME":"COMPLETE",inId:openInId,outId:r.id,inRaw:openInRaw,outRaw:r.event_at,corrected:!!(openInCorrected||r.corrected), correctionReason:[openInReason,r.correctionReason].filter(Boolean).join(" / "),inManuallyAccepted:openInManagerEntered}); openIn=null; openInId=null; openInRaw=null; openInCorrected=false; openInReason=""; openInManagerEntered=false;
+        out.push({in:openIn,out:when,sec,status:sec==null?"INVALID_TIME":"COMPLETE",inId:openInId,outId:r.id,inRaw:openInRaw,outRaw:r.event_at,corrected:!!(openInCorrected||r.corrected), correctionReason:[openInReason,r.correctionReason].filter(Boolean).join(" / "),autoCloseUnverified:!!r.systemStoreClose,inManuallyAccepted:openInManagerEntered}); openIn=null; openInId=null; openInRaw=null; openInCorrected=false; openInReason=""; openInManagerEntered=false;
       }
       else out.push({in:null,out:when,sec:null,status:"ORPHAN_OUT",inId:null,outId:r.id,inRaw:null,outRaw:r.event_at,corrected:!!r.corrected, correctionReason:r.correctionReason||""});
     }
@@ -239,6 +239,11 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
   for(const e of payrollCandidates){
     const evs=events.filter(x=>Number(x.employee_id)===Number(e.id));
     const allSess=pairEvents(evs);
+    // A system-generated close is an audit boundary, not evidence of worked hours.
+    // Keep the original event visible; require an actual or manager-corrected OUT
+    // before this session can earn wages, breaks, night premium or weekly rest.
+    const reviewedSessions=allSess.map(s=>s.autoCloseUnverified?
+      {...s,status:"INCOMPLETE",out:null,sec:null,payableSec:null}:s);
     const sess=allSess.filter(s=>{ const a=s.in||s.out; if(!a)return false;
       const payrollAnchor=s.in||s.out; // 말일 심야근무도 출근한 달 급여에 전부 귀속
       return `${payrollAnchor.getFullYear()}-${p2(payrollAnchor.getMonth()+1)}`===ym; });
@@ -247,7 +252,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     // when all completed shifts took place in the following calendar month.
     // Keep inactive staff in the calculation for that week or an explicit
     // approval; otherwise retain the existing skip for unrelated history.
-    const hasMondayOwnedCompletedWeek=allSess.some(s=>{
+    const hasMondayOwnedCompletedWeek=reviewedSessions.some(s=>{
       if(s.status!=="COMPLETE"||!s.in)return false;
       const monday=new Date(s.in);
       monday.setHours(0,0,0,0);
@@ -261,7 +266,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     // A manager-created or explicitly time-corrected IN is an acknowledged
     // shift start and is NOT automatically clipped to the recurring schedule.
     for(const shift of sess){
-      if(!(shift.in instanceof Date)||!Number.isFinite(shift.in.getTime()))continue;
+      if(shift.autoCloseUnverified||!(shift.in instanceof Date)||!Number.isFinite(shift.in.getTime()))continue;
       const scheduledStart=contractedStart(e.id,shift);
       const capEarly=scheduledStart&&!shift.inManuallyAccepted&&scheduledStart>shift.in;
       shift.payableIn=capEarly?scheduledStart:shift.in;
@@ -276,15 +281,15 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
         shift.lateExcludedSec=0;
       }
     }
-    const completedSec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.payableSec??s.sec??0),0);
+    const completedSec=sess.filter(s=>s.status==="COMPLETE"&&!s.autoCloseUnverified).reduce((a,s)=>a+(s.payableSec??s.sec??0),0);
     const liveSec=sess.filter(s=>s.status==="WORKING"&&s.in).reduce((a,s)=>a+(s.payableSec??Math.max(0,(kstNow()-s.in)/1000)),0);
     const sec=completedSec+liveSec;
     const hours=secToHours(sec);
-    const nightMinutes=nightOverlap(sess.filter(s=>s.status==="COMPLETE"&&s.in&&s.out)
+    const nightMinutes=nightOverlap(sess.filter(s=>s.status==="COMPLETE"&&!s.autoCloseUnverified&&s.in&&s.out)
       .map(shift=>({...shift,in:shift.payableIn||shift.in,out:shift.payableOut||shift.out})),'22:00','06:00')/60;
-    const eligibleBreakSessions=sess.filter(s=>s.status==="COMPLETE"&&Number(s.payableSec??s.sec??0)>4*3600);
+    const eligibleBreakSessions=sess.filter(s=>s.status==="COMPLETE"&&!s.autoCloseUnverified&&Number(s.payableSec??s.sec??0)>4*3600);
     const breakEligibleCount=eligibleBreakSessions.length;
-    const issues=sess.filter(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
+    const issues=sess.filter(s=>s.autoCloseUnverified||s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
     const ov=overrides[e.id]||null;
     const contract=contracts[Number(e.id)]||null;
     // Contract-level rule: over 4h + break provided => no allowance.
@@ -301,7 +306,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
     const breakBonusMinutes=breakMode!=='NOT_PROVIDED'?0:eligibleBreakSessions.reduce((sum,shift)=>sum+(Number(shift.payableSec??shift.sec??0)>=8*3600?60:30),0);
     // Provided break: first 30m is bounded by time beyond 4h; next 30m beyond 8h30.
     // 4:20 => 4:00 payable, 8:40 => 8:00 payable, 9:00 => 8:00 payable.
-    const breakDeductSeconds=breakTimeProvided?sess.filter(s=>s.status==="COMPLETE").reduce((sum,shift)=>{const t=Math.max(0,Number(shift.payableSec??shift.sec??0));return sum+Math.min(1800,Math.max(0,t-4*3600))+Math.min(1800,Math.max(0,t-8.5*3600));},0):0;
+    const breakDeductSeconds=breakTimeProvided?sess.filter(s=>s.status==="COMPLETE"&&!s.autoCloseUnverified).reduce((sum,shift)=>{const t=Math.max(0,Number(shift.payableSec??shift.sec??0));return sum+Math.min(1800,Math.max(0,t-4*3600))+Math.min(1800,Math.max(0,t-8.5*3600));},0):0;
     const paidHours=secToHours(Math.max(0,sec-breakDeductSeconds));
     const payrollType=contract?.payroll_type||((e.wage||0)>0?"HOURLY":null);
     // Payroll earnings belong to their work_start month, but the wider
@@ -358,7 +363,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
         const weeklyAmounts=new Map();
         if(weeklyContractMin>=900 && cw){
           const weekMap={};
-          for(const ss of allSess.filter(x=>x.status==="COMPLETE")){
+          for(const ss of reviewedSessions.filter(x=>x.status==="COMPLETE")){
             if(!ss.in) continue;
             const d=new Date(ss.in); const day=(d.getDay()+6)%7;
             const monday=new Date(d); monday.setHours(0,0,0,0); monday.setDate(d.getDate()-day);
@@ -399,7 +404,7 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
                 p.ended_on&&p.ended_on>=mondayKey&&p.ended_on<=endKey)
                 .map(p=>p.ended_on)[0]||null;
               const review=assessWeeklyRest({weeklyMinutes:weeklyContractMin,workdays:weeklyWorkdays,departureDate,
-                sessions:allSess,substitutions:weeklySubstitutions,weekStart:mondayKey});
+                sessions:reviewedSessions,substitutions:weeklySubstitutions,weekStart:mondayKey});
               if(review.automaticEligible){qualifiedWeeks++;juhyuHours+=weeklyHolidayHours;weeklyAmounts.set(mondayKey,truncateWon(effWage*weeklyHolidayHours));}
               else {weeklyReviewComments.push(...review.reasons.map(reason=>mondayKey+': '+reason));if(review.completed&&departureDate)weeklyReviewComments.push(mondayKey+': 퇴사 주간 추가 지급 검토액 '+truncateWon(effWage*weeklyHolidayHours)+'원');}
             }
@@ -508,14 +513,14 @@ export function createPayrollEngine({BE,storeId=1,storeName="인하대학교점"
       const daySess=byDay[day];
       let daySec=0, hasCorrected=false, issue=false;
       daySess.forEach((s,i)=>{
-        if(s.status==="COMPLETE") daySec+=(s.sec||0);
-        if(s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT") issue=true;
+        if(s.status==="COMPLETE"&&!s.autoCloseUnverified) daySec+=(s.sec||0);
+        if(s.autoCloseUnverified||s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT") issue=true;
         if(s.corrected) hasCorrected=true;
         const sessionAnchor=s.in||s.out;
         sessRows.push([day, rec.employee_name, i+1,
           s.in?sheetClock(s.in):"—", s.out?sheetClock(s.out):"—",
-          s.status==="COMPLETE"?sheetDuration(s.sec):(s.status==="WORKING"?"근무중":"—"),
-          _statusLabel(s.status), s.corrected?"정정":"", sheetCorrectionReason(s.correctionReason)]);
+          s.status==="COMPLETE"&&!s.autoCloseUnverified?sheetDuration(s.sec):(s.status==="WORKING"?"근무중":"—"),
+          s.autoCloseUnverified?"자동퇴근 확인필요":_statusLabel(s.status), s.corrected?"정정":"", sheetCorrectionReason(s.correctionReason)]);
       });
       const firstIn=daySess.find(s=>s.in), lastOut=[...daySess].reverse().find(s=>s.out);
       attRows.push([day, rec.employee_name,
