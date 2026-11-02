@@ -50,12 +50,26 @@ assert.ok(next && next!==nonce,'Nonce must rotate per page load');
 const post=await check('POST');
 assert.equal(post.response.status,405,'Public QA function must not accept POST');
 assert.equal(post.body,'QA1243_READ_ONLY_PAGE');
-const query=await check('GET',address+'?qa1243_http_smoke=read_only');
-assert.equal(query.response.status,400,'URL query must be rejected before rendering');
-assert.equal(query.body,'QA1243_QUERY_NOT_ALLOWED');
+// Shipped diagnostic intentionally ignores all query parameters instead of
+// rejecting them. It MUST NOT reflect even attacker-controlled query text,
+// embed a token, weaken CSP, or change no-store/private response headers.
+const queryCanary='qa1243_query_canary_71b3f06a1c';
+const query=await check('GET',address+'?qa1243_http_smoke='+queryCanary);
+assert.equal(query.response.status,200,'A non-reflected query must leave static diagnostic GET unchanged');
+assert.match(query.response.headers.get('content-type')||'',/^text\\/plain/i,
+ 'Supabase shared-domain CSP sandbox remains enforced');
+assert.equal(query.response.headers.get('x-frame-options'),'DENY');
+assert.equal(query.response.headers.get('referrer-policy'),'no-referrer');
+assert.match(query.response.headers.get('content-security-policy')||'',/default-src 'none'; sandbox/);
+assert.match(query.response.headers.get('cache-control')||'',/no-store/);
+assert.ok(!query.body.includes(queryCanary),'Query must not appear in returned HTML or scripts');
+assert.match(query.body,/google\\.accounts\\.oauth2\\.initTokenClient/);
+const queryNonce=(query.body.match(/<script nonce="([a-z0-9]{32})">/)||[])[1];
+assert.ok(queryNonce&&queryNonce!==nonce&&queryNonce!==next,
+ 'Query request must still use a fresh nonce');
 
 console.log('QA1243_SUPABASE_HTML_RENDER_BLOCK_CONFIRMED '+JSON.stringify({
- function:'qa1243-mobile-auth',get:200,contentType:'text/plain',cspSandbox:true,post:405,query:400,notSafariPage:true,
+ function:'qa1243-mobile-auth',get:200,contentType:'text/plain',cspSandbox:true,post:405,query:200,queryIgnoredAndNotReflected:true,notSafariPage:true,
  independentNonces:true,credentialless:true,
  oauthOwner:'webuielf@gmail.com',noOperatingWrite:true
 }));
