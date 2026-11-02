@@ -1,0 +1,30 @@
+name: Unverified auto-close payroll (synthetic)
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'supabase/functions/server-sync-sheet/engine.mjs'
+      - 'qa_payroll_auto_close_unverified_v384.mjs'
+      - 'qa_payroll_auto_close_browser_parity_v384.mjs'
+      - '.github/workflows/payroll-auto-close-review.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    name: Real payroll engine synthetic auto-close regression
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Unverified synthetic auto-out must not earn wages
+        run: |
+          node qa_payroll_auto_close_unverified_v384.mjs
+          node qa_payroll_auto_close_browser_parity_v384.mjs
+      - name: Existing payroll regressions
+        run: |
+          node qa_payroll_unfinished_month_boundary_v1.mjs
+          node qa_server_payroll_fixture_parity_v1.mjs
+          node qa_actual_attendance_overnight_pairing_v1.mjs

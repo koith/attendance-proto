@@ -51,7 +51,7 @@ function applyCorrections(events,corrections){
   }
   return projected;
 }
-function pairEvents(events){const by=new Map();for(const e of events||[]){if(!by.has(Number(e.employee_id)))by.set(Number(e.employee_id),[]);by.get(Number(e.employee_id)).push(e)}const sessions=[];for(const [employeeId,rows] of by){rows.sort((a,b)=>parseWall(a.event_at)-parseWall(b.event_at)||String(a.id).localeCompare(String(b.id)));let open=null;for(const e of rows){const d=parseWall(e.event_at);if(isNaN(d))continue;if(e.event_type==='IN'){if(open)sessions.push({employee_id:employeeId,status:'INCOMPLETE',in:open.d,out:null,inId:open.e.id,inCorrectionId:open.e.correctionId||null,corrected:!!open.e.corrected});open={d,e}}else if(e.event_type==='OUT'){if(open){sessions.push({employee_id:employeeId,status:'COMPLETE',in:open.d,out:d,inId:open.e.id,inCorrectionId:open.e.correctionId||null,outId:e.id,outCorrectionId:e.correctionId||null,sec:Math.max(0,(d-open.d)/1000),corrected:!!open.e.corrected||!!e.corrected});open=null}else sessions.push({employee_id:employeeId,status:'ORPHAN_OUT',in:null,out:d,outId:e.id,outCorrectionId:e.correctionId||null,corrected:!!e.corrected})}}if(open)sessions.push({employee_id:employeeId,status:'WORKING',in:open.d,out:null,inId:open.e.id,inCorrectionId:open.e.correctionId||null,corrected:!!open.e.corrected})}return sessions.sort((a,b)=>(a.in||a.out)-(b.in||b.out))}
+function pairEvents(events){const by=new Map();for(const e of events||[]){if(!by.has(Number(e.employee_id)))by.set(Number(e.employee_id),[]);by.get(Number(e.employee_id)).push(e)}const sessions=[];for(const [employeeId,rows] of by){rows.sort((a,b)=>parseWall(a.event_at)-parseWall(b.event_at)||String(a.id).localeCompare(String(b.id)));let open=null;for(const e of rows){const d=parseWall(e.event_at);if(isNaN(d))continue;if(e.event_type==='IN'){if(open)sessions.push({employee_id:employeeId,status:'INCOMPLETE',in:open.d,out:null,inId:open.e.id,inCorrectionId:open.e.correctionId||null,corrected:!!open.e.corrected});open={d,e}}else if(e.event_type==='OUT'){if(open){sessions.push({employee_id:employeeId,status:'COMPLETE',in:open.d,out:d,inId:open.e.id,inCorrectionId:open.e.correctionId||null,outId:e.id,outCorrectionId:e.correctionId||null,sec:Math.max(0,(d-open.d)/1000),autoCloseUnverified:!!e.systemStoreClose,corrected:!!open.e.corrected||!!e.corrected});open=null}else sessions.push({employee_id:employeeId,status:'ORPHAN_OUT',in:null,out:d,outId:e.id,outCorrectionId:e.correctionId||null,corrected:!!e.corrected})}}if(open)sessions.push({employee_id:employeeId,status:'WORKING',in:open.d,out:null,inId:open.e.id,inCorrectionId:open.e.correctionId||null,corrected:!!open.e.corrected})}return sessions.sort((a,b)=>(a.in||a.out)-(b.in||b.out))}
 function monthShift(ym,delta){const [y,m]=ym.split('-').map(Number),d=new Date(y,m-1+delta,1);return `${d.getFullYear()}-${p2(d.getMonth()+1)}`}
 function addDays(iso,n){const [y,m,d]=iso.split('-').map(Number),x=new Date(y,m-1,d+n);return dayKey(x)}
 function monthBounds(ym){const [y,m]=ym.split('-').map(Number);const first=`${y}-${p2(m)}-01`,next=monthShift(ym,1)+'-01';return {first,next}}
@@ -142,7 +142,7 @@ async function resolveAttendanceStore(){
  try{sessionStorage.setItem('baekeok_store_id',String(id))}catch(_){}
  return id;
 }
-function isIssue(s,day){if(s.status==='INCOMPLETE'||s.status==='ORPHAN_OUT')return true;if(s.status==='WORKING'&&day!==dayKey(kstToday()))return true;if(s.status==='COMPLETE'&&s.sec>16*3600)return true;return false}
+function isIssue(s,day){if(s.autoCloseUnverified)return true;if(s.status==='INCOMPLETE'||s.status==='ORPHAN_OUT')return true;if(s.status==='WORKING'&&day!==dayKey(kstToday()))return true;if(s.status==='COMPLETE'&&s.sec>16*3600)return true;return false}
 async function loadMonth(){const app=el('app');app.innerHTML='<div class="loading">실근무 기록 불러오는 중…</div>';const {first,next}=monthBounds(S.ym);el('monthLabel').textContent=S.ym.replace('-','년 ')+'월';try{
   if(S.staffMode){
     const a=S.staffAuth,data=await rpc('staff_actual_attendance',{p_employee_id:Number(a.employee_id),p_pin:String(a.pin),p_from:addDays(first,-7)+'T00:00:00',p_to:addDays(next,7)+'T00:00:00'});
@@ -167,7 +167,7 @@ function renderMonth(){
     const people=employeeIds.map(id=>{
       const emp=S.employees.find(e=>Number(e.id)===id),es=ss.filter(x=>Number(x.employee_id)===id);
       const status=es.some(x=>isIssue(x,day))?'issue':es.some(x=>x.status==='WORKING')?'working':'normal';
-      const sec=es.reduce((sum,s)=>{if(s.status==='COMPLETE')return sum+Number(s.sec||0);if(s.status==='WORKING'&&s.in&&day===today)return sum+Math.max(0,Math.floor((kstToday()-s.in)/1000));return sum},0);
+      const sec=es.reduce((sum,s)=>{if(s.status==='COMPLETE'&&!isIssue(s,day))return sum+Number(s.sec||0);if(s.status==='WORKING'&&s.in&&day===today)return sum+Math.max(0,Math.floor((kstToday()-s.in)/1000));return sum},0);
       return {name:emp?.name||'직원 정보 없음',status,sec};
     });
     const shown=people.slice(0,6),more=Math.max(0,people.length-shown.length);
@@ -211,7 +211,7 @@ function renderDay(day){
   let detail='';
   for(const s of ss){
     const emp=S.employees.find(x=>Number(x.id)===Number(s.employee_id)),issue=isIssue(s,day),
-      label=s.status==='COMPLETE'?`${hm(s.in)}–${hm(s.out)} · ${dur(s.sec)}`:s.status==='WORKING'?`${hm(s.in)}–진행 중`:s.status==='INCOMPLETE'?`${hm(s.in)}–퇴근 누락`:`출근 누락–${hm(s.out)}`;
+      label=s.autoCloseUnverified?('자동퇴근 · 실제 퇴근시각 확인 필요'):s.status==='COMPLETE'?`${hm(s.in)}–${hm(s.out)} · ${dur(s.sec)}`:s.status==='WORKING'?`${hm(s.in)}–진행 중`:s.status==='INCOMPLETE'?`${hm(s.in)}–퇴근 누락`:`출근 누락–${hm(s.out)}`;
     detail+=`<div class="session"><div><b>${escapeHtml(emp?.name||'직원 정보 없음')}</b><div class="meta">${label}</div></div><div>${s.corrected?'<span class="pill correction-status">정정됨</span> ':''}${issue?'<span class="pill warn">확인 필요</span>':''}</div></div>`
   }
   el('app').innerHTML=`<section class="dayview"><div class="dayhead"><button class="day-nav" id="prevDay" aria-label="이전 날짜">‹</button><div class="date">${day}</div><div class="dayhead-actions"><button class="day-nav" id="nextDay" aria-label="다음 날짜">›</button><button class="day-close" id="dayClose" aria-label="월력으로 돌아가기">×</button></div></div><section class="timeline-group"><h3>직원별 실근무 시간</h3><div class="axis-wrap"><div class="axis"><div class="axis-labels">${labels}</div>${rows||'<div class="empty">이 날의 실제 출퇴근 기록이 없습니다.</div>'}</div></div></section><section class="records-group"><h3>근무 기록 및 정정</h3><div class="sessions">${detail}</div><p class="records-note">정정은 원본 출퇴근 기록을 변경하지 않고 정정 이력을 추가합니다.</p></section></section>`;
@@ -517,7 +517,8 @@ init();
   window.actualAttendanceIssueReason=function(s,day){
     if(!s)return '';
     if(s.status==='ORPHAN_OUT')return '출근 누락';
-    if(s.status==='INCOMPLETE')return '퇴근 누락';
+    if(s.autoCloseUnverified)return '자동퇴근 확인 필요';
+     if(s.status==='INCOMPLETE')return '퇴근 누락';
     if(s.status==='WORKING'){
       const today=dayKey(kstToday());
       if(day!==today)return '과거 미퇴근';

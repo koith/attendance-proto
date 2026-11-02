@@ -846,7 +846,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.383">v0.383</button></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.384">v0.384</button></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -944,7 +944,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.383";
+const APP_VERSION="v0.384";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1691,7 +1691,7 @@ function pairEvents(rows){
       if(openIn!==null){
         // Invalid Date 방어: 어느 한쪽이라도 파싱 실패면 sec=null(합산 제외), status로 표시
         const sec=(isNaN(openIn)||isNaN(when))?null:(when-openIn)/1000;
-        out.push({in:openIn,out:when,sec,status:sec==null?"INVALID_TIME":"COMPLETE",inId:openInId,outId:r.id,inRaw:openInRaw,outRaw:r.event_at,corrected:!!(openInCorrected||r.corrected), correctionReason:[openInReason,r.correctionReason].filter(Boolean).join(" / "),inManuallyAccepted:openInManagerEntered}); openIn=null; openInId=null; openInRaw=null; openInCorrected=false; openInReason=""; openInManagerEntered=false;
+        out.push({in:openIn,out:when,sec,status:sec==null?"INVALID_TIME":"COMPLETE",inId:openInId,outId:r.id,inRaw:openInRaw,outRaw:r.event_at,corrected:!!(openInCorrected||r.corrected), correctionReason:[openInReason,r.correctionReason].filter(Boolean).join(" / "),autoCloseUnverified:!!r.systemStoreClose,inManuallyAccepted:openInManagerEntered}); openIn=null; openInId=null; openInRaw=null; openInCorrected=false; openInReason=""; openInManagerEntered=false;
       }
       else out.push({in:null,out:when,sec:null,status:"ORPHAN_OUT",inId:null,outId:r.id,inRaw:null,outRaw:r.event_at,corrected:!!r.corrected, correctionReason:r.correctionReason||""});
     }
@@ -3058,18 +3058,18 @@ async function computeMonthPayroll(ym){
       return `${payrollAnchor.getFullYear()}-${p2(payrollAnchor.getMonth()+1)}`===ym; });
     // Deactivation is a current roster state, not a reason to erase historical payroll.
     if(!isActive(e)&&!sess.length) continue;
-    const completedSec=sess.filter(s=>s.status==="COMPLETE").reduce((a,s)=>a+(s.sec||0),0);
+    const completedSec=sess.filter(s=>s.status==="COMPLETE"&&!s.autoCloseUnverified).reduce((a,s)=>a+(s.sec||0),0);
     const liveSec=sess.filter(s=>s.status==="WORKING"&&s.in).reduce((a,x)=>a+Math.max(0,(kstNow()-x.in)/1000),0);
     const sec=completedSec+liveSec;
     const hours=secToHours(sec);
-    const nightMinutes=sess.filter(s=>s.status==="COMPLETE"&&s.in&&s.out).reduce((sum,s)=>{
+    const nightMinutes=sess.filter(s=>s.status==="COMPLETE"&&!s.autoCloseUnverified&&s.in&&s.out).reduce((sum,s)=>{
       let cur=new Date(s.in), end=new Date(s.out), mins=0;
       while(cur<end){ const h=cur.getHours(); if(h>=22||h<6) mins++; cur=new Date(cur.getTime()+60000); }
       return sum+mins;
     },0);
-    const eligibleBreakSessions=sess.filter(s=>s.status==="COMPLETE"&&Number(s.sec||0)>4*3600);
+    const eligibleBreakSessions=sess.filter(s=>s.status==="COMPLETE"&&!s.autoCloseUnverified&&Number(s.sec||0)>4*3600);
     const breakEligibleCount=eligibleBreakSessions.length;
-    const issues=sess.filter(s=>s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
+    const issues=sess.filter(s=>s.autoCloseUnverified||s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT").length;
     const ov=overrides[e.id]||null;
     const contract=contracts[Number(e.id)]||null;
     // Contract-level rule: over 4h + break provided => no allowance.
@@ -3086,7 +3086,7 @@ async function computeMonthPayroll(ym){
     const breakBonusMinutes=breakMode!=='NOT_PROVIDED'?0:eligibleBreakSessions.reduce((sum,shift)=>sum+(Number(shift.sec||0)>=8*3600?60:30),0);
     // Provided break: first 30m is bounded by time beyond 4h; next 30m beyond 8h30.
     // 4:20 => 4:00 payable, 8:40 => 8:00 payable, 9:00 => 8:00 payable.
-    const breakDeductSeconds=breakTimeProvided?sess.filter(s=>s.status==="COMPLETE").reduce((sum,shift)=>{const t=Math.max(0,Number(shift.sec||0));return sum+Math.min(1800,Math.max(0,t-4*3600))+Math.min(1800,Math.max(0,t-8.5*3600));},0):0;
+    const breakDeductSeconds=breakTimeProvided?sess.filter(s=>s.status==="COMPLETE"&&!s.autoCloseUnverified).reduce((sum,shift)=>{const t=Math.max(0,Number(shift.sec||0));return sum+Math.min(1800,Math.max(0,t-4*3600))+Math.min(1800,Math.max(0,t-8.5*3600));},0):0;
     const paidHours=secToHours(Math.max(0,sec-breakDeductSeconds));
     const payrollType=contract?.payroll_type||((e.wage||0)>0?"HOURLY":null);
     const substituteRows=substitutions.filter(x=>Number(x.substitute_employee_id)===Number(e.id));
@@ -3128,7 +3128,7 @@ async function computeMonthPayroll(ym){
         let qualifiedWeeks=0, juhyuHours=0;
         if(weeklyContractMin>=900 && cw){
           const weekMap={};
-          for(const ss of sess.filter(x=>x.status==="COMPLETE")){
+          for(const ss of sess.filter(x=>x.status==="COMPLETE"&&!x.autoCloseUnverified)){
             if(!ss.in) continue;
             const d=new Date(ss.in); const day=(d.getDay()+6)%7;
             const monday=new Date(d); monday.setHours(0,0,0,0); monday.setDate(d.getDate()-day);
@@ -3579,14 +3579,14 @@ async function buildSheetSyncPayload(ym){
       const daySess=byDay[day];
       let daySec=0, hasCorrected=false, issue=false;
       daySess.forEach((s,i)=>{
-        if(s.status==="COMPLETE") daySec+=(s.sec||0);
-        if(s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT") issue=true;
+        if(s.status==="COMPLETE"&&!s.autoCloseUnverified) daySec+=(s.sec||0);
+        if(s.autoCloseUnverified||s.status==="INCOMPLETE"||s.status==="ORPHAN_OUT") issue=true;
         if(s.corrected) hasCorrected=true;
         const sessionAnchor=s.in||s.out;
         sessRows.push([day, rec.employee_name, i+1,
           s.in?sheetClock(s.in):"—", s.out?sheetClock(s.out):"—",
-          s.status==="COMPLETE"?sheetDuration(s.sec):(s.status==="WORKING"?"근무중":"—"),
-          _statusLabel(s.status), s.corrected?"정정":"", sheetCorrectionReason(s.correctionReason)]);
+          s.status==="COMPLETE"&&!s.autoCloseUnverified?sheetDuration(s.sec):(s.status==="WORKING"?"근무중":"—"),
+          s.autoCloseUnverified?"자동퇴근 확인필요":_statusLabel(s.status), s.corrected?"정정":"", sheetCorrectionReason(s.correctionReason)]);
       });
       const firstIn=daySess.find(s=>s.in), lastOut=[...daySess].reverse().find(s=>s.out);
       attRows.push([day, rec.employee_name,
@@ -3601,7 +3601,7 @@ async function buildSheetSyncPayload(ym){
     if(!rec.pay){ payRows.push([rec.employee_name, sheetDuration(rec.sec), sheetDuration(rec.nightMinutes*60), "미설정","—","—",rec.breakMode==="IGNORED"?"미고려":rec.breakTimeProvided?"제공":"미제공",rec.breakNotProvidedCount,rec.breakCompensateCount,"—","—","—","시급 설정 필요"]); continue; }
     const p=rec.pay;
     payRows.push([rec.employee_name, sheetDuration(rec.sec), sheetDuration(rec.nightMinutes*60), p.hourlySegments?.length>1?'구간별':won(p.wage), won(p.base),
-      won(p.juhyu), rec.breakMode==="IGNORED"?"미고려":rec.breakTimeProvided?"제공":"미제공", rec.breakNotProvidedCount, rec.breakCompensateCount, won(p.breakCompPay||0), won(p.adjust), won(p.gross), "예상"]);
+      won(p.juhyu), rec.breakMode==="IGNORED"?"미고려":rec.breakTimeProvided?"제공":"미제공", rec.breakNotProvidedCount, rec.breakCompensateCount, won(p.breakCompPay||0), won(p.adjust), won(p.gross), rec.sessions.some(s=>s.autoCloseUnverified)?"확인 필요":"예상"]);
   }
   // Google Sheet is a human-facing report. Avoid duplicating the same one-session day in a second table.
   // If a day contains multiple sessions, expand only that day into individual session rows.
