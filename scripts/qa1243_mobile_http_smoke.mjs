@@ -56,14 +56,14 @@ assert.equal(post.body,'QA1243_READ_ONLY_PAGE');
 const queryCanary='qa1243_query_canary_71b3f06a1c';
 const query=await check('GET',address+'?qa1243_http_smoke='+queryCanary);
 assert.equal(query.response.status,200,'A non-reflected query must leave static diagnostic GET unchanged');
-assert.match(query.response.headers.get('content-type')||'',/^text\\/plain/i,
+assert.match(query.response.headers.get('content-type')||'',/^text\/plain/i,
  'Supabase shared-domain CSP sandbox remains enforced');
 assert.equal(query.response.headers.get('x-frame-options'),'DENY');
 assert.equal(query.response.headers.get('referrer-policy'),'no-referrer');
 assert.match(query.response.headers.get('content-security-policy')||'',/default-src 'none'; sandbox/);
 assert.match(query.response.headers.get('cache-control')||'',/no-store/);
 assert.ok(!query.body.includes(queryCanary),'Query must not appear in returned HTML or scripts');
-assert.match(query.body,/google\\.accounts\\.oauth2\\.initTokenClient/);
+assert.match(query.body,/google\.accounts\.oauth2\.initTokenClient/);
 const queryNonce=(query.body.match(/<script nonce="([a-z0-9]{32})">/)||[])[1];
 assert.ok(queryNonce&&queryNonce!==nonce&&queryNonce!==next,
  'Query request must still use a fresh nonce');
