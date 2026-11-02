@@ -218,6 +218,11 @@ function payrollClosingRows(report){
 async function closingPreview(ym,storeId){
   const {engine}=await sourceFor(ym,storeId);
   const report=await engine.computeMonthPayroll(ym);
+  // A fallback 26:00 close is not a verified payroll endpoint.
+  // Do not freeze the monthly salary snapshot until an authorized manager
+  // reviews and corrects every synthetic OUT. No source data is deleted.
+  if(report.rows.some(r=>r.sessions?.some(s=>s.autoCloseUnverified)))
+    throw new HttpError(409,"AUTO_CLOSE_REVIEW_REQUIRED");
   const rows=payrollClosingRows(report);
   const fingerprint=await hash(JSON.stringify({ym,storeId,rows,events:packLocalDates(report.events||[])}));
   return {rows,fingerprint,gross:rows.reduce((x,r)=>x+r.gross_pay,0),net:rows.reduce((x,r)=>x+r.net_pay,0)};
