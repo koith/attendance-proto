@@ -5,6 +5,7 @@ on:
       - 'supabase/migrations/20261102223000_punch_ignore_future_effective_events.sql'
       - 'qa/pin-security/future_punch_direction.sql'
       - '.github/workflows/future-punch-direction-postgres.yml'
+      - 'qa/pin-security/rollback_future_punch_direction.sql'
 permissions:
   contents: read
 jobs:
@@ -48,3 +49,9 @@ jobs:
       - name: Verify real PIN and future event direction without real employees
         run: |
           psql -X -v ON_ERROR_STOP=1 -f qa/pin-security/future_punch_direction.sql
+      - name: Targeted rollback preserves PIN protection and audit archive
+        run: |
+          psql -X -1 -v ON_ERROR_STOP=1 -f qa/pin-security/rollback_future_punch_direction.sql
+          psql -X -At -c "SELECT enabled FROM pin_private.settings WHERE id" | grep -qx t
+          psql -X -At -c "SELECT md5(pg_get_functiondef('public.punch(bigint,text,text,bigint)'::regprocedure))" | grep -qx eb8ff8f7ea971fb2ae6ef24b868440a1
+          psql -X -At -c "SELECT count(*) FROM public.attendance_events WHERE device_id='SYNTHETIC'" | grep -qx 5
