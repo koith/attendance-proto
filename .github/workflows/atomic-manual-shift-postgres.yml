@@ -1,0 +1,51 @@
+name: Atomic manual shift and overlap regression
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261102161000_atomic_manual_attendance_shift.sql'
+      - 'qa/qa_atomic_manual_shift_postgres.sql'
+      - 'qa_actual_attendance_manual_add_v1.mjs'
+      - 'actual_attendance.js'
+      - '.github/workflows/atomic-manual-shift-postgres.yml'
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16', '17']
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_fixture_only
+          POSTGRES_DB: atomic_shift_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d atomic_shift_fixture"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_fixture_only
+      PGDATABASE: atomic_shift_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Execute isolated real PostgreSQL overlap and authorization tests
+        run: |
+          test "$PGDATABASE" = "atomic_shift_fixture"
+          psql -X -v ON_ERROR_STOP=1 -f qa/qa_atomic_manual_shift_postgres.sql
+      - name: Unmodified UI layout, atomic RPC wiring, and input validation
+        run: |
+          node --check actual_attendance.js
+          node qa_actual_attendance_manual_add_v1.mjs
