@@ -122,4 +122,11 @@ assert.match(browser,/autoCloseUnverified:!!r\.systemStoreClose/);
 assert.match(browser,/s\.status==="COMPLETE"&&!s\.autoCloseUnverified/);
 assert.match(source,/sessions:reviewedSessions,substitutions:weeklySubstitutions/);
 assert.match(source,/autoCloseUnverified\?"자동퇴근 확인필요":_statusLabel/);
+const edgeClose=readFileSync('supabase/functions/server-sync-sheet/index.ts','utf8');
+assert.match(edgeClose,/AUTO_CLOSE_REVIEW_REQUIRED/,'Edge preview must reject unresolved auto-close');
+assert.match(edgeClose,/report\.rows\.some\(r=>r\.sessions\?\.some\(s=>s\.autoCloseUnverified\)\)/,
+ 'Edge close must fail closed based on actual payroll rows');
+assert.match(source,/rec\.sessions\.some\(s=>s\.autoCloseUnverified\)\?"확인 필요":"예상"/,
+ 'Worksheet payroll status must explicitly request review');
+console.log('PASS: Edge close and sheet statuses refuse provisional auto-OUT');
 console.log('PAYROLL_AUTOCLOSE_REVIEW_PASS 6 synthetic scenarios and source parity');
