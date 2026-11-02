@@ -18,17 +18,19 @@ const autoclosed=(id,date,extra={})=>({
   reason:'SYSTEM_STORE_CLOSE',created_by:'system:auto-close',
   created_at:'2026-10-13T03:00:00Z',...extra
 });
-async function payroll(events,corrections){
+async function payroll(events,corrections,opts={}){
+  const c=opts.contract||contract;
+  const wd=opts.workdays||[];
   const BE={
     allEmployees:async()=>[emp],
     eventsWithCorrections:async()=>({events,corrections}),
     payrollPeriod:async()=>({period:{weeks:4},overrides:[]}),
-    payrollContracts:async()=>[contract],
-    payrollContractWorkdays:async()=>[],
+    payrollContracts:async()=>[c],
+    payrollContractWorkdays:async()=>wd,
     payrollSubstitutions:async()=>[],
     payrollWeeklyApprovals:async()=>[],
     payrollEmploymentPeriods:async()=>[],
-    employmentBundle:async()=>({contracts:[contract],workdays:[],periods:[]})
+    employmentBundle:async()=>({contracts:[c],workdays:wd,periods:[]})
   };
   const r=await createPayrollEngine({BE,storeId:1,now:new Date('2026-11-02T10:00:00Z')})
     .computeMonthPayroll('2026-10');
@@ -89,10 +91,35 @@ assert.equal(r.hours,6);
 assert.equal(r.pay.base,72000);
 console.log('PASS: actual overnight shift unaffected');
 
+// Monday-owned settled 15h week: two genuine 5h shifts and one
+// artificial Wednesday 17h shift must NOT earn weekly rest automatically.
+const weeklyContract={...contract,weekly_contracted_minutes:900};
+const weeklyWorkdays=[1,2,3].map(weekday=>({employee_id:emp.id,
+  contract_id:761,weekday,contracted_minutes:300,weekly_contracted_minutes:900}));
+const verifiedWeek=[
+ clock(51,'IN','2026-10-12T09:00:00'),clock(52,'OUT','2026-10-12T14:00:00'),
+ clock(53,'IN','2026-10-13T09:00:00'),clock(54,'OUT','2026-10-13T14:00:00'),
+ clock(55,'IN','2026-10-14T09:00:00')];
+const weekOptions={contract:weeklyContract,workdays:weeklyWorkdays};
+r=await payroll(verifiedWeek,[autoclosed(56,'2026-10-15T02:00:00')],weekOptions);
+assert.equal(r.issues,1,'synthetic auto close must keep review unresolved');
+assert.equal(r.hours,10,'synthetic Wednesday must not add payroll hours');
+assert.equal(r.pay.juhyu,0,'missing OUT must block automatic weekly rest allowance');
+assert.ok(r.pay.weeklyReviewComments.some(t=>/미완료|누락/.test(t)),
+  'weekly rest review should explain unpaired shift');
+console.log('PASS: unverified Wednesday blocks a false weekly-rest payment');
+
+r=await payroll([...verifiedWeek,clock(57,'OUT','2026-10-14T14:00:00')],
+  [autoclosed(56,'2026-10-15T02:00:00')],weekOptions);
+assert.equal(r.issues,0);
+assert.equal(r.hours,15);
+assert.equal(r.pay.juhyu,36000,'verified 15-hour week earns one 3-hour weekly allowance');
+console.log('PASS: fully verified 15-hour week retains earned weekly rest');
+
 const browser=readFileSync('index.html','utf8');
 const source=readFileSync('supabase/functions/server-sync-sheet/engine.mjs','utf8');
 assert.match(browser,/autoCloseUnverified:!!r\.systemStoreClose/);
 assert.match(browser,/s\.status==="COMPLETE"&&!s\.autoCloseUnverified/);
 assert.match(source,/sessions:reviewedSessions,substitutions:weeklySubstitutions/);
 assert.match(source,/autoCloseUnverified\?"자동퇴근 확인필요":_statusLabel/);
-console.log('PAYROLL_AUTOCLOSE_REVIEW_PASS 4 synthetic scenarios and source parity');
+console.log('PAYROLL_AUTOCLOSE_REVIEW_PASS 6 synthetic scenarios and source parity');
