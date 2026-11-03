@@ -1,4 +1,5 @@
 # 백억커피 업무자동화 — 통합 개발·검증 작업 원장 (2026-10-17)
+> **2026-11-03 운영 보안 분리 공지:** 신규 보안·데이터 보호·복구·인수인계 작업 및 별도 완료율의 정본은 [SECURITY_STABILITY_LEDGER_20261103.md](SECURITY_STABILITY_LEDGER_20261103.md)입니다. 본 문서의 기존 38개 개발 항목/완료19/잔여19와 과거 보안 진행 기록은 삭제하지 않고 역사적 증거로 보존하며, 이후 보안 완료율은 이 문서에 혼합·합산하지 않습니다.
 
 > **정본(Canonical backlog)** · 접수 [#1008](https://github.com/koith/attendance-proto/issues/1008) · 운영 저장소 `koith/attendance-proto`.
 > 다음 대화에서는 **최신 main의 이 파일부터 읽고**, SKILL.md 및 관련 Issue/PR/CI·운영 상태를 재조회한 후 개발을 계속한다.
