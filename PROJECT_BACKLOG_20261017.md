@@ -1029,3 +1029,22 @@
 - 실제 PIN/SQL/급여/권한/운영재고·제출기록/Sheets 무변경. UI 노출 제한이며 서버 권한 확대/축소를 수행하지 않는다. PIN 보안은 별도 고위험 개발·운영미적용 PR로 분리한다.
 - 기존 popup/PIN 비동기 회귀와 실제 renderPos/공통 predicate 범위검사·Chromium/WebKit 및 실제 게시 원래URL 읽기 검증을 수행. 최종 PR/CI/Pages/독립 증거는 Issue1442 영수증으로 기록하며 후보를 실제 수용으로 표시하지 않는다.
 - 전체38/완료19/잔여19 기존 판정 유지. 원래 운영 writer 없는 Pages 경로와 두 런타임 파일의 정확 hash·변경범위/기준 main guard를 사용.
+
+## 2026-11-03 — P0 운영 안전 개선·외부 의존성 정본 점검
+
+이 항목은 원래 38개 체크박스와 별도의 사고/보안 개선 실적이다. **기존 정본 38건 / 완료 19건 / 잔여 19건 유지.** 원래 ID의 모든 완료 조건을 충족하지 않았으므로 임의 체크하지 않는다. 실직원/실기기 검증 결과는 합성 CI 성공으로 대체하지 않는다.
+
+| 과제 | 단계별 증거 | 운영/남은 검증 |
+| --- | --- | --- |
+| 직원 PIN 무차별 입력 방어 | PR #1444/#1447 병합·운영 `pin_private.settings.enabled=true`; 15개 보호 함수 해시 일치, 모든 직원 가드 생성 | 운영 활성화 VERIFIED; 직원 iPhone 현장 정상 출퇴근 UNVERIFIED |
+| 수기 완료근무 이중 요청·중복 시간 | PR #1450 병합, 원자적 `admin_add_completed_attendance_shift` 운영 RPC 존재, 격리 PG16/17 QA | 운영 경로 보호 VERIFIED; 실제 직원 정정/기기 회귀 UNVERIFIED |
+| 미래 수기 근무 때문에 현재 PIN 출퇴근 IN/OUT 반전 | PR #1454 / main `2cf88916`, 운영 `punch`가 `at<=v_now_utc`만 방향 판정 | 서버 검증 VERIFIED; 중복 Draft #1453 종료 |
+| 미확인 시스템 자동퇴근 과지급·마감 | PR #1452 병합 `2a0cabbd`; Edge v76 ACTIVE, 운영 Edge code parity; Pages v0.384 실제 공개 파일 3개 바이트 일치·HTTP200·비인가 급여 API 401 | code/Edge/Pages VERIFIED; 9~10월 미무효 자동퇴근 10건의 실제 퇴근 확인·정산 차액 검산 UNVERIFIED |
+| 긴급 복구 | 개인 소유자 전용 Google Drive에 **서로 다른 날짜의 비공개** 부분 논리 사본 확보. 2026-11-03 기준 24개 핵심 테이블/1,083행 JSON readback 24/24. PIN bcrypt·동기화 claim token 미포함 | 실제 데이터 소실 방어의 일부. DB 전체 DDL/Auth/Storage 원본, PITR/격리 실복구는 UNVERIFIED |
+| 공개 저장소 식별정보 정리 | PR #1448 경고 탐지, PR #1449 공개 문서 개인 이메일 표기 치환 | Git 과거 이력 포함 전체 식별정보 안전 정리 미완료 |
+| QA1243 공개 OAuth 진단 HTTP 테스트 | PR #1456에서 기존 운영 Edge의 쿼리 무시(200·미반영) 계약과 오래된 테스트의 400 기대값 불일치를 수정·재검증 중 | QA 진행 중. Google OAuth / Supabase hosted Auth Management Config 401, 실제 초대·실메일 검증 미완료 |
+
+- 운영 데이터 보호: 자동 종료 검증은 운영 직원의 PIN 입력/급여 마감/근태 정정을 테스트 목적으로 실행하지 않고 DB read-only로 관측했다. 본사/점주 권한·레시피·기존 원본에 무단 변경 없음.
+- 운영 PG cron 4종 최근 30분 기준 매분 성공·실패0. 운영 2026-11-03 시점 직원12/출퇴근 이벤트320/정정129, 월마감 snapshot0. 외부 실제 결제·메일/공급사 주문 변경 없음.
+- 기존 잔여 ID 19건: `QA-04,QA-05,QA-06,QA-07,SEC-01,AUTH-01,FIELD-01,FIELD-02,FIELD-03,MTG-03,MTG-04,MTG-05,MTG-06,MTG-07,MTG-08,MTG-11,MTG-12,MTG-13,MTG-16`.
+- 남은 항목은 (a) 개발·통합 검증 (b) 제3자 인증/외부 API·실인원 검증 (c) 상용 배포 수용으로 구분한다. 이 문서 추가 자체를 운영 배포/업무 기능 완료로 집계하지 않는다.
