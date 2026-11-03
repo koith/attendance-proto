@@ -55,5 +55,6 @@ try{
   summary[schema]=(summary[schema]||0)+count;
   total+=count;
  }
- console.log(JSON.stringify({result:'PASS_PGLITE_POSTGRES_LOGICAL_REPLAY',table_count:tables.length,row_count:total,schemas:summary,auth_users:Number(session.rows[0].n),attendance_events:Number(attendance.rows[0].n),storage_metadata_objects:Number(storage.rows[0].n),note:'Not full DDL/privileges, GoTrue login, or Storage object bytes restoration'}));
+ const countOf=id=>tables.find(x=>x[0]===id)?.[1]?.length??null;
+ console.log(JSON.stringify({result:'PASS_PGLITE_POSTGRES_LOGICAL_REPLAY',table_count:tables.length,row_count:total,schemas:summary,auth_users:countOf('auth.users'),attendance_events:countOf('public.attendance_events'),storage_metadata_objects:countOf('storage.objects'),note:'Not full DDL/privileges, GoTrue login, or Storage object bytes restoration'}));
 }finally{await db.close();}
