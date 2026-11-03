@@ -14,7 +14,26 @@ concurrency:
   group: autonomous-agent-${{ github.event.issue.number || inputs.issue_number }}
   cancel-in-progress: false
 jobs:
+  capture-intake:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'agent-approved'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preserve approved Issue as a separate trusted receipt
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/issue_intake_receipt.mjs
+
   develop:
+    needs: capture-intake
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'agent-approved'
     permissions:
       contents: read
@@ -126,3 +145,32 @@ jobs:
           gh auth setup-git
           git push -u origin "$branch"
           gh pr create --base main --head "$branch" --title "agent: approved issue #$ISSUE_NUMBER" --body "Static verified patch for approved #$ISSUE_NUMBER. AI/provider and QA ran in a separate READ-only token job. Requires human review, CI and separate release approval; no auto-merge or production deployment."
+
+  report-failure:
+    needs: [capture-intake, develop, publish]
+    if: always() && (needs.capture-intake.result == 'failure' || needs.develop.result == 'failure' || needs.publish.result == 'failure')
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Record incomplete AI run without claiming code/PR success
+        uses: actions/github-script@v7
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          CAPTURE_RESULT: ${{ needs.capture-intake.result }}
+          DEVELOP_RESULT: ${{ needs.develop.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+        with:
+          script: |
+            const issue=Number(process.env.ISSUE_NUMBER);
+            if(!Number.isSafeInteger(issue)||issue<1)throw Error('INVALID_ISSUE_NUMBER');
+            const text=[
+              '[agent-run:'+context.runId+']',
+              'AI 자동 개발 또는 승인/PR 게시가 미완료입니다. 서비스 배포 성공을 의미하지 않습니다.',
+              'capture='+process.env.CAPTURE_RESULT,
+              'develop='+process.env.DEVELOP_RESULT,
+              'publish='+process.env.PUBLISH_RESULT,
+              '실행: https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId
+            ].join('\n');
+            await github.rest.issues.createComment({...context.repo,issue_number:issue,body:text});
