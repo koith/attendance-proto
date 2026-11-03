@@ -1,13 +1,14 @@
 import {createRemoteJWKSet,jwtVerify} from 'npm:jose@6.0.12';
 import {createClient} from 'npm:@supabase/supabase-js@2.58.0';
 import {base64,sha256,seal} from './crypto.ts';
+import {AUDIENCE,NOT_AFTER,permittedClaims} from './auth.ts';
 
 const PROJECT_URL=Deno.env.get('SUPABASE_URL')||'';
 const MAX_OBJECTS=100;
 const MAX_TOTAL_BYTES=100*1024*1024;
-const NOT_AFTER=Date.parse('2026-11-03T12:30:00Z');
-const AUDIENCE='attendance-storage-escrow-20261103';
-const WORKFLOW_REF='koith/attendance-proto/.github/workflows/sec-storage-oidc-export-20261103.yml@refs/heads/main';
+
+
+
 const PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\nMIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAvXurkHK+5/pX/xPCMhII\nAb4lm6W/U03HimJLfvUomQu2ev9j49LxazX4sgmiKyPYQ0cZrP+q8+y3ww6tcw3J\n8QLQLmg9fZbs79JaUr/guwGLit57+3ajwDsKj0czfRuilvaHBSFWyu5jgzC/r77A\nY6RHEPUQpbim9+Pv9H8G7j3tJ9VU32c7v5+5Ld1sUo/n/CpPmimVPnCQecFabFdd\nmpKxO4mWyY0rKk4nWt82t1l0NdWrXLnBxeqiHdWOuESmDgXWnDePvsLBmsaXbBQr\nJdgD9cRcSJCWT9L6CdjWeIOp9CWp3zVWBNjrVra5Vl7pLSRad6DQ+0fe5W9pK7LR\n5lItCsdo2Qs9RH6+lSlSjnRFza54L17EwgjKz7Wo7Yaak084rb41dllWbE9ONSNY\nwqQpjhYvMwF4OWeOQi4anB4JCVOVFaWhYr0YI3XS7bZ3qIxoo3rhQ+gggtfIYnDn\nfx1Ae4I0Uj6Kgi9+IgKk4al9ebUjMwlmy7jJfsQYE96/AgMBAAE=\n-----END PUBLIC KEY-----\n";
 const encoder=new TextEncoder();
 const jwks=createRemoteJWKSet(new URL('https://token.actions.githubusercontent.com/.well-known/jwks'),{timeoutDuration:6000});
@@ -28,11 +29,8 @@ async function authorize(req:Request):Promise<boolean>{
   const {payload,protectedHeader}=await jwtVerify(header.slice(7),jwks,{
    issuer:'https://token.actions.githubusercontent.com',audience:AUDIENCE,algorithms:['RS256'],maxTokenAge:'4m'
   });
-  if(protectedHeader.alg!=='RS256'||payload.repository!=='koith/attendance-proto'||String(payload.repository_id)!=='1346210224')return false;
-  if(payload.sub!=="repo:koith@48688331/attendance-proto@1346210224:ref:refs/heads/main"||payload.ref!=='refs/heads/main')return false;
-  if(payload.repository_owner!=='koith'||String(payload.repository_owner_id)!=='48688331')return false;
-  if(payload.workflow_ref!==WORKFLOW_REF||payload.event_name!=='push'||String(payload.run_attempt)!=='1')return false;
-  return true;
+  if(protectedHeader.alg!=='RS256')return false;
+  return permittedClaims(payload);
  }catch{return false}
 }
 async function listFiles(client:any){
