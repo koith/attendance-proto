@@ -34,7 +34,7 @@ async function authorize(req:Request):Promise<boolean>{
   return true;
  }catch{return false}
 }
-async function listFiles(client:ReturnType<typeof createClient>){
+async function listFiles(client:any){
  const output:{bucket:string,name:string,bytes:number,updated_at:string}[]=[];
  const paths=[''];let guard=0;
  while(paths.length){
@@ -78,7 +78,7 @@ Deno.serve(async(req)=>{
   const originalHash=await sha256(bytes);
   const record={format:'encrypted-storage-object-v1',bucket:file.bucket,name:file.name,metadata_size:file.bytes,actual_size:bytes.length,updated_at:file.updated_at,sha256:originalHash,roster_sha256:roster,content_base64:base64(bytes)};
   const encrypted=await seal(encoder.encode(JSON.stringify(record)),PUBLIC_KEY);
-  return new Response(encrypted,{status:200,headers:{...headers,'content-type':'application/octet-stream','x-encrypted-only':'true','x-object-index':String(body.index),'x-roster-sha256':roster}});
+  return new Response(new TextDecoder().decode(encrypted),{status:200,headers:{...headers,'content-type':'application/octet-stream','x-encrypted-only':'true','x-object-index':String(body.index),'x-roster-sha256':roster}});
  }catch{
   // Never expose error stack, keys, source object names, or file bytes.
   return respond(503,'BACKUP_READ_FAILED');
