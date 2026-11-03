@@ -304,13 +304,15 @@ jobs:
             // This fixes false P0 failures after a verified docs-only merge,
             // without allowing a mixed docs+app release to bypass the gate.
             if(files.length===1 && files[0]==='PROJECT_BACKLOG_20261017.md' &&
-               releaseMessage.startsWith('docs(backlog):')){
+               releaseMessage.startsWith('docs(backlog):') &&
+               releaseMessage.includes('[QA1243-NO-OPERATING-WRITE]')){
               core.info('QA1243_DOCS_ONLY_NO_OPERATING_WRITE_GUARD_PASS');
               return;
             }
             // The guard itself may be repaired only with its own test in the
             // same exact two-file review, never with Pages/Edge/SQL/Sheet assets.
-            if(releaseMessage.includes('[QA1243-GUARD-MAINTENANCE]')){
+            if(releaseMessage.includes('[QA1243-GUARD-MAINTENANCE]') &&
+               releaseMessage.includes('[QA1243-NO-OPERATING-WRITE]')){
               const expected=new Set([
                 '.github/workflows/p0-pages-deploy.yml',
                 'qa1243_pages_no_operating_write_guard.mjs'
