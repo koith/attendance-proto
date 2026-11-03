@@ -16,7 +16,7 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_URL: https://waluhdgqhwjjwmflhrle.supabase.co
       PGSSLMODE: require
-      SEC_BACKUP_OUT: ${{ runner.temp }}/attendance-live.sealed
+      SEC_BACKUP_OUT: ${{ github.workspace }}/attendance-live.sealed
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,6 +41,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: sealed-attendance-recovery
-          path: ${{ runner.temp }}/attendance-live.sealed
+          path: ${{ github.workspace }}/attendance-live.sealed
           retention-days: 7
           if-no-files-found: error
