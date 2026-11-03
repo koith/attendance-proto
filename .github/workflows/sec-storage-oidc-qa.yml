@@ -15,4 +15,4 @@ jobs:
         with:
           deno-version: v2.x
       - run: deno check supabase/functions/sec-storage-oidc-export-20261103/index.ts
-      - run: deno test qa/security/sec_storage_crypto_test.ts
+      - run: deno test qa/security/sec_storage_crypto_test.ts qa/security/sec_storage_oidc_claims_test.ts
