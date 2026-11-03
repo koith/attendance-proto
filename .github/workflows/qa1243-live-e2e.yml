@@ -165,6 +165,7 @@ jobs:
                 'qa_auth_role_journey_1243.mjs','qa_auth_role_journey_1243.sql',
                 '.github/workflows/qa1243-auth-role-journey.yml',
                 'qa1243_pages_no_operating_write_guard.mjs','qa1243_google_rerun_guard.mjs',
+                'scripts/qa1243_mobile_http_smoke.mjs',
                 '.github/workflows/p0-pages-deploy.yml','.github/workflows/qa1243-live-e2e.yml',
                 'PROJECT_BACKLOG_20261017.md'
               ]);
@@ -179,7 +180,9 @@ jobs:
   qa1243-mobile-safari-public-http:
     name: Supabase shared-domain HTML rewrite diagnostic GET POST query
     needs: execution-scope
-    if: needs.execution-scope.outputs.run_live == 'true'
+    # Public credentialless smoke stays on even when expensive Google OAuth,
+    # GAS and Sheets live E2E are intentionally skipped for QA-only changes.
+    if: needs.execution-scope.result == 'success'
     permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 4
