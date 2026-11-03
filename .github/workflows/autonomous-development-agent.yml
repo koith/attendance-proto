@@ -9,21 +9,22 @@ on:
         required: true
         type: string
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  copilot-requests: write
+  contents: read
 concurrency:
   group: autonomous-agent-${{ github.event.issue.number || inputs.issue_number }}
   cancel-in-progress: false
 jobs:
   develop:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'agent-approved'
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+      copilot-requests: write
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
       GH_TOKEN: ${{ github.token }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       GITHUB_TOKEN: ${{ github.token }}
       ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
     steps:
@@ -48,8 +49,6 @@ jobs:
           gh issue view "$ISSUE_NUMBER" --json state --jq .state | grep -qx OPEN
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      - name: Preserve original approved issue before coding
-        run: node scripts/issue_intake_receipt.mjs
       - name: Install AI coding agent and browser QA dependencies
         run: |
           if [[ -n "$OPENAI_API_KEY" ]]; then
@@ -59,42 +58,69 @@ jobs:
           fi
           npm install --no-save --no-audit --no-fund playwright@1.55.1
           npx playwright install --with-deps chromium
-      - name: Run bounded OpenAI or built-in GitHub Copilot repair loop and open review PR
+      - name: Generate validated patch with READ-only token; do not push or create PR
         shell: bash
-        run: bash scripts/autonomous_dev_agent.sh
-      - name: Record bounded agent failure without claiming completion
-        if: failure()
-        uses: actions/github-script@v7
         env:
-          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: bash scripts/autonomous_dev_agent.sh
+      - name: Hand off only static patch data to separately authorized job
+        uses: actions/upload-artifact@v4
         with:
-          script: |
-            const number=Number(process.env.ISSUE_NUMBER);
-            if(!Number.isSafeInteger(number)||number<=0)throw Error('Invalid approved task number');
-            const marker='[agent-run:'+context.runId+']';
-            const bridgeMarker='[agent-pr-bridge:'+context.runId+']';
-            const comments=await github.paginate(github.rest.issues.listComments,{
-              ...context.repo,issue_number:number,per_page:100});
-            // Trust only GitHub Actions' own receipts, not user-supplied issue comments.
-            const trusted=comments.filter(c=>c.user?.login==='github-actions[bot]');
-            if(trusted.some(c=>(c.body||'').split(/\r?\n/).some(line=>line.trim()===marker)))return;
-            const bridgePending=trusted.some(c=>
-              (c.body||'').split(/\r?\n/).some(line=>line.trim()===bridgeMarker));
-            const runUrl='https://github.com/'+context.repo.owner+'/'+
-              context.repo.repo+'/actions/runs/'+context.runId;
-            const lines=bridgePending ? [
-              marker,
-              'AI 코드 변경·기능별 QA·브랜치 푸시까지 통과했습니다.',
-              'GitHub Actions의 PR 생성 정책으로 검토용 PR 생성만 제한되어 승인된 별도 연결 브리지를 기다립니다.',
-              'PR 생성·전체 CI·병합·운영 배포는 아직 완료되지 않았습니다.',
-              '확인된 인계 표시: '+bridgeMarker,
-              '실행: '+runUrl
-            ] : [
-              marker,
-              'AI 자동 개발 또는 QA 절차가 완료되지 않았습니다. 해당 실행 로그에서 실패 지점을 확인하세요.',
-              '모델·기능별 QA·브랜치 푸시·PR 권한 중 어떤 단계인지 로그를 확인해야 합니다.',
-              '변경사항을 운영 환경에 배포하지 않았습니다.',
-              '실행: '+runUrl
-            ];
-            await github.rest.issues.createComment({
-              ...context.repo,issue_number:number,body:lines.join('\n')});
+          name: agent-validated-patch
+          path: |
+            ${{ runner.temp }}/agent-validated.patch
+            ${{ runner.temp }}/agent-base-sha.txt
+            ${{ runner.temp }}/agent-issue-number.txt
+          if-no-files-found: error
+          retention-days: 2
+
+  publish:
+    needs: develop
+    if: needs.develop.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: write
+    env:
+      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: agent-validated-patch
+          path: ${{ runner.temp }}/agent-patch
+      - name: Reconfirm exact approved issue; never trust issue prompt as commands
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$ISSUE_NUMBER" =~ ^[0-9]{1,8}$ ]]
+          gh issue view "$ISSUE_NUMBER" --json state --jq .state | grep -qx OPEN
+          gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name' | grep -qx agent-approved
+      - name: Static patch validation and publish review-only branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$RUNNER_TEMP/agent-patch/agent-base-sha.txt"
+          patch="$RUNNER_TEMP/agent-patch/agent-validated.patch"
+          issue="$RUNNER_TEMP/agent-patch/agent-issue-number.txt"
+          test "$(git rev-parse HEAD)" = "$(cat "$base")"
+          git apply --check -- "$patch"
+          branch="agent/issue-${ISSUE_NUMBER}-run-${GITHUB_RUN_ID}"
+          git switch -c "$branch"
+          git apply --index -- "$patch"
+          node scripts/security/validate_agent_publish_patch.mjs "$patch" "$base" "$issue"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "agent: validated proposal for issue #$ISSUE_NUMBER"
+          # No AI/QA code runs in this privileged job; push and PR creation only.
+          gh auth setup-git
+          git push -u origin "$branch"
+          gh pr create --base main --head "$branch" --title "agent: approved issue #$ISSUE_NUMBER" --body "Static verified patch for approved #$ISSUE_NUMBER. AI/provider and QA ran in a separate READ-only token job. Requires human review, CI and separate release approval; no auto-merge or production deployment."
