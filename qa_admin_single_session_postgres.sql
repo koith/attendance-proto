@@ -44,8 +44,9 @@ DO $qa$
 BEGIN
  BEGIN
   PERFORM session_guard.require_latest_session();
-  RAISE EXCEPTION 'Old admin session unexpectedly authorized';
- EXCEPTION WHEN SQLSTATE 'P0001' THEN NULL;
+  RAISE EXCEPTION 'Old admin session unexpectedly authorized' USING ERRCODE='PT001';
+ EXCEPTION WHEN SQLSTATE 'P0001' THEN
+   IF SQLERRM <> 'SESSION_SUPERSEDED' THEN RAISE; END IF;
  END;
 END $qa$;
 SELECT set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-1111-1111-111111111111"}',true);
@@ -53,8 +54,9 @@ DO $qa$
 BEGIN
  BEGIN
   PERFORM session_guard.require_latest_session();
-  RAISE EXCEPTION 'Missing session_id unexpectedly authorized';
- EXCEPTION WHEN SQLSTATE 'P0001' THEN NULL;
+  RAISE EXCEPTION 'Missing session_id unexpectedly authorized' USING ERRCODE='PT001';
+ EXCEPTION WHEN SQLSTATE 'P0001' THEN
+   IF SQLERRM <> 'SESSION_SUPERSEDED' THEN RAISE; END IF;
  END;
 END $qa$;
 RESET ROLE;
@@ -68,8 +70,9 @@ DO $qa$
 BEGIN
  BEGIN
   PERFORM session_guard.require_latest_session();
-  RAISE EXCEPTION 'Superseded previously-newest admin session unexpectedly authorized';
- EXCEPTION WHEN SQLSTATE 'P0001' THEN NULL;
+  RAISE EXCEPTION 'Superseded previously-newest admin session unexpectedly authorized' USING ERRCODE='PT001';
+ EXCEPTION WHEN SQLSTATE 'P0001' THEN
+   IF SQLERRM <> 'SESSION_SUPERSEDED' THEN RAISE; END IF;
  END;
 END $qa$;
 RESET ROLE;
