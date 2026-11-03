@@ -1,0 +1,62 @@
+name: SEC backup envelope and isolated PostgreSQL restore
+on:
+  pull_request:
+    paths:
+      - 'scripts/security/seal.mjs'
+      - 'scripts/security/unseal.mjs'
+      - 'security/recipient_20261103.pub.pem'
+      - '.github/workflows/sec-backup-restore-test.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/security/seal.mjs'
+      - 'scripts/security/unseal.mjs'
+      - 'security/recipient_20261103.pub.pem'
+      - '.github/workflows/sec-backup-restore-test.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Assert standalone encrypted envelope scripts parse
+        run: |
+          node --check scripts/security/seal.mjs
+          node --check scripts/security/unseal.mjs
+      - name: Synthetic complete PostgreSQL 17 dump and isolated re-creation
+        run: |
+          set -euo pipefail
+          docker run -d --name sec-restore-pg17 -e POSTGRES_PASSWORD=synthetic_qa_only postgres:17-alpine
+          for i in {1..40}; do
+            if docker exec sec-restore-pg17 pg_isready -U postgres -d postgres >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec sec-restore-pg17 psql -U postgres -v ON_ERROR_STOP=1 <<<'CREATE SCHEMA IF NOT EXISTS backup_fixture;'
+          docker exec sec-restore-pg17 psql -U postgres -v ON_ERROR_STOP=1 -c "CREATE TABLE backup_fixture.sample(id integer PRIMARY KEY, payload text NOT NULL);"
+          docker exec sec-restore-pg17 psql -U postgres -v ON_ERROR_STOP=1 -c "INSERT INTO backup_fixture.sample VALUES (1,'synthetic'),(2,'private-fixture');"
+          docker exec sec-restore-pg17 pg_dump -U postgres -Fc -f /tmp/qa.dump -d postgres
+          docker cp sec-restore-pg17:/tmp/qa.dump qa.dump
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out qa-private.pem 2>/dev/null
+          openssl pkey -in qa-private.pem -pubout -out qa-public.pem
+          node scripts/security/seal.mjs qa.dump qa-public.pem qa.dump.sealed
+          test -f qa.dump.sealed
+          node scripts/security/unseal.mjs qa.dump.sealed qa-private.pem qa-restored.dump
+          cmp qa.dump qa-restored.dump
+          docker exec sec-restore-pg17 psql -U postgres -c 'CREATE DATABASE sec_restore_qa;'
+          docker cp qa-restored.dump sec-restore-pg17:/tmp/qa-restored.dump
+          docker exec sec-restore-pg17 pg_restore -U postgres -d sec_restore_qa --no-owner --no-acl --exit-on-error /tmp/qa-restored.dump
+          test "$(docker exec sec-restore-pg17 psql -U postgres -d sec_restore_qa -Atc 'select count(*) from backup_fixture.sample;')" = '2'
+          node -e "const fs=require('fs');const p='qa.dump.sealed';const b=fs.readFileSync(p);b[b.length-20]^=1;fs.writeFileSync('qa-tampered.sealed',b);"
+          if node scripts/security/unseal.mjs qa-tampered.sealed qa-private.pem qa-tampered.dump; then
+            echo 'CRITICAL: modified ciphertext passed authentication'; exit 1;
+          fi
+          test ! -f qa-tampered.dump
+          echo 'PASS isolated dump/restore; AES-GCM integrity rejects tampered ciphertext; no production data used'
+      - name: Verify release never includes test secrets
+        run: |
+          test ! -f security/recipient_20261103.private.pem
+          test -s security/recipient_20261103.pub.pem
