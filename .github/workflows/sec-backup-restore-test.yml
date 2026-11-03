@@ -35,7 +35,7 @@ jobs:
             if docker exec sec-restore-pg17 pg_isready -U postgres -d postgres >/dev/null 2>&1; then break; fi
             sleep 1
           done
-          docker exec sec-restore-pg17 psql -U postgres -v ON_ERROR_STOP=1 <<<'CREATE SCHEMA IF NOT EXISTS backup_fixture;'
+          docker exec sec-restore-pg17 psql -U postgres -v ON_ERROR_STOP=1 -c 'CREATE SCHEMA IF NOT EXISTS backup_fixture;'
           docker exec sec-restore-pg17 psql -U postgres -v ON_ERROR_STOP=1 -c "CREATE TABLE backup_fixture.sample(id integer PRIMARY KEY, payload text NOT NULL);"
           docker exec sec-restore-pg17 psql -U postgres -v ON_ERROR_STOP=1 -c "INSERT INTO backup_fixture.sample VALUES (1,'synthetic'),(2,'private-fixture');"
           docker exec sec-restore-pg17 pg_dump -U postgres -Fc -f /tmp/qa.dump -d postgres
