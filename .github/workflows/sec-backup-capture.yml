@@ -1,13 +1,17 @@
 name: SEC backup capture isolated
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['scripts/security/capture.mjs', '.github/workflows/sec-backup-capture.yml']
+    inputs:
+      capture_scope:
+        description: 'Production read-only backup; operator-triggered, never on push'
+        type: choice
+        required: true
+        options: ['AUTH_DB_STORAGE_ENCRYPTED_ONLY']
 permissions:
   contents: read
 jobs:
   sealed-capture:
+    if: github.ref == 'refs/heads/main' && inputs.capture_scope == 'AUTH_DB_STORAGE_ENCRYPTED_ONLY'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -42,5 +46,5 @@ jobs:
         with:
           name: sealed-attendance-recovery
           path: ${{ github.workspace }}/attendance-live.sealed
-          retention-days: 7
+          retention-days: 30
           if-no-files-found: error
