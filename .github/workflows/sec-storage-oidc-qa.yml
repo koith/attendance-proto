@@ -1,0 +1,18 @@
+name: SEC Storage isolated compile verification
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/sec-storage-oidc-export-20261103/**'
+      - 'qa/security/sec_storage_crypto_test.ts'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check supabase/functions/sec-storage-oidc-export-20261103/index.ts
+      - run: deno test qa/security/sec_storage_crypto_test.ts

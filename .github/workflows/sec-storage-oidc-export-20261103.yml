@@ -1,0 +1,23 @@
+name: SEC sealed Storage export (one-time)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sec-storage-oidc-export-20261103.yml'
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Encrypted export with GitHub OIDC
+        run: node scripts/security/collect_storage_oidc_once.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sec-storage-enc-20261103
+          path: ${{ runner.temp }}/sec-storage-encrypted-20261103/
+          if-no-files-found: error
+          retention-days: 30
