@@ -1,4 +1,4 @@
-import {seal,sha256,fromBase64,base64} from '../supabase/functions/sec-storage-oidc-export-20261103/crypto.ts';
+import {seal,sha256,fromBase64,base64} from '../../supabase/functions/sec-storage-oidc-export-20261103/crypto.ts';
 Deno.test('RSA-OAEP/AES-GCM roundtrip of synthetic file; tampering refused',async()=>{
  const pair=await crypto.subtle.generateKey({name:'RSA-OAEP',modulusLength:3072,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['encrypt','decrypt']);
  const pubBytes=new Uint8Array(await crypto.subtle.exportKey('spki',pair.publicKey));
