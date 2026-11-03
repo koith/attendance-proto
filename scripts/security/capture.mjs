@@ -24,7 +24,7 @@ async function run(){
  const before=roster();const objects=JSON.parse(before);
  execFileSync('pg_dump',['--format=custom','--dbname',url,'--file',join(stage,'database.dump')],{stdio:['ignore','pipe','pipe'],env:process.env,timeout:180000});
  const contents=command('pg_restore',['--list',join(stage,'database.dump')]);
- for(const marker of ['SCHEMA - auth','SCHEMA - storage','SCHEMA - public'])if(!contents.includes(marker))throw Error('DB_ARCHIVE_MISSING_'+marker.replaceAll(' ','_'));
+ for(const marker of ['SCHEMA - auth','SCHEMA - storage','TABLE DATA public'])if(!contents.includes(marker))throw Error('DB_ARCHIVE_MISSING_'+marker.replaceAll(' ','_'));
  const hashes=[];let index=0;
  for(const obj of objects){
   if(!obj.bucket||!obj.name)throw Error('INVALID_STORAGE_OBJECT_METADATA');
