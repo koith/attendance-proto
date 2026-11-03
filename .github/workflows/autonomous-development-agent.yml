@@ -77,8 +77,7 @@ jobs:
           else
             npm install -g --no-audit --no-fund @github/copilot
           fi
-          npm install --no-save --no-audit --no-fund playwright@1.55.1
-          npx playwright install --with-deps chromium
+          echo 'Browser acceptance dependencies are installed only in the unprivileged QA runner'
       - name: Generate validated patch with READ-only token; do not push or create PR
         shell: bash
         env:
@@ -95,8 +94,241 @@ jobs:
           if-no-files-found: error
           retention-days: 2
 
-  publish:
+  qa:
     needs: develop
+    if: needs.develop.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      issues: read
+    env:
+      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: agent-validated-patch
+          path: ${{ runner.temp }}/agent-patch
+      - name: Validate source SHA and static allowlist before running any AI code
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch="$RUNNER_TEMP/agent-patch/agent-validated.patch"
+          base="$RUNNER_TEMP/agent-patch/agent-base-sha.txt"
+          issue="$RUNNER_TEMP/agent-patch/agent-issue-number.txt"
+          test "$(git rev-parse HEAD)" = "$(cat "$base")"
+          git apply --check -- "$patch"
+          git apply --index -- "$patch"
+          node scripts/security/validate_agent_publish_patch.mjs "$patch" "$base" "$issue"
+      - name: Install isolated browser QA dependencies without provider/API/WRITE secrets
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Run actual model-generated and established regression QA with no privileged tokens
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset GH_TOKEN GITHUB_TOKEN OPENAI_API_KEY SUPABASE_DB_URL SUPABASE_SERVICE_ROLE_KEY
+          files="$(git diff --cached --name-only)"
+          changed_tests="$(printf '%s\n' "$files" | grep -E '^qa_[A-Za-z0-9_-]+\.mjs
+    if: needs.qa.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: write
+    env:
+      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: agent-qa-passed-patch
+          path: ${{ runner.temp }}/agent-patch
+      - name: Reconfirm exact approved issue; never trust issue prompt as commands
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$ISSUE_NUMBER" =~ ^[0-9]{1,8}$ ]]
+          gh issue view "$ISSUE_NUMBER" --json state --jq .state | grep -qx OPEN
+          gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name' | grep -qx agent-approved
+      - name: Static patch validation and publish review-only branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$RUNNER_TEMP/agent-patch/agent-base-sha.txt"
+          patch="$RUNNER_TEMP/agent-patch/agent-validated.patch"
+          issue="$RUNNER_TEMP/agent-patch/agent-issue-number.txt"
+          test "$(git rev-parse HEAD)" = "$(cat "$base")"
+          git apply --check -- "$patch"
+          branch="agent/issue-${ISSUE_NUMBER}-run-${GITHUB_RUN_ID}"
+          git switch -c "$branch"
+          git apply --index -- "$patch"
+          node scripts/security/validate_agent_publish_patch.mjs "$patch" "$base" "$issue"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "agent: validated proposal for issue #$ISSUE_NUMBER"
+          # No AI/QA code runs in this privileged job; push and PR creation only.
+          gh auth setup-git
+          git push -u origin "$branch"
+          gh pr create --base main --head "$branch" --title "agent: approved issue #$ISSUE_NUMBER" --body "Static verified patch for approved #$ISSUE_NUMBER. AI/provider and QA ran in a separate READ-only token job. Requires human review, CI and separate release approval; no auto-merge or production deployment."
+
+  report-failure:
+    needs: [capture-intake, develop, qa, publish]
+    if: always() && (needs.capture-intake.result == 'failure' || needs.develop.result == 'failure' || needs.qa.result == 'failure' || needs.publish.result == 'failure')
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Record incomplete AI run without claiming code/PR success
+        uses: actions/github-script@v7
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          CAPTURE_RESULT: ${{ needs.capture-intake.result }}
+          DEVELOP_RESULT: ${{ needs.develop.result }}
+          QA_RESULT: ${{ needs.qa.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+        with:
+          script: |
+            const issue=Number(process.env.ISSUE_NUMBER);
+            if(!Number.isSafeInteger(issue)||issue<1)throw Error('INVALID_ISSUE_NUMBER');
+            const text=[
+              '[agent-run:'+context.runId+']',
+              'AI 자동 개발 또는 승인/PR 게시가 미완료입니다. 서비스 배포 성공을 의미하지 않습니다.',
+              'capture='+process.env.CAPTURE_RESULT,
+              'develop='+process.env.DEVELOP_RESULT,
+              'qa='+process.env.QA_RESULT,
+              'publish='+process.env.PUBLISH_RESULT,
+              '실행: https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId
+            ].join('\n');
+            await github.rest.issues.createComment({...context.repo,issue_number:issue,body:text});
+)"
+          changed_application="$(printf '%s\n' "$files" | grep -E '^[A-Za-z0-9_-]+\.(js|html|css)
+    if: needs.develop.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: write
+    env:
+      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: agent-validated-patch
+          path: ${{ runner.temp }}/agent-patch
+      - name: Reconfirm exact approved issue; never trust issue prompt as commands
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$ISSUE_NUMBER" =~ ^[0-9]{1,8}$ ]]
+          gh issue view "$ISSUE_NUMBER" --json state --jq .state | grep -qx OPEN
+          gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name' | grep -qx agent-approved
+      - name: Static patch validation and publish review-only branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$RUNNER_TEMP/agent-patch/agent-base-sha.txt"
+          patch="$RUNNER_TEMP/agent-patch/agent-validated.patch"
+          issue="$RUNNER_TEMP/agent-patch/agent-issue-number.txt"
+          test "$(git rev-parse HEAD)" = "$(cat "$base")"
+          git apply --check -- "$patch"
+          branch="agent/issue-${ISSUE_NUMBER}-run-${GITHUB_RUN_ID}"
+          git switch -c "$branch"
+          git apply --index -- "$patch"
+          node scripts/security/validate_agent_publish_patch.mjs "$patch" "$base" "$issue"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "agent: validated proposal for issue #$ISSUE_NUMBER"
+          # No AI/QA code runs in this privileged job; push and PR creation only.
+          gh auth setup-git
+          git push -u origin "$branch"
+          gh pr create --base main --head "$branch" --title "agent: approved issue #$ISSUE_NUMBER" --body "Static verified patch for approved #$ISSUE_NUMBER. AI/provider and QA ran in a separate READ-only token job. Requires human review, CI and separate release approval; no auto-merge or production deployment."
+
+  report-failure:
+    needs: [capture-intake, develop, publish]
+    if: always() && (needs.capture-intake.result == 'failure' || needs.develop.result == 'failure' || needs.publish.result == 'failure')
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Record incomplete AI run without claiming code/PR success
+        uses: actions/github-script@v7
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          CAPTURE_RESULT: ${{ needs.capture-intake.result }}
+          DEVELOP_RESULT: ${{ needs.develop.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+        with:
+          script: |
+            const issue=Number(process.env.ISSUE_NUMBER);
+            if(!Number.isSafeInteger(issue)||issue<1)throw Error('INVALID_ISSUE_NUMBER');
+            const text=[
+              '[agent-run:'+context.runId+']',
+              'AI 자동 개발 또는 승인/PR 게시가 미완료입니다. 서비스 배포 성공을 의미하지 않습니다.',
+              'capture='+process.env.CAPTURE_RESULT,
+              'develop='+process.env.DEVELOP_RESULT,
+              'publish='+process.env.PUBLISH_RESULT,
+              '실행: https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId
+            ].join('\n');
+            await github.rest.issues.createComment({...context.repo,issue_number:issue,body:text});
+)"
+          while IFS= read -r test_path; do
+            node --check "$test_path"
+            node "$test_path"
+          done <<< "$changed_tests"
+          node qa_boot_syntax.mjs
+          node qa_index_startup_smoke_v1.mjs
+          node qa_runtime_wiring_v1.mjs
+          if grep -qx 'hq_owner_console.js' <<< "$changed_application"; then
+            node qa_hq_quicknav_escape_contract_v1.mjs
+            node qa_hq_dashboard_entry_auth.mjs
+          fi
+          if grep -qx 'hq_store_onboarding_ui.js' <<< "$changed_application"; then
+            node qa_hq_store_onboarding_v1.mjs
+            node qa_hq_store_search_owner_activation_v1.mjs
+          fi
+          if grep -qx 'store_manager_tab.js' <<< "$changed_application"; then
+            node qa_store_delegated_manager_v1.mjs
+            node qa_confirmed_owner_permission_v1.mjs
+          fi
+          node qa_hq_owner_browser_acceptance.mjs
+      - name: Emit QA-approved static patch for publisher
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-qa-passed-patch
+          path: |
+            ${{ runner.temp }}/agent-patch/agent-validated.patch
+            ${{ runner.temp }}/agent-patch/agent-base-sha.txt
+            ${{ runner.temp }}/agent-patch/agent-issue-number.txt
+          if-no-files-found: error
+          retention-days: 2
+
+  publish:
+    needs: qa
     if: needs.develop.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 8
