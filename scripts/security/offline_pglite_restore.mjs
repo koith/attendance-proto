@@ -1,6 +1,7 @@
 // Isolated PostgreSQL logical-escrow data replay. No live connections or credentials.
 // Accepts DECRYPTED escrow JSON on stdin. Never writes source plaintext to a file.
 import {PGlite} from '@electric-sql/pglite';
+import {createHash} from 'node:crypto';
 const buffers=[];
 for await(const b of process.stdin)buffers.push(b);
 const input=JSON.parse(Buffer.concat(buffers).toString('utf8'));
@@ -30,12 +31,16 @@ function columnType(col){
  }
  return types[col.data_type]||'text';
 }
+function canon(v){if(Array.isArray(v))return '['+v.map(canon).join(',')+']';if(v&&typeof v==='object')return '{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canon(v[k])).join(',')+'}';return JSON.stringify(v)}
+function normalize(row,attrs){const result={};for(const [key,value] of Object.entries(row)){const meta=attrs.get(key);if(value!==null&&meta?.data_type==='timestamp with time zone'){const time=Date.parse(String(value));result[key]=Number.isFinite(time)?new Date(time).toISOString():value}else if(value!==null&&meta?.data_type==='timestamp without time zone')result[key]=String(value).replace(' ','T').replace(/(\\.\\d*?)0+$/,'$1').replace(/\\.$/,'');else result[key]=value}return result}
+function rowHash(records,attrs){const list=records.map(v=>canon(normalize(v,attrs))).sort();const h=createHash('sha256');for(const t of list){h.update(String(t.length)+':');h.update(t)}return h.digest('hex')}
 const db=new PGlite();
 try{
  await db.waitReady;
  await db.exec('CREATE SCHEMA IF NOT EXISTS auth;CREATE SCHEMA IF NOT EXISTS storage;');
  let total=0;
  const summary={};
+ const contentHashes={};
  for(const [id,records] of tables){
   const [schema,...rest]=id.split('.');
   const name=rest.join('.');
