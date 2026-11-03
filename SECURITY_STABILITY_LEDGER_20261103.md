@@ -69,6 +69,18 @@
 4. **급여**: 자동퇴근 10건 및 기존 정책 충돌 가능성을 원본 기준 읽기 전용 재산정; 예상액·차액·근거를 비공개 보관하고 승인된 담당자 확인 전 정정하지 않는다.
 5. **인수인계**: 구성요소/버전/복구 소요·데이터 최신성(RPO)/운영 책임자/복구 증거; 비밀정보 및 협력 종료 사유는 공개 저장소 외 별도 접근통제.
 
+## F. 2026-11-03 추가 검증 영수증 (읽기 전용)
+
+- 운영 PIN 서버 보호 토글: `pin_private.settings` 단일 설정 행 **enabled=true** 직접 확인. 반복 비인가 시도/지점·iPhone 수용이 완료됐다는 의미는 아니다.
+- Security Advisor: `anon_security_definer_function_executable=21 WARN`, `authenticated_security_definer_function_executable=213 WARN`, `rls_enabled_no_policy=63 INFO`, `auth_leaked_password_protection=1 WARN`. RLS 정보경고를 실제 데이터 열람 허용으로 단정하지 않는다.
+- 운영 카탈로그: `public` SECURITY DEFINER 251개, 익명 EXECUTE 21, 인증 EXECUTE 213(익명 21은 인증 213에 포함), EXECUTE TO PUBLIC 3, 익명 집합 내 트리거 전용 2, 관리자 접두 함수 133. 실제 ACL/반환형 직접 집계. **두 트리거는 일반 HTTP RPC 대상으로 볼 수 없다.** PUBLIC 권한 3개를 포함해 무차별 REVOKE 금지.
+- 읽기 전용 SQL [RPC 권한 분류](security/readonly_rpc_acl_audit_20261103.sql) 2개 SELECT 실행 검증: 함수별 213행을 공개 기능 4/일반 공개 워크플로 15/트리거 2/관리자 133/본사 27/지점 22/기타 10으로 분류. 분류는 실제 권한 우회 취약성을 증명하지 않는다.
+- 과거 자동퇴근: `system:auto-close` ADD 총22, 무효12, **유효10**(2026-09:4/2026-10:6) 직접 조회. [읽기 전용 재산정 SQL](security/readonly_auto_close_impact_20261103.sql)의 정규식 검증/운영 재실행 결과: 9월 출근 연결4건·15.96시간, 10월 연결4건·25.66시간, **합계 8건·명목상 41.62시간**, 출근 연결 안 된 2건. 이 값은 지급시간/과지급액이 아니며, 개인별 정책·급여 이전/이후 차액은 여전히 미검증. 최초 집계는 무효 12건을 연결 자료에서 제외하지 않아 9건/58.62시간으로 과다 추정되었으므로 폐기하고 본 재검산으로 교정.
+- Google Drive 보안 부분 스냅샷 2026-11-01/02(2건)/03(1건) **4파일 실제 메타데이터 확인**: 소유자 한 명 권한, `shared=false`. 그러나 전체 DB·Auth·Storage 덤프, 암호화/복호화, 고립 복구 성공 증거 없음.
+- Storage 메타데이터 2 bucket, 14 objects, 표시 파일 크기 합계 26,890,252 bytes. 이는 파일 본문 백업 여부 증거가 아니다.
+- Supabase Edge `server-sync-sheet` **v76 ACTIVE** 직접 조회. 앱 코드·급여 계산·실제 iPhone 현장 동작까지 검증했다는 의미는 아니다.
+- **이번 점검의 운영 변경: 0**. 카탈로그/합계/Drive 권한 읽기만 수행. 이후에도 SQL 적용, 권한 회수, 실제 급여 정정은 안전한 격리 복구와 승인 근거를 먼저 요구한다.
+
 ### 상태 전이 기록 형식
 `YYYY-MM-DD HH:mm KST | SEC-Sxx | 이전상태→새상태 | source/commit/PR/SQL receipt/Edge/Pages/field receipt | VERIFY_LEVEL | 운영 데이터 쓰기 여부 | 승인 근거 | rollback/후속`
 
