@@ -300,6 +300,27 @@ jobs:
             });
             const files=(diff.files||[]).map(x=>x.filename);
             const releaseMessage=String(context.payload.head_commit?.message||'');
+            // An exact one-file backlog update has no operating runtime assets.
+            // This fixes false P0 failures after a verified docs-only merge,
+            // without allowing a mixed docs+app release to bypass the gate.
+            if(files.length===1 && files[0]==='PROJECT_BACKLOG_20261017.md' &&
+               releaseMessage.startsWith('docs(backlog):')){
+              core.info('QA1243_DOCS_ONLY_NO_OPERATING_WRITE_GUARD_PASS');
+              return;
+            }
+            // The guard itself may be repaired only with its own test in the
+            // same exact two-file review, never with Pages/Edge/SQL/Sheet assets.
+            if(releaseMessage.includes('[QA1243-GUARD-MAINTENANCE]')){
+              const expected=new Set([
+                '.github/workflows/p0-pages-deploy.yml',
+                'qa1243_pages_no_operating_write_guard.mjs'
+              ]);
+              if(files.length!==2||files.some(f=>!expected.has(f))||
+                 ![...expected].every(f=>files.includes(f)))
+                throw Error('QA1243_GUARD_MAINTENANCE_SCOPE_MISMATCH');
+              core.info('QA1243_GUARD_MAINTENANCE_NO_OPERATING_WRITE_PASS');
+              return;
+            }
             // #1331 reuses the existing no-operating-write release path.
             // A distinct exact scope prevents the marker hiding application changes.
             if(releaseMessage.includes('[AI1331]')){
