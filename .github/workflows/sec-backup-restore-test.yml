@@ -32,7 +32,7 @@ jobs:
           set -euo pipefail
           docker run -d --name sec-restore-pg17 -p 55432:5432 -e POSTGRES_PASSWORD=synthetic_qa_only postgres:17-alpine
           for i in {1..40}; do
-            if docker exec sec-restore-pg17 pg_isready -U postgres -d postgres >/dev/null 2>&1; then break; fi
+            if test "$(docker exec sec-restore-pg17 psql -U postgres -d postgres -Atqc 'select 1' 2>/dev/null || true)" = '1'; then sleep 2; break; fi
             sleep 1
           done
           docker exec sec-restore-pg17 psql -U postgres -v ON_ERROR_STOP=1 -c 'CREATE SCHEMA IF NOT EXISTS backup_fixture;'
