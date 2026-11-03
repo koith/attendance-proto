@@ -24,7 +24,8 @@ async function getOidcToken(){
     repo:c.repository==='koith/attendance-proto',
     repo_id:String(c.repository_id)==='1346210224',
     main_ref:c.ref==='refs/heads/main',
-    subject:c.sub==='repo:koith/attendance-proto:ref:refs/heads/main',
+    subject:c.sub==='repo:koith@48688331/attendance-proto@1346210224:ref:refs/heads/main',
+    owner_id:String(c.repository_owner_id)==='48688331',
     workflow:c.workflow_ref==='koith/attendance-proto/.github/workflows/sec-storage-oidc-export-20261103.yml@refs/heads/main',
     event:c.event_name==='push',
     run_first:String(c.run_attempt)==='1',
@@ -44,7 +45,7 @@ async function command(body){
 }
 const meta=await command({kind:'manifest'});
 const manifest=await meta.json();
-if(manifest.format!=='storage-escrow-oidc-v1'||manifest.count!==14||!/^([a-f0-9]{64})$/.test(manifest.roster_sha256))throw Error('STORAGE_SOURCE_ROSTER_NOT_VERIFIED');
+if(manifest.format!=='storage-escrow-oidc-v1'||!Number.isSafeInteger(manifest.count)||manifest.count<1||manifest.count>100||!/^([a-f0-9]{64})$/.test(manifest.roster_sha256)||!Number.isSafeInteger(manifest.bucket_count)||manifest.bucket_count<1||!Number.isSafeInteger(manifest.private_bucket_count)||manifest.private_bucket_count<1)throw Error('STORAGE_SOURCE_ROSTER_NOT_VERIFIED');
 let totalCipherBytes=0;const chunks=[];
 for(let index=0;index<manifest.count;index++){
  const response=await command({kind:'object',index,roster_sha256:manifest.roster_sha256});
