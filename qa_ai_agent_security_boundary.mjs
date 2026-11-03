@@ -44,7 +44,11 @@ try{
  if(validate().status===0)throw Error('STALE_BASE_SHA_ACCEPTED');
  fs.writeFileSync(baseFile,sha+'\n');fs.writeFileSync(issueFile,'999\n');
  if(validate().status===0)throw Error('SPOOFED_ISSUE_ACCEPTED');
+ fs.writeFileSync(issueFile,'123\\n');
+ fs.writeFileSync(path.join(tmp,'app.js'),"const nope = process.env.OPENAI_API_KEY;\\n");
+ git(['add','app.js']);stage();
+ if(validate().status===0)throw Error('MODEL_CREDENTIAL_READ_ACCEPTED');
  const leak=run('bash',[path.join(root,'scripts/security/run_secretless_agent_qa.sh')],root,{OPENAI_API_KEY:'SYNTHETIC_DO_NOT_LOG'});
  if(leak.status===0||leak.stdout.includes('SYNTHETIC_DO_NOT_LOG')||leak.stderr.includes('SYNTHETIC_DO_NOT_LOG'))throw Error('SYNTHETIC_SECRET_TEST_FAILED');
- console.log('PASS_SEC_AGENT_BOUNDARY: read_only_provider, secretless_qa, separate_write_publisher, allowlisted_changes, malicious_workflow_denied, stale_base_denied, issue_spoof_denied, no_test_secret_output');
+ console.log('PASS_SEC_AGENT_BOUNDARY: read_only_provider, secretless_qa, separate_write_publisher, allowlisted_changes, malicious_workflow_denied, stale_base_denied, issue_spoof_denied, no_test_secret_output, blocked_credential_source_read');
 }finally{fs.rmSync(tmp,{recursive:true,force:true})}
