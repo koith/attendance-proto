@@ -17,7 +17,7 @@ if(!/contents: read/.test(dev)||/contents: write/.test(dev)||!/copilot-requests:
 if(/OPENAI_API_KEY:/.test(qa)||/GH_TOKEN:/.test(qa)||/SUPABASE_SERVICE_ROLE_KEY:/.test(qa))throw Error('QA_SECRET_EXPOSURE');
 if(!/contents: write/.test(publish)||/copilot-requests: write/.test(publish)||/OPENAI_API_KEY:/.test(publish))throw Error('PUBLISH_TOKEN_OVERREACH');
 if(!/needs: qa/.test(publish)||!/name: agent-qa-passed-patch/.test(publish))throw Error('QA_APPROVAL_GATE_MISSING');
-if(/gh pr create|git push/.test(agent)||!/git diff --cached --binary/.test(agent))throw Error('MODEL_CAN_PUBLISH_OR_ARTIFACT_MISSING');
+if(/^\\s*(?:gh pr create|git push)\\b/m.test(agent)||!/git diff --cached --binary/.test(agent))throw Error('MODEL_CAN_PUBLISH_OR_ARTIFACT_MISSING');
 if(!/node --check/.test(agent)||/node qa_boot_syntax\.mjs/.test(agent))throw Error('MODEL_QA_EXECUTES_WITH_API_KEY');
 const run=(cmd,args,cwd,env)=>spawnSync(cmd,args,{cwd,encoding:'utf8',env:{...process.env,...env}});
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'agent-security-contract-'));fs.chmodSync(tmp,0o700);
