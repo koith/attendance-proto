@@ -1,0 +1,31 @@
+name: SEC AI agent capability-boundary regression
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/autonomous-development-agent.yml'
+      - '.github/workflows/sec-ai-agent-boundary-qa.yml'
+      - 'scripts/autonomous_dev_agent.sh'
+      - 'scripts/security/validate_agent_publish_patch.mjs'
+      - 'scripts/security/run_secretless_agent_qa.sh'
+      - 'qa_ai_agent_security_boundary.mjs'
+permissions:
+  contents: read
+jobs:
+  capability-boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static shell and JS parsing
+        run: |
+          bash -n scripts/autonomous_dev_agent.sh
+          bash -n scripts/security/run_secretless_agent_qa.sh
+          node --check scripts/security/validate_agent_publish_patch.mjs
+          node --check qa_ai_agent_security_boundary.mjs
+      - name: Synthetic malicious Issue and token nonexposure regression
+        run: node qa_ai_agent_security_boundary.mjs

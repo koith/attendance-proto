@@ -18,14 +18,14 @@
 - **진행(IN_PROGRESS)**: 독립 증거 또는 코드 진전이 있으나 완료 기준 미충족.
 - **미착수(NOT_STARTED)**: 범위에 맞는 작업/증거가 없어 실행부터 필요.
 - **미검증(UNVERIFIED)**: 구현·자료 존재 가능성이 있으나 필요한 확인 증거가 없음.
-- **판정(2026-11-03 기준)**: **전체 18 / 완료 0 / 진행 10 / 미착수 6 / 미검증 2 / 보안 완료율 0.0%**. 이는 보수적인 종단 간 '완료' 판정이고, 부분 개선이나 PIN 활성화 성과를 부정하는 의미가 아니다. 원래 38건과 합산 금지.
+- **판정(2026-11-03 기준)**: **2026-11-04 재검증: 전체 18 / 완료 1 / 진행 13 / 미착수 2 / 미검증 2 / 보안 완료율 5.6%**. 최초 2026-11-03 판정 0/18은 아래 이력과 Git 커밋에 남아 있다. 이는 보수적인 종단 간 '완료' 판정이고, 부분 개선이나 PIN 활성화 성과를 부정하는 의미가 아니다. 원래 38건과 합산 금지.
 
 | ID | 우선순위 | 항목/완료 게이트 | 상태 | 확인 증거 / 남은 조건 |
 |---|---|---|---|---|
-| SEC-S01 | Critical | 전체 DB DDL·데이터 일관성 백업·암호화·접근통제·해시 | NOT_STARTED | 과거 24 핵심 테이블 1,083행 부분 사본 보고만 있음; 전체/시점 일관성/권한 검증 없음 |
-| SEC-S02 | Critical | Auth 사용자·설정·세션 이전/복구 가능 백업 | NOT_STARTED | 운영 Auth 실데이터 복구와 비밀값 재발급 절차 검증 없음 |
-| SEC-S03 | Critical | Storage 객체 바이트·메타데이터·정책 백업과 checksum | NOT_STARTED | 운영 메타데이터 2 bucket/14 objects 조회; 실제 객체 복제/재열람 미검증 |
-| SEC-S04 | Critical | 원본 훼손 없는 격리 복구 및 무결성 비교 | NOT_STARTED | DB/Auth/Storage/Edge/설정 통합 복구 실증 없음 |
+| SEC-S01 | Critical | 전체 DB DDL·데이터 일관성 백업·암호화·접근통제·해시 | IN_PROGRESS | 98 테이블/42,235행 운영 암호화 논리 보관·격리 데이터 적재/전체 행 해시 검증됨(PR #1481). 정식 pg_dump·정합한 DDL/role/sequence·전체 서비스 복구 미검증 |
+| SEC-S02 | Critical | Auth 사용자·설정·세션 이전/복구 가능 백업 | IN_PROGRESS | auth 스키마 실제 데이터 2,637행 논리 보관 및 격리 적재; Auth 외부 설정·GoTrue 실로그인·안전한 재인증 미검증 |
+| SEC-S03 | Critical | Storage 객체 바이트·메타데이터·정책 백업과 checksum | COMPLETE | 2 버킷/14 실파일/26,890,252 bytes; 파일별 SHA-256 14/14, 원본 DB metadata digest `c0330f9264fb99890933f2bb4a316d71f7b13fc1441a108f117c0d9ef0150546` 일치; 논리 보관본 Storage RLS 정책 3개·버킷/객체 메타데이터 보유; 암호화 ZIP SHA-256 `3fa6fd922c7804f7a6db33c2759456a4739039aba8ab3c9cc25d71952da37274`, AES-GCM+RSA 격리 복호화 전건 PASS; GitHub Actions #41634246360, Drive 소유자만, Library 복제·읽기 비교; 임시 Edge v3 비활성(410) 검증. 단, Storage 서비스 전체 운용 환경 복구는 SEC-S04에 남음 |
+| SEC-S04 | Critical | 원본 훼손 없는 격리 복구 및 무결성 비교 | IN_PROGRESS | 실제 운영 논리 데이터 98테이블/42,235행 PGlite 격리 적재/행 해시 PASS와 Storage 실파일 14건 복호화/해시 PASS는 독립 성공. 실제 PostgreSQL DDL/서비스 Auth/Storage 통합 재기동·무손실 컷오버는 미검증 |
 | SEC-S05 | Critical | 익명/비로그인 경로에서 출퇴근·관리자 RPC 비인가 행위 차단 | IN_PROGRESS | ACL 21 anon-definer 검출; 실제 권한별 401/403/무변경 실증 부족 |
 | SEC-S06 | Critical | 본사/지점/직원·타지점 간 고권한 RPC 객체 수준 격리 | IN_PROGRESS | 과거 일부 지점 API 차단 증거 존재; 고권한 전체 RPC 회귀 미완료 |
 | SEC-S07 | High | 익명 실행 가능한 SECURITY DEFINER 21개 분류·필요 권한 최소화·회귀 | IN_PROGRESS | **2026-11-03 운영 SQL 직접 재확인 21개**; 합법적 공개 기능 보존하는 함수별 분류·변경 전후 테스트 필요 |
@@ -85,3 +85,14 @@
 `YYYY-MM-DD HH:mm KST | SEC-Sxx | 이전상태→새상태 | source/commit/PR/SQL receipt/Edge/Pages/field receipt | VERIFY_LEVEL | 운영 데이터 쓰기 여부 | 승인 근거 | rollback/후속`
 
 > **중단 없는 정상운영/이전 가능 판정: NO_GO (UNVERIFIED).** 별도 서비스 종료/이전 지시가 아니다. 백업/복구·고권한 경계·SEC-01·iPhone 현장 검증이 끝날 때까지 신규 개발 없이도 안전하다고 단정하지 않는다.
+
+
+## G. 2026-11-04 실제 Storage 완료 조건 재판정 (SEC-S03)
+
+- 이전 판정은 **NOT_STARTED**(2026-11-03 최초 원장). 현재 **COMPLETE**(2026-11-04 독립 확인). 기존 구 판정/발행 문서는 Git 이력에 그대로 보존한다.
+- 원본 DB 읽기 전용 재조회: 버킷 **2**(비공개 버킷 1개에 14개, 공개 버킷 1개에 0개), 객체 **14**, 바이트 **26,890,252**, storage RLS 정책 **3**.
+- GitHub [Actions #41634246360](https://github.com/koith/attendance-proto/actions/runs/41634246360) 실제 백업 성공; 암호화 산출물 36,021,107 bytes; [PR #1484](https://github.com/koith/attendance-proto/pull/1484) 정확한 immutable OIDC subject 검증 및 병합; 별도 수집 후 임시 Edge v3 차단 전용 410 코드 배포·읽기 확인.
+- 기존 암호화 ZIP을 별도 로컬 환경에서 **개인키로 복호화해 실제 14개 파일 본문**을 복원, 파일마다 메타데이터 size/actual size/SHA-256 일치, 중복·누락 0, 원본 SQL metadata digest 일치. Zip SHA-256은 위 SEC-S03 행 기록과 동일.
+- 기존 논리 보관본 OpenPGP 복호화도 독립 재검증: `storage.buckets` 2행, `storage.objects` 14행, `pg_policies`의 storage RLS 정책 3개 존재 확인. **실제 서비스 레벨 Storage API/RLS 복원은 SEC-S04 범위로 남긴다.**
+- 기존 Drive 비공개 소유자 전용 파일 및 ChatGPT 개인 Library의 암호문 백업 사본을 보존. 기존 유일한 키 삭제·교체 없음. 로컬 RSA 개인키 파일 권한 `600` 적용 확인. **키의 독립적 오프라인 이중 보관은 아직 미확인**(SEC-S17 후속).
+- **보안 전체 완료율 = 1/18 (5.6%)**. DB/Auth/통합 복구 및 새 AI 자동화 보안 항목은 합산하지 않는다. 종합 **NO_GO** 유지.

@@ -58,7 +58,7 @@ for attempt in 1 2 3 4 5; do
   : > /tmp/agent-reports/edits.log
   set +e
   if [[ -n "${OPENAI_API_KEY:-}" ]]; then
-    aider --yes-always --no-auto-commits --model openai/gpt-4.1 \
+    env -u GH_TOKEN -u GITHUB_TOKEN aider --yes-always --no-auto-commits --model openai/gpt-4.1 \
       --message-file "$task_file" >/tmp/agent-reports/provider.log 2>&1
     provider_status=$?
   else
@@ -112,8 +112,7 @@ EDIT_PROPOSAL_CONTRACT
     echo "::warning::Coding provider exited $provider_status on attempt $attempt"
   fi
   # Diagnostic excerpt: never execute model output. Actions masks token values.
-  echo "Provider response excerpt (attempt $attempt):"
-  tail -c 5000 /tmp/agent-reports/provider.log || true
+  echo "Provider outcome recorded locally (not logging untrusted provider response)"
   echo "::endgroup::"
   # The AI cannot change production data, workflow configuration or shell scripts.
   modified="$(git status --porcelain --untracked-files=all | cut -c4-)"
@@ -126,53 +125,26 @@ EDIT_PROPOSAL_CONTRACT
   changed_application="$(printf '%s\n' "$modified" | grep -E '^[a-zA-Z0-9_-]+\.(js|html|css)$' || true)"
   echo "Changed source paths after attempt $attempt:"
   printf '%s\n' "$modified" | sed '/^$/d' | head -n 30
+  # IMPORTANT: never EXECUTE model-generated code in this provider-key step.
+  # A separate runner job with no OpenAI key and no WRITE credential runs QA.
   set +e
   (
     set -e
-    # Model-generated QA may execute JavaScript in a disposable runner.
-    # Do not pass the GitHub write token or OpenAI secret into those processes.
     unset GH_TOKEN GITHUB_TOKEN OPENAI_API_KEY
-    if [[ -z "$changed_tests" ]]; then
-      echo "QA FAIL: feature-specific qa_*.mjs regression test is mandatory"
-      exit 1
-    fi
-    if [[ -z "$changed_application" ]]; then
-      echo "QA FAIL: no actual application JS/HTML/CSS file was changed"
-      exit 1
-    fi
-    while IFS= read -r test_path; do
-      node --check "$test_path"
-      node "$test_path"
-    done <<< "$changed_tests"
-    node qa_boot_syntax.mjs
-    node qa_index_startup_smoke_v1.mjs
-    node qa_runtime_wiring_v1.mjs
-    # CI contract parity matters: the first working agent run produced
-    # browser-tested focus code but missed the longstanding Escape contract,
-    # which then failed P0. Fail and repair BEFORE opening any review PR.
-    if grep -qx 'hq_owner_console.js' <<<"$changed_application"; then
-      node qa_hq_quicknav_escape_contract_v1.mjs
-      node qa_hq_dashboard_entry_auth.mjs
-    fi
-    if grep -qx 'hq_store_onboarding_ui.js' <<<"$changed_application"; then
-      node qa_hq_store_onboarding_v1.mjs
-      node qa_hq_store_search_owner_activation_v1.mjs
-    fi
-    if grep -qx 'store_manager_tab.js' <<<"$changed_application"; then
-      node qa_store_delegated_manager_v1.mjs
-      node qa_confirmed_owner_permission_v1.mjs
-    fi
-    node qa_hq_owner_browser_acceptance.mjs
+    [[ -n "$changed_tests" && -n "$changed_application" ]] || exit 1
+    while IFS= read -r test_path; do node --check "$test_path"; done <<< "$changed_tests"
+    while IFS= read -r app_path; do
+      [[ "$app_path" == *.js ]] && node --check "$app_path" || true
+    done <<< "$changed_application"
   ) >/tmp/agent-reports/qa.log 2>&1
   status=$?
   set -e
   if [[ "$status" == 0 ]]; then
-    echo "Automated QA passed on attempt $attempt"
+    echo "Syntax-only preflight passed; independent QA still required"
     break
   fi
   if [[ "$attempt" == 5 ]]; then
-    cat /tmp/agent-reports/qa.log
-    echo "::error::Agent repair limit reached; no PR will be opened"
+    echo "::error::Agent syntax/preflight limit reached; no PR will be opened"
     exit 1
   fi
   {
@@ -190,39 +162,14 @@ EDIT_PROPOSAL_CONTRACT
     tail -c 9000 /tmp/agent-reports/qa.log
   } >/tmp/agent-reports/repair.txt
 done
+# The untrusted model checkout must NOT hold a GitHub write token.
+# Publish an allowlisted proposal artifact; a separate job with WRITE rights
+# applies ONLY the data patch, performs static checks and opens a review PR.
 git add -A
 git diff --cached --quiet && { echo "::error::Agent produced no changes"; exit 1; }
-git commit -m "agent: implement approved issue #$ISSUE_NUMBER"
-# Only after safe QA passed, provision the git credential helper for pushing
-# the reviewed branch; no token is persisted during AI or test execution.
-gh auth setup-git
-git push -u origin "$branch"
-pr_message="Automated development attempt for #$ISSUE_NUMBER. Bounded AI repair loop and local regression QA passed. **Requires PR review and CI. No automatic merge or production deployment.**"
-if pr_out="$(gh pr create --base main --head "$branch" \
-  --title "agent: $title (#$ISSUE_NUMBER)" --body "$pr_message" 2>&1)"; then
-  printf '%s\n' "$pr_out"
-else
-  # GITHUB_TOKEN cannot create PRs in repos where the Actions PR creation
-  # setting is disabled. Do not misreport successful coding/QA as successful PR
-  # creation. Preserve the pushed branch and ask the connected GitHub bridge
-  # to open a reviewed PR using its own separately authorized app identity.
-  if grep -qi 'GitHub Actions is not permitted to create or approve pull requests' <<<"$pr_out"; then
-    marker="[agent-pr-bridge:${GITHUB_RUN_ID:-local}]"
-    bridge_body="$(printf '%s\n' \
-      "$marker" \
-      "AI 코드 생성·기능별 QA·브랜치 푸시는 통과했으나 GitHub Actions 기본 토큰은 PR 생성을 허용하지 않습니다." \
-      "브랜치: $branch" \
-      "원본 작업: #$ISSUE_NUMBER" \
-      "실행: https://github.com/${GITHUB_REPOSITORY:-koith/attendance-proto}/actions/runs/${GITHUB_RUN_ID:-local}" \
-      "PR은 승인된 별도 연결 권한으로 생성한 뒤 전체 CI를 재검증해야 합니다. 아직 PR/병합/배포 성공이 아닙니다.")"
-    # If the handoff receipt cannot be posted, never silently pretend that
-    # a separately authorized bridge has a discoverable pending job.
-    if ! gh issue comment "$ISSUE_NUMBER" --body "$bridge_body"; then
-      echo "::error::PR bridge handoff receipt could not be posted: $branch"
-      exit 1
-    fi
-    echo "::error::Review PR pending connector bridge: $branch"
-  fi
-  printf '%s\n' "$pr_out"
-  exit 1
-fi
+patch_dir="${RUNNER_TEMP:?RUNNER_TEMP required}"
+git diff --cached --binary --no-ext-diff > "$patch_dir/agent-validated.patch"
+git rev-parse HEAD > "$patch_dir/agent-base-sha.txt"
+printf '%s\n' "$ISSUE_NUMBER" > "$patch_dir/agent-issue-number.txt"
+test -s "$patch_dir/agent-validated.patch"
+echo "AGENT_PROPOSAL_STAGED_FOR_SEPARATE_PUBLISH"
