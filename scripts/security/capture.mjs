@@ -48,7 +48,7 @@ async function run(){
  }
  writeFileSync(join(stage,'manifest.json'),JSON.stringify({format:'attendance-secure-backup-v1',database_sha256:sha(join(stage,'database.dump')),storage:hashes,auth_config:authConfig,full_storage_count:objects.length,created_at:new Date().toISOString()},null,2),{mode:0o600});
  command('tar',['-czf',join(root,'snapshot.tar.gz'),'-C',stage,'.']);
- command('node',['scripts/security/seal.mjs',join(root,'snapshot.tar.gz'),'security/recipient_20261103.pub.pem',out]);
+ command('node',['scripts/security/seal.mjs',join(root,'snapshot.tar.gz'),process.env.SEC_BACKUP_RECIPIENT_PEM||'security/recipient_20261103.pub.pem',out]);
  console.log('ENCRYPTED_BACKUP_CREATED storage_objects='+objects.length+' db_archive_bytes='+statSync(join(stage,'database.dump')).size+' auth_config_captured='+authConfig.captured);
 }
 try{await run()}finally{rmSync(root,{force:true,recursive:true})}
