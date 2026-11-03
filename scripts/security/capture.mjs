@@ -45,7 +45,9 @@ async function run(){
   hashes.push({bucket:obj.bucket,name:obj.name,file,bytes,sha256:sha(target)});
  }
  if(roster()!==before)throw Error('STORAGE_METADATA_CHANGED_DURING_BACKUP_RETRY_FRESH_SNAPSHOT');
- const authUrl='https://api.supabase.com/v1/projects/waluhdgqhwjjwmflhrle/config/auth';
+ const authUrl=process.env.SEC_BACKUP_ALLOW_LOCAL_AUTH_FIXTURE==='1' && process.env.SEC_BACKUP_AUTH_FIXTURE_URL?.startsWith('http://127.0.0.1:4100/')
+  ? process.env.SEC_BACKUP_AUTH_FIXTURE_URL
+  : 'https://api.supabase.com/v1/projects/waluhdgqhwjjwmflhrle/config/auth';
  let authResponse;
  try{authResponse=await fetch(authUrl,{headers:{Authorization:'Bearer '+process.env.SUPABASE_ACCESS_TOKEN},redirect:'error',signal:AbortSignal.timeout(20000)});}
  catch{throw Error('HOSTED_AUTH_CONFIG_NETWORK_FAILED')}
