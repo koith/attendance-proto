@@ -75,6 +75,9 @@ jobs:
           export SUPABASE_DB_URL='postgresql://postgres:synthetic_qa_only@127.0.0.1:55432/postgres?sslmode=disable'
           export SUPABASE_URL='http://127.0.0.1:4100'
           export SUPABASE_SERVICE_ROLE_KEY='synthetic-storage-only'
+          export SUPABASE_ACCESS_TOKEN='synthetic-management-only'
+          export SEC_BACKUP_ALLOW_LOCAL_AUTH_FIXTURE='1'
+          export SEC_BACKUP_AUTH_FIXTURE_URL='http://127.0.0.1:4100/v1/projects/waluhdgqhwjjwmflhrle/config/auth'
           export SEC_BACKUP_RECIPIENT_PEM='qa-public.pem'
           export SEC_BACKUP_OUT='qa-end-to-end.sealed'
           node --check scripts/security/capture.mjs
@@ -87,6 +90,12 @@ jobs:
           import {createHash} from 'node:crypto';
           const meta=JSON.parse(readFileSync('qa-unpacked/manifest.json'));
           if(meta.storage.length!==1||meta.full_storage_count!==1)throw Error('STORAGE_OBJECT_COUNT_MISMATCH');
+          if(meta.auth_config?.captured!==true)throw Error('HOSTED_AUTH_CONFIG_REQUIRED');
+          const auth=JSON.parse(readFileSync('qa-unpacked/hosted-auth-config.json','utf8'));
+          if(auth.site_url!=='https://fixture.invalid')throw Error('HOSTED_AUTH_CONFIG_RESTORE_MISMATCH');
+          const roles=readFileSync('qa-unpacked/roles.globals.sql');
+          if(!roles.includes('CREATE ROLE'))throw Error('ROLE_GLOBALS_MISSING');
+          if(createHash('sha256').update(roles).digest('hex')!==meta.roles_sha256)throw Error('ROLE_GLOBALS_HASH_MISMATCH');
           const stored=readFileSync('qa-unpacked/'+meta.storage[0].file);
           if(stored.toString()!=='synthetic-only')throw Error('STORAGE_BYTE_MISMATCH');
           if(createHash('sha256').update(stored).digest('hex')!==meta.storage[0].sha256)throw Error('STORAGE_HASH_MISMATCH');
@@ -97,6 +106,21 @@ jobs:
           test "$(docker exec sec-restore-pg17 psql -U postgres -d sec_capture_restore -Atc 'SELECT count(*) FROM auth.users;')" = '1'
           test "$(docker exec sec-restore-pg17 psql -U postgres -d sec_capture_restore -Atc 'SELECT count(*) FROM storage.objects;')" = '1'
           echo 'PASS synthetic DB/Auth rows + Storage bytes/hash, sealed archive and isolated restore'
+          export SUPABASE_ACCESS_TOKEN='wrong-synthetic-management-token'
+          export SEC_BACKUP_OUT='qa-denied.sealed'
+          if node scripts/security/capture.mjs > qa-auth-denied.log 2>&1; then
+            echo 'CRITICAL: backup succeeded despite inaccessible Auth config'; exit 1
+          fi
+          grep -q 'HOSTED_AUTH_CONFIG_FAILED_HTTP_403' qa-auth-denied.log
+          test ! -f qa-denied.sealed
+          unset SUPABASE_ACCESS_TOKEN
+          export SEC_BACKUP_OUT='qa-missing-auth.sealed'
+          if node scripts/security/capture.mjs > qa-auth-missing.log 2>&1; then
+            echo 'CRITICAL: backup succeeded without Auth config token'; exit 1
+          fi
+          grep -q 'AUTH_CONFIG_READ_TOKEN_NOT_CONFIGURED' qa-auth-missing.log
+          test ! -f qa-missing-auth.sealed
+          echo 'PASS fail-closed: missing/denied Auth config produces no encrypted backup'
       - name: Verify release never includes test secrets
         run: |
           test ! -f security/recipient_20261103.private.pem
