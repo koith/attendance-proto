@@ -44,14 +44,16 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$GH_TOKEN" && test -n "$GITHUB_TOKEN" || { echo "::error::GitHub Actions token missing"; exit 1; }
-          if [[ -n "$OPENAI_API_KEY" ]]; then echo "Using configured OpenAI aider provider"; else echo "No OpenAI secret: using GitHub Copilot CLI via GITHUB_TOKEN"; fi
+          echo "Approved task will be executed under READ-only token and a provider selected after dependency install."
           gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name' | grep -qx 'agent-approved' || { echo "::error::Issue requires agent-approved label"; exit 1; }
           gh issue view "$ISSUE_NUMBER" --json state --jq .state | grep -qx OPEN
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      - name: Install AI coding agent and browser QA dependencies
+      - name: Install AI provider without supplying the provider secret to package installers
+        env:
+          AIDER_ENABLED: ${{ secrets.OPENAI_API_KEY != '' }}
         run: |
-          if [[ -n "$OPENAI_API_KEY" ]]; then
+          if [[ "$AIDER_ENABLED" == 'true' ]]; then
             python -m pip install 'aider-chat==0.86.1'
           else
             npm install -g --no-audit --no-fund @github/copilot
