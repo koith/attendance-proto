@@ -29,7 +29,7 @@ async function authorize(req:Request):Promise<boolean>{
    issuer:'https://token.actions.githubusercontent.com',audience:AUDIENCE,algorithms:['RS256'],maxTokenAge:'4m'
   });
   if(protectedHeader.alg!=='RS256'||payload.repository!=='koith/attendance-proto'||String(payload.repository_id)!=='1346210224')return false;
-  if(payload.ref!=='refs/heads/main'||payload.sub!=='repo:koith/attendance-proto:ref:refs/heads/main')return false;
+  if(payload.ref!=='refs/heads/main'||typeof payload.sub!=='string'||payload.sub.length<10)return false; // GitHub custom/immutable sub; bind strongly by verified repo ID, ref and workflow_ref below
   if(payload.workflow_ref!==WORKFLOW_REF||payload.event_name!=='push'||String(payload.run_attempt)!=='1')return false;
   return true;
  }catch{return false}
