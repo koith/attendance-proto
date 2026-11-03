@@ -112,8 +112,7 @@ EDIT_PROPOSAL_CONTRACT
     echo "::warning::Coding provider exited $provider_status on attempt $attempt"
   fi
   # Diagnostic excerpt: never execute model output. Actions masks token values.
-  echo "Provider response excerpt (attempt $attempt):"
-  tail -c 5000 /tmp/agent-reports/provider.log || true
+  echo "Provider outcome recorded locally (not logging untrusted provider response)"
   echo "::endgroup::"
   # The AI cannot change production data, workflow configuration or shell scripts.
   modified="$(git status --porcelain --untracked-files=all | cut -c4-)"
@@ -126,53 +125,26 @@ EDIT_PROPOSAL_CONTRACT
   changed_application="$(printf '%s\n' "$modified" | grep -E '^[a-zA-Z0-9_-]+\.(js|html|css)$' || true)"
   echo "Changed source paths after attempt $attempt:"
   printf '%s\n' "$modified" | sed '/^$/d' | head -n 30
+  # IMPORTANT: never EXECUTE model-generated code in this provider-key step.
+  # A separate runner job with no OpenAI key and no WRITE credential runs QA.
   set +e
   (
     set -e
-    # Model-generated QA may execute JavaScript in a disposable runner.
-    # Do not pass the GitHub write token or OpenAI secret into those processes.
     unset GH_TOKEN GITHUB_TOKEN OPENAI_API_KEY
-    if [[ -z "$changed_tests" ]]; then
-      echo "QA FAIL: feature-specific qa_*.mjs regression test is mandatory"
-      exit 1
-    fi
-    if [[ -z "$changed_application" ]]; then
-      echo "QA FAIL: no actual application JS/HTML/CSS file was changed"
-      exit 1
-    fi
-    while IFS= read -r test_path; do
-      node --check "$test_path"
-      node "$test_path"
-    done <<< "$changed_tests"
-    node qa_boot_syntax.mjs
-    node qa_index_startup_smoke_v1.mjs
-    node qa_runtime_wiring_v1.mjs
-    # CI contract parity matters: the first working agent run produced
-    # browser-tested focus code but missed the longstanding Escape contract,
-    # which then failed P0. Fail and repair BEFORE opening any review PR.
-    if grep -qx 'hq_owner_console.js' <<<"$changed_application"; then
-      node qa_hq_quicknav_escape_contract_v1.mjs
-      node qa_hq_dashboard_entry_auth.mjs
-    fi
-    if grep -qx 'hq_store_onboarding_ui.js' <<<"$changed_application"; then
-      node qa_hq_store_onboarding_v1.mjs
-      node qa_hq_store_search_owner_activation_v1.mjs
-    fi
-    if grep -qx 'store_manager_tab.js' <<<"$changed_application"; then
-      node qa_store_delegated_manager_v1.mjs
-      node qa_confirmed_owner_permission_v1.mjs
-    fi
-    node qa_hq_owner_browser_acceptance.mjs
+    [[ -n "$changed_tests" && -n "$changed_application" ]] || exit 1
+    while IFS= read -r test_path; do node --check "$test_path"; done <<< "$changed_tests"
+    while IFS= read -r app_path; do
+      [[ "$app_path" == *.js ]] && node --check "$app_path" || true
+    done <<< "$changed_application"
   ) >/tmp/agent-reports/qa.log 2>&1
   status=$?
   set -e
   if [[ "$status" == 0 ]]; then
-    echo "Automated QA passed on attempt $attempt"
+    echo "Syntax-only preflight passed; independent QA still required"
     break
   fi
   if [[ "$attempt" == 5 ]]; then
-    cat /tmp/agent-reports/qa.log
-    echo "::error::Agent repair limit reached; no PR will be opened"
+    echo "::error::Agent syntax/preflight limit reached; no PR will be opened"
     exit 1
   fi
   {
