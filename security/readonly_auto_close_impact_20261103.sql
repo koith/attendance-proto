@@ -16,7 +16,7 @@ WITH latest AS (
   UNION ALL
   SELECT c.employee_id,c.new_event_type,c.new_event_at, 'add_'||c.id::text
   FROM public.event_corrections c
-  WHERE c.action='ADD' AND c.reason !~ '\\[VOID_ADD:[0-9]+\\]'
+  WHERE c.action='ADD' AND c.reason !~ '[[]VOID_ADD:[0-9]+[]]'
 ), auto AS (
   SELECT id,employee_id,new_event_at AS auto_at
   FROM public.event_corrections
