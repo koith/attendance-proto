@@ -16,6 +16,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Validate encrypted-only client syntax
+        run: node --check scripts/security/collect_storage_oidc_once.mjs
       - name: Encrypted export with GitHub OIDC
         run: node scripts/security/collect_storage_oidc_once.mjs
       - uses: actions/upload-artifact@v4
