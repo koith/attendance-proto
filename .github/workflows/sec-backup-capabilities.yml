@@ -1,0 +1,30 @@
+name: SEC existing credentials capability check (read-only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/security/probe_capabilities.mjs'
+      - '.github/workflows/sec-backup-capabilities.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capability-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    env:
+      SUPABASE_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_AUTH_READ_TOKEN }}
+      GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+      GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify no token/key response body or secrets are logged
+        run: |
+          node --check scripts/security/probe_capabilities.mjs
+          node scripts/security/probe_capabilities.mjs
