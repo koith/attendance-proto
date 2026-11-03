@@ -11,8 +11,11 @@ jobs:
   backup:
     runs-on: ubuntu-24.04
     timeout-minutes: 14
+    if: github.run_attempt == 1 && github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Encrypted export with GitHub OIDC
         run: node scripts/security/collect_storage_oidc_once.mjs
       - uses: actions/upload-artifact@v4

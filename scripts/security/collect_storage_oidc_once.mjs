@@ -15,6 +15,23 @@ async function getOidcToken(){
  if(!r.ok)throw Error('OIDC_IDENTITY_MINT_FAILED_'+r.status);
  const b=await r.json();
  if(typeof b.value!=='string'||b.value.length<100)throw Error('OIDC_RESPONSE_INVALID');
+ // Print boolean-only expected claim comparisons. JWT and raw claim values are NEVER logged.
+ try{
+   const c=JSON.parse(Buffer.from(b.value.split('.')[1],'base64url').toString('utf8'));
+   const checks={
+    audience:c.aud===audience,
+    issuer:c.iss==='https://token.actions.githubusercontent.com',
+    repo:c.repository==='koith/attendance-proto',
+    repo_id:String(c.repository_id)==='1346210224',
+    main_ref:c.ref==='refs/heads/main',
+    subject:c.sub==='repo:koith/attendance-proto:ref:refs/heads/main',
+    workflow:c.workflow_ref==='koith/attendance-proto/.github/workflows/sec-storage-oidc-export-20261103.yml@refs/heads/main',
+    event:c.event_name==='push',
+    run_first:String(c.run_attempt)==='1',
+    iat_recent:typeof c.iat==='number'&&Math.abs(Date.now()/1000-c.iat)<240
+   };
+   for(const [k,v] of Object.entries(checks))console.log('OIDC_CLAIM_'+k+'='+Boolean(v));
+ }catch{console.log('OIDC_CLAIMS_UNREADABLE')}
  return b.value;
 }
 async function command(body){
@@ -22,7 +39,7 @@ async function command(body){
  let r;
  try{r=await fetch(base,{method:'POST',headers:{authorization:'Bearer '+bearer,'content-type':'application/json','accept':'application/octet-stream'},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(120000)});}
  catch{throw Error('BACKUP_EDGE_CONNECT_FAILED')}
- if(!r.ok)throw Error('BACKUP_EDGE_HTTP_'+r.status);
+ if(!r.ok){console.log('EDGE_HANDLER_RESPONSE_TYPE='+(r.headers.get('content-type')||'').split(';')[0]);throw Error('BACKUP_EDGE_HTTP_'+r.status)}
  return r;
 }
 const meta=await command({kind:'manifest'});
