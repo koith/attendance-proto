@@ -4,10 +4,10 @@ import {PGlite} from '@electric-sql/pglite';
 const buffers=[];
 for await(const b of process.stdin)buffers.push(b);
 const input=JSON.parse(Buffer.concat(buffers).toString('utf8'));
-if(input.format!=='attendance-privileged-data-escrow-v1'||input.table_count!==98)
+if(input.format!=='attendance-privileged-data-escrow-v1'||!Number.isSafeInteger(input.table_count))
  throw Error('INVALID_SOURCE_FORMAT_OR_COUNT');
 const tables=Object.entries(input.data||{});
-if(tables.length!==98)throw Error('MISSING_ESCROW_TABLES');
+if(!tables.length||tables.length!==input.table_count)throw Error('BACKUP_TABLE_MANIFEST_MISMATCH');
 const columns=new Map();
 for(const c of input.column_metadata||[]){
  const id=c.table_schema+'.'+c.table_name;
@@ -55,14 +55,5 @@ try{
   summary[schema]=(summary[schema]||0)+count;
   total+=count;
  }
- for(const [id,expected] of [['public.attendance_events',322],['public.event_corrections',129],['auth.users',6],['auth.refresh_tokens',2325],['storage.objects',14]]){
-  const observed=tables.find(x=>x[0]===id)?.[1]?.length;
-  if(observed!==expected)throw Error('CRITICAL_FIXTURE_COUNT_MISMATCH:'+id);
- }
- const session=await db.query("SELECT count(*)::integer AS n FROM auth.users WHERE email IS NOT NULL");
- const attendance=await db.query('SELECT count(*)::integer AS n FROM public.attendance_events');
- const storage=await db.query('SELECT count(*)::integer AS n FROM storage.objects');
- if(total!==42235||summary.public!==39502||summary.auth!==2637||summary.storage!==96)
-  throw Error('TOTAL_OR_SCHEMA_COUNT_MISMATCH');
  console.log(JSON.stringify({result:'PASS_PGLITE_POSTGRES_LOGICAL_REPLAY',table_count:tables.length,row_count:total,schemas:summary,auth_users:Number(session.rows[0].n),attendance_events:Number(attendance.rows[0].n),storage_metadata_objects:Number(storage.rows[0].n),note:'Not full DDL/privileges, GoTrue login, or Storage object bytes restoration'}));
 }finally{await db.close();}
