@@ -32,7 +32,7 @@ function columnType(col){
  return types[col.data_type]||'text';
 }
 function canon(v){if(Array.isArray(v))return '['+v.map(canon).join(',')+']';if(v&&typeof v==='object')return '{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canon(v[k])).join(',')+'}';return JSON.stringify(v)}
-function normalize(row,attrs){const result={};for(const [key,value] of Object.entries(row)){const meta=attrs.get(key);if(value!==null&&meta?.data_type==='timestamp with time zone'){const time=Date.parse(String(value));result[key]=Number.isFinite(time)?new Date(time).toISOString():value}else if(value!==null&&meta?.data_type==='timestamp without time zone')result[key]=String(value).replace(' ','T').replace(/(\\.\\d*?)0+$/,'$1').replace(/\\.$/,'');else result[key]=value}return result}
+function normalize(row,attrs){const result={};for(const [key,value] of Object.entries(row)){const meta=attrs.get(key);if(value!==null&&meta?.data_type==='timestamp with time zone'){const time=Date.parse(String(value));result[key]=Number.isFinite(time)?new Date(time).toISOString():value}else if(value!==null&&meta?.data_type==='timestamp without time zone')result[key]=String(value).replace(' ','T').replace(/(\.\d*?)0+$/,'$1').replace(/\.$/,'');else result[key]=value}return result}
 function rowHash(records,attrs){const list=records.map(v=>canon(normalize(v,attrs))).sort();const h=createHash('sha256');for(const t of list){h.update(String(t.length)+':');h.update(t)}return h.digest('hex')}
 const db=new PGlite();
 try{
@@ -65,7 +65,7 @@ try{
   total+=restored.length;
  }
  const manifestHash=createHash('sha256');
- for(const id of Object.keys(contentHashes).sort())manifestHash.update(id+'|'+tables.find(x=>x[0]===id)[1].length+'|'+contentHashes[id]+'\\n');
+ for(const id of Object.keys(contentHashes).sort())manifestHash.update(id+'|'+tables.find(x=>x[0]===id)[1].length+'|'+contentHashes[id]+'\n');
  const restoredContentManifestSha256=manifestHash.digest('hex');
  const countOf=id=>tables.find(x=>x[0]===id)?.[1]?.length??null;
  console.log(JSON.stringify({result:'PASS_PGLITE_POSTGRES_LOGICAL_REPLAY',table_count:tables.length,row_count:total,schemas:summary,content_hashes_verified:Object.keys(contentHashes).length,content_manifest_sha256:restoredContentManifestSha256,auth_users:countOf('auth.users'),attendance_events:countOf('public.attendance_events'),storage_metadata_objects:countOf('storage.objects'),note:'Not full DDL/privileges, GoTrue login, or Storage object bytes restoration'}));
