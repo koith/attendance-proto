@@ -13,8 +13,10 @@ jobs:
   sealed-capture:
     if: github.ref == 'refs/heads/main' && inputs.capture_scope == 'AUTH_DB_STORAGE_ENCRYPTED_ONLY'
     runs-on: ubuntu-24.04
+    environment: production-backup
     timeout-minutes: 20
     env:
+      SEC_BACKUP_ENV_READY: ${{ vars.SEC_BACKUP_ENV_READY }}
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -28,8 +30,10 @@ jobs:
       - name: Ensure required backup connection is configured
         shell: bash
         run: |
+          test "$SEC_BACKUP_ENV_READY" = 'true' || { echo 'BACKUP_BLOCKED_PROTECTED_ENV_NOT_READY'; exit 1; }
           test -n "$SUPABASE_DB_URL" || { echo "BACKUP_BLOCKED_DB_CONNECTION"; exit 1; }
           test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "BACKUP_BLOCKED_STORAGE_CREDENTIAL"; exit 1; }
+          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "BACKUP_BLOCKED_AUTH_CONFIG_CREDENTIAL"; exit 1; }
       - name: Install matching PostgreSQL client
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
