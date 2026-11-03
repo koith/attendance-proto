@@ -14,7 +14,7 @@ Deno.test('RSA-OAEP/AES-GCM roundtrip of synthetic file; tampering refused',asyn
  if(new TextDecoder().decode(original)!=='synthetic-only-backup-data')throw Error('ROUNDTRIP_MISMATCH');
  const changed=fromBase64(sealed.ciphertext);changed[0]^=1;
  let rejected=false;
- try{await crypto.subtle.decrypt({name:'AES-GCM',iv:fromBase64(sealed.nonce),additionalData:extra},key,buf(changed))}catch{rejected=true}
+ try{await crypto.subtle.decrypt({name:'AES-GCM',iv:buf(fromBase64(sealed.nonce)),additionalData:buf(extra)},key,buf(changed))}catch{rejected=true}
  if(!rejected)throw Error('TAMPERED_CIPHER_ACCEPTED');
  if((await sha256(sample)).length!==64)throw Error('BAD_SHA256');
 });
