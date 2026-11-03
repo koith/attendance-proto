@@ -3,8 +3,8 @@ import {createClient} from 'npm:@supabase/supabase-js@2.58.0';
 import {base64,sha256,seal} from './crypto.ts';
 
 const PROJECT_URL=Deno.env.get('SUPABASE_URL')||'';
-const BUCKET='employee-docs';
-const EXPECTED_COUNT=14;
+const MAX_OBJECTS=100;
+const MAX_TOTAL_BYTES=100*1024*1024;
 const NOT_AFTER=Date.parse('2026-11-03T12:30:00Z');
 const AUDIENCE='attendance-storage-escrow-20261103';
 const WORKFLOW_REF='koith/attendance-proto/.github/workflows/sec-storage-oidc-export-20261103.yml@refs/heads/main';
@@ -29,32 +29,39 @@ async function authorize(req:Request):Promise<boolean>{
    issuer:'https://token.actions.githubusercontent.com',audience:AUDIENCE,algorithms:['RS256'],maxTokenAge:'4m'
   });
   if(protectedHeader.alg!=='RS256'||payload.repository!=='koith/attendance-proto'||String(payload.repository_id)!=='1346210224')return false;
-  if(payload.ref!=='refs/heads/main'||typeof payload.sub!=='string'||payload.sub.length<10)return false; // GitHub custom/immutable sub; bind strongly by verified repo ID, ref and workflow_ref below
+  if(payload.sub!=="repo:koith@48688331/attendance-proto@1346210224:ref:refs/heads/main"||payload.ref!=='refs/heads/main')return false;
+  if(payload.repository_owner!=='koith'||String(payload.repository_owner_id)!=='48688331')return false;
   if(payload.workflow_ref!==WORKFLOW_REF||payload.event_name!=='push'||String(payload.run_attempt)!=='1')return false;
   return true;
  }catch{return false}
 }
 async function listFiles(client:any){
+ const {data:buckets,error:be}=await client.storage.listBuckets();
+ if(be||!Array.isArray(buckets)||!buckets.length||buckets.length>30)throw Error('BUCKET_INVENTORY_UNAVAILABLE');
  const output:{bucket:string,name:string,bytes:number,updated_at:string}[]=[];
- const paths=[''];let guard=0;
- while(paths.length){
-  const p=paths.shift()!;
-  if(++guard>100)throw Error('UNEXPECTED_STORAGE_DIRECTORY_DEPTH');
-  const {data,error}=await client.storage.from(BUCKET).list(p,{limit:100,offset:0,sortBy:{column:'name',order:'asc'}});
-  if(error||!Array.isArray(data)||data.length>=100)throw Error('STORAGE_LIST_FAILED');
-  for(const it of data){
-   if(!it.id){
-    paths.push(p?p+'/'+it.name:it.name);
-   }else{
-    const size=Number(it.metadata?.size);
-    if(!Number.isSafeInteger(size)||size<0)throw Error('STORAGE_METADATA_INVALID');
-    output.push({bucket:BUCKET,name:p?p+'/'+it.name:it.name,bytes:size,updated_at:String(it.updated_at||'')});
+ let privateBucketCount=0;
+ for(const bucket of buckets){
+  if(bucket.public!==true)privateBucketCount++;
+  const paths=[''];let guard=0;
+  while(paths.length){
+   const p=paths.shift()!;
+   if(++guard>100)throw Error('STORAGE_DIRECTORY_LIMIT');
+   const {data,error}=await client.storage.from(bucket.id).list(p,{limit:100,offset:0,sortBy:{column:'name',order:'asc'}});
+   if(error||!Array.isArray(data)||data.length>=100)throw Error('STORAGE_LIST_FAILED');
+   for(const item of data){
+    if(!item.id){paths.push(p?p+'/'+item.name:item.name);continue}
+    const size=Number(item.metadata?.size);
+    if(!Number.isSafeInteger(size)||size<0)throw Error('INVALID_STORAGE_SIZE');
+    output.push({bucket:bucket.id,name:p?p+'/'+item.name:item.name,bytes:size,updated_at:String(item.updated_at||'')});
+    if(output.length>MAX_OBJECTS)throw Error('OBJECT_CAP_EXCEEDED');
    }
   }
  }
- output.sort((a,b)=>a.name.localeCompare(b.name,'en'));
- if(output.length!==EXPECTED_COUNT)throw Error('OBJECT_COUNT_CHANGED');
- return output;
+ output.sort((a,b)=>(a.bucket+'/'+a.name).localeCompare(b.bucket+'/'+b.name,'en'));
+ const total=output.reduce((sum,x)=>sum+x.bytes,0);
+ if(total>MAX_TOTAL_BYTES)throw Error('BACKUP_SIZE_CAP_EXCEEDED');
+ if(!privateBucketCount)throw Error('PRIVATE_BUCKET_MISSING');
+ return {files:output,bucketCount:buckets.length,privateBucketCount,total};
 }
 Deno.serve(async(req)=>{
  if(!await authorize(req))return respond(401,'UNAUTHORIZED');
@@ -64,10 +71,11 @@ Deno.serve(async(req)=>{
   const body=await req.json();
   if(!body||typeof body!=='object')return respond(400,'INVALID_REQUEST');
   const client=createClient(PROJECT_URL,key,{auth:{persistSession:false,autoRefreshToken:false}});
-  const files=await listFiles(client);
+  const inventory=await listFiles(client);
+  const files=inventory.files;
   const roster=await sha256(encoder.encode(JSON.stringify(files)));
   if(body.kind==='manifest'){
-   return Response.json({format:'storage-escrow-oidc-v1',count:files.length,total_bytes:files.reduce((n,o)=>n+o.bytes,0),roster_sha256:roster,bucket_count:1,expected_archives:files.length},{headers});
+   return Response.json({format:'storage-escrow-oidc-v1',count:files.length,total_bytes:inventory.total,roster_sha256:roster,bucket_count:inventory.bucketCount,private_bucket_count:inventory.privateBucketCount,expected_archives:files.length},{headers});
   }
   if(body.kind!=='object'||!Number.isSafeInteger(body.index)||body.index<0||body.index>=files.length||body.roster_sha256!==roster)return respond(409,'ROSTER_MISMATCH');
   const file=files[body.index];
