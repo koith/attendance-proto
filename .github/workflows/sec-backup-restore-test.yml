@@ -121,6 +121,14 @@ jobs:
           grep -q 'AUTH_CONFIG_READ_TOKEN_NOT_CONFIGURED' qa-auth-missing.log
           test ! -f qa-missing-auth.sealed
           echo 'PASS fail-closed: missing/denied Auth config produces no encrypted backup'
+      - name: Export only encrypted synthetic archive for private Drive connector mirror proof
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sec-encrypted-synthetic-mirror
+          path: qa-end-to-end.sealed
+          if-no-files-found: error
+          retention-days: 1
       - name: Verify release never includes test secrets
         run: |
           test ! -f security/recipient_20261103.private.pem
