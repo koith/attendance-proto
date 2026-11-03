@@ -137,6 +137,35 @@ await proveJourneyRepair(['.github/workflows/p0-pages-deploy.yml'],false);
 await proveJourneyRepair(['.github/workflows/store-opening-full-journey.yml','index.html'],false);
 await proveJourneyRepair(['.github/workflows/store-opening-full-journey.yml',
  'supabase/functions/server-sync-sheet/index.ts'],false);
+// Verify the actual guard accepts a one-file documentation-only main push,
+// rejects mixed changes even when the commit uses a docs-only title, and
+// allows a separately scoped test+workflow maintenance commit only.
+async function proveSafeDocOrGuardPush(files,message,shouldPass,expectedError){
+ const context={repo:{owner:'fixture',repo:'fixture'},sha:'d'.repeat(40),
+   payload:{before:'c'.repeat(40),head_commit:{message}}};
+ const github={rest:{repos:{compareCommits:async()=>({data:{files:files.map(filename=>({filename}))}})}}};
+ const op=executeActualGuard(context,github,{info:()=>{}});
+ if(shouldPass) await op;
+ else await assert.rejects(op,expectedError);
+}
+const docsMessage='docs(backlog): reviewed v0.384 proof [QA1243-NO-OPERATING-WRITE]';
+await proveSafeDocOrGuardPush(['PROJECT_BACKLOG_20261017.md'],docsMessage,true);
+await proveSafeDocOrGuardPush(['PROJECT_BACKLOG_20261017.md','index.html'],docsMessage,false,
+ /QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE|QA1243_UNMARKED_APP_CHANGE/);
+await proveSafeDocOrGuardPush(['PROJECT_BACKLOG_20261017.md','supabase/functions/server-sync-sheet/index.ts'],docsMessage,false,
+ /QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE/);
+await proveSafeDocOrGuardPush(['PROJECT_BACKLOG_20261017.md'],
+ 'docs(backlog): missing safety marker',false,/QA1243_NO_WRITES_UNEXPECTED_MAIN_CHANGE/);
+const gateMessage='fix(ci): gate repair [QA1243-NO-OPERATING-WRITE] [QA1243-GUARD-MAINTENANCE]';
+await proveSafeDocOrGuardPush(['.github/workflows/p0-pages-deploy.yml',
+ 'qa1243_pages_no_operating_write_guard.mjs'],gateMessage,true);
+await proveSafeDocOrGuardPush(['.github/workflows/p0-pages-deploy.yml','index.html'],
+ gateMessage,false,/QA1243_GUARD_MAINTENANCE_SCOPE_MISMATCH/);
+await proveSafeDocOrGuardPush(['.github/workflows/p0-pages-deploy.yml',
+ 'qa1243_pages_no_operating_write_guard.mjs','PROJECT_BACKLOG_20261017.md'],
+ gateMessage,false,/QA1243_GUARD_MAINTENANCE_SCOPE_MISMATCH/);
+console.log('PASS exact backlog-only and guard maintenance gate, reject mixed operations');
+
 console.log('PASS QA1243 root QA/SQL triggers and strictly scoped CI-only main push cannot write operating Sheets');
 await assert.rejects(proveRetry({parent:'a'.repeat(40)}),/QA1243_SAFE_RETRY_SCOPE_MISMATCH/);
 await assert.rejects(proveRetry({parentMessage:'unmarked external deployment'}),
