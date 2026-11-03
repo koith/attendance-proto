@@ -54,12 +54,19 @@ try{
    const data=JSON.stringify(records.slice(i,i+250));
    await db.query('INSERT INTO '+table+' SELECT * FROM jsonb_populate_recordset(NULL::'+table+',$1::jsonb)',[data]);
   }
-  const ret=await db.query('SELECT count(*)::integer AS n FROM '+table);
-  const count=Number(ret.rows[0].n);
-  if(count!==records.length)throw Error('POSTGRES_ROW_COUNT_MISMATCH:'+id);
-  summary[schema]=(summary[schema]||0)+count;
-  total+=count;
+  const ret=await db.query('SELECT to_jsonb(t) AS record FROM '+table+' t');
+  const restored=ret.rows.map(x=>x.record);
+  const attrs=new Map(cols.map(c=>[c.column_name,c]));
+  const srcHash=rowHash(records,attrs);
+  const dstHash=rowHash(restored,attrs);
+  if(restored.length!==records.length||srcHash!==dstHash)throw Error('POSTGRES_CONTENT_MISMATCH:'+id);
+  contentHashes[id]=dstHash;
+  summary[schema]=(summary[schema]||0)+restored.length;
+  total+=restored.length;
  }
+ const manifestHash=createHash('sha256');
+ for(const id of Object.keys(contentHashes).sort())manifestHash.update(id+'|'+tables.find(x=>x[0]===id)[1].length+'|'+contentHashes[id]+'\\n');
+ const restoredContentManifestSha256=manifestHash.digest('hex');
  const countOf=id=>tables.find(x=>x[0]===id)?.[1]?.length??null;
- console.log(JSON.stringify({result:'PASS_PGLITE_POSTGRES_LOGICAL_REPLAY',table_count:tables.length,row_count:total,schemas:summary,auth_users:countOf('auth.users'),attendance_events:countOf('public.attendance_events'),storage_metadata_objects:countOf('storage.objects'),note:'Not full DDL/privileges, GoTrue login, or Storage object bytes restoration'}));
+ console.log(JSON.stringify({result:'PASS_PGLITE_POSTGRES_LOGICAL_REPLAY',table_count:tables.length,row_count:total,schemas:summary,content_hashes_verified:Object.keys(contentHashes).length,content_manifest_sha256:restoredContentManifestSha256,auth_users:countOf('auth.users'),attendance_events:countOf('public.attendance_events'),storage_metadata_objects:countOf('storage.objects'),note:'Not full DDL/privileges, GoTrue login, or Storage object bytes restoration'}));
 }finally{await db.close();}
