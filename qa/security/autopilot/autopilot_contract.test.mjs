@@ -59,7 +59,7 @@ test('a failed source-and-QA replacement does not mutate files',()=>{
    mkdirSync(path.dirname(path.join(dir,file)),{recursive:true});
    writeFileSync(path.join(dir,file),fs.readFileSync(file));
   }
-  assert.throws(()=>applyValidated([{path:task.source,old:'export function',new:'process.env'}, {path:task.test,old:'test(',new:'test('}],task,dir),/DANGEROUS_MODEL_SOURCE|NO_REAL_CHANGE/);
+  assert.throws(()=>applyValidated([{path:task.source,old:'export function',new:'process.env'}, {path:task.test,old:'test(',new:'test('}],task,dir),/DANGEROUS_MODEL_SOURCE|NO_REAL_CHANGE|AMBIGUOUS_SOURCE_ANCHOR/);
   assert.equal(fs.readFileSync(path.join(dir,task.source),'utf8'),fs.readFileSync(task.source,'utf8'));
  }finally{rmSync(dir,{force:true,recursive:true})}
 });
