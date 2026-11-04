@@ -27,6 +27,10 @@ test('trusted submitted receipt prevents duplicate new branch',()=>{
  const c=[{user:{login:'github-actions[bot]'},body:`[SEC-AUTO:SUBMITTED task=SEC-S04-MANIFEST run=1234 head=${head}]`}];
  assert.equal(chooseTask(catalog,data,c).task.id,'SEC-S01-ROLES');
 });
+test('a pushed review branch is treated as checkpoint even if issue comment fails',()=>{
+ const chosen=chooseTask(catalog,data,[],['main','sec-autopilot/SEC-S04-MANIFEST-run-1234']);
+ assert.equal(chosen.task.id,'SEC-S01-ROLES');
+});
 test('untrusted issue comment cannot forge submitted checkpoint',()=>{
  const c=[{user:{login:'unknown-user'},body:`[SEC-AUTO:SUBMITTED task=SEC-S04-MANIFEST run=1234 head=${head}]`}];
  assert.equal(chooseTask(catalog,data,c).task.id,'SEC-S04-MANIFEST');
