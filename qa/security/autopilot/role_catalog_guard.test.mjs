@@ -1,0 +1,1 @@
+import {test} from 'node:test'; import {strict as assert} from 'node:assert'; import {summarizeRoleCatalog} from '../../../scripts/security/autopilot/role_catalog_guard.mjs'; test('synthetic fixture',()=>assert.deepEqual(summarizeRoleCatalog([{name:'A'}]),{count:1}));

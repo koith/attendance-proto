@@ -1,0 +1,1 @@
+import {test} from 'node:test'; import {strict as assert} from 'node:assert'; import {countReplayDelta} from '../../../scripts/security/autopilot/delta_guard.mjs'; test('synthetic fixture',()=>assert.deepEqual(countReplayDelta([]),{count:0}));

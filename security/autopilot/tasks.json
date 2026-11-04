@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "master_issue": 1492,
+  "source_ledgers": [
+    "SECURITY_STABILITY_LEDGER_20261103.md",
+    "AI_AUTOMATION_SECURITY_LEDGER_20261104.md"
+  ],
+  "allow_auto_merge": true,
+  "max_identical_cause_retries": 2,
+  "tasks": [
+    {
+      "id": "SEC-S04-MANIFEST",
+      "ledger": "SEC-S04",
+      "priority": 10,
+      "source": "scripts/security/autopilot/manifest_guard.mjs",
+      "test": "qa/security/autopilot/manifest_guard.test.mjs",
+      "objective": "On wholly synthetic data, make this offline escrow manifest validator reject mismatched table content digest, duplicate/invalid table IDs, truncated rows, and malformed timestamp. Add negative regression tests without any I/O, network or privileged data. Preserve valid cases and existing exported API."
+    },
+    {
+      "id": "SEC-S01-ROLES",
+      "ledger": "SEC-S01",
+      "priority": 20,
+      "source": "scripts/security/autopilot/role_catalog_guard.mjs",
+      "test": "qa/security/autopilot/role_catalog_guard.test.mjs",
+      "objective": "Improve offline role inventory checks using synthetic role catalog only. Reject duplicate, missing or unexpected role identifiers and detect missing required synthetic privilege metadata, with negative tests. Never query a real DB."
+    },
+    {
+      "id": "SEC-S02-AUTH",
+      "ledger": "SEC-S02",
+      "priority": 30,
+      "source": "scripts/security/autopilot/auth_config_guard.mjs",
+      "test": "qa/security/autopilot/auth_config_guard.test.mjs",
+      "objective": "Improve synthetic Auth configuration inventory verification, refuse incomplete metadata, detect duplicates and restrict sensitive key output without using secrets. Add isolation tests. Do not call hosted Auth."
+    },
+    {
+      "id": "SEC-S16-DELTA",
+      "ledger": "SEC-S16",
+      "priority": 40,
+      "source": "scripts/security/autopilot/delta_guard.mjs",
+      "test": "qa/security/autopilot/delta_guard.test.mjs",
+      "objective": "Improve offline synthetic attendance event delta replay validation, detect duplicate IDs, out-of-order timestamps and missing original event references without writing DB. Add regression tests. Do not query operating records."
+    },
+    {
+      "id": "AISEC-04-ENV",
+      "ledger": "AISEC-04",
+      "priority": 50,
+      "source": "scripts/security/autopilot/qa_environment_guard.mjs",
+      "test": "qa/security/autopilot/qa_environment_guard.test.mjs",
+      "objective": "Build an offline metadata-only denied-environment-name validator for synthetic test descriptors, detecting high-privilege credentials by key NAME only and ensuring no values are ever returned. Add negative tests."
+    }
+  ]
+}

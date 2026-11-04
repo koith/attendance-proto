@@ -1,0 +1,1 @@
+import {test} from 'node:test'; import {strict as assert} from 'node:assert'; import {auditEnvDescriptor} from '../../../scripts/security/autopilot/qa_environment_guard.mjs'; test('synthetic fixture',()=>assert.deepEqual(auditEnvDescriptor([]),{count:0}));

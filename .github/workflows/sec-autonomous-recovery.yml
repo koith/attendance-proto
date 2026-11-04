@@ -1,0 +1,231 @@
+name: SEC recovery-autopilot (isolated code only)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+  push:
+    branches: [main]
+    paths: ['.github/workflows/sec-autonomous-recovery.yml']
+permissions:
+  contents: read
+concurrency:
+  group: sec-recovery-autopilot-single-owner
+  cancel-in-progress: false
+jobs:
+  select:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      issues: read
+    outputs:
+      selected: ${{ steps.pick.outputs.selected }}
+      task: ${{ steps.pick.outputs.task }}
+      ledger: ${{ steps.pick.outputs.ledger }}
+      source: ${{ steps.pick.outputs.source }}
+      test: ${{ steps.pick.outputs.test }}
+      prior_failures: ${{ steps.pick.outputs.prior_failures }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Select strictly allowlisted incomplete task with trustworthy checkpoint
+        id: pick
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/security/autopilot/select_task.mjs
+  develop:
+    needs: select
+    if: needs.select.outputs.selected == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: read
+      copilot-requests: write
+    env:
+      SEC_AUTO_TASK: ${{ needs.select.outputs.task }}
+      SEC_AUTO_SOURCE: ${{ needs.select.outputs.source }}
+      SEC_AUTO_TEST: ${{ needs.select.outputs.test }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install read-only model CLI without provider token in installer environment
+        run: npm install --global --no-audit --no-fund @github/copilot
+      - name: Generate exact two-file proposal; provider only has read-only tool access
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/security/autopilot/propose.mjs
+      - name: Host-side static validation and patch export (no model-written code executed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/security/autopilot/safe_edits.mjs apply "$SEC_AUTO_TASK" "$RUNNER_TEMP/sec-auto-model-proposal.txt"
+          node --check "$SEC_AUTO_SOURCE"
+          node --check "$SEC_AUTO_TEST"
+          git add -- "$SEC_AUTO_SOURCE" "$SEC_AUTO_TEST"
+          node scripts/security/autopilot/safe_edits.mjs verify "$SEC_AUTO_TASK"
+          git diff --cached --binary > "$RUNNER_TEMP/sec-auto-change.patch"
+          git rev-parse HEAD > "$RUNNER_TEMP/sec-auto-base-sha.txt"
+          printf '%s\n' "$SEC_AUTO_TASK" > "$RUNNER_TEMP/sec-auto-task.txt"
+          test -s "$RUNNER_TEMP/sec-auto-change.patch"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sec-auto-untrusted-proposal
+          path: |
+            ${{ runner.temp }}/sec-auto-change.patch
+            ${{ runner.temp }}/sec-auto-base-sha.txt
+            ${{ runner.temp }}/sec-auto-task.txt
+          retention-days: 2
+          if-no-files-found: error
+  qa:
+    needs: [select, develop]
+    if: needs.develop.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    env:
+      SEC_AUTO_TASK: ${{ needs.select.outputs.task }}
+      SEC_AUTO_TEST: ${{ needs.select.outputs.test }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: sec-auto-untrusted-proposal
+          path: ${{ runner.temp }}/sec-auto-patch
+      - name: Confirm immutable source SHA and approved patch before any test execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$(cat "$RUNNER_TEMP/sec-auto-patch/sec-auto-base-sha.txt")"
+          test "$SEC_AUTO_TASK" = "$(cat "$RUNNER_TEMP/sec-auto-patch/sec-auto-task.txt")"
+          git apply --check -- "$RUNNER_TEMP/sec-auto-patch/sec-auto-change.patch"
+          git apply --index -- "$RUNNER_TEMP/sec-auto-patch/sec-auto-change.patch"
+          node scripts/security/autopilot/safe_edits.mjs verify "$SEC_AUTO_TASK"
+      - name: Pull isolated test runtime before running untrusted QA
+        run: docker pull node:22-alpine >/dev/null
+      - name: Run synthetic QA without network, user identity, secrets or writable checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --pids-limit 64 --memory 512m --user 1000:1000 \
+            --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+            -v "$PWD":/src:ro -w /src node:22-alpine \
+            node --test "$SEC_AUTO_TEST"
+          echo 'PASS_ISOLATED_NO_NETWORK_QA'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sec-auto-qa-approved-patch
+          path: |
+            ${{ runner.temp }}/sec-auto-patch/sec-auto-change.patch
+            ${{ runner.temp }}/sec-auto-patch/sec-auto-base-sha.txt
+            ${{ runner.temp }}/sec-auto-patch/sec-auto-task.txt
+          retention-days: 2
+          if-no-files-found: error
+  publish:
+    needs: [select, qa]
+    if: needs.qa.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+      issues: write
+    env:
+      SEC_AUTO_TASK: ${{ needs.select.outputs.task }}
+      SEC_AUTO_LEDGER: ${{ needs.select.outputs.ledger }}
+      SEC_AUTO_PREVIOUS_FAILURES: ${{ needs.select.outputs.prior_failures }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: sec-auto-qa-approved-patch
+          path: ${{ runner.temp }}/sec-auto-patch
+      - name: Revalidate staged artifact and form review-only branch without executing generated code
+        id: attest
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$(cat "$RUNNER_TEMP/sec-auto-patch/sec-auto-base-sha.txt")"
+          test "$SEC_AUTO_TASK" = "$(cat "$RUNNER_TEMP/sec-auto-patch/sec-auto-task.txt")"
+          patch="$RUNNER_TEMP/sec-auto-patch/sec-auto-change.patch"
+          git apply --check -- "$patch"
+          branch="sec-autopilot/$SEC_AUTO_TASK-run-$GITHUB_RUN_ID"
+          git switch -c "$branch"
+          git apply --index -- "$patch"
+          node scripts/security/autopilot/safe_edits.mjs verify "$SEC_AUTO_TASK"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "security(autopilot): $SEC_AUTO_TASK isolated source+synthetic QA proposal"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Publish review branch and checkpoint into existing security Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.attest.outputs.branch }}
+          HEAD_SHA: ${{ steps.attest.outputs.head }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          git push origin "$BRANCH"
+          body="[SEC-AUTO:SUBMITTED task=$SEC_AUTO_TASK run=$GITHUB_RUN_ID head=$HEAD_SHA]
+          ledger=$SEC_AUTO_LEDGER
+          branch=$BRANCH
+          base_sha=$GITHUB_SHA
+          qa=PASS_ISOLATED_NO_NETWORK
+          code_modified=true
+          review_pr=AWAITING_SEPARATE_AUTHORIZED_GITHUB_CONNECTOR
+          prior_failures=$SEC_AUTO_PREVIOUS_FAILURES
+          verified_security_tasks_increment=0
+          operating_changes=false
+          run_url=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/1492/comments" -f "body=$body" --silent
+          echo 'SEC_AUTO_REVIEW_BRANCH_READY'
+  record-failure:
+    needs: [select, develop, qa, publish]
+    if: always() && needs.select.outputs.selected == 'true' && (needs.develop.result == 'failure' || needs.qa.result == 'failure' || needs.publish.result == 'failure')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      issues: write
+    env:
+      SEC_AUTO_TASK: ${{ needs.select.outputs.task }}
+      DEVELOP_RESULT: ${{ needs.develop.result }}
+      QA_RESULT: ${{ needs.qa.result }}
+      PUBLISH_RESULT: ${{ needs.publish.result }}
+    steps:
+      - name: Record nonsecret retry reason and fail closed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cause=UNKNOWN_FAILURE
+          if [ "$DEVELOP_RESULT" = failure ]; then cause=DEVELOP_FAILED; fi
+          if [ "$QA_RESULT" = failure ]; then cause=QA_FAILED; fi
+          if [ "$PUBLISH_RESULT" = failure ]; then cause=PUBLISH_FAILED; fi
+          body="[SEC-AUTO:FAILED task=$SEC_AUTO_TASK cause=$cause run=$GITHUB_RUN_ID]
+          evidence=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+          no_operating_writes=true
+          verified_security_tasks_increment=0
+          retry_policy=two_same_cause_then_alternate"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/1492/comments" -f "body=$body" --silent
