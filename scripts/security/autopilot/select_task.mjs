@@ -56,19 +56,16 @@ async function readIssueComments(repo,issue,token){
  throw Error('CHECKPOINT_PAGINATION_LIMIT');
 }
 async function readPublishedBranches(repo,token){
- const result=[];
- for(let page=1;page<=4;page++){
-  const response=await fetch('https://api.github.com/repos/'+repo+'/branches?per_page=100&page='+page,{
-   headers:{authorization:'Bearer '+token,accept:'application/vnd.github+json','user-agent':'sec-recovery-autopilot'},
-   signal:AbortSignal.timeout(15000),redirect:'error'
+  // A repository can have thousands of historical branches. Search only the
+  // dedicated prefix, never paginate the unrelated general branches.
+  const response=await fetch('https://api.github.com/repos/'+repo+'/git/matching-refs/heads/sec-autopilot/',{
+    headers:{authorization:'Bearer '+token,accept:'application/vnd.github+json','user-agent':'sec-recovery-autopilot'},
+    redirect:'error',signal:AbortSignal.timeout(15000)
   });
-  if(!response.ok)throw Error('BRANCH_READ_FAILED_HTTP_'+response.status);
-  const data=await response.json();
-  if(!Array.isArray(data))throw Error('INVALID_BRANCH_RESPONSE');
-  result.push(...data.map(x=>x.name));
-  if(data.length<100)return result;
- }
- throw Error('BRANCH_PAGINATION_LIMIT');
+  if(!response.ok)throw Error('AUTOPILOT_BRANCH_PREFIX_READ_HTTP_'+response.status);
+  const rows=await response.json();
+  if(!Array.isArray(rows)||rows.length>500)throw Error('UNEXPECTED_AUTOPILOT_BRANCH_REFS');
+  return rows.map(x=>String(x.ref||'').replace(/^refs\/heads\//,''));
 }
 async function main(){
  const repo=process.env.GITHUB_REPOSITORY;
