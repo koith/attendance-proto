@@ -214,7 +214,7 @@ jobs:
           script: |
             const issue=Number(process.env.ISSUE_NUMBER);
             if(!Number.isSafeInteger(issue)||issue<1)throw Error('INVALID_ISSUE_NUMBER');
-            const text=[
+            const lines=[
               '[agent-run:'+context.runId+']',
               'AI 자동 개발 또는 승인/PR 게시가 미완료입니다. 서비스 배포 성공을 의미하지 않습니다.',
               'capture='+process.env.CAPTURE_RESULT,
@@ -222,5 +222,23 @@ jobs:
               'qa='+process.env.QA_RESULT,
               'publish='+process.env.PUBLISH_RESULT,
               '실행: https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId
-            ].join('\n');
-            await github.rest.issues.createComment({...context.repo,issue_number:issue,body:text});
+            ];
+            // GitHub Actions may lack permission to CREATE a PR even when branch
+            // push succeeded. Verify the branch and hand off to another app identity.
+            if(process.env.QA_RESULT==='success' && process.env.PUBLISH_RESULT==='failure') {
+              const branch='agent/issue-'+issue+'-run-'+context.runId;
+              try {
+                const v=await github.rest.repos.getBranch({...context.repo,branch});
+                const sha=v?.data?.commit?.sha||'';
+                if(/^[0-9a-f]{40}$/.test(sha)) {
+                  lines.push('[agent-pr-bridge:'+context.runId+']');
+                  lines.push('QA passed and validated branch pushed. PR pending separate authorized integration. NOT MERGED / NOT DEPLOYED.');
+                  lines.push('branch='+branch);
+                  lines.push('head_sha='+sha);
+                  lines.push('approved_issue='+issue);
+                }
+              }catch{
+                lines.push('review_branch_not_verified; no bridge advertised');
+              }
+            }
+            await github.rest.issues.createComment({...context.repo,issue_number:issue,body:lines.join('\\n')});
