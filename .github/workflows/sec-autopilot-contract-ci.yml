@@ -1,0 +1,37 @@
+name: SEC recovery-autopilot isolation and policy QA
+on:
+  pull_request:
+    paths:
+      - 'security/autopilot/**'
+      - 'scripts/security/autopilot/**'
+      - 'qa/security/autopilot/**'
+      - '.github/workflows/sec-autonomous-recovery.yml'
+      - '.github/workflows/sec-autopilot-contract-ci.yml'
+permissions:
+  contents: read
+jobs:
+  policy-and-fixtures:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax-check trusted autodev tooling
+        run: |
+          node --check scripts/security/autopilot/select_task.mjs
+          node --check scripts/security/autopilot/safe_edits.mjs
+          node --check scripts/security/autopilot/propose.mjs
+          for f in scripts/security/autopilot/*_guard.mjs; do node --check "$f"; done
+      - name: Synthetic ledgers, injection defenses, recovery hooks and file guard tests
+        run: node --test qa/security/autopilot/*.test.mjs
+      - name: Verify no production secrets or operating files in this PR
+        run: |
+          set -euo pipefail
+          git diff --name-only origin/main...HEAD | grep -E '^((\.github/workflows/sec-autonomous-recovery\.yml)|(\.github/workflows/sec-autopilot-contract-ci\.yml)|(security/autopilot/)|(scripts/security/autopilot/)|(qa/security/autopilot/))' >/dev/null
+          if git diff --name-only origin/main...HEAD | grep -Ev '^((\.github/workflows/sec-autonomous-recovery\.yml)|(\.github/workflows/sec-autopilot-contract-ci\.yml)|(security/autopilot/)|(scripts/security/autopilot/)|(qa/security/autopilot/))'; then
+            echo 'SEC_AUTO_DISALLOWED_CHANGED_PATH'; exit 1
+          fi
