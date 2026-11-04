@@ -17,6 +17,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -31,7 +32,7 @@ jobs:
       - name: Verify no production secrets or operating files in this PR
         run: |
           set -euo pipefail
-          git diff --name-only origin/main...HEAD | grep -E '^((\.github/workflows/sec-autonomous-recovery\.yml)|(\.github/workflows/sec-autopilot-contract-ci\.yml)|(security/autopilot/)|(scripts/security/autopilot/)|(qa/security/autopilot/))' >/dev/null
-          if git diff --name-only origin/main...HEAD | grep -Ev '^((\.github/workflows/sec-autonomous-recovery\.yml)|(\.github/workflows/sec-autopilot-contract-ci\.yml)|(security/autopilot/)|(scripts/security/autopilot/)|(qa/security/autopilot/))'; then
+          git diff --name-only HEAD^ HEAD | grep -E '^((\.github/workflows/sec-autonomous-recovery\.yml)|(\.github/workflows/sec-autopilot-contract-ci\.yml)|(security/autopilot/)|(scripts/security/autopilot/)|(qa/security/autopilot/))' >/dev/null
+          if git diff --name-only HEAD^ HEAD | grep -Ev '^((\.github/workflows/sec-autonomous-recovery\.yml)|(\.github/workflows/sec-autopilot-contract-ci\.yml)|(security/autopilot/)|(scripts/security/autopilot/)|(qa/security/autopilot/))'; then
             echo 'SEC_AUTO_DISALLOWED_CHANGED_PATH'; exit 1
           fi
