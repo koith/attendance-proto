@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'security/autopilot/**'
+      - 'SECURITY_STABILITY_LEDGER_20261103.md'
+      - 'AI_AUTOMATION_SECURITY_LEDGER_20261104.md'
       - 'scripts/security/autopilot/**'
       - 'qa/security/autopilot/**'
       - '.github/workflows/sec-autonomous-recovery.yml'
@@ -32,7 +34,7 @@ jobs:
       - name: Verify no production secrets or operating files in this PR
         run: |
           set -euo pipefail
-          git diff --name-only HEAD^ HEAD | grep -E '^((\.github/workflows/sec-autonomous-recovery\.yml)|(\.github/workflows/sec-autopilot-contract-ci\.yml)|(security/autopilot/)|(scripts/security/autopilot/)|(qa/security/autopilot/))' >/dev/null
-          if git diff --name-only HEAD^ HEAD | grep -Ev '^((\.github/workflows/sec-autonomous-recovery\.yml)|(\.github/workflows/sec-autopilot-contract-ci\.yml)|(security/autopilot/)|(scripts/security/autopilot/)|(qa/security/autopilot/))'; then
+          git diff --name-only HEAD^ HEAD | grep -E '^((\.github/workflows/sec-autonomous-recovery\.yml)|(\.github/workflows/sec-autopilot-contract-ci\.yml)|(security/autopilot/)|(SECURITY_STABILITY_LEDGER_20261103[.]md$)|(AI_AUTOMATION_SECURITY_LEDGER_20261104[.]md$)|(scripts/security/autopilot/)|(qa/security/autopilot/))' >/dev/null
+          if git diff --name-only HEAD^ HEAD | grep -Ev '^((\.github/workflows/sec-autonomous-recovery\.yml)|(\.github/workflows/sec-autopilot-contract-ci\.yml)|(security/autopilot/)|(SECURITY_STABILITY_LEDGER_20261103[.]md$)|(AI_AUTOMATION_SECURITY_LEDGER_20261104[.]md$)|(scripts/security/autopilot/)|(qa/security/autopilot/))'; then
             echo 'SEC_AUTO_DISALLOWED_CHANGED_PATH'; exit 1
           fi
