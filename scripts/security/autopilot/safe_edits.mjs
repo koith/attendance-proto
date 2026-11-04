@@ -15,7 +15,7 @@ export function pathsFor(id,catalog){
 const unsafe=/\b(?:process|globalThis|Deno|eval|require|fetch|XMLHttpRequest|WebSocket|Buffer|child_process|worker_threads|node:fs|node:net|node:http|node:https|import\s*\(|__proto__|constructor\s*\[|prototype\s*\[|github\.com|supabase\.co|BEGIN\s+PRIVATE\s+KEY)\b/i;
 export function staticSourceCheck(source,qa){
  for(const [type,c] of [['source',source],['qa',qa]]){
-  if(typeof c!=='string'||c.length>21000||c.length<40||unsafe.test(c)||/(?:new\\s+Function\\s*\\(|\\bFunction\\s*\\()/.test(c)||/https?:\/\//.test(c)||/\b(?:secret|password|authorization)\s*[:=]/i.test(c))throw Error('DANGEROUS_MODEL_SOURCE_'+type);
+  if(typeof c!=='string'||c.length>21000||c.length<40||unsafe.test(c)||(c.includes('Function(')||c.includes('new Function'))||/https?:\/\//.test(c)||/\b(?:secret|password|authorization)\s*[:=]/i.test(c))throw Error('DANGEROUS_MODEL_SOURCE_'+type);
   if(/(^|\n)\s*(?:import|export\s+\*\s+from)\s+.*(?:node:|['"]https?:)/m.test(c.replace(/from\s+['"]node:(?:assert|test|crypto)['"]/g,'from "allowed"')))throw Error('UNAPPROVED_IMPORT_'+type);
  }
  if(!/export\s+function\s+\w+/.test(source)||!/throw\s+(?:new\s+)?Error/.test(source))throw Error('SOURCE_NOT_STRICT_FAIL_CLOSED');
