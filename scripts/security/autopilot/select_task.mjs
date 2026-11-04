@@ -28,7 +28,7 @@ export function chooseTask(catalog,ledgers,comments,liveBranches=[]){
   }
   const tasks=[...catalog.tasks].sort((a,b)=>a.priority-b.priority);
   for(const t of tasks){
-    if(!safe.test(t.id)||!/^\w[-\w]*-\d\d(?:-\w+)?$/.test(t.ledger))throw Error('INVALID_TASK_IDENTIFIER');
+    if(!safe.test(t.id)||!/^(?:SEC-S\d\d|AISEC-\d\d)$/.test(t.ledger))throw Error('INVALID_TASK_IDENTIFIER');
     if(!/^scripts\/security\/autopilot\/[a-z0-9_]+\.mjs$/.test(t.source)||!/^qa\/security\/autopilot\/[a-z0-9_]+\.test\.mjs$/.test(t.test))throw Error('TASK_PATH_OUTSIDE_ISOLATION');
     const ledger=t.ledger.startsWith('AISEC')?ledgers.ai:ledgers.sec;
     const status=statusOfLedger(ledger,t.ledger);
