@@ -1,0 +1,1 @@
+import {test} from 'node:test'; import {strict as assert} from 'node:assert'; import {checkAuthConfigMetadata} from '../../../scripts/security/autopilot/auth_config_guard.mjs'; test('synthetic fixture',()=>assert.deepEqual(checkAuthConfigMetadata([]),{count:0}));
