@@ -14,7 +14,7 @@ export function statusOfLedger(content,id){
   }
   return null;
 }
-export function chooseTask(catalog,ledgers,comments){
+export function chooseTask(catalog,ledgers,comments,liveBranches=[]){
   if(catalog.schema!==1||catalog.master_issue!==1492||!Array.isArray(catalog.tasks))throw Error('INVALID_TASK_CATALOG');
   const delivered=new Set(), failures=new Map();
   for(const comment of comments){
@@ -33,7 +33,7 @@ export function chooseTask(catalog,ledgers,comments){
     const ledger=t.ledger.startsWith('AISEC')?ledgers.ai:ledgers.sec;
     const status=statusOfLedger(ledger,t.ledger);
     if(!status)throw Error('LEDGER_TASK_NOT_FOUND:'+t.ledger);
-    if(status==='COMPLETE'||delivered.has(t.id))continue;
+    if(status==='COMPLETE'||delivered.has(t.id)||liveBranches.some(x=>x.startsWith('sec-autopilot/'+t.id+'-run-')))continue;
     const exhausted=[...(failures.get(t.id)?.values()||[])].some(n=>n>=catalog.max_identical_cause_retries);
     if(exhausted)continue;
     return {selected:true,task:t,ledger_status:status,prior_failures:[...(failures.get(t.id)?.values()||[])].reduce((a,b)=>a+b,0)};
@@ -55,6 +55,21 @@ async function readIssueComments(repo,issue,token){
  }
  throw Error('CHECKPOINT_PAGINATION_LIMIT');
 }
+async function readPublishedBranches(repo,token){
+ const result=[];
+ for(let page=1;page<=4;page++){
+  const response=await fetch('https://api.github.com/repos/'+repo+'/branches?per_page=100&page='+page,{
+   headers:{authorization:'Bearer '+token,accept:'application/vnd.github+json','user-agent':'sec-recovery-autopilot'},
+   signal:AbortSignal.timeout(15000),redirect:'error'
+  });
+  if(!response.ok)throw Error('BRANCH_READ_FAILED_HTTP_'+response.status);
+  const data=await response.json();
+  if(!Array.isArray(data))throw Error('INVALID_BRANCH_RESPONSE');
+  result.push(...data.map(x=>x.name));
+  if(data.length<100)return result;
+ }
+ throw Error('BRANCH_PAGINATION_LIMIT');
+}
 async function main(){
  const repo=process.env.GITHUB_REPOSITORY;
  const token=process.env.GITHUB_TOKEN;
@@ -62,7 +77,8 @@ async function main(){
  const catalog=JSON.parse(fs.readFileSync(file,'utf8'));
  const ledgers={sec:fs.readFileSync(catalog.source_ledgers[0],'utf8'),ai:fs.readFileSync(catalog.source_ledgers[1],'utf8')};
  const comments=await readIssueComments(repo,catalog.master_issue,token);
- const chosen=chooseTask(catalog,ledgers,comments);
+ const branches=await readPublishedBranches(repo,token);
+ const chosen=chooseTask(catalog,ledgers,comments,branches);
  const fields=chosen.selected?{
   selected:'true',task:chosen.task.id,ledger:chosen.task.ledger,source:chosen.task.source,test:chosen.task.test,
   prior_failures:String(chosen.prior_failures)
