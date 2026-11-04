@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/sec-autonomous-recovery.yml'
       - 'scripts/security/autopilot/select_task.mjs'
+      - 'scripts/security/autopilot/*_guard.mjs'
 permissions:
   contents: read
 concurrency:
