@@ -1,0 +1,75 @@
+name: SEC continuity disposable PostgreSQL recovery smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/security/recovery/**'
+      - '.github/workflows/sec-continuity-isolated-pg.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-recovery:
+    name: Restore fixture on fresh PostgreSQL 16 (no credentials)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture-only-not-a-secret
+          POSTGRES_DB: pin_fixture_continuity
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pin_fixture_continuity"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: fixture-only-not-a-secret
+      PGDATABASE: pin_fixture_continuity
+      PIN_QA_PSQL: psql
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify psql client exists
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+      - name: Test backup metadata scope and runner guards (synthetic only)
+        run: node --test scripts/security/recovery/verify_backup_completeness.test.mjs scripts/security/recovery/isolated_recovery_runner.test.mjs
+      - name: Prove real PostgreSQL accepts the isolated synthetic restore
+        run: |
+          node scripts/security/recovery/isolated_recovery_runner.mjs > "$RUNNER_TEMP/isolated-result.json"
+          node -e "const r=require(process.argv[1]);if(r.result!=='RUNNER_VERIFIED_SYNTHETIC'||r.checks_passed!==8||r.checks_total!==8) process.exit(1);console.log(r.result+' '+r.checks_passed+'/'+r.checks_total)" "$RUNNER_TEMP/isolated-result.json"
+      - name: Prove dirty database refuses rerun without data deletion
+        run: |
+          set +e
+          node scripts/security/recovery/isolated_recovery_runner.mjs > "$RUNNER_TEMP/dirty.out" 2> "$RUNNER_TEMP/dirty.err"
+          code=$?
+          set -e
+          test "$code" -eq 2
+          grep -q 'ISOLATION_ABORT_DIRTY_DATABASE' "$RUNNER_TEMP/dirty.err"
+          psql -X -At -c "select count(*) from public.attendance_events" | grep -qx '11'
+          echo 'DIRTY_FIXTURE_REFUSED_NO_DATA_LOSS'
+      - name: Prove nonfixture database rejected before psql
+        run: |
+          set +e
+          PGDATABASE=postgres PIN_QA_PSQL=/does/not/exist node scripts/security/recovery/isolated_recovery_runner.mjs > "$RUNNER_TEMP/invalid.out" 2> "$RUNNER_TEMP/invalid.err"
+          code=$?
+          set -e
+          test "$code" -eq 2
+          grep -q ISOLATION_REFUSED "$RUNNER_TEMP/invalid.err"
+          echo 'NONFIXTURE_REFUSED'
