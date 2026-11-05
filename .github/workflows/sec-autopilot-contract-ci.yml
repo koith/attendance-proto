@@ -31,6 +31,20 @@ jobs:
           for f in scripts/security/autopilot/*_guard.mjs; do node --check "$f"; done
       - name: Synthetic ledgers, injection defenses, recovery hooks and file guard tests
         run: node --test qa/security/autopilot/*.test.mjs
+      - name: Prove runtime isolation for generated QA in a disposable container
+        shell: bash
+        run: |
+          set -euo pipefail
+          qa_job="$(sed -n '/^  qa:/,/^  publish:/p' .github/workflows/sec-autonomous-recovery.yml)"
+          grep -F -- 'docker run --rm --network none --read-only --cap-drop ALL' <<< "$qa_job" >/dev/null
+          grep -F -- '--security-opt no-new-privileges' <<< "$qa_job" >/dev/null
+          grep -F -- '-v "$PWD":/src:ro' <<< "$qa_job" >/dev/null
+          ! grep -Eq '(GH_TOKEN|OPENAI_API_KEY|SUPABASE_SERVICE_ROLE_KEY):' <<< "$qa_job"
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --pids-limit 64 --memory 512m --user 1000:1000 \
+            --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+            -v "$PWD":/src:ro -w /src node:22-alpine \
+            node qa/security/autopilot/isolation_canary.mjs
       - name: Verify no production secrets or operating files in this PR
         run: |
           set -euo pipefail

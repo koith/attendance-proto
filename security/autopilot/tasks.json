@@ -5,7 +5,7 @@
     "SECURITY_STABILITY_LEDGER_20261103.md",
     "AI_AUTOMATION_SECURITY_LEDGER_20261104.md"
   ],
-  "allow_auto_merge": true,
+  "allow_auto_merge": false,
   "max_identical_cause_retries": 2,
   "tasks": [
     {
