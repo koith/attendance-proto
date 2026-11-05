@@ -4,8 +4,16 @@ import {readFileSync,existsSync,statSync} from 'node:fs';
 import {createServer} from 'node:http';
 import {resolve,extname} from 'node:path';
 import {chromium,webkit} from 'playwright';
+import {spawnSync} from 'node:child_process';
 const api=process.env.PIN_QA_HTTP||'http://127.0.0.1:55443';
 assert.ok(/^http:\/\/(127\.0\.0\.1|localhost|postgrest):\d+$/.test(api),'isolated endpoint only');
+if(api.startsWith('http://postgrest:')){
+ assert.equal(process.env.GITHUB_ACTIONS,'true','PostgREST service host only in isolated GitHub runner');
+ assert.equal(process.env.GITHUB_REPOSITORY,'koith/attendance-proto');
+ assert.equal(process.env.GITHUB_WORKFLOW,'PIN server security isolated integration');
+}
+const safety=spawnSync('python3',['qa/pin-security/fixture_safety.py','--postinstall'],{stdio:'ignore',timeout:25000});
+assert.equal(safety.status,0,'PIN_FIXTURE_BACKEND_NOT_CONFIRMED');
 const root=resolve('.');const server=createServer((req,res)=>{
  const name=new URL(req.url,'http://local').pathname,path=resolve(root,'.'+(name==='/'?'/index.html':name));
  if(!path.startsWith(root+'/')||!existsSync(path)||!statSync(path).isFile()){res.writeHead(404).end();return}
