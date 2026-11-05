@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 """PostgREST, real HTTP, synthetic fixture only."""
 import urllib.request,urllib.error,json,os,sys
+from urllib.parse import urlsplit
 sys.path.insert(0,os.path.dirname(__file__))
 # Do not import run.py: the integration runner intentionally has no side effects on import here.
 BASE=os.environ.get('PIN_QA_HTTP','http://127.0.0.1:55443')
-assert BASE.startswith(('http://127.0.0.1:','http://localhost:','http://postgrest:3000'))
+from fixture_safety import verify_target
+verify_target(os.environ, require_seed=True) # before any HTTP attempts to mutate seeded fixture
+url=urlsplit(BASE)
+local=(url.scheme=='http' and url.hostname in ('127.0.0.1','localhost') and url.port is not None)
+ci=(url.scheme=='http' and url.hostname=='postgrest' and url.port==3000
+    and os.environ.get('GITHUB_ACTIONS')=='true'
+    and os.environ.get('GITHUB_REPOSITORY')=='koith/attendance-proto'
+    and os.environ.get('GITHUB_WORKFLOW')=='PIN server security isolated integration')
+assert (local or ci) and not url.username and not url.password and not url.path and not url.query and not url.fragment, 'PIN_FIXTURE_HTTP_ENDPOINT_REFUSED'
 passed=0
 def post(name,args,headers=None,query=''):
  req=urllib.request.Request(BASE+'/rpc/'+name+query,data=json.dumps(args).encode(),headers={'Content-Type':'application/json',**(headers or {})})
