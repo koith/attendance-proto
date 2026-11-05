@@ -18,7 +18,7 @@ concurrency:
 jobs:
   verify-and-notify:
     # Never send success for a PR-only gate (no Pages publishing).
-    if: github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event != 'pull_request' && !contains(github.event.workflow_run.head_commit.message, '[QA1243-NO-OPERATING-WRITE]')
+    if: github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event != 'pull_request' && !contains(github.event.workflow_run.head_commit.message, '[QA1243-NO-OPERATING-WRITE]') && !contains(github.event.workflow_run.head_commit.message, '[SEC-NO-OPERATING-WRITE]')
     # Playwright 1.55.1 supports Ubuntu 24.04; ubuntu-latest may advance first.
     runs-on: ubuntu-24.04
     env:
