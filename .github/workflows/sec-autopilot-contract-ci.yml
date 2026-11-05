@@ -31,10 +31,41 @@ jobs:
           for f in scripts/security/autopilot/*_guard.mjs; do node --check "$f"; done
       - name: Synthetic ledgers, injection defenses, recovery hooks and file guard tests
         run: node --test qa/security/autopilot/*.test.mjs
-      - name: Verify no production secrets or operating files in this PR
-        run: |
-          set -euo pipefail
-          git diff --name-only HEAD^ HEAD | grep -E '^((\.github/workflows/sec-autonomous-recovery\.yml)|(\.github/workflows/sec-autopilot-contract-ci\.yml)|(security/autopilot/)|(SECURITY_STABILITY_LEDGER_20261103[.]md$)|(AI_AUTOMATION_SECURITY_LEDGER_20261104[.]md$)|(scripts/security/autopilot/)|(qa/security/autopilot/))' >/dev/null
-          if git diff --name-only HEAD^ HEAD | grep -Ev '^((\.github/workflows/sec-autonomous-recovery\.yml)|(\.github/workflows/sec-autopilot-contract-ci\.yml)|(security/autopilot/)|(SECURITY_STABILITY_LEDGER_20261103[.]md$)|(AI_AUTOMATION_SECURITY_LEDGER_20261104[.]md$)|(scripts/security/autopilot/)|(qa/security/autopilot/))'; then
-            echo 'SEC_AUTO_DISALLOWED_CHANGED_PATH'; exit 1
-          fi
+      - name: Verify complete PR changed-path scope (never just last commit)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr=context.payload.pull_request;
+            if(!pr || !/^[0-9a-f]{40}$/.test(String(pr.base?.sha||'')) ||
+               !/^[0-9a-f]{40}$/.test(String(pr.head?.sha||'')))
+              throw Error('SEC_AUTO_PR_RANGE_UNVERIFIED');
+            const compare=await github.rest.repos.compareCommits({
+              ...context.repo,base:pr.base.sha,head:pr.head.sha,per_page:100
+            });
+            const changed=compare.data.files;
+            if(!Array.isArray(changed)||changed.length===0||changed.length>=100||
+               (compare.data.total_commits||0)>100||compare.data.status!=='ahead')
+              throw Error('SEC_AUTO_PR_CHANGED_FILES_UNVERIFIED');
+            const ref=String(pr.head.ref||'');
+            if(ref.startsWith('sec-autopilot/')){
+              // Bot proposals are restricted to exactly one allowlisted source
+              // and one corresponding test. Do not weaken this for review PRs.
+              if(!/^sec-autopilot\/[A-Z0-9-]+-run-[0-9]+$/.test(ref)||changed.length!==2)
+                throw Error('SEC_AUTO_BOT_PR_SCOPE');
+              const paths=changed.map(x=>x.filename);
+              const source=paths.find(x=>/^scripts\/security\/autopilot\/[a-z0-9_]+\.mjs$/.test(x));
+              const test=paths.find(x=>/^qa\/security\/autopilot\/[a-z0-9_]+\.test\.mjs$/.test(x));
+              if(!source||!test||changed.some(x=>!['added','modified'].includes(x.status)) ||
+                 test!=='qa/security/autopilot/'+source.split('/').at(-1).replace(/\.mjs$/,'.test.mjs'))
+                throw Error('SEC_AUTO_BOT_UNTRUSTED_CHANGE');
+              core.info('SEC_AUTO_BOT_EXACT_TWO_FILES '+paths.join(', '));
+            }else{
+              // GPT-reviewed SEC-only PRs are NOT model generated. Their full
+              // PR base..head diff must satisfy the separate explicit non-write
+              // allowlist, including workflow and handover documentation.
+              const {assertNoOperatingWriteRelease}=await import(process.cwd()+'/scripts/security/no_operating_write_scope.mjs');
+              const result=assertNoOperatingWriteRelease({
+                before:pr.base.sha,head:pr.head.sha,status:compare.data.status,files:changed
+              });
+              core.info('SEC_REVIEW_PR_NO_OPERATING_WRITE '+result.changed_paths.join(', '));
+            }
