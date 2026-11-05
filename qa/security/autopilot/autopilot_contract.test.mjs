@@ -94,6 +94,16 @@ test('generated modules must not load bare builtins, packages or arbitrary repos
   assert.throws(()=>staticSourceCheck(source+'\n'+injected,qa,task),/DANGEROUS_MODEL_SOURCE/);
   assert.throws(()=>staticSourceCheck(source,qa+'\n'+injected,task),/DANGEROUS_MODEL_SOURCE/);
  }
+ for(const injected of [
+ "import{readFileSync}from'fs';",
+ "export{readFileSync}from'fs';",
+ "import {readFileSync} from/* inline */'fs';",
+ "export/* inline */{readFileSync}from 'fs';",
+ "import'fs';"
+]){
+  assert.throws(()=>staticSourceCheck(source+'\n'+injected,qa,task),/DANGEROUS_MODEL_SOURCE/);
+  assert.throws(()=>staticSourceCheck(source,qa+'\n'+injected,task),/DANGEROUS_MODEL_SOURCE/);
+ }
  const unrelated=qa.replace("../../../scripts/security/autopilot/manifest_guard.mjs","../../../scripts/security/autopilot/role_catalog_guard.mjs");
  assert.throws(()=>staticSourceCheck(source,unrelated,task),/UNAPPROVED_MODEL_MODULE/);
 });
