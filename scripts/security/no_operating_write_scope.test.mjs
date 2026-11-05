@@ -52,4 +52,13 @@ test('real P0 workflow enforces security-only scope and skips all three operatin
   }
   assert.ok(verifier.includes(`!contains(github.event.workflow_run.head_commit.message, '${marker}')`),
     'Do not send spurious independent Pages success for an unpublished security-only push');
+  const agentCi=fs.readFileSync('.github/workflows/sec-autopilot-contract-ci.yml','utf8');
+  assert.ok(agentCi.includes('github.rest.repos.compareCommits') &&
+    agentCi.includes('pr.base.sha') && agentCi.includes('pr.head.sha'),
+    'Security CI must audit the entire PR range, not just one commit');
+  assert.ok(agentCi.includes('SEC_AUTO_BOT_EXACT_TWO_FILES') &&
+    agentCi.includes('SEC_AUTO_BOT_UNTRUSTED_CHANGE'),
+    'Auto-generated branches retain exact two-file source/test restrictions');
+  assert.ok(!agentCi.includes('git diff --name-only HEAD^ HEAD'),
+    'Reject prior last-commit-only security scan');
 });
