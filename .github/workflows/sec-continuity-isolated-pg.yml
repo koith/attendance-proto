@@ -53,7 +53,7 @@ jobs:
           POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
         run: |
           test -n "$POSTGRES_CONTAINER_ID"
-          printf '#!/bin/sh\\nexec docker exec -i %s psql -U postgres "$@"\\n' "$POSTGRES_CONTAINER_ID" > /tmp/sec-local-psql-socket
+          printf '#!/bin/sh\nexec docker exec -i %s psql -U postgres "$@"\n' "$POSTGRES_CONTAINER_ID" > /tmp/sec-local-psql-socket
           chmod 700 /tmp/sec-local-psql-socket
           /tmp/sec-local-psql-socket --dbname pin_fixture_continuity -At -c 'select current_database()' | grep -qx pin_fixture_continuity
       - name: Test backup metadata scope and runner guards (synthetic only)
