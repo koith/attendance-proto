@@ -74,7 +74,25 @@ assert.match(agent,/git rev-parse --git-path info\/exclude/,'Agent must set up l
 assert.match(agent,/node_modules/,'NPM QA dependencies must never be treated as agent source changes');
 assert.match(agent,/git add -A/,'Agent PR staging still checks all nonignored source changes');
 
-assert.match(agentWorkflow,/if: failure\(\)/,'Escalate agent failure without operating deployment');
+// The trusted agent now uses an always() failure-report job with explicit
+// dependency result checks. Reject missing/mis-scoped conditions, but do not
+// require the superseded single-step "if: failure()" syntax.
+function hasFailClosedAgentFailureEscalation(yaml){
+  const header=yaml.match(/^  report-failure:\\s*\\n((?:    [^\\n]*\\n)*)/m)?.[1]||'';
+  const condition=header.match(/^    if:\\s*(.*)$/m)?.[1]||'';
+  const jobs=['capture-intake','develop','qa','publish'];
+  return header.includes('needs: [capture-intake, develop, qa, publish]') &&
+    /^always\\(\\)\\s*&&\\s*\\(/.test(condition) &&
+    jobs.every(job=>condition.includes(`needs.${job}.result == 'failure'`));
+}
+assert.ok(hasFailClosedAgentFailureEscalation(agentWorkflow),
+  'Escalate every agent stage failure without requiring operating deployment');
+assert.equal(hasFailClosedAgentFailureEscalation(
+  agentWorkflow.replace("needs.qa.result == 'failure'",'false')),false,
+  'Mutation proof: report cannot silently omit QA failure');
+assert.equal(hasFailClosedAgentFailureEscalation(
+  agentWorkflow.replace('if: always() && (','if: (')),false,
+  'Mutation proof: failure reporting must execute even when upstream fails');
 assert.match(agentWorkflow,/copilot-requests: write/,'Token-only Copilot model access must be permitted');
 assert.match(agentWorkflow,/GITHUB_TOKEN: \$\{\{ github\.token \}\}/,
   'Issue agent uses ephemeral Actions token if no external OpenAI secret');
