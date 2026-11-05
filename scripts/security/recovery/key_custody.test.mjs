@@ -30,5 +30,11 @@ test('check fails closed when a private key is committed',()=>{
   const r=check(d);
   assert.equal(r.result,'FAIL');assert.deepEqual(r.tracked_private_key_files,['security/leak.pem']);
   assert.ok(!JSON.stringify(r).includes('PRIVATE KEY-----'),'never echoes key material');
+  // Regression: a nested invocation must not silently skip the root-tracked leaked key.
+  const nested=join(d,'scripts','security','recovery');
+  mkdirSync(nested,{recursive:true});
+  const fromNested=check(nested);
+  assert.equal(fromNested.result,'FAIL');
+  assert.deepEqual(fromNested.tracked_private_key_files,['security/leak.pem']);
  }finally{rmSync(d,{recursive:true,force:true})}
 });
