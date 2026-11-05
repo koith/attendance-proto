@@ -16,6 +16,7 @@ export function statusOfLedger(content,id){
 }
 export function chooseTask(catalog,ledgers,comments,liveBranches=[]){
   if(catalog.schema!==1||catalog.master_issue!==1492||!Array.isArray(catalog.tasks))throw Error('INVALID_TASK_CATALOG');
+  if(catalog.allow_auto_merge!==false)throw Error('AUTOMERGE_POLICY_MUST_BE_FALSE');
   const delivered=new Set(), failures=new Map();
   for(const comment of comments){
     const author=comment.user?.login;

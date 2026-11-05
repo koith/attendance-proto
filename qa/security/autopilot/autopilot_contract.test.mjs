@@ -63,3 +63,27 @@ test('a failed source-and-QA replacement does not mutate files',()=>{
   assert.equal(fs.readFileSync(path.join(dir,task.source),'utf8'),fs.readFileSync(task.source,'utf8'));
  }finally{rmSync(dir,{force:true,recursive:true})}
 });
+
+test('autopilot refuses any catalog that permits auto-merge',()=>{
+ assert.equal(catalog.allow_auto_merge,false);
+ assert.throws(()=>chooseTask({...catalog,allow_auto_merge:true},data,[]),/AUTOMERGE_POLICY_MUST_BE_FALSE/);
+ assert.throws(()=>chooseTask({...catalog,allow_auto_merge:undefined},data,[]),/AUTOMERGE_POLICY_MUST_BE_FALSE/);
+});
+test('generated modules must not load bare builtins, packages or arbitrary repository source',()=>{
+ const task=pathsFor('SEC-S04-MANIFEST',catalog);
+ const source=fs.readFileSync(task.source,'utf8');
+ const qa=fs.readFileSync(task.test,'utf8');
+ assert.doesNotThrow(()=>staticSourceCheck(source,qa,task));
+ for(const injected of [
+  "import {readFileSync} from 'fs';",
+  "import 'https';",
+  "import x from 'dotenv';",
+  "export {f} from 'node:fs/promises';",
+  "import {f} from '../outside.mjs';"
+ ]){
+  assert.throws(()=>staticSourceCheck(source+'\n'+injected,qa,task),/UNAPPROVED_MODEL_MODULE|DANGEROUS_MODEL_SOURCE/);
+  assert.throws(()=>staticSourceCheck(source,qa+'\n'+injected,task),/UNAPPROVED_MODEL_MODULE|DANGEROUS_MODEL_SOURCE/);
+ }
+ const unrelated=qa.replace("../../../scripts/security/autopilot/manifest_guard.mjs","../../../scripts/security/autopilot/role_catalog_guard.mjs");
+ assert.throws(()=>staticSourceCheck(source,unrelated,task),/UNAPPROVED_MODEL_MODULE/);
+});

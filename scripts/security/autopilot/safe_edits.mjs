@@ -13,10 +13,28 @@ export function pathsFor(id,catalog){
  return t;
 }
 const unsafe=/\b(?:process|globalThis|Deno|eval|require|fetch|XMLHttpRequest|WebSocket|Buffer|child_process|worker_threads|node:fs|node:net|node:http|node:https|import\s*\(|__proto__|constructor\s*\[|prototype\s*\[|github\.com|supabase\.co|BEGIN\s+PRIVATE\s+KEY)\b/i;
-export function staticSourceCheck(source,qa){
+// Host-side import allowlist: any generated module has a tiny, known surface.
+// Explicitly reject bare built-in aliases ('fs', 'https'), installed packages,
+// re-exports, and imports of unrelated repository modules before QA executes.
+function validateGeneratedImports(code,type,task){
+ const allowed=type==='source'
+  ?new Set(['node:crypto','node:util'])
+  :new Set(['node:test','node:assert','node:assert/strict','node:crypto','node:util']);
+ const matches=code.matchAll(/\b(?:import|export)\s+(?:[^;]*?\bfrom\s*)?(['"])([^'"]+)\1/g);
+ for(const match of matches){
+  const spec=match[2];
+  if(allowed.has(spec))continue;
+  const taskSource=task&&'../../../'+task.source;
+  const syntheticSource=!task&&/^\.\.\/\.\.\/\.\.\/scripts\/security\/autopilot\/[a-z0-9_]+\.mjs$/.test(spec);
+  if(type==='qa'&&(spec===taskSource||syntheticSource))continue;
+  throw Error('UNAPPROVED_MODEL_MODULE_'+type);
+ }
+}
+export function staticSourceCheck(source,qa,task=null){
  for(const [type,c] of [['source',source],['qa',qa]]){
   if(typeof c!=='string'||c.length>21000||c.length<40||unsafe.test(c)||(c.includes('Function(')||c.includes('new Function'))||/https?:\/\//.test(c)||/\b(?:secret|password|authorization)\s*[:=]/i.test(c))throw Error('DANGEROUS_MODEL_SOURCE_'+type);
   if(/(^|\n)\s*(?:import|export\s+\*\s+from)\s+.*(?:node:|['"]https?:)/m.test(c.replace(/from\s+['"]node:(?:assert|test|crypto)['"]/g,'from "allowed"')))throw Error('UNAPPROVED_IMPORT_'+type);
+  validateGeneratedImports(c,type,task);
  }
  if(!/export\s+function\s+\w+/.test(source)||!/throw\s+(?:new\s+)?Error/.test(source))throw Error('SOURCE_NOT_STRICT_FAIL_CLOSED');
  if((qa.match(/\btest\(/g)||[]).length<2||!/assert\./.test(qa)||!/assert\.throws/.test(qa))throw Error('INSUFFICIENT_NEGATIVE_QA');
@@ -51,7 +69,7 @@ export function applyValidated(edits,task,root){
  }
  const source=changed.find(x=>x.path===task.source).after;
  const qa=changed.find(x=>x.path===task.test).after;
- staticSourceCheck(source,qa);
+ staticSourceCheck(source,qa,task);
  for(const x of changed)fs.writeFileSync(root+'/'+x.path,x.after,{flag:'w'});
  return changed.map(x=>x.path);
 }
@@ -60,7 +78,7 @@ export function verifyStaged(task,root){
  if(names.length!==2||!names.includes(task.source)||!names.includes(task.test))throw Error('STAGED_FILE_ALLOWLIST_VIOLATION');
  const raw=execFileSync('git',['diff','--cached','--raw'],{cwd:root,encoding:'utf8'}).trim().split('\n');
  if(raw.some(line=>!/^:100644 100644 [a-f0-9]{7,40} [a-f0-9]{7,40} M\s+/.test(line)))throw Error('UNSAFE_FILE_MODE_OR_OPERATION');
- staticSourceCheck(fs.readFileSync(root+'/'+task.source,'utf8'),fs.readFileSync(root+'/'+task.test,'utf8'));
+ staticSourceCheck(fs.readFileSync(root+'/'+task.source,'utf8'),fs.readFileSync(root+'/'+task.test,'utf8'),task);
  if(execFileSync('git',['diff','--cached','--check'],{cwd:root,encoding:'utf8'}).trim())throw Error('PATCH_WHITESPACE_ERRORS');
  return names;
 }
