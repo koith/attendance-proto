@@ -28,6 +28,10 @@ assert.match(secondary,/STALE_MANUAL_RELEASE/,'Manual recovery must reject obsol
 const rollback=read('.github/workflows/safe-pages-rollback.yml');
 const agent=read('scripts/autonomous_dev_agent.sh');
 const agentWorkflow=read('.github/workflows/autonomous-development-agent.yml');
+const secretlessQa=read('scripts/security/run_secretless_agent_qa.sh');
+// New agent architecture: model/develop stages only produce patch data;
+// the separate privileged publisher (after QA) owns git auth and PR creation.
+const publishJob=agentWorkflow.match(/^  publish:\s*\n([\s\S]*?)(?=^  report-failure:)/m)?.[1]||'';
 assert.match(deploy,/needs: \[p0-gate, build-pages\]/,'Pages must depend on QA and build');
 assert.match(deploy,/node qa_release_recovery_policy\.mjs/,'Safety decision tests must be P0 gate');
 assert.match(deploy,/id: final_health\s+if: steps\.request_live\.outcome == 'success'/,'Same-run live health must require matching published bytes');
@@ -115,15 +119,26 @@ assert.match(agentWorkflow,/persist-credentials: false/,
   'Do not persist GitHub write credential into untrusted code checkout');
 assert.match(agent,/unset GH_TOKEN GITHUB_TOKEN OPENAI_API_KEY/,
   'Agent-proposed JavaScript QA must not inherit cloud credentials');
-assert.match(agent,/gh auth setup-git\s+git push -u origin "\$branch"/,
-  'Git push credential helper must be installed only after QA passed');
+assert.doesNotMatch(agent,/gh auth setup-git|git push -u origin|gh pr create/,
+  'Untrusted provider stage must not push or create PRs');
+assert.match(publishJob,/needs: qa/,'Privileged publishing must depend on independent QA');
+assert.match(publishJob,/if: needs\.qa\.result == 'success'/,'PR publication requires successful QA');
+assert.match(publishJob,/gh auth setup-git[\s\S]*git push -u origin "\$branch"/,
+  'Trusted publisher installs push credentials only after QA');
+assert.match(publishJob,/node scripts\/security\/validate_agent_publish_patch\.mjs/,
+  'Trusted publisher performs independent staged patch validation');
 
 assert.match(agent,/provider_status=\$\?/,'AI provider failures should flow into bounded repair loop');
-assert.match(agent,/agent-pr-bridge:/,'QA-passed branch must request independent GitHub PR bridge when Actions forbids PRs');
-assert.match(agent,/gh issue comment "\$ISSUE_NUMBER"/,
-  'Bridge request must attach to the approved issue');
-assert.match(agent,/exit 1\s+fi\s*$/,
-  'Cannot falsely report PR success if connector bridge remains pending');
+assert.match(agent,/AGENT_PROPOSAL_STAGED_FOR_SEPARATE_PUBLISH/,
+  'Develop runner emits only validated patch metadata for separate publisher');
+assert.match(agentWorkflow,/name: agent-qa-passed-patch/,
+  'QA-passed patch is handed to separate privileged publisher');
+assert.match(agentWorkflow,/github\.rest\.issues\.createComment/,
+  'Trusted failure reporter must attach incomplete-run evidence to approved issue');
+assert.match(agent,/git diff --cached --quiet && \{ echo "::error::Agent produced no changes"; exit 1; \}/,
+  'Developer may not claim patch success without actual staged changes');
+assert.match(agent,/test -s "\$patch_dir\/agent-validated\.patch"/,
+  'Validated patch must exist before separate QA/publisher');
 
 assert.match(agent,/CODE-IMPLEMENTATION AGENT/,'Agent must produce validated source changes instead of text-only replies');
 assert.match(agent,/read-only Copilot outputs AGENT_EDITS JSON/,
@@ -132,19 +147,23 @@ assert.doesNotMatch(agent,/Use the edit tool now to modify/,
   'Missing Copilot write tool must not be requested on repair attempts');
 assert.match(agent,/: > \/tmp\/agent-reports\/edits\.log/,
   'Each repair attempt must clear stale edit-validation evidence');
-assert.match(agent,/node qa_hq_quicknav_escape_contract_v1\.mjs/,
+assert.match(secretlessQa,/node qa_hq_quicknav_escape_contract_v1\.mjs/,
   'HQ quick picker AI patches must pass the exact P0 keyboard contract before PR');
-assert.match(agent,/node qa_hq_store_search_owner_activation_v1\.mjs/,
+assert.match(secretlessQa,/node qa_hq_store_search_owner_activation_v1\.mjs/,
   'Store onboarding AI patches must pass relevant P0 activation and owner constraints');
-assert.match(agent,/node qa_store_delegated_manager_v1\.mjs/,
+assert.match(secretlessQa,/node qa_store_delegated_manager_v1\.mjs/,
   'Manager tab AI patches must preserve delegated manager security contracts');
-assert.match(agent,/tail -c 5000 \/tmp\/agent-reports\/provider\.log/,
-  'Coding provider output required for diagnosing zero-edit responses');
+assert.match(agent,/tail -c 3500 \/tmp\/agent-reports\/provider\.log/,
+  'Bounded local provider diagnosis required for zero-edit repair attempts');
 assert.match(agent,/cat \/tmp\/agent-reports\/task\.txt/,
   'Every retry must preserve original approved issue instructions');
 assert.match(agent,/changed_application=/,'Source edit is required, not just a test');
-assert.match(agent,/no actual application JS\/HTML\/CSS file was changed/,
-  'Zero source edits must fail');
+assert.match(secretlessQa,/test -n "\$changed_tests" && test -n "\$changed_application"/,
+  'Separate unprivileged QA must fail on missing application or QA changes');
+assert.match(agentWorkflow,/bash scripts\/security\/run_secretless_agent_qa\.sh/,
+  'Unprivileged QA must execute the separate secretless regression suite');
+assert.match(secretlessQa,/QA_SECRET_PRESENT:/,
+  'Secretless QA rejects injected privileged env');
 assert.match(read('.github/workflows/p0-pages-deploy.yml'),/node qa_autonomous_structured_edits_v1\.mjs/,
   'P0 gate runs host-side safe structured edit tests');
 assert.match(read('scripts/agent_apply_structured_edits.mjs'),/ROOT_APP=/,
