@@ -278,7 +278,7 @@ export async function restoreVerify(opts){
 
 if(import.meta.url===pathToFileURL(process.argv[1]||'').href){
  const a=process.argv.slice(2),val=k=>{const i=a.indexOf(k);return i<0?null:a[i+1]};
- const opts={sealed:val('--sealed'),key:val('--key'),tar:val('--tar'),allowScopeGaps:a.includes('--allow-scope-gaps'),
+ const opts={sealed:val('--sealed'),key:val('--key'),tar:val('--tar'),
   inventoryOut:val('--inventory-out'),
   sourceInventory:val('--source-inventory')?JSON.parse(readFileSync(val('--source-inventory'),'utf8')):null,
   expectedScope:val('--expected-scope')?JSON.parse(readFileSync(val('--expected-scope'),'utf8')):null};
