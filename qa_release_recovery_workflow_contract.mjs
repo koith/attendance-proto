@@ -78,11 +78,11 @@ assert.match(agent,/git add -A/,'Agent PR staging still checks all nonignored so
 // dependency result checks. Reject missing/mis-scoped conditions, but do not
 // require the superseded single-step "if: failure()" syntax.
 function hasFailClosedAgentFailureEscalation(yaml){
-  const header=yaml.match(/^  report-failure:\\s*\\n((?:    [^\\n]*\\n)*)/m)?.[1]||'';
-  const condition=header.match(/^    if:\\s*(.*)$/m)?.[1]||'';
+  const header=yaml.match(/^  report-failure:\s*\n((?:    [^\n]*\n)*)/m)?.[1]||'';
+  const condition=header.match(/^    if:\s*(.*)$/m)?.[1]||'';
   const jobs=['capture-intake','develop','qa','publish'];
   return header.includes('needs: [capture-intake, develop, qa, publish]') &&
-    /^always\\(\\)\\s*&&\\s*\\(/.test(condition) &&
+    /^always\(\)\s*&&\s*\(/.test(condition) &&
     jobs.every(job=>condition.includes(`needs.${job}.result == 'failure'`));
 }
 assert.ok(hasFailClosedAgentFailureEscalation(agentWorkflow),
