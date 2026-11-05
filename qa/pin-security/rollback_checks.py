@@ -1,5 +1,7 @@
 import os,subprocess,pathlib
-P=os.environ.get('PIN_QA_PSQL','psql');D=os.environ.get('PGDATABASE','audit_pin');assert D.startswith(('audit_pin','pin_fixture'))
+from fixture_safety import verify_target
+verify_target(os.environ, require_seed=True) # guard before destructive rollback rehearsal
+P=os.environ.get('PIN_QA_PSQL','psql');D=os.environ['PGDATABASE']
 def q(s):
  p=subprocess.run([P,'-X','-At','-v','ON_ERROR_STOP=1',D,'-c',s],capture_output=True,text=True)
  assert not p.returncode,p.stderr

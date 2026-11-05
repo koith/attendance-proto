@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Real PostgreSQL integration; isolated fixture only. Never reads a live DSN."""
 import os,subprocess,json,pathlib,concurrent.futures,sys
+from fixture_safety import verify_target
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 PSQL=os.environ.get('PIN_QA_PSQL','psql'); DB=os.environ.get('PGDATABASE','audit_pin')
-assert DB.startswith(('audit_pin','pin_fixture')), 'disposable database name required'
+verify_target(os.environ, require_seed=True) # verify actual PostgreSQL and synthetic fixture before any PIN attempts/writes
 passed=0
 def sql(q):
  p=subprocess.run([PSQL,'-X','-v','ON_ERROR_STOP=1','-At',DB,'-c',q],capture_output=True,text=True)
@@ -41,6 +42,18 @@ ok(r['error']=='RATE_LIMITED','five failures across all PIN RPC families share a
 r=call("punch(710001,'1234','MOBILE',NULL)");ok(r['error']=='RATE_LIMITED','correct PIN/device switch cannot bypass active lock')
 ok(1<=r['retry_after_seconds']<=900,'bounded temporary retry period')
 ok(business()==before,'failed/locked attempts change NO business rows')
+# Exercise the remaining anon SECURITY DEFINER PIN entrypoints with synthetic,
+# never-live identities; none may create business records on failed auth/state.
+before_anon=business()
+r=call("substitution_clock_in(999999,710035,'0000')")
+ok(r.get('error')=='BAD_PIN','substitution clock-in rejects wrong PIN')
+r=call("substitution_clock_in(999999,710036,'1234')")
+ok(r.get('error')=='NOT_ACCEPTED','substitution clock-in rejects nonexistent accepted request')
+r=call("pos_unlock_store(710001,38,'0000')")
+ok(not r.get('ok'),'POS unlock rejects wrong PIN without issuing session')
+r=call("staff_stocktake_submit(710001,710037,'0000','[]'::jsonb,'synthetic')")
+ok(not r.get('ok'),'stocktake submission rejects wrong PIN')
+ok(business()==before_anon,'rejected substitution/POS/stocktake calls do not mutate business tables')
 # State cannot be rolled back by a caller-controlled response/transaction failure.
 for _ in range(5):sql('begin; set role anon; select '+view(710002,'0000')+'; rollback;')
 ok(call(view(710002,'1234'))['error']=='RATE_LIMITED','intentional ROLLBACK cannot erase failure budget')
