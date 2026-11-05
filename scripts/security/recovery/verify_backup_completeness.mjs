@@ -30,7 +30,13 @@ need('TOC: RLS policies',/\bPOLICY\b|\bROW SECURITY\b/.test(toc),'RLS policy/set
 // Production catalog read-only audit (2026-11-05) found 22 tables OUTSIDE the
 // old public/auth/storage PGlite runner. These five schemas hold app/history
 // state, not merely managed provider runtime internals. Fail closed on omission.
+// Claude v2 schema classification consolidated here instead of introducing a weaker
+// second checker. Business/private scopes require DDL + TABLE DATA presence; managed
+// provider scopes require provider-specific reconstruction and are not blindly replayed.
 const appSchemas=['pin_private','pos_private','session_guard','private','demo_cleanup_archive'];
+const businessSchemas=['public','auth','storage',...appSchemas];
+const managedSchemas=['cron','net','realtime','supabase_migrations','vault',
+ 'extensions','graphql','graphql_public','pgsodium'];
 for(const s of appSchemas){
  need('TOC: app schema '+s,schema(s),'application/private/archive schema missing from full continuity backup');
  need('TOC: app data '+s,new RegExp('\\bTABLE DATA '+s+'\\b').test(toc),'no TABLE DATA entries for application/private/archive schema');
@@ -38,5 +44,6 @@ for(const s of appSchemas){
 const result=missing.length?'BACKUP_SCOPE_INCOMPLETE':'BACKUP_SCOPE_METADATA_PRESENT';
 console.log(JSON.stringify({result,checks_total:checks.length,checks_passed:checks.filter(c=>c.ok).length,missing,
  warning:'Metadata declarations and user-provided TOC only. Does NOT verify encrypted archive bytes, manifest authenticity, snapshots, provider-managed schemas, or service restore. Perform digest verification + real isolated restore separately.',
- provider_managed_schemas_require_separate_provisioning:['cron','net','realtime','supabase_migrations','vault']},null,2));
+ business_schemas_required_in_backup:businessSchemas,
+ provider_managed_schemas_require_separate_provisioning:managedSchemas},null,2));
 process.exit(missing.length?1:0);
