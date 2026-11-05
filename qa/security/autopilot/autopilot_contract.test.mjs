@@ -87,12 +87,12 @@ test('generated modules must not load bare builtins, packages or arbitrary repos
  for(const injected of [
   "const m=import('fs');",
   "const m=import /* block comment */ ('https');",
-  "const m=import// line comment\\n('fs');",
+  "const m=import// line comment\n('fs');",
   "const m=import(`dotenv`);",
   "const m=import /**/ (  'fs'  );"
  ]){
-  assert.throws(()=>staticSourceCheck(source+'\\n'+injected,qa,task),/DANGEROUS_MODEL_SOURCE/);
-  assert.throws(()=>staticSourceCheck(source,qa+'\\n'+injected,task),/DANGEROUS_MODEL_SOURCE/);
+  assert.throws(()=>staticSourceCheck(source+'\n'+injected,qa,task),/DANGEROUS_MODEL_SOURCE/);
+  assert.throws(()=>staticSourceCheck(source,qa+'\n'+injected,task),/DANGEROUS_MODEL_SOURCE/);
  }
  const unrelated=qa.replace("../../../scripts/security/autopilot/manifest_guard.mjs","../../../scripts/security/autopilot/role_catalog_guard.mjs");
  assert.throws(()=>staticSourceCheck(source,unrelated,task),/UNAPPROVED_MODEL_MODULE/);
