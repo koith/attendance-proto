@@ -12,7 +12,11 @@ export function pathsFor(id,catalog){
  if(!p.test(t.source)||!q.test(t.test))throw Error('PATH_OUTSIDE_SECURITY_SANDBOX');
  return t;
 }
-const unsafe=/\b(?:process|globalThis|Deno|eval|require|fetch|XMLHttpRequest|WebSocket|Buffer|child_process|worker_threads|node:fs|node:net|node:http|node:https|import\s*\(|__proto__|constructor\s*\[|prototype\s*\[|github\.com|supabase\.co|BEGIN\s+PRIVATE\s+KEY)\b/i;
+const unsafe=/\b(?:process|globalThis|Deno|eval|require|fetch|XMLHttpRequest|WebSocket|Buffer|child_process|worker_threads|node:fs|node:net|node:http|node:https|__proto__|constructor\s*\[|prototype\s*\[|github\.com|supabase\.co|BEGIN\s+PRIVATE\s+KEY)\b/i;
+// The generic unsafe regexp has a trailing word boundary; it cannot reliably
+// detect import(...) because '(' is non-word. Reject dynamic imports explicitly,
+// including whitespace, block comments, and line comments between tokens.
+const dynamicImport=/\bimport\b(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$))*\(/i;
 // Host-side import allowlist: any generated module has a tiny, known surface.
 // Explicitly reject bare built-in aliases ('fs', 'https'), installed packages,
 // re-exports, and imports of unrelated repository modules before QA executes.
@@ -32,7 +36,7 @@ function validateGeneratedImports(code,type,task){
 }
 export function staticSourceCheck(source,qa,task=null){
  for(const [type,c] of [['source',source],['qa',qa]]){
-  if(typeof c!=='string'||c.length>21000||c.length<40||unsafe.test(c)||(c.includes('Function(')||c.includes('new Function'))||/https?:\/\//.test(c)||/\b(?:secret|password|authorization)\s*[:=]/i.test(c))throw Error('DANGEROUS_MODEL_SOURCE_'+type);
+  if(typeof c!=='string'||c.length>21000||c.length<40||unsafe.test(c)||dynamicImport.test(c)||(c.includes('Function(')||c.includes('new Function'))||/https?:\/\//.test(c)||/\b(?:secret|password|authorization)\s*[:=]/i.test(c))throw Error('DANGEROUS_MODEL_SOURCE_'+type);
   if(/(^|\n)\s*(?:import|export\s+\*\s+from)\s+.*(?:node:|['"]https?:)/m.test(c.replace(/from\s+['"]node:(?:assert|test|crypto)['"]/g,'from "allowed"')))throw Error('UNAPPROVED_IMPORT_'+type);
   validateGeneratedImports(c,type,task);
  }
