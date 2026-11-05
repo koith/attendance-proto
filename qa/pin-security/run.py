@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Real PostgreSQL integration; isolated fixture only. Never reads a live DSN."""
 import os,subprocess,json,pathlib,concurrent.futures,sys
+from fixture_safety import verify_target
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 PSQL=os.environ.get('PIN_QA_PSQL','psql'); DB=os.environ.get('PGDATABASE','audit_pin')
-assert DB.startswith(('audit_pin','pin_fixture')), 'disposable database name required'
+verify_target(os.environ, require_seed=True) # verify actual PostgreSQL and synthetic fixture before any PIN attempts/writes
 passed=0
 def sql(q):
  p=subprocess.run([PSQL,'-X','-v','ON_ERROR_STOP=1','-At',DB,'-c',q],capture_output=True,text=True)
