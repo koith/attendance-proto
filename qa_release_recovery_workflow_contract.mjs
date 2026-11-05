@@ -74,7 +74,19 @@ assert.match(agent,/git rev-parse --git-path info\/exclude/,'Agent must set up l
 assert.match(agent,/node_modules/,'NPM QA dependencies must never be treated as agent source changes');
 assert.match(agent,/git add -A/,'Agent PR staging still checks all nonignored source changes');
 
-assert.match(agentWorkflow,/if: failure\(\)/,'Escalate agent failure without operating deployment');
+// The live agent workflow uses a guarded always() job to report dependent
+// failures even when upstream jobs stopped. The old "if: failure()" contract
+// rejected this stricter four-stage failure-only expression and blocked P0.
+const agentFailureGate=/report-failure:\s*\n\s*needs:\s*\[capture-intake, develop, qa, publish\]\s*\n\s*if:\s*always\(\)\s*&&\s*\(\s*needs\.capture-intake\.result\s*==\s*'failure'\s*\|\|\s*needs\.develop\.result\s*==\s*'failure'\s*\|\|\s*needs\.qa\.result\s*==\s*'failure'\s*\|\|\s*needs\.publish\.result\s*==\s*'failure'\s*\)/;
+assert.match(agentWorkflow,agentFailureGate,'Escalate all four agent-stage failures without operating deployment');
+for(const stage of ['capture-intake','develop','qa','publish']){
+  const needle="needs."+stage+".result == 'failure'";
+  assert.ok(agentWorkflow.includes(needle),'Expected failure branch for '+stage);
+  assert.doesNotMatch(agentWorkflow.replace(needle,"needs."+stage+".result == 'success'"),
+    agentFailureGate,'Mutation proof: changing '+stage+' failure into success must be rejected');
+}
+assert.doesNotMatch(agentWorkflow.replace("if: always() && (","if: always() || ("),
+  agentFailureGate,'Mutation proof: unconditional agent escalation must be rejected');
 assert.match(agentWorkflow,/copilot-requests: write/,'Token-only Copilot model access must be permitted');
 assert.match(agentWorkflow,/GITHUB_TOKEN: \$\{\{ github\.token \}\}/,
   'Issue agent uses ephemeral Actions token if no external OpenAI secret');
