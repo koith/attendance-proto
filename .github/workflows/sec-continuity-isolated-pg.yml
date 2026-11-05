@@ -35,7 +35,8 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: fixture-only-not-a-secret
       PGDATABASE: pin_fixture_continuity
-      PIN_QA_PSQL: psql
+      PIN_QA_PSQL: /tmp/sec-local-psql-socket
+      POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -48,6 +49,15 @@ jobs:
             sudo apt-get install -y postgresql-client
           fi
           psql --version
+      - name: Pin fixture psql to its own disposable container Unix socket
+        run: |
+          test -n "$POSTGRES_CONTAINER_ID"
+          cat > /tmp/sec-local-psql-socket <<'SH'
+          #!/bin/sh
+          exec docker exec -i "$POSTGRES_CONTAINER_ID" psql -U postgres "$@"
+          SH
+          chmod 700 /tmp/sec-local-psql-socket
+          /tmp/sec-local-psql-socket --dbname pin_fixture_continuity -At -c 'select current_database()' | grep -qx pin_fixture_continuity
       - name: Test backup metadata scope and runner guards (synthetic only)
         run: node --test scripts/security/recovery/verify_backup_completeness.test.mjs scripts/security/recovery/isolated_recovery_runner.test.mjs
       - name: Prove real PostgreSQL accepts the isolated synthetic restore
