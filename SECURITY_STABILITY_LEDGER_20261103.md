@@ -37,8 +37,8 @@
 | SEC-S13 | High | 수기 근태 원자적 저장·중복/겹침 차단의 운영·현장 증명 | IN_PROGRESS | PR #1450 병합·운영 RPC 존재 보고; 기존/타점·경합 실기기 검증 없음 |
 | SEC-S14 | High | 미래시각 정정으로 IN/OUT 방향 반전 차단 확인 | IN_PROGRESS | PR #1454 병합 및 운영 `punch` 시간 조건 보고; 직원 실사용 검증 필요 |
 | SEC-S15 | High | 공개 저장소 현재·과거 이력의 개인정보/비밀 노출 평가와 안전 조치 | IN_PROGRESS | PR #1448 탐지, PR #1449 일부 이메일 치환; 과거 Git·배포물 완전 검수 미완료 |
-| SEC-S16 | Critical | 롤백 시 운영 중 신규 근태/급여 무손실·DB 코드 분리 | NOT_STARTED | 단순 DB 시점 복원으로 데이터 손실 허용 금지; 격리 rehearsal/증분 재적용 필요 |
-| SEC-S17 | High | 코드/DB/Auth/Storage/Edge/GAS/Sheets 구성·의존성·복구·감사 인수인계 패키지 | NOT_STARTED | 접근권한·소유권/비밀 관리 문서는 공개 저장소에 두지 않음; 최소권한 교부 및 이전 행위는 별도 승인 |
+| SEC-S16 | Critical | 롤백 시 운영 중 신규 근태/급여 무손실·DB 코드 분리 | IN_PROGRESS | 기존 [PR #1504](https://github.com/koith/attendance-proto/pull/1504)의 검증된 증분 이벤트 검증기(CI 50/50)와 [PR #1506](https://github.com/koith/attendance-proto/pull/1506)의 합성 무손실 재적용 테스트(CI 38/38)를 현재 main 기준 독립 리뷰 브랜치에 원문 그대로 반입. ID 중복·시간 역전·원본 누락·중첩 메타데이터 충돌·재시도 검출; **실제 운영 근태/급여 트랜잭션·실백업 이후 델타 무손실 증명 미완료**. |
+| SEC-S17 | High | 코드/DB/Auth/Storage/Edge/GAS/Sheets 구성·의존성·복구·감사 인수인계 패키지 | IN_PROGRESS | `security/SEC_S17_RECOVERY_HANDOVER_PUBLIC_20261106.md` 공개 기술지도 신규 작성: 구성·의존성·백업/세션/Storage/GAS·Sheets 검증·오프라인 키·RPO/RTO 미입증·롤백 순서·승인 체크리스트 구분. **실제 접근권한/키 이중 보관/복구 인수인계·비공개 운영절차 증명 없음**; 인수인계 완료 아님. |
 | SEC-S18 | High | 기존 매장 PC·iPhone 실기·관리자/직원·급여/Sheets 정상운영 검증 | UNVERIFIED | CI/PWA/Pages 결과와 현장 PASS를 구분; iPhone 실기 검증 자료 없음 |
 
 ## C. 2026-11-03 읽기 전용 운영 점검
@@ -96,3 +96,13 @@
 - 기존 논리 보관본 OpenPGP 복호화도 독립 재검증: `storage.buckets` 2행, `storage.objects` 14행, `pg_policies`의 storage RLS 정책 3개 존재 확인. **실제 서비스 레벨 Storage API/RLS 복원은 SEC-S04 범위로 남긴다.**
 - 기존 Drive 비공개 소유자 전용 파일 및 ChatGPT 개인 Library의 암호문 백업 사본을 보존. 기존 유일한 키 삭제·교체 없음. 로컬 RSA 개인키 파일 권한 `600` 적용 확인. **키의 독립적 오프라인 이중 보관은 아직 미확인**(SEC-S17 후속).
 - **보안 전체 완료율 = 1/18 (5.6%)**. DB/Auth/통합 복구 및 새 AI 자동화 보안 항목은 합산하지 않는다. 종합 **NO_GO** 유지.
+
+
+## H. 2026-11-06 보안 원장 실개발 진행 상태 정정 (리뷰 브랜치)
+
+- **독립 증거 출처**: 기존 PR #1504 HEAD `6e0d388f69cf54f407339af4841ddaea77bd4086`, CI **50/50 SUCCESS**; 상위 PR #1506 HEAD `19961226535f384b14b1b4d7180e488eb530d183`, CI **38/38 SUCCESS**. 합성 모델은 삭제/정정 등 실제 운영 DB 트랜잭션/동일 스냅샷 무손실을 입증하지 못한다.
+- **SEC-S16 상태 정정**: `NOT_STARTED → IN_PROGRESS`. 위 PR의 `delta_guard.mjs`·`reapply_guard.mjs`와 2개 `*.test.mjs`를 기존 코드 SHA가 일치하도록 최신 main 기준 리뷰 브랜치에 반입. 새 브랜치 GitHub CI/운영 검증은 별도 증거로 기록해야 한다.
+- **SEC-S17 상태 정정**: `NOT_STARTED → IN_PROGRESS`. `security/SEC_S17_RECOVERY_HANDOVER_PUBLIC_20261106.md` 비밀정보 없는 의존성/복구 절차/승인 체크리스트 작성. 개인키·운영 데이터·실제 소유권·권한 변경은 일절 수행하지 않았다.
+- **정본 반영 전 주의**: 이 문서의 H 섹션은 검토 브랜치의 코드 진행 증거이며 **main에 병합·검증되기 전에는 main 정본 상태 변경이 아님**. 이후 CI PASS 및 안전한 메인 반영을 별도로 검증한다.
+- **완료 건수 불변**: 과거 2026-11-04 판정은 당시의 이력으로 보존. 본 브랜치 기준 현재 전체 18건 = `COMPLETE 1 / IN_PROGRESS 15 / NOT_STARTED 0 / UNVERIFIED 2`; **종단 간 운영 완료율 1/18 (5.6%)로 변함없음**. 코드 진행 상태 개선과 운영 완료 게이트를 혼동하지 않는다.
+- **다음 실제 완료 게이트**: SEC-S16은 독립 PostgreSQL에서 단일 복원 기준시점·운영 구조와 일치하는 신/구 이벤트 및 급여 스냅샷 델타 증거, 장애 중 쓰기와 누락·중복을 검증해야 한다. SEC-S17은 승인된 비공개 접근권한·키 이중 보관·소유권·개별 서비스 복원 runbook 및 실제 인수인계 감사 로그가 필요하다.
