@@ -74,7 +74,19 @@ assert.match(agent,/git rev-parse --git-path info\/exclude/,'Agent must set up l
 assert.match(agent,/node_modules/,'NPM QA dependencies must never be treated as agent source changes');
 assert.match(agent,/git add -A/,'Agent PR staging still checks all nonignored source changes');
 
-assert.match(agentWorkflow,/if: failure\(\)/,'Escalate agent failure without operating deployment');
+// The live agent workflow uses a guarded always() job to report dependent
+// failures even when upstream jobs stopped. The old "if: failure()" contract
+// rejected this stricter four-stage failure-only expression and blocked P0.
+const agentFailureGate=/report-failure:\s*\n\s*needs:\s*\[capture-intake, develop, qa, publish\]\s*\n\s*if:\s*always\(\)\s*&&\s*\(\s*needs\.capture-intake\.result\s*==\s*'failure'\s*\|\|\s*needs\.develop\.result\s*==\s*'failure'\s*\|\|\s*needs\.qa\.result\s*==\s*'failure'\s*\|\|\s*needs\.publish\.result\s*==\s*'failure'\s*\)/;
+assert.match(agentWorkflow,agentFailureGate,'Escalate all four agent-stage failures without operating deployment');
+for(const stage of ['capture-intake','develop','qa','publish']){
+  const needle="needs."+stage+".result == 'failure'";
+  assert.ok(agentWorkflow.includes(needle),'Expected failure branch for '+stage);
+  assert.doesNotMatch(agentWorkflow.replace(needle,"needs."+stage+".result == 'success'"),
+    agentFailureGate,'Mutation proof: changing '+stage+' failure into success must be rejected');
+}
+assert.doesNotMatch(agentWorkflow.replace("if: always() && (","if: always() || ("),
+  agentFailureGate,'Mutation proof: unconditional agent escalation must be rejected');
 assert.match(agentWorkflow,/copilot-requests: write/,'Token-only Copilot model access must be permitted');
 assert.match(agentWorkflow,/GITHUB_TOKEN: \$\{\{ github\.token \}\}/,
   'Issue agent uses ephemeral Actions token if no external OpenAI secret');
@@ -97,15 +109,44 @@ assert.match(agentWorkflow,/persist-credentials: false/,
   'Do not persist GitHub write credential into untrusted code checkout');
 assert.match(agent,/unset GH_TOKEN GITHUB_TOKEN OPENAI_API_KEY/,
   'Agent-proposed JavaScript QA must not inherit cloud credentials');
-assert.match(agent,/gh auth setup-git\s+git push -u origin "\$branch"/,
-  'Git push credential helper must be installed only after QA passed');
+// The agent has no publish credential. A separate read-only QA job passes an
+// exact staged patch to a trusted publisher with GitHub WRITE access only after QA.
+const qaJob=agentWorkflow.split('\n  qa:\n')[1]?.split('\n  publish:\n')[0]||'';
+const publishJob=agentWorkflow.split('\n  publish:\n')[1]?.split('\n  report-failure:\n')[0]||'';
+assert.match(qaJob,/needs: develop\s+if: needs\.develop\.result == 'success'/,
+  'Independent QA must await a successful agent proposal');
+assert.match(qaJob,/permissions:\s*\n\s*contents: read/,
+  'Independent QA has read-only repository permissions');
+assert.match(qaJob,/run: bash scripts\/security\/run_secretless_agent_qa\.sh/,
+  'Independent QA must run the secretless source acceptance suite');
+assert.doesNotMatch(qaJob,/contents: write|pull-requests: write|gh auth setup-git|git push|gh pr create/,
+  'Untrusted QA must not gain publishing credentials');
+assert.match(publishJob,/needs: qa\s+if: needs\.qa\.result == 'success'/,
+  'Privileged publisher requires independent QA success');
+assert.match(publishJob,/permissions:\s*\n\s*contents: write\s*\n\s*issues: read\s*\n\s*pull-requests: write/,
+  'Only the publisher can request GitHub source writes');
+assert.match(publishJob,/git apply --check -- "\$patch"[\s\S]*?node scripts\/security\/validate_agent_publish_patch\.mjs/,
+  'Publisher checks and validates the exact patch before applying it');
+assert.match(publishJob,/gh auth setup-git\s+git push -u origin "\$branch"/,
+  'Only after QA is a Git push credential helper installed');
+assert.match(publishJob,/gh pr create --base main --head "\$branch"/,
+  'Privileged publisher creates a review-only pull request');
+assert.doesNotMatch(agent,/gh auth setup-git|git push -u origin|gh pr create/,
+  'Model-runner must not publish code directly');
+assert.doesNotMatch(publishJob,/aider|copilot|scripts\/autonomous_dev_agent\.sh|run_secretless_agent_qa\.sh/,
+  'Privileged publisher must not execute model or QA code');
 
 assert.match(agent,/provider_status=\$\?/,'AI provider failures should flow into bounded repair loop');
-assert.match(agent,/agent-pr-bridge:/,'QA-passed branch must request independent GitHub PR bridge when Actions forbids PRs');
-assert.match(agent,/gh issue comment "\$ISSUE_NUMBER"/,
-  'Bridge request must attach to the approved issue');
-assert.match(agent,/exit 1\s+fi\s*$/,
-  'Cannot falsely report PR success if connector bridge remains pending');
+assert.match(agent,/git diff --cached --binary --no-ext-diff > "\$patch_dir\/agent-validated\.patch"/,
+  'Agent must export a static proposal rather than pushing code');
+assert.match(agent,/test -s "\$patch_dir\/agent-validated\.patch"/,
+  'Empty proposals must fail rather than report a PR success');
+assert.match(agentWorkflow,/name: agent-validated-patch/,
+  'Agent proposal transfers as an artifact, not a write-capable checkout');
+assert.match(agentWorkflow,/name: agent-qa-passed-patch/,
+  'Only independently QA-passed patch transfers to the publisher');
+assert.match(agentWorkflow,/github\.rest\.issues\.createComment/,
+  'Failure reporter must leave a visible issue receipt');
 
 assert.match(agent,/CODE-IMPLEMENTATION AGENT/,'Agent must produce validated source changes instead of text-only replies');
 assert.match(agent,/read-only Copilot outputs AGENT_EDITS JSON/,
@@ -114,18 +155,18 @@ assert.doesNotMatch(agent,/Use the edit tool now to modify/,
   'Missing Copilot write tool must not be requested on repair attempts');
 assert.match(agent,/: > \/tmp\/agent-reports\/edits\.log/,
   'Each repair attempt must clear stale edit-validation evidence');
-assert.match(agent,/node qa_hq_quicknav_escape_contract_v1\.mjs/,
+assert.match(read('scripts/security/run_secretless_agent_qa.sh'),/node qa_hq_quicknav_escape_contract_v1\.mjs/,
   'HQ quick picker AI patches must pass the exact P0 keyboard contract before PR');
-assert.match(agent,/node qa_hq_store_search_owner_activation_v1\.mjs/,
+assert.match(read('scripts/security/run_secretless_agent_qa.sh'),/node qa_hq_store_search_owner_activation_v1\.mjs/,
   'Store onboarding AI patches must pass relevant P0 activation and owner constraints');
-assert.match(agent,/node qa_store_delegated_manager_v1\.mjs/,
+assert.match(read('scripts/security/run_secretless_agent_qa.sh'),/node qa_store_delegated_manager_v1\.mjs/,
   'Manager tab AI patches must preserve delegated manager security contracts');
-assert.match(agent,/tail -c 5000 \/tmp\/agent-reports\/provider\.log/,
+assert.match(agent,/tail -c 3500 \/tmp\/agent-reports\/provider\.log/,
   'Coding provider output required for diagnosing zero-edit responses');
 assert.match(agent,/cat \/tmp\/agent-reports\/task\.txt/,
   'Every retry must preserve original approved issue instructions');
 assert.match(agent,/changed_application=/,'Source edit is required, not just a test');
-assert.match(agent,/no actual application JS\/HTML\/CSS file was changed/,
+assert.match(agent,/\[\[ -n "\$changed_tests" && -n "\$changed_application" \]\] \|\| exit 1/,
   'Zero source edits must fail');
 assert.match(read('.github/workflows/p0-pages-deploy.yml'),/node qa_autonomous_structured_edits_v1\.mjs/,
   'P0 gate runs host-side safe structured edit tests');
