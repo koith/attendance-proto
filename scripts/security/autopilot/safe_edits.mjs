@@ -17,6 +17,10 @@ const unsafe=/\b(?:process|globalThis|Deno|eval|require|fetch|XMLHttpRequest|Web
 // detect import(...) because '(' is non-word. Reject dynamic imports explicitly,
 // including whitespace, block comments, and line comments between tokens.
 const dynamicImport=/\bimport\b(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$))*\(/i;
+// Comments inserted between module tokens, or legal compact import/export syntax,
+// can bypass a whitespace-based module specifier matcher. Fail closed on these
+// forms instead of letting a model-generated dependency execute in QA.
+const noncanonicalModuleSyntax=/\b(?:import|export)(?=[{*'\"])|\b(?:import|export|from)\b\s*(?:\/\*|\/\/)/i;
 // Host-side import allowlist: any generated module has a tiny, known surface.
 // Explicitly reject bare built-in aliases ('fs', 'https'), installed packages,
 // re-exports, and imports of unrelated repository modules before QA executes.
@@ -36,7 +40,7 @@ function validateGeneratedImports(code,type,task){
 }
 export function staticSourceCheck(source,qa,task=null){
  for(const [type,c] of [['source',source],['qa',qa]]){
-  if(typeof c!=='string'||c.length>21000||c.length<40||unsafe.test(c)||dynamicImport.test(c)||(c.includes('Function(')||c.includes('new Function'))||/https?:\/\//.test(c)||/\b(?:secret|password|authorization)\s*[:=]/i.test(c))throw Error('DANGEROUS_MODEL_SOURCE_'+type);
+  if(typeof c!=='string'||c.length>21000||c.length<40||unsafe.test(c)||dynamicImport.test(c)||noncanonicalModuleSyntax.test(c)||(c.includes('Function(')||c.includes('new Function'))||/https?:\/\//.test(c)||/\b(?:secret|password|authorization)\s*[:=]/i.test(c))throw Error('DANGEROUS_MODEL_SOURCE_'+type);
   if(/(^|\n)\s*(?:import|export\s+\*\s+from)\s+.*(?:node:|['"]https?:)/m.test(c.replace(/from\s+['"]node:(?:assert|test|crypto)['"]/g,'from "allowed"')))throw Error('UNAPPROVED_IMPORT_'+type);
   validateGeneratedImports(c,type,task);
  }
