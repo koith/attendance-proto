@@ -214,8 +214,17 @@ jobs:
           script: |
             const issue=Number(process.env.ISSUE_NUMBER);
             if(!Number.isSafeInteger(issue)||issue<1)throw Error('INVALID_ISSUE_NUMBER');
+            // Re-runs must not duplicate trusted failure receipts on the same issue.
+            // Exact prefix and GitHub-asserted bot identity prevent spoofed user text.
+            const marker='[agent-run:'+context.runId+']';
+            const existing=await github.paginate(github.rest.issues.listComments,{
+              ...context.repo,issue_number:issue,per_page:100
+            });
+            if(existing.some(c=>c?.user?.login==='github-actions[bot]' &&
+              typeof c.body==='string' &&
+              (c.body===marker || c.body.startsWith(marker+'\n'))))return;
             const text=[
-              '[agent-run:'+context.runId+']',
+              marker,
               'AI 자동 개발 또는 승인/PR 게시가 미완료입니다. 서비스 배포 성공을 의미하지 않습니다.',
               'capture='+process.env.CAPTURE_RESULT,
               'develop='+process.env.DEVELOP_RESULT,
