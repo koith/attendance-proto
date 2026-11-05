@@ -43,3 +43,12 @@ test('missing POS session data rejected',()=>incomplete(completeManifest,complet
 test('missing session guard schema rejected',()=>incomplete(completeManifest,completeToc.replace('SCHEMA - session_guard',''),'TOC: app schema session_guard'));
 test('missing historical archive data rejected',()=>incomplete(completeManifest,completeToc.replace('TABLE DATA demo_cleanup_archive fixture_table',''),'TOC: app data demo_cleanup_archive'));
 test('fake 64-character nonhex digests rejected',()=>incomplete({...completeManifest,database_sha256:'Z'.repeat(64)},completeToc,'database.dump digest declared'));
+
+test('Claude v2 business and managed scope classification appears in one strict checker',()=>{
+ const r=run(completeManifest,completeToc);assert.equal(r.code,0);
+ assert.deepEqual(r.json.business_schemas_required_in_backup,
+  ['public','auth','storage','pin_private','pos_private','session_guard','private','demo_cleanup_archive']);
+ for(const s of ['cron','net','realtime','supabase_migrations','vault','extensions','graphql','graphql_public','pgsodium'])
+  assert.ok(r.json.provider_managed_schemas_require_separate_provisioning.includes(s),s);
+ assert.equal(r.json.result,'BACKUP_SCOPE_METADATA_PRESENT');
+});
