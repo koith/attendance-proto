@@ -40,14 +40,14 @@ test('real P0 workflow enforces security-only scope and skips all three operatin
   assert.match(pages,/assertNoOperatingWriteRelease/);
   assert.match(pages,/SEC_NO_WRITE_COMPARISON_INCOMPLETE/);
   for(const name of ['build-pages','notify-deployment-result','deploy-pages']){
-    const begin=pages.indexOf('\\n  '+name+':');
+    const begin=pages.indexOf('\n  '+name+':');
     assert.ok(begin>=0,'Missing operating job '+name);
     const rest=pages.slice(begin+4);
-    const next=rest.search(/\\n  [a-z][a-z-]*:\\n/);
+    const next=rest.search(/\n  [a-z][a-z-]*:\n/);
     const block=pages.slice(begin,next>=0?begin+4+next:pages.length);
     assert.ok(block.includes(`!contains(github.event.head_commit.message, '${marker}')`),
       'No-write marker must skip '+name);
-    assert.match(block,/!contains\\(github\\.event\\.head_commit\\.message, '\\[QA1243-NO-OPERATING-WRITE\\]'\\)/,
+    assert.match(block,/!contains\(github\.event\.head_commit\.message, '\[QA1243-NO-OPERATING-WRITE\]'\)/,
       'Existing QA1243 no-write gate must remain');
   }
   assert.ok(verifier.includes(`!contains(github.event.workflow_run.head_commit.message, '${marker}')`),
