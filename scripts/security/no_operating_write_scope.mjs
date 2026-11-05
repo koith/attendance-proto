@@ -4,6 +4,7 @@
 const allowedPaths=new Set([
   ".github/workflows/p0-pages-deploy.yml",
   ".github/workflows/verified-pages-deployment-notification.yml",
+".github/workflows/sec-autopilot-contract-ci.yml",
   "SECURITY_STABILITY_LEDGER_20261103.md",
   "security/SEC_S17_RECOVERY_HANDOVER_PUBLIC_20261106.md",
   "security/readonly_session_hook_audit_20261105.sql",
