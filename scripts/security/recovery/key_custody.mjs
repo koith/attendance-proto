@@ -22,6 +22,9 @@ const sha=b=>createHash('sha256').update(b).digest('hex');
 const node=(script,args)=>spawnSync(process.execPath,[join(SECURITY,script),...args],{encoding:'utf8'});
 
 export function check(root=process.cwd()){
+ // Resolve git top-level before root-relative PEM filters and leak scans.
+ // git ls-files from a subdirectory returns paths relative to that subdirectory.
+ try{root=execFileSync('git',['-C',root,'rev-parse','--show-toplevel'],{encoding:'utf8'}).trim()||root;}catch{}
  const files=execFileSync('git',['-C',root,'ls-files','-z'],{encoding:'utf8',maxBuffer:64*1024*1024}).split('\0').filter(Boolean);
  const leaked=[];
  for(const f of files){
