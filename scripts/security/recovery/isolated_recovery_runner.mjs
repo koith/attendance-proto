@@ -83,7 +83,7 @@ try{
  // Print only a whitelisted safety reason, never the SQL statement, DB URL,
  // environment or command arguments, while preserving negative-test evidence.
  const stderr=String(e?.stderr||'');
- const safetyReason=(stderr.match(/\\bISOLATION_ABORT_(?:DIRTY_DATABASE|SERVER|DATABASE|FIXTURE_MISMATCH)\\b/)||[])[0];
+ const safetyReason=(stderr.match(/\bISOLATION_ABORT_(?:DIRTY_DATABASE|SERVER|DATABASE|FIXTURE_MISMATCH)\b/)||[])[0];
  console.error('ISOLATED_FIXTURE_RUN_FAILED: '+(safetyReason||'SQL_EXECUTION_FAILED'));
  process.exit(2);
 }
