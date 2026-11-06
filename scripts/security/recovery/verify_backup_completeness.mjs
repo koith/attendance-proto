@@ -48,7 +48,7 @@ const declared=manifest?.catalog_data_scope,recorded=manifest?.toc_data_scope;
 const scopeValid=x=>x&&typeof x==='object'&&!Array.isArray(x)&&Object.keys(x).length>0&&
  Object.entries(x).every(([s,n])=>/^[a-z_][a-z0-9_]*$/.test(s)&&Number.isSafeInteger(n)&&n>=0);
 const actualDataToc={};
-for(const m of toc.matchAll(/\\bTABLE DATA ([a-z_][a-z0-9_]*) ([^\\s]+)/gm))
+for(const m of toc.matchAll(/\bTABLE DATA ([a-z_][a-z0-9_]*) ([^\s]+)/gm))
  actualDataToc[m[1]]=(actualDataToc[m[1]]||0)+1;
 need('manifest: physical data scope',scopeValid(declared)&&businessSchemas.every(s=>Number.isSafeInteger(declared[s])&&declared[s]>0),
  'missing or invalid production physical regular-table inventory for business/private schemas');
