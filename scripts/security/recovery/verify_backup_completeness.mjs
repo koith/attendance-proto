@@ -41,6 +41,23 @@ for(const s of appSchemas){
  need('TOC: app schema '+s,schema(s),'application/private/archive schema missing from full continuity backup');
  need('TOC: app data '+s,new RegExp('\\bTABLE DATA '+s+'\\b').test(toc),'no TABLE DATA entries for application/private/archive schema');
 }
+// A SCHEMA or TABLE DDL entry does not mean the corresponding TABLE DATA was captured.
+// Physical regular tables, including partition children, need their own data TOC
+// entries. Partitioned parents (relkind=p) have no direct TABLE DATA member.
+const declared=manifest?.catalog_data_scope,recorded=manifest?.toc_data_scope;
+const scopeValid=x=>x&&typeof x==='object'&&!Array.isArray(x)&&Object.keys(x).length>0&&
+ Object.entries(x).every(([s,n])=>/^[a-z_][a-z0-9_]*$/.test(s)&&Number.isSafeInteger(n)&&n>=0);
+const actualDataToc={};
+for(const m of toc.matchAll(/\\bTABLE DATA ([a-z_][a-z0-9_]*) ([^\\s]+)/gm))
+ actualDataToc[m[1]]=(actualDataToc[m[1]]||0)+1;
+need('manifest: physical data scope',scopeValid(declared)&&businessSchemas.every(s=>Number.isSafeInteger(declared[s])&&declared[s]>0),
+ 'missing or invalid production physical regular-table inventory for business/private schemas');
+need('manifest: TOC data scope matches archive',scopeValid(recorded)&&
+ Object.keys({...recorded,...actualDataToc}).every(s=>(recorded[s]||0)===(actualDataToc[s]||0)),
+ 'the declared TABLE DATA counts differ from pg_restore --list output');
+need('TOC: complete physical table data coverage',scopeValid(declared)&&
+ Object.entries(declared).every(([s,n])=>(actualDataToc[s]||0)>=n),
+ 'some physical table data members missing despite schema/table DDL presence');
 const result=missing.length?'BACKUP_SCOPE_INCOMPLETE':'BACKUP_SCOPE_METADATA_PRESENT';
 console.log(JSON.stringify({result,checks_total:checks.length,checks_passed:checks.filter(c=>c.ok).length,missing,
  warning:'Metadata declarations and user-provided TOC only. Does NOT verify encrypted archive bytes, manifest authenticity, snapshots, provider-managed schemas, or service restore. Perform digest verification + real isolated restore separately.',
