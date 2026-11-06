@@ -37,8 +37,8 @@ async function run(){
  const catalogDataScope=JSON.parse(command('psql',['-X','-A','-t','-v','ON_ERROR_STOP=1','--dbname',url,'-c',
   "SELECT coalesce(json_object_agg(s,n),'{}')::text FROM (SELECT n.nspname s,count(*) n FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind='r' AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND left(n.nspname,8)<>'pg_temp_' AND NOT EXISTS(SELECT 1 FROM pg_depend d WHERE d.objid=c.oid AND d.deptype='e') GROUP BY 1) x"]).trim()||'{}');
  const tocScope={},tocDataScope={};
- for(const m of contents.matchAll(/^\\d+;\\s+\\d+\\s+\\d+\\s+TABLE (?!DATA )(\\S+) /gm))tocScope[m[1]]=(tocScope[m[1]]||0)+1;
- for(const m of contents.matchAll(/^\\d+;\\s+\\d+\\s+\\d+\\s+TABLE DATA (\\S+) /gm))tocDataScope[m[1]]=(tocDataScope[m[1]]||0)+1;
+ for(const m of contents.matchAll(/^\d+;\s+\d+\s+\d+\s+TABLE (?!DATA )(\S+) /gm))tocScope[m[1]]=(tocScope[m[1]]||0)+1;
+ for(const m of contents.matchAll(/^\d+;\s+\d+\s+\d+\s+TABLE DATA (\S+) /gm))tocDataScope[m[1]]=(tocDataScope[m[1]]||0)+1;
  const scopeGaps=Object.entries(catalogScope).filter(([s,n])=>(tocScope[s]||0)<n).map(([s,n])=>({schema:s,catalog_tables:n,dumped_tables:tocScope[s]||0}));
  for(const [s,n] of Object.entries(catalogDataScope))if((tocDataScope[s]||0)<n)
   scopeGaps.push({schema:s,catalog_data_tables:n,dumped_data_tables:tocDataScope[s]||0,issue:'TABLE_DATA_MISSING'});
