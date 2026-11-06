@@ -34,10 +34,15 @@ async function run(){
  // by the dump TOC. This checks declared coverage, not real restore success.
  const catalogScope=JSON.parse(command('psql',['-X','-A','-t','-v','ON_ERROR_STOP=1','--dbname',url,'-c',
   "SELECT coalesce(json_object_agg(s,n),'{}')::text FROM (SELECT n.nspname s,count(*) n FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind IN ('r','p') AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND NOT EXISTS(SELECT 1 FROM pg_depend d WHERE d.objid=c.oid AND d.deptype='e') GROUP BY 1) x"]).trim()||'{}');
- const tocScope={};
- for(const m of contents.matchAll(/^\d+;\s+\d+\s+\d+\s+TABLE (?!DATA )(\S+) /gm))tocScope[m[1]]=(tocScope[m[1]]||0)+1;
+ const catalogDataScope=JSON.parse(command('psql',['-X','-A','-t','-v','ON_ERROR_STOP=1','--dbname',url,'-c',
+  "SELECT coalesce(json_object_agg(s,n),'{}')::text FROM (SELECT n.nspname s,count(*) n FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind='r' AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND left(n.nspname,8)<>'pg_temp_' AND NOT EXISTS(SELECT 1 FROM pg_depend d WHERE d.objid=c.oid AND d.deptype='e') GROUP BY 1) x"]).trim()||'{}');
+ const tocScope={},tocDataScope={};
+ for(const m of contents.matchAll(/^\\d+;\\s+\\d+\\s+\\d+\\s+TABLE (?!DATA )(\\S+) /gm))tocScope[m[1]]=(tocScope[m[1]]||0)+1;
+ for(const m of contents.matchAll(/^\\d+;\\s+\\d+\\s+\\d+\\s+TABLE DATA (\\S+) /gm))tocDataScope[m[1]]=(tocDataScope[m[1]]||0)+1;
  const scopeGaps=Object.entries(catalogScope).filter(([s,n])=>(tocScope[s]||0)<n).map(([s,n])=>({schema:s,catalog_tables:n,dumped_tables:tocScope[s]||0}));
- if(scopeGaps.length)throw Error('DB_ARCHIVE_SCOPE_GAP '+scopeGaps.map(g=>g.schema+':'+g.dumped_tables+'/'+g.catalog_tables).join(','));
+ for(const [s,n] of Object.entries(catalogDataScope))if((tocDataScope[s]||0)<n)
+  scopeGaps.push({schema:s,catalog_data_tables:n,dumped_data_tables:tocDataScope[s]||0,issue:'TABLE_DATA_MISSING'});
+ if(scopeGaps.length)throw Error('DB_ARCHIVE_SCOPE_GAP '+scopeGaps.map(g=>g.schema+':'+(g.dumped_tables??g.dumped_data_tables)+'/'+(g.catalog_tables??g.catalog_data_tables)+(g.issue?':'+g.issue:'')).join(','));
  const hashes=[];let index=0;
  for(const obj of objects){
   if(!obj.bucket||!obj.name)throw Error('INVALID_STORAGE_OBJECT_METADATA');
@@ -65,7 +70,7 @@ async function run(){
  if(!authConfigData||typeof authConfigData!=='object'||Array.isArray(authConfigData)||Object.keys(authConfigData).length<3)throw Error('HOSTED_AUTH_CONFIG_INCOMPLETE');
  writeFileSync(join(stage,'hosted-auth-config.json'),JSON.stringify(authConfigData),{mode:0o600});
  const authConfig={attempted:true,captured:true,scope:'hosted_config_only',redacted_remote_secrets_possible:true};
- writeFileSync(join(stage,'manifest.json'),JSON.stringify({format:'attendance-secure-backup-v1',database_sha256:sha(join(stage,'database.dump')),roles_sha256:sha(join(stage,'roles.globals.sql')),database_snapshot_window:{start:databaseCaptureStart,end:databaseCaptureEnd},catalog_scope:catalogScope,toc_scope:tocScope,scope_gaps:scopeGaps,storage:hashes,auth_config:authConfig,full_storage_count:objects.length,created_at:new Date().toISOString()},null,2),{mode:0o600});
+ writeFileSync(join(stage,'manifest.json'),JSON.stringify({format:'attendance-secure-backup-v1',database_sha256:sha(join(stage,'database.dump')),roles_sha256:sha(join(stage,'roles.globals.sql')),database_snapshot_window:{start:databaseCaptureStart,end:databaseCaptureEnd},catalog_scope:catalogScope,catalog_data_scope:catalogDataScope,toc_scope:tocScope,toc_data_scope:tocDataScope,scope_gaps:scopeGaps,storage:hashes,auth_config:authConfig,full_storage_count:objects.length,created_at:new Date().toISOString()},null,2),{mode:0o600});
  command('tar',['-czf',join(root,'snapshot.tar.gz'),'-C',stage,'.']);
  command('node',['scripts/security/seal.mjs',join(root,'snapshot.tar.gz'),process.env.SEC_BACKUP_RECIPIENT_PEM||'security/recipient_20261103.pub.pem',out]);
  console.log('ENCRYPTED_BACKUP_CREATED storage_objects='+objects.length+' db_archive_bytes='+statSync(join(stage,'database.dump')).size+' auth_config_captured='+authConfig.captured);
