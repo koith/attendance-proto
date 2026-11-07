@@ -13,6 +13,7 @@ export const MANAGED_SCHEMAS=['cron','net','realtime','supabase_migrations','vau
 // Roles that exist only because of the hosting cluster (bootstrap superuser,
 // Supabase platform roles that a provider recreates). Attribute drift on these
 // is reported, not failed.
+export const PROVIDER_EXTENSIONS=['pg_cron','pg_net','pg_graphql','pgsodium','supabase_vault'];
 export const PLATFORM_ROLES=['postgres','supabase_admin','supabase_auth_admin','supabase_storage_admin',
  'supabase_replication_admin','supabase_read_only_user','supabase_realtime_admin','supabase_functions_admin',
  'pgbouncer','authenticator','dashboard_user','pgsodium_keyholder','pgsodium_keyiduser','pgsodium_keymaker'];
@@ -37,7 +38,40 @@ export function compare(src,dst,{ignoreSchemas=[]}={}){
   throw Error('INVALID_INVENTORY_FORMAT');
  const managed=s=>MANAGED_SCHEMAS.includes(s)||ignoreSchemas.includes(s);
  const out={business:[],managed:[],roles:[]};
- const contentFields=src.content_hash&&dst.content_hash?['rows','content_md5']:['rows'];
+ // Row counts alone cannot prove a restoration preserved payroll/attendance values.
+ // This acceptance check must never silently degrade to a row-count-only MATCH.
+ if(src.content_hash!==true||dst.content_hash!==true)
+  out.business.push({kind:'integrity',id:'content_hash',issue:'content_hash_required'});
+ for(const [label,inv] of [['source',src],['restore',dst]]){
+  for(const t of inv.tables||[])if((t.kind==='r'||t.kind==='p')&&!/^[a-f0-9]{32}$/.test(t.content_md5||'')){
+   (managed(t.schema)?out.managed:out.business).push({kind:'integrity',id:t.schema+'.'+t.name,issue:label+'_content_digest_missing'});
+  }
+ }
+ for(const [label,inv] of [['source',src],['restore',dst]])
+  for(const k of ['schemas','extensions','owned_sequences'])
+   if(!Array.isArray(inv[k]))out.business.push({kind:'integrity',id:label+'.'+k,issue:'inventory_field_missing'});
+ if(Array.isArray(src.schemas)&&Array.isArray(dst.schemas)){
+  const a=new Set(src.schemas),b=new Set(dst.schemas);
+  for(const k of a)if(!b.has(k))(managed(k)?out.managed:out.business).push({kind:'schema',id:k,issue:'missing_in_restore'});
+  for(const k of b)if(!a.has(k))(managed(k)?out.managed:out.business).push({kind:'schema',id:k,issue:'extra_in_restore'});
+ }
+ if(Array.isArray(src.extensions)&&Array.isArray(dst.extensions)){
+  const a=index(src.extensions,'name'),b=index(dst.extensions,'name');
+  for(const [name,x] of a){
+   const y=b.get(name),bucket=PROVIDER_EXTENSIONS.includes(name)?out.managed:out.business;
+   if(!y)bucket.push({kind:'extension',id:name,issue:'missing_in_restore'});
+   else if(x.schema!==y.schema)bucket.push({kind:'extension',id:name,issue:'schema_differs'});
+  }
+  for(const [name] of b)if(!a.has(name)){
+   (PROVIDER_EXTENSIONS.includes(name)?out.managed:out.business).push({kind:'extension',id:name,issue:'extra_in_restore'});
+  }
+ }
+ if(Array.isArray(src.owned_sequences)&&Array.isArray(dst.owned_sequences))
+  diffMaps(index(src.owned_sequences,'seq_schema','seq'),index(dst.owned_sequences,'seq_schema','seq'),
+   ['schema','table','column'],'owned_sequence',out,managed);
+ if(src.server_version_num&&dst.server_version_num&&Math.floor(Number(src.server_version_num)/10000)!==Math.floor(Number(dst.server_version_num)/10000))
+  out.managed.push({kind:'server_version',id:'postgres',issue:'major_version_differs'});
+ const contentFields=['rows','content_md5'];
  diffMaps(index(src.tables,'schema','name'),index(dst.tables,'schema','name'),
   ['kind','rls','force_rls','acl_md5',...contentFields],'table',out,managed);
  diffMaps(index(src.policies,'schema','table','name'),index(dst.policies,'schema','table','name'),
@@ -60,7 +94,7 @@ export function compare(src,dst,{ignoreSchemas=[]}={}){
   role_differences:out.roles.length,blocking_role_differences:blockingRoles.length,
   source_schema_summary:summary(src),restored_schema_summary:summary(dst),
   business:out.business.slice(0,500),managed:out.managed.slice(0,500),roles:out.roles,
-  managed_schemas:MANAGED_SCHEMAS,
+  managed_schemas:MANAGED_SCHEMAS,provider_extensions:PROVIDER_EXTENSIONS,
   note:'Digests compare logical content, but source queries may have distinct MVCC snapshots. Values are never printed; managed schemas need provider-side rebuild.'};
 }
 
