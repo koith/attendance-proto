@@ -176,7 +176,7 @@ test('TOC parser classifies schema/extension/data entries',()=>{
 
 test('compare_inventory refuses foreign formats and flags missing tables',()=>{
  assert.throws(()=>compare({},{}),/INVALID_INVENTORY_FORMAT/);
- const inv=t=>({format:'attendance-db-inventory-v1',content_hash:true,tables:t,policies:[],functions:[],constraints:[],sequences:[],roles:[],sequence_collisions:[]});
+ const inv=t=>({format:'attendance-db-inventory-v1',content_hash:true,schemas:[],extensions:[],owned_sequences:[],tables:t,policies:[],functions:[],constraints:[],sequences:[],roles:[],sequence_collisions:[]});
  const a=inv([{schema:'public',name:'x',kind:'r',rls:true,force_rls:false,acl_md5:'a',rows:1,content_md5:'h'},{schema:'cron',name:'job',kind:'r',rls:false,force_rls:false,acl_md5:'a',rows:1,content_md5:'h'}]);
  const b=inv([]);
  const r=compare(a,b);
@@ -209,4 +209,48 @@ test('restore CLI refuses --inventory-out that targets the private decryption ke
   assert.match(run.stderr,/OUTPUT_PATH_EXISTS/);
   assert.deepEqual(readFileSync(key),secret,'private key must be byte-identical');
  }finally{rmSync(dir,{recursive:true,force:true})}
+});
+
+test('compare_inventory detects modified payroll-like values with identical row counts',()=>{
+ const mk=content_md5=>({format:'attendance-db-inventory-v1',content_hash:true,
+  schemas:['public'],extensions:[],owned_sequences:[],tables:[{schema:'public',name:'payroll',
+   kind:'r',rls:true,force_rls:false,acl_md5:'acl',rows:4,content_md5}],
+  policies:[],functions:[],constraints:[],sequences:[],roles:[],sequence_collisions:[]});
+ const c=compare(mk('a'.repeat(32)),mk('b'.repeat(32)));
+ assert.equal(c.result,'DIFF');
+ assert.ok(c.business.some(d=>d.id==='public.payroll'&&d.issue==='content_md5_differs'));
+});
+
+test('compare_inventory rejects missing content hashes rather than falling back to row counts',()=>{
+ const mk=content_hash=>({format:'attendance-db-inventory-v1',content_hash,
+  schemas:['public'],extensions:[],owned_sequences:[],tables:[{schema:'public',name:'payroll',
+   kind:'r',rls:false,force_rls:false,acl_md5:'x',rows:4,content_md5:content_hash?'a'.repeat(32):null}],
+  policies:[],functions:[],constraints:[],sequences:[],roles:[],sequence_collisions:[]});
+ const c=compare(mk(false),mk(true));
+ assert.equal(c.result,'DIFF');
+ assert.ok(c.business.some(d=>d.issue==='content_hash_required'));
+ assert.ok(c.business.some(d=>d.issue==='source_content_digest_missing'));
+});
+
+test('compare_inventory rejects missing business extension and changed owned-sequence wiring',()=>{
+ const mk=(ext,column)=>({format:'attendance-db-inventory-v1',content_hash:true,
+  schemas:['public','extensions'],extensions:ext,owned_sequences:[{seq_schema:'public',seq:'payroll_id_seq',
+   schema:'public',table:'payroll',column}],tables:[],
+  policies:[],functions:[],constraints:[],sequences:[],roles:[],sequence_collisions:[]});
+ const a=mk([{name:'pgcrypto',schema:'extensions'}],'id');
+ const b=mk([],'other_id');
+ const c=compare(a,b);
+ assert.equal(c.result,'DIFF');
+ assert.ok(c.business.some(d=>d.kind==='extension'&&d.id==='pgcrypto'));
+ assert.ok(c.business.some(d=>d.kind==='owned_sequence'&&d.issue==='column_differs'));
+});
+
+test('compare_inventory rejects a missing application schema while allowing documented provider schema differences',()=>{
+ const mk=schemas=>({format:'attendance-db-inventory-v1',content_hash:true,
+  schemas,extensions:[],owned_sequences:[],tables:[],
+  policies:[],functions:[],constraints:[],sequences:[],roles:[],sequence_collisions:[]});
+ const c=compare(mk(['public','auth','cron']),mk(['public']));
+ assert.equal(c.result,'DIFF');
+ assert.ok(c.business.some(d=>d.kind==='schema'&&d.id==='auth'));
+ assert.ok(c.managed.some(d=>d.kind==='schema'&&d.id==='cron'));
 });
