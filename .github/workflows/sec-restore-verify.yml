@@ -32,3 +32,35 @@ jobs:
           node -e "const r=require(process.argv[1]);if(r.result!=='PASS')process.exit(1);console.log('restore_verify',r.result,r.stages.map(s=>s.stage+':'+s.ok).join(' '))" "$RESTORE_VERIFY_EVIDENCE"
       - name: Repository key custody check (names/fingerprints only)
         run: node scripts/security/recovery/key_custody.mjs check .
+
+  restore-verify-pg17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install PostgreSQL 17 server binaries for production-major-version parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-17
+          test -x /usr/lib/postgresql/17/bin/initdb
+          /usr/lib/postgresql/17/bin/pg_dump --version
+      - name: Synthetic capture, sealed archive, disposable restore, source-snapshot comparison (PG17)
+        env:
+          PG_BIN: /usr/lib/postgresql/17/bin
+          RESTORE_VERIFY_EVIDENCE: ${{ runner.temp }}/restore-verify-pg17-report.json
+        run: |
+          node --test scripts/security/recovery/restore_verify.test.mjs \
+            scripts/security/recovery/key_custody.test.mjs \
+            scripts/security/recovery/recovery_plan.test.mjs \
+            scripts/security/recovery/verify_backup_completeness.test.mjs
+          node -e "const r=require(process.argv[1]);if(r.result!=='PASS')process.exit(1);console.log('restore_verify_pg17',r.result,r.stages.map(s=>s.stage+':'+s.ok).join(' '))" "$RESTORE_VERIFY_EVIDENCE"
