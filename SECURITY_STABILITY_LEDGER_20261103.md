@@ -139,7 +139,7 @@
 | R5 | Storage 파일·서비스 API 복원 | IN_PROGRESS: 역사적 파일 복호화 성공, 서비스 재가동 미검증 |
 | R6 | 원본 불변·오류/재시도 방어 | SYNTHETIC VERIFIED, 실제 전체본 검증 대기 |
 | S1 | 익명 SECURITY DEFINER 21개 분류 | VERIFIED: 14 PIN/1 토큰/4 공개/2 트리거, SQL catalog 읽기 |
-| S2 | 불필요한 익명 권한 제한 | IN_PROGRESS: 실제 우회·UX 영향 검증 필요 |
+| S2 | 불필요한 익명 권한 제한 | **VERIFIED COMPLETE**: 운영 DB anon SECURITY DEFINER 21→19, 내부 관리자 트리거 2개 PUBLIC/anon EXECUTE 회수, PG16/17+운영 DB ACL+실제 Pages Chromium/WebKit 공개 UX 검증 통과 (M절) |
 | S3 | 본사/대표/보조/직원 권한 격리 | IN_PROGRESS: 권한별 E2E 필요 |
 | S4 | 지점 간 객체 수준 접근 차단 | IN_PROGRESS: 실제 세션·타지점 호출 필요 |
 | S5 | 관리자 단일기기 서버측 세션 차단 | IN_PROGRESS: 구 JWT 실제 거부 증거 필요 |
@@ -226,3 +226,24 @@
 - 사용자 **28항목 COMPLETE 6/28 (21.4%), 잔여 22개**: S1, D1, B4, D3, R1, **S6**. S6은 감사/의존성 확인 범위의 종료 판정이며 다른 필수 인증·백업 결과를 대신하지 않는다.
 - 운영 보안 대과제 **SEC 1/18** 그대로이며 전체 운영 복구 가능 여부는 **NO_GO**.
 - J절 4/28, K절 5/28은 각각 당시의 감사 이력으로 유지한다.
+
+
+## M. 2026-11-07 S2 불필요한 익명 함수 실행 권한 제거 수용 완료 (6/28 → 7/28)
+
+**엄격한 범위:** S2는 익명 함수 실행권한 최소화 및 기존 공개 UX 회귀 검사의 종료 판정이다. 본사·대표·보조 관리자의 실제 JWT E2E(S3/S4/S5), iPhone 물리 실기(D4), 전체 DB/Auth 백업·복원(B1/R2)은 별도 미완료.
+
+### 운영 변경 이전 안전 확인
+- 실제 pg_catalog 실운영 읽기 전용 분류: public SECURITY DEFINER 익명 실행 함수 21개 = PIN 14, 토큰 1, 의도된 공개 4, 내부 트리거 2.
+- 내부 함수 2개: public.cancel_revoked_owner_invitation() / public.store_assistant_invitation_default_permissions(). 둘 다 RETURNS trigger + SECURITY DEFINER이며 실제 public.admin_users 테이블에 각각 활성 트리거 하나씩 결합. 함수 본문 직접 호출자/뷰 rule 참조 0건.
+- 실제 admin_users 테이블 RLS 활성, anon 및 authenticated의 직접 INSERT 권한 없음. 운영 사용자·근태·급여 행을 수정해 테스트하지 않음.
+
+### 실제 코드·실행 증거
+- [PR #1534](https://github.com/koith/attendance-proto/pull/1534), main 532ebcfc0acc2480b1e19687f98fdb69ed09b237. [검증된 권한 변경 SQL](https://github.com/koith/attendance-proto/blob/main/security/sec_s2_anon_trigger_execute_hardening.sql): 내부 2개 함수의 PUBLIC/anon EXECUTE만 회수, authenticated/service_role/postgres의 기존 명시적 EXECUTE 유지; 사전 조건 및 사후 검증과 응급 rollback 안내 포함. 앱 코드·직원·급여 DB 레코드 변경 없음.
+- [격리 PG16/17 검사 #42379448748](https://github.com/koith/attendance-proto/actions/runs/42379448748) 2/2 SUCCESS. 실제 두 트리거가 그대로 실행되고 다른 공개 함수 권한이 유지됨을 검증; 반복 실행 안전. PR 전체 51/51 CI 통과.
+- Supabase 실제 운영 migration **20261107140221_revoke_anonymous_internal_admin_trigger_execute_20261107** 적용 성공. 별도 실제 DB pg_catalog 조회: **2/2 익명 실행 false**, 인증 관리자/service_role 실행 true, 활성 admin_users 트리거 3개, 기존 공개 RPC 4개 권한 정상, 익명 SECURITY DEFINER 함수 21개→19개.
+- [main P0 게이트 #42379641519](https://github.com/koith/attendance-proto/actions/runs/42379641519) SUCCESS, Pages 빌드/배포/재검증/Safari 게시 작업 SKIPPED: 앱 v0.384 유지, 이번 코드 병합으로 Sheets 갱신 없음.
+- **운영 ACL 적용 후** [실제 Pages 브라우저 검증 #42370982709 재실행 2회차](https://github.com/koith/attendance-proto/actions/runs/42370982709) SUCCESS. 실제 운영 URL에서 Chromium + WebKit 각각 모바일/PC 검증; 공개 직원 카드 9건 HTTP 200 및 표시/API 행수 일치, 개인 PIN·급여·계약 키 비노출, 토큰 없는 비공개 직원 상태 및 익명 HQ 관리 API 거부, 미개통 지점 직접 진입 4건 차단, 버전 토글 19개 검사 통과. 실제 출퇴근/정정/급여 처리나 인증 PIN 시도는 수행하지 않음.
+
+### 최신 판정
+- 사용자 **28항목 COMPLETE 7/28 (25.0%), 잔여 21개**: **S1, S2**, D1, B4, D3, R1, S6. L절의 6/28은 당시 이력.
+- 운영 보안 대과제 **SEC 1/18**, 전체 DB/Auth/Storage 독립 백업·복원은 계속 **NO_GO**. S3/S4/S5, A1–A4, D2/D4 등 개별 수용은 아직 미완료.
