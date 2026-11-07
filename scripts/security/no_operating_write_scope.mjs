@@ -8,6 +8,7 @@ const allowedPaths=new Set([
   ".github/workflows/store-delegated-manager-postgres.yml",
   ".github/workflows/qa-live-test-controls-v1.yml",
   "qa_live_guest_pos_readonly_browser_v384.mjs",
+  "qa_live_version_test_controls_v1.mjs",
   "qa_store_scoped_permissions_postgres.sql",
   "SECURITY_STABILITY_LEDGER_20261103.md",
   "security/SEC_S17_RECOVERY_HANDOVER_PUBLIC_20261106.md",
