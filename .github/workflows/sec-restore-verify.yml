@@ -1,0 +1,34 @@
+name: SEC restore verify (isolated, synthetic)
+on:
+  pull_request:
+    paths:
+      - 'scripts/security/**'
+      - 'qa/security/fake_storage_server.mjs'
+      - '.github/workflows/sec-restore-verify.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  restore-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Synthetic capture -> sealed -> disposable-cluster restore -> inventory compare; key drill; plan order
+        env:
+          PG_BIN: /usr/lib/postgresql/16/bin
+          RESTORE_VERIFY_EVIDENCE: ${{ runner.temp }}/restore-verify-report.json
+        run: |
+          test -x "$PG_BIN/initdb"
+          node --test scripts/security/recovery/restore_verify.test.mjs \
+            scripts/security/recovery/key_custody.test.mjs \
+            scripts/security/recovery/recovery_plan.test.mjs \
+            scripts/security/recovery/verify_backup_completeness.test.mjs
+          node -e "const r=require(process.argv[1]);if(r.result!=='PASS')process.exit(1);console.log('restore_verify',r.result,r.stages.map(s=>s.stage+':'+s.ok).join(' '))" "$RESTORE_VERIFY_EVIDENCE"
+      - name: Repository key custody check (names/fingerprints only)
+        run: node scripts/security/recovery/key_custody.mjs check .
