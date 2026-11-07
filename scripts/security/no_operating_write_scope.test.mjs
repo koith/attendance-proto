@@ -30,6 +30,7 @@ test('read-only live browser QA is guarded and does not permit operating scripts
   const changed=[
     {filename:'.github/workflows/qa-live-test-controls-v1.yml',status:'modified'},
     {filename:'qa_live_guest_pos_readonly_browser_v384.mjs',status:'added'},
+    {filename:'qa_live_version_test_controls_v1.mjs',status:'modified'},
     {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
     {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
   ];
