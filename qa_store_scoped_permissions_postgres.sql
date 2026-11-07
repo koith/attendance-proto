@@ -259,3 +259,78 @@ DO $qa$ BEGIN
  THEN RAISE EXCEPTION 'LEGACY_UNPROFILED_MANAGER_NO_LONGER_FULL'; END IF;
 END $qa$;
 \echo PASS: all three scoped flags do not elevate legacy/storage/Edge, owner and legacy preserved
+
+-- Regression gap not covered by earlier fixtures: a valid, still-present JWT
+-- must lose all administrative capabilities when hosted auth status changes.
+-- All changes below affect only disposable synthetic postgres fixtures.
+SELECT set_config('fixture.role','authenticated',false);
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000009',false);
+DO $qa$ BEGIN
+ IF NOT public.is_admin() OR NOT public.can_manage_store(4)
+ OR NOT public.store_scope_can(4,'STAFF_EDIT')
+ THEN RAISE EXCEPTION 'PRECONDITION_LEGACY_MANAGER_REQUIRED'; END IF;
+END $qa$;
+
+UPDATE auth.users SET banned_until=now()+interval '1 day'
+ WHERE id='00000000-0000-4000-8000-000000000009';
+DO $qa$ BEGIN
+ IF public.is_admin() OR public.can_manage_store(4)
+ OR public.store_scope_can(4,'STAFF_EDIT') OR public.store_scope_can(4,'PAYROLL_VIEW')
+ THEN RAISE EXCEPTION 'BANNED_MANAGER_RETAINS_JWT_ACCESS'; END IF;
+END $qa$;
+UPDATE auth.users SET banned_until=NULL,
+ deleted_at=now() WHERE id='00000000-0000-4000-8000-000000000009';
+DO $qa$ BEGIN
+ IF public.is_admin() OR public.can_manage_store(4)
+ OR public.store_scope_can(4,'STAFF_EDIT') OR
+ (public.admin_context()->>'role') IS NOT NULL
+ THEN RAISE EXCEPTION 'DELETED_MANAGER_RETAINS_JWT_ACCESS'; END IF;
+END $qa$;
+UPDATE auth.users SET deleted_at=NULL,is_anonymous=true
+ WHERE id='00000000-0000-4000-8000-000000000009';
+DO $qa$ BEGIN
+ IF public.is_admin() OR public.can_manage_store(4)
+ OR public.store_scope_can(4,'STAFF_EDIT') OR
+ (public.admin_context()->>'role') IS NOT NULL
+ THEN RAISE EXCEPTION 'ANONYMOUS_MANAGER_RETAINS_JWT_ACCESS'; END IF;
+END $qa$;
+UPDATE auth.users SET is_anonymous=false
+ WHERE id='00000000-0000-4000-8000-000000000009';
+
+-- Explicitly scoped assistant retains self-service login but must not regain
+-- full admin or cross-store access after all permissions are revoked in place.
+SELECT set_config('fixture.uid','00000000-0000-4000-8000-000000000010',false);
+DO $qa$ BEGIN
+ IF public.can_manage_store(2) OR public.is_admin()
+ OR NOT public.store_scope_can(2,'PAYROLL_VIEW')
+ OR public.store_scope_can(4,'PAYROLL_VIEW')
+ THEN RAISE EXCEPTION 'PRECONDITION_LIMITED_ASSISTANT_REQUIRED'; END IF;
+END $qa$;
+UPDATE public.store_delegated_permissions
+ SET staff_edit=false,attendance_approve=false,payroll_view=false
+ WHERE store_id=2 AND user_id='00000000-0000-4000-8000-000000000010';
+DO $qa$ DECLARE p jsonb; BEGIN
+ p:=public.store_delegated_permissions_self();
+ IF public.can_manage_store(2) OR public.is_admin()
+ OR public.store_scope_can(2,'STAFF_EDIT')
+ OR public.store_scope_can(2,'ATTENDANCE_APPROVE')
+ OR public.store_scope_can(2,'PAYROLL_VIEW')
+ OR public.store_scope_can(4,'STAFF_EDIT')
+ OR coalesce((p->>'limited')::boolean,false) IS NOT TRUE
+ OR (p->>'payroll_view')::boolean IS NOT FALSE
+ OR (public.admin_context()->>'role') <> 'STORE_MANAGER'
+ THEN RAISE EXCEPTION 'REVOKED_ASSISTANT_REGAINS_ACCESS_WITH_OLD_JWT'; END IF;
+END $qa$;
+SELECT public.qa_expect_failure('revoked assistant cannot read closed payroll',
+ $q$SELECT * FROM public.store_limited_payroll_read(2,'2026-09')$q$,
+ 'NOT_AUTHORIZED');
+
+-- No auth.uid() must be a fail-closed condition for every server-side entry.
+SELECT set_config('fixture.uid','',false);
+DO $qa$ BEGIN
+ IF public.can_manage_store(2) OR public.is_admin()
+ OR public.store_scope_can(2,'STAFF_EDIT')
+ OR (public.admin_context()->>'role') IS NOT NULL
+ THEN RAISE EXCEPTION 'MISSING_USER_UID_GRANTED_ACCESS'; END IF;
+END $qa$;
+\echo PASS: banned/deleted/anonymous managers and revoked assistant lose access with stale JWT on PG16/PG17
