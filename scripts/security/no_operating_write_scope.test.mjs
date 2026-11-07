@@ -64,6 +64,27 @@ test('S2 strictly scoped SQL + isolated PG fixture cannot bypass runtime migrati
   assert.match(ci,/pg: \['16','17'\]/);
   assert.match(ci,/qa\/sec_s2_anon_trigger_execute_postgres.sql/);
 });
+test('SEC-A2 exact private history trigger and disposable PG verifier are non-operating-release only',()=>{
+  const changed=[
+    {filename:'security/sec_a2_attendance_mutation_audit_v1.sql',status:'added'},
+    {filename:'qa/sec_a2_attendance_mutation_audit_postgres.sql',status:'added'},
+    {filename:'.github/workflows/sec-a2-attendance-mutation-audit-pg.yml',status:'added'},
+    {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+  ];
+  assert.equal(check(changed).result,'PASS');
+  assert.throws(()=>check(changed.concat({filename:'index.html',status:'modified'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+  const sql=fs.readFileSync('security/sec_a2_attendance_mutation_audit_v1.sql','utf8');
+  const workflow=fs.readFileSync('.github/workflows/sec-a2-attendance-mutation-audit-pg.yml','utf8');
+  assert.match(sql,/CREATE TABLE private.attendance_mutation_audit_v1/);
+  assert.match(sql,/AFTER UPDATE OR DELETE ON public.attendance_events/);
+  assert.match(sql,/AFTER UPDATE OR DELETE ON public.event_corrections/);
+  assert.match(sql,/AFTER UPDATE OR DELETE ON public.correction_requests/);
+  assert.match(sql,/SEC_A2_EXPECTED_SUBTRANSACTION_ROLLBACK/);
+  assert.match(workflow,/pg: \['16','17'\]/);
+  assert.doesNotMatch(sql,/\bUPDATE\s+public\.attendance_events\b/i);
+  assert.doesNotMatch(sql,/\bDELETE\s+FROM\s+public\.attendance_events\b/i);
+});
 test('rejects app, Edge, payroll migration, GAS, secrets, random tests and unknown workflows',()=>{
   for(const path of ['index.html','actual_attendance.js','supabase/functions/server-sync-sheet/index.ts',
     'supabase/migrations/pays.sql','gas/Code.gs','.github/workflows/other.yml',

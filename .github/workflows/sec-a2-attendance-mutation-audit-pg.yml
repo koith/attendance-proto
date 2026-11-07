@@ -1,0 +1,54 @@
+name: SEC-A2 append-only attendance mutation audit PG16/17
+on:
+  pull_request:
+    paths:
+      - 'security/sec_a2_attendance_mutation_audit_v1.sql'
+      - 'qa/sec_a2_attendance_mutation_audit_postgres.sql'
+      - '.github/workflows/sec-a2-attendance-mutation-audit-pg.yml'
+      - 'scripts/security/no_operating_write_scope.mjs'
+      - 'scripts/security/no_operating_write_scope.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'security/sec_a2_attendance_mutation_audit_v1.sql'
+      - 'qa/sec_a2_attendance_mutation_audit_postgres.sql'
+      - '.github/workflows/sec-a2-attendance-mutation-audit-pg.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: Real PG${{ matrix.pg }} source 3-table UPDATE DELETE audit / TRUNCATE guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16','17']
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_a2_pg_only
+          POSTGRES_DB: sec_a2_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sec_a2_synthetic"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_a2_pg_only
+      PGDATABASE: sec_a2_synthetic
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Validate real PostgreSQL triggers on synthetic rows and live rollback selftest
+        run: psql -X -v ON_ERROR_STOP=1 -f qa/sec_a2_attendance_mutation_audit_postgres.sql
+      - name: Exact non-operating-write files guard regression
+        run: node --test scripts/security/no_operating_write_scope.test.mjs
