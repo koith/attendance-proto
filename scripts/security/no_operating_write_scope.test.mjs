@@ -26,6 +26,23 @@ test('reviewed PG16/17 delegated manager SQL and workflow qualify as non-operati
   assert.equal(r.changed_paths.length,4);
   assert.throws(()=>check(changed.concat({filename:'supabase/migrations/20261107_unsafe.sql',status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
 });
+test('read-only live browser QA is guarded and does not permit operating scripts',()=>{
+  const changed=[
+    {filename:'.github/workflows/qa-live-test-controls-v1.yml',status:'modified'},
+    {filename:'qa_live_guest_pos_readonly_browser_v384.mjs',status:'added'},
+    {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+  ];
+  assert.equal(check(changed).result,'PASS');
+  assert.throws(()=>check(changed.concat({filename:'index.html',status:'modified'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+  const workflow=fs.readFileSync('.github/workflows/qa-live-test-controls-v1.yml','utf8');
+  const source=fs.readFileSync('qa_live_guest_pos_readonly_browser_v384.mjs','utf8');
+  assert.match(workflow,/node qa_live_guest_pos_readonly_browser_v384.mjs/);
+  assert.match(source,/const allowRPC=new Set\(\['list_stores','pos_public_staff_cards','pos_public_staff_picker'\]\)/);
+  assert.match(source,/SEC_READ_ONLY_TEST_BLOCK/);
+  assert.doesNotMatch(source,/\b(?:store_attendance_correct_event|payroll_close|pos_unlock_store|punch)\s*\(/,
+    'Live QA may never issue real state-changing operations');
+});
 test('rejects app, Edge, payroll migration, GAS, secrets, random tests and unknown workflows',()=>{
   for(const path of ['index.html','actual_attendance.js','supabase/functions/server-sync-sheet/index.ts',
     'supabase/migrations/pays.sql','gas/Code.gs','.github/workflows/other.yml',
