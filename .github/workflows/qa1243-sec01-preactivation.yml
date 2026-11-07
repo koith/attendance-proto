@@ -14,7 +14,7 @@ permissions:
 jobs:
   isolated-real-sessions:
     name: New SEC01 login rollover, logout, staff and real config rollback
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     services:
       postgres:
