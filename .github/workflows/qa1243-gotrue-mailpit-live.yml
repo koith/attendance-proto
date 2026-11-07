@@ -15,7 +15,7 @@ permissions:
 jobs:
   sandbox-real-auth-smtp:
     name: Real GoTrue/SMTP inbox HTTP E2E, ephemeral GitHub runner only
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
       postgres:

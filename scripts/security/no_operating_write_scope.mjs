@@ -9,6 +9,8 @@ const allowedPaths=new Set([
   ".github/workflows/qa-live-test-controls-v1.yml",
   ".github/workflows/sec-s2-public-trigger-acl-postgres.yml",
   ".github/workflows/sec-a2-attendance-mutation-audit-pg.yml",
+  ".github/workflows/qa1243-gotrue-mailpit-live.yml",
+  ".github/workflows/qa1243-sec01-preactivation.yml",
   "security/sec_a2_attendance_mutation_audit_v1.sql",
   "qa/sec_a2_attendance_mutation_audit_postgres.sql",
   "security/sec_s2_anon_trigger_execute_hardening.sql",
