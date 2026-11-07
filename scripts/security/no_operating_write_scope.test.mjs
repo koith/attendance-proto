@@ -85,6 +85,22 @@ test('SEC-A2 exact private history trigger and disposable PG verifier are non-op
   assert.doesNotMatch(sql,/\bUPDATE\s+public\.attendance_events\b/i);
   assert.doesNotMatch(sql,/\bDELETE\s+FROM\s+public\.attendance_events\b/i);
 });
+test('R4 GoTrue isolated real-auth workflows stay exact non-operating-write only',()=>{
+  const changed=[
+    {filename:'.github/workflows/qa1243-gotrue-mailpit-live.yml',status:'modified'},
+    {filename:'.github/workflows/qa1243-sec01-preactivation.yml',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+  ];
+  assert.equal(check(changed).result,'PASS');
+  assert.throws(()=>check(changed.concat({filename:'supabase/migrations/20261108120000_auth.sql',status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+  for(const path of ['.github/workflows/qa1243-gotrue-mailpit-live.yml','.github/workflows/qa1243-sec01-preactivation.yml']){
+    const workflow=fs.readFileSync(path,'utf8');
+    assert.match(workflow,/runs-on: ubuntu-24\.04/);
+    assert.match(workflow,/qa1243/);
+    assert.doesNotMatch(workflow,/SUPABASE_SERVICE_ROLE_KEY|SUPABASE_DB_URL|GOOGLE_OAUTH_REFRESH_TOKEN/);
+  }
+});
 test('rejects app, Edge, payroll migration, GAS, secrets, random tests and unknown workflows',()=>{
   for(const path of ['index.html','actual_attendance.js','supabase/functions/server-sync-sheet/index.ts',
     'supabase/migrations/pays.sql','gas/Code.gs','.github/workflows/other.yml',
