@@ -177,7 +177,7 @@ test('TOC parser classifies schema/extension/data entries',()=>{
 test('compare_inventory refuses foreign formats and flags missing tables',()=>{
  assert.throws(()=>compare({},{}),/INVALID_INVENTORY_FORMAT/);
  const inv=t=>({format:'attendance-db-inventory-v1',content_hash:true,schemas:[],extensions:[],owned_sequences:[],tables:t,policies:[],functions:[],constraints:[],sequences:[],roles:[],sequence_collisions:[]});
- const a=inv([{schema:'public',name:'x',kind:'r',rls:true,force_rls:false,acl_md5:'a',rows:1,content_md5:'h'},{schema:'cron',name:'job',kind:'r',rls:false,force_rls:false,acl_md5:'a',rows:1,content_md5:'h'}]);
+ const a=inv([{schema:'public',name:'x',kind:'r',rls:true,force_rls:false,acl_md5:'a',rows:1,content_md5:'a'.repeat(32)},{schema:'cron',name:'job',kind:'r',rls:false,force_rls:false,acl_md5:'a',rows:1,content_md5:'a'.repeat(32)}]);
  const b=inv([]);
  const r=compare(a,b);
  assert.equal(r.result,'DIFF');assert.equal(r.business_differences,1);assert.equal(r.managed_differences,1);
