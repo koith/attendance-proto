@@ -8,8 +8,8 @@ import {chromium,webkit} from 'playwright';
 const base='https://koith.github.io/attendance-proto';
 const source=fs.readFileSync('index.html','utf8');
 const version=source.match(/const APP_VERSION="(v[0-9.]+)"/)?.[1];
-const api=source.match(/SUPABASE_URL:\\s*"(https:\\/\\/[^"]+\\.supabase\\.co)"/)?.[1];
-const anon=source.match(/SUPABASE_ANON_KEY:\\s*"([^"]+)"/)?.[1];
+const api=source.match(/SUPABASE_URL:\s*"(https:\/\/[^"]+\.supabase\.co)"/)?.[1];
+const anon=source.match(/SUPABASE_ANON_KEY:\s*"([^"]+)"/)?.[1];
 assert.ok(version && api==='https://waluhdgqhwjjwmflhrle.supabase.co' && anon?.length>50,
   'Published app host/version/public-only key preconditions');
 const allowRPC=new Set(['list_stores','pos_public_staff_cards','pos_public_staff_picker']);
@@ -32,7 +32,7 @@ for (const [engine,driver] of browserTypes) {
           const req=route.request();
           const url=new URL(req.url());
           if (url.hostname.endsWith('.supabase.co')) {
-            const rpc=url.pathname.match(/^\\/rest\\/v1\\/rpc\\/([a-z0-9_]+)$/i)?.[1];
+            const rpc=url.pathname.match(/^\/rest\/v1\/rpc\/([a-z0-9_]+)$/i)?.[1];
             if (req.method()==='POST' && rpc && allowRPC.has(rpc)
                 && url.origin===api) {
               calls.push(rpc);runTotals.live_rpc++;
@@ -48,7 +48,7 @@ for (const [engine,driver] of browserTypes) {
           }
           return route.continue();
         });
-        const live=await page.goto(base+'/index.html?mode=store&store=1#pos&sec_qa='+engine+'-'+viewport.width,
+        const live=await page.goto(base+'/index.html?mode=store&store=1&sec_qa='+engine+'-'+viewport.width+'#pos',
           {waitUntil:'domcontentloaded',timeout:45000});
         assert.equal(live?.status(),200,'Published Pages HTTP status');
         await page.locator('#appVersion').waitFor({state:'visible',timeout:30000});
