@@ -14,6 +14,18 @@ test('strict exact-scope guard accepts reviewed non-runtime changes only',()=>{
   const r=check();assert.equal(r.result,'PASS');assert.equal(r.changed_paths.length,4);
   assert.equal(check([{filename:'security/readonly_session_hook_audit_20261105.sql',status:'added'}]).result,'PASS');
 });
+test('reviewed PG16/17 delegated manager SQL and workflow qualify as non-operating release',()=>{
+  const changed=[
+    {filename:'.github/workflows/store-delegated-manager-postgres.yml',status:'modified'},
+    {filename:'qa_store_scoped_permissions_postgres.sql',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+  ];
+  const r=check(changed);
+  assert.equal(r.result,'PASS');
+  assert.equal(r.changed_paths.length,4);
+  assert.throws(()=>check(changed.concat({filename:'supabase/migrations/20261107_unsafe.sql',status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+});
 test('rejects app, Edge, payroll migration, GAS, secrets, random tests and unknown workflows',()=>{
   for(const path of ['index.html','actual_attendance.js','supabase/functions/server-sync-sheet/index.ts',
     'supabase/migrations/pays.sql','gas/Code.gs','.github/workflows/other.yml',

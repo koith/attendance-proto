@@ -49,11 +49,15 @@ on:
       - '.github/workflows/store-delegated-manager-postgres.yml'
 jobs:
   delegated-manager-qa:
-    name: Verify all-store tab, actual RPC ACL and cross-store isolation
+    name: Verify all-store tab, actual RPC ACL and cross-store isolation (PG${{ matrix.pg }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16', '17']
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:${{ matrix.pg }}-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: synthetic_fixture_only
