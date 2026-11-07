@@ -135,7 +135,7 @@
 | R1 | 격리 복원 환경 준비 | **VERIFIED COMPLETE**: PG16/17 실제 독립 격리 클러스터 생성·암호화 테스트 백업 복호화·복원·무결성 검증 PASS; 운영 전체 백업 데이터 복원은 R2로 별도 미완료 |
 | R2 | 실제 운영 전체 백업 복원 | BLOCKED: 전체 백업본 없음 |
 | R3 | 원본/복원본 데이터·DDL·ACL·sequence 일치 | SYNTHETIC VERIFIED, 실백업 불가 |
-| R4 | Auth 실로그인·세션 테스트 | UNVERIFIED: 격리 GoTrue/QA 계정 필요 |
+| R4 | Auth 실로그인·세션 테스트 | **VERIFIED COMPLETE (격리 실인증 서버 수용 한정)**: 실제 GoTrue/SMTP 메일·로그인 E2E 14/14 + GoTrue 발급 JWT·PostgREST 세션 E2E 9/9, 독립 disposable DB/API. 운영 원본 Auth 복원·운영 실사용자 세션은 B3/R2/S5 별도 (N절) |
 | R5 | Storage 파일·서비스 API 복원 | IN_PROGRESS: 역사적 파일 복호화 성공, 서비스 재가동 미검증 |
 | R6 | 원본 불변·오류/재시도 방어 | SYNTHETIC VERIFIED, 실제 전체본 검증 대기 |
 | S1 | 익명 SECURITY DEFINER 21개 분류 | VERIFIED: 14 PIN/1 토큰/4 공개/2 트리거, SQL catalog 읽기 |
@@ -145,7 +145,7 @@
 | S5 | 관리자 단일기기 서버측 세션 차단 | IN_PROGRESS: 구 JWT 실제 거부 증거 필요 |
 | S6 | GitHub 비밀·PAT 의존성 점검 | **VERIFIED COMPLETE (감사·의존성 진단 한정)**: 158/158 GitHub workflow 직접 Secret·PAT·Var 참조 전수 확인, 실제 비밀값 노출 없는 존재 검사·Management 401·백업 protected-env 실패 원인 확인. 미등록 비밀값·실제 백업 성공·토큰 발급/갱신은 별도 B1/D5 과제 |
 | A1 | 출퇴근 동시성·중복 차단 | IN_PROGRESS: 독립 합성 QA 존재, 운영 전경로 미검증 |
-| A2 | 근태 정정·삭제 이력 보존 | IN_PROGRESS: 합성 QA 존재, 운영 재검증 필요 |
+| A2 | 근태 정정·삭제 이력 보존 | **IN_PROGRESS**: 3개 테이블 수정·삭제 이력 비공개 감사/대량삭제 방어 운영 적용, PG16/17 + 운영 쿼리 + 호스티드 브라우저 PASS. 과거 원본 미연결 VOID 8건·실제 향후 운영 정정 감사 이력 검증 미완 (N절) |
 | A3 | 급여 마감·정산 일관성 | IN_PROGRESS: 합성 QA 존재, 과거 10건 개별 검산 미완 |
 | A4 | Google Sheets 동기화·복구 | IN_PROGRESS: 실제 새로고침 성공, 손실 없는 격리 복구 미검증 |
 | D1 | 복구 코드 PR #1520 안전 검토·병합 | VERIFIED: main commit 86a1fb52 |
@@ -247,3 +247,27 @@
 ### 최신 판정
 - 사용자 **28항목 COMPLETE 7/28 (25.0%), 잔여 21개**: **S1, S2**, D1, B4, D3, R1, S6. L절의 6/28은 당시 이력.
 - 운영 보안 대과제 **SEC 1/18**, 전체 DB/Auth/Storage 독립 백업·복원은 계속 **NO_GO**. S3/S4/S5, A1–A4, D2/D4 등 개별 수용은 아직 미완료.
+
+
+## N. 2026-11-08 R4 격리 실제 Auth 로그인·세션 재검증 수용 (7/28 → 8/28) 및 A2 운영 개선 기록
+
+### R4 COMPLETE — 독립 실제 GoTrue/SMTP/세션 서버
+
+- **경계:** R4는 *격리 환경에서 실제 GoTrue 서버와 PostgREST를 실행하여 로그인·인증 세션을 검증*하는 수용 항목. 실제 운영 Auth 사용자 전체 백업·복원(B3/R2), 운영 관리자 구 JWT 실제 거부(S5), 물리 iPhone(D4)과는 구분한다. 운영 계정이나 기존 메일 인증·초대 데이터에 대한 변경 0건.
+- [PR #1537](https://github.com/koith/attendance-proto/pull/1537) main **a5d7891a4a114ac59c8f5e0df194db4617a4311c**: 기존 실제 GoTrue E2E 2개 GitHub Actions를 Ubuntu 24.04로 고정하여 최신 main 기준 새 환경에서 회귀 재실행. QA는 실제 Docker GoTrue v2.197.0, PostgreSQL 16, PostgREST v12.2.12, Mailpit SMTP 및 localhost HTTP, .invalid 가상 계정만 사용. 운영 Supabase 자격증명/메일주소 불사용. 코드/DB 운영 동작 변화 없음.
+- [실제 GoTrue/Mailpit E2E #42389866444](https://github.com/koith/attendance-proto/actions/runs/42389866444) **14/14 PASS**: 실제 초대 → SMTP 메일 도착 → 인증 링크 사용 → 세션 발급, 최초 비밀번호 설정/로그인, 확인용 이메일 가입/로그인, 중복 초대 거부, 기존 계정 복구 메일/비밀번호 재설정/재로그인, 삭제된 초대 링크 무효, 취소 후 재초대, 잘못된 코드 거부, 60초 유효 링크를 실제 70초 뒤 조회해 만료 거부. 단순 테스트 토큰 조작으로 만료를 대신하지 않음.
+- [실제 GoTrue JWT/PostgREST 세션 E2E #42389866543](https://github.com/koith/attendance-proto/actions/runs/42389866543) **9/9 PASS**: 신규 로그인은 승인되고 구 JWT는 거부, 별도 3개 관리자 세션과 비인증 POS 유지, 직원 세션은 관리자 단일기기 규칙에서 제외, 신규 세션 refresh 성공, 구 세션 refresh 접근 거부, 로그아웃한 세션 JWT 거부, 재로그인 허용, 롤백/재활성화 HTTP 검증. 이 증거는 *격리된 PostgreSQL pre-request hook*의 동작이며 **운영 PostgREST hook 활성 증명 아님**.
+- PR 전체 검사 **54/54 SUCCESS**. 운영 버전 v0.384, 인하대점 운영 DB/Auth/Sheets 직접 변경 0건. [main P0 게이트 #42390092015](https://github.com/koith/attendance-proto/actions/runs/42390092015) 이후 검증 완료 시 Pages/Sheet 미배포 확인; 이 CI 결과는 R4의 실제 격리 Auth 통과 결과와 분리하여 기록한다.
+
+### A2 IN_PROGRESS — 운영 감사 장치까지 적용했으나 과거 이력 정합성 게이트 미통과
+
+- [PR #1536](https://github.com/koith/attendance-proto/pull/1536), main **f09a448488d3d62f32ebdb372fcb2c48ff142158**, 실제 DB migration **20261107160326_security_a2_attendance_immutable_mutation_history_20261108** 적용. 기존 출퇴근 원본·근태 정정·정정 요청 3개 RLS 테이블 각각에 AFTER UPDATE/DELETE 개인 정보 보호된 비공개 감사 캡처 및 BEFORE TRUNCATE 차단 2개 트리거 설치. 함수는 anon/authenticated 직접 실행 불가.
+- [실제 PG16/17 회귀 #42389181844](https://github.com/koith/attendance-proto/actions/runs/42389181844) 2/2 SUCCESS, PR 전체 검사 **52/52 SUCCESS**. 호스티드 Supabase migration은 실제 임시 합성 표에서 UPDATE/DELETE 후 발생한 audit 2건을 *하위 트랜잭션 전부 롤백*, 운영 원본 임의 수정 없음.
+- 독립 운영 DB 읽기 전용 재조회: **3/3 대상 테이블에 2/2 활성 트리거 설치**, 비공개 감사 RLS 활성, anon/authenticated SELECT=false 및 함수 EXECUTE=false, 테스트 잔여 감사행 **0건**. 기존 운영 이벤트 행수는 외부 실제 사용자 작업으로 계속 변할 수 있으므로 변경/유실 비교를 합성 테스트 전후의 정적 행수만으로 단정하지 않는다.
+- [main P0 #42389324079](https://github.com/koith/attendance-proto/actions/runs/42389324079) SUCCESS, Pages/Sheet 단계 SKIPPED. **운영 DB 적용 후** 실제 [Pages Chromium/WebKit 모바일/데스크톱 #42370982709 attempt 3](https://github.com/koith/attendance-proto/actions/runs/42370982709) SUCCESS: 실제 직원 카드, 익명 비공개 RPC 거부, 미개통 지점 차단 유지.
+- 과거 원본 event_id가 NULL인 VOID **8건**은 모두 날짜/직원 단위 취소된 ADD 연관성만 확인됐으며 원본 취소 ID와의 명시적 1:1 참조는 **0/8**. 무리한 재연결/자동 수정 없음. **실제 정상 직원/관리자 수정·삭제가 발생한 이후 새 감사 행이 남는지**와 과거 8건 정확한 계보는 추가 검증 필요. 따라서 A2 전체 COMPLETE는 미인정.
+
+### 누적 판정
+
+- 사용자 **28개 항목 COMPLETE 8/28 (28.6%), 미완료 20개**: S1, S2, S6, B4, R1, **R4**, D1, D3. 이전 M절 7/28은 당시 이력.
+- 전체 SEC 대과제 **1/18**, 실제 운영 DB/Auth 전체 백업·복원 및 운영 RTO/RPO 검증은 계속 **NO_GO**. R4 격리 Auth 서버 수용으로 이를 달성했다고 표시하지 않는다.
