@@ -105,7 +105,7 @@ export function inventory(conninfo,{psql=process.env.PIN_QA_PSQL||process.env.PS
   schemas:meta.schemas,schema_summary:bySchema,extensions:meta.extensions,roles:meta.roles,
   tables:meta.tables.map(t=>({...t,...(rows[t.schema+'.'+t.name]||{})})),
   policies:meta.policies,functions:meta.functions,constraints:meta.constraints,
-  sequences:meta.sequences,sequence_collisions:collisions,
+  sequences:meta.sequences,owned_sequences:meta.owned_sequences,sequence_collisions:collisions,
   safety:'counts and md5 digests only; no row values, no role passwords; read-only queries, but separate MVCC snapshots'};
 }
 
