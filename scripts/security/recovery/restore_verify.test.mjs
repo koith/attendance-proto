@@ -182,3 +182,31 @@ test('compare_inventory refuses foreign formats and flags missing tables',()=>{
  const r=compare(a,b);
  assert.equal(r.result,'DIFF');assert.equal(r.business_differences,1);assert.equal(r.managed_differences,1);
 });
+
+test('restore CLI refuses --report that targets the sealed source archive',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'sec-rv-output-'));
+ try{
+  const sealed=join(dir,'source.sealed'),key=join(dir,'key.pem');
+  const archive=Buffer.from('backup-source-must-remain-unchanged');
+  writeFileSync(sealed,archive);writeFileSync(key,'test-key-not-valid');
+  const run=spawnSync(process.execPath,[join(dirname(fileURLToPath(import.meta.url)),'restore_verify.mjs'),
+   '--sealed',sealed,'--key',key,'--report',sealed],{encoding:'utf8'});
+  assert.equal(run.status,2,run.stderr);
+  assert.match(run.stderr,/OUTPUT_PATH_EXISTS/);
+  assert.deepEqual(readFileSync(sealed),archive,'sealed archive must be byte-identical');
+ }finally{rmSync(dir,{recursive:true,force:true})}
+});
+
+test('restore CLI refuses --inventory-out that targets the private decryption key',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'sec-rv-output-'));
+ try{
+  const sealed=join(dir,'source.sealed'),key=join(dir,'key.pem');
+  const secret=Buffer.from('do-not-overwrite-private-key');
+  writeFileSync(sealed,'synthetic-sealed-source');writeFileSync(key,secret);
+  const run=spawnSync(process.execPath,[join(dirname(fileURLToPath(import.meta.url)),'restore_verify.mjs'),
+   '--sealed',sealed,'--key',key,'--inventory-out',key],{encoding:'utf8'});
+  assert.equal(run.status,2,run.stderr);
+  assert.match(run.stderr,/OUTPUT_PATH_EXISTS/);
+  assert.deepEqual(readFileSync(key),secret,'private key must be byte-identical');
+ }finally{rmSync(dir,{recursive:true,force:true})}
+});
