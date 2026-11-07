@@ -129,7 +129,7 @@
 | B1 | 실제 운영 전체 DB 백업 | BLOCKED: DB 접속 자격증명/백업 실행 환경 |
 | B2 | 직원·근태·급여·관리자·지점 DB 포함 | UNVERIFIED: 실제 전체 pg_dump TOC·행 데이터 |
 | B3 | Auth 사용자·운영 설정 백업 | IN_PROGRESS: 과거 논리 데이터 일부, hosted 설정 미확보 |
-| B4 | Storage 전체 객체 바이트 백업 | HISTORICAL VERIFIED: SEC-S03 2026-11-03 14/14, 최신 전체본은 별도 |
+| B4 | Storage 전체 객체 바이트 백업 | **VERIFIED COMPLETE**: SEC-S03 전체 14/14 실제 암호화 파일·독립 복호화·해시 일치; 11/07 원본 전체 목록·바이트·최종 수정시각 재확인, 변경 없음 |
 | B5 | 암호화·소유자 통제 장기 보관 | IN_PROGRESS: 과거 암호화 사본 보유, 최신 일괄본 없음 |
 | B6 | 독립 보관 키·실제 복호화 | IN_PROGRESS: 과거 SEC-S03 실제 복호화 PASS, 최신 전체 키/이중 보관 미확인 |
 | R1 | 격리 복원 환경 준비 | SYNTHETIC VERIFIED: PG16/17 폐기형 클러스터, 실백업 환경 준비 미완 |
@@ -150,9 +150,37 @@
 | A4 | Google Sheets 동기화·복구 | IN_PROGRESS: 실제 새로고침 성공, 손실 없는 격리 복구 미검증 |
 | D1 | 복구 코드 PR #1520 안전 검토·병합 | VERIFIED: main commit 86a1fb52 |
 | D2 | 전체 CI·회귀 검증 | IN_PROGRESS: 관련 PR 합성 테스트 통과, 종단간 전체 미완 |
-| D3 | 배포 영향·버전 확인 | IN_PROGRESS: Pages PASS, 예상 밖 Sheets 새로고침 확인/예방 필요 |
+| D3 | 배포 영향·버전 확인 | **VERIFIED COMPLETE**: 최종 Pages 실제 배포 HTTP 200/v0.384/JS 일치·비인가 급여 401, 후속 두 security-only main에서 UI/Edge blob 불변, P0 패스와 배포/Sheets SKIPPED 검증 |
 | D4 | PC·iPhone 실기 기능 수용 | UNVERIFIED: 실제 기기 검증 증거 없음 |
 | D5 | 주기 백업·보관·실패 알림 | BLOCKED: 실제 암호화 백업/복원 선행 필요 |
 | D6 | 완료 원장·최종 보고 | IN_PROGRESS: 증거 갱신 중, 최종 NO_GO |
 
-**28항목 중 해당 세부 목적에 대해 VERIFIED로 판정한 것은 S1·D1의 2건이다.** 별도 합성 부분 완료, 과거 Storage 백업, 현재 실제 운영 복구 완료는 구분한다. 최종 전체 보안 18개 운영 수용 완료는 여전히 **1/18**이다.
+**2026-11-07 재검증 결과, 28개 세부 항목의 최종 완료는 S1·D1·B4·D3의 4건이다.** 별도 합성 부분 완료, 과거 Storage 백업, 현재 실제 운영 복구 완료는 구분한다. 최종 전체 보안 18개 운영 수용 완료는 여전히 **1/18**이다.
+
+
+## J. 2026-11-07 B4·D3 최종 수용 완료 판정 (2/28 → 4/28)
+
+> 이 전이는 **동일한 기존 28항목 정의**를 유지한 실증 수용 판정이다. B4는 기존 SEC-S03의 중복 미계상 수정이고, D3는 현재 배포 영향/버전 확인 완료다. 운영 전체 DB/Auth/Storage 통합 복원과 현장 PC·iPhone 실기 검증은 포함하지 않는다. 이전 이력 2/28·SEC 1/18은 역사적 기록으로 보존한다.
+
+### B4 — Supabase Storage 전체 실파일 백업: VERIFIED COMPLETE
+
+1. 원본 [SEC-S03 Storage encrypted GitHub Actions #41634246360](https://github.com/koith/attendance-proto/actions/runs/41634246360) **SUCCESS** (2026-11-03 12:18 UTC), 암호화 아티팩트 `sec-storage-enc-20261103` (ID **13229353638**), **36,021,107 bytes**, 아티팩트 sha256 **3fa6fd922c7804f7a6db33c2759456a4739039aba8ab3c9cc25d71952da37274**, 확인 시 `expired=false`, 보관 만료 2026-12-03 12:18 UTC. 일반 사용자·GitHub 공개 저장소에 평문 파일이나 개인키 게시 안 함.
+2. 위 원장 G절에서 **실제 파일 14개를 독립 복호화해 개별 파일 크기/본문 SHA-256·메타데이터를 비교하여 누락/중복 0건** 검증한 영수증을 보존. 임시 Edge는 저장 후 응답 410으로 차단됨. 이 완료 성과는 임의의 합성 복원 테스트와 다르다.
+3. **2026-11-07 운영 Storage READ ONLY 재검증** (`BEGIN TRANSACTION READ ONLY; ... ROLLBACK`): 비공개 employee-docs **14개 / 26,890,252 bytes**, 공개 recipe-thumbnails **0개**. 직원 파일의 가장 최근 `updated_at`은 **2026-11-01 12:45:01.624675 UTC**, 즉 백업 시점 이전. 11월 4일 이후 새로 업데이트된 객체 **0개**. 기존 백업 로스터와 원본 현시점의 버킷/개수/크기가 일치하며 이후 객체 변경 증거 없음.
+4. **한계 구분:** 이번 별도 DB/Auth 전체 백업은 여전히 미완료(B1~B3). 기존 GitHub 아티팩트의 30일 보관은 **장기·독립적 보관을 보장하지 않으며** B5/D5는 미완료. Storage 실제 Supabase API 복원·RLS는 R5에서 별도 검증. 이 수용 판정은 B4 하나에 한한다.
+
+### D3 — 배포 영향·운영 버전 확인: VERIFIED COMPLETE
+
+1. [최종 실제 Pages 배포 #42334456757](https://github.com/koith/attendance-proto/actions/runs/42334456757): P0 Gate / Build Pages / Deploy GitHub Pages / Same-run Pages 검증 모두 **SUCCESS**. 검증 로그에 `PASS live Pages v0.384: HTTP 200, matching JS assets, protected production payroll HTTP 401` 및 실제 모바일/데스크톱 브라우저 스모크 PASS 포함. 실기 아이폰/매장 PC 증거는 D4로 계속 **UNVERIFIED**.
+2. 위 배포 커밋 `4632f0e7a3a1aa58a548a6a4836f2861c7e348b8`과 최신 보안 병합 커밋 `961bb22b53d07c674105a14e54402f81681da6f6`의 GitHub compare **2 commits, 정확히 비운영 문서/테스트/워크플로 5개 파일만 변경**. `index.html` Git blob SHA `b72b850e746185dc4b43098424d1d0614f0e6c6b` 동일, `server-sync-sheet/index.ts` blob `afb7838ebe0fdf06ecf7fba1c800c32f182ce186` 동일. 앱 소스 버전 **v0.384**.
+3. [문서 수정 건 P0 #42335533678](https://github.com/koith/attendance-proto/actions/runs/42335533678)과 [관리자 QA 보강 P0 #42361285595](https://github.com/koith/attendance-proto/actions/runs/42361285595)는 정확한 no-operating-write 변경 목록 검사 성공 이후 **Build/Deploy Pages, Same-run Validation, Safari publish 전부 SKIPPED**. 따라서 두 보안 전용 업데이트는 불필요한 새 배포나 Google Sheets 새로고침을 만들지 않음.
+4. **관찰한 부작용도 보존:** 그 이전의 코드 전용 [#42334456757] 배포는 실제로 **2026-11 Google Sheets 새로고침**을 수행했으며 로그에 PASS 기록. 그 부작용을 삭제하거나 실행 안 했다고 주장하지 않음. 이후의 정확한 비운영 파일만 대상으로 하는 가드로 중복 실행을 방지한 것을 실증. 이후 실제 앱 변경은 정상 배포·운영 QA로 검증하고, 모든 보안 수정에 예외 없이 skip 태그를 붙이지 않는다.
+
+### D2 — 전체 자동 CI/회귀 검사: 별도 미완료 유지
+
+- 최신 main `961bb22b...` GitHub check-runs **68개 중 43 SUCCESS, 22 SKIPPED, 3 FAILURE**. 3개의 실패는 `QA1243 Friday opening hard readiness gate / prelaunch-readiness` (관련 Actions #42361408908, #42361397202, #42361397850). 첫 번째 최종 점검 로그는 필수 8개 중 4개만 통과했고, 테스트 메일·호스티드 Auth 조회·Edge→GAS→Sheets·독립 Pages 증거가 누락/실패/오래됨. **실패를 숨기거나 강제로 통과 처리하지 않는다.** 따라서 D2는 IN_PROGRESS다. 운영 복구 및 별도 신규 지점 개통 시나리오를 동일 판정으로 혼동하지 않는다.
+
+### 현재 이중 기준
+
+- **사용자 28항목 기준:** COMPLETE **4 / 28 (14.3%)**, 잔여 **24**. B4 기존 완료 성과 인정 + D3 현재 배포 영향 수용. 이 두 항목만 새로 완료 판정.
+- **보안 SEC 대과제 18항목 기준:** COMPLETE **1 / 18 (5.6%)** 그대로, 통합 복구/실운영 전체 **NO_GO**. 성공한 CI·Storage 부분 백업을 전체 운영 복구 성공으로 표시하지 않음.
