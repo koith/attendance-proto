@@ -132,7 +132,7 @@
 | B4 | Storage 전체 객체 바이트 백업 | **VERIFIED COMPLETE**: SEC-S03 전체 14/14 실제 암호화 파일·독립 복호화·해시 일치; 11/07 원본 전체 목록·바이트·최종 수정시각 재확인, 변경 없음 |
 | B5 | 암호화·소유자 통제 장기 보관 | IN_PROGRESS: 과거 암호화 사본 보유, 최신 일괄본 없음 |
 | B6 | 독립 보관 키·실제 복호화 | IN_PROGRESS: 과거 SEC-S03 실제 복호화 PASS, 최신 전체 키/이중 보관 미확인 |
-| R1 | 격리 복원 환경 준비 | SYNTHETIC VERIFIED: PG16/17 폐기형 클러스터, 실백업 환경 준비 미완 |
+| R1 | 격리 복원 환경 준비 | **VERIFIED COMPLETE**: PG16/17 실제 독립 격리 클러스터 생성·암호화 테스트 백업 복호화·복원·무결성 검증 PASS; 운영 전체 백업 데이터 복원은 R2로 별도 미완료 |
 | R2 | 실제 운영 전체 백업 복원 | BLOCKED: 전체 백업본 없음 |
 | R3 | 원본/복원본 데이터·DDL·ACL·sequence 일치 | SYNTHETIC VERIFIED, 실백업 불가 |
 | R4 | Auth 실로그인·세션 테스트 | UNVERIFIED: 격리 GoTrue/QA 계정 필요 |
@@ -155,7 +155,7 @@
 | D5 | 주기 백업·보관·실패 알림 | BLOCKED: 실제 암호화 백업/복원 선행 필요 |
 | D6 | 완료 원장·최종 보고 | IN_PROGRESS: 증거 갱신 중, 최종 NO_GO |
 
-**2026-11-07 재검증 결과, 28개 세부 항목의 최종 완료는 S1·D1·B4·D3의 4건이다.** 별도 합성 부분 완료, 과거 Storage 백업, 현재 실제 운영 복구 완료는 구분한다. 최종 전체 보안 18개 운영 수용 완료는 여전히 **1/18**이다.
+**2026-11-07 재검증 결과, 28개 세부 항목의 최종 완료는 S1·D1·B4·D3·R1의 5건이다.** 별도 합성 부분 완료, 과거 Storage 백업, 현재 실제 운영 복구 완료는 구분한다. 최종 전체 보안 18개 운영 수용 완료는 여전히 **1/18**이다.
 
 
 ## J. 2026-11-07 B4·D3 최종 수용 완료 판정 (2/28 → 4/28)
@@ -184,3 +184,20 @@
 
 - **사용자 28항목 기준:** COMPLETE **4 / 28 (14.3%)**, 잔여 **24**. B4 기존 완료 성과 인정 + D3 현재 배포 영향 수용. 이 두 항목만 새로 완료 판정.
 - **보안 SEC 대과제 18항목 기준:** COMPLETE **1 / 18 (5.6%)** 그대로, 통합 복구/실운영 전체 **NO_GO**. 성공한 CI·Storage 부분 백업을 전체 운영 복구 성공으로 표시하지 않음.
+
+
+## K. 2026-11-07 R1 격리 복원 환경 수용 완료 (4/28 → 5/28)
+
+> **최종 수용 범위: 격리 복원 환경의 실질적 준비와 테스트 가동.** R1은 *환경 준비*이고 R2는 *운영 전체 백업 실제 복원*이므로 서로 다른 항목이다. 운영 원본 전체 백업 아카이브는 여전히 없으며, R2/R3/R4/R5/R6은 이 판정으로 완료되지 않는다. 이 결과는 포괄적 재해복구 성공이 아니다.
+
+1. **검증된 실제 가동 환경:** [SEC restore verify PR CI #42333620967](https://github.com/koith/attendance-proto/actions/runs/42333620967)의 `restore-verify` (PostgreSQL **16**)와 `restore-verify-pg17` (PostgreSQL **17**) 둘 다 **SUCCESS**, 각 40/40 테스트 PASS. 해당 Job 로그에 `restore_verify PASS` 및 `restore_verify_pg17 PASS`와 `input_present / decrypt / archive_entries / extract / digests / toc / scope / cluster / roles / create_target / pg_restore / sequences / storage_roster / rls_visibility / compare_embedded_snapshot / compare_source` 단계가 모두 `true`로 기록됨.
+2. **운영 DB와 격리된 로컬 복원기:** `scripts/security/recovery/restore_verify.mjs`는 실행마다 새 비공개 임시 디렉터리에서 `initdb`로 새 클러스터를 생성하고 `listen_addresses=''`(TCP 비활성), 권한 0700의 비공개 Unix 소켓만 사용한다. 운영 DB에 네트워크로 접속하는 복원 로직이 아니며, 처리 후 임시 클러스터를 제거하고 입력 암호문의 원본 해시를 다시 확인한다.
+3. **실복호화·실복원의 선행 검증:** 실제 설치된 `pg_restore`에 *합성* 테스트 암호화 아카이브를 주입하여 역할·테이블·시퀀스·RLS 가시성·Storage 파일 해시 및 원본 재고 일치를 검사했다. 암호문/키 오류·누락 SQL 스키마를 정상 완료로 처리하지 않는 회귀 테스트도 통과.
+4. **실제 운영 백업 복원은 별도 R2:** 최신 DB/Auth/Storage 전체 백업(B1/B2/B3)이 존재하지 않는다. 최신 실제 암호화 백업본과 비공개 키가 확보되면 같은 격리 복원기에 주입하여 전체 데이터 일치/서비스 복구를 *별도 검증*한다. Hosted Auth 로그인 및 Storage API 동작은 R4/R5에서 별도 확인.
+5. **배포 무영향 조건:** 이번 변경은 업무원장 Markdown 한 파일만 수정하며 `[SEC-NO-OPERATING-WRITE]` 가드와 메인 배포 검증을 통과한 경우에만 병합. 검증 전 운영 변경 0건을 단정하지 않는다.
+
+### 누적 완료 판정
+
+- **사용자 28항목: COMPLETE 5/28 (17.9%), 잔여 23개.** S1, D1, B4, D3, R1.
+- **SEC 대과제 18건: 1/18 COMPLETE** 그대로. 운영 DB/Auth/Storage 통합 백업 및 독립 실제 복원은 **NO_GO**.
+- 과거 4/28 기록은 당시 결과이므로 J절에 그대로 보존한다.
