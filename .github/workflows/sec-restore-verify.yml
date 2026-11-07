@@ -5,6 +5,8 @@ on:
       - 'scripts/security/**'
       - 'qa/security/fake_storage_server.mjs'
       - '.github/workflows/sec-restore-verify.yml'
+      - '.github/workflows/sec-backup-capture.yml'
+      - 'qa/security/backup_dispatch_guard.test.mjs'
   workflow_dispatch:
 permissions:
   contents: read
@@ -28,7 +30,8 @@ jobs:
           node --test scripts/security/recovery/restore_verify.test.mjs \
             scripts/security/recovery/key_custody.test.mjs \
             scripts/security/recovery/recovery_plan.test.mjs \
-            scripts/security/recovery/verify_backup_completeness.test.mjs
+            scripts/security/recovery/verify_backup_completeness.test.mjs \
+            qa/security/backup_dispatch_guard.test.mjs
           node -e "const r=require(process.argv[1]);if(r.result!=='PASS')process.exit(1);console.log('restore_verify',r.result,r.stages.map(s=>s.stage+':'+s.ok).join(' '))" "$RESTORE_VERIFY_EVIDENCE"
       - name: Repository key custody check (names/fingerprints only)
         run: node scripts/security/recovery/key_custody.mjs check .
@@ -62,5 +65,6 @@ jobs:
           node --test scripts/security/recovery/restore_verify.test.mjs \
             scripts/security/recovery/key_custody.test.mjs \
             scripts/security/recovery/recovery_plan.test.mjs \
-            scripts/security/recovery/verify_backup_completeness.test.mjs
+            scripts/security/recovery/verify_backup_completeness.test.mjs \
+            qa/security/backup_dispatch_guard.test.mjs
           node -e "const r=require(process.argv[1]);if(r.result!=='PASS')process.exit(1);console.log('restore_verify_pg17',r.result,r.stages.map(s=>s.stage+':'+s.ok).join(' '))" "$RESTORE_VERIFY_EVIDENCE"
