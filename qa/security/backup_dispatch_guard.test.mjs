@@ -17,7 +17,7 @@ assert.match(expression,/github\.event\.issue\.number\s*==\s*1492/);
 assert.match(expression,/github\.ref\s*==\s*'refs\/heads\/main'/);
 assert.match(expression,/github\.event\.issue\.pull_request\s*==\s*null/);
 assert.match(expression,/github\.event\.comment\.body\s*==\s*'\[SEC-LIVE-BACKUP-ONCE:20261107\]'/);
-assert.ok(/^[A-Za-z0-9_\s.'()=:&|\-\[\]]+$/.test(expression),'expression must remain simple comparisons and boolean logic');
+assert.ok(/^[A-Za-z0-9_\s.'()=:&|\-\/\[\]]+$/.test(expression),'expression must remain simple comparisons and boolean logic');
 const authorized=Function('github','inputs',`"use strict";return Boolean(${expression});`);
 const issue=(overrides={})=>({
  ref:'refs/heads/main',
