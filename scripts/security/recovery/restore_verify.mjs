@@ -25,11 +25,11 @@
 //  node restore_verify.mjs --tar decrypted.tar.gz ...   (operator already decrypted)
 // Env: PG_BIN (dir with initdb/pg_ctl/psql/pg_restore), RESTORE_RUN_AS (OS user for the
 //      cluster when invoked as root; default "postgres").
-import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,existsSync,readdirSync,statSync,rmSync,chmodSync,chownSync,createReadStream} from 'node:fs';
+import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,existsSync,lstatSync,readdirSync,statSync,rmSync,chmodSync,chownSync,createReadStream} from 'node:fs';
 import {execFileSync,spawnSync} from 'node:child_process';
 import {createHash,randomBytes} from 'node:crypto';
 import {tmpdir} from 'node:os';
-import {join,dirname,basename} from 'node:path';
+import {join,dirname,basename,resolve} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {inventory} from './db_inventory.mjs';
 import {compare,MANAGED_SCHEMAS} from './compare_inventory.mjs';
@@ -47,6 +47,21 @@ export function pgBin(){
  const root='/usr/lib/postgresql';
  if(existsSync(root)){const v=readdirSync(root).filter(x=>/^\d+$/.test(x)).sort((a,b)=>b-a)[0];if(v)return join(root,v,'bin')}
  return '';
+}
+// Never overwrite a backup, decryption key, source inventory, or existing report.
+ // Even dangling symlinks count as existing destinations. Open with O_EXCL again
+ // when writing to close the check/write race.
+export function assertFreshOutputPaths({report,inventoryOut}={}){
+ const outputs=[report,inventoryOut].filter(x=>x!==undefined&&x!==null);
+ const names=new Set();
+ for(const p of outputs){
+  if(typeof p!=='string'||!p.trim())throw Error('INVALID_OUTPUT_PATH');
+  const normalized=resolve(p);
+  if(names.has(normalized))throw Error('OUTPUT_PATH_COLLISION');
+  names.add(normalized);
+  try{lstatSync(p);throw Error('OUTPUT_PATH_EXISTS')}
+  catch(e){if(e.code!=='ENOENT')throw e}
+ }
 }
 const sha256File=p=>createHash('sha256').update(readFileSync(p)).digest('hex');
 function run(cmd,args,opts={}){
@@ -112,6 +127,7 @@ export function tocScope(entries){
 
 // ---- main ----------------------------------------------------------------------------
 export async function restoreVerify(opts){
+ assertFreshOutputPaths({inventoryOut:opts.inventoryOut});
  const report={format:'attendance-restore-verify-v1',started_at:new Date().toISOString(),stages:[],result:'FAIL'};
  const stage=(name,ok,detail={})=>{report.stages.push({stage:name,ok:!!ok,...detail});if(!ok)throw Object.assign(Error('STAGE_FAILED:'+name),{stageFailed:name})};
  const base=mkdtempSync(join(tmpdir(),'sec-restore-verify-'));chmodSync(base,0o700);
@@ -218,7 +234,7 @@ export async function restoreVerify(opts){
   const inv=inventory(cluster.conn(target),{psql:join(bin,'psql')});
   report.restored_inventory_summary={schemas:inv.schema_summary,policies:inv.policies.length,
    rls_tables:inv.tables.filter(t=>t.rls).length,sequences:inv.sequences.length,roles:inv.roles.length};
-  if(opts.inventoryOut)writeFileSync(opts.inventoryOut,JSON.stringify(inv,null,1)+'\n',{mode:0o600});
+  if(opts.inventoryOut)writeFileSync(opts.inventoryOut,JSON.stringify(inv,null,1)+'\n',{flag:'wx',mode:0o600});
   stage('sequences',inv.sequence_collisions.length===0,{collisions:inv.sequence_collisions});
   const roster=psql(cluster,target,`select coalesce(json_agg(json_build_object('b',bucket_id,'n',name,'s',metadata->>'size')),'[]') from storage.objects`);
   let restoredObjects=[];try{restoredObjects=JSON.parse(roster.stdout.trim()||'[]')}catch{}
@@ -278,13 +294,17 @@ export async function restoreVerify(opts){
 
 if(import.meta.url===pathToFileURL(process.argv[1]||'').href){
  const a=process.argv.slice(2),val=k=>{const i=a.indexOf(k);return i<0?null:a[i+1]};
+ const reportPath=val('--report');
+ const inventoryOut=val('--inventory-out');
+ try{assertFreshOutputPaths({report:reportPath,inventoryOut})}
+ catch(e){console.error(String(e.message||e));process.exit(2)}
  const opts={sealed:val('--sealed'),key:val('--key'),tar:val('--tar'),
-  inventoryOut:val('--inventory-out'),
+  inventoryOut,
   sourceInventory:val('--source-inventory')?JSON.parse(readFileSync(val('--source-inventory'),'utf8')):null,
   expectedScope:val('--expected-scope')?JSON.parse(readFileSync(val('--expected-scope'),'utf8')):null};
  if(!opts.sealed&&!opts.tar){console.error('usage: restore_verify.mjs --sealed F --key K | --tar F [--source-inventory J] [--expected-scope J] [--report OUT]');process.exit(2)}
  const r=await restoreVerify(opts);
  const text=JSON.stringify(r,null,1);
- if(val('--report'))writeFileSync(val('--report'),text+'\n',{mode:0o600});
+ if(reportPath)writeFileSync(reportPath,text+'\n',{flag:'wx',mode:0o600});
  console.log(text);process.exit(r.result==='PASS'?0:1);
 }
