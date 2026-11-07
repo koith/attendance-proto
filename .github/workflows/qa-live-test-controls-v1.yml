@@ -11,7 +11,7 @@ permissions:
   contents: read
 jobs:
   live-controls:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
@@ -21,6 +21,7 @@ jobs:
       - name: Script syntax and source version
         run: |
           node --check qa_live_version_test_controls_v1.mjs
+          node --check qa_live_guest_pos_readonly_browser_v384.mjs
           node --check version_test_toggle_982.js
       - name: Install Chromium and Safari-compatible WebKit
         run: |
