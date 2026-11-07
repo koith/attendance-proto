@@ -39,7 +39,7 @@ const SECURITY=join(HERE,'..');
 // Managed schemas are rebuilt by the provider; 'extensions' itself is kept so that
 // available extensions (pgcrypto, uuid-ossp …) can be recreated where the dump puts them.
 const EXCLUDE_SCHEMAS=MANAGED_SCHEMAS.filter(s=>s!=='extensions');
-const ALLOWED_ENTRY=/^(\.\/)?(manifest\.json|database\.dump|roles\.globals\.sql|hosted-auth-config\.json|storage\/|storage\/\d{5}\.bin|)$/;
+const ALLOWED_ENTRY=/^(\.\/)?(manifest\.json|database\.dump|roles\.globals\.sql|hosted-auth-config\.json|database-inventory\.json|storage\/|storage\/\d{5}\.bin|)$/;
 
 export function pgBin(){
  if(process.env.PG_BIN)return process.env.PG_BIN;
@@ -165,6 +165,19 @@ export async function restoreVerify(opts){
   const dump=join(x,'database.dump'),roles=join(x,'roles.globals.sql');
   if(!existsSync(dump)||sha256File(dump)!==manifest?.database_sha256)problems.push('database_sha256');
   if(!existsSync(roles)||sha256File(roles)!==manifest?.roles_sha256)problems.push('roles_sha256');
+  let embeddedInventory=null;
+  const embeddedFile=join(x,'database-inventory.json');
+  if(manifest?.database_inventory_sha256){
+   if(!existsSync(embeddedFile)||sha256File(embeddedFile)!==manifest.database_inventory_sha256)
+    problems.push('database_inventory_sha256');
+   else{
+    try{embeddedInventory=JSON.parse(readFileSync(embeddedFile,'utf8'))}catch{}
+    if(embeddedInventory?.format!=='attendance-db-inventory-v1'||
+       embeddedInventory?.consistent_snapshot!==true||embeddedInventory?.content_hash!==true||
+       manifest?.database_inventory_consistent_snapshot!==true)
+     problems.push('database_inventory_snapshot');
+   }
+  }else if(existsSync(embeddedFile))problems.push('unattested_database_inventory');
   const storage=Array.isArray(manifest?.storage)?manifest.storage:[];
   if(storage.length!==manifest?.full_storage_count)problems.push('storage_count');
   let storageBytes=0;
@@ -262,18 +275,25 @@ export async function restoreVerify(opts){
   }
   report.stages.push({stage:'rls_visibility',ok:true,observation:visibility,
    note:'No JWT claims set. rows_visible_without_claims>0 is reported for review, not auto-failed (policies may intentionally allow).'});
+  if(embeddedInventory){
+   const c=compare(embeddedInventory,inv);
+   stage('compare_embedded_snapshot',c.result==='MATCH',{result:c.result,
+    business_differences:c.business_differences,managed_differences:c.managed_differences,
+    first_differences:c.business.slice(0,25).map(d=>({kind:d.kind,id:d.id,issue:d.issue}))});
+  }else report.stages.push({stage:'compare_embedded_snapshot',ok:false,
+    skipped:'archive has no cryptographically attested pg_dump-aligned source inventory'});
   if(opts.sourceInventory){
    const c=compare(opts.sourceInventory,inv);
    stage('compare_source',c.result==='MATCH',{result:c.result,business_differences:c.business_differences,
     managed_differences:c.managed_differences,blocking_role_differences:c.blocking_role_differences,
     first_differences:c.business.slice(0,25).map(d=>({kind:d.kind,id:d.id,issue:d.issue}))});
-  }else report.stages.push({stage:'compare_source',ok:false,skipped:'no --source-inventory supplied; restore authenticity not verified'});
+  }else report.stages.push({stage:'compare_source',ok:Boolean(embeddedInventory),skipped:embeddedInventory?'archive embedded inventory is authoritative':'no --source-inventory supplied'});
   report.not_verified=['GoTrue service login against restored auth schema (requires an isolated Auth service)',
    'Storage API serving restored bytes (requires an isolated Storage service)',
    'Edge Functions / Apps Script reconnection','provider-managed schemas (cron, net, realtime, vault …): provider rebuild'];
   // Without an independently captured source inventory, this is only an
   // archive self-consistency test, not an end-to-end restore comparison.
-  report.result=opts.sourceInventory?'PASS':'PARTIAL_NO_SOURCE_COMPARISON';
+  report.result=embeddedInventory?'PASS':opts.sourceInventory?'PARTIAL_EXTERNAL_SOURCE_COMPARISON':'PARTIAL_NO_SOURCE_COMPARISON';
  }catch(e){
   report.error=e.stageFailed?undefined:String(e.message||e).slice(0,200);
   report.failed_stage=e.stageFailed||report.stages.find(s=>!s.ok)?.stage||'internal';

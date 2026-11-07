@@ -6,6 +6,8 @@ import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {pipeline} from 'node:stream/promises';
 import {Readable} from 'node:stream';
+import {inventory} from './recovery/db_inventory.mjs';
+import {openExportedSnapshot,snapshotSql} from './recovery/exported_snapshot.mjs';
 const out=process.env.SEC_BACKUP_OUT;
 const url=process.env.SUPABASE_DB_URL;
 const api=process.env.SUPABASE_URL;
@@ -13,36 +15,46 @@ const storageKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
 const root=mkdtempSync(join(tmpdir(),'attendance-backup-'));
 function command(name,args,timeout=180000){try{return execFileSync(name,args,{encoding:'utf8',stdio:['ignore','pipe','pipe'],env:process.env,maxBuffer:4*1024*1024,timeout})}catch(e){throw Error(name.toUpperCase().replaceAll('-','_')+'_FAILED exit='+String(e.status??'unknown'))}}
 function sha(path){return createHash('sha256').update(readFileSync(path)).digest('hex')}
-function roster(){
+function snapshotQuery(sql,id){
+ return command('psql',['-X','-q','-A','-t','-v','ON_ERROR_STOP=1','--dbname',url,'-c',snapshotSql(id,sql)]).trim();
+}
+function roster(id){
  const query="SELECT coalesce(json_agg(json_build_object('bucket',bucket_id,'name',name,'size',metadata->>'size','updated_at',updated_at) ORDER BY bucket_id,name),'[]'::json)::text FROM storage.objects";
- return command('psql',['-X','-A','-t','-v','ON_ERROR_STOP=1','--dbname',url,'-c',query]).trim();
+ return id?snapshotQuery(query,id):command('psql',['-X','-A','-t','-v','ON_ERROR_STOP=1','--dbname',url,'-c',query]).trim();
 }
 async function run(){
  if(!url||!api||!storageKey||!out)throw Error('MISSING_PRIVATE_RUNTIME_BACKUP_CONFIGURATION');
  if(!process.env.SUPABASE_ACCESS_TOKEN)throw Error('AUTH_CONFIG_READ_TOKEN_NOT_CONFIGURED');
  const stage=join(root,'snapshot');mkdirSync(stage,{recursive:true});
  const storage=join(stage,'storage');mkdirSync(storage);
- const before=roster();const objects=JSON.parse(before);
- const databaseCaptureStart=new Date().toISOString();
- command('pg_dump',['--format=custom','--dbname',url,'--file',join(stage,'database.dump')],240000);
- const databaseCaptureEnd=new Date().toISOString();
+ const keeper=await openExportedSnapshot(url);
+ let before,objects,databaseCaptureStart,databaseCaptureEnd,catalogScope,catalogDataScope,tocScope,tocDataScope,scopeGaps;
+ try{
+  const snapshot=keeper.id;
+ before=roster(snapshot);objects=JSON.parse(before);
+ databaseCaptureStart=new Date().toISOString();
+ command('pg_dump',['--snapshot='+snapshot,'--format=custom','--dbname',url,'--file',join(stage,'database.dump')],240000);
+ databaseCaptureEnd=new Date().toISOString();
  command('pg_dumpall',['--globals-only','--no-role-passwords','--dbname',url,'--file',join(stage,'roles.globals.sql')],120000);
  if(!readFileSync(join(stage,'roles.globals.sql'),'utf8').includes('CREATE ROLE'))throw Error('ROLE_GLOBALS_MISSING');
  const contents=command('pg_restore',['--list',join(stage,'database.dump')]);
  for(const marker of ['SCHEMA - auth','SCHEMA - storage','TABLE DATA public'])if(!contents.includes(marker))throw Error('DB_ARCHIVE_MISSING_'+marker.replaceAll(' ','_'));
  // SEC-S01/S02: refuse a full-backup claim if live base tables are not represented
  // by the dump TOC. This checks declared coverage, not real restore success.
- const catalogScope=JSON.parse(command('psql',['-X','-A','-t','-v','ON_ERROR_STOP=1','--dbname',url,'-c',
-  "SELECT coalesce(json_object_agg(s,n),'{}')::text FROM (SELECT n.nspname s,count(*) n FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind IN ('r','p') AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND NOT EXISTS(SELECT 1 FROM pg_depend d WHERE d.objid=c.oid AND d.deptype='e') GROUP BY 1) x"]).trim()||'{}');
- const catalogDataScope=JSON.parse(command('psql',['-X','-A','-t','-v','ON_ERROR_STOP=1','--dbname',url,'-c',
-  "SELECT coalesce(json_object_agg(s,n),'{}')::text FROM (SELECT n.nspname s,count(*) n FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind='r' AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND left(n.nspname,8)<>'pg_temp_' AND NOT EXISTS(SELECT 1 FROM pg_depend d WHERE d.objid=c.oid AND d.deptype='e') GROUP BY 1) x"]).trim()||'{}');
- const tocScope={},tocDataScope={};
+ catalogScope=JSON.parse(snapshotQuery( "SELECT coalesce(json_object_agg(s,n),'{}')::text FROM (SELECT n.nspname s,count(*) n FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind IN ('r','p') AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND NOT EXISTS(SELECT 1 FROM pg_depend d WHERE d.objid=c.oid AND d.deptype='e') GROUP BY 1) x",snapshot).trim()||'{}');
+ catalogDataScope=JSON.parse(snapshotQuery( "SELECT coalesce(json_object_agg(s,n),'{}')::text FROM (SELECT n.nspname s,count(*) n FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind='r' AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND left(n.nspname,8)<>'pg_temp_' AND NOT EXISTS(SELECT 1 FROM pg_depend d WHERE d.objid=c.oid AND d.deptype='e') GROUP BY 1) x",snapshot).trim()||'{}');
+ tocScope={};tocDataScope={};
  for(const m of contents.matchAll(/^\d+;\s+\d+\s+\d+\s+TABLE (?!DATA )(\S+) /gm))tocScope[m[1]]=(tocScope[m[1]]||0)+1;
  for(const m of contents.matchAll(/^\d+;\s+\d+\s+\d+\s+TABLE DATA (\S+) /gm))tocDataScope[m[1]]=(tocDataScope[m[1]]||0)+1;
- const scopeGaps=Object.entries(catalogScope).filter(([s,n])=>(tocScope[s]||0)<n).map(([s,n])=>({schema:s,catalog_tables:n,dumped_tables:tocScope[s]||0}));
+ scopeGaps=Object.entries(catalogScope).filter(([s,n])=>(tocScope[s]||0)<n).map(([s,n])=>({schema:s,catalog_tables:n,dumped_tables:tocScope[s]||0}));
  for(const [s,n] of Object.entries(catalogDataScope))if((tocDataScope[s]||0)<n)
   scopeGaps.push({schema:s,catalog_data_tables:n,dumped_data_tables:tocDataScope[s]||0,issue:'TABLE_DATA_MISSING'});
  if(scopeGaps.length)throw Error('DB_ARCHIVE_SCOPE_GAP '+scopeGaps.map(g=>g.schema+':'+(g.dumped_tables??g.dumped_data_tables)+'/'+(g.catalog_tables??g.catalog_data_tables)+(g.issue?':'+g.issue:'')).join(','));
+  const sourceInventory=inventory(url,{psql:'psql',snapshot});
+  if(sourceInventory.consistent_snapshot!==true||sourceInventory.content_hash!==true)
+   throw Error('SOURCE_INVENTORY_SNAPSHOT_NOT_CONSISTENT');
+  writeFileSync(join(stage,'database-inventory.json'),JSON.stringify(sourceInventory),{mode:0o600});
+ }finally{await keeper.close()}
  const hashes=[];let index=0;
  for(const obj of objects){
   if(!obj.bucket||!obj.name)throw Error('INVALID_STORAGE_OBJECT_METADATA');
@@ -70,7 +82,7 @@ async function run(){
  if(!authConfigData||typeof authConfigData!=='object'||Array.isArray(authConfigData)||Object.keys(authConfigData).length<3)throw Error('HOSTED_AUTH_CONFIG_INCOMPLETE');
  writeFileSync(join(stage,'hosted-auth-config.json'),JSON.stringify(authConfigData),{mode:0o600});
  const authConfig={attempted:true,captured:true,scope:'hosted_config_only',redacted_remote_secrets_possible:true};
- writeFileSync(join(stage,'manifest.json'),JSON.stringify({format:'attendance-secure-backup-v1',database_sha256:sha(join(stage,'database.dump')),roles_sha256:sha(join(stage,'roles.globals.sql')),database_snapshot_window:{start:databaseCaptureStart,end:databaseCaptureEnd},catalog_scope:catalogScope,catalog_data_scope:catalogDataScope,toc_scope:tocScope,toc_data_scope:tocDataScope,scope_gaps:scopeGaps,storage:hashes,auth_config:authConfig,full_storage_count:objects.length,created_at:new Date().toISOString()},null,2),{mode:0o600});
+ writeFileSync(join(stage,'manifest.json'),JSON.stringify({format:'attendance-secure-backup-v1',database_sha256:sha(join(stage,'database.dump')),database_inventory_sha256:sha(join(stage,'database-inventory.json')),database_inventory_consistent_snapshot:true,roles_sha256:sha(join(stage,'roles.globals.sql')),database_snapshot_window:{start:databaseCaptureStart,end:databaseCaptureEnd},catalog_scope:catalogScope,catalog_data_scope:catalogDataScope,toc_scope:tocScope,toc_data_scope:tocDataScope,scope_gaps:scopeGaps,storage:hashes,auth_config:authConfig,full_storage_count:objects.length,created_at:new Date().toISOString()},null,2),{mode:0o600});
  command('tar',['-czf',join(root,'snapshot.tar.gz'),'-C',stage,'.']);
  command('node',['scripts/security/seal.mjs',join(root,'snapshot.tar.gz'),process.env.SEC_BACKUP_RECIPIENT_PEM||'security/recipient_20261103.pub.pem',out]);
  console.log('ENCRYPTED_BACKUP_CREATED storage_objects='+objects.length+' db_archive_bytes='+statSync(join(stage,'database.dump')).size+' auth_config_captured='+authConfig.captured);

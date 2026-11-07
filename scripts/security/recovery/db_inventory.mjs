@@ -9,12 +9,13 @@
 //   PIN_QA_PSQL / PSQL may point at a psql binary.
 import {execFileSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
+import {snapshotSql} from './exported_snapshot.mjs';
 
 export const SYSTEM_SCHEMA_SQL=`n.nspname not in ('pg_catalog','information_schema')
  and n.nspname not like 'pg\\_toast%' and n.nspname not like 'pg\\_temp\\_%'`;
 
-function psqlJson(psql,conninfo,sql){
- const wrapped=`set default_transaction_read_only=on; begin read only; ${sql}; commit;`;
+function psqlJson(psql,conninfo,sql,snapshot=null){
+ const wrapped=snapshot?snapshotSql(snapshot,sql):`set default_transaction_read_only=on; begin read only; ${sql}; commit;`;
  let out;
  try{
   out=execFileSync(psql,['-X','-q','-v','ON_ERROR_STOP=1','-At','--dbname',conninfo,'-c',wrapped],
@@ -30,7 +31,7 @@ function psqlJson(psql,conninfo,sql){
 const q=s=>'"'+String(s).replaceAll('"','""')+'"';
 const lit=s=>"'"+String(s).replaceAll("'","''")+"'";
 
-export function inventory(conninfo,{psql=process.env.PIN_QA_PSQL||process.env.PSQL||'psql',contentHash=true}={}){
+export function inventory(conninfo,{psql=process.env.PIN_QA_PSQL||process.env.PSQL||'psql',contentHash=true,snapshot=null}={}){
  const meta=psqlJson(psql,conninfo,`select json_build_object(
   'server_version_num',current_setting('server_version_num')::int,
   'schemas',(select coalesce(json_agg(n.nspname order by n.nspname),'[]') from pg_namespace n where ${SYSTEM_SCHEMA_SQL}),
@@ -67,7 +68,7 @@ export function inventory(conninfo,{psql=process.env.PIN_QA_PSQL||process.env.PS
    join pg_class t on t.oid=d.refobjid join pg_namespace tn on tn.oid=t.relnamespace
    join pg_attribute a on a.attrelid=t.oid and a.attnum=d.refobjsubid
    where d.deptype in ('a','i') and d.classid='pg_class'::regclass)
- )::text`);
+ )::text`,snapshot);
  // Row counts + order-independent content digests per base table, in one statement.
  const base=meta.tables.filter(t=>t.kind==='r'||t.kind==='p');
  const rows={};
@@ -78,7 +79,7 @@ export function inventory(conninfo,{psql=process.env.PIN_QA_PSQL||process.env.PS
   const sel=part.map(t=>`select ${lit(t.schema+'.'+t.name)} as id,count(*) as n,`+
    (contentHash?`md5(coalesce(string_agg(md5(r::text),'' order by md5(r::text)),''))`:`null::text`)+
    ` as h from only ${q(t.schema)}.${q(t.name)} r`).join(' union all ');
-  const got=psqlJson(psql,conninfo,`select coalesce(json_agg(json_build_object('id',id,'n',n,'h',h)),'[]')::text from (${sel}) z`);
+  const got=psqlJson(psql,conninfo,`select coalesce(json_agg(json_build_object('id',id,'n',n,'h',h)),'[]')::text from (${sel}) z`,snapshot);
   for(const r of got)rows[r.id]={rows:Number(r.n),content_md5:r.h};
  }
  // Sequence vs owning column: next value must exceed the restored max key.
@@ -90,7 +91,7 @@ export function inventory(conninfo,{psql=process.env.PIN_QA_PSQL||process.env.PS
    (select max(${q(o.column)})::text from ${q(o.schema)}.${q(o.table)}) as mx,
    (select last_value::text from ${q(o.seq_schema)}.${q(o.seq)}) as lv,
    (select is_called from ${q(o.seq_schema)}.${q(o.seq)}) as called`).join(' union all ');
-  const got=psqlJson(psql,conninfo,`select coalesce(json_agg(json_build_object('id',id,'mx',mx,'lv',lv,'called',called)),'[]')::text from (${sel}) z`);
+  const got=psqlJson(psql,conninfo,`select coalesce(json_agg(json_build_object('id',id,'mx',mx,'lv',lv,'called',called)),'[]')::text from (${sel}) z`,snapshot);
   for(const g of got){
    if(g.mx===null)continue;
    const mx=BigInt(g.mx.split('.')[0]),lv=BigInt(g.lv);
@@ -101,7 +102,7 @@ export function inventory(conninfo,{psql=process.env.PIN_QA_PSQL||process.env.PS
  const bySchema={};
  for(const t of base){const s=bySchema[t.schema]||(bySchema[t.schema]={tables:0,rows:0});s.tables++;s.rows+=rows[t.schema+'.'+t.name]?.rows||0}
  return {format:'attendance-db-inventory-v1',generated_at:new Date().toISOString(),
-  content_hash:contentHash,consistent_snapshot:false,server_version_num:meta.server_version_num,
+  content_hash:contentHash,consistent_snapshot:Boolean(snapshot),snapshot_kind:snapshot?'pg_export_snapshot':null,server_version_num:meta.server_version_num,
   schemas:meta.schemas,schema_summary:bySchema,extensions:meta.extensions,roles:meta.roles,
   tables:meta.tables.map(t=>({...t,...(rows[t.schema+'.'+t.name]||{})})),
   policies:meta.policies,functions:meta.functions,constraints:meta.constraints,

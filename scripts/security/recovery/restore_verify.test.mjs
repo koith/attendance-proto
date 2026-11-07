@@ -13,6 +13,7 @@ import {fileURLToPath} from 'node:url';
 import {restoreVerify,startCluster,pgBin,parseToc} from './restore_verify.mjs';
 import {inventory} from './db_inventory.mjs';
 import {compare} from './compare_inventory.mjs';
+import {openExportedSnapshot} from './exported_snapshot.mjs';
 
 const ROOT=join(dirname(fileURLToPath(import.meta.url)),'..','..','..');
 const BIN=pgBin();
@@ -253,4 +254,31 @@ test('compare_inventory rejects a missing application schema while allowing docu
  assert.equal(c.result,'DIFF');
  assert.ok(c.business.some(d=>d.kind==='schema'&&d.id==='auth'));
  assert.ok(c.managed.some(d=>d.kind==='schema'&&d.id==='cron'));
+});
+
+test('pg_export_snapshot keeps inventory on one MVCC version during a concurrent write',{skip},async()=>{
+ const conn=ctx.src.conn('postgres'),psql=join(BIN,'psql');
+ const snap=await openExportedSnapshot(conn,{psql});
+ try{
+  const before=inventory(conn,{psql,snapshot:snap.id});
+  const change=spawnSync(psql,['-X','-q','-v','ON_ERROR_STOP=1','--dbname',conn,'-c',
+   "update public.stores set name='changed during snapshot' where id=1"],{encoding:'utf8'});
+  assert.equal(change.status,0,change.stderr);
+  const same=inventory(conn,{psql,snapshot:snap.id});
+  const current=inventory(conn,{psql});
+  const find=x=>x.tables.find(t=>t.schema==='public'&&t.name==='stores').content_md5;
+  assert.equal(find(same),find(before),'repeatable snapshot retains source digest');
+  assert.notEqual(find(current),find(before),'separate query sees concurrent update');
+ }finally{
+  await snap.close();
+  const reset=spawnSync(psql,['-X','-q','-v','ON_ERROR_STOP=1','--dbname',conn,'-c',
+   "update public.stores set name='store 1' where id=1"],{encoding:'utf8'});
+  assert.equal(reset.status,0,reset.stderr);
+ }
+});
+
+test('sealed archive embedded same-snapshot inventory verifies without external inventory',{skip},async()=>{
+ const r=await restoreVerify({sealed:join(ctx.base,'full.sealed'),key:join(ctx.base,'priv.pem')});
+ assert.equal(r.result,'PASS',JSON.stringify(r.stages.find(s=>!s.ok)||r.error));
+ assert.equal(r.stages.find(s=>s.stage==='compare_embedded_snapshot').result,'MATCH');
 });
