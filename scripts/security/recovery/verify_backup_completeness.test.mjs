@@ -10,9 +10,12 @@ const H='a'.repeat(64);
 const completeManifest={format:'attendance-secure-backup-v1',database_sha256:H,roles_sha256:H,
  auth_config:{captured:true},storage:[{bucket:'b',name:'x',file:'storage/00001.bin',bytes:10,sha256:H}],full_storage_count:1};
 const app=['pin_private','pos_private','session_guard','private','demo_cleanup_archive'];
+const dataScope=Object.fromEntries(['public','auth','storage',...app].map(s=>[s,1]));
+completeManifest.catalog_data_scope={...dataScope};
+completeManifest.toc_data_scope={...dataScope};
 const completeToc=[
  'SCHEMA - auth','SCHEMA - storage','TABLE DATA public attendance_events',
- 'TABLE DATA auth users','SEQUENCE public employees_id_seq','SEQUENCE SET public employees_id_seq',
+ 'TABLE DATA auth users','TABLE DATA storage objects','SEQUENCE public employees_id_seq','SEQUENCE SET public employees_id_seq',
  'POLICY public attendance_events tenant',
  ...app.flatMap(s=>['SCHEMA - '+s,'TABLE DATA '+s+' fixture_table'])
 ].join('\n');
@@ -51,4 +54,15 @@ test('Claude v2 business and managed scope classification appears in one strict 
  for(const s of ['cron','net','realtime','supabase_migrations','vault','extensions','graphql','graphql_public','pgsodium'])
   assert.ok(r.json.provider_managed_schemas_require_separate_provisioning.includes(s),s);
  assert.equal(r.json.result,'BACKUP_SCOPE_METADATA_PRESENT');
+});
+
+test('missing physical TABLE DATA is rejected even when TABLE DDL is present',()=>{
+ const manifest={...completeManifest,catalog_data_scope:{...dataScope,public:2}};
+ const toc=completeToc+'\\nTABLE public missing_attendance_part';
+ incomplete(manifest,toc,'TOC: complete physical table data coverage');
+});
+test('forged manifest count and absent source physical inventory are rejected',()=>{
+ incomplete({...completeManifest,catalog_data_scope:undefined},completeToc,'manifest: physical data scope');
+ incomplete({...completeManifest,toc_data_scope:{...dataScope,pos_private:2}},completeToc,
+  'manifest: TOC data scope matches archive');
 });
