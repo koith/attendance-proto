@@ -106,3 +106,53 @@
 - **정본 반영 전 주의**: 이 문서의 H 섹션은 검토 브랜치의 코드 진행 증거이며 **main에 병합·검증되기 전에는 main 정본 상태 변경이 아님**. 이후 CI PASS 및 안전한 메인 반영을 별도로 검증한다.
 - **완료 건수 불변**: 과거 2026-11-04 판정은 당시의 이력으로 보존. 본 브랜치 기준 현재 전체 18건 = `COMPLETE 1 / IN_PROGRESS 15 / NOT_STARTED 0 / UNVERIFIED 2`; **종단 간 운영 완료율 1/18 (5.6%)로 변함없음**. 코드 진행 상태 개선과 운영 완료 게이트를 혼동하지 않는다.
 - **다음 실제 완료 게이트**: SEC-S16은 독립 PostgreSQL에서 단일 복원 기준시점·운영 구조와 일치하는 신/구 이벤트 및 급여 스냅샷 델타 증거, 장애 중 쓰기와 누락·중복을 검증해야 한다. SEC-S17은 승인된 비공개 접근권한·키 이중 보관·소유권·개별 서비스 복원 runbook 및 실제 인수인계 감사 로그가 필요하다.
+
+## I. 2026-11-07 실제 실행 영수증 및 잔여 28항목 (보안 전용)
+
+> 이 단락은 기존 18건 원장과 별도로 사용자 요청에 맞춰 **작업 가능한 28개의 세부 수용 조건**을 추적한다. 28개와 SEC 18/AISEC 7의 완료 건수를 더하거나 서로 대체하지 않는다. 기존 SEC-S03 완료는 보존한다. 프로그램 합성 테스트/PR 병합과 **실제 운영 전체 백업·복원**은 별도 상태다.
+
+### 실증 결과
+
+- 기존 [PR #1520](https://github.com/koith/attendance-proto/pull/1520)이 main `86a1fb52343daefbce172695d174579fe57de11f`에 **병합됨**. PostgreSQL MVCC 스냅샷·암호화 덤프·테이블 데이터 해시·독립 복원 검증 코드 반영. [PG16·PG17 독립 CI #42329693647](https://github.com/koith/attendance-proto/actions/runs/42329693647): 37/37 + 37/37 PASS. **실제 백업이 생성된 증거가 아님**.
+- [PR #1522](https://github.com/koith/attendance-proto/pull/1522) main `eacfd8cda50e3e250dfbf0f06d676ec76ffbf8a2`: GitHub 인증된 소유자/정확한 Issue #1492/정확한 본문만 허용하는 백업 실행 경로 추가. 기존 `production-backup` 보호 환경/비밀값 필수 검사 유지. [CI #42333620967](https://github.com/koith/attendance-proto/actions/runs/42333620967) PG16 40/40 + PG17 40/40 PASS.
+- [운영 백업 실행 #42333785144](https://github.com/koith/attendance-proto/actions/runs/42333785144): 실제 시작했으나 `BACKUP_BLOCKED_PROTECTED_ENV_NOT_READY`로 **pg_dump·Storage 수집·백업 아티팩트 생성 이전에 실패**. `SEC_BACKUP_ENV_READY` 빈 값. 운영 원본 백업 생성·격리 복원 수용 조건 **NO_GO**.
+- [PR #1523](https://github.com/koith/attendance-proto/pull/1523) / [자격증명 존재 확인 #42334093226](https://github.com/koith/attendance-proto/actions/runs/42334093226): repository-scope DB URL/DB password/service-role key/Management API 토큰 모두 false. 기존 `SUPABASE_AUTH_READ_TOKEN`만 존재 true. 실제 비밀값은 표시·복사하지 않음. 환경 단위 Secret은 이 조회로 판단 불가하나 #42333785144 실백업 작업의 네 값은 비어 있었음.
+- [PR #1525](https://github.com/koith/attendance-proto/pull/1525) / [읽기 전용 대체 경로 검사 #42334456773](https://github.com/koith/attendance-proto/actions/runs/42334456773): 저장된 `SUPABASE_AUTH_READ_TOKEN`으로 공식 Management API에 값 `SELECT 1` 전송, 응답 본문 저장 없이 HTTP **401** 확인. 이 토큰으로 해당 endpoint를 사용할 수 없다는 **해당 경로만** 실패 판정.
+- [P0 Pages #42334456757](https://github.com/koith/attendance-proto/actions/runs/42334456757): 빌드·배포·동일 실행 검증 PASS; 앱 UI/Edge 변경 파일 없음, 소스 앱 버전 v0.384 유지. **주의: 보안 코드만 main 병합해도 기존 워크플로가 Google Sheets '2026-11' 새로고침을 실행**했음(작업 로그 `Sheet refreshed after deployment`). 따라서 이번 작업에서 `운영 데이터 변경 0`이라고 기술하지 않는다. 실수로 데이터가 변조되었다는 증거도 없고, 현장 재검증은 별개다. 다음 비운영 메인 병합은 기존 검증된 `[SEC-NO-OPERATING-WRITE]` 태그와 정확한 변경 파일 허용 목록을 사용해 Pages/Sheet 재실행을 방지한다.
+- 운영 Supabase 읽기 전용 카탈로그: 관련 비시스템 스키마 10개, 기본/파티션 테이블 115개(관리형 스키마 포함), Storage 2버킷·14개 객체·메타데이터 26,890,252바이트. 익명 실행 가능한 SECURITY DEFINER 21개: PIN 인자 14, POS 세션 토큰 1, 공개 함수 4, 트리거 2. 공개 카드/직원 선택 함수는 직원 이름·근무 상태를 공개할 수 있으므로 실제 서비스 UX·정보 노출 검증 없이 무차별 권한 회수하지 않는다. `anon` 및 `authenticated`는 `public`/`extensions` 스키마 CREATE 권한 없음.
+- 총괄 영수증: [Issue #1492 최신 기록](https://github.com/koith/attendance-proto/issues/1492#issuecomment-6701744994). 운영 복구 가능 판정 **NO_GO**. 기존 SEC-S03 완료 조건 유지, 전체 SEC 18건 완료 1건에서 증가하지 않음.
+
+### 세부 28항목 수용 체크
+
+| ID | 세부 작업 | 2026-11-07 판정/부족한 증거 |
+|---|---|---|
+| B1 | 실제 운영 전체 DB 백업 | BLOCKED: DB 접속 자격증명/백업 실행 환경 |
+| B2 | 직원·근태·급여·관리자·지점 DB 포함 | UNVERIFIED: 실제 전체 pg_dump TOC·행 데이터 |
+| B3 | Auth 사용자·운영 설정 백업 | IN_PROGRESS: 과거 논리 데이터 일부, hosted 설정 미확보 |
+| B4 | Storage 전체 객체 바이트 백업 | HISTORICAL VERIFIED: SEC-S03 2026-11-03 14/14, 최신 전체본은 별도 |
+| B5 | 암호화·소유자 통제 장기 보관 | IN_PROGRESS: 과거 암호화 사본 보유, 최신 일괄본 없음 |
+| B6 | 독립 보관 키·실제 복호화 | IN_PROGRESS: 과거 SEC-S03 실제 복호화 PASS, 최신 전체 키/이중 보관 미확인 |
+| R1 | 격리 복원 환경 준비 | SYNTHETIC VERIFIED: PG16/17 폐기형 클러스터, 실백업 환경 준비 미완 |
+| R2 | 실제 운영 전체 백업 복원 | BLOCKED: 전체 백업본 없음 |
+| R3 | 원본/복원본 데이터·DDL·ACL·sequence 일치 | SYNTHETIC VERIFIED, 실백업 불가 |
+| R4 | Auth 실로그인·세션 테스트 | UNVERIFIED: 격리 GoTrue/QA 계정 필요 |
+| R5 | Storage 파일·서비스 API 복원 | IN_PROGRESS: 역사적 파일 복호화 성공, 서비스 재가동 미검증 |
+| R6 | 원본 불변·오류/재시도 방어 | SYNTHETIC VERIFIED, 실제 전체본 검증 대기 |
+| S1 | 익명 SECURITY DEFINER 21개 분류 | VERIFIED: 14 PIN/1 토큰/4 공개/2 트리거, SQL catalog 읽기 |
+| S2 | 불필요한 익명 권한 제한 | IN_PROGRESS: 실제 우회·UX 영향 검증 필요 |
+| S3 | 본사/대표/보조/직원 권한 격리 | IN_PROGRESS: 권한별 E2E 필요 |
+| S4 | 지점 간 객체 수준 접근 차단 | IN_PROGRESS: 실제 세션·타지점 호출 필요 |
+| S5 | 관리자 단일기기 서버측 세션 차단 | IN_PROGRESS: 구 JWT 실제 거부 증거 필요 |
+| S6 | GitHub 비밀·PAT 의존성 점검 | IN_PROGRESS: 바인딩 검사 및 PAT 401, 전체 의존성 완료 아님 |
+| A1 | 출퇴근 동시성·중복 차단 | IN_PROGRESS: 독립 합성 QA 존재, 운영 전경로 미검증 |
+| A2 | 근태 정정·삭제 이력 보존 | IN_PROGRESS: 합성 QA 존재, 운영 재검증 필요 |
+| A3 | 급여 마감·정산 일관성 | IN_PROGRESS: 합성 QA 존재, 과거 10건 개별 검산 미완 |
+| A4 | Google Sheets 동기화·복구 | IN_PROGRESS: 실제 새로고침 성공, 손실 없는 격리 복구 미검증 |
+| D1 | 복구 코드 PR #1520 안전 검토·병합 | VERIFIED: main commit 86a1fb52 |
+| D2 | 전체 CI·회귀 검증 | IN_PROGRESS: 관련 PR 합성 테스트 통과, 종단간 전체 미완 |
+| D3 | 배포 영향·버전 확인 | IN_PROGRESS: Pages PASS, 예상 밖 Sheets 새로고침 확인/예방 필요 |
+| D4 | PC·iPhone 실기 기능 수용 | UNVERIFIED: 실제 기기 검증 증거 없음 |
+| D5 | 주기 백업·보관·실패 알림 | BLOCKED: 실제 암호화 백업/복원 선행 필요 |
+| D6 | 완료 원장·최종 보고 | IN_PROGRESS: 증거 갱신 중, 최종 NO_GO |
+
+**28항목 중 해당 세부 목적에 대해 VERIFIED로 판정한 것은 S1·D1의 2건이다.** 별도 합성 부분 완료, 과거 Storage 백업, 현재 실제 운영 복구 완료는 구분한다. 최종 전체 보안 18개 운영 수용 완료는 여전히 **1/18**이다.
