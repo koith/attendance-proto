@@ -44,6 +44,26 @@ test('read-only live browser QA is guarded and does not permit operating scripts
   assert.doesNotMatch(source,/\b(?:store_attendance_correct_event|payroll_close|pos_unlock_store|punch)\s*\(/,
     'Live QA may never issue real state-changing operations');
 });
+test('S2 strictly scoped SQL + isolated PG fixture cannot bypass runtime migration safety',()=>{
+  const changed=[
+    {filename:'security/sec_s2_anon_trigger_execute_hardening.sql',status:'added'},
+    {filename:'qa/sec_s2_anon_trigger_execute_postgres.sql',status:'added'},
+    {filename:'.github/workflows/sec-s2-public-trigger-acl-postgres.yml',status:'added'},
+    {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+  ];
+  assert.equal(check(changed).result,'PASS');
+  assert.throws(()=>check(changed.concat({filename:'supabase/migrations/20261107000000_unsafe.sql',status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+  const sql=fs.readFileSync('security/sec_s2_anon_trigger_execute_hardening.sql','utf8');
+  const ci=fs.readFileSync('.github/workflows/sec-s2-public-trigger-acl-postgres.yml','utf8');
+  assert.match(sql,/REVOKE EXECUTE ON FUNCTION public.cancel_revoked_owner_invitation\(\)/);
+  assert.match(sql,/REVOKE EXECUTE ON FUNCTION public.store_assistant_invitation_default_permissions\(\)/);
+  assert.match(sql,/FROM PUBLIC, anon/);
+  assert.doesNotMatch(sql,/\b(?:DROP|TRUNCATE|DELETE|UPDATE|INSERT)\s+(?:INTO|FROM|TABLE)/i);
+  assert.match(ci,/matrix:/);
+  assert.match(ci,/pg: \['16','17'\]/);
+  assert.match(ci,/qa\/sec_s2_anon_trigger_execute_postgres.sql/);
+});
 test('rejects app, Edge, payroll migration, GAS, secrets, random tests and unknown workflows',()=>{
   for(const path of ['index.html','actual_attendance.js','supabase/functions/server-sync-sheet/index.ts',
     'supabase/migrations/pays.sql','gas/Code.gs','.github/workflows/other.yml',
