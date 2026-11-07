@@ -143,7 +143,7 @@
 | S3 | 본사/대표/보조/직원 권한 격리 | IN_PROGRESS: 권한별 E2E 필요 |
 | S4 | 지점 간 객체 수준 접근 차단 | IN_PROGRESS: 실제 세션·타지점 호출 필요 |
 | S5 | 관리자 단일기기 서버측 세션 차단 | IN_PROGRESS: 구 JWT 실제 거부 증거 필요 |
-| S6 | GitHub 비밀·PAT 의존성 점검 | IN_PROGRESS: 바인딩 검사 및 PAT 401, 전체 의존성 완료 아님 |
+| S6 | GitHub 비밀·PAT 의존성 점검 | **VERIFIED COMPLETE (감사·의존성 진단 한정)**: 158/158 GitHub workflow 직접 Secret·PAT·Var 참조 전수 확인, 실제 비밀값 노출 없는 존재 검사·Management 401·백업 protected-env 실패 원인 확인. 미등록 비밀값·실제 백업 성공·토큰 발급/갱신은 별도 B1/D5 과제 |
 | A1 | 출퇴근 동시성·중복 차단 | IN_PROGRESS: 독립 합성 QA 존재, 운영 전경로 미검증 |
 | A2 | 근태 정정·삭제 이력 보존 | IN_PROGRESS: 합성 QA 존재, 운영 재검증 필요 |
 | A3 | 급여 마감·정산 일관성 | IN_PROGRESS: 합성 QA 존재, 과거 10건 개별 검산 미완 |
@@ -155,7 +155,7 @@
 | D5 | 주기 백업·보관·실패 알림 | BLOCKED: 실제 암호화 백업/복원 선행 필요 |
 | D6 | 완료 원장·최종 보고 | IN_PROGRESS: 증거 갱신 중, 최종 NO_GO |
 
-**2026-11-07 재검증 결과, 28개 세부 항목의 최종 완료는 S1·D1·B4·D3·R1의 5건이다.** 별도 합성 부분 완료, 과거 Storage 백업, 현재 실제 운영 복구 완료는 구분한다. 최종 전체 보안 18개 운영 수용 완료는 여전히 **1/18**이다.
+**2026-11-07 재검증 결과, 28개 세부 항목의 최종 완료는 S1·D1·B4·D3·R1·S6의 6건이다.** 별도 합성 부분 완료, 과거 Storage 백업, 현재 실제 운영 복구 완료는 구분한다. 최종 전체 보안 18개 운영 수용 완료는 여전히 **1/18**이다.
 
 
 ## J. 2026-11-07 B4·D3 최종 수용 완료 판정 (2/28 → 4/28)
@@ -201,3 +201,28 @@
 - **사용자 28항목: COMPLETE 5/28 (17.9%), 잔여 23개.** S1, D1, B4, D3, R1.
 - **SEC 대과제 18건: 1/18 COMPLETE** 그대로. 운영 DB/Auth/Storage 통합 백업 및 독립 실제 복원은 **NO_GO**.
 - 과거 4/28 기록은 당시 결과이므로 J절에 그대로 보존한다.
+
+
+## L. 2026-11-07 S6 GitHub 비밀·PAT 의존성 감사 수용 완료 (5/28 → 6/28)
+
+> **완료 범위 엄격 구분:** S6의 수용 목적은 GitHub Workflow에서 참조하는 비밀/토큰의 의존성 **조사·진단**이다. 토큰이 적절히 발급·갱신됐거나, 해당 비밀을 이용한 실제 운영 백업/복원이 성공했다는 뜻이 **아니다**. 확인된 미비점은 B1/B2/B3/D2/D5 등 실행·복구 게이트에 남긴다.
+
+### 전수 조사와 검사 범위
+
+- GitHub `main` c46c0891 기준 [Git Trees API](https://github.com/koith/attendance-proto/tree/main/.github/workflows)에서 `.github/workflows/` 경로 **158개**를 열거. 0–11 / 12–29 / 30–47 / 48–65 / 66–83 / 84–101 / 102–119 / 120–137 / 138–154 / 155–157번 범위를 중복 없이 **158/158개 fetch_file 본문 조사 성공(조회 오류 0)**.
+- 코드 확인 방식: YAML 본문의 정적 `${{ secrets.NAME }}` 직접 참조, `${{ vars.NAME }}` 참조, 동적 `secrets[...]` 패턴, `permissions: ... write` 선언, 백업 관련 보호 환경/토큰명 검토. 동적 `secrets[...]` 참조 탐지 0건. 분석 결과에는 **비밀 이름과 파일명만** 남겼고 값·직원정보·OAuth 액세스 토큰 본문·이메일을 공개하지 않았다. 이 정적 검사는 직간접 Node/shell 명령의 의미론적 완전성이나 외부 서비스 권한·만료 상태를 증명하지 않는다.
+- 의존성군: Google Apps Script 배포는 `.github/workflows/apps-script-deploy.yml`에 `APPS_SCRIPT_ID`, `APPS_SCRIPT_DEPLOYMENT_ID`, `GOOGLE_OAUTH_CLIENT_ID/SECRET/REFRESH_TOKEN`; QA1243 Google E2E/메일/월별 발급은 별도 `QA1243_GOOGLE_OAUTH_*` 변형을 사용. `.github/workflows/autonomous-development-agent.yml`은 `OPENAI_API_KEY`, GitHub 권한 위임은 일부 워크플로의 내장 `GITHUB_TOKEN`과 `contents/issues/pages/id-token: write` 선언, 배포 알림은 `DEPLOY_ALERT_WEBHOOK_URL` 참조. 구성값 유효성을 전부 테스트했다는 뜻은 아니다.
+- 운영 백업 최소 의존성: `.github/workflows/sec-backup-capture.yml`의 **protected `production-backup` 환경**, `vars.SEC_BACKUP_ENV_READY=true`와 `SUPABASE_DB_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ACCESS_TOKEN` 비어 있지 않은 바인딩이 필수. `id-token: write` 기반 Storage OIDC 일회성 경로는 별도 `.github/workflows/sec-storage-oidc-export-20261103.yml`에 존재하나, 현재 임시 Edge 내보내기 API는 410 차단 상태라 전체 DB/Auth 백업을 대체하지 않는다.
+
+### 실제 실행 증거와 결함 인계
+
+- [GitHub Actions repository-level Secret 존재 검사 #42334093226](https://github.com/koith/attendance-proto/actions/runs/42334093226) **SUCCESS**: 해당 작업에서는 `SUPABASE_AUTH_READ_TOKEN=true`, 일반 Google OAuth Client ID/Secret/Refresh Token 각각 `true`. 반면 DB URL·비밀번호 계열, 서비스 역할 키 계열, Management 토큰 및 `SUPABASE_ACCESS_TOKEN`, `SUPABASE_AUTH_WRITE_TOKEN`, QA1243 전용 Google OAuth 세 변수는 `false`. **`false`는 repository-scope 작업에서 빈 바인딩**이라는 뜻이며 protected environment-scope 값을 전역적으로 단정하지 않는다. 값 자체는 공개하지 않음.
+- [실제 backup trigger #42333785144](https://github.com/koith/attendance-proto/actions/runs/42333785144)에서 `SEC_BACKUP_ENV_READY`와 3개 핵심 바인딩이 빈 상태, preflight `BACKUP_BLOCKED_PROTECTED_ENV_NOT_READY` 발생. DB 조회·암호화 아카이브 생성 전 실패. 해당 경로는 성공 판정 금지.
+- [별도 read-only Management SQL `SELECT 1` probe #42334456773](https://github.com/koith/attendance-proto/actions/runs/42334456773): 기존 `SUPABASE_AUTH_READ_TOKEN` 해당 endpoint에서 `MANAGEMENT_DB_READ_ONLY_HTTP=401` 확인. 그 **특정 엔드포인트**에 대한 인증 불가로 한정하며, 이 사실로 기존 토큰의 모든 사용 권한을 부정하지 않는다.
+- **잔여 후속:** B1 전체 DB, B3 Auth 설정, B5 암호화 보관, D5 정기 운영 백업은 적절한 권한·비밀 바인딩 또는 대체 소유자 승인 수단과 실제 재현 가능한 백업/복원을 확보할 때까지 미완료. D2 QA1243 Google/hosted 현장 검증은 별도. PAT 비밀값의 실제 범위/만료·소유자 정책과 보호 환경의 구성은 API 메타데이터 접근이 없어 **UNVERIFIED**이며, S6 감사 완료를 이들의 정상 상태로 오해하지 않는다.
+
+### 누적 판정
+
+- 사용자 **28항목 COMPLETE 6/28 (21.4%), 잔여 22개**: S1, D1, B4, D3, R1, **S6**. S6은 감사/의존성 확인 범위의 종료 판정이며 다른 필수 인증·백업 결과를 대신하지 않는다.
+- 운영 보안 대과제 **SEC 1/18** 그대로이며 전체 운영 복구 가능 여부는 **NO_GO**.
+- J절 4/28, K절 5/28은 각각 당시의 감사 이력으로 유지한다.
