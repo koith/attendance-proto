@@ -149,3 +149,26 @@ test('real P0 workflow enforces security-only scope and skips all three operatin
   assert.ok(!agentCi.includes('git diff --name-only HEAD^ HEAD'),
     'Reject prior last-commit-only security scan');
 });
+
+test('A2 v2 append-only guard is exact-scope, no operating data writes',()=>{
+  const reviewed=[
+    {filename:'security/sec_a2_audit_immutability_guard_v2.sql',status:'added'},
+    {filename:'qa/sec_a2_audit_immutability_postgres.sql',status:'added'},
+    {filename:'.github/workflows/sec-a2-attendance-mutation-audit-pg.yml',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+  ];
+  assert.equal(check(reviewed).result,'PASS');
+  assert.throws(()=>check(reviewed.concat({filename:'supabase/migrations/20261108_unreviewed.sql',status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+  const sql=fs.readFileSync('security/sec_a2_audit_immutability_guard_v2.sql','utf8');
+  const fixture=fs.readFileSync('qa/sec_a2_audit_immutability_postgres.sql','utf8');
+  const workflow=fs.readFileSync('.github/workflows/sec-a2-attendance-mutation-audit-pg.yml','utf8');
+  assert.match(sql,/BEFORE UPDATE OR DELETE ON private.attendance_mutation_audit_v1/);
+  assert.match(sql,/BEFORE TRUNCATE ON private.attendance_mutation_audit_v1/);
+  assert.match(sql,/SEC_A2_AUDIT_IMMUTABLE_DENIED/);
+  assert.doesNotMatch(sql,/\\b(?:INSERT|UPDATE|DELETE|TRUNCATE)\\s+(?:INTO\\s+|FROM\\s+|TABLE\\s+)?public\\.(?:attendance_events|event_corrections|correction_requests)\\b/i);
+  assert.match(fixture,/ROLLBACK;/);
+  assert.match(fixture,/SEC_A2_V2_SOURCE_CAPTURE_REGRESSION/);
+  assert.match(workflow,/qa\\/sec_a2_audit_immutability_postgres\\.sql/);
+  assert.match(workflow,/pg: \\['16','17'\\]/);
+});
