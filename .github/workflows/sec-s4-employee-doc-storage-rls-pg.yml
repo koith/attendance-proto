@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'security/sec_s4_employee_docs_store_scoped_rls.sql'
+      - 'security/sec_s4_doc_delete_retention_24h.sql'
+      - 'qa/sec_s4_doc_delete_retention_postgres.sql'
       - 'qa/sec_s4_employee_docs_store_rls_postgres.sql'
       - '.github/workflows/sec-s4-employee-doc-storage-rls-pg.yml'
       - 'scripts/security/no_operating_write_scope.mjs'
@@ -48,5 +50,7 @@ jobs:
         run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
       - name: Confirm old cross-store leak and verify new real PostgreSQL policies
         run: psql -X -v ON_ERROR_STOP=1 -f qa/sec_s4_employee_docs_store_rls_postgres.sql
+      - name: SEC-S4 document deletion must be server-side 24h and same-uploader
+        run: psql -X -v ON_ERROR_STOP=1 -f qa/sec_s4_doc_delete_retention_postgres.sql
       - name: Exact security-only release guard tests
         run: node --test scripts/security/no_operating_write_scope.test.mjs
