@@ -4,6 +4,8 @@ on:
     paths:
       - 'security/sec_a2_attendance_mutation_audit_v1.sql'
       - 'qa/sec_a2_attendance_mutation_audit_postgres.sql'
+      - 'security/sec_a2_audit_immutability_guard_v2.sql'
+      - 'qa/sec_a2_audit_immutability_postgres.sql'
       - '.github/workflows/sec-a2-attendance-mutation-audit-pg.yml'
       - 'scripts/security/no_operating_write_scope.mjs'
       - 'scripts/security/no_operating_write_scope.test.mjs'
@@ -12,6 +14,8 @@ on:
     paths:
       - 'security/sec_a2_attendance_mutation_audit_v1.sql'
       - 'qa/sec_a2_attendance_mutation_audit_postgres.sql'
+      - 'security/sec_a2_audit_immutability_guard_v2.sql'
+      - 'qa/sec_a2_audit_immutability_postgres.sql'
       - '.github/workflows/sec-a2-attendance-mutation-audit-pg.yml'
 permissions:
   contents: read
@@ -50,5 +54,7 @@ jobs:
         run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
       - name: Validate real PostgreSQL triggers on synthetic rows and live rollback selftest
         run: psql -X -v ON_ERROR_STOP=1 -f qa/sec_a2_attendance_mutation_audit_postgres.sql
+      - name: Verify audit immutability on real PG16/17 with rollback-only synthetic data
+        run: psql -X -v ON_ERROR_STOP=1 -f qa/sec_a2_audit_immutability_postgres.sql
       - name: Exact non-operating-write files guard regression
         run: node --test scripts/security/no_operating_write_scope.test.mjs
