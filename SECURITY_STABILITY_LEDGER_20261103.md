@@ -344,3 +344,36 @@
 
 - 28 항목 **완료 9 / 미완료 19**(O절). A2 신규 운영 보호는 **실배포된 부분 성과**이며 원본 이력·현장 수정 E2E 불충족으로 완료 판정 불변. A1·A3도 실제 데이터를 읽어 무변경 진단했으나 완료 판정 불변.
 - 운영 PG DDL 적용은 정식 Supabase migration으로 추적하며 앱 버전 **v0.384**, 다른 직원·급여/Sheet 데이터 변경은 이 검증 과정에서 수행하지 않았다. 실제 현장 PC/iPhone 물리 테스트는 여전히 **UNVERIFIED**.
+
+## Q. 2026-11-08 SEC-S4 Storage 지점 격리 운영 패치 + 암호화 Storage 백업 독립 보관 (9/28 유지)
+
+> 이 절은 28개 수용 항목의 기존 S4 일부를 실제 운영에서 바로잡은 실증 기록이다. 실제 다른 지점 관리자 JWT HTTP 다운로드, 정상 관리자 파일 업로드/삭제, 물리 iPhone 및 모든 객체 분리까지 검증한 것은 아니다. S4 전체 완료는 유보한다. DB/Auth 전체 백업·복원도 NO_GO다.
+
+### 실제 암호화 Storage 백업 장기 보관 검증 (B5 일부, B4 보존)
+
+- 기존 SEC-S03 실제 14개 파일 암호화 ZIP [GitHub Actions #41634246360](https://github.com/koith/attendance-proto/actions/runs/41634246360), artifact 13229353638, 정확히 36,021,107 bytes, SHA-256 3fa6fd922c7804f7a6db33c2759456a4739039aba8ab3c9cc25d71952da37274. GitHub 유효기한 2026-12-03T12:18Z.
+- GitHub 공식 connector를 통해 실제 원본 다운로드; 내부 ZIP 항목 암호화된 객체 파일 14개 + encrypted-manifest.json 한 개; 원본 ZIP SHA-256 일치.
+- 소유자 개인 Google Drive에 별도 비공개 ZIP 업로드, metadata 재조회: shared=false, 소유자 한 명, 36,021,107 bytes. 원격 파일을 다시 raw 다운로드하여 원본과 SHA-256 및 전체 bytes cmp PASS.
+- 독립 ChatGPT 개인 Library의 백억커피_보안백업 폴더에 동일 암호화 ZIP 추가 업로드, 파일 목록·크기 재확인. Library에서 raw materialize한 실제 파일도 SHA-256 및 원본 bytes cmp PASS. **GitHub/Drive/Library 세 장소 모두 독립 파일 복사본**. 소유자 개인 Drive 파일 ID·URL·직원 경로·실제 이름/개인자료는 공개 원장에 미기재.
+- 운영 Storage READ ONLY 재조회: employee-docs private 14개, 26,890,252 bytes, 변경 최종시각 2026-11-01T12:45Z(기존 암호화 백업 이전); recipe-thumbnails 공개 버킷 0개. 보관본의 원본 범위 유지.
+- **주의:** 복호화에 쓰인 과거 2026-11-03 로컬 RSA private PEM은 현재 실행환경에서 접근 불가. 개인 Library에 암호화된 wrapped private-key 백업 JSON만 확인. 이것은 키가 영구 분실됐다는 뜻이 아니다. 이번 세 곳의 **암호문 read-back 성공은 실제 최신 복호화·API 복원 검증이 아니다**. B5는 최신 전체 DB/Auth 묶음이 없어 미완료, B6/R5도 미완료.
+
+### SEC-S4 / 지점 간 문서 Storage 접근 취약점 운영 재현과 해결 (S4 일부)
+
+- 운영 storage.objects RLS 켜짐, employee-docs 비공개 버킷. 기존 SELECT/INSERT/DELETE 정책 3개가 bucket_id와 **public.is_admin()**만 검사. 현재 is_admin()은 타 지점의 유효한 STORE_MANAGER에도 true라 경로의 직원 소속 지점을 검사하지 않았다.
+- 실제 준비된 타 지점 대표관리자의 등록된 UUID와 authenticated 역할 claim을 이용한 운영 PostgreSQL **읽기 전용 ROLE SQL 시뮬레이션**으로 수정 전 employee-docs 메타데이터 14/14 보임. 실제 로그인 JWT를 사용한 HTTP 다운로드나 정보 유출이 있었다는 증거는 아니며, 실운영 SQL RLS 권한 결함 재현임.
+- 총 14개 중 employee_documents 기록과 1:1 연결되는 10개는 직원ID/path 첫 세그먼트 일치, 소속지점 매핑 1개 지점. 나머지 4개는 기록/직원 연결이 없는 이전 문서: 삭제·재할당 금지, HQ만 복구하도록 정책 수립.
+- 실제 index.html 점검: 문서 업로드는 Storage 업로드 **먼저**, 그 후 admin_doc_add 메타데이터 등록, 실패 시 파일 삭제. 정책이 등록된 메타데이터를 요구하면 정상 업로드가 깨짐. 따라서 기존 경로 규칙 employee_id/uuid.ext와 employees.store_id, 기존 public.can_manage_store(store_id) 서버 권한 함수로 소속을 판단하고 HQ만 연결 없는 4개에 접근.
+- [PR #1543](https://github.com/koith/attendance-proto/pull/1543) 병합 main **28c997278288e53640cbe60c2f4f83f591941346**, 리뷰한 SQL/PG16·17 격리 QA/워크플로/scope guard의 5개 보안전용 파일만 변경. 실제 PostgreSQL 16+17 synthetic E2E: 기존 타지점 3/3 접근 재현→수정 후 0, 자기 지점 SELECT/INSERT/DELETE, Storage 업로드 후 metadata 미등록 상태 허용, HQ 고아 파일 접근, 보조/비로그인 거부, 잘못된 경로 거부 PASS; 전체 PR **53/53 CI SUCCESS**.
+- 실제 Supabase migration **security_s4_employee_docs_store_scoped_rls_20261108** 적용 SUCCESS. 비공개 직원 파일의 3개 정책의 조건만 scoped helper로 바꾸고 공개 앱, Edge, GAS, 근태/급여/직원 데이터·Storage 실제 파일 bytes는 변경하지 않음.
+- **운영 재검증:** 타 지점 READY 관리자 2개의 ROLE SQL 시뮬레이션 각각 **0/14** 파일 메타데이터 접근; HQ 운영 관리자 **14/14** 유지. 별도 실제 admin_doc_list RPC 호출을 ROLE SQL로 검사: HQ 기존 직원 문서 1건 조회, 타 지점 사용자 NOT_AUTHORIZED. RLS 활성/3정책 모두 helper 적용, anon helper 직접 EXECUTE 거부. 원본 Storage 14개/26,890,252 bytes, 메타데이터 10행과 미연결 4개 유지.
+- 운영 DB 패치 이후 [실제 공개 웹앱 Chromium/WebKit QA 재실행](https://github.com/koith/attendance-proto/actions/runs/42445633952) 성공: 공개 직원 카드, 미개통 지점 차단, 7개 민감 table 비로그인 차단/위조 JWT 401, 모바일/PC. 운영 웹 v0.384 유지. [main P0 #42453390311](https://github.com/koith/attendance-proto/actions/runs/42453390311) SUCCESS, Pages/Sheets refresh 관련 단계 SKIPPED.
+- **S4 전체는 계속 IN_PROGRESS:** 운영의 실제 JWT HTTP로 서명 URL/파일다운로드 시도를 해보지 않았고, 소속 지점 정상 관리자의 실제 파일 업로드·열기·정상 삭제, 다른 근태/급여/재고 객체의 전 경로 E2E, iPhone 물리 실기 수용도 미완이다. 현재 Storage 세 정책의 SQL 역할 격리 성공만 VERIFIED로 인정.
+
+### 최신 잔여·차단 분류
+
+- 사용자 28항목 **9 COMPLETE / 19 OPEN**: S1,S2,S6,B4,R1,R4,A4,D1,D3 완료. 별도 SEC 운영 대과제 1/18 완료, 전체 정상 운영 복구 NO_GO. 기존 9건을 다시 완료로 세지 않는다.
+- B1/B2/B3/B5/B6/R2/R3/R5/R6/D5: 최신 전체 DB/Auth 백업, 독립 키, 격리 복원·주기 실패알림 선행. 실패한 GitHub 보호환경 백업 경로만 반복하지 말 것.
+- S3/S4/S5: 실제 인증된 HQ/대표/보조/직원 JWT와 타 지점/구 JWT 차단 E2E 필요. Storage 교차 노출 SQL 정책은 해결, 실 HTTP 검증만 별도.
+- A1/A2/A3: 근태 동시성 실제 경합, 실제 정정 감사행, VOID null 8건, 자동퇴근 본사 9건 중 2건 선행 IN 불명 및 실제 지급액 검산. 운영 레코드 임의 정정·삭제 금지.
+- D2/D4: 전체 QA1243 green 및 실제 PC·물리 iPhone 테스트 미완. D6: 통합 복구 완료 전 최종보고 수용 미완.
