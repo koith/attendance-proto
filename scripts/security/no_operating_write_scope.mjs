@@ -15,6 +15,7 @@ const allowedPaths=new Set([
   "security/sec_a2_audit_immutability_guard_v2.sql",
   "security/sec_s4_employee_docs_store_scoped_rls.sql",
   "security/sec_s4_doc_delete_retention_24h.sql",
+  "security/sec_s4_doc_delete_retention_rollback_v1.sql",
   "qa/sec_s4_doc_delete_retention_postgres.sql",
   "qa/sec_s4_employee_docs_store_rls_postgres.sql",
   ".github/workflows/sec-s4-employee-doc-storage-rls-pg.yml",
