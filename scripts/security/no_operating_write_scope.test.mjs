@@ -174,3 +174,23 @@ test('A2 v2 append-only guard is exact-scope, no operating data writes',()=>{
   assert.ok(workflow.includes('qa/sec_a2_audit_immutability_postgres.sql'));
   assert.ok(workflow.includes("pg: ['16','17']"));
 });
+
+test('SEC S3 S4 live private GET-only probe and exact-scope workflow',()=>{
+ const changed=[
+   {filename:'qa_live_anonymous_sensitive_readonly_v1.mjs',status:'added'},
+   {filename:'.github/workflows/qa-live-test-controls-v1.yml',status:'modified'},
+   {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+   {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(changed).result,'PASS');
+ assert.throws(()=>check(changed.concat({filename:'index.html',status:'modified'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const probe=fs.readFileSync('qa_live_anonymous_sensitive_readonly_v1.mjs','utf8');
+ const wf=fs.readFileSync('.github/workflows/qa-live-test-controls-v1.yml','utf8');
+ assert.ok(probe.includes("method:'GET'"));
+ assert.ok(probe.includes('SEC_LIVE_ANON_SENSITIVE_ROW_EXPOSED_OR_INVALID_RESPONSE'));
+ assert.ok(probe.includes('SEC_LIVE_FORGED_JWT_WAS_NOT_REJECTED'));
+ for(const verb of ["method:'POST'","method:'PUT'","method:'PATCH'","method:'DELETE'"])
+    assert.equal(probe.includes(verb),false,'No production writes: '+verb);
+ assert.ok(wf.includes('node qa_live_anonymous_sensitive_readonly_v1.mjs'));
+ assert.ok(wf.includes('qa_live_anonymous_sensitive_readonly_v1.mjs'));
+});
