@@ -157,5 +157,14 @@ BEGIN
 END
 $foreign$;
 RESET ROLE;
+\i security/sec_s4_doc_delete_retention_rollback_v1.sql
+DO $rollback_safety$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_policies WHERE schemaname='storage' AND tablename='objects'
+  AND policyname='empdoc_admin_delete' AND qual LIKE '%sec_s4_employee_doc_file_access_v1%'
+  AND qual NOT LIKE '%owner_id%')
+ THEN RAISE EXCEPTION 'SEC_S4_ROLLBACK_MUST_KEEP_STORE_SCOPE'; END IF;
+END
+$rollback_safety$;
 ROLLBACK;
 SELECT 'PASS SEC-S4: expired metadata+Storage protected, uploader ownership, foreign denial, fresh upload cleanup and 24h owner deletion; PG16/17 isolated transaction rollback' AS result;
