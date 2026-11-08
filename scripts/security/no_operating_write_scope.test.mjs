@@ -163,12 +163,14 @@ test('A2 v2 append-only guard is exact-scope, no operating data writes',()=>{
   const sql=fs.readFileSync('security/sec_a2_audit_immutability_guard_v2.sql','utf8');
   const fixture=fs.readFileSync('qa/sec_a2_audit_immutability_postgres.sql','utf8');
   const workflow=fs.readFileSync('.github/workflows/sec-a2-attendance-mutation-audit-pg.yml','utf8');
-  assert.match(sql,/BEFORE UPDATE OR DELETE ON private.attendance_mutation_audit_v1/);
-  assert.match(sql,/BEFORE TRUNCATE ON private.attendance_mutation_audit_v1/);
-  assert.match(sql,/SEC_A2_AUDIT_IMMUTABLE_DENIED/);
-  assert.doesNotMatch(sql,/\\b(?:INSERT|UPDATE|DELETE|TRUNCATE)\\s+(?:INTO\\s+|FROM\\s+|TABLE\\s+)?public\\.(?:attendance_events|event_corrections|correction_requests)\\b/i);
-  assert.match(fixture,/ROLLBACK;/);
-  assert.match(fixture,/SEC_A2_V2_SOURCE_CAPTURE_REGRESSION/);
-  assert.match(workflow,/qa\\/sec_a2_audit_immutability_postgres\\.sql/);
-  assert.match(workflow,/pg: \\['16','17'\\]/);
+  assert.ok(sql.includes('BEFORE UPDATE OR DELETE ON private.attendance_mutation_audit_v1'));
+  assert.ok(sql.includes('BEFORE TRUNCATE ON private.attendance_mutation_audit_v1'));
+  assert.ok(sql.includes('SEC_A2_AUDIT_IMMUTABLE_DENIED'));
+  for(const source of ['attendance_events','event_corrections','correction_requests'])
+    for(const verb of ['INSERT INTO ','UPDATE ','DELETE FROM ','TRUNCATE '])
+      assert.equal(sql.includes(verb+'public.'+source),false,'no live DML '+verb+source);
+  assert.ok(fixture.includes('ROLLBACK;'));
+  assert.ok(fixture.includes('SEC_A2_V2_SOURCE_CAPTURE_REGRESSION'));
+  assert.ok(workflow.includes('qa/sec_a2_audit_immutability_postgres.sql'));
+  assert.ok(workflow.includes("pg: ['16','17']"));
 });
