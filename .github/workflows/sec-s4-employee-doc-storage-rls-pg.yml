@@ -1,0 +1,52 @@
+name: SEC-S4 employee contract Storage store-scoped RLS (PG16/17)
+on:
+  pull_request:
+    paths:
+      - 'security/sec_s4_employee_docs_store_scoped_rls.sql'
+      - 'qa/sec_s4_employee_docs_store_rls_postgres.sql'
+      - '.github/workflows/sec-s4-employee-doc-storage-rls-pg.yml'
+      - 'scripts/security/no_operating_write_scope.mjs'
+      - 'scripts/security/no_operating_write_scope.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'security/sec_s4_employee_docs_store_scoped_rls.sql'
+      - 'qa/sec_s4_employee_docs_store_rls_postgres.sql'
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: PG${{ matrix.pg }} real SQL store-scoped access boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16','17']
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sec_s4_synthetic_only
+          POSTGRES_DB: sec_s4_disposable
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sec_s4_disposable"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: sec_s4_synthetic_only
+      PGDATABASE: sec_s4_disposable
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if absent
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Confirm old cross-store leak and verify new real PostgreSQL policies
+        run: psql -X -v ON_ERROR_STOP=1 -f qa/sec_s4_employee_docs_store_rls_postgres.sql
+      - name: Exact security-only release guard tests
+        run: node --test scripts/security/no_operating_write_scope.test.mjs
