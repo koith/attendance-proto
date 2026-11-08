@@ -100,8 +100,6 @@ DECLARE affected bigint;
 BEGIN
  IF (SELECT public.admin_doc_delete(1)->>'error')<>'TOO_OLD_TO_DELETE'
  THEN RAISE EXCEPTION 'SEC_S4_OLD_METADATA_DELETION_NOT_BLOCKED'; END IF;
- IF (SELECT count(*) FROM public.employee_documents WHERE id=1)<>1
- THEN RAISE EXCEPTION 'SEC_S4_OLD_METADATA_REMOVED'; END IF;
  DELETE FROM storage.objects WHERE name='101/old.pdf';
  GET DIAGNOSTICS affected=ROW_COUNT;
  IF affected<>0 THEN RAISE EXCEPTION 'SEC_S4_OLD_STORAGE_OBJECT_REMOVED'; END IF;
@@ -117,6 +115,12 @@ BEGIN
 END
 $owner$;
 RESET ROLE;
+DO $verify_unchanged$
+BEGIN
+ IF (SELECT count(*) FROM public.employee_documents WHERE id=1)<>1
+ THEN RAISE EXCEPTION 'SEC_S4_OLD_METADATA_REMOVED'; END IF;
+END
+$verify_unchanged$;
 
 -- HQ cannot delete another uploader's fresh document or past retention object.
 SET LOCAL ROLE authenticated;
