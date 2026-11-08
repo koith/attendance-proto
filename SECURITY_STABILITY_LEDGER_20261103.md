@@ -312,3 +312,35 @@
 | FINAL_REPORT | D6 | 이 원장 갱신은 중간 보고. 미완료 19건 종료 전 최종 NO_GO 해제 금지 |
 
 **추진 우선:** 각 blocked gate에만 매달리지 않고 A2·A3·S3/S4 권한 검증과 R5 격리 API를 병렬로 전진. 불가한 것은 FAILED_PATH 또는 DEPENDENCY로 분리하고 독립 가능한 항목을 계속 진행. 운영 DB/Auth/Edge 실제 쓰기·운영 승인·고위험 권한 변경은 별도 게이트를 유지한다.
+
+
+## P. 2026-11-08 A2 운영 v2 실제 적용, A1/A3 최신 재계산 (9/28 유지)
+
+> O절은 2026-11-08 04:21 UTC 이전 시점의 판정이다. 본 P절은 이후 신규 **운영 Supabase 실제 적용과 읽기 전용 재검산** 결과를 추가한다. 기존 8/28→9/28의 A4 완료 판정은 보존. **A1/A2/A3는 아직 수용 완료 아님**.
+
+### A2: 실제 운영 DB에서 감사 원본 불변 보호 단계 강화 (VERIFIED DEPLOYED PARTIAL)
+
+- 기준 출처: 이미 독립 PG16/17 테스트 [#42444409464](https://github.com/koith/attendance-proto/actions/runs/42444409464) **2/2 성공**, 전체 PR #1539 **52/52**, main `d0310d65ab8010841256690374934ff62e896b32`; 검증 SQL `security/sec_a2_audit_immutability_guard_v2.sql`.
+- 사전 hosted **READ ONLY**: `private.attendance_mutation_audit_v1` RLS 활성, 기존 audit rows 0, public 3개 운영 원본 테이블의 기존 6개 audit+TRUNCATE 보호 트리거 전부 활성, 새 v2 function/trigger는 0, anon/auth private USAGE 없음. 실제 라이브 attendance/contract/payroll 레코드를 쓰지 않음.
+- 실제 Supabase migration **`20261108042931_security_a2_private_audit_no_rewrite_v2_20261108` 성공**. 오직 `private` 감사 이력 테이블의 **UPDATE/DELETE** 및 **TRUNCATE**를 차단하는 trigger 2개와 SECURITY INVOKER 함수 1개 생성. 기존 public attendance/correction 원본 테이블의 INSERT/UPDATE/DELETE 데이터나 RPC/인증/권한, Google Sheets/Pages 코드 수정 없음.
+- **실제 PostgreSQL 17 hosted 종단 검증**: 별도 disposable TEMP 테이블 + v1 실제 audit capture 함수로 합성 UPDATE와 DELETE 2건을 발생시킨 뒤, private audit table에 직접 UPDATE/DELETE/TRUNCATE를 가하면 각각 **SEC_A2_AUDIT_IMMUTABLE_DENIED / SQLSTATE 42501** 거부. 기대 예외로 테스트용 테이블/트리거/감사행 모두 **서브트랜잭션 완전 ROLLBACK**. 마지막 실제 audit count 0 확인; 비가역적 테스트용 근태·급여 데이터 없음.
+- 운영 실측: **감사 원본 6/6**, v2 audit 자체 보호 **2/2**, audit RLS=true, anon/auth/service_role SELECT=false, 새 함수 anon/auth EXECUTE=false, 감사행 잔여 0, VOID NULL event reference **8건 유지**. 동일 시점 Supabase security adviser는 변경 전과 같이 64 INFO RLS no-policy, 19 WARN anon SECURITY DEFINER, 213 WARN authenticated SECURITY DEFINER, 1 WARN leaked-password protection; 대량 권한 회수 없음.
+- **비파괴적 rollback 준비:** 새 audit v2 trigger 2개만 `DROP TRIGGER` 후 `DROP FUNCTION private.sec_a2_reject_audit_mutation_v2()`; 기존 v1 감사 수집/원본 데이터는 그대로 남겨야 함. 실제 rollback 미실행.
+- **A2 완료 보류 이유:** 기존 VOID `event_id IS NULL` 8건의 원본 1:1 계보 불명. DATE+employee 근접 ADD가 유일한 사례 4건도 시간상 유일함이 원본 ID 증거가 아니므로 자동 연결 금지; 나머지 4건은 후보 중복. 실제 정상 직원/관리자 편집이 후속 감사행으로 남는지 실사용 접수까지 아직 없음. 호스티드 임시 QA만으로 운영 사용자 행 정정 수용을 주장하지 않는다.
+
+### A1: 현재 운영 이벤트 중복 진단 (READ ONLY, 수용 보류)
+
+- 실제 2026-11-08 기준 유효 이벤트 집합 **341건**, `event_corrections` 최신 VOID/EDIT 적용 및 유효 ADD 표시 후 **동일 직원 + IN/OUT + 동일 timestamp** 중복 그룹 **0개**, 초과 중복 이벤트 **0개**. 원본 직원ID/시각/이름을 공개하지 않음.
+- 카탈로그 확인: `public.punch`와 `public.store_attendance_correct_event` 두 주요 SECURITY DEFINER RPC에서 `pg_advisory_xact_lock` 사용. SQL 코드 내 락 존재와 현재 중복 0은 **동시 요청 2개 이상의 실제 hosted 경쟁/정정 무손실 성공을 증명하지 않음**. A1 IN_PROGRESS.
+
+### A3: 이전 정적 10건 집계 최신 기록과 다름 (READ ONLY, 수용 보류)
+
+- 현재 운영 `system:auto-close` 자동 ADD 총 **23건**, 이유에 `VOID_ADD` 취소 표식 **14건**, **실제 유효 `SYSTEM_STORE_CLOSE` 9건**(2026-09 4건, 2026-10 4건, 2026-11 1건). 과거 10건과 2026-09/10월 8건 매칭 보고는 이전 상태의 역사적 자료이며, 현재 상태를 10건으로 단정하지 않는다.
+- 유효 9건은 모두 해당 기간에 활성 `HOURLY` 계약 존재. 읽기 전용 effective IN/OUT 재구성 결과 **7건만 선행 IN과 무모순 연결**(9월 4, 10월 2, 11월 1), 10월 **2건은 선행 IN 찾지 못함**. 연결된 nominal spans는 9월 15.96h, 10월 17.48h, 11월 6.49h. **총 39.93시간은 지급대상 시간이 아니고 과지급액/미지급액 산출 결과도 아니다.** 휴게/계약시간·주휴/야간/실제 승인 정책을 거친 별도 계산 필요.
+- 실제 hosted `payroll_snapshot` **0행**, `payroll_period` **0행**, `payroll_period_employee` **0행**, `payroll_weekly_approvals` **0행**. 이는 운영 외부 Sheets/현금/은행 지급 여부에 대한 증거가 없다. 임금 실지급액/차액을 만들어내거나 실제 직원 자료를 자동 정정하지 않는다.
+- **A3 계속 IN_PROGRESS:** 선행 IN 누락 2건 해석, 승인된 원본 근로시간·휴게·계약·수당 정책, 외부 실지급 자료 대조가 필요하다. 합성 QA 결과를 금전 지급 합의로 확대하지 않는다.
+
+### 현재 별도 수용
+
+- 28 항목 **완료 9 / 미완료 19**(O절). A2 신규 운영 보호는 **실배포된 부분 성과**이며 원본 이력·현장 수정 E2E 불충족으로 완료 판정 불변. A1·A3도 실제 데이터를 읽어 무변경 진단했으나 완료 판정 불변.
+- 운영 PG DDL 적용은 정식 Supabase migration으로 추적하며 앱 버전 **v0.384**, 다른 직원·급여/Sheet 데이터 변경은 이 검증 과정에서 수행하지 않았다. 실제 현장 PC/iPhone 물리 테스트는 여전히 **UNVERIFIED**.
