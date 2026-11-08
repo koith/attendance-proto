@@ -237,7 +237,9 @@ test('SEC-S4 server-side 24h document deletion retention SQL and isolated PG16/1
  assert.match(sql,/v_row\.uploaded_by_email/);
  assert.match(sql,/owner_id=\(SELECT auth\.uid\(\)\)::text/);
  assert.match(sql,/ALTER POLICY empdoc_admin_delete/);
- assert.doesNotMatch(sql,/\b(?:DELETE FROM|TRUNCATE|UPDATE)\s+(?:storage\.objects|public\.employee_documents)\b/i);
+ assert.match(sql,/DELETE FROM public\.employee_documents WHERE id=p_document_id/);
+ assert.doesNotMatch(sql,/\b(?:TRUNCATE|UPDATE)\s+(?:storage\.objects|public\.employee_documents)\b/i);
+ assert.doesNotMatch(sql,/\bDELETE FROM storage\.objects\b/i);
  assert.match(qa,/SEC_S4_OLD_METADATA_REMOVED/);
  assert.match(qa,/SEC_S4_FRESH_UPLOAD_CLEANUP_BROKEN/);
  assert.match(wf,/qa\/sec_s4_doc_delete_retention_postgres.sql/);
