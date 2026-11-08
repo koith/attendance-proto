@@ -271,3 +271,44 @@
 
 - 사용자 **28개 항목 COMPLETE 8/28 (28.6%), 미완료 20개**: S1, S2, S6, B4, R1, **R4**, D1, D3. 이전 M절 7/28은 당시 이력.
 - 전체 SEC 대과제 **1/18**, 실제 운영 DB/Auth 전체 백업·복원 및 운영 RTO/RPO 검증은 계속 **NO_GO**. R4 격리 Auth 서버 수용으로 이를 달성했다고 표시하지 않는다.
+
+
+## O. 2026-11-08 A4 — 실제 운영 Google Sheets 12개월 비공개 복원 수용 (8/28 → 9/28)
+
+> **범위:** A4는 기존 실제 Edge→GAS→Sheets 동기화 성공 영수증과, 독립된 Google Sheets 원생 워크북 사본의 **실데이터 전체 셀/수식 복원 읽기 검증**을 함께 수용한다. 이것은 운영 PostgreSQL/Auth/Storage 통합 백업·복원이 아니고, 새 파일로 GAS 운영 대상 전환이나 장애 대응 자동 복구를 완료했다는 말도 아니다. 후자는 SEC-S17/B1/B3/D5에서 유지한다.
+
+### 이전 증거 재사용 — 동기화
+
+- 기존 운영 [Pages #42334456757](https://github.com/koith/attendance-proto/actions/runs/42334456757) 실로그 `Sheet refreshed after deployment`로 운영 Sheet 갱신 실행이 확인됨. 실제 시트의 데이터·서식을 임의 수정한 것인지와 별개로 작업 호출·완료가 이미 확인된 영수증을 다시 사용. 중복 동기화 실행 금지.
+- 기존 승인된 격리 Edge→GAS→Google Sheets E2E [#39781031886](https://github.com/koith/attendance-proto/actions/runs/39781031886) 성공 재사용. 운영 실사용자 데이터에 새 쓰기 테스트를 하지 않음.
+
+### 이번 독립 복구 실증 (Google Drive/Sheets 공식 API)
+
+1. 파일명 동일 과거 사본을 배제하고, **2026-11-08 UTC 최신 수정된** 실제 운영 `2026 근태` 원본을 소유자/작성자 권한·수정시각·월별 탭으로 식별. **1~12월 탭 12개**, 월별 탭 ID와 행/열 스키마를 확인.
+2. Google Drive 서버 측 `files.copy`로 2026-11-08 새 **독립 native Google Sheets 문서** 생성. 원본/사본 ID 상이. 새 사본은 My Drive 소유자 루트에 보관; Google Drive `files.get` 재조회 결과 **shared=false**, 권한 목록 **owner 1명만**, 외부 writer/anyone 0. 실제 문서 ID·접근 주소·개인정보는 공개 원장에 기록하지 않음.
+3. 원본과 사본의 **12/12 월별 탭**에 대해 각 **A1:AZ8000 전체 지정 범위**를 Google Sheets Values API `valueRenderOption=FORMULA`로 각각 읽어 **수식/리터럴 행렬 전체 JSON 동일** 확인. 읽기 건수 24개(원본 12·사본 12), **12/12 PASS, 불일치 0**. 실제 데이터가 있는 행·빈 셀 처리까지 원본과 사본을 직접 비교. 확인된 비어 있지 않은 사용자 입력/수식 셀 **3,743개**, 월별 1~7월 각145, 8월201, 9월351, 10월1,671, 11월505, 12월0개. 12월은 비어 있는 월로 그대로 복원.
+4. 별도 Sheets CellData API를 이용해 원본/사본 **12개 탭의 2개 표본 구간(A1:P35, A60:P75)** 총 **4,452개 반환 셀 데이터**에서 `userEnteredValue,userEnteredFormat,dataValidation,note`를 정확히 비교, **차이 0**. 사본도 실제 Google Sheets API로 열람·셀 읽기 성공. 월별 8000행/52열 그리드 규격(9월 7998행), 원생 sheetId/시트명 전건 일치.
+5. 복제 직후 원본 최종 변경시각은 **2026-11-08 04:21:09 UTC**로 유지됐고, 검증 종료까지 추가 원본 수정 감지 없음. 사본 변경시각은 **2026-11-08 04:21:57 UTC**. 따라서 이 시점의 **실제 소유자 전용 독립 문서 복원본**이 확인된 것. 파일 복제·읽기 외 원본 셀 쓰기, GAS 운영 설정 변경, 직원·급여 DB 수정 **0건**.
+
+### 수용/분리
+
+- **A4 COMPLETE (한정):** 기존 동기화 증거 + 현재 운영 워크북의 별도 비공개 native 전체 복제 + 12개월 전체 값/수식 및 표본 native 서식 실제 읽기·일치. 인계 가능한 독립 Google Sheets 워크북 복구물 확보.
+- **NOT DONE elsewhere:** 실제 PostgreSQL/Auth/Storage 일관된 전체 백업(B1/B2/B3/B5/B6), 시트 운영 GAS 대상 교체와 새로 생성한 인증 경로(SEC-S17), 지속 자동백업/만료/경고(D5), iPhone 실기(D4). 이 작업은 시트로의 운영 이벤트 동기화를 추가 발생시키지 않음.
+- **전체 28항목:** COMPLETE 9 / 28 (**32.1%**), PENDING 19. 기존 8/28 상태는 N절에 그대로 보존.
+- **SEC 대과제 18항목:** COMPLETE 1/18 그대로. 통합 무손실 복구 및 전체 운영 안정성 NO_GO.
+
+### 19개 미완료 작업의 독립 진행/차단 분류 (이번 판정 후)
+
+| 분류 | 항목 | 수용까지의 독립 작업 또는 차단 증거 |
+|---|---|---|
+| BACKUP_CREDENTIAL / 보관 선행 | B1, B2, B3, B5, B6 | 정식 일관 DB·Auth 덤프, 암호화 장기보관, 별도 복호화키; 보호환경 자격증명 미연결. 단편 논리보관물만 존재. 공개 토큰/권한 임의 확대 없이 대체 소유자 경로 조사 계속 |
+| BACKUP_DEPENDENCY / 격리 서비스 | R2, R3, R6 | 실제 최신 전체 덤프 미확보로 독립 PostgreSQL 복원·DDL/행/sequence·증분 무손실 비교 미입증. 기존 합성 QA는 보존 |
+| STORAGE_RESTORE / 비공개 파일 복호화 | R5 | 실제 14개 Storage 파일 보존·해시 확인 완료(B4). 별도 Storage API/RLS 복원, 인증·키 분리된 서비스 격리 QA 필요 |
+| LIVE_AUTH / 권한별 접근 | S3, S4, S5 | 운영 무인증 7개 민감 테이블 GET 차단과 위조 JWT 401은 실증(병합 [PR #1540](https://github.com/koith/attendance-proto/pull/1540), [CI #42445633952](https://github.com/koith/attendance-proto/actions/runs/42445633952)). 실제 HQ/대표/보조/직원 JWT·타지점 조작 거부·구세션 실호스팅 거부는 추가 수용 필요 |
+| ATTENDANCE_AUDIT / 테스트·과거 계보 | A1, A2 | 동시 출퇴근 실제 경합/원본 영향 실증과 이후 정상 정정 감사행 필요. A2 v2 병합 [PR #1539](https://github.com/koith/attendance-proto/pull/1539), 운영 비공개 감사표 트리거는 아직 0/2. 과거 VOID event_id NULL 8건은 시간/직원 후보만 존재: 같은 날 unique ADD 4건, 나머지 모호함; **추측으로 원본 연결 금지** |
+| PAYROLL / 실제 재산정 | A3 | 자동퇴근 10건의 직원별 계약/정책별 실제 수당·차액 독립 산출과 현장 승인 필요. 공개 원장에 개인·금액 미기재 |
+| CI / 실기 수용 | D2, D4 | 기존 최신 PR CI 정상이나 QA1243 전체 개통 hard-readiness 오류와 실제 매장 PC·물리 iPhone 검증은 별도. WebKit 모사는 실기 증거가 아님 |
+| RECURRING_RECOVERY | D5 | 실제 전체 백업 생성/독립 복원 성공 이후에야 보관기간·자동 주기·실패 알림 E2E 가능. 현재 단발 Sheets 비공개 사본으로 대체하지 않음 |
+| FINAL_REPORT | D6 | 이 원장 갱신은 중간 보고. 미완료 19건 종료 전 최종 NO_GO 해제 금지 |
+
+**추진 우선:** 각 blocked gate에만 매달리지 않고 A2·A3·S3/S4 권한 검증과 R5 격리 API를 병렬로 전진. 불가한 것은 FAILED_PATH 또는 DEPENDENCY로 분리하고 독립 가능한 항목을 계속 진행. 운영 DB/Auth/Edge 실제 쓰기·운영 승인·고위험 권한 변경은 별도 게이트를 유지한다.
