@@ -194,3 +194,28 @@ test('SEC S3 S4 live private GET-only probe and exact-scope workflow',()=>{
  assert.ok(wf.includes('node qa_live_anonymous_sensitive_readonly_v1.mjs'));
  assert.ok(wf.includes('qa_live_anonymous_sensitive_readonly_v1.mjs'));
 });
+
+test('SEC-S4 cross-store employee document RLS SQL and PG16/17 workflow are security-only',()=>{
+ const changes=[
+  {filename:'security/sec_s4_employee_docs_store_scoped_rls.sql',status:'added'},
+  {filename:'qa/sec_s4_employee_docs_store_rls_postgres.sql',status:'added'},
+  {filename:'.github/workflows/sec-s4-employee-doc-storage-rls-pg.yml',status:'added'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(changes).result,'PASS');
+ assert.throws(()=>check(changes.concat({filename:'index.html',status:'modified'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const sql=fs.readFileSync('security/sec_s4_employee_docs_store_scoped_rls.sql','utf8');
+ const qa=fs.readFileSync('qa/sec_s4_employee_docs_store_rls_postgres.sql','utf8');
+ const wf=fs.readFileSync('.github/workflows/sec-s4-employee-doc-storage-rls-pg.yml','utf8');
+ assert.match(sql,/public\.can_manage_store\(e\.store_id\)/);
+ assert.match(sql,/public\.is_hq_admin\(\)/);
+ assert.match(sql,/ALTER POLICY empdoc_admin_select ON storage\.objects/);
+ assert.match(sql,/ALTER POLICY empdoc_admin_insert ON storage\.objects/);
+ assert.match(sql,/ALTER POLICY empdoc_admin_delete ON storage\.objects/);
+ assert.doesNotMatch(sql,/\b(?:DELETE FROM|TRUNCATE|UPDATE)\s+(?:storage\.objects|public\.employee_documents|public\.employees)\b/i);
+ assert.match(qa,/SEC_S4_CROSS_STORE_SELECT_STILL_EXPOSED/);
+ assert.match(qa,/SEC_S4_OWNER_UPLOAD_BROKEN/);
+ assert.match(qa,/SEC_S4_HQ_ARCHIVE_RECOVERY_BROKEN/);
+ assert.match(wf,/pg: \['16','17'\]/);
+});
