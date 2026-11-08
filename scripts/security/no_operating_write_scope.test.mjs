@@ -223,6 +223,7 @@ test('SEC-S4 cross-store employee document RLS SQL and PG16/17 workflow are secu
 test('SEC-S4 server-side 24h document deletion retention SQL and isolated PG16/17',()=>{
  const changes=[
   {filename:'security/sec_s4_doc_delete_retention_24h.sql',status:'added'},
+  {filename:'security/sec_s4_doc_delete_retention_rollback_v1.sql',status:'added'},
   {filename:'qa/sec_s4_doc_delete_retention_postgres.sql',status:'added'},
   {filename:'.github/workflows/sec-s4-employee-doc-storage-rls-pg.yml',status:'modified'},
   {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
@@ -234,6 +235,9 @@ test('SEC-S4 server-side 24h document deletion retention SQL and isolated PG16/1
  const qa=fs.readFileSync('qa/sec_s4_doc_delete_retention_postgres.sql','utf8');
  const wf=fs.readFileSync('.github/workflows/sec-s4-employee-doc-storage-rls-pg.yml','utf8');
  assert.match(sql,/TOO_OLD_TO_DELETE/);
+ const rollback=fs.readFileSync('security/sec_s4_doc_delete_retention_rollback_v1.sql','utf8');
+ assert.match(rollback,/SEC_S4_ROLLBACK_STATE_DRIFT_STOP/);
+ assert.match(rollback,/sec_s4_employee_doc_file_access_v1/);
  assert.match(sql,/v_row\.uploaded_by_email/);
  assert.match(sql,/owner_id=\(SELECT auth\.uid\(\)\)::text/);
  assert.match(sql,/ALTER POLICY empdoc_admin_delete/);
