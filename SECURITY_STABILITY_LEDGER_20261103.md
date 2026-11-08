@@ -377,3 +377,29 @@
 - S3/S4/S5: 실제 인증된 HQ/대표/보조/직원 JWT와 타 지점/구 JWT 차단 E2E 필요. Storage 교차 노출 SQL 정책은 해결, 실 HTTP 검증만 별도.
 - A1/A2/A3: 근태 동시성 실제 경합, 실제 정정 감사행, VOID null 8건, 자동퇴근 본사 9건 중 2건 선행 IN 불명 및 실제 지급액 검산. 운영 레코드 임의 정정·삭제 금지.
 - D2/D4: 전체 QA1243 green 및 실제 PC·물리 iPhone 테스트 미완. D6: 통합 복구 완료 전 최종보고 수용 미완.
+
+## R. 2026-11-09 계약서 24시간 삭제보호 운영 적용 + 실제 관리자 권한 검증 (완료 9/28 유지)
+
+> Q절의 타지점 Storage 파일 접근 보호 뒤에도 실제 서버 함수가 **업로드 후 24시간이 지난 계약서 메타데이터 삭제를 허용**하는 UI-only 보존 기간 우회가 있었다. 사용자 데이터의 실제 삭제를 시도하지 않고 격리 DB에서 결함을 재현해 수정, 운영 DB에 정책을 적용했으며, READ ONLY 실서버 권한 호출로 거부를 검증하였다.
+
+### 신규 실개발
+
+- [PR #1545](https://github.com/koith/attendance-proto/pull/1545) 병합, main **6de48307d04ead38f3b0d3803e4c0aefa1eb8c94**. `security/sec_s4_doc_delete_retention_24h.sql`, 분리된 비파괴 긴급복원 SQL, QA PG16/17와 기존 security-only scope guard 수정. 이 PR의 전체 GitHub Actions **53/53 SUCCESS**, PG16/PG17 둘 다 **실제 격리 PostgreSQL 성공**.
+- 앱 UI의 원래 동작은 `Storage DELETE → admin_doc_delete`, 업로드 실패 시 문서 메타데이터 생성 전에 Storage 객체 DELETE로 정리. 기존 24h 삭제 금지는 화면에서만 검사되어 직접 RPC 호출에 취약했다. 운영 수정은 기존 순서를 유지하면서 서버의 **`admin_doc_delete` RPC에서 uploaded_at 24h 초과 거부, 업로더 이메일/실제 JWT 이메일 일치, 원래 own-store 권한**을 추가. 공개 서명 URL, 문서 목록, 다른 파일 버킷 정책은 변경하지 않음.
+- **`storage.objects` DELETE 정책**은 이전의 지점 검사에 `created_at >= now()-24h`와 `owner_id=auth.uid`를 추가. 업로드 전 메타데이터가 없는 **신규 업로드 오류 정리**는 이전처럼 24h 내 원 업로더에게 허용. 변조/타인의 삭제·다른 지점·만료된 파일 직접 DELETE를 제한. 24시간 경과 파일을 지우려면 UI 버튼만 우회하는 것으로는 불가.
+- 재현 테스트에서는 이전 서버 함수가 만료 문서를 삭제할 수 있음을 **합성 데이터로 먼저 재현**하고, 실제 구현 적용 뒤 24시간 경과 계약서 메타데이터·Storage 삭제 거부, 신규 업로드 후 문서정보 미등록 객체 정리·동일 업로더 정상 단기 삭제, 본사 타업로더 삭제 불가, 타지점 삭제 불가 등을 실증. 테스트용 모든 행은 `ROLLBACK`. 별도 SQL 복구 테스트는 **타 지점 차단을 절대 해제하지 않도록** 한정한 scope 보존 가드까지 PASS.
+- 실제 Supabase migration `20261108062331` / `security_s4_employee_docs_delete_retention_24h_20261108` 적용 SUCCESS, 재조회 VERIFIED. `public.admin_doc_delete(bigint)`에 `TOO_OLD_TO_DELETE`와 `uploaded_by_email` 확인 분기 존재; Storage DELETE 정책에 기존 store guard + timestamp + 업로더 UID 3조건 모두 활성.
+- 운영 실제 문서 **10/10 건 24시간 경과**, Storage private 객체 **14/14 건 24시간 경과**. 현재 private Storage **14개/26,890,252 bytes**, 메타데이터 10행 전부 기존 수량 유지. `employee_documents`는 RLS 사용, anon/authenticated 직접 DELETE privilege FALSE(정상 RPC 외 직접 수정 불가).
+- **실제 hosted READ ONLY 사용자 권한 호출:** 정상 인증확인 HQ 사용자의 UUID·JWT claim을 SQL 세션에 주입 후 `BEGIN READ ONLY`에서 이미 만료된 실제 문서 ID를 `public.admin_doc_delete(id)`에 전달: **`{ok:false,error:TOO_OLD_TO_DELETE}`**. 다른 지점 READY 관리자는 같은 문서에 **`NOT_AUTHORIZED`**. DB 읽기 전용 transaction이고 실제 직원 문서 DELETE/UPDATE **0**. 운영 사용자의 실제 JWT를 탈취하거나 HTTP 비밀번호 로그인/파일 삭제 시도를 수행했다는 의미는 아님.
+- **운영 계정별 실제 DB 권한 매트릭스**: 실제 확인된 6 관리자 계정(본사 3, 자기 지점 대표 2, 위임 관리자 1) × 활성·READY 3지점의 `can_manage_store`/`can_view_store_attendance`를 각 사용자 `authenticated` + claim 세션의 **READ ONLY SQL**에서 검증. 본사 3명 전지점 관리·근태조회 3/3, 대표 2명 본인지점 1/3·타지점 0, 위임 1명 본인지점 근태조회 1/3·관리 0. **타지점 관리/근태조회 허용 0**. 이 결과는 JWT HTTP 현장 인증이 아닌 DB 자체의 권한 판정 E2E이며 실제 서명 토큰 실사용 증거는 S3/S4에 남김.
+- 운영 변경 후 [실제 공개 웹앱 Chromium/WebKit read-only QA 재실행](https://github.com/koith/attendance-proto/actions/runs/42445633952): 2026-11-08T23:42Z **SUCCESS**, LIVE 모바일·데스크톱 4 browser contexts, v0.384, 7개 민감 테이블 anon 접근 반환 6 empty/1 denied, 위조 JWT HTTP 401, 공개 직원카드 9건, STAGED 차단. 실제 전용 물리 iPhone 수용은 D4로 여전히 미완.
+- 최신 [main P0 #42454513401](https://github.com/koith/attendance-proto/actions/runs/42454513401) **SUCCESS**, Pages build/deploy/Safari·Sheets 작업 **SKIPPED**. 실제 공개 웹 v0.384 유지. 앱 UI·Edge·Sheet 운영 데이터는 이번 PR로 새 배포/갱신하지 않음.
+
+### 상태 분리·잔여 19건 (현재의 정본)
+
+- 사용자 28개 세부 항목: **COMPLETE 9 / OPEN 19**. 완료 목록: **S1 S2 S6 B4 R1 R4 A4 D1 D3**. 이번 신규 Storage 문서 삭제 보호는 기존 S4 범위의 하위 보안 결함 수리이므로 **중복 완료 1건으로 올리지 않음**.
+- BACKUP/RESTORE 선행: B1(전체 운영 pg_dump), B2(직원·근태·급여 등 full TOC), B3(Auth 사용자·설정), B5(최신 통합암호화 보관), B6(복호화키 이중보관), R2(실백업 복원), R3(DDL·데이터·role/sequence 대조), R5(Storage API 실복원), R6(무손실 재시도), D5(정기 백업/보관/알림). 해당 10건은 최신 실제 전체본/암호화 개인키 복구 또는 선행 환경 검증이 있어야 완료.
+- LIVE AUTH: S3(본사·점주·보조·직원 권한), S4(타지점 객체), S5(관리자 구세션 서버차단) 3건은 지금 SQL RLS·함수 권한 실검증이 증가했지만 **실제 발급 JWT로 hosted HTTP, 대표·보조 운영 화면/파일 API, 실기 증거 미완**.
+- ATTENDANCE/PAYROLL: A1(동시 출근/퇴근 실제 경합), A2(정정의 감사행 실업무·과거 VOID event_id NULL 8건), A3(자동퇴근 실지급 재산정/검토; 현재 9건 유효·2건 선행 IN 없음) 3건 보류. 운영 데이터 임의 수정하지 않음.
+- DELIVERY/DEVICE: D2(전체 QA1243·회귀 전경로), D4(실제 PC·물리 iPhone), D6(최종 28건 보안 수용 보고) 3건. 과거 일반 PR과 비운영 synthetic CI 성공만으로 전 경로 수용하지 않음.
+- 운영 대과제 SEC 18건 별도 COMPLETE 1/18. 서비스 정상운영/무손실 독립 전체 복원 **NO_GO**. 미완료 19건과 선행조건을 분리하여 다음 독립 과제를 계속 진행.
