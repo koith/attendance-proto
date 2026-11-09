@@ -8,6 +8,7 @@ import collections
 import hashlib
 import json
 import re
+import sqlite3
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -56,6 +57,10 @@ def check(archive: Path, keyfile: Path, expected_sha256: str = ''):
     if snap.get('table_count') != len(tables) or len(tables)<100:
         raise ValueError('table manifest coverage mismatch')
     coverage={}; rows=0; examined=0
+    # Physically rehydrate every decrypted row into an isolated, memory-only
+    # database. This verifies replayable row content, NOT PostgreSQL DDL restore.
+    isolated=sqlite3.connect(':memory:')
+    isolated.execute('CREATE TABLE restored (schema_name TEXT NOT NULL, table_name TEXT NOT NULL, row_json TEXT NOT NULL)')
     for item in tables:
         key=item['schema']+'.'+item['table']
         if key in coverage:raise ValueError('duplicate table in manifest')
@@ -69,7 +74,10 @@ def check(archive: Path, keyfile: Path, expected_sha256: str = ''):
                 payload=el.find('row_json')
                 if payload is None or not payload.text or not isinstance(json.loads(payload.text),dict):
                     raise ValueError('missing/invalid actual row JSON in backup')
+                isolated.execute('INSERT INTO restored VALUES (?,?,?)', (item['schema'],item['table'],payload.text))
                 n+=1;examined+=1
+        replayed=isolated.execute('SELECT count(*) FROM restored WHERE schema_name=? AND table_name=?', (item['schema'],item['table'])).fetchone()[0]
+        if replayed!=n: raise ValueError('isolated data rehydration count mismatch')
         coverage[key]=n;rows+=n
     if not REQUIRED.issubset(coverage.keys()):
         raise ValueError('required employee/payroll/Auth/Storage table missing')
@@ -78,6 +86,10 @@ def check(archive: Path, keyfile: Path, expected_sha256: str = ''):
         raise ValueError('schema coverage mismatch')
     if rows!=examined:
         raise ValueError('actual row count mismatch')
+    isolated_total=isolated.execute('SELECT count(*) FROM restored').fetchone()[0]
+    if isolated_total!=rows:
+        raise ValueError('isolated rehydration total mismatch')
+    isolated.close()
     if len(snap.get('functions',[]))<250 or len(snap.get('sequences',[]))<30:
         raise ValueError('functions/sequences restore metadata missing')
     return {
@@ -85,6 +97,7 @@ def check(archive: Path, keyfile: Path, expected_sha256: str = ''):
         'ciphertext_bytes':archive.stat().st_size,
         'source_capture_time':snap.get('captured_at'),
         'tables_verified':len(coverage),'rows_redecoded_and_json_parsed':rows,
+        'isolated_in_memory_rehydrated_rows':isolated_total,
         'tables_by_schema':dict(sorted(collections.Counter(item['schema'] for item in tables).items())),
         'functions':len(snap['functions']),'sequences':len(snap['sequences']),
         'extensions':len(snap.get('extensions',[])),
