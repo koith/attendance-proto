@@ -11,6 +11,7 @@ CREATE TABLE storage.objects(id bigint PRIMARY KEY,bucket_id text NOT NULL,name 
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON SCHEMA storage TO anon,authenticated;
 GRANT SELECT,INSERT,DELETE ON storage.objects TO authenticated;
+GRANT SELECT ON storage.objects TO anon; -- same SELECT ACL as hosted, RLS still denies anon
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE
 AS $uid$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $uid$;
 CREATE FUNCTION public.is_admin() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp
