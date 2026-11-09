@@ -330,3 +330,32 @@ test('SEC-A1 actual two client VOID_ADD duplicate cancellation fix is non-operat
  assert.match(wf,/concurrent patched/);
  assert.match(wf,/pg: \['16','17'\]/);
 });
+
+test('SEC-A2 v3 immutable private INSERT audit is security-only and PG16/17 verified',()=>{
+ const changed=[
+  'security/sec_a2_correction_insert_audit_v3.sql',
+  'security/sec_a2_correction_insert_audit_v3_rollback.sql',
+  'qa/sec_a2_correction_insert_audit_postgres.sql',
+  '.github/workflows/sec-a2-correction-insert-audit-pg.yml',
+  'scripts/security/no_operating_write_scope.mjs',
+  'scripts/security/no_operating_write_scope.test.mjs'
+ ].map(filename=>({filename,status:'modified'}));
+ assert.equal(check(changed).result,'PASS');
+ assert.throws(()=>check(changed.concat({filename:'index.html',status:'modified'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const sql=fs.readFileSync('security/sec_a2_correction_insert_audit_v3.sql','utf8');
+ const rollback=fs.readFileSync('security/sec_a2_correction_insert_audit_v3_rollback.sql','utf8');
+ const qa=fs.readFileSync('qa/sec_a2_correction_insert_audit_postgres.sql','utf8');
+ const wf=fs.readFileSync('.github/workflows/sec-a2-correction-insert-audit-pg.yml','utf8');
+ assert.match(sql,/SEC_A2_V3_AUDIT_ACL_DRIFT/);
+ assert.match(sql,/TG_OP<>'INSERT'/);
+ assert.match(sql,/row_before IS NULL AND row_after IS NOT NULL/);
+ assert.match(sql,/sec_a2_audit_no_rewrite_v2/);
+ assert.match(sql,/CREATE TRIGGER sec_a2_correction_insert_audit_v3/);
+ assert.match(rollback,/SEC_A2_V3_ROLLBACK_LOST_HISTORY_GUARD/);
+ assert.match(qa,/SEC_A2_V3_ORIGINAL_GAP_NOT_REPRODUCED/);
+ assert.match(qa,/SEC_A2_V3_HISTORY_INCOMPLETE/);
+ assert.match(wf,/pg: \['16','17'\]/);
+ for(const src of [sql,rollback]) {
+  assert.doesNotMatch(src,/\b(?:DELETE FROM|TRUNCATE)\s+(?:public\.(?:event_corrections|correction_requests)|private\.attendance_mutation_audit_v1)\b/i);
+ }
+});
