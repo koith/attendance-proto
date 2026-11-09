@@ -1,0 +1,37 @@
+name: SEC-B1 real encrypted logical snapshot offline verifier (synthetic CI)
+on:
+  pull_request:
+    paths:
+      - 'security/sec_b1_readonly_logical_capture.sql'
+      - 'scripts/security/sec_b1_verify_encrypted_logical_backup.py'
+      - 'scripts/security/sec_b1_verify_encrypted_logical_backup_test.py'
+      - '.github/workflows/sec-b1-private-logical-custody.yml'
+      - 'scripts/security/no_operating_write_scope.mjs'
+      - 'scripts/security/no_operating_write_scope.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'security/sec_b1_readonly_logical_capture.sql'
+      - 'scripts/security/sec_b1_verify_encrypted_logical_backup.py'
+      - 'scripts/security/sec_b1_verify_encrypted_logical_backup_test.py'
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: Offline AES256 backup readback, wrong key and tamper denial
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify safe GPG binary availability
+        run: gpg --version | head -1
+      - name: Source SQL must refuse unresolved public sentinel
+        shell: bash
+        run: |
+          grep -Fq "CASE WHEN '__SECRET_FROM_PRIVATE_ESCROW__' ~ '^[a-f0-9]{64}$'" security/sec_b1_readonly_logical_capture.sql
+          grep -Fq "pgp_sym_encrypt(payload" security/sec_b1_readonly_logical_capture.sql
+          ! grep -Fiq 'password123' security/sec_b1_readonly_logical_capture.sql
+      - name: Synthetic encrypted backup positive and negative real GPG tests
+        run: python3 scripts/security/sec_b1_verify_encrypted_logical_backup_test.py
+      - name: Security-only release path scope checks
+        run: node --test scripts/security/no_operating_write_scope.test.mjs

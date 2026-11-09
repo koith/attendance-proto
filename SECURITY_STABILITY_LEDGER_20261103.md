@@ -519,3 +519,61 @@
 - 별도 2026-11-09 공식 확인: Free라도 Supabase CLI `db dump` 또는 `pg_dump`로 **사용자 권한 범위 내 자체 정기 백업이 가능**하므로, 자동 백업을 위해 무조건 유료 전환하거나 PITR 구매가 필요한 것은 아니다. 현재 GitHub 보호환경의 `SUPABASE_DB_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ACCESS_TOKEN` + `SEC_BACKUP_ENV_READY` 값이 실제 성공 실행에서 바인딩되지 않은 문제는 기존 SEC-S6 조사·백업 작업 실패에 남아 있다. 재접속 자격증명 확보/안전한 저장과 실제 전체 pg_dump가 필요하다.
 - Supabase의 내부 WAL archive counter는 사용자 보유의 복원 가능한 프로젝트 전체 백업·가용 PITR을 보증하지 않는다. **기존 암호화 논리 사본의 SHA-256 일치와 운영 전체 무손실 복원 PASS는 엄격히 분리**.
 - 따라서 완료 **9/28** (S1,S2,S6,B4,R1,R4,A4,D1,D3), 미완료 **19** 그대로. 진짜 백업을 만들거나 현장 사용자가 실제 정정을 수행하기 전에는 B5·A2를 COMPLETE 처리하지 않는다.
+
+## W. 2026-11-09 운영 DB 신규 암호화 스냅샷: B2/B5 범위 수용 (완료 11/28)
+
+> **최신 판정(기존 I~V 과거 판단보다 우선): 28개 중 11 COMPLETE / 17 OPEN.** 이번에는 실제 운영 데이터의 101개 테이블을 2026-11-09 새로 수집하고, 두 개의 소유자 통제 저장소에서 암호문 바이트와 해시를 비교한 후, 키를 이용해 **실제 42,329개 JSON 행을 전수 파싱하고 독립 메모리 DB에 재적재**했다. 따라서 *데이터 포함 범위*인 B2, *암호화 장기 보관*인 B5는 수용한다. 그러나 이 커스텀 논리 데이터본은 PostgreSQL native pg_dump/pg_restore 백업이 아니며 DDL·역할·서비스를 실제 PostgreSQL로 재구성한 증거는 없다. B1/B3/B6/R2/R3/R5/R6/D5 및 SEC-S01/S04의 완전 복구는 **NO_GO** 그대로.
+
+### 독립 수행 영수증 — B2 실제 행 내용 포함 수용
+
+- 실제 프로젝트 운영 PostgreSQL에서 `public`, `auth`, `storage`, `private`, `session_guard` **5개 스키마 / 일반·파티션 본체 101개 테이블**를 단일 **SELECT**로 JSON row+XML 래핑해 수집; 원본 근태·급여·Auth/Storage 데이터 수정/삭제 **0**.
+- 스냅샷 포맷 `baekeok-readonly-encrypted-logical-db-snapshot-v1`, 캡처시간 **2026-11-09 10:41:09 UTC (19:41 KST)**, PostgreSQL 17. 원시 JSON 약 **15,402,756 bytes**. 암호화된 스냅샷에서 키로 복호화 뒤 실제 각 행 JSON 유효성까지 전수 검사했으며 **101/101 테이블, 42,329/42,329 행** 파싱 PASS. 테이블 분포: `public=61`, `auth=27`, `storage=10`, `private=2`, `session_guard=1`.
+- 감사된 중요 테이블은 `public.employees`, `public.attendance_events`, `public.event_corrections`, `public.stores`, `public.admin_users`, `public.employee_documents`, `public.payroll_period`, `public.payroll_period_employee`, `public.payroll_snapshot`, `auth.users`, `auth.sessions`, `auth.refresh_tokens`, `storage.objects`, `private.attendance_mutation_audit_v1`. 이들 미존재/중복/컬럼 메타 누락일 경우 검증기가 FAIL-CLOSED.
+- 스냅샷에는 구조 메타데이터 **함수 305개, 시퀀스 37개, 확장 7개**, 뷰·인덱스·트리거·RLS 정책·제약조건·컬럼 정의·schema/role/membership 정보 포함. 검증기는 외부 직원 원문을 출력하지 않음.
+- 독립 재적재 검증: 암호문에서 복호화한 각 행을 **SQLite `:memory:`의 `restored` 테이블에 42,329행 전건 재삽입**, 원본 스냅샷 각 테이블별 행 수와 격리 DB 재적재 결과를 비교해 101개 모두 PASS. 이 테스트는 데이터 사본의 재사용·파싱가능성을 실증한 것이지 PostgreSQL DDL/권한/서비스 완전 복원 검사가 아님.
+- Native `pg_dump` 목차와 트랜잭션 전체 시점/role/config 재구성은 미입증이므로 **B1/R2/R3 및 SEC-S01을 수용하지 않음**. 새 스냅샷 캡처 이후 운영 중 발생한 새 출퇴근은 포함되지 않으므로 최신 실시간 전체 운영 상태라고 주장하지 않음.
+
+### 독립 수행 영수증 — B5 암호화·소유자 통제 보관 수용
+
+- PostgreSQL `pgp_sym_encrypt` AES256 + 압축, 난수 64hex 복호화키는 SQL 커밋에 넣지 않고 별도 보관. **암호문 505,769 bytes**, SHA-256 **`89e07dddad243131f220f4612fe359a7a2ff04797c8ff3f65e82953b97811cd3`**.
+- 사용자 소유 **비공개 Google Drive** native Sheet는 57개 분할 12,000문자 셀, 총 base64 **674,360 chars**. Drive owner 1명, `shared=false` 확인. 이후 Sheet에서 **57/57 셀 전부 다시 조회**, 별도로 Drive CSV export를 실제 다운로드해 복호화 없이 base64 디코딩→SHA256 검증.
+- 사용자 개인 **ChatGPT Library /Attendance-Recovery**에 별도 완전한 encrypted `.pgp` 백업(505,769 bytes) 보관. 동일 세션 새로 materialize한 Library 사본과 위 Drive CSV export에서 복원한 암호문 **505,769 byte 전부 단위로 일치**, SHA-256도 동일.
+- 별도 개인 Library에 키 JSON 저장 후 **Library에서 새로 materialize한 키**로 암호문 GPG 실제 복호화 성공. 단, 동일 Library 서비스 내 키·암호문이 함께 있으므로 **키 오프라인 독립 이중 보관(B6)** 이 검증됐다고 주장하지 않음. 공개 GitHub/Issue에는 Drive 개인 파일 ID/URL, 키·암호문·직원·급여 원문 없음.
+- 과거부터 별도 암호화 원본으로 보존된 Storage **14/14 실제 파일**은 기존 B4 COMPLETE 증거를 유지. 새 DB SQL 스냅샷의 Storage는 *메타데이터*이고 파일 본문은 기존 별도 암호화 Storage 사본이다. 두 자료가 하나의 동일 시점 트랜잭션으로 보장되거나 API 복원이 완료됐다는 의미는 아님(R5 미완).
+- 재사용 검증기 `scripts/security/sec_b1_verify_encrypted_logical_backup.py`: 잘못된 키, 변조된 ciphertext SHA, 키 JSON 형식 오류를 모두 거부하고 정상 합성 백업 검증 4/4 통과. 실제 비공개 백업에도 동일 검증기 사용, 결과 101개 테이블/42,329개 행 PASS. 보안전용 synthetic GitHub CI는 **공개 저장소에 실제 암호문/키를 업로드하지 않음**.
+- **B5 범위는 보관 자체까지 COMPLETE**. 백업 *자동 실행·보관주기·실패 알림(D5)*, 최신 DB/Auth/Storage 통합 시점과 전체 복구 가능 판정(B1/B3/B6/R2/R3/R5/R6)은 별도 수용 조건으로 남긴다.
+
+### 28개 최신 수용 체크 (11/28)
+
+| 업무 | 최신 판정 | 정확한 수용 범위 / 남은 검증 |
+|---|---|---|
+| B1 | **OPEN** | 정식 pg_dump / 완전한 트랜잭션·DDL·role 복구 가능 전체 백업 미검증 |
+| B2 | **COMPLETE** | 101 테이블 / 42,329 실제 행, 필수 직원·근태·급여·Auth·Storage 자료 포함, 격리 메모리 재적재 완료 |
+| B3 | **OPEN** | Auth 운영 외부 설정/GoTrue 서비스 재구성 미검증 |
+| B4 | **COMPLETE** | 기존 암호화 Storage 실제 14개 파일 완전성 수용 유지 |
+| B5 | **COMPLETE** | 최신 암호화 DB 사본 Drive+Library 독립 재수신, 바이트·해시 일치, 별도 Storage 보관 |
+| B6 | **OPEN** | 별도 복호화 성공, 오프라인 독립 키 이중 보관 미검증 |
+| R1 | **COMPLETE** | 격리 복구 환경 준비 |
+| R2 | **OPEN** | 실제 PostgreSQL 전체 DB DDL·데이터 복원 미완 |
+| R3 | **OPEN** | PostgreSQL ACL·sequence·role·row 전체 대조 미완 |
+| R4 | **COMPLETE** | 격리 GoTrue 세션 실인증 검증 |
+| R5 | **OPEN** | Storage 객체 본문 및 API 실제 서비스 복구 미완 |
+| R6 | **OPEN** | 실제 운영 중 델타 무손실 재적용 미완 |
+| S1 | **COMPLETE** | 익명 SECURITY DEFINER 분류 |
+| S2 | **COMPLETE** | 익명 불필요 권한 회수 |
+| S3 | **OPEN** | 운영 본사·점주·보조·직원 전체 signed JWT E2E |
+| S4 | **OPEN** | 타 지점 권한별 전체 HTTP 데이터/Storage 접근 검증 |
+| S5 | **OPEN** | 모든 관리자 API 단일기기 강제 및 구세션 실HTTP 검증 |
+| S6 | **COMPLETE** | GitHub secret/PAT 의존성 전수 감사 |
+| A1 | **OPEN** | 중복 VOID_ADD 운영 코드 수리됨, 실제 매장 단말 경합·급여/Sheet 검증 미완 |
+| A2 | **OPEN** | INSERT 감사 운영 트리거 적용됨, 최초 실제 정정 감사영수증 및 과거 VOID 8건 미검증 |
+| A3 | **OPEN** | 자동퇴근 9건 정산·실제 지급액 검산 미완 |
+| A4 | **COMPLETE** | 시트 동기화·복구 지정 범위 수용 유지 |
+| D1 | **COMPLETE** | 복구 PR 병합 |
+| D2 | **OPEN** | 전체 QA1243·기능별 E2E 종단검사 미완 |
+| D3 | **COMPLETE** | 게시 앱 배포 확인 |
+| D4 | **OPEN** | 실제 매장 PC / 실물 iPhone 검증 영수증 없음 |
+| D5 | **OPEN** | 최신 백업의 반복 주기 자동화와 실패 알림 검증 미완 |
+| D6 | **OPEN** | 전체 28개 수용 후 최종 판정 |
+
+최신 **COMPLETE = B2, B4, B5, R1, R4, S1, S2, S6, A4, D1, D3 (11/28)**. 남은 **OPEN = B1, B3, B6, R2, R3, R5, R6, S3, S4, S5, A1, A2, A3, D2, D4, D5, D6 (17건)**. 별도 SEC 18개 대과제 **1/18** 유지. 실제 PostgreSQL/GoTrue/Storage 완전 복구 최종 **NO_GO**. 본 섹션은 앞선 과거 상태기록을 삭제하지 않으며 최신 시점 판정만 갱신한다.
