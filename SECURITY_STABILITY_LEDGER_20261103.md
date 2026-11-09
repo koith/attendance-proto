@@ -501,3 +501,21 @@
 
 - 2026-11-09 운영 `event_corrections`에서 auto-close 기록 총 **23건**(유효 SYS_STORE_CLOSE 기준 **9건**) 관찰, `payroll_snapshot`, `payroll_period`, `payroll_period_employee` 3곳 모두 **0행**. 운영의 실제 확정 지급액·직원별 정산 내역이 이들 테이블에 없으므로 시트/계약·지급자료까지 대조하지 않으면 급여 일치 A3 COMPLETE 판정 불가.
 - 28 세부 항목 **COMPLETE 9 / OPEN 19**. 완료 S1 S2 S6 B4 R1 R4 A4 D1 D3. **BACKUP/RESTORE/B1,B2,B3,B5,B6,R2,R3,R5,R6,D5**는 통합 최신 전체 원본·독립 키·완전 실복원 선행. **S3 S4 S5** 실제 운영 JWT/Storage/Realtime·권한별 현장 로그인. **A1 A2 A3** 실 사용자 동시 경합·새 정정 audit receipt·과거 8건·정확한 지급 자료. **D2 D4 D6** 전체 QA1243·실물 iPhone/PC·완료 판정. 운영 보안 SEC 18 대과제 **1/18**, 서비스 최종 복원/보안 **NO_GO** 유지.
+
+## V. 2026-11-09 B5 암호화 DB 에스크로 56/56 실수신·SHA-256 완전검증 및 Free 백업 정책 (9/28 유지)
+
+> 아래는 구버전 암호화 **사본의 무결성·보관 사실만 실검증**한 결과다. 복호화키를 가지고 최신 운영 pg_dump·DDL/sequence/Auth/Storage 전체본을 다시 복원한 것이 아니므로 B1/B2/B3/B5/B6/R2/R3/R5/R6/D5는 모두 미완료로 유지한다. 개인 Google Drive 파일의 ID/URL·암호문/계정정보는 공개 원장에 기록하지 않는다.
+
+### 실제 비공개 보관본 원격 무결성 (VERIFIED)
+
+- Google Drive 개인 소유자 1명, `shared=false`, 파일 유형 native Google Sheet, 제목의 `PRIVATE - attendance-proto encrypted logical DB escrow 2026-11-03`는 이전의 DB 논리 에스크로용 기록. 이 자체는 암호문 저장 용기이며 실제 pg_dump/custom archive임을 입증하지는 않음.
+- metadata로 실제 단일 `Sheet1` 확인 후 첫 줄을 읽어 `PGP_ESCROW_V1`, SHA-256 64자 hex manifest, `500427` 암호문 크기, `56` 분할 조각 선언 확인. 56개 셀 전체를 **여러 개의 범위 읽기로 전수 회수**, 조각 누락 0, 각 55개 앞 조각 12,000문자, 마지막 7,236문자, 총 base64 667,236문자(= 500,427 raw bytes의 적정 base64 길이)로 복원.
+- 보안된 실행 내부에서만 base64→`Uint8Array`로 **500,427 bytes** 재조립. 독립 JavaScript SHA-256 구현을 공식 `abc` 표준 테스트 벡터로 먼저 검증한 뒤, 실제 raw 암호문 SHA-256을 계산해 보관본 1행에 저장된 64자리 해시와 **완전 일치 확인**. 암호문·개인키·직원/급여 평문은 출력·공개·타 저장소 전송하지 않음. 이는 단순 파일명/셀 개수 확인을 넘어 **원격 암호문 전체 무결성 검증**이다.
+- 그러나 PGP 복호화, 98개 기존 운영 논리 테이블/42,235행의 정확한 스냅샷 버전/범위, 실제 데이터·DDL·권한·시퀀스 포함 여부 및 격리 PostgreSQL 복구까지 이번에는 입증하지 않았다. `PGP_ESCROW_V1` 사본은 11월 3일 보관본이라 11월 9일 현재 최신 운영 원본과 동일하다고 할 수 없다.
+
+### 실제 요금제와 B1·D5 자동백업 의존성 (VERIFIED)
+
+- Connected Supabase `get_project`에서 운영 프로젝트 active healthy, 실제 Supabase `get_organization` 결과 `plan=free` 확인. 공개 문서 [Supabase Database Backups](https://supabase.com/docs/guides/platform/backups) (2026-11-05 갱신) 및 [Free-plan backup FAQ](https://supabase.com/kb/faqs/platform/free-plan-backups) (2026-10-30 갱신): **Free에는 자동 일일 DB 백업이 제공되지 않음**. 외부 GitHub Actions의 별도 백업 자동화가 실제 동작해야 한다.
+- 별도 2026-11-09 공식 확인: Free라도 Supabase CLI `db dump` 또는 `pg_dump`로 **사용자 권한 범위 내 자체 정기 백업이 가능**하므로, 자동 백업을 위해 무조건 유료 전환하거나 PITR 구매가 필요한 것은 아니다. 현재 GitHub 보호환경의 `SUPABASE_DB_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ACCESS_TOKEN` + `SEC_BACKUP_ENV_READY` 값이 실제 성공 실행에서 바인딩되지 않은 문제는 기존 SEC-S6 조사·백업 작업 실패에 남아 있다. 재접속 자격증명 확보/안전한 저장과 실제 전체 pg_dump가 필요하다.
+- Supabase의 내부 WAL archive counter는 사용자 보유의 복원 가능한 프로젝트 전체 백업·가용 PITR을 보증하지 않는다. **기존 암호화 논리 사본의 SHA-256 일치와 운영 전체 무손실 복원 PASS는 엄격히 분리**.
+- 따라서 완료 **9/28** (S1,S2,S6,B4,R1,R4,A4,D1,D3), 미완료 **19** 그대로. 진짜 백업을 만들거나 현장 사용자가 실제 정정을 수행하기 전에는 B5·A2를 COMPLETE 처리하지 않는다.
