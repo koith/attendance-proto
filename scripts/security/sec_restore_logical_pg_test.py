@@ -71,6 +71,18 @@ class TestIsolatedSQLRestore(unittest.TestCase):
         self.assertTrue(sql.startswith('BEGIN;'))
         self.assertTrue(sql.rstrip().endswith('COMMIT;'))
 
+    def test_full_precision_numeric_lexeme_is_never_converted_to_float(self):
+        from xml.sax.saxutils import escape
+        x=json.loads(json.dumps(self.snapshot))
+        table=next(z for z in x['tables'] if z['schema']=='public' and z['table']=='payroll_snapshot')
+        table['columns'].append({'name':'precise_amount','type':'numeric'})
+        amount='12345678901234567890.1234567890123456789012345'
+        raw='{"id":9,"note":"fixture","attrs":{"test":true},"precise_amount":'+amount+'}'
+        table['row_xml']='<row><row_json>'+escape(raw)+'</row_json></row>'
+        statement,counts,_=r.build_sql(x)
+        self.assertIn(amount,statement)
+        self.assertNotIn('1.2345678901234567e+19',statement)
+
     def test_wrong_key_fails_before_restore(self):
         obj=json.loads(self.key.read_text())
         obj['passphrase_hex']=secrets.token_hex(32)
