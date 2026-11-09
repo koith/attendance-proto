@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 const root='http://127.0.0.1:3000';
+const withoutGuard='http://127.0.0.1:3001';
 const secret='synthetic-fixture-jwt-signing-secret-with-at-least-32-chars-2026';
 const uid='11111111-1111-1111-1111-111111111111';
 const old='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -17,13 +18,16 @@ const jwt=(role,sub,session_id)=>{
  const sig=crypto.createHmac('sha256',secret).update(h+'.'+p).digest('base64url');
  return h+'.'+p+'.'+sig;
 };
-async function rpc(token){
- const response=await fetch(root+'/rpc/qa_session_http_probe',{
+async function rpc(token,base=root){
+ const response=await fetch(base+'/rpc/qa_session_http_probe',{
   headers:token?{Authorization:'Bearer '+token}:{},
   signal:AbortSignal.timeout(10000)
  });
  return {status:response.status,body:await response.text()};
 }
+const unguarded=await rpc(jwt('authenticated',uid,old),withoutGuard);
+assert.equal(unguarded.status,200,
+ 'Stale but cryptographically valid admin JWT should pass an intentionally unguarded HTTP API: '+unguarded.status+' '+unguarded.body.slice(0,180));
 const anon=await rpc(null);
 assert.equal(anon.status,200,'anon POS/public RPC must work when pre-request enabled: '+anon.status+' '+anon.body.slice(0,180));
 const working=await rpc(jwt('authenticated',uid,latest));
@@ -46,4 +50,4 @@ assert.ok(revoked.status>=400,'old once-latest admin session must be rejected on
 assert.match(revoked.body,/SESSION_SUPERSEDED/);
 const stillAnon=await rpc(null);
 assert.equal(stillAnon.status,200,'new login must not disrupt shared POS');
-console.log('PASS SEC-01 real HTTP: anon=200, staff=200, fresh admin=200, stale/missing denied, new login revokes previous');
+console.log('PASS SEC-01 real HTTP: unguarded stale JWT=200 (reproduced), guarded stale JWT denied; anon=200, staff=200, fresh admin=200, missing denied, new login revokes previous; PG16/17 isolated');
