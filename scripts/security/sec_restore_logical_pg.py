@@ -14,6 +14,7 @@ import os
 import re
 import subprocess
 import sys
+from decimal import Decimal
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -79,10 +80,10 @@ def parse_rows(table):
         el = row.find('row_json')
         if el is None or not isinstance(el.text, str):
             raise ValueError('missing source row')
-        obj = json.loads(el.text)
+        obj = json.loads(el.text, parse_float=Decimal)
         if not isinstance(obj, dict):
             raise ValueError('source row not JSON object')
-        yield obj
+        yield obj, el.text
 
 
 def dollar(text, salt):
@@ -132,10 +133,10 @@ def build_sql(snapshot):
         out('CREATE TABLE '+ident+' ('+', '.join(typed)+');')
         cnt = 0
         batch = []
-        for obj in parse_rows(t):
+        for obj, raw_json in parse_rows(t):
             if set(obj) != set(colnames):
                 raise ValueError('missing/extra column in source row')
-            batch.append(obj)
+            batch.append(raw_json)
             cnt += 1
             if len(batch) >= 200:
                 _insert_batch(out, ident, colnames, batch, cnt)
@@ -161,7 +162,7 @@ def build_sql(snapshot):
 
 
 def _insert_batch(out, ident, columns, batch, count):
-    data=json.dumps(batch,ensure_ascii=False,separators=(',',':'))
+    data='['+','.join(batch)+']'  # Preserve exact PostgreSQL numeric lexical representation
     value=dollar(data,count)
     col=', '.join(map(quote, columns))
     out('INSERT INTO '+ident+' ('+col+') SELECT '+col+' FROM jsonb_populate_recordset(NULL::'+ident+', '+value+'::jsonb) AS src;')
