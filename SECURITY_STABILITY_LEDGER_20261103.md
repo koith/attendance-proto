@@ -438,3 +438,36 @@
 - **A1/A2/A3**: 실제 동시 출퇴근 경쟁·실제 운영 수정 감사행 및 과거 VOID 8건 정확한 계보·직원 계약/급여 실지급 재산정, 임의 운영 DML 금지.
 - **D2/D4/D6**: 전체 보안·QA1243 E2E, 실제 매장 PC·물리 iPhone, 모든 게이트 종료 후 최종 판정.
 - **28건 COMPLETE 9 / OPEN 19**, SEC 대과제 **1/18 COMPLETE**, 통합 무손실 복구/현장 실사용 **NO_GO**. 다음 작업은 한 항목 의존성만 반복하지 않고 실제 검증 가능한 다른 미완료 항목도 병렬 진행.
+
+## T. 2026-11-09 SEC-A1 동시 수기취소 중복 실제 재현·수정·운영 적용 (9/28 유지)
+
+> **정확한 완료 구분:** 직접 `VOID_ADD` 요청 2개가 동시에 동일 원본을 취소하면서 두 개의 취소 이력을 만드는 **운영 코드 결함을 실제 격리 PostgreSQL 16/17에서 재현·수정**했다. 운영 DB에는 SQL 함수 변경만 적용했다. 이 QA는 실제 매장 직원의 동시 출퇴근 버튼 조작·전경로 운영 E2E가 아니므로 A1 전체는 계속 IN_PROGRESS이고 28항목 **9 COMPLETE / 19 OPEN**이다.
+
+### 원본 운영 코드에서 발견한 잠금 누락 (VERIFIED)
+
+- 실제 운영 `pg_get_functiondef(public.store_attendance_correct_event(text,bigint,bigint,timestamp,text,text))` 와 `md5(prosrc)=3b68c3a590b187a3fad8813a45b090b5` 수집. `ADD` 경로에는 `pg_advisory_xact_lock(hashtextextended('attendance-add:'||employee_id,0))`이 있었지만, **`VOID_ADD` 경로에는 락도 `FOR UPDATE`도 없이 활성 ADD 여부 SELECT → VOID_ADD INSERT → 원본 ADD reason의 [VOID_ADD:id] 마커 UPDATE** 순으로 실행되었다.
+- 같은 ADD 원본에 **동시 2개 취소** 요청이 SELECT 시점에 모두 통과하면 두 VOID_ADD 이력과 이중 마커를 만들 수 있었다. 운영 로그에서 그런 사고가 실제로 발생했다고 주장하지 않는다.
+- 기존 `punch`는 별도로 `pg_advisory_xact_lock(hashtext('punch_emp_'||employee_id))`을 사용하고, `admin_add_completed_attendance_shift`는 **attendance-add → punch-emp 순서**로 두 락을 획득한다. 정정 ADD/VOID_ADD도 동일 순서를 사용하도록 변경해서 수기취소 간 충돌 및 POS 동시 시계 경합을 직렬화했다.
+
+### 신규 PR #1550 및 격리 실제 동시성 E2E (VERIFIED)
+
+- [PR #1550](https://github.com/koith/attendance-proto/pull/1550), main **4984a3c36d56720946337495a13e69d2a7aa6cec**, 전체 **55/55 GitHub Actions SUCCESS**. 코드 변경은 실운영 함수의 **원문 snapshot**, 새 FUNCTION SQL + 정확한 preflight `md5(prosrc)`, 원본을 되돌리는 별도 emergency rollback, 실제 동시 경합 QA, PG16/17 전용 워크플로, no-operating-write scope guard에만 한정; 앱 index.html/Edge/GAS/Google Sheet 변경 **0**.
+- [PG16/17 실제 동시 클라이언트 QA](https://github.com/koith/attendance-proto/actions/runs/42545316557) 2/2 **SUCCESS**. 독립 PostgreSQL16·17 각각에 **운영 원본 `CREATE FUNCTION` SQL 그대로 설치**, 직원/계정/이벤트는 가상 fixture만 주입. 서로 다른 실제 psql 프로세스가 동일 직원/동일 ADD를 동시에 취소하도록 합성 BEFORE INSERT 지연 1.2초로 경합 재현. **기존 함수: 두 클라이언트 모두 성공, VOID_ADD 2행/원본 취소 마커 2개**. **수정 함수: 한 클라이언트만 성공, 다른 클라이언트는 ACTIVE_ADD_CORRECTION_NOT_FOUND, VOID_ADD 1행/취소 마커 1개**. 정상 수기 ADD와 동일 시각 이중 ADD의 기존 거부 확인 및 원본 SQL 함수 exact rollback 검사. 전체 테스트 전용 DB에만 DML 발생, 운영 행 변화 0.
+- 새 `VOID_ADD` 경로: 유효성 검사 후 **attendance-add lock → punch-emp lock → 원본 ADD `SELECT ... FOR UPDATE` → 취소 이력 생성/기존 마커 수정**. 기존 `ADD`도 attendance-add 다음에 punch-emp lock을 획득하므로 `punch`와 동시 수정 시 직렬화. 그 외 기존 권한·입력·표시 시간 변환/에러코드·RPC signature는 동일.
+- 긴급 복구 SQL은 **원래 운영 함수 본문**을 원본 md5까지 재검증하여 되돌리되, 실제 운영에서 rollback을 수행한 적은 없다.
+
+### 실제 운영 DB 마이그레이션 및 무변경 확인 (VERIFIED DEPLOYED)
+
+- 함수 원본 MD5가 `3b68c3a590b187a3fad8813a45b090b5`인 것을 운영 배포 직전 확인. SQL 원문 전용 preflight 일치 및 main HEAD/정확한 변경 파일 목록 확인 뒤, 실제 Supabase migration **20261109012937_security_a1_void_add_concurrency_lock_fix_20261109** 성공.
+- 운영 SQL 재조회: 함수 새로운 MD5 **ea97555b1d5a835e931cc55ad0405229**, `VOID_ADD` 원자적 락과 FOR UPDATE 가드 활성, 전체 함수의 `pg_advisory_xact_lock` 호출 **4개**. 직원/근태 원본/급여 행을 수정하지 않았고 기존 RPC signature/grant 조건 변경 없음.
+- 동일 검증 전후 `attendance_events` **371행**, `event_corrections` **134행**, `VOID_ADD` **20행**, 기존 ADD 취소 마커 중 **이중 마커 0건**, private mutation audit table **0행**, 원본 테이블의 감사/대량삭제 방어 트리거 **6/6 유지**. 운영 과거 취소 사고가 있었다고 단정하지 않음.
+- [메인 P0](https://github.com/koith/attendance-proto/actions/runs/42545786426) **SUCCESS**; Pages build/deploy/Safari 및 Sheet refresh 관련 작업 SKIPPED, 실제 공개 웹 **v0.384** HTTP 접속 유지. 운영 적용 직후 공개 Chromium/WebKit 비파괴적 게스트 회귀는 별도 재실행 요청하여 실제 결과 확인 후 추가 영수증으로 기록할 것.
+- **미완료 이유:** 실제 매장의 iPhone·PC를 통한 동시 출퇴근/수기정정 요청 후 DB·급여·시트까지 전체 E2E, 다른 수정 유형과 장시간 복합 경합, 직원 본인 정상 결과 및 롤백 사후재적용은 아직 확인되지 않았다. 실제 근태 데이터를 임의로 수정해 무리하게 완료 처리하지 않는다.
+
+### 잔여 19개 과제 (판정 불변)
+
+- 완료 9: **S1,S2,S6,B4,R1,R4,A4,D1,D3**. 미완료 19: **B1,B2,B3,B5,B6,R2,R3,R5,R6,S3,S4,S5,A1,A2,A3,D2,D4,D5,D6**.
+- 막힌 백업/실복구: B1~B3,B5,B6,R2,R3,R5,R6,D5 — 최신 일관 운영 DB/Auth/Storage 암호화 전체본 및 별도 복호화키/복원 환경 선행; 기존 protected GitHub credential path 미확보. 기존 Storage 14개 이중 독립 보관 성과 보존.
+- 진행 가능한 인증/권한 검증: S3,S4,S5 — 현재 SQL role/Storage scoped rights 및 old session 차단 실제 DB PASS, 운영 signed JWT HTTP/Realtime·실로그인·기기 E2E는 남음.
+- 진행 가능한 근태·급여: A1 이번 함수 운영 패치, A2 실제 편집 이후 audit receipt와 이전 VOID event_id NULL 8건, A3 9개 자동퇴근 유효 이력과 2개 선행 IN 부재·실지급 정보 비교.
+- D2 전체 QA1243 레디니스 별도 실패 원인, D4 매장 PC/물리 iPhone 실기, D6 최종 완료 원장 검증/통합 NO_GO 해제 미완. 원본 운영 데이터 무변경·서비스 정상 유지.
