@@ -8,7 +8,7 @@ on:
       - 'qa_admin_session_postgrest_http_v1.mjs'
       - '.github/workflows/sec01-disposable-session-guard.yml'
   push:
-    branches: [feat/admin-single-device-session-992]
+    branches: [main, feat/admin-single-device-session-992]
     paths:
       - 'supabase/migrations/20261017050000_single_admin_session_guard_prepare.sql'
       - 'qa_admin_single_session_postgres.sql'
@@ -20,11 +20,15 @@ permissions:
 jobs:
   isolated-postgrest-session-guard:
     name: PostgREST pre-request sessions, POS guest, safe rollback
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16','17']
     timeout-minutes: 8
     services:
       postgres:
-        image: postgres:16
+        image: postgres:${{ matrix.pg }}-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: local-fixture-only
@@ -56,17 +60,21 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sec01-disposable-postgres
+          name: sec01-disposable-postgres-${{ matrix.pg }}
           path: /tmp/session-guard-fixture.log
           if-no-files-found: warn
 
   http-pre-request:
     name: Real HTTP anonymous, admin and stale JWT revocation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16','17']
     timeout-minutes: 12
     services:
       postgres:
-        image: postgres:16
+        image: postgres:${{ matrix.pg }}-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: local-fixture-only
@@ -111,8 +119,30 @@ jobs:
           done
           docker logs sec01-postgrest --tail 100
           exit 1
+      - name: Start deliberately unguarded comparator HTTP server (disposable synthetic data)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name sec01-postgrest-unguarded --network host \
+            -e PGRST_DB_URI='postgres://authenticator:synthetic-http-fixture-only@127.0.0.1:5432/postgres' \
+            -e PGRST_DB_SCHEMAS=public \
+            -e PGRST_DB_ANON_ROLE=anon \
+            -e PGRST_SERVER_PORT=3001 \
+            -e PGRST_JWT_SECRET='synthetic-fixture-jwt-signing-secret-with-at-least-32-chars-2026' \
+            postgrest/postgrest:v12.2.3
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:3001/rpc/qa_session_http_probe' >/dev/null; then
+              echo 'PostgREST unguarded synthetic comparator ready'
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs sec01-postgrest-unguarded --tail 100
+          exit 1
       - name: Exercise signed admin JWT rollover over actual HTTP
         run: node qa_admin_session_postgrest_http_v1.mjs
       - name: Show isolated server diagnostics only on failure
         if: failure()
-        run: docker logs sec01-postgrest --tail 120
+        run: |
+          docker logs sec01-postgrest --tail 120
+          docker logs sec01-postgrest-unguarded --tail 120
