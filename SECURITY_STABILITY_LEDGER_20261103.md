@@ -471,3 +471,33 @@
 - 진행 가능한 인증/권한 검증: S3,S4,S5 — 현재 SQL role/Storage scoped rights 및 old session 차단 실제 DB PASS, 운영 signed JWT HTTP/Realtime·실로그인·기기 E2E는 남음.
 - 진행 가능한 근태·급여: A1 이번 함수 운영 패치, A2 실제 편집 이후 audit receipt와 이전 VOID event_id NULL 8건, A3 9개 자동퇴근 유효 이력과 2개 선행 IN 부재·실지급 정보 비교.
 - D2 전체 QA1243 레디니스 별도 실패 원인, D4 매장 PC/물리 iPhone 실기, D6 최종 완료 원장 검증/통합 NO_GO 해제 미완. 원본 운영 데이터 무변경·서비스 정상 유지.
+
+## U. 2026-11-09 SEC-A2 정정 생성(INSERT) 비공개 불변 감사 이력 보강 (9/28 유지)
+
+> **정확한 수용 경계:** 새 정정/정정요청의 INSERT가 별도 감사표에서 누락되던 범위는 실운영에 DDL 배포했고, PG16/17 진짜 SQL로 생성→수정→삭제와 감사표 수정불가를 검증. 그러나 이 시점 실제 사용자 신규 정정이 발생한 운영 audit receipt는 아직 0건, 과거 VOID 8건의 이벤트 연결은 미해결. A2 전체는 **IN_PROGRESS**, 사용자 28개 중 **9 COMPLETE / 19 OPEN** 그대로.
+
+### 발견 사실 (실제 운영 SQL 카탈로그)
+
+- 기존 `private.attendance_mutation_audit_v1`은 RLS+비공개, 3개 원본 테이블 `attendance_events`, `event_corrections`, `correction_requests` 각각 `AFTER UPDATE OR DELETE` 감사 트리거 및 TRUNCATE 방어 트리거 총 **6개**. 개인/일반 로그인 직접 SELECT 불가. 감사표 자체에는 UPDATE/DELETE와 TRUNCATE를 막는 **2개 v2 트리거** 활성.
+- 별도 감사표 기존 operation CHECK는 **UPDATE/DELETE만 허용**, row_before는 NOT NULL. 즉 `event_corrections` 수기 정정과 `correction_requests` 직원 정정요청의 새 **INSERT는 source 자체에는 남지만 private 감사지문 이력은 생성하지 않음**. 기존 감사표 0행은 사고 발생 증거가 아니라, 현재 추가 AFTER INSERT 이력이 없었다는 운영 실측 상태.
+- 운영 기존 `event_corrections`의 `action='VOID' AND event_id IS NULL` **8건**은 모두 2026-10에 생성, new_event_at·new_event_type NULL, reason에 [VOID_ADD:] 표식 없음. 실제 이벤트 참조 0건이며 과거 수기정정이나 지급액과 무조건 연결하지 않는다. **임의 재연결·삭제·급여 변경 금지**.
+
+### 새로운 실개발 + 실 PostgreSQL 격리 검증
+
+- [PR #1552](https://github.com/koith/attendance-proto/pull/1552) merged main **5a40968c496420d0de707f9fc7a01c1fb0dc34c1**, 전체 PR CI **56/56 SUCCESS**.
+- 수정 범위는 `security/sec_a2_correction_insert_audit_v3.sql`, 데이터 보존형 별도 rollback, 합성 fixture, PG16/17 workflow, no-operating-write scope 가드 총 **6개의 보안전용 파일**. 공개 앱 `index.html`, Edge/GAS, Sheets, 직원/급여·근태 데이터 변경 0.
+- 새 이력은 기존 보호된 `private.attendance_mutation_audit_v1` 사용. operation CHECK에 **INSERT 추가**, row_before NULL 허용, **INSERT/UPDATE/DELETE의 before/after JSONB형태 CHECK** 추가; `public.event_corrections` 및 `public.correction_requests` **AFTER INSERT** 트리거 2개, 내부 `private.sec_a2_capture_correction_insert_v3()` 실행권한 anon/auth/service_role/public REVOKE. 생성 때 `row_before=NULL, row_after=NEW` 기록. 원본 수정/삭제 전용 트리거·기존 감사표 불변 방어는 변경하지 않음. 초기부터 과거 8건을 소급 변경/감사 위조하지 않음.
+- 실제 [PG16/17 격리 SQL CI](https://github.com/koith/attendance-proto/actions/runs/42571181889) **2/2 PASS**. 기존 v1+v2 SQL을 그대로 불러 source INSERT 생성 시 private 감사 0건을 재현. 새 v3 실행 뒤 새 정정/직원 요청 CREATE 2건, UPDATE 1건, DELETE 1건이 **private 4행**으로 남는지 확인. 비공개 직접 권한, 감사행 UPDATE/DELETE 금지, 이전 SQL rollback을 적용해도 이전 4행은 그대로 보존되는지 확인. 전체 테스트는 가상 직원·가상 요청만 활용, 독립 PG transaction `ROLLBACK`으로 끝냄.
+- 별도 rollback은 기존 감사표의 새 INSERT 행을 삭제할 수 없도록 의도적으로 제약의 새 구조는 보존하고 새 INSERT 트리거·함수만 비활성화. 이미 발생한 감사 이력 손실을 허용하는 잘못된 다운그레이드가 되지 않도록 설계.
+
+### 실제 운영 Supabase 적용·검증
+
+- 실운영 배포 전 가드: 기존 감사표 0행, 이전 6개 소스 트리거 활성, audit immutability 2개 활성, 기존 operation constraint UPDATE/DELETE, row_before NOT NULL, 신규 함수·트리거 미존재, public/anon/authenticated 감사표 읽기 권한 없음 확인.
+- 실제 `security_a2_correction_insert_append_only_audit_20261109` Supabase migration 적용 **SUCCESS**. 적용 후 PostgreSQL 카탈로그에서 event_corrections/correction_requests의 새 AFTER INSERT trigger **2/2 enabled**, 이전 UPDATE/DELETE/TRUNCATE trigger **6/6**, private immutability **2/2** 유지, operation check INSERT/UPDATE/DELETE, row-shape check 존재, row_before NULL 허용, anon/auth 직접 audit SELECT 및 trigger function EXECUTE 권한 false.
+- 바로 적용 후 `event_corrections` **134행**, `correction_requests` **1행** 이전과 동일, `private.attendance_mutation_audit_v1`은 **0행**. 즉 **새로운 실제 정정 발생 시 최초 audit INSERT receipt**는 아직 없음. 적용 중 운영 POS 근태 raw event 수는 이전 371→374로 증가했으나 이는 정상 매장 업무와 겹치는 시간이며 이번 migration이 attendance_events를 수정한 것은 아니다. 운영데이터를 일부러 INSERT/DELETE하여 테스트하지 않음.
+- [main P0](https://github.com/koith/attendance-proto/actions/runs/42571421365) SUCCESS, Pages build/Deploy/Safari/Sheet 갱신 SKIPPED, 실제 운영 페이지 v0.384 웹 HTTP 로드 정상. 보안 migration 후 hosted 공개 Chromium/WebKit 브라우저 READ ONLY 재실행 #42445633952은 별도 검사 중; PASS를 얻으면 추가 Issue receipt로 기록한다.
+
+### 추가 읽기 전용 A3 / 미완료 구분
+
+- 2026-11-09 운영 `event_corrections`에서 auto-close 기록 총 **23건**(유효 SYS_STORE_CLOSE 기준 **9건**) 관찰, `payroll_snapshot`, `payroll_period`, `payroll_period_employee` 3곳 모두 **0행**. 운영의 실제 확정 지급액·직원별 정산 내역이 이들 테이블에 없으므로 시트/계약·지급자료까지 대조하지 않으면 급여 일치 A3 COMPLETE 판정 불가.
+- 28 세부 항목 **COMPLETE 9 / OPEN 19**. 완료 S1 S2 S6 B4 R1 R4 A4 D1 D3. **BACKUP/RESTORE/B1,B2,B3,B5,B6,R2,R3,R5,R6,D5**는 통합 최신 전체 원본·독립 키·완전 실복원 선행. **S3 S4 S5** 실제 운영 JWT/Storage/Realtime·권한별 현장 로그인. **A1 A2 A3** 실 사용자 동시 경합·새 정정 audit receipt·과거 8건·정확한 지급 자료. **D2 D4 D6** 전체 QA1243·실물 iPhone/PC·완료 판정. 운영 보안 SEC 18 대과제 **1/18**, 서비스 최종 복원/보안 **NO_GO** 유지.
