@@ -88,5 +88,5 @@ BEGIN
  RETURNING id INTO v_id;
  RETURN v_id;
 END
-$function$
+$function$;
 
