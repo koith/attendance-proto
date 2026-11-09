@@ -96,6 +96,6 @@ BEGIN
  RETURNING id INTO v_id;
  RETURN v_id;
 END
-$function$
+$function$;
 
 DO $post$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_proc WHERE oid='public.store_attendance_correct_event(text,bigint,bigint,timestamp without time zone,text,text)'::regprocedure AND prosrc LIKE '%Serialize direct cancellation, replacement, manual ADD%' AND prosrc LIKE '%FOR UPDATE%') THEN RAISE EXCEPTION 'SEC_A1_LOCK_INSTALL_NOT_VERIFIED'; END IF; END $post$;
