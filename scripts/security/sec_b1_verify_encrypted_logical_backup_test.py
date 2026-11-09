@@ -46,6 +46,7 @@ class TestPrivateOfflineSnapshot(unittest.TestCase):
         self.assertEqual(x['status'],'PASS')
         self.assertEqual(x['tables_verified'],101)
         self.assertEqual(x['rows_redecoded_and_json_parsed'],101)
+        self.assertEqual(x['isolated_in_memory_rehydrated_rows'],101)
         self.assertFalse(x['database_sql_restore_performed'])
 
     def test_wrong_key_fails_closed(self):
