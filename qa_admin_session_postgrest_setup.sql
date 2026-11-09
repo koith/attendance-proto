@@ -17,6 +17,6 @@ RETURNS text LANGUAGE sql STABLE AS $f$ SELECT 'OK'::text; $f$;
 REVOKE ALL ON FUNCTION public.qa_session_http_probe() FROM PUBLIC;
 GRANT USAGE ON SCHEMA public TO anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.qa_session_http_probe() TO anon,authenticated;
-ALTER ROLE authenticator SET pgrst.db_pre_request='session_guard.require_latest_session';
-NOTIFY pgrst,'reload config';
+-- Only protected PostgREST container passes PGRST_DB_PRE_REQUEST. The unprotected
+-- comparator must be deliberately unguarded to reproduce the real risk.
 SELECT 'synthetic PostgREST admin-scope HTTP fixture installed' AS result;
