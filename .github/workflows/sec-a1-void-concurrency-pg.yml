@@ -1,0 +1,92 @@
+name: SEC-A1 concurrent cancellation baseline to patched PG16/17
+on:
+  pull_request:
+    paths:
+      - 'security/sec_a1_void_add_lock_fix.sql'
+      - 'security/sec_a1_void_add_lock_rollback.sql'
+      - 'qa/sec_a1_original_store_correction_production.sql'
+      - 'qa/sec_a1_void_add_*.sql'
+      - '.github/workflows/sec-a1-void-concurrency-pg.yml'
+      - 'scripts/security/no_operating_write_scope.mjs'
+      - 'scripts/security/no_operating_write_scope.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'security/sec_a1_void_add_lock_fix.sql'
+      - 'qa/sec_a1_void_add_*.sql'
+permissions:
+  contents: read
+jobs:
+  concurrent:
+    name: PG${{ matrix.pg }} actual 2-client VOID_ADD race / guarded replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16','17']
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sec_a1_fixture_only
+          POSTGRES_DB: sec_a1_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sec_a1_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: sec_a1_fixture_only
+      PGDATABASE: sec_a1_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL client
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Real two simultaneous clients against old and patched function
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f qa/sec_a1_void_add_bootstrap.sql >/tmp/fixture.log
+          concurrent() {
+            local tag="$1" rc1=0 rc2=0
+            psql -X -At -v ON_ERROR_STOP=1 -c "SELECT public.store_attendance_correct_event('VOID_ADD',1,101,NULL,NULL,'synthetic-'||'${tag}');" >"/tmp/$tag-1.log" 2>&1 &
+            local p1=$!
+            psql -X -At -v ON_ERROR_STOP=1 -c "SELECT public.store_attendance_correct_event('VOID_ADD',1,101,NULL,NULL,'synthetic-'||'${tag}');" >"/tmp/$tag-2.log" 2>&1 &
+            local p2=$!
+            wait "$p1" || rc1=$?
+            wait "$p2" || rc2=$?
+            echo "$tag: process outcomes $rc1 and $rc2"
+            if [ "$tag" = baseline ]; then
+              if [ "$rc1" -ne 0 ] || [ "$rc2" -ne 0 ]; then
+                cat /tmp/baseline-{1,2}.log
+                echo 'Original race not reproduced; do not claim fix'
+                exit 1
+              fi
+            else
+              if [ "$rc1" -eq 0 ] && [ "$rc2" -ne 0 ]; then
+                grep -q ACTIVE_ADD_CORRECTION_NOT_FOUND /tmp/patched-2.log
+              elif [ "$rc2" -eq 0 ] && [ "$rc1" -ne 0 ]; then
+                grep -q ACTIVE_ADD_CORRECTION_NOT_FOUND /tmp/patched-1.log
+              else
+                cat /tmp/patched-{1,2}.log
+                echo 'Expected exactly one successful cancellation'
+                exit 1
+              fi
+            fi
+          }
+          concurrent baseline
+          psql -X -v ON_ERROR_STOP=1 -f qa/sec_a1_void_add_before.sql
+          psql -X -v ON_ERROR_STOP=1 -f qa/sec_a1_void_add_reset.sql
+          psql -X -v ON_ERROR_STOP=1 -f security/sec_a1_void_add_lock_fix.sql
+          concurrent patched
+          psql -X -v ON_ERROR_STOP=1 -f qa/sec_a1_void_add_after.sql
+          psql -X -v ON_ERROR_STOP=1 -f security/sec_a1_void_add_lock_rollback.sql
+          echo "PASS actual PostgreSQL ${{ matrix.pg }} old double cancellation -> 1 guarded cancellation, exactly restored function"
+      - name: Approved security only changes
+        run: node --test scripts/security/no_operating_write_scope.test.mjs

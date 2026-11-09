@@ -304,3 +304,29 @@ test('SEC-S5 Storage latest admin session policy is exact SQL-only scope and rea
   assert.doesNotMatch(x,/\b(?:DELETE FROM|UPDATE|TRUNCATE)\s+(?:storage\.objects|public\.employees|public\.employee_documents)\b/i);
  }
 });
+
+test('SEC-A1 actual two client VOID_ADD duplicate cancellation fix is non-operating scope',()=>{
+ const paths=[
+ 'qa/sec_a1_original_store_correction_production.sql',
+ 'security/sec_a1_void_add_lock_fix.sql',
+ 'security/sec_a1_void_add_lock_rollback.sql',
+ 'qa/sec_a1_void_add_bootstrap.sql',
+ 'qa/sec_a1_void_add_before.sql','qa/sec_a1_void_add_reset.sql','qa/sec_a1_void_add_after.sql',
+ '.github/workflows/sec-a1-void-concurrency-pg.yml',
+ 'scripts/security/no_operating_write_scope.mjs','scripts/security/no_operating_write_scope.test.mjs'];
+ assert.equal(check(paths.map(filename=>({filename,status:'modified'}))).result,'PASS');
+ assert.throws(()=>check(paths.concat('index.html').map(filename=>({filename,status:'modified'}))),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const original=fs.readFileSync('qa/sec_a1_original_store_correction_production.sql','utf8');
+ const patch=fs.readFileSync('security/sec_a1_void_add_lock_fix.sql','utf8');
+ const rollback=fs.readFileSync('security/sec_a1_void_add_lock_rollback.sql','utf8');
+ const wf=fs.readFileSync('.github/workflows/sec-a1-void-concurrency-pg.yml','utf8');
+ assert.match(original,/IF p_action='VOID_ADD' THEN/);
+ assert.match(patch,/SEC_A1_VOID_ADD_SOURCE_DRIFT_STOP/);
+ assert.match(patch,/FOR UPDATE/);
+ assert.match(patch,/Serialize direct cancellation, replacement, manual ADD/);
+ assert.match(patch,/hashtext\('punch_emp_'\|\|p_employee_id::text\)/);
+ assert.match(rollback,/SEC_A1_VOID_ADD_ROLLBACK_MISMATCH/);
+ assert.match(wf,/concurrent baseline/);
+ assert.match(wf,/concurrent patched/);
+ assert.match(wf,/pg: \['16','17'\]/);
+});
