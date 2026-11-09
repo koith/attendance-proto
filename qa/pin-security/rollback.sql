@@ -1,4 +1,12 @@
 -- Code rollback only. Preserve all new attendance/business rows and counter evidence.
+-- Second-line defense for direct psql -f invocations that bypass Python preflight.
+-- Only disposable QA database names accepted. This is NOT a substitute for
+-- fixture_safety.py host + actual backend + synthetic seed verification.
+DO $fixture_safety$
+BEGIN
+ IF current_database() !~ '^(audit_pin|pin_fixture)(_[a-z0-9]+)*$'
+ THEN RAISE EXCEPTION 'PIN_FIXTURE_DATABASE_REFUSED'; END IF;
+END $fixture_safety$;
 BEGIN;
 DO $restore$
 DECLARE r record;

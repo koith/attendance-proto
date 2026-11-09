@@ -39,11 +39,32 @@ jobs:
       PIN_QA_HTTP: http://postgrest:3000
     steps:
       - uses: actions/checkout@v4
-      - name: Disposable PostgreSQL fixture and observed originals
+      - name: Install PostgreSQL client
         run: |
           apt-get update -qq
           apt-get install -y -qq postgresql-client
+      - name: Prove standalone SQL installation and rollback refuse nonfixture database
+        shell: bash
+        run: |
+          set -euo pipefail
+          for sql in qa/pin-security/setup.sql qa/pin-security/rollback.sql; do
+            set +e
+            PGDATABASE=postgres psql -X -v ON_ERROR_STOP=1 -f "$sql" > /tmp/pin-sql-refusal.log 2>&1
+            code=$?
+            set -e
+            test "$code" -ne 0
+            grep -q PIN_FIXTURE_DATABASE_REFUSED /tmp/pin-sql-refusal.log
+          done
+          test "$(PGDATABASE=postgres psql -X -At -c "select to_regclass('public.employees') is null")" = "t"
+          echo 'NONFIXTURE_SQL_REFUSED_NO_WRITES'
+      - name: Refuse nonfixture database before any fixture SQL executes
+        run: |
+          python3 -m unittest discover -s qa/pin-security -p 'test_fixture_safety.py' -v
+          python3 qa/pin-security/fixture_safety.py --preinstall
+      - name: Disposable PostgreSQL fixture and observed originals
+        run: |
           psql -X -v ON_ERROR_STOP=1 -f qa/pin-security/setup.sql -f qa/pin-security/baseline.sql
+          python3 qa/pin-security/fixture_safety.py --postinstall
       - name: Regression fails before protection
         run: |
           if python3 qa/pin-security/run.py --baseline > baseline-failure.log 2>&1; then

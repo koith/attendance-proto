@@ -1,4 +1,12 @@
 \set ON_ERROR_STOP on
+-- Second-line defense for direct psql -f invocations that bypass Python preflight.
+-- Only disposable QA database names accepted. This is NOT a substitute for
+-- fixture_safety.py host + actual backend + synthetic seed verification.
+DO $fixture_safety$
+BEGIN
+ IF current_database() !~ '^(audit_pin|pin_fixture)(_[a-z0-9]+)*$'
+ THEN RAISE EXCEPTION 'PIN_FIXTURE_DATABASE_REFUSED'; END IF;
+END $fixture_safety$;
 -- Disposable fixture ONLY. Never use a production DSN.
 DO $$ BEGIN
  IF NOT EXISTS(SELECT FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
