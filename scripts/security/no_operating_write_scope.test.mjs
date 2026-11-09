@@ -359,3 +359,33 @@ test('SEC-A2 v3 immutable private INSERT audit is security-only and PG16/17 veri
   assert.doesNotMatch(src,/\b(?:DELETE FROM|TRUNCATE)\s+(?:public\.(?:event_corrections|correction_requests)|private\.attendance_mutation_audit_v1)\b/i);
  }
 });
+
+test('SEC B2/B5 read-only production logical archive capture and private offline GPG verification are security-only',()=>{
+ const names=[
+  'security/sec_b1_readonly_logical_capture.sql',
+  'scripts/security/sec_b1_verify_encrypted_logical_backup.py',
+  'scripts/security/sec_b1_verify_encrypted_logical_backup_test.py',
+  '.github/workflows/sec-b1-private-logical-custody.yml',
+  'SECURITY_STABILITY_LEDGER_20261103.md',
+  'scripts/security/no_operating_write_scope.mjs',
+  'scripts/security/no_operating_write_scope.test.mjs'
+ ];
+ assert.equal(check(names.map(filename=>({filename,status:'modified'}))).result,'PASS');
+ assert.throws(()=>check(names.concat('index.html').map(filename=>({filename,status:'modified'}))),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const sql=fs.readFileSync('security/sec_b1_readonly_logical_capture.sql','utf8');
+ const py=fs.readFileSync('scripts/security/sec_b1_verify_encrypted_logical_backup.py','utf8');
+ const qa=fs.readFileSync('scripts/security/sec_b1_verify_encrypted_logical_backup_test.py','utf8');
+ const wf=fs.readFileSync('.github/workflows/sec-b1-private-logical-custody.yml','utf8');
+ assert.match(sql,/__SECRET_FROM_PRIVATE_ESCROW__/);
+ assert.match(sql,/pgp_sym_encrypt\(payload/);
+ assert.match(sql,/query_to_xml/);
+ assert.match(sql,/session_guard/);
+ assert.match(sql,/cipher_sha256/);
+ assert.doesNotMatch(sql,/\b(?:UPDATE\s+public\.|DELETE\s+FROM\s+public\.|TRUNCATE\s+public\.)/i);
+ assert.match(py,/rows_redecoded_and_json_parsed/);
+ assert.match(py,/database_sql_restore_performed':False/);
+ assert.match(qa,/test_tampered_archive_sha_fails/);
+ assert.match(qa,/test_wrong_key_fails_closed/);
+ assert.match(wf,/synthetic CI/);
+ assert.doesNotMatch(wf,/SUPABASE_DB_URL|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_ACCESS_TOKEN/);
+});
