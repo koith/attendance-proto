@@ -276,3 +276,31 @@ test('SEC-S5 guarded-versus-unguarded real HTTP fixture stays isolated and canno
    'No production secret binding in isolated S5 QA');
  }
 });
+
+test('SEC-S5 Storage latest admin session policy is exact SQL-only scope and real PG16/17',()=>{
+ const changes=[
+  {filename:'security/sec_s5_storage_admin_session_helper_v1.sql',status:'added'},
+  {filename:'security/sec_s5_storage_admin_session_rollback_v1.sql',status:'added'},
+  {filename:'qa/sec_s5_storage_admin_session_pg.sql',status:'added'},
+  {filename:'.github/workflows/sec-s5-storage-admin-session-pg.yml',status:'added'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(changes).result,'PASS');
+ assert.throws(()=>check(changes.concat({filename:'index.html',status:'modified'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const sql=fs.readFileSync('security/sec_s5_storage_admin_session_helper_v1.sql','utf8');
+ const revert=fs.readFileSync('security/sec_s5_storage_admin_session_rollback_v1.sql','utf8');
+ const qa=fs.readFileSync('qa/sec_s5_storage_admin_session_pg.sql','utf8');
+ const wf=fs.readFileSync('.github/workflows/sec-s5-storage-admin-session-pg.yml','utf8');
+ assert.match(sql,/PERFORM session_guard\.require_latest_session\(\)/);
+ assert.match(sql,/public\.can_manage_store\(e\.store_id\)/);
+ assert.match(sql,/public\.is_hq_admin\(\)/);
+ assert.match(revert,/SEC_S5_STORAGE_ROLLBACK_UNEXPECTED_STATE/);
+ assert.match(revert,/public\.can_manage_store\(e\.store_id\)/);
+ assert.match(qa,/SEC_S5_OLD_STORAGE_SESSION_WAS_NOT_REVOKED/);
+ assert.match(qa,/SEC_S5_CURRENT_ADMIN_STORAGE_ACCESS_BROKEN/);
+ assert.match(wf,/pg: \['16','17'\]/);
+ for(const x of [sql,revert,qa]) {
+  assert.doesNotMatch(x,/\b(?:DELETE FROM|UPDATE|TRUNCATE)\s+(?:storage\.objects|public\.employees|public\.employee_documents)\b/i);
+ }
+});
