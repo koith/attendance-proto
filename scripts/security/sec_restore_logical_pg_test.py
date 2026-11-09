@@ -3,6 +3,7 @@
 import contextlib
 import io
 import json
+from unittest import mock
 import secrets
 import subprocess
 import tempfile
@@ -91,6 +92,14 @@ class TestIsolatedSQLRestore(unittest.TestCase):
         x['tables'][0]['columns'][0]['type']='bigint); DROP TABLE auth.users; --'
         with self.assertRaisesRegex(ValueError,'unsupported PostgreSQL column type'):
             r.build_sql(x)
+
+    def test_refuses_remote_pg_host_even_with_isolated_dbname(self):
+        with mock.patch.dict('os.environ', {'PGHOST':'prod.db.example.com'}, clear=False):
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(r.main(['--archive',str(self.archive),
+                                         '--key-json',str(self.key),
+                                         '--database','sec_restore_qa',
+                                         '--apply-isolated']),1)
 
     def test_requires_isolated_dbname(self):
         with contextlib.redirect_stderr(io.StringIO()):
