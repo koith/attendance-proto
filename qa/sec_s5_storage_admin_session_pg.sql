@@ -3,6 +3,7 @@
 -- real session_guard code imported from existing first-party migration, synthetic identities only.
 \i qa_admin_session_postgrest_setup.sql
 BEGIN;
+CREATE ROLE service_role NOLOGIN; -- existing reviewed S4 SQL revokes this runtime role
 CREATE TABLE public.employees(id bigint PRIMARY KEY,store_id bigint NOT NULL);
 CREATE TABLE public.employee_documents(id bigint PRIMARY KEY,employee_id bigint NOT NULL,storage_path text NOT NULL);
 CREATE SCHEMA storage;
