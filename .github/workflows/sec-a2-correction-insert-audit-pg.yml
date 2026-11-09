@@ -1,0 +1,53 @@
+name: SEC-A2 correction INSERT audit private PG16/17
+on:
+  pull_request:
+    paths:
+      - 'security/sec_a2_correction_insert_audit_v3.sql'
+      - 'security/sec_a2_correction_insert_audit_v3_rollback.sql'
+      - 'qa/sec_a2_correction_insert_audit_postgres.sql'
+      - '.github/workflows/sec-a2-correction-insert-audit-pg.yml'
+      - 'scripts/security/no_operating_write_scope.mjs'
+      - 'scripts/security/no_operating_write_scope.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'security/sec_a2_correction_insert_audit_v3.sql'
+      - 'qa/sec_a2_correction_insert_audit_postgres.sql'
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: PG${{ matrix.pg }} create/update/delete correction history
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16','17']
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sec_a2_synthetic_only
+          POSTGRES_DB: sec_a2_disposable
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sec_a2_disposable"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: sec_a2_synthetic_only
+      PGDATABASE: sec_a2_disposable
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL client
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Actual SQL correction INSERT/UPDATE/DELETE private audit and rollback
+        run: psql -X -v ON_ERROR_STOP=1 -f qa/sec_a2_correction_insert_audit_postgres.sql
+      - name: Exact security-only release scope
+        run: node --test scripts/security/no_operating_write_scope.test.mjs
