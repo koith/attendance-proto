@@ -43,7 +43,7 @@ RESET ROLE;
 \i security/sec_s5_storage_admin_session_helper_v1.sql
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111',true);
-SELECT set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-1111-1111-111111111111","session_id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}',true);
+SELECT set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-1111-1111-111111111111","session_id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}',true);
 DO $denied$
 BEGIN
  BEGIN
@@ -63,7 +63,7 @@ BEGIN
  THEN RAISE EXCEPTION 'SEC_S5_CURRENT_ADMIN_STORAGE_RLS_BROKEN'; END IF;
 END
 $latest$;
-SELECT set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-1111-1111-111111111111","session_id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}',true);
+SELECT set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-1111-1111-111111111111","session_id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}',true);
 DO $storage$
 BEGIN
  BEGIN
@@ -97,7 +97,7 @@ RESET ROLE;
 \i security/sec_s5_storage_admin_session_rollback_v1.sql
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111',true);
-SELECT set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-1111-1111-111111111111","session_id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}',true);
+SELECT set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-1111-1111-111111111111","session_id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}',true);
 DO $rollback$
 BEGIN
  IF NOT public.sec_s4_employee_doc_file_access_v1('101/known.pdf')
