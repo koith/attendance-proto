@@ -394,7 +394,7 @@ test('SEC-R2 staging restore harness is strict isolated-only, synthetic real PG1
  const paths=[
  'scripts/security/sec_restore_logical_pg.py',
  'scripts/security/sec_restore_logical_pg_test.py',
- '.github/workflows/sec-b1-isolated-typed-postgres-restore.yml',
+ '.github/workflows/sec-b1-private-logical-custody.yml',
  'SECURITY_STABILITY_LEDGER_20261103.md',
  'scripts/security/no_operating_write_scope.mjs',
  'scripts/security/no_operating_write_scope.test.mjs'
@@ -403,7 +403,7 @@ test('SEC-R2 staging restore harness is strict isolated-only, synthetic real PG1
  assert.throws(()=>check(paths.concat('index.html').map(filename=>({filename,status:'modified'}))),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
  const src=fs.readFileSync('scripts/security/sec_restore_logical_pg.py','utf8');
  const qa=fs.readFileSync('scripts/security/sec_restore_logical_pg_test.py','utf8');
- const wf=fs.readFileSync('.github/workflows/sec-b1-isolated-typed-postgres-restore.yml','utf8');
+ const wf=fs.readFileSync('.github/workflows/sec-b1-private-logical-custody.yml','utf8');
  assert.match(src,/sec_restore_\[a-z0-9_\]/);
  assert.match(src,/jsonb_populate_recordset/);
  assert.match(src,/full_operational_restore':False/);
