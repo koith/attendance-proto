@@ -89,6 +89,6 @@ BEGIN
  RETURNING id INTO v_id;
  RETURN v_id;
 END
-$function$
+$function$;
 
 DO $check$ BEGIN IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.store_attendance_correct_event(text,bigint,bigint,timestamp without time zone,text,text)'::regprocedure) IS DISTINCT FROM '3b68c3a590b187a3fad8813a45b090b5' THEN RAISE EXCEPTION 'SEC_A1_VOID_ADD_ROLLBACK_MISMATCH'; END IF; END $check$;
