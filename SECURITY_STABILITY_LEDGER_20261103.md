@@ -403,3 +403,38 @@
 - ATTENDANCE/PAYROLL: A1(동시 출근/퇴근 실제 경합), A2(정정의 감사행 실업무·과거 VOID event_id NULL 8건), A3(자동퇴근 실지급 재산정/검토; 현재 9건 유효·2건 선행 IN 없음) 3건 보류. 운영 데이터 임의 수정하지 않음.
 - DELIVERY/DEVICE: D2(전체 QA1243·회귀 전경로), D4(실제 PC·물리 iPhone), D6(최종 28건 보안 수용 보고) 3건. 과거 일반 PR과 비운영 synthetic CI 성공만으로 전 경로 수용하지 않음.
 - 운영 대과제 SEC 18건 별도 COMPLETE 1/18. 서비스 정상운영/무손실 독립 전체 복원 **NO_GO**. 미완료 19건과 선행조건을 분리하여 다음 독립 과제를 계속 진행.
+
+## S. 2026-11-09 SEC-S5 구 관리자 세션 HTTP 설정 검증·Storage 직접 차단 (9/28 유지)
+
+> **판정 경계:** 운영 DB의 권한 함수·RLS는 실제 개선되었지만, 서비스 전체 관리자 단일기기 강제 설정, 실제 운영 로그인 JWT 기반 HTTP·Storage 파일 업로드/다운로드, Realtime 및 물리 iPhone 테스트가 끝나지 않았다. 따라서 28항목 **COMPLETE 9/28, OPEN 19**와 SEC 대과제 **1/18**, 운영 통합 복구 **NO_GO**를 유지한다.
+
+### 1. 이전 관리자 세션의 실제 서버 가드 상태 (LIVE READ ONLY)
+
+- 실제 운영 SQL 카탈로그: `session_guard.latest_session`, `session_guard.record_latest_session()`, `session_guard.require_latest_session()`, auth.sessions INSERT 트리거 `record_latest_session_v1` 설치. 실제 관리자 계정 6건 중 latest_session 존재 5건; 등록 세션 없는 관리자 1건. latest 기록과 auth.sessions의 연결 깨진 0건. 과거 admin 세션 행 총 106건이 최신 세션 외에 존재하지만, **이 숫자는 현재 유효한 서명 JWT가 106개 있다는 증거가 아니다**.
+- `pg_roles` 및 `pg_db_role_setting`에서 authenticator의 **pgrst.db_pre_request 등록 0건**. **PostgREST 별도 환경변수 설정은 이 카탈로그 조회만으로 부정할 수 없음**. 기존 WIP [PR #999](https://github.com/koith/attendance-proto/pull/999) 역시 운영 사전 요청 hook을 활성화하지 않았다고 명시했다.
+- 실제 auth.sessions에 존재하는 과거 본사 관리자 session_id와 현 최신 session_id를 운영 `BEGIN READ ONLY; SET LOCAL ROLE authenticated; SET request.jwt.claims`로 재현. **과거 세션 claim으로 `public.can_manage_store(1)` 단독 호출은 true** (훅을 명시 호출하지 않은 DB 함수의 결과), `session_guard.require_latest_session()`을 별도 실행하면 **`SESSION_SUPERSEDED` 차단**. 이는 실제 **SQL 역할·claim 시뮬레이션**이며, 실제 발행된 과거 JWT로 외부 HTTP 성공을 재현한 증거가 아니다.
+- Supabase 공식 [Data API 보안 문서](https://supabase.com/docs/guides/api/securing-your-api)는 `ALTER ROLE authenticator SET pgrst.db_pre_request` 후 `NOTIFY pgrst,'reload config'` 설치 절차 명시. [Supabase 쿼리 플랜 문서](https://supabase.com/docs/guides/api/query-plans)는 db_pre_request가 **PostgREST Data API 전용**이며 Storage/Realtime/다른 Supabase 제품에는 자동 적용되지 않음을 명시. **전역 hook 하나로 Storage 전체 세션 격리 해결됐다고 주장하지 않음**.
+
+### 2. PR #1547 — 격리된 실제 HTTP 서버로 설정 ON/OFF 실증 (VERIFIED CI)
+
+- [PR #1547](https://github.com/koith/attendance-proto/pull/1547), main `90b41c826a9944c48a728df3795f25a0a2a823b5`, 기존 SEC-01 QA/워크플로/정확한 범위 보호 5파일만 변경. 신규 운영 SQL 역할 설정/GoTrue 계정 조작/Pages/Sheet 변경 0.
+- 실제 GitHub Actions [SEC-01 PostgREST 통합](https://github.com/koith/attendance-proto/actions/runs/42539595270) **PG16+PG17 각각 SQL/HTTP 두 작업, 4/4 SUCCESS**. 기존 합성 DB+GoTrue 세션 가드 구현을 재사용하고 PostgREST **두 프로세스**를 실행: 3001 unguarded/3000 guarded. 동일 **합성 서명 JWT**의 과거 관리자 session_id는 unguarded HTTP 200, guarded는 SESSION_SUPERSEDED 차단. 정상 최신 관리자 200, 비로그인 공개 POS 200, 비관리자 직원 200, session_id 누락 관리자 거부, 다음 로그인으로 이전 계정 세션 만료 PASS.
+- HTTP 합성 fixture에서 불필요한 SQL `ALTER ROLE authenticator SET`은 제거하고 **protected PostgREST 실행환경**에만 `PGRST_DB_PRE_REQUEST`를 부여하여, 비보호 비교군이 실제로 무보호 상태임을 검증. production Auth나 운영 세션은 수정하지 않음. PR 전체 CI **56/56 SUCCESS**, 본사 운영 유저 실 JWT 검사는 불포함.
+
+### 3. PR #1548 — Storage에서도 과거 관리자 세션을 거부하도록 실제 운영 적용 (VERIFIED DEPLOYED PARTIAL)
+
+- 실제 운영 직원 문서 `storage.objects`는 기존 [PR #1543](https://github.com/koith/attendance-proto/pull/1543)의 `public.sec_s4_employee_doc_file_access_v1(name)`로 **지점 접근**을 검사하지만, **세션 갱신 여부는 검사하지 않음**. 실제 과거 HQ session_id로 SQL ROLE 요청을 재현하면 조회할 수 있는 문서 metadata **14개**, 최신 HQ session_id에서도 14개. 이는 실제 파일 다운로드나 유효한 HTTP JWT 우회를 실증한 것은 아니다.
+- [PR #1548](https://github.com/koith/attendance-proto/pull/1548), main **c69a72a6703fa9457f988144d9dfea249eb34af3**. 6개 보안 SQL·QA·워크플로·정확한 범위 보호 파일만 변경. 기존 Storage 접근 helper **맨 앞쪽에 `PERFORM session_guard.require_latest_session()`** 추가: 본사/점주에서 구세션 Storage SELECT/INSERT/DELETE 시도 거부. 기존 `public.is_hq_admin()`, `public.can_manage_store(e.store_id)`, Storage DELETE 24시간/원 업로더 검사·파일 본문·파일 메타데이터 변경 없음.
+- 테스트는 실제 기존 `security/sec_s4_employee_docs_store_scoped_rls.sql`과 `supabase/migrations/20261017050000_single_admin_session_guard_prepare.sql`을 **PG16/17 독립 fixture에서 그대로 불러 사용**; 구세션 이전 허용 재현, 수정 후 SESSION_SUPERSEDED, 최신 관리자 정상, 비관리자/익명 거부, 정책 유지/격리 ROLLBACK과 비운영 복원용 SQL 재적용 확인. **PG16·PG17 2/2 SUCCESS**, PR 전체 CI **54/54 SUCCESS**.
+- 실제 Supabase migration **`security_s5_storage_admin_session_latest_guard_20261109` 적용 SUCCESS**. 테스트 전 운영 preflight: 이전 지점별 helper, 기존 Storage 3개 정책, RLS, session_guard, 객체 14개/26,890,252 bytes, 문서 메타 10개 유지. 적용 후 **실제 운영 HQ 사용자 이전 session_id**를 사용한 `BEGIN READ ONLY; SET LOCAL ROLE authenticated`에서 Storage SELECT는 **`SESSION_SUPERSEDED`로 차단**. 동일 사용자 최신 session_id는 **14개 조회 유지**. 이는 운영 SQL 함수/RLS의 실제 검증이지 실제 발행 signed JWT를 이용한 네트워크 Storage 파일 GET이 아니다.
+- 실제 운영 적용 후에도 `employee-docs` **14개 / 26,890,252 bytes**, 문서 metadata **10건**, Storage 정책 **3개**, 24시간 보존 DELETE 조건 유지, helper anon EXECUTE FALSE. [main P0 #42540968895](https://github.com/koith/attendance-proto/actions/runs/42540968895) SUCCESS, Pages/Sheet 관련 단계 SKIPPED; 운영 게시 웹앱 v0.384 유지. 검증 후 실제 게시 브라우저 게스트 QA는 별도 재실행 요청, 성공 영수증 확인 후 추가 기록할 것.
+
+### 4. 남은 19건 분류/다음 독립 작업
+
+- 완전 수용 9건: **S1 S2 S6 B4 R1 R4 A4 D1 D3**. 신설 PR #1547/#1548은 **S5 일부 보호 강화**로서 체크 개수 임의 증분하지 않는다.
+- **S5 전역 인증 보류:** 운영 데이터 API에서 PostgREST 사전 요청 훅이 실제로 발효되는지 신/구 signed JWT HTTP 테스트, Auth 세션 로그아웃·재발급, Storage HTTP+Realtime 및 원래 UI 관리자 로그아웃 안내, 실제 관리자 기기·롤백. 기존 공개 POS·직원 서비스에 장애를 내지 않는 운영 복구/승인 전에는 일반 전역 hook 무단 활성화 금지.
+- **S3/S4**: 현재 저장소 지점별 권한 및 SQL role 매트릭스 실제 PASS, 실제 발급된 HQ/대표/보조/직원 signed JWT와 실제 파일 생성·열기·삭제 및 다른 RPC 경로 전체 수용 필요.
+- **B1,B2,B3,B5,B6/R2,R3,R5,R6/D5**: 최신 단일 일관 DB/Auth/Storage 전체 원본 백업·독립 복호화키/복원 선행, 기존 GitHub protected 환경 인증 누락은 경로별 BLOCKED. Storage 원본 14개 암호화 사본 3중 보관은 유지.
+- **A1/A2/A3**: 실제 동시 출퇴근 경쟁·실제 운영 수정 감사행 및 과거 VOID 8건 정확한 계보·직원 계약/급여 실지급 재산정, 임의 운영 DML 금지.
+- **D2/D4/D6**: 전체 보안·QA1243 E2E, 실제 매장 PC·물리 iPhone, 모든 게이트 종료 후 최종 판정.
+- **28건 COMPLETE 9 / OPEN 19**, SEC 대과제 **1/18 COMPLETE**, 통합 무손실 복구/현장 실사용 **NO_GO**. 다음 작업은 한 항목 의존성만 반복하지 않고 실제 검증 가능한 다른 미완료 항목도 병렬 진행.
