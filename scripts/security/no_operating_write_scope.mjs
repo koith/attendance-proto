@@ -20,7 +20,6 @@ const allowedPaths=new Set([
   "security/sec_b1_readonly_logical_capture.sql",
   "scripts/security/sec_restore_logical_pg.py",
   "scripts/security/sec_restore_logical_pg_test.py",
-  ".github/workflows/sec-b1-isolated-typed-postgres-restore.yml",
   "scripts/security/sec_b1_verify_encrypted_logical_backup.py",
   "scripts/security/sec_b1_verify_encrypted_logical_backup_test.py",
   ".github/workflows/sec-b1-private-logical-custody.yml",
