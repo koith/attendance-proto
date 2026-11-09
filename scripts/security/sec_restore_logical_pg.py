@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -181,6 +182,14 @@ def main(argv=None):
         if args.apply_isolated:
             if not re.fullmatch('sec_restore_[a-z0-9_]{1,32}',args.database):
                 raise ValueError('restoration allowed only in explicitly named isolated sec_restore_* database')
+            # A named database alone is insufficient: libpq can target a REMOTE
+            # server via PGHOST/PGHOSTADDR/PGSERVICE. Refuse any nonlocal route.
+            local = ('', 'localhost', '127.0.0.1', '::1')
+            if (os.environ.get('PGHOST', '') not in local or
+                os.environ.get('PGHOSTADDR', '') not in local or
+                os.environ.get('PGSERVICE', '') or
+                os.environ.get('PGSERVICEFILE', '')):
+                raise ValueError('non-local PostgreSQL target refused')
             cmd=['psql','-X','-q','-v','ON_ERROR_STOP=1','--dbname='+args.database]
             p=subprocess.run(cmd,input=sql.encode('utf8'),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
             if p.returncode: raise ValueError('isolated PostgreSQL restore failed; SQL output suppressed')
