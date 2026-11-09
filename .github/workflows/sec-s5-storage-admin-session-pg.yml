@@ -1,0 +1,54 @@
+name: SEC-S5 real PG Storage latest-session defense (PG16/17)
+on:
+  pull_request:
+    paths:
+      - 'security/sec_s5_storage_admin_session_helper_v1.sql'
+      - 'security/sec_s5_storage_admin_session_rollback_v1.sql'
+      - 'qa/sec_s5_storage_admin_session_pg.sql'
+      - '.github/workflows/sec-s5-storage-admin-session-pg.yml'
+      - 'scripts/security/no_operating_write_scope.mjs'
+      - 'scripts/security/no_operating_write_scope.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'security/sec_s5_storage_admin_session_helper_v1.sql'
+      - 'security/sec_s5_storage_admin_session_rollback_v1.sql'
+      - 'qa/sec_s5_storage_admin_session_pg.sql'
+permissions:
+  contents: read
+jobs:
+  pg:
+    name: PG${{ matrix.pg }} real SQL stale Storage session deny + owner keep
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16','17']
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sec_s5_synthetic_only
+          POSTGRES_DB: sec_s5_disposable
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sec_s5_disposable"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: sec_s5_synthetic_only
+      PGDATABASE: sec_s5_disposable
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client if absent
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Actual session_guard and Storage RLS old-token fixture, rollback
+        run: psql -X -v ON_ERROR_STOP=1 -f qa/sec_s5_storage_admin_session_pg.sql
+      - name: Exact security-only allowed path tests
+        run: node --test scripts/security/no_operating_write_scope.test.mjs
