@@ -248,3 +248,31 @@ test('SEC-S4 server-side 24h document deletion retention SQL and isolated PG16/1
  assert.match(qa,/SEC_S4_FRESH_UPLOAD_CLEANUP_BROKEN/);
  assert.match(wf,/qa\/sec_s4_doc_delete_retention_postgres.sql/);
 });
+
+test('SEC-S5 guarded-versus-unguarded real HTTP fixture stays isolated and cannot publish app or auth settings',()=>{
+ const changed=[
+  {filename:'.github/workflows/sec01-disposable-session-guard.yml',status:'modified'},
+  {filename:'qa_admin_session_postgrest_setup.sql',status:'modified'},
+  {filename:'qa_admin_session_postgrest_http_v1.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(changed).result,'PASS');
+ assert.throws(()=>check(changed.concat({filename:'index.html',status:'modified'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const wf=fs.readFileSync('.github/workflows/sec01-disposable-session-guard.yml','utf8');
+ const setup=fs.readFileSync('qa_admin_session_postgrest_setup.sql','utf8');
+ const qa=fs.readFileSync('qa_admin_session_postgrest_http_v1.mjs','utf8');
+ assert.match(wf,/pg: \['16','17'\]/);
+ assert.match(wf,/PGRST_DB_PRE_REQUEST=session_guard\.require_latest_session/);
+ assert.match(wf,/PGRST_SERVER_PORT=3001/);
+ assert.match(wf,/sec01-postgrest-unguarded/);
+ assert.doesNotMatch(setup,/^ALTER ROLE authenticator SET pgrst\.db_pre_request/m,
+  'No persistent in-db hook: comparator is unguarded');
+ assert.match(qa,/const withoutGuard='http:\/\/127\.0\.0\.1:3001'/);
+ assert.match(qa,/assert\.equal\(unguarded\.status,200/);
+ assert.match(qa,/SESSION_SUPERSEDED/);
+ for(const src of [wf,setup,qa]) {
+  assert.doesNotMatch(src,/SUPABASE_SERVICE_ROLE_KEY|SUPABASE_DB_URL|SUPABASE_ACCESS_TOKEN/,
+   'No production secret binding in isolated S5 QA');
+ }
+});
