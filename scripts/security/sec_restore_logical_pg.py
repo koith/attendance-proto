@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Restore a PRIVATE encrypted logical backup to an ISOLATED local PostgreSQL.
 
-Reconstructs typed tables + enums, actual row values, PK/UNIQUE constraints and
-standalone sequences with their archived position. Every inserted batch is
+Reconstructs typed tables + enums, actual row values, PK/UNIQUE/FK and NOT NULL
+constraints and standalone sequences with their archived position. Every inserted batch is
 re-serialized from its typed value and compared with the archived row, so a
 row count match alone can never report PASS for silently altered values.
 Does NOT reconstruct full production RLS, triggers, Auth services, extensions,
-role grants, FK checks or Storage file blobs. Therefore it is NOT
+role grants, CHECK constraints or Storage file blobs. Therefore it is NOT
 full disaster recovery acceptance. Never writes plaintext backup to a file.
 """
 import argparse
@@ -36,6 +36,9 @@ _COLREF = r'(?:[a-z_][a-z_0-9]*|"[A-Za-z_][A-Za-z_0-9]*")'
 _COLLIST = _COLREF + r'(?:, ' + _COLREF + r')*'
 CONSTRAINT_DDL = re.compile(r'^(?:PRIMARY KEY|UNIQUE) \((' + _COLLIST + r')\)(?: INCLUDE \((' + _COLLIST + r')\))?'
                             r'(?: DEFERRABLE(?: INITIALLY (?:DEFERRED|IMMEDIATE))?)?$')
+FK_DDL = re.compile(r'^FOREIGN KEY \(('+_COLLIST+r')\) REFERENCES '
+                    r'(?:(('+_COLREF+r')\.)?('+_COLREF+r'))\(('+_COLLIST+r')\)'
+                    r'(?: ON DELETE (CASCADE|RESTRICT|SET NULL))?$')
 SEQ_TYPES = {'bigint', 'integer', 'smallint'}
 NEXTVAL = re.compile(r"^nextval\('((?:\"?[A-Za-z_][A-Za-z_0-9]*\"?\.)?\"?[A-Za-z_][A-Za-z_0-9]*\"?)'::regclass\)$")
 SUMMARY_TAG = 'SEC_RESTORE_SUMMARY:'
@@ -110,6 +113,32 @@ def constraint_ddl(ddl, colnames):
             if col and col.strip('"') not in colnames:
                 raise ValueError('unrecognized PK/UNIQUE constraint; fail closed')
     return ddl
+
+
+
+def fk_ddl(definition, current_schema, colnames, table_columns):
+    """Canonical FK DDL only for captured names and strict grammar."""
+    m = FK_DDL.fullmatch(definition) if isinstance(definition,str) else None
+    if m is None: raise ValueError('unrecognized FK definition; fail closed')
+    src_cols, _, explicit_schema, ref_table, ref_cols, delete_action = m.groups()
+    def bare(s):
+        return s[1:-1] if s.startswith('"') and s.endswith('"') else s
+    src=[bare(c) for c in src_cols.split(', ')]
+    dst=[bare(c) for c in ref_cols.split(', ')]
+    table=bare(ref_table)
+    schema=bare(explicit_schema) if explicit_schema else None
+    if schema is None:
+        options=[(n,table) for n in ('public',current_schema) if (n,table) in table_columns]
+        if not options: raise ValueError('FK target table not captured')
+        schema=options[0][0]
+    if len(src)!=len(dst) or not src or (schema,table) not in table_columns:
+        raise ValueError('invalid FK arity or target')
+    if any(c not in colnames for c in src) or any(c not in table_columns[(schema,table)] for c in dst):
+        raise ValueError('FK references unknown columns')
+    return ('FOREIGN KEY ('+', '.join(quote(c) for c in src)+
+            ') REFERENCES '+quote(schema)+'.'+quote(table)+
+            ' ('+', '.join(quote(c) for c in dst)+')'+
+            (' ON DELETE '+delete_action if delete_action else ''))
 
 
 def as_int(v):
@@ -196,16 +225,30 @@ def build_sql(snapshot):
         row_counts[ident] = cnt
         out("DO $QA$ BEGIN IF (SELECT count(*) FROM "+ident+") <> "+str(cnt)+" THEN "+
             "RAISE EXCEPTION 'isolated row count mismatch'; END IF; END $QA$;")
-    # Staging PK/UNIQUE constraints can validate duplicate-free restore.
-    # Foreign keys and CHECK constraints intentionally excluded; requires full
-    # platform schema bootstrap for operational restoration.
+    # Validate relational integrity on captured data after loading all tables.
+    # Every FK identifier and target must exist in the captured metadata.
+    archived_cols={(t['schema'],t['table']):{c['name'] for c in t['columns']} for t in tables}
+    fk_count=0
+    nn_count=0
     for t in sorted(tables, key=lambda z:(z['schema'],z['table'])):
         ident=quote(t['schema'])+'.'+quote(t['table'])
-        colnames={c['name'] for c in t['columns']}
+        colnames=archived_cols[t['schema'],t['table']]
         for c in t.get('constraints', []):
             if c['type'] in ('p','u'):
                 ddl=constraint_ddl(c.get('ddl',''), colnames)
                 out('ALTER TABLE '+ident+' ADD CONSTRAINT '+quote(c['name'])+' '+ddl+';')
+    for t in sorted(tables, key=lambda z:(z['schema'],z['table'])):
+        ident=quote(t['schema'])+'.'+quote(t['table'])
+        colnames=archived_cols[t['schema'],t['table']]
+        for c in t['columns']:
+            if c.get('notnull') is True:
+                out('ALTER TABLE '+ident+' ALTER COLUMN '+quote(c['name'])+' SET NOT NULL;')
+                nn_count += 1
+        for c in t.get('constraints', []):
+            if c['type']=='f':
+                ddl=fk_ddl(c.get('ddl',''),t['schema'],colnames,archived_cols)
+                out('ALTER TABLE '+ident+' ADD CONSTRAINT '+quote(c['name'])+' '+ddl+';')
+                fk_count += 1
     # Standalone sequences at their archived position. Staging tables carry no
     # defaults/identity, so sequences are restored as independent objects and the
     # archived position is checked against the restored data of the column that
@@ -244,6 +287,8 @@ def build_sql(snapshot):
             label = t['schema']+'.'+t['table']+'.'+c['name']
             out("INSERT INTO sec_seq_behind SELECT '"+label+"' WHERE (SELECT max("+quote(c['name'])+") FROM "+ident+") > "+limit+";")
     out("SELECT '"+SUMMARY_TAG+"' || json_build_object('sequences_restored', "+str(len(seqs))+
+        ", 'foreign_keys_restored', "+str(fk_count)+
+        ", 'notnull_columns_restored', "+str(nn_count)+
         ", 'sequence_behind_data', (SELECT coalesce(json_agg(name ORDER BY name), '[]'::json) FROM sec_seq_behind))::text;")
     out('COMMIT;')
     return sql.getvalue(), row_counts, len(enums)
@@ -293,9 +338,11 @@ def main(argv=None):
             summary=json.loads(tagged[0][len(SUMMARY_TAG):])
         print(json.dumps({'status':'PASS','tables':len(rows),'row_count':total,
                           'enums':enum_count,'pg_restore_applied':args.apply_isolated,
-                          'stage_constraints':'PRIMARY KEY/UNIQUE only',
+                          'stage_constraints':'PRIMARY KEY/UNIQUE/FOREIGN KEY/NOT NULL (policies, functions, grants NOT restored)',
                           'row_content_verified':args.apply_isolated,
                           'sequences_restored':summary.get('sequences_restored'),
+                          'foreign_keys_restored':summary.get('foreign_keys_restored'),
+                          'notnull_columns_restored':summary.get('notnull_columns_restored'),
                           'sequence_behind_data':summary.get('sequence_behind_data'),
                           'full_operational_restore':False,
                           'sha256_ciphertext':digest},ensure_ascii=False))
