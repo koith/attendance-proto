@@ -13,7 +13,7 @@ WITH tbl AS MATERIALIZED (
   'constraints',(SELECT coalesce(jsonb_agg(jsonb_build_object('name',con.conname,'type',con.contype,'ddl',pg_get_constraintdef(con.oid)) ORDER BY con.conname),'[]'::jsonb) FROM pg_constraint con WHERE con.conrelid=c.oid),
   'indexes',(SELECT coalesce(jsonb_agg(pg_get_indexdef(idx.indexrelid) ORDER BY idx.indexrelid),'[]'::jsonb) FROM pg_index idx WHERE idx.indrelid=c.oid),
   'triggers',(SELECT coalesce(jsonb_agg(jsonb_build_object('ddl',pg_get_triggerdef(t.oid),'enabled',t.tgenabled) ORDER BY t.tgname),'[]'::jsonb) FROM pg_trigger t WHERE t.tgrelid=c.oid AND NOT t.tgisinternal),
-  'policies',(SELECT coalesce(jsonb_agg(jsonb_build_object('name',p.polname,'cmd',p.polcmd,'permissive',p.polpermissive,'roles',p.polroles,'using',pg_get_expr(p.polqual,p.polrelid),'with_check',pg_get_expr(p.polwithcheck,p.polrelid)) ORDER BY p.polname),'[]'::jsonb) FROM pg_policy p WHERE p.polrelid=c.oid)
+  'policies',(SELECT coalesce(jsonb_agg(jsonb_build_object('name',p.polname,'cmd',p.polcmd,'permissive',p.polpermissive,'roles',(SELECT coalesce(jsonb_agg(CASE WHEN o.r=0 THEN 'public' ELSE pg_get_userbyid(o.r) END ORDER BY o.ord),'[]'::jsonb) FROM unnest(p.polroles) WITH ORDINALITY AS o(r,ord)),'role_oids',p.polroles,'using',pg_get_expr(p.polqual,p.polrelid),'with_check',pg_get_expr(p.polwithcheck,p.polrelid)) ORDER BY p.polname),'[]'::jsonb) FROM pg_policy p WHERE p.polrelid=c.oid)
  ) AS item
  FROM pg_class c JOIN pg_namespace n ON c.relnamespace=n.oid
  WHERE n.nspname IN ('public','auth','storage','private','session_guard') AND c.relkind IN ('r','p') AND NOT c.relispartition

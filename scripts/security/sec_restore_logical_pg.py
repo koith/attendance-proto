@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Restore a PRIVATE encrypted logical backup to an ISOLATED local PostgreSQL.
 
-Reconstructs typed tables + enums, actual row values, PK/UNIQUE constraints.
+Reconstructs typed tables + enums, actual row values, PK/UNIQUE constraints and
+standalone sequences with their archived position. Every inserted batch is
+re-serialized from its typed value and compared with the archived row, so a
+row count match alone can never report PASS for silently altered values.
 Does NOT reconstruct full production RLS, triggers, Auth services, extensions,
-role grants, sequences, FK checks or Storage file blobs. Therefore it is NOT
+role grants, FK checks or Storage file blobs. Therefore it is NOT
 full disaster recovery acceptance. Never writes plaintext backup to a file.
 """
 import argparse
@@ -26,6 +29,16 @@ BASE_TYPES = {'text', 'bigint', 'uuid', 'boolean', 'integer', 'jsonb',
               'date', 'timestamp with time zone', 'timestamp without time zone',
               'time without time zone', 'text[]', 'smallint', 'inet', 'bytea', 'json', 'numeric'}
 TYPE_PARAMS = re.compile(r'^(?:character varying|numeric)\(\d+(?:,\d+)?\)$')
+# pg_get_constraintdef() output for PK/UNIQUE, matched in FULL. The DDL text is
+# appended to generated SQL, so a prefix-only check would let archive content
+# smuggle arbitrary statements after the column list.
+_COLREF = r'(?:[a-z_][a-z_0-9]*|"[A-Za-z_][A-Za-z_0-9]*")'
+_COLLIST = _COLREF + r'(?:, ' + _COLREF + r')*'
+CONSTRAINT_DDL = re.compile(r'^(?:PRIMARY KEY|UNIQUE) \((' + _COLLIST + r')\)(?: INCLUDE \((' + _COLLIST + r')\))?'
+                            r'(?: DEFERRABLE(?: INITIALLY (?:DEFERRED|IMMEDIATE))?)?$')
+SEQ_TYPES = {'bigint', 'integer', 'smallint'}
+NEXTVAL = re.compile(r"^nextval\('((?:\"?[A-Za-z_][A-Za-z_0-9]*\"?\.)?\"?[A-Za-z_][A-Za-z_0-9]*\"?)'::regclass\)$")
+SUMMARY_TAG = 'SEC_RESTORE_SUMMARY:'
 
 
 def quote(v):
@@ -86,6 +99,39 @@ def parse_rows(table):
         yield obj, el.text
 
 
+def constraint_ddl(ddl, colnames):
+    """Return ddl only if it is exactly a PK/UNIQUE definition over known columns."""
+    m = CONSTRAINT_DDL.fullmatch(ddl) if isinstance(ddl, str) else None
+    if not m:
+        # PG may include NULLS NOT DISTINCT or other novel syntax.
+        raise ValueError('unrecognized PK/UNIQUE constraint; fail closed')
+    for group in m.groups():
+        for col in (group or '').split(', '):
+            if col and col.strip('"') not in colnames:
+                raise ValueError('unrecognized PK/UNIQUE constraint; fail closed')
+    return ddl
+
+
+def as_int(v):
+    if isinstance(v, bool) or not isinstance(v, int):
+        raise ValueError('invalid sequence metadata')
+    return v
+
+
+def roundtrip_predicate(columns):
+    """SQL predicate: typed value r.col re-serializes to the archived JSON s.e."""
+    parts = []
+    for c in columns:
+        name = quote(c['name'])
+        key = "'" + c['name'] + "'"  # IDENT-validated by quote(): no quoting hazards
+        if c['type'] == 'timestamp with time zone':
+            # Rendering depends on the session time zone; compare the instant.
+            parts.append('(s.e->>' + key + ')::timestamptz IS NOT DISTINCT FROM r.' + name)
+        else:
+            parts.append("coalesce(to_jsonb(r." + name + "),'null'::jsonb) = s.e->" + key)
+    return ' AND '.join(parts)
+
+
 def dollar(text, salt):
     n = 0
     while True:
@@ -113,6 +159,10 @@ def build_sql(snapshot):
     out('BEGIN;')
     out("SET LOCAL client_min_messages TO warning;")
     out("SET LOCAL statement_timeout TO '10min';")
+    out("SET LOCAL bytea_output TO 'hex';")
+    out("CREATE FUNCTION pg_temp.sec_assert(ok boolean, msg text) RETURNS void LANGUAGE plpgsql AS "
+        "$SEC$ BEGIN IF ok IS NOT TRUE THEN RAISE EXCEPTION '%', msg; END IF; END $SEC$;")
+    out('CREATE TEMP TABLE sec_seq_behind(name text) ON COMMIT DROP;')
     for s in sorted(SCHEMAS):
         out('CREATE SCHEMA IF NOT EXISTS '+quote(s)+';')
     for (sch,typ), values in sorted(enums.items()):
@@ -131,6 +181,7 @@ def build_sql(snapshot):
         # Staging tables deliberately omit generated/default/identity behavior,
         # to preserve the values present in the encrypted row snapshot.
         out('CREATE TABLE '+ident+' ('+', '.join(typed)+');')
+        pred = roundtrip_predicate(columns)
         cnt = 0
         batch = []
         for obj, raw_json in parse_rows(t):
@@ -139,9 +190,9 @@ def build_sql(snapshot):
             batch.append(raw_json)
             cnt += 1
             if len(batch) >= 200:
-                _insert_batch(out, ident, colnames, batch, cnt)
+                _insert_batch(out, ident, colnames, batch, cnt, pred)
                 batch = []
-        if batch: _insert_batch(out, ident, colnames, batch, cnt)
+        if batch: _insert_batch(out, ident, colnames, batch, cnt, pred)
         row_counts[ident] = cnt
         out("DO $QA$ BEGIN IF (SELECT count(*) FROM "+ident+") <> "+str(cnt)+" THEN "+
             "RAISE EXCEPTION 'isolated row count mismatch'; END IF; END $QA$;")
@@ -150,22 +201,63 @@ def build_sql(snapshot):
     # platform schema bootstrap for operational restoration.
     for t in sorted(tables, key=lambda z:(z['schema'],z['table'])):
         ident=quote(t['schema'])+'.'+quote(t['table'])
+        colnames={c['name'] for c in t['columns']}
         for c in t.get('constraints', []):
             if c['type'] in ('p','u'):
-                ddl=c.get('ddl','')
-                if not re.match(r'^(?:PRIMARY KEY|UNIQUE)\s*\(',ddl):
-                    # PG may include NULLS NOT DISTINCT or other novel syntax.
-                    raise ValueError('unrecognized PK/UNIQUE constraint; fail closed')
+                ddl=constraint_ddl(c.get('ddl',''), colnames)
                 out('ALTER TABLE '+ident+' ADD CONSTRAINT '+quote(c['name'])+' '+ddl+';')
+    # Standalone sequences at their archived position. Staging tables carry no
+    # defaults/identity, so sequences are restored as independent objects and the
+    # archived position is checked against the restored data of the column that
+    # consumed it (serial default, or identity by PostgreSQL's naming rule).
+    seqs={}
+    for q in snapshot.get('sequences', []):
+        sch, name = q.get('schemaname'), q.get('sequencename')
+        if sch not in SCHEMAS or q.get('data_type') not in SEQ_TYPES or (sch, name) in seqs:
+            raise ValueError('invalid sequence metadata')
+        last = q.get('last_value')
+        seqs[(sch, name)] = (None if last is None else as_int(last), as_int(q['start_value']), as_int(q['increment_by']))
+        sid = quote(sch)+'.'+quote(name)
+        out('CREATE SEQUENCE '+sid+' AS '+q['data_type']+' INCREMENT BY '+str(as_int(q['increment_by']))+
+            ' MINVALUE '+str(as_int(q['min_value']))+' MAXVALUE '+str(as_int(q['max_value']))+
+            ' START WITH '+str(as_int(q['start_value']))+' CACHE '+str(as_int(q['cache_size']))+
+            (' CYCLE' if q.get('cycle') is True else ' NO CYCLE')+';')
+        if last is not None:
+            out("SELECT pg_temp.sec_assert(setval('"+sid+"'::regclass, "+str(as_int(last))+", true) = "+str(as_int(last))+", 'sequence position restore failed');")
+    for t in sorted(tables, key=lambda z:(z['schema'],z['table'])):
+        ident=quote(t['schema'])+'.'+quote(t['table'])
+        for c in t['columns']:
+            if c['type'] not in SEQ_TYPES: continue
+            m = NEXTVAL.fullmatch(c.get('default') or '')
+            if m:
+                ref = m.group(1).replace('"','')
+                key = tuple(ref.split('.',1)) if '.' in ref else (t['schema'], ref)
+                if key not in seqs and '.' not in ref: key = ('public', ref)
+            elif c.get('identity') in ('a','d'):
+                key = (t['schema'], t['table']+'_'+c['name']+'_seq')
+            else: continue
+            if key not in seqs: continue
+            last, start, inc = seqs[key]
+            if inc <= 0: continue
+            # Next nextval() must not land on an existing key after recovery.
+            limit = str(last) if last is not None else str(start - 1)
+            label = t['schema']+'.'+t['table']+'.'+c['name']
+            out("INSERT INTO sec_seq_behind SELECT '"+label+"' WHERE (SELECT max("+quote(c['name'])+") FROM "+ident+") > "+limit+";")
+    out("SELECT '"+SUMMARY_TAG+"' || json_build_object('sequences_restored', "+str(len(seqs))+
+        ", 'sequence_behind_data', (SELECT coalesce(json_agg(name ORDER BY name), '[]'::json) FROM sec_seq_behind))::text;")
     out('COMMIT;')
     return sql.getvalue(), row_counts, len(enums)
 
 
-def _insert_batch(out, ident, columns, batch, count):
+def _insert_batch(out, ident, columns, batch, count, pred):
     data='['+','.join(batch)+']'  # Preserve exact PostgreSQL numeric lexical representation
     value=dollar(data,count)
     col=', '.join(map(quote, columns))
     out('INSERT INTO '+ident+' ('+col+') SELECT '+col+' FROM jsonb_populate_recordset(NULL::'+ident+', '+value+'::jsonb) AS src;')
+    # Same deterministic typed conversion as the INSERT above, re-serialized and
+    # compared with the archived row: a lossy conversion fails the restore.
+    out('SELECT pg_temp.sec_assert(NOT EXISTS (SELECT 1 FROM jsonb_array_elements('+value+'::jsonb) AS s(e) '
+        'CROSS JOIN LATERAL jsonb_populate_record(NULL::'+ident+', s.e) AS r WHERE NOT ('+pred+")), 'restored value differs from archived row');")
 
 
 def main(argv=None):
@@ -180,6 +272,7 @@ def main(argv=None):
         snap,digest=decode(args.archive,args.key_json,args.sha256)
         sql,rows,enum_count=build_sql(snap)
         total=sum(rows.values())
+        summary={}
         if args.apply_isolated:
             if not re.fullmatch('sec_restore_[a-z0-9_]{1,32}',args.database):
                 raise ValueError('restoration allowed only in explicitly named isolated sec_restore_* database')
@@ -191,12 +284,19 @@ def main(argv=None):
                 os.environ.get('PGSERVICE', '') or
                 os.environ.get('PGSERVICEFILE', '')):
                 raise ValueError('non-local PostgreSQL target refused')
-            cmd=['psql','-X','-q','-v','ON_ERROR_STOP=1','--dbname='+args.database]
-            p=subprocess.run(cmd,input=sql.encode('utf8'),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            cmd=['psql','-X','-q','-At','-v','ON_ERROR_STOP=1','--dbname='+args.database]
+            p=subprocess.run(cmd,input=sql.encode('utf8'),stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
             if p.returncode: raise ValueError('isolated PostgreSQL restore failed; SQL output suppressed')
+            # Only the tagged line is read: identifiers and counts, never row data.
+            tagged=[l for l in p.stdout.decode('utf8','replace').splitlines() if l.startswith(SUMMARY_TAG)]
+            if len(tagged)!=1: raise ValueError('isolated PostgreSQL restore summary missing')
+            summary=json.loads(tagged[0][len(SUMMARY_TAG):])
         print(json.dumps({'status':'PASS','tables':len(rows),'row_count':total,
                           'enums':enum_count,'pg_restore_applied':args.apply_isolated,
                           'stage_constraints':'PRIMARY KEY/UNIQUE only',
+                          'row_content_verified':args.apply_isolated,
+                          'sequences_restored':summary.get('sequences_restored'),
+                          'sequence_behind_data':summary.get('sequence_behind_data'),
                           'full_operational_restore':False,
                           'sha256_ciphertext':digest},ensure_ascii=False))
         return 0
