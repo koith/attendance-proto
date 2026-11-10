@@ -414,3 +414,30 @@ test('SEC-R2 staging restore harness is strict isolated-only, synthetic real PG1
  assert.match(wf,/PostgreSQL actual typed data rehydration/);
  assert.doesNotMatch(wf,/SUPABASE_DB_URL|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_ACCESS_TOKEN|production/);
 });
+
+test('A2 v4 synthetic JWT claim attribution is non-operating and denies unrelated changes',()=>{
+  const changed=[
+    {filename:'security/sec_a2_claim_attribution_v4.sql',status:'added'},
+    {filename:'security/sec_a2_claim_attribution_v4_rollback.sql',status:'added'},
+    {filename:'qa/sec_a2_claim_attribution_postgres.sql',status:'added'},
+    {filename:'.github/workflows/sec-a2-claim-attribution-pg.yml',status:'added'},
+    {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+  ];
+  assert.equal(check(changed).result,'PASS');
+  assert.throws(()=>check(changed.concat({filename:'supabase/migrations/20261111_unauthorized.sql',status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+  assert.throws(()=>check(changed.concat({filename:'index.html',status:'modified'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+  const sql=fs.readFileSync('security/sec_a2_claim_attribution_v4.sql','utf8');
+  const rb=fs.readFileSync('security/sec_a2_claim_attribution_v4_rollback.sql','utf8');
+  const fixture=fs.readFileSync('qa/sec_a2_claim_attribution_postgres.sql','utf8');
+  const ci=fs.readFileSync('.github/workflows/sec-a2-claim-attribution-pg.yml','utf8');
+  assert.match(sql,/request\.jwt\.claims/);
+  assert.match(sql,/SEC_A2_V4_PRIVATE_AUDIT_ACL_DRIFT/);
+  assert.match(sql,/sec_a2_request_identity_v4/);
+  assert.match(rb,/DROP FUNCTION private\.sec_a2_request_identity_v4/);
+  assert.doesNotMatch(rb,/\b(?:DELETE FROM|TRUNCATE)\s+(?:private|public)\./i);
+  assert.match(fixture,/SEC_A2_V4_ORIGINAL_GAP_NOT_REPRODUCED/);
+  assert.match(fixture,/ROLLBACK;/);
+  assert.match(ci,/postgres:.*matrix\.pg/);
+  assert.doesNotMatch(ci,/SUPABASE_(?:DB_URL|SERVICE_ROLE_KEY|ACCESS_TOKEN)/);
+});

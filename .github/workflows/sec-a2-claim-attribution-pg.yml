@@ -1,0 +1,55 @@
+name: SEC-A2 JWT audit claim attribution (PG16/17 synthetic)
+on:
+  pull_request:
+    paths:
+      - 'security/sec_a2_claim_attribution_v4.sql'
+      - 'security/sec_a2_claim_attribution_v4_rollback.sql'
+      - 'qa/sec_a2_claim_attribution_postgres.sql'
+      - '.github/workflows/sec-a2-claim-attribution-pg.yml'
+      - 'scripts/security/no_operating_write_scope.mjs'
+      - 'scripts/security/no_operating_write_scope.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'security/sec_a2_claim_attribution_v4.sql'
+      - 'security/sec_a2_claim_attribution_v4_rollback.sql'
+      - 'qa/sec_a2_claim_attribution_postgres.sql'
+      - '.github/workflows/sec-a2-claim-attribution-pg.yml'
+permissions:
+  contents: read
+jobs:
+  claim-transport:
+    name: PG${{ matrix.pg }} current/legacy JWT claim capture and rollback
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16','17']
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sec_a2_synthetic_only
+          POSTGRES_DB: sec_a2_claim_fixture
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sec_a2_claim_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: sec_a2_synthetic_only
+      PGDATABASE: sec_a2_claim_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL client availability
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Apply real v1/v2/v3 SQL then v4 and rollback inside one synthetic transaction
+        run: psql -X -v ON_ERROR_STOP=1 -f qa/sec_a2_claim_attribution_postgres.sql
+      - name: Assert exact non-operating-write scope
+        run: node --test scripts/security/no_operating_write_scope.test.mjs
