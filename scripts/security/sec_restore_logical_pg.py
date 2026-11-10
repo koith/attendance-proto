@@ -225,16 +225,30 @@ def build_sql(snapshot):
         row_counts[ident] = cnt
         out("DO $QA$ BEGIN IF (SELECT count(*) FROM "+ident+") <> "+str(cnt)+" THEN "+
             "RAISE EXCEPTION 'isolated row count mismatch'; END IF; END $QA$;")
-    # Staging PK/UNIQUE constraints can validate duplicate-free restore.
-    # Foreign keys and CHECK constraints intentionally excluded; requires full
-    # platform schema bootstrap for operational restoration.
+    # Validate relational integrity on captured data after loading all tables.
+    # Every FK identifier and target must exist in the captured metadata.
+    archived_cols={(t['schema'],t['table']):{c['name'] for c in t['columns']} for t in tables}
+    fk_count=0
+    nn_count=0
     for t in sorted(tables, key=lambda z:(z['schema'],z['table'])):
         ident=quote(t['schema'])+'.'+quote(t['table'])
-        colnames={c['name'] for c in t['columns']}
+        colnames=archived_cols[t['schema'],t['table']]
         for c in t.get('constraints', []):
             if c['type'] in ('p','u'):
                 ddl=constraint_ddl(c.get('ddl',''), colnames)
                 out('ALTER TABLE '+ident+' ADD CONSTRAINT '+quote(c['name'])+' '+ddl+';')
+    for t in sorted(tables, key=lambda z:(z['schema'],z['table'])):
+        ident=quote(t['schema'])+'.'+quote(t['table'])
+        colnames=archived_cols[t['schema'],t['table']]
+        for c in t['columns']:
+            if c.get('notnull') is True:
+                out('ALTER TABLE '+ident+' ALTER COLUMN '+quote(c['name'])+' SET NOT NULL;')
+                nn_count += 1
+        for c in t.get('constraints', []):
+            if c['type']=='f':
+                ddl=fk_ddl(c.get('ddl',''),t['schema'],colnames,archived_cols)
+                out('ALTER TABLE '+ident+' ADD CONSTRAINT '+quote(c['name'])+' '+ddl+';')
+                fk_count += 1
     # Standalone sequences at their archived position. Staging tables carry no
     # defaults/identity, so sequences are restored as independent objects and the
     # archived position is checked against the restored data of the column that
@@ -273,6 +287,8 @@ def build_sql(snapshot):
             label = t['schema']+'.'+t['table']+'.'+c['name']
             out("INSERT INTO sec_seq_behind SELECT '"+label+"' WHERE (SELECT max("+quote(c['name'])+") FROM "+ident+") > "+limit+";")
     out("SELECT '"+SUMMARY_TAG+"' || json_build_object('sequences_restored', "+str(len(seqs))+
+        ", 'foreign_keys_restored', "+str(fk_count)+
+        ", 'notnull_columns_restored', "+str(nn_count)+
         ", 'sequence_behind_data', (SELECT coalesce(json_agg(name ORDER BY name), '[]'::json) FROM sec_seq_behind))::text;")
     out('COMMIT;')
     return sql.getvalue(), row_counts, len(enums)
@@ -322,9 +338,11 @@ def main(argv=None):
             summary=json.loads(tagged[0][len(SUMMARY_TAG):])
         print(json.dumps({'status':'PASS','tables':len(rows),'row_count':total,
                           'enums':enum_count,'pg_restore_applied':args.apply_isolated,
-                          'stage_constraints':'PRIMARY KEY/UNIQUE only',
+                          'stage_constraints':'PRIMARY KEY/UNIQUE/FOREIGN KEY/NOT NULL (policies, functions, grants NOT restored)',
                           'row_content_verified':args.apply_isolated,
                           'sequences_restored':summary.get('sequences_restored'),
+                          'foreign_keys_restored':summary.get('foreign_keys_restored'),
+                          'notnull_columns_restored':summary.get('notnull_columns_restored'),
                           'sequence_behind_data':summary.get('sequence_behind_data'),
                           'full_operational_restore':False,
                           'sha256_ciphertext':digest},ensure_ascii=False))
