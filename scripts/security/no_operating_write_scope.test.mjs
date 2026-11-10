@@ -389,3 +389,28 @@ test('SEC B2/B5 read-only production logical archive capture and private offline
  assert.match(wf,/synthetic CI/);
  assert.doesNotMatch(wf,/SUPABASE_DB_URL|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_ACCESS_TOKEN/);
 });
+
+test('SEC-R2 staging restore harness is strict isolated-only, synthetic real PG16/17',()=>{
+ const paths=[
+ 'scripts/security/sec_restore_logical_pg.py',
+ 'scripts/security/sec_restore_logical_pg_test.py',
+ '.github/workflows/sec-b1-private-logical-custody.yml',
+ 'SECURITY_STABILITY_LEDGER_20261103.md',
+ 'scripts/security/no_operating_write_scope.mjs',
+ 'scripts/security/no_operating_write_scope.test.mjs'
+ ];
+ assert.equal(check(paths.map(filename=>({filename,status:'modified'}))).result,'PASS');
+ assert.throws(()=>check(paths.concat('index.html').map(filename=>({filename,status:'modified'}))),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const src=fs.readFileSync('scripts/security/sec_restore_logical_pg.py','utf8');
+ const qa=fs.readFileSync('scripts/security/sec_restore_logical_pg_test.py','utf8');
+ const wf=fs.readFileSync('.github/workflows/sec-b1-private-logical-custody.yml','utf8');
+ assert.match(src,/sec_restore_\[a-z0-9_\]/);
+ assert.match(src,/jsonb_populate_recordset/);
+ assert.match(src,/full_operational_restore':False/);
+ assert.match(src,/isolated PostgreSQL restore failed/);
+ assert.match(qa,/test_wrong_key_fails_before_restore/);
+ assert.match(qa,/test_sql_injection_type_fails/);
+ assert.match(wf,/pg: \['16','17'\]/);
+ assert.match(wf,/PostgreSQL actual typed data rehydration/);
+ assert.doesNotMatch(wf,/SUPABASE_DB_URL|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_ACCESS_TOKEN|production/);
+});

@@ -18,6 +18,8 @@ const allowedPaths=new Set([
   "security/sec_a2_audit_immutability_guard_v2.sql",
   "security/sec_a2_correction_insert_audit_v3.sql",
   "security/sec_b1_readonly_logical_capture.sql",
+  "scripts/security/sec_restore_logical_pg.py",
+  "scripts/security/sec_restore_logical_pg_test.py",
   "scripts/security/sec_b1_verify_encrypted_logical_backup.py",
   "scripts/security/sec_b1_verify_encrypted_logical_backup_test.py",
   ".github/workflows/sec-b1-private-logical-custody.yml",

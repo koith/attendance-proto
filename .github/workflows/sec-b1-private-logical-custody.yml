@@ -6,6 +6,8 @@ on:
       - 'scripts/security/sec_b1_verify_encrypted_logical_backup.py'
       - 'scripts/security/sec_b1_verify_encrypted_logical_backup_test.py'
       - '.github/workflows/sec-b1-private-logical-custody.yml'
+      - 'scripts/security/sec_restore_logical_pg.py'
+      - 'scripts/security/sec_restore_logical_pg_test.py'
       - 'scripts/security/no_operating_write_scope.mjs'
       - 'scripts/security/no_operating_write_scope.test.mjs'
   push:
@@ -14,6 +16,8 @@ on:
       - 'security/sec_b1_readonly_logical_capture.sql'
       - 'scripts/security/sec_b1_verify_encrypted_logical_backup.py'
       - 'scripts/security/sec_b1_verify_encrypted_logical_backup_test.py'
+      - 'scripts/security/sec_restore_logical_pg.py'
+      - 'scripts/security/sec_restore_logical_pg_test.py'
 permissions:
   contents: read
 jobs:
@@ -34,4 +38,68 @@ jobs:
       - name: Synthetic encrypted backup positive and negative real GPG tests
         run: python3 scripts/security/sec_b1_verify_encrypted_logical_backup_test.py
       - name: Security-only release path scope checks
+        run: node --test scripts/security/no_operating_write_scope.test.mjs
+  typed_restore:
+    name: PG${{ matrix.pg }} synthetic encrypted snapshot actual typed restore
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16','17']
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sec_restore_qa_fixture_only
+          POSTGRES_DB: sec_restore_qa
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sec_restore_qa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: sec_restore_qa_fixture_only
+      PGDATABASE: sec_restore_qa
+    steps:
+      - uses: actions/checkout@v4
+      - name: Client PostgreSQL availability
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Synthetic encrypted snapshot fail-closed unit tests
+        run: python3 scripts/security/sec_restore_logical_pg_test.py
+      - name: Real capture SQL to isolated restore, compared with its source database (synthetic rows)
+        env:
+          SEC_RESTORE_E2E: '1'
+        run: python3 scripts/security/sec_restore_logical_pg_test.py TestRealCaptureSqlToPostgresE2E
+      - name: PostgreSQL actual typed data rehydration (fixture only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          TMPDIR=$(mktemp -d)
+          trap 'rm -rf "$TMPDIR"' EXIT
+          python3 - "$TMPDIR" <<'PY'
+          import sys
+          sys.path.insert(0,'scripts/security')
+          from sec_restore_logical_pg_test import fixture
+          from pathlib import Path
+          fixture(Path(sys.argv[1]))
+          PY
+          python3 scripts/security/sec_restore_logical_pg.py \
+            --archive "$TMPDIR/fixture.pgp" --key-json "$TMPDIR/key.json" \
+            --database sec_restore_qa --apply-isolated
+          actual=$(psql -XAt -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON c.relnamespace=n.oid WHERE c.relkind='r' AND n.nspname IN ('auth','public','private','session_guard','storage')")
+          test "$actual" -eq 101
+          count=$(psql -XAt -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM auth.users")
+          test "$count" -eq 1
+          tags=$(psql -XAt -v ON_ERROR_STOP=1 -c "SELECT tags[1] FROM storage.objects")
+          test "$tags" = one
+          factor=$(psql -XAt -v ON_ERROR_STOP=1 -c "SELECT factor::text FROM auth.users")
+          test "$factor" = totp
+          echo "PASS isolated real PostgreSQL: 101 typed tables, 101 synthetic JSON rows, enum, text array, PK/unique"
+      - name: Security-only diff scope tests
         run: node --test scripts/security/no_operating_write_scope.test.mjs
