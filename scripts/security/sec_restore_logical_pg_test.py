@@ -354,4 +354,58 @@ class TestRealCaptureSqlToPostgresE2E(unittest.TestCase):
         self.assertEqual(left,'0')
 
 
+
+    def test_archived_foreign_keys_and_notnull_are_restored(self):
+        src_fk=int(_psql(self.SRC,"SELECT count(*) FROM pg_constraint c JOIN pg_namespace n ON n.oid=c.connamespace WHERE c.contype='f' AND n.nspname='public';").strip())
+        dst_fk=int(_psql(self.DST,"SELECT count(*) FROM pg_constraint c JOIN pg_namespace n ON n.oid=c.connamespace WHERE c.contype='f' AND n.nspname='public';").strip())
+        self.assertGreaterEqual(src_fk,1)
+        self.assertEqual(src_fk,dst_fk)
+        self.assertEqual(self.result['foreign_keys_restored'],src_fk)
+        q=("SELECT count(*) FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid "
+           "JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' "
+           "AND c.relkind='r' AND a.attnum>0 AND NOT a.attisdropped AND a.attnotnull;")
+        self.assertEqual(_psql(self.SRC,q).strip(),_psql(self.DST,q).strip())
+        self.assertGreater(self.result['notnull_columns_restored'],0)
+
+
+class TestFKMetadataValidation(unittest.TestCase):
+    def setUp(self):
+        d=tempfile.TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        self.archive,self.key,self.snapshot=fixture(Path(d.name))
+
+    def _example(self, ddl):
+        obj=json.loads(json.dumps(self.snapshot))
+        t=next(t for t in obj['tables'] if t['schema']=='public' and t['table']=='employees')
+        t['constraints'].append({'name':'fake_fk_test','type':'f','ddl':ddl})
+        return obj
+
+    def test_canonical_fk_restore(self):
+        d='FOREIGN KEY (id) REFERENCES public.stores(id) ON DELETE CASCADE'
+        sql,_,_=r.build_sql(self._example(d))
+        self.assertIn('ADD CONSTRAINT "fake_fk_test" FOREIGN KEY ("id") REFERENCES "public"."stores" ("id") ON DELETE CASCADE',sql)
+        self.assertIn("'foreign_keys_restored', 1",sql)
+
+    def test_fails_closed_on_injected_unknown_and_ambiguous_fk(self):
+        attempts=[
+          'FOREIGN KEY (id) REFERENCES public.stores(id); DROP TABLE auth.users;',
+          'FOREIGN KEY (id) REFERENCES public.no_such_table(id)',
+          'FOREIGN KEY (id) REFERENCES public.stores(no_such_column)',
+          'FOREIGN KEY (no_such_column) REFERENCES public.stores(id)',
+          'FOREIGN KEY (id) REFERENCES public.stores(id) ON DELETE EXECUTE',
+          'FOREIGN KEY (id) REFERENCES public.stores(id) ON UPDATE CASCADE'
+        ]
+        for ddl in attempts:
+            with self.subTest(ddl=ddl), self.assertRaises(ValueError):
+                r.build_sql(self._example(ddl))
+
+    def test_notnull_stage_constraint(self):
+        obj=json.loads(json.dumps(self.snapshot))
+        t=next(t for t in obj['tables'] if t['schema']=='public' and t['table']=='stores')
+        t['columns'][1]['notnull']=True
+        sql,_,_=r.build_sql(obj)
+        self.assertIn('ALTER TABLE "public"."stores" ALTER COLUMN "note" SET NOT NULL;',sql)
+        self.assertIn("'notnull_columns_restored', 1",sql)
+
+
 if __name__=='__main__': unittest.main(verbosity=2)

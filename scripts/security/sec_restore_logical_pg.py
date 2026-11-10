@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Restore a PRIVATE encrypted logical backup to an ISOLATED local PostgreSQL.
 
-Reconstructs typed tables + enums, actual row values, PK/UNIQUE constraints and
-standalone sequences with their archived position. Every inserted batch is
+Reconstructs typed tables + enums, actual row values, PK/UNIQUE/FK and NOT NULL
+constraints and standalone sequences with their archived position. Every inserted batch is
 re-serialized from its typed value and compared with the archived row, so a
 row count match alone can never report PASS for silently altered values.
 Does NOT reconstruct full production RLS, triggers, Auth services, extensions,
-role grants, FK checks or Storage file blobs. Therefore it is NOT
+role grants, CHECK constraints or Storage file blobs. Therefore it is NOT
 full disaster recovery acceptance. Never writes plaintext backup to a file.
 """
 import argparse
@@ -36,6 +36,9 @@ _COLREF = r'(?:[a-z_][a-z_0-9]*|"[A-Za-z_][A-Za-z_0-9]*")'
 _COLLIST = _COLREF + r'(?:, ' + _COLREF + r')*'
 CONSTRAINT_DDL = re.compile(r'^(?:PRIMARY KEY|UNIQUE) \((' + _COLLIST + r')\)(?: INCLUDE \((' + _COLLIST + r')\))?'
                             r'(?: DEFERRABLE(?: INITIALLY (?:DEFERRED|IMMEDIATE))?)?$')
+FK_DDL = re.compile(r'^FOREIGN KEY \(('+_COLLIST+r')\) REFERENCES '
+                    r'(?:(('+_COLREF+r')\.)?('+_COLREF+r'))\(('+_COLLIST+r')\)'
+                    r'(?: ON DELETE (CASCADE|RESTRICT|SET NULL))?$')
 SEQ_TYPES = {'bigint', 'integer', 'smallint'}
 NEXTVAL = re.compile(r"^nextval\('((?:\"?[A-Za-z_][A-Za-z_0-9]*\"?\.)?\"?[A-Za-z_][A-Za-z_0-9]*\"?)'::regclass\)$")
 SUMMARY_TAG = 'SEC_RESTORE_SUMMARY:'
@@ -110,6 +113,32 @@ def constraint_ddl(ddl, colnames):
             if col and col.strip('"') not in colnames:
                 raise ValueError('unrecognized PK/UNIQUE constraint; fail closed')
     return ddl
+
+
+
+def fk_ddl(definition, current_schema, colnames, table_columns):
+    """Canonical FK DDL only for captured names and strict grammar."""
+    m = FK_DDL.fullmatch(definition) if isinstance(definition,str) else None
+    if m is None: raise ValueError('unrecognized FK definition; fail closed')
+    src_cols, _, explicit_schema, ref_table, ref_cols, delete_action = m.groups()
+    def bare(s):
+        return s[1:-1] if s.startswith('"') and s.endswith('"') else s
+    src=[bare(c) for c in src_cols.split(', ')]
+    dst=[bare(c) for c in ref_cols.split(', ')]
+    table=bare(ref_table)
+    schema=bare(explicit_schema) if explicit_schema else None
+    if schema is None:
+        options=[(n,table) for n in ('public',current_schema) if (n,table) in table_columns]
+        if not options: raise ValueError('FK target table not captured')
+        schema=options[0][0]
+    if len(src)!=len(dst) or not src or (schema,table) not in table_columns:
+        raise ValueError('invalid FK arity or target')
+    if any(c not in colnames for c in src) or any(c not in table_columns[(schema,table)] for c in dst):
+        raise ValueError('FK references unknown columns')
+    return ('FOREIGN KEY ('+', '.join(quote(c) for c in src)+
+            ') REFERENCES '+quote(schema)+'.'+quote(table)+
+            ' ('+', '.join(quote(c) for c in dst)+')'+
+            (' ON DELETE '+delete_action if delete_action else ''))
 
 
 def as_int(v):
