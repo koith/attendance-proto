@@ -441,3 +441,27 @@ test('A2 v4 synthetic JWT claim attribution is non-operating and denies unrelate
   assert.match(ci,/postgres:.*matrix\.pg/);
   assert.doesNotMatch(ci,/SUPABASE_(?:DB_URL|SERVICE_ROLE_KEY|ACCESS_TOKEN)/);
 });
+
+
+test('D5 owner-protected scheduled sealed backup fails closed and notifies failures',()=>{
+  const changed=[
+    {filename:'.github/workflows/sec-backup-capture.yml',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+  ];
+  assert.equal(check(changed).result,'PASS');
+  const workflow=fs.readFileSync('.github/workflows/sec-backup-capture.yml','utf8');
+  assert.match(workflow,/schedule:\s*\n\s*-\s*cron:\s*'47 16 \* \* \*'/);
+  assert.match(workflow,/environment:\s*production-backup/);
+  assert.match(workflow,/SEC_BACKUP_ENV_READY/);
+  assert.match(workflow,/SUPABASE_DB_URL/);
+  assert.match(workflow,/cancel-in-progress:\s*false/);
+  assert.match(workflow,/head -c 15/);
+  assert.match(workflow,/BACKUP-SEALED-1/);
+  assert.match(workflow,/retention-days:\s*30/);
+  assert.match(workflow,/notify-failure:/);
+  assert.match(workflow,/issues:\s*write/);
+  assert.match(workflow,/SEC-D5-BACKUP-ALERT/);
+  assert.doesNotMatch(workflow,/\bcontents:\s*write/);
+  assert.doesNotMatch(workflow,/\b(?:pull_request_target|workflow_run):/);
+});
