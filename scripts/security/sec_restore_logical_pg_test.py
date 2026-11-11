@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import os
+import re
 from unittest import mock
 import secrets
 import subprocess
@@ -406,6 +407,370 @@ class TestFKMetadataValidation(unittest.TestCase):
         sql,_,_=r.build_sql(obj)
         self.assertIn('ALTER TABLE "public"."stores" ALTER COLUMN "note" SET NOT NULL;',sql)
         self.assertIn("'notnull_columns_restored', 1",sql)
+
+
+# --------------------------------------------------------------------------
+# --with-schema-objects: functions, views, defaults, identity, generated, CHECK,
+# indexes, RLS, policies, triggers, owners, ACLs + catalog receipt (R3).
+# --------------------------------------------------------------------------
+E2E_OBJECTS_SQL = r"""
+-- Schema objects of the kinds the production app uses (synthetic names and data).
+DO $$ DECLARE r text; BEGIN FOREACH r IN ARRAY ARRAY['anon','service_role','sec_e2e_owner'] LOOP
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname=r) THEN EXECUTE format('CREATE ROLE %I NOLOGIN', r); END IF; END LOOP; END $$;
+CREATE SCHEMA IF NOT EXISTS extensions;
+ALTER EXTENSION pgcrypto SET SCHEMA extensions;
+SET search_path TO public, extensions;
+GRANT USAGE ON SCHEMA public, private TO anon, authenticated;
+GRANT anon TO authenticated;
+CREATE FUNCTION public.is_admin() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public'
+  AS $f$ SELECT EXISTS (SELECT 1 FROM public.admin_users WHERE admin_role = 'owner') $f$;
+CREATE FUNCTION public.fmt_ym(d date) RETURNS text LANGUAGE sql IMMUTABLE AS $f$ SELECT to_char(d, 'YYYY-MM') $f$;
+CREATE FUNCTION public.employee_label(e public.employees) RETURNS text LANGUAGE sql STABLE
+  AS $f$ SELECT e.employee_no::text || ':' || e.name $f$;
+CREATE FUNCTION private.touch_audit() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public', 'private'
+  AS $f$ BEGIN
+    INSERT INTO private.attendance_mutation_audit_v1(actor_uid, action, old_row, new_row, at)
+    VALUES (NULL, TG_OP, CASE WHEN TG_OP <> 'INSERT' THEN to_jsonb(OLD) END, to_jsonb(NEW), now());  -- semicolons; 'quotes' and $dollar$ inside
+    RETURN NEW; END $f$;
+CREATE FUNCTION public.block_raw_delete() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN RAISE EXCEPTION 'raw attendance is immutable'; END $f$;
+CREATE FUNCTION public.pin_digest(p text DEFAULT 'x;y') RETURNS text LANGUAGE sql IMMUTABLE AS $f$ SELECT encode(extensions.digest(p, 'sha256'), 'hex') $f$;
+CREATE PROCEDURE public.noop_proc(n integer) LANGUAGE plpgsql AS $f$ BEGIN NULL; END $f$;
+ALTER FUNCTION public.is_admin() OWNER TO sec_e2e_owner;
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, service_role;
+REVOKE ALL ON FUNCTION private.touch_audit() FROM PUBLIC;
+
+ALTER TABLE public.employees ADD CONSTRAINT employees_wage_positive CHECK (wage IS NULL OR wage > 0);
+ALTER TABLE public.employees ADD CONSTRAINT employees_memo_len CHECK (char_length(COALESCE(memo, ''::text)) < 500) NOT VALID;
+ALTER TABLE public.employees ALTER COLUMN is_active SET DEFAULT true;
+ALTER TABLE public.employees ALTER COLUMN memo SET DEFAULT 'a;b''c'::text;
+ALTER TABLE public.payroll_period ALTER COLUMN ym SET DEFAULT public.fmt_ym(CURRENT_DATE);
+ALTER TABLE public.admin_users ALTER COLUMN user_id SET DEFAULT gen_random_uuid();
+CREATE INDEX attendance_events_emp_at_idx ON public.attendance_events USING btree (employee_id, event_at DESC);
+CREATE UNIQUE INDEX employees_active_no_uq ON public.employees USING btree (store_id, employee_no) WHERE (is_active AND memo <> ';');
+CREATE INDEX employees_lower_name_idx ON public.employees USING btree (lower(name));
+CREATE INDEX employee_documents_meta_gin ON public.employee_documents USING gin (meta);
+CREATE VIEW public.active_employees AS SELECT e.id, e.store_id, e.name, public.employee_label(e.*) AS label FROM public.employees e WHERE e.is_active;
+CREATE VIEW public.active_employee_counts WITH (security_invoker=true) AS SELECT a.store_id, count(*) AS n FROM public.active_employees a GROUP BY a.store_id;
+GRANT SELECT ON public.active_employee_counts TO authenticated;
+CREATE TRIGGER attendance_audit AFTER INSERT OR UPDATE OF voided, event_at ON public.attendance_events FOR EACH ROW EXECUTE FUNCTION private.touch_audit();
+CREATE TRIGGER attendance_no_delete BEFORE DELETE ON public.attendance_events FOR EACH ROW WHEN ((old.voided IS NOT TRUE)) EXECUTE FUNCTION public.block_raw_delete();
+CREATE TRIGGER corrections_audit AFTER INSERT ON public.event_corrections FOR EACH ROW EXECUTE FUNCTION private.touch_audit();
+ALTER TABLE public.event_corrections DISABLE TRIGGER corrections_audit;
+ALTER TABLE public.attendance_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE private.kiosk_token ENABLE ROW LEVEL SECURITY;
+ALTER TABLE private.kiosk_token FORCE ROW LEVEL SECURITY;
+CREATE POLICY att_admin_all ON public.attendance_events FOR ALL TO authenticated, service_role USING (public.is_admin()) WITH CHECK (public.is_admin() AND event_type <> ';');
+CREATE POLICY att_no_future ON public.attendance_events AS RESTRICTIVE FOR INSERT TO authenticated WITH CHECK (event_at <= (now() + '00:05:00'::interval));
+ALTER TABLE public.stores OWNER TO sec_e2e_owner;
+GRANT SELECT ON public.stores TO anon;
+GRANT SELECT, INSERT, UPDATE ON public.attendance_events TO authenticated WITH GRANT OPTION;
+GRANT ALL ON public.employees TO service_role;
+GRANT SELECT ON public.employees TO authenticated;
+REVOKE ALL ON public.payroll_snapshot FROM PUBLIC;
+GRANT SELECT ON public.payroll_snapshot TO service_role;
+GRANT SELECT ON public.admin_users TO sec_e2e_owner;
+"""
+
+FINGERPRINT_SQL = r"""
+SET search_path TO public, extensions; SET timezone TO 'UTC';
+WITH s(n) AS (VALUES ('public'),('auth'),('storage'),('private'),('session_guard'))
+SELECT 'functions', md5(coalesce(string_agg(p.oid::regprocedure::text||pg_get_functiondef(p.oid)||p.proowner::regrole::text||coalesce(p.proacl::text,'-'),'|' ORDER BY p.oid::regprocedure::text),'')), count(*)
+  FROM pg_proc p WHERE p.pronamespace::regnamespace::text IN (SELECT n FROM s)
+UNION ALL SELECT 'policies', md5(coalesce(string_agg(x::text,'|' ORDER BY x::text),'')), count(*) FROM (SELECT schemaname,tablename,policyname,permissive,roles,cmd,qual,with_check FROM pg_policies) x
+UNION ALL SELECT 'indexes', md5(coalesce(string_agg(x::text,'|' ORDER BY x::text),'')), count(*) FROM (SELECT schemaname,tablename,indexname,indexdef FROM pg_indexes WHERE schemaname IN (SELECT n FROM s)) x
+UNION ALL SELECT 'views', md5(coalesce(string_agg(x::text,'|' ORDER BY x::text),'')), count(*) FROM (SELECT v.schemaname,v.viewname,v.viewowner,v.definition,c.reloptions FROM pg_views v JOIN pg_class c ON c.oid=format('%I.%I',v.schemaname,v.viewname)::regclass WHERE v.schemaname IN (SELECT n FROM s)) x
+UNION ALL SELECT 'columns', md5(coalesce(string_agg(x::text,'|' ORDER BY x::text),'')), count(*) FROM (SELECT table_schema,table_name,column_name,ordinal_position,column_default,is_nullable,data_type,udt_name,character_maximum_length,numeric_precision,numeric_scale,is_identity,identity_generation,is_generated,generation_expression FROM information_schema.columns WHERE table_schema IN (SELECT n FROM s)) x
+UNION ALL SELECT 'table_privileges', md5(coalesce(string_agg(x::text,'|' ORDER BY x::text),'')), count(*) FROM (SELECT grantee,table_schema,table_name,privilege_type,is_grantable FROM information_schema.table_privileges WHERE table_schema IN (SELECT n FROM s)) x
+UNION ALL SELECT 'routine_privileges', md5(coalesce(string_agg(x::text,'|' ORDER BY x::text),'')), count(*) FROM (SELECT grantee,routine_schema,routine_name,privilege_type FROM information_schema.routine_privileges WHERE routine_schema IN (SELECT n FROM s)) x
+UNION ALL SELECT 'constraints', md5(coalesce(string_agg(x::text,'|' ORDER BY x::text),'')), count(*) FROM (SELECT conrelid::regclass::text,conname,contype,convalidated,pg_get_constraintdef(oid) FROM pg_constraint WHERE connamespace::regnamespace::text IN (SELECT n FROM s)) x
+UNION ALL SELECT 'triggers', md5(coalesce(string_agg(x::text,'|' ORDER BY x::text),'')), count(*) FROM (SELECT tgrelid::regclass::text,tgname,tgenabled,pg_get_triggerdef(oid) FROM pg_trigger WHERE NOT tgisinternal) x
+UNION ALL SELECT 'tables', md5(coalesce(string_agg(x::text,'|' ORDER BY x::text),'')), count(*) FROM (SELECT c.oid::regclass::text,c.relkind,c.relrowsecurity,c.relforcerowsecurity,c.relowner::regrole::text FROM pg_class c WHERE c.relnamespace::regnamespace::text IN (SELECT n FROM s) AND c.relkind IN ('r','v','S','i')) x
+UNION ALL SELECT 'sequences', md5(coalesce(string_agg(x::text,'|' ORDER BY x::text),'')), count(*) FROM (SELECT * FROM pg_sequences WHERE schemaname IN (SELECT n FROM s)) x
+UNION ALL SELECT 'schemas', md5(coalesce(string_agg(x::text,'|' ORDER BY x::text),'')), count(*) FROM (SELECT nspname,nspowner::regrole::text,nspacl::text FROM pg_namespace WHERE nspname IN (SELECT n FROM s)) x;
+"""
+
+CONTENT_SQL = ("SET timezone TO 'UTC'; SELECT c.oid::regclass::text || ':' || (xpath('/row/h/text()', query_to_xml(format("
+               "'SELECT count(*) || '':'' || md5(coalesce(string_agg(md5(t::text), '''' ORDER BY md5(t::text)), '''')) AS h FROM %s t', "
+               "c.oid::regclass), false, true, '')))[1]::text FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
+               "WHERE n.nspname IN "+str(E2E_SCHEMAS)+" AND c.relkind='r' ORDER BY 1;")
+
+
+def _seal(root, name, snapshot, secret=None):
+    """Encrypt a snapshot exactly like the capture does (pgp symmetric AES256)."""
+    secret = secret or secrets.token_hex(32)
+    plain=root/(name+'.json'); plain.write_text(json.dumps(snapshot,ensure_ascii=False))
+    archive=root/(name+'.pgp')
+    p=subprocess.run(['gpg','--batch','--yes','--pinentry-mode','loopback','--passphrase-fd','0','--symmetric',
+                      '--cipher-algo','AES256','--output',str(archive),str(plain)],
+                     input=(secret+'\n').encode(),stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
+    plain.unlink()
+    if p.returncode: raise RuntimeError('synthetic GPG fixture failed')
+    key=root/(name+'.key.json'); key.write_text(json.dumps({'format':'baekeok-pgcrypto-logical-recovery-key-v1','passphrase_hex':secret}))
+    return archive,key,hashlib.sha256(archive.read_bytes()).hexdigest()
+
+
+def _restore(archive,key,sha,db,*extra):
+    out=io.StringIO(); err=io.StringIO()
+    with contextlib.redirect_stdout(out),contextlib.redirect_stderr(err):
+        rc=r.main(['--archive',str(archive),'--key-json',str(key),'--sha256',sha,'--database',db,'--apply-isolated',*extra])
+    return rc,(json.loads(out.getvalue()) if rc==0 else {'stderr':err.getvalue()})
+
+
+def _fresh(*dbs):
+    for db in dbs:
+        _psql('postgres','DROP DATABASE IF EXISTS '+db+';'); _psql('postgres','CREATE DATABASE '+db+' TEMPLATE template0;')
+
+
+@unittest.skipUnless(os.environ.get('SEC_RESTORE_E2E')=='1','needs a disposable local PostgreSQL (SEC_RESTORE_E2E=1)')
+class TestSchemaObjectRestoreE2E(unittest.TestCase):
+    SRC='sec_capture_src_obj'; DST='sec_restore_obj'
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp=tempfile.TemporaryDirectory(); cls.root=Path(cls.tmp.name)
+        _fresh(cls.SRC,cls.DST)
+        _psql(cls.SRC,"ALTER DATABASE "+cls.SRC+" SET timezone TO 'UTC';")
+        _psql(cls.SRC,E2E_SOURCE_SQL); _psql(cls.SRC,E2E_OBJECTS_SQL)
+        capture=(Path(__file__).resolve().parents[2]/'security'/'sec_b1_readonly_logical_capture.sql').read_text()
+        secret=secrets.token_hex(32)
+        parts=[json.loads(l) for l in _psql(cls.SRC,'SET search_path TO public, extensions;\n'+capture.replace('__SECRET_FROM_PRIVATE_ESCROW__',secret)).splitlines() if l.startswith('{')]
+        parts.sort(key=lambda z:z['chunk'])
+        cipher=base64.b64decode(''.join(z['data'] for z in parts))
+        cls.sha=hashlib.sha256(cipher).hexdigest()
+        cls.archive=cls.root/'objects.pgp'; cls.archive.write_bytes(cipher)
+        cls.key=cls.root/'key.json'
+        cls.key.write_text(json.dumps({'format':'baekeok-pgcrypto-logical-recovery-key-v1','passphrase_hex':secret}))
+        cls.snapshot,_=r.decode(cls.archive,cls.key,cls.sha)
+        cls.rc,cls.result=_restore(cls.archive,cls.key,cls.sha,cls.DST,'--with-schema-objects')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def _variant(self,name,mutate):
+        snap=json.loads(json.dumps(self.snapshot)); mutate(snap)
+        archive,key,sha=_seal(self.root,name,snap)
+        db='sec_restore_obj_'+name; _fresh(db)
+        return db,_restore(archive,key,sha,db,'--with-schema-objects')
+
+    def _table(self,snap,schema,table):
+        return next(t for t in snap['tables'] if (t['schema'],t['table'])==(schema,table))
+
+    def test_receipt_reports_every_object_class_identical(self):
+        self.assertEqual(self.rc,0,self.result)
+        receipt=self.result['catalog_receipt']
+        self.assertIs(self.result['database_schema_equivalent'],True,receipt)
+        for cls_name,c in receipt['classes'].items():
+            self.assertEqual((c['identical'],c['different_count'],c['missing_count'],c['extra_count']),(c['archived'],0,0,0),cls_name)
+        counts={k:v['archived'] for k,v in receipt['classes'].items()}
+        for needed in ('function','trigger','policy','view','index','constraint','sequence','column'):
+            self.assertGreater(counts[needed],0,needed)
+        self.assertEqual([k for k,v in self.result['schema_objects'].items() if v['failed_count']],[])
+        self.assertEqual(self.result['generated_columns_kept_as_values'],[])
+        self.assertIs(self.result['full_operational_restore'],False)
+
+    def test_restored_catalog_equals_source_by_independent_queries(self):
+        # Different catalog views than the tool's own receipt query.
+        src=dict(l.split('|',1) for l in _psql(self.SRC,FINGERPRINT_SQL).splitlines() if '|' in l)
+        dst=dict(l.split('|',1) for l in _psql(self.DST,FINGERPRINT_SQL).splitlines() if '|' in l)
+        self.assertEqual(len(src),12)
+        self.assertEqual(src,dst)
+        self.assertTrue(all(int(v.split('|')[1])>0 for v in src.values()),src)
+
+    def test_every_table_is_byte_identical_including_generated_and_json_text(self):
+        src=_psql(self.SRC,CONTENT_SQL); dst=_psql(self.DST,CONTENT_SQL)
+        self.assertGreater(len(src.splitlines()),100)
+        self.assertEqual(src,dst)
+
+    def test_pg_dump_of_restored_database_matches_source_and_reloads(self):
+        ver=subprocess.run(['pg_dump','--version'],stdout=subprocess.PIPE).stdout.decode()
+        server=_psql('postgres','SHOW server_version_num;').strip()
+        m=re.search(r'(\d+)\.',ver)
+        if not m or int(m.group(1))!=int(server)//10000: self.skipTest('pg_dump major differs from server')
+        scope=[x for s in E2E_SCHEMAS for x in ('-n',s)]
+        def schema(db):
+            text=subprocess.run(['pg_dump','-s',*scope,db],stdout=subprocess.PIPE,check=True).stdout.decode()
+            return [l for l in text.splitlines() if not l.startswith(('\\restrict','\\unrestrict','-- Dumped'))]
+        self.assertEqual(schema(self.SRC),schema(self.DST))
+        rt='sec_restore_obj_rt'; _fresh(rt)
+        _psql(rt,'CREATE SCHEMA extensions; CREATE EXTENSION pgcrypto SCHEMA extensions; DROP SCHEMA public;')
+        dump=subprocess.run(['pg_dump','-Fc',*scope,self.DST],stdout=subprocess.PIPE,check=True).stdout
+        p=subprocess.run(['pg_restore','--exit-on-error','-d',rt],input=dump,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        self.assertEqual(p.returncode,0,p.stderr.decode()[-400:])
+        self.assertEqual(_psql(self.SRC,CONTENT_SQL),_psql(rt,CONTENT_SQL))
+
+    def test_restored_objects_behave_like_production_rules(self):
+        def run(sql): return _psql(self.DST,'BEGIN; SET LOCAL search_path TO public, extensions;\n'+sql+'\nROLLBACK;',check=False)
+        def fails(sql,needle):
+            p=subprocess.run(['psql','-X','-q','-At','-v','ON_ERROR_STOP=1','-d',self.DST],input=('BEGIN;\n'+sql+'\nROLLBACK;').encode(),
+                             stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            self.assertNotEqual(p.returncode,0,sql); self.assertIn(needle,p.stderr.decode())
+        fails("SET LOCAL ROLE anon; SELECT count(*) FROM public.attendance_events;",'permission denied')
+        fails("SET LOCAL ROLE anon; SELECT public.is_admin();",'permission denied')
+        self.assertEqual(run("SET LOCAL ROLE authenticated; SELECT count(*) FROM public.attendance_events;").split()[-1],'2')
+        fails("SET LOCAL ROLE authenticated; INSERT INTO public.attendance_events(id,employee_id,event_type,event_at) VALUES (77,1,'IN',now()+interval '1 day');",'row-level security')
+        fails("DELETE FROM public.attendance_events WHERE voided IS NOT TRUE;",'raw attendance is immutable')
+        fails("INSERT INTO public.employees(store_id,employee_no,name,wage) VALUES (1,99,'x',-1);",'employees_wage_positive')
+        out=run("INSERT INTO public.attendance_events(employee_id,event_type,event_at) VALUES (1,'IN','2026-11-02 09:00');"
+                "SELECT 'audit='||count(*) FROM private.attendance_mutation_audit_v1 WHERE action='INSERT';"
+                "INSERT INTO public.event_corrections(id,event_id,reason) VALUES (2,2,'r');"
+                "SELECT 'audit2='||count(*) FROM private.attendance_mutation_audit_v1 WHERE action='INSERT';"
+                "INSERT INTO public.stores(name) VALUES ('new') RETURNING 'store='||id;"
+                "INSERT INTO public.employees(store_id,employee_no,name) VALUES (2,50,'d') RETURNING 'defaults='||is_active||'/'||memo;"
+                "INSERT INTO auth.identities(id,identity_data) VALUES ('00000000-0000-0000-0000-0000000000d2','{\"email\":\"NEW@Example.Test\"}') RETURNING 'gen='||email;")
+        for expected in ('audit=1','audit2=1','store=3',"defaults=true/a;b'c",'gen=new@example.test'):
+            self.assertIn(expected,out.split('\n'))
+
+    def test_archived_default_cannot_run_a_second_statement(self):
+        def mutate(snap):
+            col=next(c for c in self._table(snap,'public','employees')['columns'] if c['name']=='is_active')
+            col['default']='true); DROP TABLE public.payroll_period; --'
+            self._table(snap,'public','stores')['constraints'].append({'name':'evil','type':'c','ddl':'CHECK (true), DROP COLUMN name'})
+            self._table(snap,'public','stores')['triggers'].append({'enabled':'O','ddl':'CREATE TRIGGER t AFTER INSERT ON public.stores FOR EACH ROW EXECUTE FUNCTION public.block_raw_delete(); DROP TABLE public.payroll_period'})
+        db,(rc,res)=self._variant('inj',mutate)
+        self.assertEqual(rc,0,res)
+        self.assertEqual(_psql(db,"SELECT to_regclass('public.payroll_period') IS NOT NULL, count(*) FROM information_schema.columns WHERE table_name='stores' AND column_name='name';").strip(),'t|1')
+        self.assertEqual(res['schema_objects']['default']['failed'],['public.employees.is_active [UNSUP]'])
+        self.assertEqual(res['schema_objects']['check']['failed'],['public.stores.evil [UNSUP]'])
+        self.assertEqual(res['schema_objects']['trigger']['failed_count'],1)
+        self.assertIs(res['database_schema_equivalent'],False)
+        self.assertEqual(res['catalog_receipt']['classes']['column']['different'],['public.employees.is_active'])
+
+    def test_generated_value_that_cannot_be_recomputed_is_kept_and_reported(self):
+        def mutate(snap):
+            t=self._table(snap,'auth','identities')
+            self.assertIn('a@example.test',t['row_xml'])
+            t['row_xml']=t['row_xml'].replace('a@example.test','archived-value-differs@example.test')
+        db,(rc,res)=self._variant('gen',mutate)
+        self.assertEqual(rc,0,res)
+        self.assertEqual(res['generated_columns_kept_as_values'],['auth.identities'])
+        self.assertEqual(_psql(db,"SELECT email FROM auth.identities;").strip(),'archived-value-differs@example.test')
+        self.assertEqual(res['catalog_receipt']['classes']['column']['different'],['auth.identities.email'])
+        self.assertIs(res['database_schema_equivalent'],False)
+
+    def test_archive_captured_before_role_name_fix_reports_recapture_needed(self):
+        def mutate(snap):
+            for t in snap['tables']:
+                t.pop('force_rls',None)
+                for p in t['policies']:
+                    p['roles']=['0'] if p['roles']==['public'] else ['16480']
+                    del p['role_oids']
+            for f in snap['functions']: f.pop('owner',None); f.pop('kind',None)
+            for v in snap['views']: v.pop('owner',None); v.pop('acl',None); v.pop('reloptions',None)
+        db,(rc,res)=self._variant('old',mutate)
+        self.assertEqual(rc,0,res)
+        objs=res['schema_objects']
+        self.assertEqual(objs['policy_roles_only_as_source_oid']['failed_count'],3)
+        self.assertEqual(objs['policy']['ok'],1)  # TO PUBLIC is portable
+        self.assertEqual(_psql(db,"SELECT string_agg(policyname,',' ORDER BY policyname) FROM pg_policies;").strip(),'emp_everyone_none')
+        self.assertEqual(res['catalog_receipt']['classes']['policy']['missing_count'],3)
+        self.assertIs(res['database_schema_equivalent'],False)
+        for gap in ('function owner','policy roles by name (archive predates the capture fix)','FORCE ROW LEVEL SECURITY flag'):
+            self.assertIn(gap,res['catalog_receipt']['not_captured_by_archive'])
+
+    def test_function_that_cannot_be_created_is_reported_not_hidden(self):
+        def mutate(snap):
+            f=next(f for f in snap['functions'] if f['name']=='pin_digest')
+            f['ddl']=f['ddl'].replace('LANGUAGE sql','LANGUAGE c')
+            g=next(f for f in snap['functions'] if f['name']=='fmt_ym')
+            g['ddl']=g['ddl'].replace('RETURNS text','RETURNS missing_type_xyz')
+        db,(rc,res)=self._variant('fn',mutate)
+        self.assertEqual(rc,0,res)
+        self.assertEqual(res['schema_objects']['function_skipped_language']['failed'],["public.pin_digest(p text) [UNSUP]"])
+        self.assertEqual(res['schema_objects']['function']['failed'],['public.fmt_ym(d date) [42704]'])
+        self.assertEqual(res['catalog_receipt']['classes']['function']['missing'],['public.fmt_ym(d date)','public.pin_digest(p text)'])
+        self.assertEqual(res['schema_objects']['default']['failed'],['public.payroll_period.ym [42883]'])
+
+
+class TestSchemaObjectSqlValidation(unittest.TestCase):
+    def test_single_statement_lexer_fails_closed(self):
+        for bad in ("1; DROP TABLE x", "1 -- c", "1 /* c */", "'open", '"open', "$a$ open", "1) OR (1", "a \\gexec",
+                    "'\\'; DROP TABLE x; --'", "$$ x $$; SELECT 1", "((1)", "x[1", None, "a\x00b"):
+            with self.assertRaises(r.Unsupported,msg=repr(bad)): r.sql_skeleton(bad)
+        for good in ("'a;b''c'::text", "E'\\'; still one string --'", "$q$ ; -- /* $q$", "$1 + f(\"weird;name\")",
+                     "nextval('s'::regclass)", "(a ->> 'k'::text) <> ';'::text", "cost$var + 1"):
+            r.sql_skeleton(good)
+
+    def test_only_expected_statement_kinds_are_accepted(self):
+        fn={'schema':'public','name':'f','identity':'','ddl':"CREATE OR REPLACE FUNCTION public.f()\n RETURNS integer\n LANGUAGE sql\nAS $function$ SELECT 1; $function$\n"}
+        self.assertTrue(r.function_ddl(fn).startswith('CREATE OR REPLACE FUNCTION public.f()'))
+        for change in ({'name':'g'},{'schema':'private'},{'ddl':fn['ddl'].replace('LANGUAGE sql','LANGUAGE c')},
+                       {'ddl':fn['ddl']+'; DROP TABLE x'},{'ddl':'DROP TABLE x'},{'ddl':fn['ddl'].replace('CREATE OR REPLACE FUNCTION','CREATE OR REPLACE AGGREGATE')}):
+            with self.assertRaises(r.Unsupported,msg=str(change)): r.function_ddl({**fn,**change})
+        self.assertEqual(r.index_ddl('CREATE INDEX i ON public.t USING btree (lower(a)) WHERE (b <> \';\'::text)','public','t')[0],'i')
+        for bad in ('CREATE INDEX i ON public.other USING btree (a)','CREATE INDEX i ON public.t USING btree (a); DROP TABLE t','DROP INDEX i'):
+            with self.assertRaises(r.Unsupported): r.index_ddl(bad,'public','t')
+        ok='CREATE TRIGGER a AFTER INSERT OR UPDATE OF x, y ON public.t FOR EACH ROW EXECUTE FUNCTION public.f()'
+        self.assertEqual(r.trigger_ddl(ok,'public','t')[0],'a')
+        for bad in (ok.replace('public.t','public.u'),ok+'; SELECT 1','CREATE EVENT TRIGGER a ON ddl_command_start EXECUTE FUNCTION public.f()'):
+            with self.assertRaises(r.Unsupported): r.trigger_ddl(bad,'public','t')
+        self.assertEqual(r.check_ddl('CHECK ((a > 0)) NOT VALID'),'CHECK ((a > 0)) NOT VALID')
+        for bad in ('CHECK (true), DROP COLUMN a','CHECK (true) ; SELECT 1','UNIQUE (a)','CHECK (a > 0) DEFERRABLE x'):
+            with self.assertRaises(r.Unsupported): r.check_ddl(bad)
+        with self.assertRaises(r.Unsupported): r.view_ddl({'schema':'public','name':'v','kind':'v','definition':'DELETE FROM t RETURNING 1;'})
+        with self.assertRaises(r.Unsupported): r.view_ddl({'schema':'public','name':'v','kind':'v','definition':'SELECT 1; DROP TABLE t;'})
+        with self.assertRaises(r.Unsupported): r.view_ddl({'schema':'public','name':'v','kind':'v','definition':'SELECT 1;','reloptions':['x=1) AS SELECT 2; --']})
+
+    def test_acl_parsing_and_normalization(self):
+        self.assertEqual(r.acl_sql('TABLE','"public"."t"',['postgres=arwdDxtm/postgres','=r/postgres','anon=r*w/postgres'],16),
+                         'REVOKE ALL ON TABLE "public"."t" FROM PUBLIC; GRANT INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE "public"."t" TO "postgres"; '
+                         'GRANT SELECT ON TABLE "public"."t" TO PUBLIC; GRANT UPDATE ON TABLE "public"."t" TO "anon"; GRANT SELECT ON TABLE "public"."t" TO "anon" WITH GRANT OPTION')
+        self.assertIn('MAINTAIN',r.acl_sql('TABLE','t',['postgres=m/postgres'],17))
+        self.assertEqual(r.norm_acl(['a=rw/x','a=d/y','=r/x'],17),[('a','drw'),('public','r')])
+        self.assertIsNone(r.norm_acl(None,17))
+        for bad in (['a"; DROP ROLE x; --=r/p'],['a=Z/p'],['nonsense'],[5]):
+            with self.assertRaises(r.Unsupported): r.acl_sql('TABLE','t',bad,17)
+
+    def test_archive_ddl_only_reaches_sql_inside_dollar_quoted_arguments(self):
+        with tempfile.TemporaryDirectory() as d:
+            _,_,snap=fixture(Path(d))
+        t=snap['tables'][0]
+        t['columns'][1]['default']="'x'::text); DROP SCHEMA public CASCADE; --"
+        t['policies']=[{'name':'p','cmd':'r','permissive':True,'roles':['anon"; DROP ROLE x'],'role_oids':[1],'using':'true','with_check':None},
+                       {'name':'q','cmd':'r','permissive':True,'roles':['anon'],'role_oids':[1],'using':'true); DROP TABLE x; --','with_check':None}]
+        t['owner']='bad"owner'
+        sql,_,_=r.build_sql(snap,schema_objects=True)
+        self.assertNotIn('DROP SCHEMA',sql); self.assertNotIn('DROP ROLE',sql); self.assertNotIn('DROP TABLE',sql)
+        self.assertEqual(sql.count("false, 'UNSUP');"),4)
+        # Default mode output is unchanged by the new code path.
+        plain,_,_=r.build_sql(snap)
+        self.assertNotIn('sec_try',plain); self.assertNotIn('sec_obj_log',plain)
+
+    def test_schema_mode_requires_custody_sha256(self):
+        with tempfile.TemporaryDirectory() as d:
+            archive,key,_=fixture(Path(d))
+            err=io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(err):
+                rc=r.main(['--archive',str(archive),'--key-json',str(key),'--with-schema-objects'])
+            self.assertEqual(rc,1); self.assertIn('requires the custody --sha256',err.getvalue())
+
+    def test_catalog_comparison_detects_each_kind_of_drift(self):
+        base={'tables':[{'schema':'public','table':'t','owner':'postgres','rls':True,'force_rls':False,'relacl':['anon=r/postgres'],
+                         'columns':[{'name':'id','type':'bigint','notnull':True,'identity':'','generated':'','default':None}],
+                         'constraints':[{'name':'t_pkey','type':'p','ddl':'PRIMARY KEY (id)'}],
+                         'indexes':['CREATE UNIQUE INDEX t_pkey ON public.t USING btree (id)'],
+                         'triggers':[{'ddl':'CREATE TRIGGER a AFTER INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.f()','enabled':'O'}],
+                         'policies':[{'name':'p','cmd':'r','permissive':True,'roles':['anon'],'role_oids':[1],'using':'true','with_check':None}]}],
+              'functions':[{'schema':'public','name':'f','identity':'','ddl':'X','acl':None,'owner':'postgres'}],
+              'views':[],'sequences':[],'enums':[],'schemas':[],'extensions':[{'name':'pgcrypto','schema':'extensions'}],'roles':[{'name':'anon','bypassrls':False}]}
+        same=json.loads(json.dumps(base))
+        self.assertIs(r.compare_catalog(base,same,17)['equivalent'],True)
+        edits={'table_rls':lambda d:d['tables'][0].update(rls=False),'table_acl':lambda d:d['tables'][0].update(relacl=['anon=rw/postgres']),
+               'table_owner':lambda d:d['tables'][0].update(owner='x'),'column':lambda d:d['tables'][0]['columns'][0].update(default='1'),
+               'constraint':lambda d:d['tables'][0]['constraints'].clear(),'index':lambda d:d['tables'][0]['indexes'].clear(),
+               'trigger':lambda d:d['tables'][0]['triggers'][0].update(enabled='D'),'policy':lambda d:d['tables'][0]['policies'][0].update(roles=['authenticated']),
+               'function':lambda d:d['functions'][0].update(ddl='Y'),'function_owner':lambda d:d['functions'][0].update(owner='x'),
+               'function_acl':lambda d:d['functions'][0].update(acl=['anon=X/postgres']),'extension':lambda d:d['extensions'].clear(),
+               'role':lambda d:d['roles'].clear()}
+        for cls_name,edit in edits.items():
+            got=json.loads(json.dumps(base)); edit(got)
+            rep=r.compare_catalog(base,got,17)
+            self.assertIs(rep['equivalent'],False,cls_name)
+            c=rep['classes'][cls_name]
+            self.assertEqual(c['different_count']+c['missing_count'],1,cls_name)
+        extra=json.loads(json.dumps(base)); extra['functions'].append({'schema':'public','name':'g','identity':'','ddl':'Z','acl':None,'owner':'postgres'})
+        self.assertEqual(r.compare_catalog(base,extra,17)['classes']['function']['extra'],['public.g()'])
 
 
 if __name__=='__main__': unittest.main(verbosity=2)
