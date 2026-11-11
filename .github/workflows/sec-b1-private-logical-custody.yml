@@ -76,6 +76,10 @@ jobs:
         env:
           SEC_RESTORE_E2E: '1'
         run: python3 scripts/security/sec_restore_logical_pg_test.py TestRealCaptureSqlToPostgresE2E
+      - name: Schema objects (functions, RLS, triggers, ACL) restored and compared with their source catalog (synthetic rows)
+        env:
+          SEC_RESTORE_E2E: '1'
+        run: python3 scripts/security/sec_restore_logical_pg_test.py TestSchemaObjectRestoreE2E
       - name: PostgreSQL actual typed data rehydration (fixture only)
         shell: bash
         run: |

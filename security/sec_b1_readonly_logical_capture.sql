@@ -6,7 +6,7 @@ WITH tbl AS MATERIALIZED (
  SELECT n.nspname AS sn, c.relname AS tn,
  jsonb_build_object(
   'schema',n.nspname,'table',c.relname,'owner',c.relowner::regrole::text,
-  'rls',c.relrowsecurity,'relacl',to_jsonb(c.relacl),
+  'rls',c.relrowsecurity,'force_rls',c.relforcerowsecurity,'relacl',to_jsonb(c.relacl),
   'row_xml',query_to_xml(format('SELECT row_to_json(r)::text AS row_json FROM %I.%I AS r',n.nspname,c.relname),false,true,'')::text,
   'columns',(SELECT coalesce(jsonb_agg(jsonb_build_object('name',a.attname,'type',format_type(a.atttypid,a.atttypmod),'notnull',a.attnotnull,'identity',a.attidentity,'generated',a.attgenerated,'default',pg_get_expr(ad.adbin,ad.adrelid)) ORDER BY a.attnum),'[]'::jsonb)
      FROM pg_attribute a LEFT JOIN pg_attrdef ad ON ad.adrelid=a.attrelid AND ad.adnum=a.attnum WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped),
@@ -27,13 +27,13 @@ WITH tbl AS MATERIALIZED (
   'scope',jsonb_build_array('public','auth','storage','private','session_guard'),
   'table_count',(SELECT count(*) FROM tbl),
   'tables',(SELECT jsonb_agg(item ORDER BY sn,tn) FROM tbl),
-  'functions',(SELECT coalesce(jsonb_agg(jsonb_build_object('schema',n.nspname,'name',p.proname,'identity',pg_get_function_identity_arguments(p.oid),'ddl',pg_get_functiondef(p.oid),'acl',to_jsonb(p.proacl)) ORDER BY n.nspname,p.proname),'[]'::jsonb) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname IN ('public','auth','storage','private','session_guard')),
-  'views',(SELECT coalesce(jsonb_agg(jsonb_build_object('schema',n.nspname,'name',c.relname,'definition',pg_get_viewdef(c.oid,true),'kind',c.relkind) ORDER BY n.nspname,c.relname),'[]'::jsonb) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','auth','storage','private','session_guard') AND c.relkind IN ('v','m')),
+  'functions',(SELECT coalesce(jsonb_agg(jsonb_build_object('schema',n.nspname,'name',p.proname,'identity',pg_get_function_identity_arguments(p.oid),'ddl',pg_get_functiondef(p.oid),'acl',to_jsonb(p.proacl),'owner',p.proowner::regrole::text,'kind',p.prokind) ORDER BY n.nspname,p.proname),'[]'::jsonb) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname IN ('public','auth','storage','private','session_guard')),
+  'views',(SELECT coalesce(jsonb_agg(jsonb_build_object('schema',n.nspname,'name',c.relname,'definition',pg_get_viewdef(c.oid,true),'kind',c.relkind,'owner',c.relowner::regrole::text,'acl',to_jsonb(c.relacl),'reloptions',to_jsonb(c.reloptions)) ORDER BY n.nspname,c.relname),'[]'::jsonb) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','auth','storage','private','session_guard') AND c.relkind IN ('v','m')),
   'sequences',(SELECT coalesce(jsonb_agg(jsonb_build_object('schemaname',s.schemaname,'sequencename',s.sequencename,'data_type',s.data_type,'start_value',s.start_value,'min_value',s.min_value,'max_value',s.max_value,'increment_by',s.increment_by,'cycle',s.cycle,'cache_size',s.cache_size,'last_value',s.last_value) ORDER BY s.schemaname,s.sequencename),'[]'::jsonb) FROM pg_sequences s WHERE s.schemaname IN ('public','auth','storage','private','session_guard')),
   'extensions',(SELECT coalesce(jsonb_agg(jsonb_build_object('name',extname,'schema',extnamespace::regnamespace::text,'version',extversion) ORDER BY extname),'[]'::jsonb) FROM pg_extension),
   'schemas',(SELECT jsonb_agg(jsonb_build_object('name',nspname,'owner',nspowner::regrole::text,'acl',to_jsonb(nspacl)) ORDER BY nspname) FROM pg_namespace WHERE nspname IN ('public','auth','storage','private','session_guard')),
   'enums',(SELECT coalesce(jsonb_agg(jsonb_build_object('schema',n.nspname,'type',t.typname,'value',e.enumlabel,'order',e.enumsortorder) ORDER BY n.nspname,t.typname,e.enumsortorder),'[]'::jsonb) FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname IN ('public','auth','storage','private','session_guard')),
-  'roles',(SELECT coalesce(jsonb_agg(jsonb_build_object('name',r.rolname,'canlogin',r.rolcanlogin,'inherit',r.rolinherit,'createrole',r.rolcreaterole,'superuser',r.rolsuper,'connlimit',r.rolconnlimit) ORDER BY r.rolname),'[]'::jsonb) FROM pg_roles r),
+  'roles',(SELECT coalesce(jsonb_agg(jsonb_build_object('name',r.rolname,'canlogin',r.rolcanlogin,'inherit',r.rolinherit,'createrole',r.rolcreaterole,'superuser',r.rolsuper,'bypassrls',r.rolbypassrls,'connlimit',r.rolconnlimit) ORDER BY r.rolname),'[]'::jsonb) FROM pg_roles r),
   'role_memberships',(SELECT coalesce(jsonb_agg(jsonb_build_object('role',m.roleid::regrole::text,'member',m.member::regrole::text,'grantor',m.grantor::regrole::text) ORDER BY m.roleid,m.member),'[]'::jsonb) FROM pg_auth_members m)
  )::text AS payload
 ), sealed AS MATERIALIZED (
