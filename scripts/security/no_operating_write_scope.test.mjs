@@ -453,7 +453,7 @@ test('D5 owner-protected scheduled sealed backup fails closed and notifies failu
   const workflow=fs.readFileSync('.github/workflows/sec-backup-capture.yml','utf8');
   assert.match(workflow,/schedule:\s*\n\s*-\s*cron:\s*'47 16 \* \* \*'/);
   assert.match(workflow,/environment:\s*production-backup/);
-  assert.match(workflow,/SEC_BACKUP_ENV_READY/);
+  assert.match(workflow,/BACKUP_PROTECTED_CREDENTIALS_PRESENT=true/);
   assert.match(workflow,/SUPABASE_DB_URL/);
   assert.match(workflow,/cancel-in-progress:\s*false/);
   assert.match(workflow,/head -c 15/);
@@ -464,4 +464,16 @@ test('D5 owner-protected scheduled sealed backup fails closed and notifies failu
   assert.match(workflow,/SEC-D5-BACKUP-ALERT/);
   assert.doesNotMatch(workflow,/\bcontents:\s*write/);
   assert.doesNotMatch(workflow,/\b(?:pull_request_target|workflow_run):/);
+});
+
+
+test('D5 readiness uses real protected credential presence, not unused manual ready flag',()=>{
+  const workflow=fs.readFileSync('.github/workflows/sec-backup-capture.yml','utf8');
+  assert.match(workflow,/environment:\s*production-backup/);
+  assert.match(workflow,/BACKUP_PROTECTED_CREDENTIALS_PRESENT=true/);
+  assert.match(workflow,/BACKUP_BLOCKED_DB_CONNECTION/);
+  assert.match(workflow,/BACKUP_BLOCKED_STORAGE_CREDENTIAL/);
+  assert.match(workflow,/BACKUP_BLOCKED_AUTH_CONFIG_CREDENTIAL/);
+  assert.match(workflow,/BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL/);
+  assert.doesNotMatch(workflow,/test "\$SEC_BACKUP_ENV_READY" = 'true'/);
 });

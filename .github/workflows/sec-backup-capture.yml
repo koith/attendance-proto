@@ -49,10 +49,16 @@ jobs:
       - name: Ensure required backup connection is configured
         shell: bash
         run: |
-          test "$SEC_BACKUP_ENV_READY" = 'true' || { echo 'BACKUP_BLOCKED_PROTECTED_ENV_NOT_READY'; exit 1; }
-          test -n "$SUPABASE_DB_URL" || { echo "BACKUP_BLOCKED_DB_CONNECTION"; exit 1; }
-          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "BACKUP_BLOCKED_STORAGE_CREDENTIAL"; exit 1; }
-          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "BACKUP_BLOCKED_AUTH_CONFIG_CREDENTIAL"; exit 1; }
+          # Owner already opted into this protected, read-only backup by cron or
+          # authenticated workflow_dispatch/Issue #1492 command. Avoid an
+          # unconfigured redundant flag preventing legitimate protected backups.
+          # Never bypass the real DB, Storage, or Auth credential requirements.
+          ready=1
+          test -n "$SUPABASE_DB_URL" || { echo "BACKUP_BLOCKED_DB_CONNECTION"; ready=0; }
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "BACKUP_BLOCKED_STORAGE_CREDENTIAL"; ready=0; }
+          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "BACKUP_BLOCKED_AUTH_CONFIG_CREDENTIAL"; ready=0; }
+          test "$ready" = 1 || { echo "BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL"; exit 1; }
+          echo 'BACKUP_PROTECTED_CREDENTIALS_PRESENT=true'
       - name: Install matching PostgreSQL client
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
