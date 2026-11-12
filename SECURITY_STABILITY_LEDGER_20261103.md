@@ -637,7 +637,7 @@
 - 기존 11-09→11-11 실제 암호화 증분(원장 §X): **44 INSERT + 12 UPDATE**, 실제 12개 테이블 변경. 독립 파서로 GPG 복호화 후 **SQLite `:memory:`의 PK/행 전체 트랜잭션 복원**. 기존 원본 row의 SHA-256 사전 일치 확인 뒤 INSERT/UPDATE, 도착지 42,373개 **모든 PK와 정규화한 실제 행 내용 동일** PASS; 같은 증분 재적용 시 신규 변경 0, 임의 원본 행 변조 시 해시 충돌 거부·SQL SAVEPOINT 전체 롤백·복원 42,373행 그대로 PASS.
 - 11-11→11-12 실제 보관본 비교에서 새로운 **3 INSERT(`public.attendance_events`) + 2 UPDATE(`public.sheet_sync_change_state`, `public.sheet_sync_month_state`)** 검출. 새 증분은 임의로 만든 테스트 레코드가 아니라 **기존 운영 두 스냅샷 사이에 실제 바뀐 행**이며, 소유자 비공개 라이브러리에만 개인 데이터가 있는 원문과 PK/원본 해시를 AES256 GPG로 암호화해 저장. 이 증분을 42,373행 복원본에 적용하여 **42,376/42,376행 정확 일치**, 재실행 시 변경 0. 이전 구간에는 실제 근태·계약/근무요일·직원·Auth 세션·시트 동기화 상태 변경이 포함됨. 실제 급여 마감 지급 내역의 별도 확정/정산은 **A3·SEC-S11/12 미완료** 유지.
 - 신규 개인 암호화 산출물: `/Attendance-Recovery/baekeok-production-delta-20261111-to-20261112-20261113-private-encrypted.pgp` (1,002 bytes), SHA-256 `5faad367a6e5159150ca54d1e9aab9f9b53ec543953ed446ecf387a923b4fc2f`. 개인 Library upload 성공 후 **새로 재다운로드한 1,002바이트 전수 비교·SHA 일치** 검증. 재검증 도구 `/Attendance-Recovery/tools/sec_s16_private_three_snapshot_replay.py` 별도 개인 보관. 공개 GitHub에 직원/급여 행·개인 키·암호문·복호화 결과 원문 0.
-- **실제 운영/외부 기록 변경 없음:** 운영 Supabase DB/Auth/Storage, 실제 매장근태·급여, Google Sheets, Pages, 운영 Secrets/PAT **읽기·쓰기 호출 0**. 외부 공개 저장소는 이 **메타데이터·건수·SHA·안전 한계 문서만** 변경.
+- **운영 데이터·외부 설정 변경 없음:** 본 복구 재생에 사용한 데이터는 소유자 비공개 보관본만이며, **운영 Supabase DB/Auth/Storage DML·DDL, 실제 근태·급여, Google Sheets, Pages, Secrets/PAT 변경 0**. 별도 사전 현황 조사에서 운영 PostgreSQL의 카탈로그·감사 집계를 **읽기 전용 SELECT**로 조회한 사실은 명확히 구분한다. 외부 공개 저장소는 이 메타데이터·건수·SHA·안전 한계 문서만 변경.
 
 ### 누적 완료 및 재수용 불가 범위
 
