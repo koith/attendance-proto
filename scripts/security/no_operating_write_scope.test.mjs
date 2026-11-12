@@ -519,3 +519,18 @@ test('D5 outdated readiness assertion repair remains strictly test-and-workflow 
  assert.match(yaml,/BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL/);
  assert.match(testSource,/BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL/);
 });
+
+test('AISEC acceptance ledger and its status assertions are reviewed no-operating-write changes',()=>{
+ const changes=[
+  {filename:'AI_AUTOMATION_SECURITY_LEDGER_20261104.md',status:'modified'},
+  {filename:'qa/security/autopilot/autopilot_contract.test.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(changes).result,'PASS');
+ assert.throws(()=>check([...changes,{filename:'index.html',status:'modified'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ assert.throws(()=>check([...changes,{filename:'.github/workflows/unknown.yml',status:'modified'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const ledger=fs.readFileSync('AI_AUTOMATION_SECURITY_LEDGER_20261104.md','utf8');
+ assert.match(ledger,/AISEC-02 \|[^\n]*\| COMPLETE \|/);
+ assert.match(ledger,/AISEC-04 \|[^\n]*\| COMPLETE \|/);
+});
