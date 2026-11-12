@@ -10,6 +10,8 @@ on:
       - 'scripts/qa1243_legacy_entry_release.mjs'
       - 'qa_safari_legacy_links_webkit_v371.mjs'
       - 'qa_safari_existing_link_stale_session_v371.test.mjs'
+      - 'qa_idle_manager_store_scope_v385.test.mjs'
+      - 'qa_store_navigation_isolation_browser_1243.mjs'
       - '.github/workflows/safari-legacy-link-regression-v371.yml'
   push:
     branches: [main]
@@ -22,6 +24,8 @@ on:
       - 'scripts/qa1243_legacy_entry_release.mjs'
       - 'qa_safari_legacy_links_webkit_v371.mjs'
       - 'qa_safari_existing_link_stale_session_v371.test.mjs'
+      - 'qa_idle_manager_store_scope_v385.test.mjs'
+      - 'qa_store_navigation_isolation_browser_1243.mjs'
       - '.github/workflows/safari-legacy-link-regression-v371.yml'
 permissions:
   contents: read
@@ -58,7 +62,9 @@ jobs:
       - name: Node startup and Auth isolation tests
         run: |
           node qa_index_startup_smoke_v1.mjs
-          node --test qa_safari_existing_link_stale_session_v371.test.mjs tests/qa1243_release_probe.test.mjs tests/qa1243_legacy_entry_release.test.mjs
+          node --test qa_idle_manager_store_scope_v385.test.mjs qa_safari_existing_link_stale_session_v371.test.mjs tests/qa1243_release_probe.test.mjs tests/qa1243_legacy_entry_release.test.mjs
+      - name: Verify idle Gumi #290 isolation after expired JWT (Chromium and WebKit)
+        run: node qa_store_navigation_isolation_browser_1243.mjs
       - name: Reproduce actual iPhone-sized WebKit legacy bookmark after expired admin login
         run: node qa_safari_legacy_links_webkit_v371.mjs
       - name: Legacy HQ and Inha recovery on both browser engines

@@ -846,7 +846,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.384">v0.384</button></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.385">v0.385</button></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -944,7 +944,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.384";
+const APP_VERSION="v0.385";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1436,13 +1436,64 @@ const STORE_ENTRY_PATH=/\/inha(?:\/|$)/i.test(location.pathname)||/\/store\/1(?:
 // 지점 잠금은 URL/전용 경로로 진입한 경우에만 적용한다. 과거 sessionStorage 잠금값이 HQ 대시보드까지 인하대점으로 고정하던 문제를 제거.
 let STORE_ENTRY_SAVED=false;
 try{ sessionStorage.removeItem("baekeok_dedicated_store"); }catch(_){}
+// Cached STORE_MANAGER scope is a locator, NEVER an auth grant.
+// Safari can reopen a tab after token expiry without the ?store= query.
+// Previously that generic entry defaulted to Inha (store 1).
+const VERIFIED_MANAGER_STORE_KEY="baekeok_verified_manager_store_v1";
+const VERIFIED_MANAGER_STORE_TTL_MS=30*24*60*60*1000;
+function managerScopeSubject(){
+  try{
+    const token=JSON.parse(localStorage.getItem("baekeok_auth")||"null")?.access_token;
+    const part=typeof token==="string"?token.split(".")[1]:"";
+    if(!part)return "";
+    const payload=JSON.parse(atob(part.replace(/-/g,"+").replace(/_/g,"/")));
+    return typeof payload.sub==="string"&&payload.sub.length>0&&payload.sub.length<=160?payload.sub:"";
+  }catch(_){return "";}
+}
+function forgetVerifiedManagerStore(){
+  try{sessionStorage.removeItem(VERIFIED_MANAGER_STORE_KEY);}catch(_){}
+  try{localStorage.removeItem(VERIFIED_MANAGER_STORE_KEY);}catch(_){}
+}
+function verifiedManagerStorePin(){
+  try{
+    const raw=sessionStorage.getItem(VERIFIED_MANAGER_STORE_KEY)||
+      localStorage.getItem(VERIFIED_MANAGER_STORE_KEY);
+    if(!raw)return 0;
+    const row=JSON.parse(raw),id=Number(row?.store_id),at=Number(row?.verified_at);
+    if(!Number.isSafeInteger(id)||id<1||typeof row?.subject!=="string"||!row.subject||
+       !Number.isFinite(at)||at>Date.now()+60000||Date.now()-at>VERIFIED_MANAGER_STORE_TTL_MS){
+      forgetVerifiedManagerStore();return 0;
+    }
+    const sub=managerScopeSubject();
+    if(sub&&sub!==row.subject){forgetVerifiedManagerStore();return 0;}
+    return id;
+  }catch(_){forgetVerifiedManagerStore();return 0;}
+}
+function rememberVerifiedManagerStore(context){
+  if(context?.role!=="STORE_MANAGER")return;
+  const id=Number(context.store_id),sub=managerScopeSubject();
+  if(!Number.isSafeInteger(id)||id<1||!sub)return;
+  const row=JSON.stringify({store_id:id,subject:sub,verified_at:Date.now()});
+  try{sessionStorage.setItem(VERIFIED_MANAGER_STORE_KEY,row);}catch(_){}
+  try{localStorage.setItem(VERIFIED_MANAGER_STORE_KEY,row);}catch(_){}
+}
+function restoreHqFromManagerPin(){
+  forgetVerifiedManagerStore();
+  const target=new URL(location.href);
+  target.searchParams.delete("store");target.searchParams.set("mode","hq");
+  target.hash="#dashboard";
+  location.replace(target.pathname+target.search+target.hash);
+}
 const STORE_ENTRY_RAW_ID=STORE_ENTRY_PARAMS.get("store");
 // An explicit store URL must identify its store; it cannot silently turn into Inha.
 const STORE_ENTRY_MISSING_ID=STORE_ENTRY_MODE==="store"&&STORE_ENTRY_RAW_ID===null&&!STORE_ENTRY_PATH;
 const STORE_ENTRY_INVALID=STORE_ENTRY_MISSING_ID||(STORE_ENTRY_RAW_ID!==null&&
   (!/^[1-9][0-9]*$/.test(STORE_ENTRY_RAW_ID)||!Number.isSafeInteger(Number(STORE_ENTRY_RAW_ID))));
+const STORE_ENTRY_PIN_ID=(!STORE_ENTRY_INVALID&&STORE_ENTRY_RAW_ID===null&&!STORE_ENTRY_PATH&&
+  STORE_ENTRY_MODE!=="store"&&STORE_ENTRY_MODE!=="hq")?verifiedManagerStorePin():0;
+const STORE_ENTRY_FROM_PIN=STORE_ENTRY_PIN_ID>0;
 const STORE_ENTRY_ID=STORE_ENTRY_INVALID?0:
-  (STORE_ENTRY_RAW_ID!==null?Number(STORE_ENTRY_RAW_ID):(STORE_ENTRY_PATH?1:0));
+  (STORE_ENTRY_RAW_ID!==null?Number(STORE_ENTRY_RAW_ID):(STORE_ENTRY_PATH?1:STORE_ENTRY_PIN_ID));
 const STORE_ENTRY_LOCK=STORE_ENTRY_MODE==="store"||STORE_ENTRY_ID>0||STORE_ENTRY_PATH||STORE_ENTRY_INVALID;
 const STORE_ENTRY_URL=(id)=>location.pathname+"?mode=store&store="+encodeURIComponent(id)+"#pos";
 // Dedicated links fail closed until list_stores confirms an active READY store.
@@ -1567,11 +1618,14 @@ async function loadStores(){
      if(context?.role==="STORE_MANAGER"){
       const own=Number(context.store_id);
       if(!Number.isSafeInteger(own)||own<1)throw Error("STORE_ACCOUNT_SCOPE_REQUIRED");
+      rememberVerifiedManagerStore(context);
       if(STORE_ENTRY_ID!==own){
        const hash=/^#(?:pos|admin|attendance|recipe|pay|hours)$/.test(location.hash)?location.hash:"#admin";
        location.replace(location.pathname+"?mode=store&store="+own+hash);
        return;
       }
+     }else if(context?.role==="HQ"&&STORE_ENTRY_FROM_PIN){
+      restoreHqFromManagerPin();return;
      }else if(context?.role!=="HQ")throw Error("STORE_ACCOUNT_SCOPE_REQUIRED");
     }
    }
@@ -2015,11 +2069,15 @@ function requireAuth(then){
           view.innerHTML='<div class="empty">관리 권한을 확인할 수 없습니다. 계정 인증 상태를 확인하거나 본사에 문의하세요.</div>';
           return;
         }
+        if(ctx?.role==="HQ"&&STORE_ENTRY_FROM_PIN){
+          restoreHqFromManagerPin();return;
+        }
         if(ctx?.role==="STORE_MANAGER"){
           const ownStore=Number(ctx.store_id);
           if(!Number.isSafeInteger(ownStore)||ownStore<1){
             view.innerHTML='<div class="empty">배정된 지점이 없습니다. 본사에 문의하세요.</div>';return;
           }
+          rememberVerifiedManagerStore(ctx);
           if(Number(CURRENT_STORE_ID)!==ownStore){
             location.assign(STORE_ENTRY_URL(ownStore));return;
           }
