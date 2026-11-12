@@ -29,7 +29,7 @@
 | SEC-S04 | Critical | 원본 훼손 없는 격리 복구 및 무결성 비교 | IN_PROGRESS | 실제 운영 논리 데이터 98테이블/42,235행 PGlite 격리 적재/행 해시 PASS와 Storage 실파일 14건 복호화/해시 PASS는 독립 성공. 실제 PostgreSQL DDL/서비스 Auth/Storage 통합 재기동·무손실 컷오버는 미검증 |
 | SEC-S05 | Critical | 익명/비로그인 경로에서 출퇴근·관리자 RPC 비인가 행위 차단 | IN_PROGRESS | ACL 21 anon-definer 검출; 실제 권한별 401/403/무변경 실증 부족 |
 | SEC-S06 | Critical | 본사/지점/직원·타지점 간 고권한 RPC 객체 수준 격리 | IN_PROGRESS | 과거 일부 지점 API 차단 증거 존재; 고권한 전체 RPC 회귀 미완료 |
-| SEC-S07 | High | 익명 실행 가능한 SECURITY DEFINER 21개 분류·필요 권한 최소화·회귀 | IN_PROGRESS | **2026-11-03 운영 SQL 직접 재확인 21개**; 합법적 공개 기능 보존하는 함수별 분류·변경 전후 테스트 필요 |
+| SEC-S07 | High | 익명 실행 가능한 SECURITY DEFINER 21개 분류·필요 권한 최소화·회귀 | COMPLETE | 21개 전수 분류(직원 PIN14/스토어토큰1/공개4/내부 트리거2); 내부 2개 anon/PUBLIC EXECUTE 회수, 인증 관리자·실트리거 실행 보존. 실제 운영 PostgreSQL 2026-11-13 재조회: anon 실행 가능 SECURITY DEFINER 정확히 19, trigger 보조 2개 익명 EXECUTE false/연결된 활성 트리거 true. 실 PostgreSQL 16/17 QA #42379448748 SUCCESS, 운영 Pages Chromium/WebKit 공개기능 #42370982709 attempt3 SUCCESS. 원장 후속 §Y 참고. 전체 JWT 권한/실단말/S3/S4/S5는 별도 미완료. |
 | SEC-S08 | High | authenticated 실행 가능한 SECURITY DEFINER 213개 점검 | IN_PROGRESS | **2026-11-03 운영 SQL 직접 재확인 213개**; 133개 admin 계열 포함. 인증/권한은 별개이며 전수 실증 필요 |
 | SEC-S09 | Critical | SEC-01 단일기기 관리자 세션 서버 강제·구세션 차단·롤백/실기기 | IN_PROGRESS | [#998](https://github.com/koith/attendance-proto/issues/998) / [PR #999](https://github.com/koith/attendance-proto/pull/999) WIP; 격리 검증은 존재하나 운영 활성화 미확인 |
 | SEC-S10 | Critical | PIN 서버 제한/잠금·우회차단·기존 매장 PC·직원 iPhone 실동작 | IN_PROGRESS | PR #1444/#1447 및 `pin_private.settings.enabled=true` 운영 확인 보고; 전경로 비인가 시도·현장 PC/iPhone 검증 없음 |
@@ -615,3 +615,13 @@
 - 운영 DB/Auth/Storage, 실제 근태·급여·Google Sheets 원본, Pages 배포에 DDL/DML 변경 **0**. 비공개 암호화 백업·증분 사본만 추가.
 
 현재 **COMPLETE = B2, B4, B5, R1, R4, R6, S1, S2, S6, A4, D1, D3 (12/28)**. 남은 **OPEN = B1, B3, B6, R2, R3, R5, S3, S4, S5, A1, A2, A3, D2, D4, D5, D6 (16건)**. 별도 SEC 대과제 1/18, 전체 통합 복구 **NO_GO** 유지.
+
+
+## Y. 2026-11-13 SEC-S07 익명 SECURITY DEFINER 최소권한 수용 — 보안 18개 중 완료 1→2
+
+- **실행 대상/근거 분리:** 기존 사용자 세부 복구 28항목 중 S1(분류)·S2(익명 불필요 실행권한 회수)는 이미 COMPLETE로 인정되어 있음. 이를 별도 원본 보안 18개 대과제의 SEC-S07 종료 조건과 대조해 이번에 독립 판정을 수행했다. 기존 S1/S2의 **28항목 완료 건수를 다시 중복 증가시키지 않는다**.
+- **운영 DB 직접 읽기 전용 실증 (2026-11-13 KST):** `pg_proc` / `pg_namespace` / `has_function_privilege`와 실제 `pg_trigger`를 SELECT하여, `public` SECURITY DEFINER 중 익명 EXECUTE 가능한 서명은 **19개**, 익명 EXECUTE 가능한 트리거 함수는 **0개**, 운영 내부 함수 `cancel_revoked_owner_invitation()`과 `store_assistant_invitation_default_permissions()`는 각각 **anon 실행 false**, **authenticated 실행 true**, **실제 활성 트리거 연결 true**를 확인했다. 생산 레코드와 사용자·관리자·Auth 데이터 변경 0.
+- **전체 21개 원위험 분류:** 이전 승인된 운영 S1 카탈로그에서 PIN 검증 필수 14개, POS 토큰 필요 1개, 공개 목록/레시피 4개, 내부 트리거 2개로 정확히 분류. 비의도적 익명 직접 호출이 가능한 내부 트리거 2개는 [PR #1534](https://github.com/koith/attendance-proto/pull/1534), 운영 migration `20261107140221_revoke_anonymous_internal_admin_trigger_execute_20261107`에서 **PUBLIC/anon EXECUTE 제거**를 이미 실제 적용했다. 나머지 19개는 기존 인증 PIN·토큰 또는 의도된 공개 화면 경계에 속하므로 무차별 REVOKE로 공개 기능을 파괴하지 않는다.
+- **실 DB/브라우저 회귀 재사용:** [GitHub Actions #42379448748](https://github.com/koith/attendance-proto/actions/runs/42379448748) PostgreSQL 16+17 두 job **2/2 SUCCESS**. 익명 거부 후에도 관리자 트리거 작동 및 기존 공개 RPC 보존. 실제 게시 Pages [#42370982709 attempt 3](https://github.com/koith/attendance-proto/actions/runs/42370982709) SUCCESS: 공개 직원 카드 HTTP/표시, PIN·급여 비노출, 익명 관리 비인가와 미개통 지점 접근 차단을 Chromium/WebKit 모바일·PC에서 통과. 기존 PR #1534 전체 **51/51** 검사 성공 기록 확인.
+- **수용 기준:** SEC-S07 "익명 SECURITY DEFINER 함수 분류/불필요 권한 최소화/회귀" 충족. 전체 `authenticated` 고권한 함수 감사(**SEC-S08**), 실제 서명 JWT 경계(**S3/S4/S5**, SEC-S05/06/09), 물리기기(**D4/S18**)를 SEC-S07로 확대해 완료 처리하지 않는다.
+- **서로 다른 원장 정산:** 보안 대과제 18개 **COMPLETE 2 / OPEN 16**(SEC-S03·SEC-S07), 사용자 세부 보안·복구 28항목 **COMPLETE 12 / OPEN 16**(변경 없음). 전체 운영 시스템 복원 GO 판정은 계속 **NO_GO**.
