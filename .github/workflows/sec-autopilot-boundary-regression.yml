@@ -49,7 +49,7 @@ jobs:
           GH_TOKEN: synthetic-write-token-must-not-enter-container
         run: |
           set -euo pipefail
-          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+          docker run --rm --env SEC_AUTOPILOT_SANDBOX_PROOF=1 --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
             --pids-limit 64 --memory 512m --user 1000:1000 \
             --tmpfs /tmp:rw,noexec,nosuid,size=32m \
             -v "$PWD":/src:ro -w /src node:22-alpine \
