@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {pathsFor} from './safe_edits.mjs';
+import {restrictedProviderEnv} from './provider_env.mjs';
 const id=process.env.SEC_AUTO_TASK;
 const catalog=JSON.parse(fs.readFileSync('security/autopilot/tasks.json','utf8'));
 const task=pathsFor(id,catalog);
@@ -39,8 +40,9 @@ You MUST output concrete changes, not high-level advice. The host enforces
 exact path and data policy, then runs syntax and synthetic tests on a separate
 runner with NO provider token and NO GitHub WRITE token. Never claim live security
 completion or change the source ledger yourself.`;
-const env={...process.env};
-delete env.GH_TOKEN;delete env.OPENAI_API_KEY;delete env.SUPABASE_DB_URL;delete env.SUPABASE_SERVICE_ROLE_KEY;
+// Do not pass the runner environment through to the model and subtract known keys.
+// Future secret names must fail closed without modifying this allowlist.
+const env=restrictedProviderEnv(process.env);
 let response;
 try{
  response=execFileSync('copilot',['-p',prompt,'-s','--available-tools=view,grep,glob','--allow-tool=read'],{
