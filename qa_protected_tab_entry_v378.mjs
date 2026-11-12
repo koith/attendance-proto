@@ -11,6 +11,11 @@ const styles=index.match(/<style>([\s\S]*?)<\/style>/)[1];
 const setup=`
 const view=document.getElementById('view'),LIVE=true,CURRENT_STORE_ID=1;
 let STORE_ENTRY_LOADING=false,STORE_ENTRY_UNAVAILABLE=false,STORE_ENTRY_LOCK=false,_posTimer=null;
+// Server-verified manager store locator is tested with the full app elsewhere.
+// Route-only fixture stubs it; no local locator can authorize manager access.
+const STORE_ENTRY_FROM_PIN=false;
+function rememberVerifiedManagerStore(){}
+function restoreHqFromManagerPin(){}
 window.QA={logged:false,role:'STORE_MANAGER',scope:{limited:false},delay:'',fail:''};window.pending={};
 async function waitForFixture(key){if(QA.delay===key)await new Promise(resolve=>pending[key]=resolve);if(QA.fail===key)throw Error('synthetic failure');}
 const Auth={isLoggedIn:()=>QA.logged,login:async()=>{await waitForFixture('login');QA.logged=true},clear:()=>{QA.logged=false}};
