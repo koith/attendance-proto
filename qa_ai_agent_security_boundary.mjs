@@ -44,10 +44,25 @@ try{
  if(validate().status===0)throw Error('STALE_BASE_SHA_ACCEPTED');
  fs.writeFileSync(baseFile,sha+'\n');fs.writeFileSync(issueFile,'999\n');
  if(validate().status===0)throw Error('SPOOFED_ISSUE_ACCEPTED');
- fs.writeFileSync(issueFile,'123\\n');
+ fs.writeFileSync(issueFile,'123\n');
  fs.writeFileSync(path.join(tmp,'app.js'),"const nope = process.env.OPENAI_API_KEY;\\n");
  git(['add','app.js']);stage();
  if(validate().status===0)throw Error('MODEL_CREDENTIAL_READ_ACCEPTED');
+ // Every adversarial case must run with a valid issue/base so the failure
+ // can only come from the model source guard, never a stale fixture.
+ const rejectCode=(code,reason)=>{
+  fs.writeFileSync(path.join(tmp,'app.js'),code+'\n');
+  git(['add','app.js']);stage();
+  const result=validate();
+  if(result.status===0||!result.stderr.includes('SENSITIVE_OR_PRIVILEGED_CODE_PROPOSAL'))
+    throw Error('UNSAFE_PROPOSAL_ACCEPTED_OR_WRONG_REJECTION_'+reason);
+ };
+ rejectCode("const value = process.env['GITHUB_TOKEN'];",'BRACKET_ENV');
+ rejectCode("const value = globalThis['process']['env']['OPENAI_API_KEY'];",'GLOBAL_PROCESS');
+ rejectCode("const value = eval('1+1');",'EVAL');
+ rejectCode("const value = import('node:fs');",'DYNAMIC_NODE_FS');
+ rejectCode("const value = Deno.env.get('SUPABASE_DB_URL');",'DENO_ENV');
+
  const leak=run('bash',[path.join(root,'scripts/security/run_secretless_agent_qa.sh')],root,{OPENAI_API_KEY:'SYNTHETIC_DO_NOT_LOG'});
  if(leak.status===0||leak.stdout.includes('SYNTHETIC_DO_NOT_LOG')||leak.stderr.includes('SYNTHETIC_DO_NOT_LOG'))throw Error('SYNTHETIC_SECRET_TEST_FAILED');
  console.log('PASS_SEC_AGENT_BOUNDARY: read_only_provider, secretless_qa, separate_write_publisher, allowlisted_changes, malicious_workflow_denied, stale_base_denied, issue_spoof_denied, no_test_secret_output, blocked_credential_source_read');
