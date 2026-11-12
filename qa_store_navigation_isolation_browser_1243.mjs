@@ -7,18 +7,19 @@ const root=resolve('.'),host='http://qa1243.invalid',proof=[];
 for(const engine of [chromium,webkit]){
  const browser=await engine.launch({headless:true});
  try{for(const width of [393,1280]){
-  for(const scenario of ['generic','foreign','attendance-close','legacy-attendance','foreign-attendance','revoked','hq']){
+  for(const scenario of ['generic','foreign','attendance-close','legacy-attendance','foreign-attendance','revoked','hq','idle-expired']){
    const calls=[],context=await browser.newContext({viewport:{width,height:844}}),page=await context.newPage();
    await context.addInitScript(({scenario})=>{
     // Model a valid, not-yet-expired manager JWT in the fully intercepted
     // synthetic browser. v0.371 rejects malformed/expired saved sessions,
     // which are tested independently by Safari legacy-link regression.
-    const payload={exp:Math.floor(Date.now()/1000)+7200,sub:'synthetic-owner'};
+    const payload={exp:Math.floor(Date.now()/1000)+(scenario==='idle-expired'?-600:7200),sub:'synthetic-owner'};
     const encoded=btoa(JSON.stringify(payload)).split('+').join('-').split('/').join('_').replace(/=+$/,'');
     localStorage.setItem('baekeok_auth',JSON.stringify({
      access_token:'synthetic.'+encoded+'.signature',refresh_token:'synthetic-refresh'
     }));
     sessionStorage.setItem('baekeok_store_id','1');sessionStorage.setItem('baekeok_store_name','이전 지점');
+    if(scenario==='idle-expired')localStorage.setItem('baekeok_verified_manager_store_v1',JSON.stringify({store_id:290,subject:'synthetic-owner',verified_at:Date.now()}));
    },{scenario});
    await page.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url());
@@ -32,10 +33,11 @@ for(const engine of [chromium,webkit]){
     if(url.hostname.endsWith('.supabase.co')){
      let args={};try{args=request.postDataJSON()||{}}catch(_){}
      const name=url.pathname.split('/').pop();calls.push({name,args});
+     if(name==='token'&&scenario==='idle-expired')return reply({error_code:'refresh_token_not_found'},400);
      if(name==='admin_context')return reply(scenario==='revoked'?{role:null,store_id:null}:scenario==='hq'?{role:'HQ',store_id:null}:{role:'STORE_MANAGER',store_id:80});
-     if(name==='list_stores')return reply([{id:1,name:'인하대학교점',is_active:true},{id:80,name:'1호점',is_active:true}]);
-     if(name==='list_store_employees')return reply(Number(args.p_store_id)===80?[]:[{id:901,name:'FOREIGN_STAFF_MUST_NOT_APPEAR',store_id:1,employee_no:1}]);
-     if(name==='pos_public_staff_cards'||name==='pos_public_staff_picker'||name==='pos_employees_state')return reply(Number(args.p_store_id)===80?[]:[{id:901,name:'FOREIGN_STAFF_MUST_NOT_APPEAR',store_id:1,employee_no:1,working:false}]);
+     if(name==='list_stores')return reply([{id:1,name:'인하대학교점',is_active:true},{id:80,name:'1호점',is_active:true},{id:290,name:'구미비산점',is_active:true}]);
+     if(name==='list_store_employees')return reply([80,290].includes(Number(args.p_store_id))?[]:[{id:901,name:'FOREIGN_STAFF_MUST_NOT_APPEAR',store_id:1,employee_no:1}]);
+     if(name==='pos_public_staff_cards'||name==='pos_public_staff_picker'||name==='pos_employees_state')return reply([80,290].includes(Number(args.p_store_id))?[]:[{id:901,name:'FOREIGN_STAFF_MUST_NOT_APPEAR',store_id:1,employee_no:1,working:false}]);
      if(name==='admin_store_events_with_corrections')return reply({events:[],corrections:[]});
      if(name==='admin_store_settings_get')return reply({open_minute:420,close_minute:1560});
      if(name==='user')return reply({id:'synthetic-owner',email:'owner@isolation.invalid'});
@@ -60,7 +62,12 @@ for(const engine of [chromium,webkit]){
    if(scenario.includes('attendance')){
     await page.locator('.calendar').waitFor();await page.locator('#back').click();
    }
-   if(scenario==='revoked'){
+   if(scenario==='idle-expired'){
+    await page.waitForFunction(()=>document.getElementById('lockedStoreName')?.textContent==='구미비산점');
+    assert.ok(!calls.some(c=>Number(c.args.p_store_id)===1),'idle session switched to Inha '+JSON.stringify(calls));
+    assert.ok(calls.some(c=>c.name==='token'),'idle session refresh failure not exercised');
+    assert.ok(!await page.getByText('FOREIGN_STAFF_MUST_NOT_APPEAR',{exact:false}).count());
+   }else if(scenario==='revoked'){
     await page.locator('#retryStoreConnect').waitFor();
     assert.ok(!calls.some(c=>/list_stores|employees|staff_cards|staff_picker/.test(c.name)),'revoked account made public data request');
    }else if(scenario==='hq'){
