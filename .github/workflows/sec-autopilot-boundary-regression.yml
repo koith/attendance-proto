@@ -1,0 +1,56 @@
+name: SEC autopilot credential and sandbox boundary proof
+on:
+  pull_request:
+    paths:
+      - 'scripts/security/autopilot/propose.mjs'
+      - 'scripts/security/autopilot/provider_env.mjs'
+      - 'qa/security/autopilot/provider_env.test.mjs'
+      - 'qa/security/autopilot/sandbox_runtime.test.mjs'
+      - '.github/workflows/sec-autopilot-boundary-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/security/autopilot/propose.mjs'
+      - 'scripts/security/autopilot/provider_env.mjs'
+      - 'qa/security/autopilot/provider_env.test.mjs'
+      - 'qa/security/autopilot/sandbox_runtime.test.mjs'
+      - '.github/workflows/sec-autopilot-boundary-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  provider:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify provider source and synthetic secret injection regressions
+        run: |
+          node --check scripts/security/autopilot/propose.mjs
+          node --check scripts/security/autopilot/provider_env.mjs
+          node --test qa/security/autopilot/provider_env.test.mjs
+  sandbox:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Pull isolated node runtime
+        run: docker pull node:22-alpine >/dev/null
+      - name: Prove host token, outbound network, filesystem and privilege denial
+        env:
+          SEC_AUTOPILOT_HOST_PRIVATE_CANARY: synthetic-canary-not-a-secret
+          GH_TOKEN: synthetic-write-token-must-not-enter-container
+        run: |
+          set -euo pipefail
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --pids-limit 64 --memory 512m --user 1000:1000 \
+            --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+            -v "$PWD":/src:ro -w /src node:22-alpine \
+            node --test qa/security/autopilot/sandbox_runtime.test.mjs
