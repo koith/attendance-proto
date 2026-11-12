@@ -46,8 +46,11 @@ test('workflow_dispatch requires manually selected exact scope and main',()=>{
 });
 test('protected environment, fail-closed preflight, and encrypted-artifact-only upload are retained',()=>{
  assert.match(yaml,/environment: production-backup/);
- assert.match(yaml,/SEC_BACKUP_ENV_READY/);
- assert.match(yaml,/BACKUP_BLOCKED_PROTECTED_ENV_NOT_READY/);
+
+
+ assert.doesNotMatch(yaml,/SEC_BACKUP_ENV_READY|BACKUP_BLOCKED_PROTECTED_ENV_NOT_READY/);
+ assert.match(yaml,/BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL/);
+ assert.match(yaml,/BACKUP_PROTECTED_CREDENTIALS_PRESENT=true/);
  assert.match(yaml,/BACKUP_BLOCKED_DB_CONNECTION/);
  assert.match(yaml,/BACKUP_BLOCKED_STORAGE_CREDENTIAL/);
  assert.match(yaml,/BACKUP_BLOCKED_AUTH_CONFIG_CREDENTIAL/);
