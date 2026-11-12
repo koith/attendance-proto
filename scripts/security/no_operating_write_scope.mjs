@@ -28,6 +28,7 @@ const allowedPaths=new Set([
   "scripts/security/sec_b1_verify_encrypted_logical_backup_test.py",
   ".github/workflows/sec-b1-private-logical-custody.yml",
   ".github/workflows/sec-backup-capture.yml",
+  "qa/security/backup_dispatch_guard.test.mjs",
   "security/sec_a2_correction_insert_audit_v3_rollback.sql",
   "qa/sec_a2_correction_insert_audit_postgres.sql",
   ".github/workflows/sec-a2-correction-insert-audit-pg.yml",
