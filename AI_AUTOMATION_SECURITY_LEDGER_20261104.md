@@ -5,9 +5,9 @@
 | ID | 핵심 위험 | 상태 | 종료 조건 및 확인 근거 |
 |---|---|---|---|
 | AISEC-01 | 모델 코드·QA와 GitHub 쓰기 권한 동일 작업 | COMPLETE | 모델/QA 별도 READ-only job, 단순 패치 artifact, 변경 경로/파일 모드 정적 검증, 쓰기 권한 별도 publish job. 에이전트 실행 E2E·비인가 제출 거부 PASS 필요 |
-| AISEC-02 | API 비밀키가 의존성 설치·테스트와 같은 환경에 존재 | IN_PROGRESS | 외부 설치 작업에는 비밀값 미전달, 제공자 실행 단계만 키 주입, generated QA/test에는 키 제거; 합성 키로 실제 non-exposure QA 필요 |
+| AISEC-02 | API 비밀키가 의존성 설치·테스트와 같은 환경에 존재 | COMPLETE | 기존 Copilot 설치 단계에는 제공자 토큰 전달 없음; `provider_env.mjs`가 read-only GitHub 토큰과 필수 실행 변수만 허용하며 미등록 미래 비밀키·NODE_OPTIONS·프록시를 기본 거부. 합성 비밀값 주입을 포함한 실제 Actions provider job 검증 #43213860424 SUCCESS; source SHA #1568 / main `e0bed63d`. 실제 운영 비밀값 조회·기록 없음. |
 | AISEC-03 | 악성 Issue·PR·저장소 문서 통한 명령 주입 | IN_PROGRESS | 모델의 변경 허용 파일만 실행, 요청 승인 라벨 재확인, 승인표시·워크플로·스크립트 등 쓰기 불가 실증. 프롬프트 텍스트는 권한 근거 아님 |
-| AISEC-04 | 테스트 코드/악성 dependency 통한 네트워크 송신·운영 권한 접근 | IN_PROGRESS | 테스트 실행 분리 및 WRITE/운영 토큰 무제공. 외부 연결·프로세스 환경의 추가 샌드박싱/차단 검증 필요 |
+| AISEC-04 | 테스트 코드/악성 dependency 통한 네트워크 송신·운영 권한 접근 | COMPLETE | 실제 GitHub Actions Docker sandbox `--network none --read-only --cap-drop ALL --security-opt no-new-privileges --user 1000:1000`에서 외부 네트워크·소스 수정·권한 상승·호스트 합성 키 유입의 음성 검증 SUCCESS (#43213860424). 모델/생성 QA에 운영 인증정보 미전달; protected backup/production job은 별도 유지. |
 | AISEC-05 | 코드 제안→PR 생성→병합·운영 배포 권한 혼재 | IN_PROGRESS | 별도 토큰 최소권한, 리뷰 전용 PR 발행, 자동 병합/운영 배포 없음. GitHub branch protection/환경 승인 실제 설정 실증 필요 |
 | AISEC-06 | GitHub/Google/Supabase/CI 이력의 비밀정보 노출·연쇄침해 | NOT_STARTED | 현재·과거 이력/로그·연동 OAuth 권한·서비스 사용처 전수 검사, 문제시 안전한 점진적 교체·회귀 |
 | AISEC-07 | 자동화 비밀 발급·보관·만료·회수와 복구키 분리 | NOT_STARTED | 운영/개발/백업 독립 인증소재·설정, 실사용 확인·교체 검증, 독립 키 보관/분실 복구 증거 |
@@ -30,3 +30,12 @@
 - GitHub 정책으로 Actions 자체 `createPullRequest` 불가라는 이전 FAILED_PATH를 재현하지 않고, 별도 GitHub 연결 도구를 통해 [PR #1497](https://github.com/koith/attendance-proto/pull/1497) 생성. 독립 PR CI [#41757127669](https://github.com/koith/attendance-proto/actions/runs/41757127669) SUCCESS. 두 파일·HEAD SHA 재확인 후 squash merge `5952dfdc6cb717c0801a6a9de8ebb821fdfdf7db`, main 재조회로 모델 결과 반영 확인.
 - checkpoint/중복방지와 metrics는 [Issue #1492](https://github.com/koith/attendance-proto/issues/1492)에 축적. 첫 planner 실패 BRANCH_PAGINATION_LIMIT는 [PR #1495](https://github.com/koith/attendance-proto/pull/1495)에서 전용 prefix matching-refs로 교체하여 실 E2E PASS.
 - 이번 판정은 **인증정보가 공급되는 모델/QA 작업과 PR 쓰기 권한이 분리되어 있다는 조건**에 한정. GitHub Ruleset/승인 권한/연동 비밀정보 전수 점검 및 나머지 AISEC-02~07은 미완료. 실운영 배포/복구 완료는 주장하지 않는다.
+
+## 2026-11-12 AISEC-02·04 실제 GitHub runner 수용 (완료 1/7 → 3/7)
+
+- **승격 ID**: AISEC-02, AISEC-04. 기타 AISEC-01 기존 완료 유지, AISEC-03/05 진행, AISEC-06/07 미착수. 최신 **COMPLETE 3 / IN_PROGRESS 2 / NOT_STARTED 2**. 이 7건은 SEC 복구 28항목이나 기존 회의/개발 38항목에 합산하지 않는다.
+- 실코드: [PR #1568](https://github.com/koith/attendance-proto/pull/1568) squash main `e0bed63df312c6c5843817e2a5afef73750964b5`. 실 9개 변경경로에 한정하는 no-operating-write guard 및 음성 테스트 통과; 운영 서비스/DB/Auth/Sheets/Edge/UI 데이터 변경 없음.
+- 합성 비밀값 전파 부정 증거: `scripts/security/autopilot/provider_env.mjs` 기본 거부 allowlist, `propose.mjs`의 `{...process.env}` 제거, 가짜 키 12종/미래 키/악성 `NODE_OPTIONS`·프록시로 실제 GitHub Actions Node 테스트 성공.
+- 실제 격리 실행 증거: [provider+sandbox workflow #43213860424](https://github.com/koith/attendance-proto/actions/runs/43213860424) 두 job 모두 SUCCESS. 호스트 합성 값이 `docker run` QA 내부에 전달되지 않음, 네트워크 라우트 거부, read-only mount, 비루트·권한 제거·NoNewPrivs 검사 PASS. 관련 [기존 보안 정책 QA #43213860600](https://github.com/koith/attendance-proto/actions/runs/43213860600) SUCCESS, [격리 복구 회귀 #43213860545](https://github.com/koith/attendance-proto/actions/runs/43213860545) SUCCESS. PR HEAD Actions 총 **60/60 SUCCESS**.
+- 동반 결함 수정: D5 백업 준비 수동 토글은 이전 PR #1562에서 이미 제거됐는데 `qa/security/backup_dispatch_guard.test.mjs`가 과거 오류 문자열을 강제해 실패한 것을 바로잡음. 현재는 실제 DB/Storage/Auth 필수 3개 자격증명 누락을 각 범주별 차단하는 조건과 실패 경고를 검사. **D5 자동 백업 실제 실행·복호화/보관은 아직 미완료**, 이 테스트 수정으로 D5를 완료 처리하지 않는다.
+- **완료범위 한계**: 실제 운영 provider 키를 공개하지 않았으며, 이후 새 외부 의존성을 변경하거나 CI의 Docker 격리 플래그를 변경하면 재검증 필요. GitHub branch ruleset 보호/자동 병합/운영 승인과 악성 PR 입력에 대한 최종 보장은 AISEC-03/05로 별도 추적한다.

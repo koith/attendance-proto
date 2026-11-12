@@ -60,6 +60,8 @@ const allowedPaths=new Set([
   "qa_live_version_test_controls_v1.mjs",
   "qa_store_scoped_permissions_postgres.sql",
   "SECURITY_STABILITY_LEDGER_20261103.md",
+  "AI_AUTOMATION_SECURITY_LEDGER_20261104.md",
+  "qa/security/autopilot/autopilot_contract.test.mjs",
   "security/SEC_S17_RECOVERY_HANDOVER_PUBLIC_20261106.md",
   "security/readonly_session_hook_audit_20261105.sql",
   ".github/workflows/sec-autopilot-boundary-regression.yml",

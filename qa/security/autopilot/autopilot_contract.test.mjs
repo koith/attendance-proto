@@ -11,10 +11,11 @@ const sec=fs.readFileSync('SECURITY_STABILITY_LEDGER_20261103.md','utf8');
 const ai=fs.readFileSync('AI_AUTOMATION_SECURITY_LEDGER_20261104.md','utf8');
 const data={sec,ai};
 const head='a'.repeat(40);
-test('original SEC-S03 COMPLETED and other 24 tasks preserved',()=>{
+test('SEC-S03 remains COMPLETE and separately accepted AISEC-02/04 are COMPLETE',()=>{
  assert.equal(statusOfLedger(sec,'SEC-S03'),'COMPLETE');
  assert.equal(statusOfLedger(sec,'SEC-S04'),'IN_PROGRESS');
- assert.equal(statusOfLedger(ai,'AISEC-04'),'IN_PROGRESS');
+ assert.equal(statusOfLedger(ai,'AISEC-02'),'COMPLETE');
+ assert.equal(statusOfLedger(ai,'AISEC-04'),'COMPLETE');
  assert.equal(catalog.tasks.some(t=>t.ledger==='SEC-S03'),false);
 });
 test('first run chooses a legitimate isolated recovery work unit',()=>{
