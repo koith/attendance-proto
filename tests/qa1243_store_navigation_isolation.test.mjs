@@ -48,6 +48,9 @@ const start=html.indexOf('async function loadStores(){'),end=html.indexOf(' cons
 const startup=html.slice(start,end)+'\nreturn true;}';
 async function accountBoundary({entry=0,context={role:'STORE_MANAGER',store_id:80}}={}){
  const {ctx}=fixture();Object.assign(ctx,{LIVE:true,STORE_ENTRY_ID:entry,STORE_ENTRY_LOCK:entry>0,
+  // The isolated startup mock must provide the server-verified navigation-pin helpers.
+  // Real app implementations are exercised by qa_idle_manager_store_scope_v385.test.mjs.
+  STORE_ENTRY_FROM_PIN:false,rememberVerifiedManagerStore:()=>{},restoreHqFromManagerPin:()=>{},
   STORE_ENTRY_UNAVAILABLE:false,STORE_ENTRY_CONNECTION_FAILED:false,BE:{adminContext:async()=>{
    if(context instanceof Error)throw context;return context;}}});
  const helperStart=html.indexOf('function setStartupConnection('),helperEnd=html.indexOf('if(STORE_ENTRY_UNAVAILABLE)',helperStart);
