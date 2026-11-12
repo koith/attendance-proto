@@ -35,7 +35,7 @@ const classified=Object.values(REMAINING_WORK_PHASES).flat();
 assert.equal(classified.length,18);assert.equal(new Set(classified).size,18);
 assert.deepEqual([...classified].sort(),remainingIds.sort(),'All canonical unchecked rows must be classified exactly once');
 assert.ok(!classified.includes('QA-04'),'Accepted QA-04 must not remain classified as unfinished');
-assert.deepEqual(Object.values(REMAINING_WORK_PHASES).map(x=>x.length),[7,2,10]);
+assert.deepEqual(Object.values(REMAINING_WORK_PHASES).map(x=>x.length),[6,2,10]);
 assert.ok(REMAINING_WORK_PHASES.beforeOpening.includes('SEC-01'),'Original P0 single-device rollout cannot silently become optional');
 assert.ok(EXTERNAL_BLOCKERS.some(x=>x.id==='SEC01_SINGLE_DEVICE_ROLLOUT'));
 assert.equal(scopeReport.canonicalRemainingWork.completedByClassification,0);
