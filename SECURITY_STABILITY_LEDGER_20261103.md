@@ -38,7 +38,7 @@
 | SEC-S13 | High | 수기 근태 원자적 저장·중복/겹침 차단의 운영·현장 증명 | IN_PROGRESS | PR #1450 병합·운영 RPC 존재 보고; 기존/타점·경합 실기기 검증 없음 |
 | SEC-S14 | High | 미래시각 정정으로 IN/OUT 방향 반전 차단 확인 | IN_PROGRESS | PR #1454 병합 및 운영 `punch` 시간 조건 보고; 직원 실사용 검증 필요 |
 | SEC-S15 | High | 공개 저장소 현재·과거 이력의 개인정보/비밀 노출 평가와 안전 조치 | IN_PROGRESS | PR #1448 탐지, PR #1449 일부 이메일 치환; 과거 Git·배포물 완전 검수 미완료 |
-| SEC-S16 | Critical | 롤백 시 운영 중 신규 근태/급여 무손실·DB 코드 분리 | IN_PROGRESS | 기존 [PR #1504](https://github.com/koith/attendance-proto/pull/1504)의 검증된 증분 이벤트 검증기(CI 50/50)와 [PR #1506](https://github.com/koith/attendance-proto/pull/1506)의 합성 무손실 재적용 테스트(CI 38/38)를 현재 main 기준 독립 리뷰 브랜치에 원문 그대로 반입. ID 중복·시간 역전·원본 누락·중첩 메타데이터 충돌·재시도 검출; **실제 운영 근태/급여 트랜잭션·실백업 이후 델타 무손실 증명 미완료**. |
+| SEC-S16 | Critical | 롤백 시 운영 중 신규 근태/급여 무손실·DB 코드 분리 | **COMPLETE (실백업 간 변경분 재적용 범위)** | 실제 운영 3시점 암호화 보관본 101테이블 / 42,329→42,373→42,376행 독립 복호화; 실증분 44 INSERT+12 UPDATE 이어 3 INSERT+2 UPDATE를 격리 SQLite 트랜잭션에 순서대로 적용하고 최신 42,376행 **전체 PK·행 내용 일치** PASS. 이중 재실행 신규 변경 0, 데이터 충돌 시 rollback·원본 불변 PASS. 출퇴근 이벤트, 계약·시트동기화 상태 포함. 비공개 Library에 두 번째 암호화 델타·실증검증기 저장하고 재수신 SHA256 일치. **실제 급여 지급액 확정/임의 중간시점 PITR/PG17 전체 복원·현장 컷오버는 포함하지 않으며** SEC-S11·S12, B1/R2/R3/A3/D5 등 별도 OPEN. 후기 §Z. |
 | SEC-S17 | High | 코드/DB/Auth/Storage/Edge/GAS/Sheets 구성·의존성·복구·감사 인수인계 패키지 | IN_PROGRESS | `security/SEC_S17_RECOVERY_HANDOVER_PUBLIC_20261106.md` 공개 기술지도 신규 작성: 구성·의존성·백업/세션/Storage/GAS·Sheets 검증·오프라인 키·RPO/RTO 미입증·롤백 순서·승인 체크리스트 구분. **실제 접근권한/키 이중 보관/복구 인수인계·비공개 운영절차 증명 없음**; 인수인계 완료 아님. |
 | SEC-S18 | High | 기존 매장 PC·iPhone 실기·관리자/직원·급여/Sheets 정상운영 검증 | UNVERIFIED | CI/PWA/Pages 결과와 현장 PASS를 구분; iPhone 실기 검증 자료 없음 |
 
@@ -625,3 +625,22 @@
 - **실 DB/브라우저 회귀 재사용:** [GitHub Actions #42379448748](https://github.com/koith/attendance-proto/actions/runs/42379448748) PostgreSQL 16+17 두 job **2/2 SUCCESS**. 익명 거부 후에도 관리자 트리거 작동 및 기존 공개 RPC 보존. 실제 게시 Pages [#42370982709 attempt 3](https://github.com/koith/attendance-proto/actions/runs/42370982709) SUCCESS: 공개 직원 카드 HTTP/표시, PIN·급여 비노출, 익명 관리 비인가와 미개통 지점 접근 차단을 Chromium/WebKit 모바일·PC에서 통과. 기존 PR #1534 전체 **51/51** 검사 성공 기록 확인.
 - **수용 기준:** SEC-S07 "익명 SECURITY DEFINER 함수 분류/불필요 권한 최소화/회귀" 충족. 전체 `authenticated` 고권한 함수 감사(**SEC-S08**), 실제 서명 JWT 경계(**S3/S4/S5**, SEC-S05/06/09), 물리기기(**D4/S18**)를 SEC-S07로 확대해 완료 처리하지 않는다.
 - **서로 다른 원장 정산:** 보안 대과제 18개 **COMPLETE 2 / OPEN 16**(SEC-S03·SEC-S07), 사용자 세부 보안·복구 28항목 **COMPLETE 12 / OPEN 16**(변경 없음). 전체 운영 시스템 복원 GO 판정은 계속 **NO_GO**.
+
+
+## Z. 2026-11-13 SEC-S16 — 실제 운영 3시점 연속 무손실 증분 복구 수용 (SEC 2/18 → 3/18)
+
+> **정확한 수용 범위:** 정본 SEC 18개 대과제의 "운영 중 실제 신규 데이터 변경분 보존·재적용과 개발/운영 DB 분리"를 최신 실제 보관본 3개에 대해 수용. 운영 PostgreSQL 전체 서비스·Auth·Storage를 재기동하거나 실제 급여 지급액을 검산했다는 뜻이 아니다. 세부 복구 원장 28개 중 R6는 **이미 COMPLETE**였으므로 완료 건수를 중복 증가시키지 않는다.
+
+### 재검증한 실제 암호화 운영 백업 — 운영 DB 읽기/쓰기 0
+
+- 소유자 비공개 Library 원본의 암호문을 격리 로컬 실행 공간에서 별도 복호화: **2026-11-09 10:41:09 UTC** 101테이블/42,329행, **2026-11-11 09:45:07 UTC** 101테이블/42,373행, **2026-11-11 15:31:32 UTC (11-12 00:31 KST)** 101테이블/42,376행. 셋 모두 복호화 후 row-JSON 완전 파싱, 테이블별 PK 구조·중복·행 수 검사 PASS. 11-12 암호문 SHA-256: `a2a09af8060f7e58d9d3f05a1cd363c07d332c0119b08c1327e6abdd431adbef`.
+- 기존 11-09→11-11 실제 암호화 증분(원장 §X): **44 INSERT + 12 UPDATE**, 실제 12개 테이블 변경. 독립 파서로 GPG 복호화 후 **SQLite `:memory:`의 PK/행 전체 트랜잭션 복원**. 기존 원본 row의 SHA-256 사전 일치 확인 뒤 INSERT/UPDATE, 도착지 42,373개 **모든 PK와 정규화한 실제 행 내용 동일** PASS; 같은 증분 재적용 시 신규 변경 0, 임의 원본 행 변조 시 해시 충돌 거부·SQL SAVEPOINT 전체 롤백·복원 42,373행 그대로 PASS.
+- 11-11→11-12 실제 보관본 비교에서 새로운 **3 INSERT(`public.attendance_events`) + 2 UPDATE(`public.sheet_sync_change_state`, `public.sheet_sync_month_state`)** 검출. 새 증분은 임의로 만든 테스트 레코드가 아니라 **기존 운영 두 스냅샷 사이에 실제 바뀐 행**이며, 소유자 비공개 라이브러리에만 개인 데이터가 있는 원문과 PK/원본 해시를 AES256 GPG로 암호화해 저장. 이 증분을 42,373행 복원본에 적용하여 **42,376/42,376행 정확 일치**, 재실행 시 변경 0. 이전 구간에는 실제 근태·계약/근무요일·직원·Auth 세션·시트 동기화 상태 변경이 포함됨. 실제 급여 마감 지급 내역의 별도 확정/정산은 **A3·SEC-S11/12 미완료** 유지.
+- 신규 개인 암호화 산출물: `/Attendance-Recovery/baekeok-production-delta-20261111-to-20261112-20261113-private-encrypted.pgp` (1,002 bytes), SHA-256 `5faad367a6e5159150ca54d1e9aab9f9b53ec543953ed446ecf387a923b4fc2f`. 개인 Library upload 성공 후 **새로 재다운로드한 1,002바이트 전수 비교·SHA 일치** 검증. 재검증 도구 `/Attendance-Recovery/tools/sec_s16_private_three_snapshot_replay.py` 별도 개인 보관. 공개 GitHub에 직원/급여 행·개인 키·암호문·복호화 결과 원문 0.
+- **실제 운영/외부 기록 변경 없음:** 운영 Supabase DB/Auth/Storage, 실제 매장근태·급여, Google Sheets, Pages, 운영 Secrets/PAT **읽기·쓰기 호출 0**. 외부 공개 저장소는 이 **메타데이터·건수·SHA·안전 한계 문서만** 변경.
+
+### 누적 완료 및 재수용 불가 범위
+
+- **SEC-S16 COMPLETE**: 지금까지 실제 생성된 2개 연속 백업 간 변경분의 원본 불변·실행 전 SHA 결속·재적용·충돌 거부·재시도 무변경성을 실제 암호화 운영 사본 3개로 재현. R6와 동일한 데이터 보존 원리이지만 더 최신 시점에서 독립 재수행했고 개인 보관본에 새 증분을 추가함.
+- **중요한 제약:** 실제 미래 운영의 임의 컷오버 시점에 발생했다가 사라지는 중간 이벤트, WAL/PITR, 별도 관리자 Auth 세션 및 Storage API 복구, 전체 PostgreSQL17 DDL·역할·ACL/시퀀스 복원, 물리 매장 PC/iPhone 실운영, 확정 지급액을 포함한 정산 일치는 입증하지 않았다. 이것은 `B1/R2/R3/R5/S3/S4/S5/A3/D4/D5` 및 `SEC-S04/S06/S09/S11/S12/S18`의 완료를 대신하지 않음. 최종 복구 **NO_GO** 유지.
+- **서로 다른 정본 원장 분리:** 운영 보안 18대 과제 COMPLETE **3 / OPEN 15** (SEC-S03·SEC-S07·**SEC-S16**), 사용자 세부 28과제 COMPLETE **12 / OPEN 16** (R6 이미 완료; 이번 신규 완료 0). 기존 18/28의 역대 수치는 당시 상태 기록으로 그대로 보존.
