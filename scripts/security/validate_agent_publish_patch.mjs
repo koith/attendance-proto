@@ -20,6 +20,11 @@ const forbidden=[
  /(?:sk-[A-Za-z0-9_-]{24,}|gh[pousr]_[A-Za-z0-9_]{25,})/,
  /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
  /(?:process\.env\.(?:GITHUB_TOKEN|GH_TOKEN|OPENAI_API_KEY|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_DB_URL)|Deno\.env\.get\(['"](?:SUPABASE_SERVICE_ROLE_KEY|SUPABASE_DB_URL)|secrets\.(?:OPENAI_API_KEY|SUPABASE_SERVICE_ROLE_KEY))/,
+ /\bprocess\s*(?:\.\s*env|\[\s*['"\x60]env['"\x60]\s*\])/,
+ /\bDeno\s*\.\s*env\b/,
+ /\bglobalThis\s*(?:\.\s*(?:process|eval|Function|require)\b|\[\s*['"\x60](?:process|eval|Function|require)['"\x60]\s*\])/,
+ /\b(?:eval|Function)\s*\(/,
+ /\b(?:child_process|node:fs|node:https|node:http|node:net|node:dgram|node:worker_threads)\b/,
  /ACTIONS_ID_TOKEN_REQUEST_TOKEN/
 ];
 if(forbidden.some(pattern=>pattern.test(additions)))throw Error('SENSITIVE_OR_PRIVILEGED_CODE_PROPOSAL');
