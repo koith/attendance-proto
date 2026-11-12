@@ -35,7 +35,6 @@ jobs:
     environment: production-backup
     timeout-minutes: 20
     env:
-      SEC_BACKUP_ENV_READY: ${{ vars.SEC_BACKUP_ENV_READY }}
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

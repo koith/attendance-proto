@@ -477,3 +477,45 @@ test('D5 readiness uses real protected credential presence, not unused manual re
   assert.match(workflow,/BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL/);
   assert.doesNotMatch(workflow,/test "\$SEC_BACKUP_ENV_READY" = 'true'/);
 });
+
+test('AISEC reviewed provider boundary files are exact-scoped and do not widen operating writes',()=>{
+ const approved=[
+  {filename:'.github/workflows/sec-autopilot-boundary-regression.yml',status:'added'},
+  {filename:'scripts/security/autopilot/propose.mjs',status:'modified'},
+  {filename:'scripts/security/autopilot/provider_env.mjs',status:'added'},
+  {filename:'qa/security/autopilot/provider_env.test.mjs',status:'added'},
+  {filename:'qa/security/autopilot/sandbox_runtime.test.mjs',status:'added'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ const r=check(approved);
+ assert.equal(r.result,'PASS');
+ assert.equal(r.changed_paths.length,approved.length);
+ for(const forbidden of ['index.html','.github/workflows/agent-unreviewed.yml',
+  'supabase/migrations/security_auth.sql','scripts/security/autopilot/unreviewed.mjs',
+  'qa/security/autopilot/unknown.test.mjs']){
+  assert.throws(()=>check([...approved,{filename:forbidden,status:'added'}]),
+    /SEC_NO_WRITE_DISALLOWED_CHANGE/,forbidden);
+ }
+ const safe=fs.readFileSync('scripts/security/autopilot/propose.mjs','utf8');
+ assert.match(safe,/restrictedProviderEnv\(process\.env\)/);
+ assert.doesNotMatch(safe,/const env=\{\.\.\.process\.env\}/);
+ const proof=fs.readFileSync('.github/workflows/sec-autopilot-boundary-regression.yml','utf8');
+ assert.match(proof,/permissions:\s*\n\s*contents: read/);
+ assert.match(proof,/--network none --read-only --cap-drop ALL/);
+});
+
+test('D5 outdated readiness assertion repair remains strictly test-and-workflow only',()=>{
+ const approved=[
+  {filename:'.github/workflows/sec-backup-capture.yml',status:'modified'},
+  {filename:'qa/security/backup_dispatch_guard.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(approved).result,'PASS');
+ assert.throws(()=>check([...approved,{filename:'supabase/functions/server-sync-sheet/index.ts',status:'modified'}]),
+  /SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const yaml=fs.readFileSync('.github/workflows/sec-backup-capture.yml','utf8');
+ const testSource=fs.readFileSync('qa/security/backup_dispatch_guard.test.mjs','utf8');
+ assert.doesNotMatch(yaml,/SEC_BACKUP_ENV_READY|BACKUP_BLOCKED_PROTECTED_ENV_NOT_READY/);
+ assert.match(yaml,/BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL/);
+ assert.match(testSource,/BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL/);
+});
