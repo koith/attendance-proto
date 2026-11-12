@@ -504,3 +504,18 @@ test('AISEC reviewed provider boundary files are exact-scoped and do not widen o
  assert.match(proof,/permissions:\s*\n\s*contents: read/);
  assert.match(proof,/--network none --read-only --cap-drop ALL/);
 });
+
+test('D5 outdated readiness assertion repair remains strictly test-and-workflow only',()=>{
+ const approved=[
+  {filename:'.github/workflows/sec-backup-capture.yml',status:'modified'},
+  {filename:'qa/security/backup_dispatch_guard.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(approved).result,'PASS');
+ assert.throws(()=>check([...approved,{filename:'supabase/functions/server-sync-sheet/index.ts',status:'modified'}]),
+  /SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const yaml=fs.readFileSync('.github/workflows/sec-backup-capture.yml','utf8');
+ const testSource=fs.readFileSync('qa/security/backup_dispatch_guard.test.mjs','utf8');
+ assert.doesNotMatch(yaml,/SEC_BACKUP_ENV_READY|BACKUP_BLOCKED_PROTECTED_ENV_NOT_READY/);
+ assert.match(yaml,/BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL/);
+ assert.match(testSource,/BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL/);
+});
