@@ -46,8 +46,9 @@ test('HQ keeps its selected store; unknown scope never defaults to Inha',async()
 });
 const start=html.indexOf('async function loadStores(){'),end=html.indexOf(' const sel=document.getElementById("storeSelect");',start);
 const startup=html.slice(start,end)+'\nreturn true;}';
-async function accountBoundary({entry=0,context={role:'STORE_MANAGER',store_id:80}}={}){
+async function accountBoundary({entry=0,context={role:'STORE_MANAGER',store_id:80},explicit=entry>0}={}){
  const {ctx}=fixture();Object.assign(ctx,{LIVE:true,STORE_ENTRY_ID:entry,STORE_ENTRY_LOCK:entry>0,
+  STORE_ENTRY_RAW_ID:explicit?String(entry):null,STORE_ENTRY_MODE:explicit?'store':'',
   // The isolated startup mock must provide the server-verified navigation-pin helpers.
   // Real app implementations are exercised by qa_idle_manager_store_scope_v385.test.mjs.
   STORE_ENTRY_FROM_PIN:false,rememberVerifiedManagerStore:()=>{},restoreHqFromManagerPin:()=>{},
@@ -64,6 +65,9 @@ test('a signed-in manager entering a generic or foreign URL redirects before any
   assert.equal(result,undefined);assert.equal(ctx.STORE_ENTRY_UNAVAILABLE,true);
  }
  const valid=await accountBoundary({entry:80});assert.equal(valid.result,true);assert.equal(valid.ctx.location.href,'');
+ const restored=await accountBoundary({entry:80,explicit:false});
+ assert.equal(restored.ctx.location.href,'/index.html?mode=store&store=80#pos');
+ assert.equal(restored.result,undefined);
  const hq=await accountBoundary({context:{role:'HQ'}});assert.equal(hq.result,true);
 });
 test('account lookup errors and revoked accounts cannot fall back to public Inha POS',async()=>{
