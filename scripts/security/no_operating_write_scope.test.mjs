@@ -77,6 +77,16 @@ test('strict exact-scope guard accepts reviewed non-runtime changes only',()=>{
   assert.doesNotMatch(audit,/^\s*(?:INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE)\b/im);
 
 });
+test('explicitly reviewed security task catalog update cannot change runtime scripts',()=>{
+ const r=check([
+  {filename:'security/autopilot/tasks.json',status:'modified'},
+  {filename:'qa/security/autopilot/autopilot_contract.test.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ]);
+ assert.equal(r.result,'PASS');
+ assert.throws(()=>check([{filename:'security/autopilot/unsafe_runtime.js',status:'added'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+});
 test('autopilot checkpoint selector repair is explicitly allowlisted but runtime changes remain forbidden',()=>{
   const permitted=[
     {filename:'scripts/security/autopilot/select_task.mjs',status:'modified'},
