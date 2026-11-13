@@ -559,7 +559,7 @@
 | R3 | **OPEN** | PostgreSQL ACL·sequence·role·row 전체 대조 미완 |
 | R4 | **COMPLETE** | 격리 GoTrue 세션 실인증 검증 |
 | R5 | **OPEN** | Storage 객체 본문 및 API 실제 서비스 복구 미완 |
-| R6 | **OPEN** | 실제 운영 중 델타 무손실 재적용 미완 |
+| R6 | **COMPLETE (2026-11-11 기존 수용, 신규 집계 아님)** | §X 실제 두 운영 암호화 스냅샷의 변화분 독립 재적용·42,373행 대조·재시도 불변성/충돌 롤백 성공, §Z 3시점 42,376행 전체 대조 재검증. 실제 PG17 전체 DDL·Auth·Storage 서비스 복원과 PITR은 B1/R2/R3/R5/D5 별도 OPEN. §AD는 표시 불일치만 바로잡으며 신규 완료 0건. |
 | S1 | **COMPLETE** | 익명 SECURITY DEFINER 분류 |
 | S2 | **COMPLETE** | 익명 불필요 권한 회수 |
 | S3 | **OPEN** | 운영 본사·점주·보조·직원 전체 signed JWT E2E |
@@ -687,3 +687,27 @@
 
 - 신규 세부 복구 완료: **A2 1건**, 상세 28항목 **13 COMPLETE / 15 OPEN**. 기존 완료 12개 B2/B4/B5/R1/R4/R6/S1/S2/S6/A4/D1/D3 그대로 유지. 별도 보안 대과제 **SEC 5 COMPLETE / 13 OPEN** 변동 없음; **B1/R2/R3/R5/B6/D5/S3/S4/S5/A3** 등 필수 복구 게이트는 계속 OPEN, 전체 시스템 복구 **NO_GO**.
 - 운영 SQL DML/DDL, 정정·급여 기록, 인하대 직원 또는 사용자 인증, Google Sheets, Storage, Pages 앱 소스/버전 변경 **0**. 작업은 공개 SQL과 정본 감사 영수증·private-only 검증기, 엄격한 안전 경로 테스트만 추가. 실제 정상 서비스의 기록은 고치거나 지우지 않았음.
+
+
+## AD. 2026-11-13 owner-private 실제 PostgreSQL17 네이티브 복구 연습 — B1/R2/R3 계속 OPEN, 원장 R6 표기 수정
+
+### 1. 이전 완료 항목 R6 표기 오류 수정 (신규 완료로 세지 않음)
+
+- §X에서 실제 운영 암호화 보관본 11/09→11/11 변화분의 독립 데이터베이스 재적용·다시 적용시 불변·충돌 rollback을 **이미 수용**했고, §Z 3시점으로 추가 확인했다. 따라서 기존 마지막 요약표 `R6 **OPEN**`은 당시 수용과 모순된 복사 오류다. 이 수정은 **2026-11-13 신규 COMPLETE가 아니다**. 28개 상세 원장의 마지막 행별 상태를 동일 ID 1회씩 집계하면 기존 **COMPLETE 13 / OPEN 15**, 보안 18개 대과제 **5 / 13**이다. 이전 날짜별 완료 수 기록을 다시 쓰거나 과거 수치를 신생 수용으로 재집계하지 않는다.
+
+### 2. 운영 백업을 실제 격리 PostgreSQL17에 복원한 신규 실증 (확정된 부분 범위)
+
+- 운영 Supabase DB, 실제 직원·급여·Auth 계정·Sheets·Storage는 **조회/암호화 보관본에 근거한 비파괴적 검증만 진행**, 운영 DB DML/DDL 0. CI의 [임시 PR #1581](https://github.com/koith/attendance-proto/pull/1581)/[Actions #43372508444](https://github.com/koith/attendance-proto/actions/runs/43372508444)에서는 official **public** `postgres:17-trixie` 실행 파일만 확보, 민감 백업/키/개인정보를 CI에 업로드하지 않았다. PR은 도구 확보 후 **병합 없이 CLOSED**. 로컬 PostgreSQL **17.12**, TCP listener 없음·Unix socket만.
+- 사용자 개인 비공개 `2026-11-12` 운영 암호화 *논리* 스냅샷(암호문 SHA256 `a2a09af8060f7e58d9d3f05a1cd363c07d332c0119b08c1327e6abdd431adbef`)을 소유자 키로 복호화하여 **PostgreSQL17의 실제 typed 테이블 101/101개·실제 원본 행 42,376/42,376개 복원 성공**. 101개 테이블 각각 전체 `row_to_json`을 별도 SELECT로 재조회, 암호화 원본 JSON과 값 전수 비교해 차이 **0건**. 기존 PGlite/SQLite 메모리 적재만이 아닌 **정식 PostgreSQL 서버를 통한 복원**이 이번 신규 증거다.
+- 소스 암호화 원장에 포함된 컬럼/제약/함수 카탈로그를 같은 별도 로컬 실DB에 재적용: 함수 DDL **305/305**, CHECK·FK 제약 **253/253**, 일반 인덱스 **144/144**, 37개 시퀀스, RLS 활성 테이블 89개, 정책 6개, 테이블 소유자 101개·ACL 기록 283개를 각각 실제 DDL/권한으로 재현. 트리거 **35/36개**까지 적용됨. `pg_cron`·`pg_net`·`supabase_vault` 관리형 확장 3종, 생성열 7개·identity 열 34개, 원본 role 멤버십 일부·함수 ACL 완전성은 아직 불일치/미재현으로 **분명하게 남김**.
+- 위 실데이터가 있는 격리 PostgreSQL에서 네이티브 `pg_dump -Fc` 데이터를 **별도 빈 PostgreSQL17에 `pg_restore`** 성공. 원본 암호화 논리 백업과 다시 비교한 101개 테이블 **42,376/42,376행 전체 일치**. 다시 원본 PostgreSQL 환경을 `pg_dump`로 **직접 캡처한 것과 동일하지 않음**에 유의.
+- 같은 재구성 PostgreSQL 데이터를 네이티브 custom archive로 `pg_dump`하여 평문 archive 파일 없이 **stdout→GPG AES256 암호화 스트리밍**으로 별도 봉인. 사용자 본인 키로 복호화하여 **세 번째 독립 로컬 PostgreSQL17**에 재적재한 뒤 **42,376/42,376 실제 행 일치**. AES256 암호문 크기 **395,146 bytes**, SHA256 `9f126ab01e26e2d29e38001e533480937e9bf7e6c032fcbe94b25a93cf5117a9`; 오직 소유자 개인 비공개 Library `/Attendance-Recovery/NativePG17/`에 저장하고 **재다운로드 SHA256·바이트 동일** 확인. 검증기·공개 바이너리·비식별 증빙 JSON도 같은 비공개 폴더에서 추후 재사용 가능. 운영 데이터 평문을 GitHub·CI·외부 모델로 송신하지 않았으며, 검증 후 로컬 PostgreSQL plaintext 데이터 디렉터리 삭제.
+
+### 3. 거짓 수용 방지를 위한 남은 게이트
+
+- **B1 OPEN:** 위 `pg_dump`는 실운영 서버에 직접 접속해 캡처한 native 전체 덤프가 아니라, 11/12 기준 *커스텀 논리* 스냅샷을 실제 PG17에 재구성하여 만든 **재구성 DB의 native archive**다. 운영 120 테이블 이상 전체, 백업 트랜잭션 단일 시점·모든 extension schema/managed 설정, 최신 시점 원본 직접 native pg_dump의 수용 증거가 아님.
+- **R2 OPEN:** 101개 테이블·42,376행 실제 PostgreSQL에 복원 성공했지만, managed extension/일부 생성열·identity/스토리지 API/GoTrue/전체 DDL 및 role 소스 일치가 아직 불충분. **실제 값 모두 복원했다는 사실과 전체 서비스 복구를 구분**.
+- **R3 OPEN:** 데이터 42,376행 내용 일치·일반 테이블 DDL 상당 부분 복원은 입증. 3개 관리형 확장, 트리거 1개, 일부 역할·시퀀스 소유권/함수 ACL, GENERATED·IDENTITY 표현식 등 **전체 catalog 차이가 0이라고 입증되지 않았으므로** 소스/복원본 완전 일치 판정 보류.
+- **D5/B3/R5/S3~S5/A1/A3/D4/D6 OPEN**: 반복 스케줄 암호화 native 운영 백업, 실제 Auth 외부 설정, Storage 서비스 API 재기동, 서명된 관리자/점주/직원 역할/타 지점 권한, 실제 지급/실물기기 등 독립 증거는 이번 실증에 포함되지 않음. **전체 DR/운영 전환 NO_GO**.
+
+**이번 턴 정본 완료 증감: 신규 COMPLETE 0건(정본 13/28 그대로).** 다만 실제 PG17 typed 복원·네이티브 dump/restore·AES256 봉인/복호화 재복원 **3가지 독립 기술 검증은 실제 성공**했다. 비밀자료는 사용자 통제 비공개 저장소에만 보관했고, 본 공개 파일에는 통계·공식 실행 ID·암호문 해시 외의 민감내용이 없다.
