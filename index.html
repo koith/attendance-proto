@@ -1495,8 +1495,12 @@ const STORE_ENTRY_PIN_ID=(!STORE_ENTRY_INVALID&&STORE_ENTRY_RAW_ID===null&&!STOR
 // This is a locator only, NEVER authorization. list_stores ACTIVE verification
 // and admin_context manager scope must still approve all private operations.
 function previousStoreNavigationHint(){
+  // A remembered HQ/public POS selector is not a manager authorization.
+  // Legacy recovery is scoped to old privileged deep links only; public POS,
+  // staff attendance and HQ dashboard keep their previously approved routing.
   if(STORE_ENTRY_RAW_ID!==null||STORE_ENTRY_PATH||
-     STORE_ENTRY_MODE==="store"||STORE_ENTRY_MODE==="hq"||location.hash==="#dashboard")return 0;
+     STORE_ENTRY_MODE==="store"||STORE_ENTRY_MODE==="hq"||
+     !/^#(?:admin|pay|hours|report|sales|inventory|ops)$/.test(location.hash))return 0;
   try{
     const raw=sessionStorage.getItem("baekeok_store_id");
     if(!/^[1-9][0-9]*$/.test(String(raw||"")))return 0;
