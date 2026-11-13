@@ -52,6 +52,16 @@ test('remaining SEC recovery work is re-seeded with three distinct reviewed synt
  submitted.push({user:{login:'github-actions[bot]'},body:'[SEC-AUTO:SUBMITTED task=SEC-S04-ROW-SHAPE run=20 head='+head+']'});
  assert.equal(chooseTask(catalog,data,submitted).task.id,'SEC-S01-ROLE-ID-CASE');
 });
+test('selector fails closed on duplicate task identity before any work selection',()=>{
+ const duplicated={...catalog,tasks:[...catalog.tasks,{...catalog.tasks[0]}]};
+ assert.throws(()=>chooseTask(duplicated,data,[]),/DUPLICATE_OR_INVALID_TASK_ID/);
+});
+test('selector blocks mismatched model source and fixture or invalid priority',()=>{
+ const altered={...catalog,tasks:catalog.tasks.map((item,i)=>i===0?{...item,test:'qa/security/autopilot/unrelated.test.mjs'}:item)};
+ assert.throws(()=>chooseTask(altered,data,[]),/TASK_SOURCE_TEST_PAIR_MISMATCH/);
+ const invalid={...catalog,tasks:catalog.tasks.map((item,i)=>i===0?{...item,priority:-1}:item)};
+ assert.throws(()=>chooseTask(invalid,data,[]),/INVALID_TASK_PRIORITY/);
+});
 test('first run chooses a legitimate isolated recovery work unit',()=>{
  const s=chooseTask(catalog,data,[]);
  assert.equal(s.selected,true);

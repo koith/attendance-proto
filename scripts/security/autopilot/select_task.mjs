@@ -30,6 +30,16 @@ export function chooseTask(catalog,ledgers,comments,liveBranches=[]){
     const failed=msg.match(/^\[SEC-AUTO:FAILED task=([A-Z0-9-]+) cause=([A-Z_]+) run=[0-9]+\]/m);
     if(failed){const byCause=failures.get(failed[1])||new Map();byCause.set(failed[2],(byCause.get(failed[2])||0)+1);failures.set(failed[1],byCause);}
   }
+  // Validate the entire catalog before choosing any task, including skipped ones.
+  const ids=new Set();
+  for(const item of catalog.tasks){
+    if(!item||!safe.test(item.id||'')||ids.has(item.id))throw Error('DUPLICATE_OR_INVALID_TASK_ID');
+    ids.add(item.id);
+    if(!Number.isSafeInteger(item.priority)||item.priority<0)throw Error('INVALID_TASK_PRIORITY');
+    if(!/^scripts\/security\/autopilot\/[a-z0-9_]+\.mjs$/.test(item.source)||
+       item.test!=='qa/security/autopilot/'+item.source.split('/').at(-1).replace(/\.mjs$/,'.test.mjs'))
+      throw Error('TASK_SOURCE_TEST_PAIR_MISMATCH');
+  }
   const tasks=[...catalog.tasks].sort((a,b)=>a.priority-b.priority);
   for(const t of tasks){
     if(!safe.test(t.id)||!/^(?:SEC-S\d\d|AISEC-\d\d)$/.test(t.ledger))throw Error('INVALID_TASK_IDENTIFIER');
@@ -90,6 +100,6 @@ async function main(){
   if(!/^[a-z_]+$/.test(k)||!/^[-A-Za-z0-9_/.]+$/.test(v))throw Error('UNSAFE_OUTPUT');
   fs.appendFileSync(process.env.GITHUB_OUTPUT,k+'='+v+'\n');
  }
- console.log('SEC_AUTO_PLAN task='+fields.task+' selected='+fields.selected+' prior_failures='+fields.prior_failures);
+ console.log('SEC_AUTO_PLAN task='+fields.task+' selected='+fields.selected+' reason='+(chosen.reason||'AVAILABLE')+' catalog_size='+catalog.tasks.length+' prior_failures='+fields.prior_failures);
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)main().catch(e=>{console.error('SEC_AUTO_PLAN_FAILED cause='+String(e.message).slice(0,90));process.exitCode=1});
