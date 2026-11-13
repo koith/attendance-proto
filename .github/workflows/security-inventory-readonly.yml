@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/security_inventory_readonly.mjs'
+      - 'scripts/security_published_content_readonly.mjs'
       - '.github/workflows/security-inventory-readonly.yml'
   workflow_dispatch:
 permissions:
@@ -19,8 +20,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Scan current and historical tracked source without printing secrets
-        run: node scripts/security_inventory_readonly.mjs --history
+      - name: Scan all reachable history, current source and secret candidates (no values output)
+        run: node scripts/security_inventory_readonly.mjs --history --require-no-credential-hits
+      - name: Scan actual published same-origin Pages HTML/JS/CSS (read-only)
+        run: node scripts/security_published_content_readonly.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -5,12 +5,16 @@ import {readFileSync, writeFileSync} from 'node:fs';
 import {execFileSync,spawnSync} from 'node:child_process';
 
 const history=process.argv.includes('--history');
+const enforce=process.argv.includes('--require-no-credential-hits');
 const patterns=[
  ['credential_private_key',/-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----/g],
  ['credential_supabase_secret',/\bsb_secret_[A-Za-z0-9_-]{16,}\b/g],
  ['credential_github_token',/\b(?:ghp|gho|ghu|ghs|ghr|github_pat)_[A-Za-z0-9_]{20,}\b/g],
  ['credential_openai',/\bsk-(?:proj-)?[A-Za-z0-9_-]{28,}\b/g],
  ['credential_cloud_key',/\bAKIA[0-9A-Z]{16}\b/g],
+ ['credential_google_service_private_key',/\"private_key\"\s*:\s*\"-----BEGIN (?:RSA )?PRIVATE KEY-----/g],
+ ['credential_database_url',/\bpostgres(?:ql)?:\/\/[^\s'\"\/]+:[^@\s'\"\/]{6,}@(?!localhost\b|127\.0\.0\.1\b)[^\s'\"\/]+/gi],
+ ['credential_slack_token',/\bxox[baprs]-[A-Za-z0-9-]{18,}\b/g],
  ['person_email',/\b[A-Z0-9._%+-]+@(?:gmail|naver|daum|kakao|hanmail)\.(?:com|net)\b/gi],
  ['possible_phone',/\b01[016789][ -]?\d{3,4}[ -]?\d{4}\b/g],
 ];
@@ -25,6 +29,17 @@ function scan(path,text,origin) {
       regex.lastIndex=0;
       const match=lines[i].match(regex);
       if (!match) continue;
+      // The isolated PG test workflow uses one fixed local Docker service name
+      // \"postgres\". This is a synthetic DSN, not a production network address.
+      // Only whitelist exact reviewed workflow+service host and record its count.
+      if(kind==='credential_database_url' &&
+         path==='.github/workflows/pin-server-security.yml' &&
+         text.includes('services:\n      postgres:') &&
+         text.includes('POSTGRES_PASSWORD: synthetic_') &&
+         match.every(candidate=>candidate.endsWith('@postgres:5432'))) {
+        stats.synthetic_postgres_fixture_urls=(stats.synthetic_postgres_fixture_urls||0)+match.length;
+        continue;
+      }
       // Never emit matched content, even into CI artifacts. Paths and line numbers only.
       findings.push({kind,path,origin,line:i+1,count:match.length});
     }
@@ -39,7 +54,7 @@ if(history){
   // Scan past committed blobs without checkout, excludes generated/binary and jumbo objects.
   const objects=execFileSync('git',['rev-list','--objects','--all'],{encoding:'utf8',maxBuffer:256*1024*1024})
     .trim().split('\n').map(s=>{const n=s.indexOf(' ');return n<0?null:{sha:s.slice(0,n),path:s.slice(n+1)}})
-    .filter(Boolean).filter(x=>/\.(?:md|txt|json|js|mjs|cjs|ts|tsx|jsx|html|sql|yml|yaml|sh|py|toml|env|csv)$/i.test(x.path));
+    .filter(Boolean); // All historical reachable paths, including dotfiles and extensionless configs.
   const unique=objects.filter(o=>{if(seen.has(o.sha))return false;seen.add(o.sha);return true});
   const ids=unique.map(o=>o.sha).join('\n')+'\n';
   const info=spawnSync('git',['cat-file','--batch-check=%(objectname) %(objecttype) %(objectsize)'],{input:ids,encoding:'utf8',maxBuffer:256*1024*1024});
@@ -61,7 +76,7 @@ if(history){
     offset=start+size+1;
   }
 }
-const order={credential_private_key:0,credential_supabase_secret:1,credential_github_token:2,credential_openai:3,credential_cloud_key:4,person_email:5,possible_phone:6};
+const order={credential_private_key:0,credential_supabase_secret:1,credential_github_token:2,credential_openai:3,credential_cloud_key:4,credential_google_service_private_key:5,credential_database_url:6,credential_slack_token:7,person_email:8,possible_phone:9};
 findings.sort((a,b)=>order[a.kind]-order[b.kind]||a.path.localeCompare(b.path)||a.line-b.line);
 const summary={mode:history?'head_and_history':'head_only',scanned:stats,counts:{},sample_paths:{}};
 for(const f of findings) {
@@ -74,3 +89,7 @@ for(const f of findings) {
 writeFileSync('security-inventory-summary.json',JSON.stringify(summary,null,2)+'\n');
 process.stdout.write('SECURITY_INVENTORY_SUMMARY '+JSON.stringify({mode:summary.mode,scanned:stats,counts:summary.counts})+'\n');
 process.stdout.write('NOTE: matches are detection candidates, not verified exposures; no values or private data emitted.\n');
+if(enforce && Object.entries(summary.counts).some(([key,n])=>key.startsWith('credential_')&&n>0)){
+  process.stderr.write('SEC_S15_CREDENTIAL_CANDIDATES_REQUIRE_OWNER_TRIAGE (counts only; no matched content)\n');
+  process.exitCode=1;
+}

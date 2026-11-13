@@ -13,6 +13,22 @@ const check=(changes=files,more={})=>assertNoOperatingWriteRelease({before,head,
 test('strict exact-scope guard accepts reviewed non-runtime changes only',()=>{
   const r=check();assert.equal(r.result,'PASS');assert.equal(r.changed_paths.length,4);
   assert.equal(check([{filename:'security/readonly_session_hook_audit_20261105.sql',status:'added'}]).result,'PASS');
+  const secS15Paths=['scripts/security_inventory_readonly.mjs',
+    'scripts/security_published_content_readonly.mjs',
+    '.github/workflows/security-inventory-readonly.yml'];
+  for(const p of secS15Paths)assert.equal(check([{filename:p,status:'modified'}]).result,'PASS');
+  const historyScanner=fs.readFileSync(secS15Paths[0],'utf8');
+  const liveScanner=fs.readFileSync(secS15Paths[1],'utf8');
+  const secS15Workflow=fs.readFileSync(secS15Paths[2],'utf8');
+  assert.match(historyScanner,/--require-no-credential-hits/);
+  assert.match(historyScanner,/--all/);
+  assert.match(historyScanner,/credential_database_url/);
+  assert.match(liveScanner,/koith\.github\.io/);
+  assert.match(liveScanner,/credential_candidate/);
+  assert.match(secS15Workflow,/--history --require-no-credential-hits/);
+  assert.match(secS15Workflow,/node scripts\/security_published_content_readonly\.mjs/);
+  assert.throws(()=>check([{filename:'scripts/security_inventory_unreviewed.mjs',status:'added'}]),
+    /SEC_NO_WRITE_DISALLOWED_CHANGE/);
   const triageSql='security/readonly_auto_close_triage_20261105.sql';
   const impactSql='security/readonly_auto_close_impact_20261103.sql';
   const triageFixture='qa/sec_s11_auto_close_triage_canonical_utc_fixture.sql';
