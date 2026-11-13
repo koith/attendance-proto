@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+// SEC-S15: read-only publicly deployed Pages content. Never output credentials,
+// emails, staff details, body snippets or content paths containing query params.
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+
+const ORIGIN='https://koith.github.io';
+const BASE='/attendance-proto/';
+const MAX=2_500_000;
+const links=new Set([new URL(BASE,ORIGIN).href]);
+const required=[new URL(BASE,ORIGIN).href];
+const seen=new Set();
+const count={html:0,js:0,css:0,other:0,visible_person_email:0,credential_candidate:0};
+const sensitive=[
+ /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g,
+ /\bsb_secret_[A-Za-z0-9_-]{16,}\b/g,
+ /\b(?:ghp|gho|ghu|ghs|ghr|github_pat)_[A-Za-z0-9_]{20,}\b/g,
+ /\bsk-(?:proj-)?[A-Za-z0-9_-]{28,}\b/g,
+ /\bpostgres(?:ql)?:\/\/[^\s'"]+:[^@\s'"]{6,}@(?!localhost|127\.0\.0\.1)[^/\s'"]+/gi
+];
+function acceptLink(raw) {
+ if(!raw || raw.startsWith('#') || raw.startsWith('data:') || raw.startsWith('javascript:'))return;
+ let url;
+ try{url=new URL(raw,new URL(BASE,ORIGIN))}catch{return}
+ if(url.origin!==ORIGIN || !url.pathname.startsWith(BASE))return;
+ if(!/\.(?:html?|mjs|js|css)$/i.test(url.pathname))return;
+ url.search='';url.hash='';
+ if(links.size<100)links.add(url.href);
+}
+for(const url of required)assert.ok(url.startsWith(ORIGIN+BASE));
+for(const url of links) {
+ if(seen.size>=65)throw Error('SEC_S15_TOO_MANY_UNVERIFIED_PUBLIC_ASSETS');
+ seen.add(url);
+ const response=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(12000),cache:'no-store'});
+ assert.equal(response.status,200,'SEC_S15_PUBLISHED_URL_UNAVAILABLE');
+ const size=Number(response.headers.get('content-length')||0);
+ assert.ok(size<=MAX,'SEC_S15_PUBLISHED_ASSET_TOO_LARGE');
+ const bytes=Buffer.from(await response.arrayBuffer());
+ assert.ok(bytes.length<=MAX,'SEC_S15_PUBLIC_ASSET_BODY_TOO_LARGE');
+ const body=bytes.toString('utf8');
+ const type=url.endsWith('.css')?'css':/\.(?:mjs|js)$/.test(url)?'js':'html';
+ count[type]++;
+ const emails=body.match(/\b[A-Z0-9._%+-]+@(?:gmail|naver|daum|kakao|hanmail)\.(?:com|net)\b/gi)||[];
+ count.visible_person_email+=emails.length;
+ for(const p of sensitive) {p.lastIndex=0;count.credential_candidate+=(body.match(p)||[]).length;}
+ if(type==='html') {
+  // Only first-party CSS/JS/HTML linked from the rendered public file.
+  for(const m of body.matchAll(/(?:src|href)\s*=\s*["']([^"']+)["']/gi)) acceptLink(m[1]);
+ }
+}
+// Hash only the count metadata, no filenames, raw page snippets or secrets.
+const summary={mode:'published_public_first_party_only',origin:ORIGIN,assets:seen.size,counts:count};
+console.log('SEC_S15_PUBLISHED_SUMMARY '+JSON.stringify(summary));
+if(count.credential_candidate>0)throw Error('SEC_S15_PUBLISHED_SECRET_CANDIDATES_REVIEW_REQUIRED');
+// Public personal emails require manual classification, not a claim of PII-clean.
+console.log('PASS SEC-S15 published asset scan; candidate personal email counts require privacy classification.');
