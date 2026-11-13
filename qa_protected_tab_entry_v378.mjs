@@ -14,6 +14,9 @@ let STORE_ENTRY_LOADING=false,STORE_ENTRY_UNAVAILABLE=false,STORE_ENTRY_LOCK=fal
 // Server-verified manager store locator is tested with the full app elsewhere.
 // Route-only fixture stubs it; no local locator can authorize manager access.
 const STORE_ENTRY_FROM_PIN=false;
+// This isolated route fixture models a manager already scoped to store 1.
+// The full unscoped/canonical URL behavior is exercised separately.
+const STORE_ENTRY_RAW_ID='1', STORE_ENTRY_MODE='store';
 function rememberVerifiedManagerStore(){}
 function restoreHqFromManagerPin(){}
 window.QA={logged:false,role:'STORE_MANAGER',scope:{limited:false},delay:'',fail:''};window.pending={};
