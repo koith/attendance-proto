@@ -15,6 +15,7 @@ const rootHtml=readdirSync('.').filter(name=>/^[A-Za-z0-9_-]+\.html$/.test(name)
 const required=[new URL(BASE,ORIGIN).href,...rootHtml.map(name=>new URL(BASE+name,ORIGIN).href)];
 for(const u of required)links.add(u);
 const seen=new Set();
+const emailAssetPaths=[];
 const count={html:0,js:0,css:0,other:0,visible_person_email:0,credential_candidate:0};
 const sensitive=[
  /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g,
@@ -47,6 +48,7 @@ for(const url of links) {
  count[type]++;
  const emails=body.match(/\b[A-Z0-9._%+-]+@(?:gmail|naver|daum|kakao|hanmail)\.(?:com|net)\b/gi)||[];
  count.visible_person_email+=emails.length;
+ if(emails.length)emailAssetPaths.push({path:new URL(url).pathname.slice(BASE.length),count:emails.length});
  for(const p of sensitive) {p.lastIndex=0;count.credential_candidate+=(body.match(p)||[]).length;}
  if(type==='html') {
   // Only first-party CSS/JS/HTML linked from the rendered public file.
@@ -54,7 +56,7 @@ for(const url of links) {
  }
 }
 // Hash only the count metadata, no filenames, raw page snippets or secrets.
-const summary={mode:'published_public_first_party_only',origin:ORIGIN,root_html_entrypoints:rootHtml.length,assets:seen.size,counts:count};
+const summary={mode:'published_public_first_party_only',origin:ORIGIN,root_html_entrypoints:rootHtml.length,assets:seen.size,counts:count,email_asset_paths:emailAssetPaths};
 console.log('SEC_S15_PUBLISHED_SUMMARY '+JSON.stringify(summary));
 if(count.credential_candidate>0)throw Error('SEC_S15_PUBLISHED_SECRET_CANDIDATES_REVIEW_REQUIRED');
 // Public personal emails require manual classification, not a claim of PII-clean.
