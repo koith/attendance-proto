@@ -12,8 +12,8 @@ export function statusOfLedger(content,id){
     // SEC and AISEC use different status columns; never infer status from
     // a free-text objective/evidence cell. Accept verified parenthetical scopes.
     const statusCell=String(id.startsWith('AISEC-')?cells[2]:cells[3]||'');
-    const normalized=statusCell.replace(/^\\*+|\\*+$/g,'').trim();
-    const match=normalized.match(/^(COMPLETE|IN_PROGRESS|NOT_STARTED|UNVERIFIED|FAILED_PATH)(?:\\s*\\(.*\\))?$/);
+    const normalized=statusCell.replace(/^\*+|\*+$/g,'').trim();
+    const match=normalized.match(/^(COMPLETE|IN_PROGRESS|NOT_STARTED|UNVERIFIED|FAILED_PATH)(?:\s*\(.*\))?$/);
     return match?.[1]||null;
   }
   return null;
