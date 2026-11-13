@@ -1,5 +1,37 @@
 import {createHash} from 'node:crypto';
 
+function isPlainObject(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+function assertJsonValue(value, ancestors = new Set()) {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return;
+  if (typeof value === 'number' && Number.isFinite(value)) return;
+  if (typeof value !== 'object' || ancestors.has(value)) throw Error('INVALID_ROW');
+  const array = Array.isArray(value);
+  if (array ? Object.getPrototypeOf(value) !== Array.prototype : !isPlainObject(value)) throw Error('INVALID_ROW');
+  ancestors.add(value);
+  const keys = Reflect.ownKeys(value);
+  if (array) {
+    if (keys.length !== value.length + 1 || !keys.includes('length')) throw Error('INVALID_ROW');
+    for (let index = 0; index < value.length; index++) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) throw Error('INVALID_ROW');
+      assertJsonValue(descriptor.value, ancestors);
+    }
+  } else {
+    for (const key of keys) {
+      if (typeof key !== 'string') throw Error('INVALID_ROW');
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) throw Error('INVALID_ROW');
+      assertJsonValue(descriptor.value, ancestors);
+    }
+  }
+  ancestors.delete(value);
+}
+
+
 // Pure offline check for encrypted logical DB recovery receipts; NEVER opens an operating DB.
 export function checkManifest(receipt) {
   if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) throw Error('INVALID_MANIFEST');
@@ -14,6 +46,10 @@ export function checkManifest(receipt) {
     if (ids.has(normalizedId)) throw Error('DUPLICATE_TABLE_ID');
     ids.add(normalizedId);
     if (!Array.isArray(rows)) throw Error('TRUNCATED_ROWS');
+    for (const row of rows) {
+      if (!isPlainObject(row)) throw Error('INVALID_ROW');
+      assertJsonValue(row);
+    }
   }
   if (tables.length !== receipt.table_count) throw Error('TABLE_COUNT_MISMATCH');
 
