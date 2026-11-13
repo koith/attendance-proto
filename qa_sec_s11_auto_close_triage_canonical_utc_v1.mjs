@@ -13,7 +13,7 @@ const setup=fs.readFileSync(fixture,'utf8');
 assert.match(query,/public\.attendance_correction_effective_utc\(c\.new_event_at,c\.created_by,c\.created_at\)/);
 assert.ok((query.match(/public\.attendance_correction_effective_utc\(c\.new_event_at,c\.created_by,c\.created_at\)/g)||[]).length===2,
   'Both edited original and added correction require the canonical production converter');
-assert.match(query,/AND a\.reason='SYSTEM_STORE_CLOSE'/);
+assert.match(query,/WHERE a\.reason='SYSTEM_STORE_CLOSE'/);
 assert.match(query,/c\.reason !~ '\[\[\]VOID_ADD/);
 assert.doesNotMatch(query,/^\s*(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|GRANT|REVOKE|TRUNCATE)\b/im,
   'Review query must contain only a SELECT');
