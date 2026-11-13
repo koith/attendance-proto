@@ -66,6 +66,7 @@ const allowedPaths=new Set([
   "scripts/security/validate_agent_publish_patch.mjs",
   "security/SEC_S17_RECOVERY_HANDOVER_PUBLIC_20261106.md",
   "security/readonly_session_hook_audit_20261105.sql",
+  "security/readonly_sec_s08_authenticated_acl_20261113.sql",
   ".github/workflows/sec-autopilot-boundary-regression.yml",
   "scripts/security/autopilot/propose.mjs",
   "scripts/security/autopilot/provider_env.mjs",
