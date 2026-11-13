@@ -2,7 +2,7 @@
 
 ## 결론: 사용자가 직접 입력하는 Secret은 0개
 
-- **허용 계정:** `webuielf@gmail.com`만. 운영 계정의 Google 연결(현재 ChatGPT Drive `dokodemoitsho@gmail.com`)을 사용하지 않음.
+- **허용 계정:** `QA 전용 Google 계정`만. 운영 계정의 Google 연결(현재 ChatGPT Drive `운영 Drive 계정`)을 사용하지 않음.
 - **전제 완료:** QA 계정/독립 Google Cloud `QA1243-Isolated` (ID `qa1243-isolated`), Script/Sheets/Drive API, QA 계정 Apps Script API 허용, QA Script `QA1243 isolated Edge GAS 2026-10-21 QA-only` 생성 완료.
 - **사용자 추가 화면 조작:** QA Cloud OAuth 동의 화면의 테스트 사용자 및 Desktop OAuth 클라이언트 **최초 1회** 설정/JSON 다운로드 (아직 미설정일 때만), Windows 동봉 도우미 `QA1243_OAuth_Start.cmd` 실행 및 Google·GitHub 브라우저 로그인/동의.
 - **자동:** OAuth local callback + PKCE → 정확한 scope/QA 계정 확인 → Refresh Token 발급/재발급 검증 → GitHub Actions Secret 3개 등록 → 기존 main push QA만 자동 재실행. QA Script ID 자동 검색/업로드/배포 및 QA Sheet A/B 생성은 기존 trusted CI가 수행.
@@ -13,7 +13,7 @@
 
 이미 설정했다면 다시 생성하거나 변경할 필요가 없습니다.
 
-1. **QA 계정만 활성화한 Chrome 프로필**에서 [Google Cloud → QA1243-Isolated OAuth Audience](https://console.cloud.google.com/auth/audience?project=qa1243-isolated)를 열어 External(외부) / Testing(테스트), 테스트 사용자 `webuielf@gmail.com` 한 명 등록을 확인. 다른 계정 및 운영 계정을 테스트 사용자에 등록하지 않습니다.
+1. **QA 계정만 활성화한 Chrome 프로필**에서 [Google Cloud → QA1243-Isolated OAuth Audience](https://console.cloud.google.com/auth/audience?project=qa1243-isolated)를 열어 External(외부) / Testing(테스트), 테스트 사용자 `QA 전용 Google 계정` 한 명 등록을 확인. 다른 계정 및 운영 계정을 테스트 사용자에 등록하지 않습니다.
 2. 같은 프로젝트 [Data Access](https://console.cloud.google.com/auth/scopes?project=qa1243-isolated)에 필요 시 **아래 5개 scope만** 등록/동의 검토:
    - `https://www.googleapis.com/auth/userinfo.email`
    - `https://www.googleapis.com/auth/script.projects`
@@ -27,7 +27,7 @@
 
 1. [GitHub Actions → QA1243 OAuth one-click Windows package](https://github.com/koith/attendance-proto/actions/workflows/qa1243-bootstrap-package.yml)의 최신 **main 성공 실행**을 열어 아래 **Artifacts → QA1243-OAuth-OneClick**을 다운로드한 뒤 **한 번만 압축 해제**합니다. 저장소에서 검증한 `QA1243_OAuth_Start.cmd`와 `scripts/*.mjs`·설명서만 포함하며, OAuth Secret/JSON은 포함하지 않습니다. 파일을 PC의 개인 폴더에 보관하고 운영 자료 폴더에 넣지 않습니다.
 2. `QA1243_OAuth_Start.cmd` **더블클릭**. Node.js 및 GitHub CLI가 없다면 공식 Windows Package Manager(winget)로 설치를 시도합니다. GitHub 로그인 이력이 없을 경우 **GitHub 로그인 승인**이 한 번 필요하며, 대상 저장소 관리자 권한도 자동 확인합니다. 방금 다운로드한 QA Desktop OAuth JSON을 Downloads에서 자동 탐색합니다.
-3. 자동으로 열린 Google 브라우저에서 **`webuielf@gmail.com`을 선택**하고 위 5개 읽기·스크립트 관리 범위를 검토 후 **동의**합니다. `Drive 전체 수정/삭제`, `Google Sheets 전체 수정/삭제`, `외부 요청` 범위가 표시되면 허용하지 않고 중단합니다.
+3. 자동으로 열린 Google 브라우저에서 **`QA 전용 Google 계정`을 선택**하고 위 5개 읽기·스크립트 관리 범위를 검토 후 **동의**합니다. `Drive 전체 수정/삭제`, `Google Sheets 전체 수정/삭제`, `외부 요청` 범위가 표시되면 허용하지 않고 중단합니다.
 4. **나머지는 자동**: PKCE code 교환, Refresh Token 발급/검증, 실제 소유 계정 email 검증, GitHub에 `QA1243_GOOGLE_OAUTH_CLIENT_ID`, `QA1243_GOOGLE_OAUTH_CLIENT_SECRET`, `QA1243_GOOGLE_OAUTH_REFRESH_TOKEN`을 암호화 전송, Secret 이름만 재확인, 가장 최근 검증된 main **push 이벤트** QA 작업 실패 job 재실행 요청. Script ID를 복사하거나 GitHub 화면에서 Secrets 3개를 각각 등록할 필요가 없습니다.
 5. 실행 결과에는 `QA1243_THREE_GITHUB_ACTIONS_SECRETS_UPLOADED`, `QA1243_TRUSTED_MAIN_PUSH_E2E_RERUN_REQUESTED` 같은 **상태 코드만** 나타납니다. Refresh Token/Client Secret/토큰 교환 HTTP 본문·인증코드는 **표시·파일 저장하지 않습니다**. 만약 Downloads에 QA Desktop JSON이 여러 종류라면, 새로 받은 JSON 파일 경로를 지정해 `QA1243_OAuth_Start.cmd --credentials "C:\\Users\\...\\Downloads\\client_secret_...json"`로 재실행할 수 있습니다.
 
@@ -38,7 +38,7 @@
 ## C. 자동 QA 배포 뒤 필요한 1회 QA Script 소유자 동의 (조건부)
 
 - **필요할 때만**: [GitHub QA E2E](https://github.com/koith/attendance-proto/actions/workflows/qa1243-live-e2e.yml)에서 `QA1243_REMOTE_SOURCE_ATTESTED`가 출력된 뒤 `QA1243_GAS_OWNER_CONSENT_REQUIRED` 또는 실행 403이 나오는 경우.
-- `webuielf@gmail.com`으로 [Apps Script](https://script.google.com/home)에서 기존 QA1243 프로젝트만 열고, 상단 함수 선택 `qa1243AuthorizeServices` → **실행 → Sheets 및 Script properties 권한 동의**. 이 권한은 **독립 QA 계정의 GAS 런타임**이 신규 QA 시트를 만들고 쓰기 위해 필요합니다. CI OAuth와는 별개이며 CI에 Sheets 전체 수정 권한을 부여하는 일이 아닙니다.
+- `QA 전용 Google 계정`으로 [Apps Script](https://script.google.com/home)에서 기존 QA1243 프로젝트만 열고, 상단 함수 선택 `qa1243AuthorizeServices` → **실행 → Sheets 및 Script properties 권한 동의**. 이 권한은 **독립 QA 계정의 GAS 런타임**이 신규 QA 시트를 만들고 쓰기 위해 필요합니다. CI OAuth와는 별개이며 CI에 Sheets 전체 수정 권한을 부여하는 일이 아닙니다.
 - 동의 후 GitHub의 동일 QA E2E main push **실패 작업 재실행**. 해당 대화가 진행 중이고 도구 접근이 가능하면 개발 담당자가 GitHub 연결로 재실행할 수 있습니다. 승인 외의 화면 복잡한 설정/코드 붙여넣기 금지.
 
 ## D. 범위, 만료, 완료조건
