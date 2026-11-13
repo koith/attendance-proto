@@ -12,6 +12,7 @@ INSERT INTO auth.sessions(id,user_id,created_at) VALUES
  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','11111111-1111-1111-1111-111111111111',now()-interval '2 hours'),
  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','11111111-1111-1111-1111-111111111111',now()-interval '1 hour');
 \ir supabase/migrations/20261017050000_single_admin_session_guard_prepare.sql
+\ir security/sec01_session_revocation_guard_v1.sql
 CREATE FUNCTION public.qa_session_http_probe()
 RETURNS text LANGUAGE sql STABLE AS $f$ SELECT 'OK'::text; $f$;
 REVOKE ALL ON FUNCTION public.qa_session_http_probe() FROM PUBLIC;
