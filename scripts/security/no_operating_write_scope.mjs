@@ -55,6 +55,8 @@ const allowedPaths=new Set([
   "security/sec_s2_anon_trigger_execute_hardening.sql",
   "qa/sec_s2_anon_trigger_execute_postgres.sql",
   "qa_live_guest_pos_readonly_browser_v384.mjs",
+  "qa_live_sec_s05_unauthorized_rpc_readonly_v1.mjs",
+  "security/readonly_sec_s05_unauthorized_rpc_preflight_20261113.sql",
   "qa_live_anonymous_sensitive_readonly_v1.mjs",
   ".github/workflows/qa-live-test-controls-v1.yml",
   "qa_live_version_test_controls_v1.mjs",

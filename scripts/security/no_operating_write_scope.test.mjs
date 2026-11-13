@@ -13,6 +13,20 @@ const check=(changes=files,more={})=>assertNoOperatingWriteRelease({before,head,
 test('strict exact-scope guard accepts reviewed non-runtime changes only',()=>{
   const r=check();assert.equal(r.result,'PASS');assert.equal(r.changed_paths.length,4);
   assert.equal(check([{filename:'security/readonly_session_hook_audit_20261105.sql',status:'added'}]).result,'PASS');
+  for(const p of ['qa_live_sec_s05_unauthorized_rpc_readonly_v1.mjs',
+    'security/readonly_sec_s05_unauthorized_rpc_preflight_20261113.sql'])
+    assert.equal(check([{filename:p,status:'added'}]).result,'PASS');
+  const live=fs.readFileSync('qa_live_sec_s05_unauthorized_rpc_readonly_v1.mjs','utf8');
+  const sql=fs.readFileSync('security/readonly_sec_s05_unauthorized_rpc_preflight_20261113.sql','utf8');
+  const workflow=fs.readFileSync('.github/workflows/qa-live-test-controls-v1.yml','utf8');
+  assert.match(live,/assert\.equal\(allow\.size,10\)/);
+  assert.match(live,/response\.status===401 \|\| response\.status===403/);
+  assert.match(sql,/anonymous_execute_allowed/);
+  assert.match(sql,/possible_mutating_body/);
+  assert.match(workflow,/node qa_live_sec_s05_unauthorized_rpc_readonly_v1\.mjs/);
+  assert.doesNotMatch(live,/\['(?:punch|hq_store_register|hq_store_activate|store_limited_employee_update)'/);
+  assert.doesNotMatch(sql,/^\s*(?:INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE)\b/im);
+
   const auditPath='security/readonly_sec_s08_authenticated_acl_20261113.sql';
   assert.equal(check([{filename:auditPath,status:'added'}]).result,'PASS');
   const audit=fs.readFileSync(auditPath,'utf8');

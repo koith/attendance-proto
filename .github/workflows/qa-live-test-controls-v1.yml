@@ -5,6 +5,8 @@ on:
       - 'qa_live_version_test_controls_v1.mjs'
       - 'qa_live_guest_pos_readonly_browser_v384.mjs'
       - 'qa_live_anonymous_sensitive_readonly_v1.mjs'
+      - 'qa_live_sec_s05_unauthorized_rpc_readonly_v1.mjs'
+      - 'security/readonly_sec_s05_unauthorized_rpc_preflight_20261113.sql'
       - '.github/workflows/publish-pages.yml'
       - '.github/workflows/qa-live-test-controls-v1.yml'
   workflow_dispatch:
@@ -23,6 +25,7 @@ jobs:
         run: |
           node --check qa_live_version_test_controls_v1.mjs
           node --check qa_live_guest_pos_readonly_browser_v384.mjs
+          node --check qa_live_sec_s05_unauthorized_rpc_readonly_v1.mjs
           node --check version_test_toggle_982.js
       - name: Install Chromium and Safari-compatible WebKit
         run: |
@@ -34,6 +37,8 @@ jobs:
         run: node qa_live_version_test_controls_v1.mjs
       - name: Live production private table and forged JWT rejection (GET-only)
         run: node qa_live_anonymous_sensitive_readonly_v1.mjs
+      - name: SEC-S05 hosted anonymous protected RPC denial (preflight audited SELECT-only)
+        run: node qa_live_sec_s05_unauthorized_rpc_readonly_v1.mjs
       - name: Production public POS and store access boundaries (read-only RPC)
         run: |
           node qa_pos_guest_live_rpc_v1.mjs
