@@ -34,6 +34,11 @@ test('rejects malformed rows despite matching metadata',()=>{
   const receipt={format:'attendance-privileged-data-escrow-v1',table_count:1,data:{'public.one':rows},table_digests:{'public.one':digest},table_row_counts:{'public.one':1}};
   assert.throws(()=>checkManifest(receipt),/INVALID_ROW/);
  }
+ const rows=[null];
+ rows[Symbol.iterator]=function*(){yield {a:1};};
+ const digest=createHash('sha256').update(JSON.stringify(rows)).digest('hex');
+ const receipt={format:'attendance-privileged-data-escrow-v1',table_count:1,data:{'public.one':rows},table_digests:{'public.one':digest},table_row_counts:{'public.one':1}};
+ assert.throws(()=>checkManifest(receipt),/INVALID_ROW/);
 });
 test('rejects nested unsafe values, getters, cycles and missing array slots',()=>{
  const self={a:1}; self.b=self;

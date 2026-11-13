@@ -46,9 +46,9 @@ export function checkManifest(receipt) {
     if (ids.has(normalizedId)) throw Error('DUPLICATE_TABLE_ID');
     ids.add(normalizedId);
     if (!Array.isArray(rows)) throw Error('TRUNCATED_ROWS');
-    for (const row of rows) {
-      if (!isPlainObject(row)) throw Error('INVALID_ROW');
-      assertJsonValue(row);
+    assertJsonValue(rows);
+    for (let index = 0; index < rows.length; index++) {
+      if (!isPlainObject(rows[index])) throw Error('INVALID_ROW');
     }
   }
   if (tables.length !== receipt.table_count) throw Error('TABLE_COUNT_MISMATCH');
