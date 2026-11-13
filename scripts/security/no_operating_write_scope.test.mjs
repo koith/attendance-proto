@@ -13,6 +13,18 @@ const check=(changes=files,more={})=>assertNoOperatingWriteRelease({before,head,
 test('strict exact-scope guard accepts reviewed non-runtime changes only',()=>{
   const r=check();assert.equal(r.result,'PASS');assert.equal(r.changed_paths.length,4);
   assert.equal(check([{filename:'security/readonly_session_hook_audit_20261105.sql',status:'added'}]).result,'PASS');
+  const triageSql='security/readonly_auto_close_triage_20261105.sql';
+  const triageFixture='qa/sec_s11_auto_close_triage_canonical_utc_fixture.sql';
+  const triageTester='qa_sec_s11_auto_close_triage_canonical_utc_v1.mjs';
+  const triageWorkflow='.github/workflows/sec-s11-auto-close-canonical-utc-regression.yml';
+  for(const p of [triageSql,triageFixture,triageTester,triageWorkflow])
+    assert.equal(check([{filename:p,status:'modified'}]).result,'PASS');
+  const safeTriage=fs.readFileSync(triageSql,'utf8');
+  assert.ok(safeTriage.includes('public.attendance_correction_effective_utc'));
+  assert.doesNotMatch(safeTriage,/^\s*(?:INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|GRANT|TRUNCATE)\b/im);
+  assert.match(fs.readFileSync(triageFixture,'utf8'),/synthetic-only disposable PG16\/17 fixture/);
+  assert.match(fs.readFileSync(triageWorkflow,'utf8'),/postgres:\$\{\{ matrix.pg \}\}-alpine/);
+  assert.throws(()=>check([{filename:'security/readonly_auto_close_triage_UNVERIFIED.sql',status:'added'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
   const a2Sql='security/readonly_sec_a2_live_audit_orphan_custody_20261113.sql';
   assert.equal(check([{filename:a2Sql,status:'added'}]).result,'PASS');
   const evidence=fs.readFileSync(a2Sql,'utf8');
