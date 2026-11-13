@@ -79,6 +79,7 @@ const allowedPaths=new Set([
   "qa_sec_s11_auto_close_triage_canonical_utc_v1.mjs",
   ".github/workflows/sec-s11-auto-close-canonical-utc-regression.yml",
   ".github/workflows/sec-autopilot-boundary-regression.yml",
+  "security/autopilot/tasks.json",
   "scripts/security/autopilot/select_task.mjs",
   "scripts/security/autopilot/propose.mjs",
   "scripts/security/autopilot/provider_env.mjs",
