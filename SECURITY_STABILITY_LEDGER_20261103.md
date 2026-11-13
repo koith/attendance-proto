@@ -146,7 +146,7 @@
 | S5 | 관리자 단일기기 서버측 세션 차단 | IN_PROGRESS: 구 JWT 실제 거부 증거 필요 |
 | S6 | GitHub 비밀·PAT 의존성 점검 | **VERIFIED COMPLETE (감사·의존성 진단 한정)**: 158/158 GitHub workflow 직접 Secret·PAT·Var 참조 전수 확인, 실제 비밀값 노출 없는 존재 검사·Management 401·백업 protected-env 실패 원인 확인. 미등록 비밀값·실제 백업 성공·토큰 발급/갱신은 별도 B1/D5 과제 |
 | A1 | 출퇴근 동시성·중복 차단 | IN_PROGRESS: 독립 합성 QA 존재, 운영 전경로 미검증 |
-| A2 | 근태 정정·삭제 이력 보존 | **IN_PROGRESS**: 3개 테이블 수정·삭제 이력 비공개 감사/대량삭제 방어 운영 적용, PG16/17 + 운영 쿼리 + 호스티드 브라우저 PASS. 과거 원본 미연결 VOID 8건·실제 향후 운영 정정 감사 이력 검증 미완 (N절) |
+| A2 | 근태 정정·삭제 이력 보존 | **VERIFIED COMPLETE (감사기록 보존 범위)**: 운영 private 감사 INSERT 1건(실제 2026-11-09 시스템 자동퇴근 정정)이 현재 원본 행 JSON과 1/1 완전 일치, 사전/사후·시간·PK 검증. event_corrections·correction_requests INSERT 트리거 2개, 3개 원본 테이블 UPDATE/DELETE·TRUNCATE 방어 6개, private 감사 UPDATE/DELETE·TRUNCATE 불변성 2개 활성. anon/authenticated private USAGE·SELECT 모두 false; PG16/17 합성 정정·수정·삭제·롤백 검증 기존 CI 통과. 과거 원본포인터 없는 VOID 8건은 운영본+11/09·11/11·11/12 개인 암호화 실백업에서 전건·동일 원문 보존, 실제 펀치 포인터/시각/유형 없고 두 서버 실근무 투영에서 기여 0인 과거 **무효 삭제요청 이력**으로 분리. *당시 의도한 삭제 대상은 확인 불가하여 업무적 판단·정정 미진행*, SEC-S12/A3의 지급·정정 영향 조사로 유지. 이번 운영 쓰기 0. 재현 SQL `security/readonly_sec_a2_live_audit_orphan_custody_20261113.sql`, 개인 재검증기 `/Attendance-Recovery/tools/sec_a2_private_orphan_custody_verify.py`, 후속 §AC. |
 | A3 | 급여 마감·정산 일관성 | IN_PROGRESS: 합성 QA 존재, 과거 10건 개별 검산 미완 |
 | A4 | Google Sheets 동기화·복구 | IN_PROGRESS: 실제 새로고침 성공, 손실 없는 격리 복구 미검증 |
 | D1 | 복구 코드 PR #1520 안전 검토·병합 | VERIFIED: main commit 86a1fb52 |
@@ -567,7 +567,7 @@
 | S5 | **OPEN** | 모든 관리자 API 단일기기 강제 및 구세션 실HTTP 검증 |
 | S6 | **COMPLETE** | GitHub secret/PAT 의존성 전수 감사 |
 | A1 | **OPEN** | 중복 VOID_ADD 운영 코드 수리됨, 실제 매장 단말 경합·급여/Sheet 검증 미완 |
-| A2 | **OPEN** | INSERT 감사 운영 트리거 적용됨, 최초 실제 정정 감사영수증 및 과거 VOID 8건 미검증 |
+| A2 | **COMPLETE (기록 보존·불변성·실정정 감사 영수증 검증)** | 운영 `event_corrections` 자동퇴근 ADD 실제 INSERT 감사 1건 내용·PK 일치; 비공개 append-only/권한/두 INSERT 트리거 정상; 과거 VOID 8건 운영/3 실제 백업 동일 보존·원본 미연결 무효 효력. 업무상 삭제 의도·실제 급여 영향 별도 SEC-S12/A3 확인 대상으로 남기고 데이터 임의 수정 없음. §AC |
 | A3 | **OPEN** | 자동퇴근 9건 정산·실제 지급액 검산 미완 |
 | A4 | **COMPLETE** | 시트 동기화·복구 지정 범위 수용 유지 |
 | D1 | **COMPLETE** | 복구 PR 병합 |
@@ -666,3 +666,24 @@
 - **안전/제약:** 실근태, 급여, 직원, Auth 사용자/세션, Storage, Google Sheets, Supabase 운영 구성 변경 **0**. 익명 HTTP 테스트는 위 *읽기 전용* 관리자 RPC 10개만 POST하고, 사용자의 실제 ID·PIN, 근무 이벤트 ID·개인 값은 포함하지 않았다. PIN 기반 직원 `punch`의 잘못된 PIN에 의한 **실운영 변경 시도는 고의로 생략**했으며, 함수 내부 검증/PG16·17 격리 QA는 기존 SEC-S07/S10 근거로 유지한다. 따라서 모든 가능한 악성 요청에 대한 수학적 증명이 아니며, 실제 서명된 고권한 JWT·타지점 공격 검증을 대신하지 않는다. 반증 가능성이 남는 SEC-S06, SEC-S09, S3/S4/S5는 모두 OPEN.
 - **릴리스/재현 증거:** 공개 자격증명은 기존 게시 앱에서만 읽고 CI 로그에 출력하지 않으며, `qa_live_sec_s05_unauthorized_rpc_readonly_v1.mjs`는 검증된 10개 화이트리스트만 호출. 신규 안전경로는 `scripts/security/no_operating_write_scope.mjs`에 **정확한 두 파일**만 추가, 범위 회귀 테스트 및 [PR #1577](https://github.com/koith/attendance-proto/pull/1577) **61/61 모든 Actions SUCCESS**(본 원장만 추가되기 전 검증 HEAD). 문서 합류에 대한 최종 PR CI와 merge SHA는 후속 검사로 확인.
 - **중복집계 방지:** 보안 대과제 COMPLETE **5 / OPEN 13** (SEC-S03·**S05**·S07·S08·S16). 개별 28개 보안·복구 COMPLETE **12 / OPEN 16**(S3/S4/S5 여전히 OPEN). 전체 서비스 완전 복구 가능 여부는 **NO_GO** 그대로.
+
+
+## AC. 2026-11-13 A2 — 운영 정정·삭제 이력 보존과 8건 원본 미연결 VOID 실증 (세부 12/28→13/28)
+
+> **수용 대상은 A2의 데이터 무결성·감사 보존 기능이다.** 실제 급여 차액 계산, 근태 정정의 업무 의도/승인, 미완료된 관리자 실제 JWT·실물 단말, 미래 사건까지 포괄해 완료 처리하지 않는다. 8건을 임의로 유효 삭제로 재연결하지 않고 이력으로 보존한다.
+
+### 1. 실제 운영 DB(읽기 전용)에서 다시 실행한 감사 영수증
+
+- 원장 공개 검증 SQL `security/readonly_sec_a2_live_audit_orphan_custody_20261113.sql`을 GitHub 브랜치에서 다시 읽어 **운영 Supabase PostgreSQL에서 SELECT만** 실행: 감사행 1개, 실제 운영 `public.event_corrections`의 자동퇴근 `ADD` INSERT 1건과 `source_pk` 및 **전체 `row_after = to_jsonb(현재 원본)` 1/1 정확 일치**, `row_before IS NULL`(INSERT), `observed_at >= created_at` 1/1, 조작된 행 형식 0. 시스템 자동동작이어서 신원 없는 `actor_uid`은 정상적인 별도 정보이며, 사람이 서명된 JWT로 정정한 실거래의 신원 귀속 성공을 주장하지 않는다.
+- **실운영 보호 기구:** `event_corrections`와 `correction_requests` INSERT 감사 트리거 **2/2 활성**, `attendance_events`·`event_corrections`·`correction_requests` UPDATE/DELETE 및 TRUNCATE 방어 트리거 **6/6 활성**, `private.attendance_mutation_audit_v1` UPDATE/DELETE 및 TRUNCATE 불변성 트리거 **2/2 활성**. anon/authenticated의 private 스키마 USAGE와 감사 테이블 SELECT 4개 모두 **false**. 기존 PG16/17 **실격리 합성 INSERT+UPDATE+DELETE 감사, 비인가 수정·삭제 거부, rollback 역사 보존** E2E는 재사용. 실제 운영 감사행 수정/삭제/추가 테스트는 절대 실행하지 않음.
+
+### 2. 미해결 과거 VOID 8건 — 실제 보관 상태까지 조사
+
+- 운영 `public.event_corrections`에서 `action='VOID' AND event_id IS NULL`인 **정확히 8건** 확인. 8/8의 `event_id=NULL`, `new_event_at=NULL`, `new_event_type=NULL`, 사유 텍스트 8/8 보존. 원본 출퇴근 이벤트·추가 정정 원문에 연결된 포인터 0. 따라서 이 8건은 현재 유효 펀치 원본을 **직접 삭제한 기록이 아니다**. 실제 운영 `sheet_month_attendance_projection` 및 `substitution_is_working` 함수는 원본 수정/무효를 `event_id IS NOT NULL`로 연결하고 신규 펀치는 `action='ADD'`만 추가하는 코드 조건이 있어, 이 8개 `VOID`를 유효 펀치 입력으로 처리하지 않는다.
+- 실제 소유자 비공개 AES256 암호화 운영 보관본 **11/09, 11/11, 11/12 총 3개**를 로컬 메모리에서 각각 별도 GPG 복호화. 각 시점 `event_corrections` 전체는 **134 / 135 / 135행**, 이 가운데 `VOID+event_id IS NULL` 8건씩 존재. 8건 모두 **3시점에서 모든 JSON 필드·PK 완전 동일**. 비공개 포렌식 검증 도구 `/Attendance-Recovery/tools/sec_a2_private_orphan_custody_verify.py` 실행 **PASS**, 11/09 감사 auto-close 영수증 0 / 11/11 1 / 11/12 1건; 공개 기록에는 실제 ID·사용자·사유·직원 데이터·개인 키·원문을 포함하지 않는다. 개인 Library에 툴 업로드 후 재다운로드해 **파일 전체 바이트/SHA256 일치** 확인.
+- **결과와 한계:** 원본에 연결되지 않은 과거 `VOID` 행을 현재 계산에서 무시하더라도, **그 당시 실제 어느 근태 기록을 삭제하려 했는지는 이 데이터만으로 단정 불가**. 이 8건을 실제 삭제로 간주해 인위적으로 근태·급여를 변경하면 데이터 변조가 되므로 절대 실행하지 않음. 당시 요청·지급액의 적정성과 원본 수정이 필요한지는 기존 **SEC-S12·A3(근태 정정·급여 차액 확인/승인)** 절차에서 별도 검증한다. *A2 기록 보존 수용*은 이 업무상 승인·오류 정정을 대신하지 않는다.
+
+### 3. 최종 구분과 배포 안전성
+
+- 신규 세부 복구 완료: **A2 1건**, 상세 28항목 **13 COMPLETE / 15 OPEN**. 기존 완료 12개 B2/B4/B5/R1/R4/R6/S1/S2/S6/A4/D1/D3 그대로 유지. 별도 보안 대과제 **SEC 5 COMPLETE / 13 OPEN** 변동 없음; **B1/R2/R3/R5/B6/D5/S3/S4/S5/A3** 등 필수 복구 게이트는 계속 OPEN, 전체 시스템 복구 **NO_GO**.
+- 운영 SQL DML/DDL, 정정·급여 기록, 인하대 직원 또는 사용자 인증, Google Sheets, Storage, Pages 앱 소스/버전 변경 **0**. 작업은 공개 SQL과 정본 감사 영수증·private-only 검증기, 엄격한 안전 경로 테스트만 추가. 실제 정상 서비스의 기록은 고치거나 지우지 않았음.
