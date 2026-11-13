@@ -156,6 +156,30 @@ on:
       - 'scripts/agent_apply_structured_edits.mjs'
   push:
     branches: [main]
+    # Only a real, publicly served app/asset change should republish Pages
+    # and invoke the post-deploy Google Sheet sync. Security/docs/isolated
+    # tests/CI fixes must never write to the operating Sheet as a side effect.
+    # PR P0 gate remains independent and retains its broad original paths.
+    paths:
+      - '*.html'
+      - '*.css'
+      - '*.js'
+      - '*.svg'
+      - '*.png'
+      - '*.jpg'
+      - '*.jpeg'
+      - '*.webp'
+      - '*.gif'
+      - '*.ico'
+      - '*.woff'
+      - '*.woff2'
+      - '*.webmanifest'
+      - 'manifest.json'
+      - 'robots.txt'
+      - 'assets/**'
+      - 'public/**'
+      - '!qa_*.js'
+      - '!*.test.js'
   workflow_dispatch:
     inputs:
       prove_gate_failure:
@@ -648,6 +672,8 @@ jobs:
         run: node qa_employee_contract_status_store_scope_v1.mjs
       - name: Mobile store identity regression
         run: node qa_store_mobile_header_identity.mjs
+      - name: Public app push scope must not deploy on security or QA-only changes
+        run: node qa_pages_push_release_scope_v1.mjs
       - name: Sheet report contracts
         run: |
           node qa_sheet_display_values.mjs
