@@ -71,6 +71,7 @@ const allowedPaths=new Set([
   "security/readonly_sec_s08_authenticated_acl_20261113.sql",
   "security/readonly_sec_a2_live_audit_orphan_custody_20261113.sql",
   "security/readonly_auto_close_triage_20261105.sql",
+  "security/readonly_auto_close_impact_20261103.sql",
   "qa/sec_s11_auto_close_triage_canonical_utc_fixture.sql",
   "qa_sec_s11_auto_close_triage_canonical_utc_v1.mjs",
   ".github/workflows/sec-s11-auto-close-canonical-utc-regression.yml",
