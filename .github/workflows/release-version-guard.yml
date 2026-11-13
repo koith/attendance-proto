@@ -2,29 +2,30 @@ name: Release version guard
 on:
   pull_request:
     branches: [main]
+permissions:
+  contents: read
 jobs:
   version-guard:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Check user-visible releases bump APP_VERSION
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prove all public assets and badge are guarded
+        run: node --test tests/release_version_guard.test.mjs
+      - name: Reject unversioned published UI changes
         shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
           set -euo pipefail
-          git fetch origin "${{ github.base_ref }}" --depth=1
-          changed="$(git diff --name-only "origin/${{ github.base_ref }}" HEAD)"
-          if ! printf '%s\n' "$changed" | grep -Eq '^(index\.html|operations_v1\.(js|css)|kpi_b_.*\.(js|css)|store_manager_tab\.(js|css))$'; then
-            echo "No watched user-facing changes; skipping."
-            exit 0
-          fi
-          old="$(git show "origin/${{ github.base_ref }}:index.html" | grep -oE 'const APP_VERSION="v[0-9]+\.[0-9]+";' | head -1)"
-          new="$(grep -oE 'const APP_VERSION="v[0-9]+\.[0-9]+";' index.html | head -1)"
-          if [ -z "$old" ] || [ -z "$new" ] || [ "$old" = "$new" ]; then
-            echo "::error::User-visible change requires an APP_VERSION bump in index.html"
-            exit 1
-          fi
-          echo "Version changed: $old -> $new"
+          git fetch origin "$BASE_REF" --depth=1
+          git diff --name-only "origin/$BASE_REF" HEAD > "$RUNNER_TEMP/changed-public-files.txt"
+          git show "origin/$BASE_REF:index.html" > "$RUNNER_TEMP/base-release-index.html"
+          node scripts/release_version_guard.mjs \
+            "$RUNNER_TEMP/base-release-index.html" \
+            index.html \
+            "$RUNNER_TEMP/changed-public-files.txt"
