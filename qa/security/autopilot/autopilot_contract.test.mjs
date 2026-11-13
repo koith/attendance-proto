@@ -26,8 +26,8 @@ test('canonical SEC-S16 scoped COMPLETE is recognized and already-done task is s
   user:{login:'github-actions[bot]'},body:`[SEC-AUTO:SUBMITTED task=${id} run=${i+10} head=${head}]`
  }));
  const r=chooseTask(catalog,data,submitted);
- assert.equal(r.selected,false);
- assert.equal(r.reason,'NO_SAFE_UNATTEMPTED_TASK');
+ assert.equal(r.selected,true);
+ assert.equal(r.task.id,'SEC-S04-ROW-SHAPE');
 });
 test('status parser requires exact status column, never a free-text evidence claim',()=>{
  const row='| SEC-S16 | Critical | completed text | **COMPLETE (scoped test)** | verified |';
@@ -36,6 +36,21 @@ test('status parser requires exact status column, never a free-text evidence cla
  assert.equal(statusOfLedger(unsafe,'SEC-S16'),'UNVERIFIED');
  const unknown='| SEC-S16 | Critical | task | COMPLETE enough | details |';
  assert.equal(statusOfLedger(unknown,'SEC-S16'),null);
+});
+test('remaining SEC recovery work is re-seeded with three distinct reviewed synthetic regression gaps',()=>{
+ const ids=catalog.tasks.map(x=>x.id);
+ for(const id of ['SEC-S04-ROW-SHAPE','SEC-S01-ROLE-ID-CASE','SEC-S02-AUTH-METADATA-ONLY']){
+  assert.ok(ids.includes(id));
+  const task=catalog.tasks.find(x=>x.id===id);
+  assert.equal(task.source.replace('scripts/security/autopilot/','').replace('.mjs',''),
+   task.test.replace('qa/security/autopilot/','').replace('.test.mjs',''));
+ }
+ const submitted=['SEC-S04-MANIFEST','SEC-S01-ROLES','SEC-S02-AUTH'].map((id,i)=>({
+  user:{login:'github-actions[bot]'},body:'[SEC-AUTO:SUBMITTED task='+id+' run='+(i+11)+' head='+head+']'
+ }));
+ assert.equal(chooseTask(catalog,data,submitted).task.id,'SEC-S04-ROW-SHAPE');
+ submitted.push({user:{login:'github-actions[bot]'},body:'[SEC-AUTO:SUBMITTED task=SEC-S04-ROW-SHAPE run=20 head='+head+']'});
+ assert.equal(chooseTask(catalog,data,submitted).task.id,'SEC-S01-ROLE-ID-CASE');
 });
 test('first run chooses a legitimate isolated recovery work unit',()=>{
  const s=chooseTask(catalog,data,[]);
