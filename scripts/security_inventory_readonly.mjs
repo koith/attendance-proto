@@ -29,6 +29,16 @@ function scan(path,text,origin) {
       regex.lastIndex=0;
       const match=lines[i].match(regex);
       if (!match) continue;
+      // The isolated PG test workflow uses one fixed local Docker service name
+      // \"postgres\". This is a synthetic DSN, not a production network address.
+      // Only whitelist exact reviewed workflow+service host and record its count.
+      if(kind==='credential_database_url' &&
+         path==='.github/workflows/pin-server-security.yml' &&
+         /services:\\s*\\n\\s+postgres:/.test(text) &&
+         match.every(candidate=>{try{return new URL(candidate).hostname==='postgres'}catch{return false}})) {
+        stats.synthetic_postgres_fixture_urls=(stats.synthetic_postgres_fixture_urls||0)+match.length;
+        continue;
+      }
       // Never emit matched content, even into CI artifacts. Paths and line numbers only.
       findings.push({kind,path,origin,line:i+1,count:match.length});
     }
