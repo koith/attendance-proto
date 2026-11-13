@@ -21,8 +21,8 @@
 
 ## iPhone Safari 조작
 
-1. 먼저 QA Google 계정 `webuielf@gmail.com`으로 로그인하여 [Google Cloud QA1243 Clients](https://console.cloud.google.com/auth/clients?project=qa1243-isolated)에서 **Web application OAuth client** 하나를 준비합니다. Authorized JavaScript origins는 `https://koith.github.io` (**경로 없이 정확한 origin**)입니다. QA 웹앱 전용 Client ID를 사용하고 기존 운영 Cloud 프로젝트를 변경하지 않습니다. [Audience](https://console.cloud.google.com/auth/audience?project=qa1243-isolated)가 Testing이면 QA 이메일을 Test user에 포함해야 합니다. 기존 QA Desktop Client는 웹 페이지에서 사용할 수 없습니다. **Web Client ID만 복사하고 Client Secret은 절대 입력/전달하지 않습니다.**
-2. Safari에서 위 QA1243 URL을 열고 Web Client ID 입력 → **1. QA Google 로그인·동의**. 계정 `webuielf@gmail.com`과 정확한 5개 권한을 확인합니다: userinfo.email, script.projects, script.deployments, drive.metadata.readonly, spreadsheets.readonly. Drive/Sheets 전체 수정·삭제 권한은 동의하지 않습니다.
+1. 먼저 QA Google 계정 `QA 전용 Google 계정`으로 로그인하여 [Google Cloud QA1243 Clients](https://console.cloud.google.com/auth/clients?project=qa1243-isolated)에서 **Web application OAuth client** 하나를 준비합니다. Authorized JavaScript origins는 `https://koith.github.io` (**경로 없이 정확한 origin**)입니다. QA 웹앱 전용 Client ID를 사용하고 기존 운영 Cloud 프로젝트를 변경하지 않습니다. [Audience](https://console.cloud.google.com/auth/audience?project=qa1243-isolated)가 Testing이면 QA 이메일을 Test user에 포함해야 합니다. 기존 QA Desktop Client는 웹 페이지에서 사용할 수 없습니다. **Web Client ID만 복사하고 Client Secret은 절대 입력/전달하지 않습니다.**
+2. Safari에서 위 QA1243 URL을 열고 Web Client ID 입력 → **1. QA Google 로그인·동의**. 계정 `QA 전용 Google 계정`과 정확한 5개 권한을 확인합니다: userinfo.email, script.projects, script.deployments, drive.metadata.readonly, spreadsheets.readonly. Drive/Sheets 전체 수정·삭제 권한은 동의하지 않습니다.
 3. **2. 인증 토큰 복사(한 번)** → **3. GitHub 공식 Secret 등록 화면**으로 이동. Secret 이름은 `QA1243_GOOGLE_OAUTH_ACCESS_TOKEN`; Secret 값에는 Safari 클립보드 내용을 붙여넣고 GitHub에서 저장합니다. 다른 사람·채팅·GitHub Issue·URL 쿼리에 붙이지 않습니다.
 4. Secret 저장 완료를 개발 대화에서 알려주면 GitHub 연결 도구로 기존 **trusted main push 실패 QA job**만 재실행합니다. 모바일 Access Token은 짧은 수명(보통 약 1시간)이므로 바로 실 E2E를 실행해야 합니다. QA GAS 자체 Sheets/script.storage 동의가 추가 필요하면 **QA 소유 스크립트**에서만 승인합니다. 운영 계정에 대한 OAuth 승인은 금지합니다.
 

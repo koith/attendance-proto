@@ -39,7 +39,7 @@
 
 ## 3. Google 403 — 별도 QA 계정 소유의 **새** 프로젝트만 사용
 
-- 2026-10-21 사용자 검증: `webuielf@gmail.com`은 기존 운영 `2026 근태` 파일 접근 시 **액세스 권한 필요**. 그러나 GitHub Actions OAuth token으로도 실제 403/404가 반환되는지 다시 검증해야만 PASS.
+- 2026-10-21 사용자 검증: `QA 전용 Google 계정`은 기존 운영 `2026 근태` 파일 접근 시 **액세스 권한 필요**. 그러나 GitHub Actions OAuth token으로도 실제 403/404가 반환되는지 다시 검증해야만 PASS.
 - 이전 QA Script `1VkwzA0EKQAf9VQ9BECOcOLkikhIuHR7EtKt6mZkq6B8_Q9HH4w6lQmrw`는 Google Drive 메타데이터상 **운영 계정 소유**. 절대 재사용하거나 그 소유자 계정에서 Google OAuth 권한 승인 금지. 운영 Apps Script 및 운영 Sheet 원본 변경 금지.
 - [QA 계정 설정 및 클릭 순서](QA1243_QA_GOOGLE_BOOTSTRAP.md)에 따라 QA Cloud OAuth client와 새 QA 소유 Apps Script 준비. GitHub **별도 QA-only 세 Secret**과 `QA1243_GAS_SCRIPT_ID` 변수만 연결한다.
 - 코드(작업 PR [#1296](https://github.com/koith/attendance-proto/pull/1296))에서 OAuth token **이메일 일치**, 정확한 CI 최소 5 scope, 운영 시트/구 프로젝트 접근 거부, 새 Script 소유자 일치부터 확인. 복사된 QA Script 런타임은 `spreadsheets` + `script.storage`만 요구, `DriveApp`/`UrlFetchApp`/`scripts.run`은 사용하지 않는다. 다른 scope 승인 요청 시 즉시 중단.
