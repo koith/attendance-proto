@@ -18,6 +18,25 @@ test('SEC-S03 remains COMPLETE and separately accepted AISEC-02/04 are COMPLETE'
  assert.equal(statusOfLedger(ai,'AISEC-04'),'COMPLETE');
  assert.equal(catalog.tasks.some(t=>t.ledger==='SEC-S03'),false);
 });
+test('canonical SEC-S16 scoped COMPLETE is recognized and already-done task is skipped',()=>{
+ assert.equal(statusOfLedger(sec,'SEC-S16'),'COMPLETE');
+ assert.equal(statusOfLedger(sec,'SEC-S05'),'COMPLETE');
+ assert.equal(statusOfLedger(ai,'AISEC-03'),'COMPLETE');
+ const submitted=['SEC-S04-MANIFEST','SEC-S01-ROLES','SEC-S02-AUTH'].map((id,i)=>({
+  user:{login:'github-actions[bot]'},body:`[SEC-AUTO:SUBMITTED task=${id} run=${i+10} head=${head}]`
+ }));
+ const r=chooseTask(catalog,data,submitted);
+ assert.equal(r.selected,false);
+ assert.equal(r.reason,'NO_SAFE_UNATTEMPTED_TASK');
+});
+test('status parser requires exact status column, never a free-text evidence claim',()=>{
+ const row='| SEC-S16 | Critical | completed text | **COMPLETE (scoped test)** | verified |';
+ assert.equal(statusOfLedger(row,'SEC-S16'),'COMPLETE');
+ const unsafe='| SEC-S16 | Critical | COMPLETE (claimed in description) | UNVERIFIED | evidence |';
+ assert.equal(statusOfLedger(unsafe,'SEC-S16'),'UNVERIFIED');
+ const unknown='| SEC-S16 | Critical | task | COMPLETE enough | details |';
+ assert.equal(statusOfLedger(unknown,'SEC-S16'),null);
+});
 test('first run chooses a legitimate isolated recovery work unit',()=>{
  const s=chooseTask(catalog,data,[]);
  assert.equal(s.selected,true);
