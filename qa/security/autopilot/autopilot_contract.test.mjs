@@ -23,7 +23,7 @@ test('canonical SEC-S16 scoped COMPLETE is recognized and already-done task is s
  assert.equal(statusOfLedger(sec,'SEC-S05'),'COMPLETE');
  assert.equal(statusOfLedger(ai,'AISEC-03'),'COMPLETE');
  const submitted=['SEC-S04-MANIFEST','SEC-S01-ROLES','SEC-S02-AUTH'].map((id,i)=>({
-  user:{login:'github-actions[bot]'},body:`[SEC-AUTO:SUBMITTED task=\${id} run=\${i+10} head=\${head}]`
+  user:{login:'github-actions[bot]'},body:`[SEC-AUTO:SUBMITTED task=${id} run=${i+10} head=${head}]`
  }));
  const r=chooseTask(catalog,data,submitted);
  assert.equal(r.selected,false);
