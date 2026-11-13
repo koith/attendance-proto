@@ -14,7 +14,6 @@ const RULES = [
   ["openai-api-key", /\bsk-(?:proj-)?[A-Za-z0-9_-]{40,}\b/],
   ["supabase-secret-key", /\bsb_secret_[A-Za-z0-9_-]{12,}\b/],
   ["private-key", /-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----/],
-  ["postgres-embedded-password", /\bpostgres(?:ql)?:\/\/[^:\s\/@]{1,64}:[^@\s\/]{12,}@/],
 ];
 const SERVICE_JWT = /\b(eyJ[A-Za-z0-9_-]{12,})\.(eyJ[A-Za-z0-9_-]{12,})\.([A-Za-z0-9_-]{16,})\b/g;
 
@@ -22,6 +21,16 @@ export function scanText(value) {
   const text = typeof value === "string" ? value : value.toString("utf8");
   const hits = [];
   for (const [rule, pattern] of RULES) if (pattern.test(text)) hits.push(rule);
+  // localhost/127.0.0.1 and Docker service "postgres" are ephemeral synthetic CI fixtures.
+  // Remote embedded DB passwords still fail; no real connection string is logged.
+  const postgresUrls = /\bpostgres(?:ql)?:\/\/[^:\s\/@]{1,64}:[^@\s\/]{12,}@([A-Za-z0-9.-]+)/g;
+  for (const match of text.matchAll(postgresUrls)) {
+    const host = match[1].toLowerCase();
+    if (!["localhost", "127.0.0.1", "postgres"].includes(host) &&
+        !hits.includes("postgres-embedded-password")) {
+      hits.push("postgres-embedded-password");
+    }
+  }
   for (const match of text.matchAll(SERVICE_JWT)) {
     try {
       const payload = JSON.parse(Buffer.from(match[2], "base64url").toString("utf8"));
