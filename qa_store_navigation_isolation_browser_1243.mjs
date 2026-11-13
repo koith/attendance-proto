@@ -51,7 +51,7 @@ for(const engine of [chromium,webkit]){
     scenario==='foreign-attendance'?'/actual_attendance.html?store=1':
     scenario==='attendance-close'?'/actual_attendance.html?store=80':
     scenario==='legacy-attendance'?'/actual_attendance.html':
-    scenario==='hq'?'/index.html?mode=store&store=1#pos':scenario==='idle-expired-no-locator'?'/index.html#admin':'/index.html#pos';
+    scenario==='hq'?'/index.html?mode=store&store=1#pos':scenario==='idle-expired-no-locator'||scenario==='idle-expired-legacy'?'/index.html#admin':'/index.html#pos';
    await page.goto(host+path,{waitUntil:'domcontentloaded'});
    if(scenario==='foreign-attendance'){
     await page.getByText('STORE_ACCOUNT_SCOPE_MISMATCH',{exact:false}).waitFor();
