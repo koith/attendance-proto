@@ -6,6 +6,7 @@ on:
       - 'qa_admin_single_session_postgres.sql'
       - 'qa_admin_session_postgrest_setup.sql'
       - 'qa_admin_session_postgrest_http_v1.mjs'
+      - 'security/sec01_session_revocation_guard_v1.sql'
       - '.github/workflows/sec01-disposable-session-guard.yml'
   push:
     branches: [main, feat/admin-single-device-session-992]
@@ -14,6 +15,7 @@ on:
       - 'qa_admin_single_session_postgres.sql'
       - 'qa_admin_session_postgrest_setup.sql'
       - 'qa_admin_session_postgrest_http_v1.mjs'
+      - 'security/sec01_session_revocation_guard_v1.sql'
       - '.github/workflows/sec01-disposable-session-guard.yml'
 permissions:
   contents: read
