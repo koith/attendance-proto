@@ -77,6 +77,18 @@ test('strict exact-scope guard accepts reviewed non-runtime changes only',()=>{
   assert.doesNotMatch(audit,/^\s*(?:INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE)\b/im);
 
 });
+test('autopilot checkpoint selector repair is explicitly allowlisted but runtime changes remain forbidden',()=>{
+  const permitted=[
+    {filename:'scripts/security/autopilot/select_task.mjs',status:'modified'},
+    {filename:'qa/security/autopilot/autopilot_contract.test.mjs',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+    {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+  ];
+  assert.equal(check(permitted).result,'PASS');
+  for(const forbidden of ['index.html','supabase/migrations/unsafe.sql','.github/workflows/sec-autonomous-recovery.yml','scripts/security/capture.mjs']){
+    assert.throws(()=>check(permitted.concat({filename:forbidden,status:'modified'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+  }
+});
 test('reviewed PG16/17 delegated manager SQL and workflow qualify as non-operating release',()=>{
   const changed=[
     {filename:'.github/workflows/store-delegated-manager-postgres.yml',status:'modified'},
