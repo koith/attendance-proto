@@ -68,6 +68,7 @@ for(const engine of [chromium,webkit]){
     assert.equal(await page.getByText('배정된 지점 확인이 필요합니다.',{exact:true}).count(),1);
    }else if(scenario.startsWith('idle-expired')){
     await page.waitForFunction(()=>document.getElementById('lockedStoreName')?.textContent==='구미비산점');
+    await page.waitForURL(/index\\.html\\?mode=store&store=290#(?:pos|admin)/);
     assert.ok(!calls.some(c=>Number(c.args.p_store_id)===1),'idle session switched to Inha '+JSON.stringify(calls));
     assert.ok(calls.some(c=>c.name==='token'),'idle session refresh failure not exercised');
     assert.ok(!await page.getByText('FOREIGN_STAFF_MUST_NOT_APPEAR',{exact:false}).count());
