@@ -107,3 +107,31 @@ jobs:
           echo "PASS isolated real PostgreSQL: 101 typed tables, 101 synthetic JSON rows, enum, text array, PK/unique"
       - name: Security-only diff scope tests
         run: node --test scripts/security/no_operating_write_scope.test.mjs
+  offline_pg17_binary_export:
+    name: Export only public PostgreSQL 17 binaries for isolated owner-local restoration
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Pull official public PostgreSQL 17 image (no production credentials)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull postgres:17-trixie
+          cid=$(docker create postgres:17-trixie)
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          mkdir -p "$RUNNER_TEMP/pg17-offline/usr/lib/postgresql" "$RUNNER_TEMP/pg17-offline/usr/share/postgresql"
+          docker cp "$cid:/usr/lib/postgresql/17" "$RUNNER_TEMP/pg17-offline/usr/lib/postgresql/17"
+          docker cp "$cid:/usr/share/postgresql/17" "$RUNNER_TEMP/pg17-offline/usr/share/postgresql/17"
+          test -x "$RUNNER_TEMP/pg17-offline/usr/lib/postgresql/17/bin/postgres"
+          test -x "$RUNNER_TEMP/pg17-offline/usr/lib/postgresql/17/bin/pg_dump"
+          (cd "$RUNNER_TEMP/pg17-offline" && tar -czf "$RUNNER_TEMP/postgres17-public-executables.tar.gz" usr)
+          test "$(stat -c %s "$RUNNER_TEMP/postgres17-public-executables.tar.gz")" -gt 1000000
+          sha256sum "$RUNNER_TEMP/postgres17-public-executables.tar.gz" | sed -E 's#^.*/#CHECKSUM_ARTIFACT_FILENAME #'
+      - name: Upload PUBLIC binary-only artifact (no backups/keys)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pg17-public-executables
+          path: ${{ runner.temp }}/postgres17-public-executables.tar.gz
+          retention-days: 1
+          if-no-files-found: error
