@@ -9,8 +9,12 @@ export function statusOfLedger(content,id){
     if(!line.startsWith('|'))continue;
     const cells=line.split('|').slice(1,-1).map(x=>x.trim());
     if(cells[0]!==id)continue;
-    const status=cells.slice(1).find(x=>/^(COMPLETE|IN_PROGRESS|NOT_STARTED|UNVERIFIED|FAILED_PATH)$/.test(x));
-    return status||null;
+    // SEC and AISEC use different status columns; never infer status from
+    // a free-text objective/evidence cell. Accept verified parenthetical scopes.
+    const statusCell=String(id.startsWith('AISEC-')?cells[2]:cells[3]||'');
+    const normalized=statusCell.replace(/^\\*+|\\*+$/g,'').trim();
+    const match=normalized.match(/^(COMPLETE|IN_PROGRESS|NOT_STARTED|UNVERIFIED|FAILED_PATH)(?:\\s*\\(.*\\))?$/);
+    return match?.[1]||null;
   }
   return null;
 }
