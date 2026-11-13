@@ -5,8 +5,10 @@
 -- Only action=ADD, created_by=system:auto-close, reason=SYSTEM_STORE_CLOSE
 -- are counted as active auto-close candidates. Entries marked [VOID_ADD:id]
 -- are historical cancelled records and MUST NOT be counted as active.
--- The latest correction per original event follows the existing canonical
--- readonly_auto_close_impact_20261103.sql logic; it is not payroll adjudication.
+-- Converted timestamp inputs must use the SAME canonical helper as the
+-- production attendance/payroll projections (post-2026-10-13 human corrections
+-- are KST wall-clock inputs, while legacy and system auto-close inputs are UTC).
+-- This is diagnostic only, never an adjudicated wage, debt or payout.
 WITH candidate AS (
   SELECT id, employee_id, new_event_at AS auto_at,
     to_char(new_event_at, 'YYYY-MM') AS ym,
@@ -29,7 +31,7 @@ history AS (
 ),
 latest AS (
   SELECT DISTINCT ON (event_id)
-    event_id, action, new_event_at, new_event_type
+    event_id, action, new_event_at, new_event_type, created_by, created_at
   FROM public.event_corrections
   WHERE event_id IS NOT NULL
   ORDER BY event_id, created_at DESC, id DESC
@@ -39,13 +41,15 @@ effective_punch AS (
     CASE WHEN c.action='EDIT_TYPE' AND c.new_event_type IS NOT NULL
       THEN c.new_event_type ELSE e.event_type END AS typ,
     CASE WHEN c.action='EDIT_TIME' AND c.new_event_at IS NOT NULL
-      THEN c.new_event_at ELSE e.event_at END AS at
+      THEN public.attendance_correction_effective_utc(c.new_event_at,c.created_by,c.created_at)
+      ELSE e.event_at END AS at
   FROM public.attendance_events e
   LEFT JOIN latest c ON c.event_id=e.id
   WHERE coalesce(c.action,'') <> 'VOID'
   UNION ALL
   SELECT c.employee_id, 'add_' || c.id::text,
-    c.new_event_type, c.new_event_at
+    c.new_event_type,
+    public.attendance_correction_effective_utc(c.new_event_at,c.created_by,c.created_at)
   FROM public.event_corrections c
   WHERE c.action='ADD' AND c.reason !~ '[[]VOID_ADD:[0-9]+[]]'
 ),
