@@ -1,0 +1,47 @@
+name: SEC-S11 auto-close canonical UTC triage (synthetic PostgreSQL 16/17)
+on:
+  pull_request:
+    paths:
+      - 'security/readonly_auto_close_triage_20261105.sql'
+      - 'security/readonly_auto_close_impact_20261103.sql'
+      - 'qa/sec_s11_auto_close_triage_canonical_utc_fixture.sql'
+      - 'qa_sec_s11_auto_close_triage_canonical_utc_v1.mjs'
+      - '.github/workflows/sec-s11-auto-close-canonical-utc-regression.yml'
+      - 'scripts/security/no_operating_write_scope.mjs'
+      - 'scripts/security/no_operating_write_scope.test.mjs'
+permissions:
+  contents: read
+jobs:
+  postgres-synthetic:
+    name: PG${{ matrix.pg }} synthetic KST to UTC correction triage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16','17']
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sec_s11_synthetic_only
+          POSTGRES_DB: sec_s11_fixture
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sec_s11_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      TEST_PG_MAJOR: ${{ matrix.pg }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install PostgreSQL client only if missing
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Execute original diagnostic query with adversarial fake KST corrections
+        run: node qa_sec_s11_auto_close_triage_canonical_utc_v1.mjs
+      - name: Ensure operating write scope remains closed
+        run: node --test scripts/security/no_operating_write_scope.test.mjs
