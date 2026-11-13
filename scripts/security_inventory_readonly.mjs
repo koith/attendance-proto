@@ -36,7 +36,7 @@ function scan(path,text,origin) {
          path==='.github/workflows/pin-server-security.yml' &&
          text.includes('services:\n      postgres:') &&
          text.includes('POSTGRES_PASSWORD: synthetic_') &&
-         match.every(candidate=>candidate.includes('@postgres:5432/'))) {
+         match.every(candidate=>candidate.endsWith('@postgres:5432'))) {
         stats.synthetic_postgres_fixture_urls=(stats.synthetic_postgres_fixture_urls||0)+match.length;
         continue;
       }
