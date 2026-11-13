@@ -82,8 +82,52 @@ test('HQ authenticated after an idle manager recovers the HQ dashboard',()=>{
 test('cached store id is only navigation: existing server manager scope remains mandatory',()=>{
  assert.match(html,/if\(context\?\.role==="STORE_MANAGER"\)/);
  assert.match(html,/rememberVerifiedManagerStore\(context\)/);
- assert.match(html,/if\(STORE_ENTRY_ID!==own\)/);
+ assert.match(html,/if\(STORE_ENTRY_ID!==own\|\|STORE_ENTRY_RAW_ID===null\|\|STORE_ENTRY_MODE!=="store"\)/);
  assert.match(html,/rememberVerifiedManagerStore\(ctx\)/);
  assert.match(html,/if\(ctx\?\.role==="HQ"&&STORE_ENTRY_FROM_PIN\)/);
  assert.doesNotMatch(entry,/return .*is_admin/);
+});
+
+test('legacy Gumi manager tab without a v0.385 pin restores store 290, never Inha',()=>{
+ const session=storage();session.setItem('baekeok_store_id','290');
+ const restored=boot(base+'#admin',storage(),session);
+ assert.deepEqual({id:restored.app.id,lock:restored.app.lock,fromPin:restored.app.fromPin},
+  {id:290,lock:true,fromPin:true});
+});
+test('explicit store and HQ bookmarks override the legacy store hint',()=>{
+ const session=storage();session.setItem('baekeok_store_id','290');
+ assert.equal(boot(base+'?mode=store&store=1#admin',storage(),session).app.id,1);
+ assert.equal(boot(base+'?mode=hq#dashboard',storage(),session).app.id,0);
+ assert.equal(boot(base+'#dashboard',storage(),session).app.id,0);
+});
+test('invalid and Inha-only legacy selection never gets promoted to manager proof',()=>{
+ const session=storage();session.setItem('baekeok_store_id','1');
+ assert.equal(boot(base+'#admin',storage(),session).app.id,0);
+ session.setItem('baekeok_store_id','290x');
+ assert.equal(boot(base+'#admin',storage(),session).app.id,0);
+ session.setItem('baekeok_store_id','99999999999999999999');
+ assert.equal(boot(base+'#admin',storage(),session).app.id,0);
+});
+test('missing all locators requires manager login instead of silently loading Inha private view',()=>{
+ const restored=boot(base+'#admin');
+ assert.equal(restored.app.id,0);
+ assert.match(html,/STORE_ENTRY_FAILURE_KIND="AUTH_SCOPE_MISSING"/);
+ assert.match(html,/!verifiedAdminContext&&STORE_ENTRY_ID===0/);
+ assert.match(html,/STORE_ENTRY_RAW_ID===null\|\|STORE_ENTRY_MODE!=="store"/);
+});
+
+test('public generic POS and staff attendance ignore a legacy HQ selection',()=>{
+ const session=storage();session.setItem('baekeok_store_id','290');
+ assert.equal(boot(base+'#pos',storage(),session).app.id,0);
+ assert.equal(boot(base+'#attendance',storage(),session).app.id,0);
+ assert.equal(boot(base,storage(),session).app.id,0);
+});
+
+test('restored verified Gumi locator is made URL-stable only after ACTIVE store verification',()=>{
+ assert.match(html,/function stabilizeRecoveredStoreUrl\(\)/);
+ assert.match(html,/history\.replaceState\(history\.state/);
+ const activeCheck=html.indexOf('const active=rows.find(x=>Number(x.id)===CURRENT_STORE_ID&&x.is_active!==false)');
+ const stabilize=html.indexOf('stabilizeRecoveredStoreUrl();',activeCheck);
+ assert.ok(activeCheck>0&&stabilize>activeCheck);
+ assert.match(html,/if\(!active\)\{STORE_ENTRY_UNAVAILABLE=true;return;\}/);
 });

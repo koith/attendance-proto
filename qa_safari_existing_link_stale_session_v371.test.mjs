@@ -78,7 +78,7 @@ function browser({expiry=nowSeconds()-120,refreshResult='invalid',hasRefresh=tru
  const fn=new Function(
   'LIVE','Auth','BE','STORE_ENTRY_LOCK','STORE_ENTRY_ID','STORE_ENTRY_INVALID',
   'location','document','sessionStorage','publicRpc','syncStoreContextUI','safeHtml','syncStoreSelectDisplay',
-  'const STORE_ENTRY_FROM_PIN=false;\nfunction rememberVerifiedManagerStore(){}\nfunction restoreHqFromManagerPin(){}\nlet STORE_ENTRY_UNAVAILABLE=STORE_ENTRY_LOCK;\nlet STORE_ENTRY_CONNECTION_FAILED=false;\nlet CURRENT_STORE_ID=STORE_ENTRY_ID||1;\nlet STORE_NAME_BY_ID=new Map();\nlet STORE_ENTRY_FAILURE_KIND="",STORE_ENTRY_PHASE="STORE";\n'+startupHelpers+bootSource+
+  'const STORE_ENTRY_MODE="";\nconst STORE_ENTRY_RAW_ID=null;\nconst STORE_ENTRY_FROM_PIN=false;\nfunction rememberVerifiedManagerStore(){}\nfunction restoreHqFromManagerPin(){}\nfunction stabilizeRecoveredStoreUrl(){}\nlet STORE_ENTRY_UNAVAILABLE=STORE_ENTRY_LOCK;\nlet STORE_ENTRY_CONNECTION_FAILED=false;\nlet CURRENT_STORE_ID=STORE_ENTRY_ID||1;\nlet STORE_NAME_BY_ID=new Map();\nlet STORE_ENTRY_FAILURE_KIND="",STORE_ENTRY_PHASE="STORE";\n'+startupHelpers+bootSource+
   '\nreturn {loadStores,getState:()=>({unavailable:STORE_ENTRY_UNAVAILABLE,failed:STORE_ENTRY_CONNECTION_FAILED,current:CURRENT_STORE_ID})};'
  );
  const ui={updates:0};

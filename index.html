@@ -846,7 +846,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.385">v0.385</button></div>
+    <div class="connection-row"><div id="conn" class="conn live">클라우드 연결됨 · Supabase</div><button type="button" class="app-version-badge connection-version" id="appVersion" title="현재 앱 버전" aria-label="현재 앱 버전 v0.386">v0.386</button></div>
     <header>
       <div class="brand">
         <span id="hqHome" aria-label="백억커피" style="display:flex;align-items:center;flex:0 0 auto"><img src="logo_combine.jpg" alt="백억커피"></span><span id="storeCrumb" aria-hidden="true">›</span><span class="store-select-shell"><select id="storeSelect" aria-label="지점 선택"><option value="1">인하대학교점</option></select></span><span id="lockedStoreName" class="locked-store-name" aria-label="현재 지점">인하대학교점</span>
@@ -944,7 +944,7 @@ const ICON = {
 };
 
 // Pre-release versions advance by 0.01 per merged user-visible delivery (see VERSIONING.md).
-const APP_VERSION="v0.385";
+const APP_VERSION="v0.386";
 const CONFIG = {
   SUPABASE_URL: "https://waluhdgqhwjjwmflhrle.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhbHVoZGdxaHdqandtZmxocmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MTg4NjAsImV4cCI6MjEwMzE5NDg2MH0.-UugGE05V70Ecw__UdIZpWJr2mDYmLfV7mh_lR-U9Mw",
@@ -1491,9 +1491,27 @@ const STORE_ENTRY_INVALID=STORE_ENTRY_MISSING_ID||(STORE_ENTRY_RAW_ID!==null&&
   (!/^[1-9][0-9]*$/.test(STORE_ENTRY_RAW_ID)||!Number.isSafeInteger(Number(STORE_ENTRY_RAW_ID))));
 const STORE_ENTRY_PIN_ID=(!STORE_ENTRY_INVALID&&STORE_ENTRY_RAW_ID===null&&!STORE_ENTRY_PATH&&
   STORE_ENTRY_MODE!=="store"&&STORE_ENTRY_MODE!=="hq")?verifiedManagerStorePin():0;
-const STORE_ENTRY_FROM_PIN=STORE_ENTRY_PIN_ID>0;
+// Recover v0.384-era tabs that never received the v0.385 verified-manager pin.
+// This is a locator only, NEVER authorization. list_stores ACTIVE verification
+// and admin_context manager scope must still approve all private operations.
+function previousStoreNavigationHint(){
+  // A remembered HQ/public POS selector is not a manager authorization.
+  // Legacy recovery is scoped to old privileged deep links only; public POS,
+  // staff attendance and HQ dashboard keep their previously approved routing.
+  if(STORE_ENTRY_RAW_ID!==null||STORE_ENTRY_PATH||
+     STORE_ENTRY_MODE==="store"||STORE_ENTRY_MODE==="hq"||
+     !/^#(?:admin|pay|hours|report|sales|inventory|ops)$/.test(location.hash))return 0;
+  try{
+    const raw=sessionStorage.getItem("baekeok_store_id");
+    if(!/^[1-9][0-9]*$/.test(String(raw||"")))return 0;
+    const id=Number(raw);
+    return Number.isSafeInteger(id)&&id>1?id:0;
+  }catch(_){return 0;}
+}
+const STORE_ENTRY_LEGACY_ID=STORE_ENTRY_PIN_ID?0:previousStoreNavigationHint();
+const STORE_ENTRY_FROM_PIN=STORE_ENTRY_PIN_ID>0||STORE_ENTRY_LEGACY_ID>0;
 const STORE_ENTRY_ID=STORE_ENTRY_INVALID?0:
-  (STORE_ENTRY_RAW_ID!==null?Number(STORE_ENTRY_RAW_ID):(STORE_ENTRY_PATH?1:STORE_ENTRY_PIN_ID));
+  (STORE_ENTRY_RAW_ID!==null?Number(STORE_ENTRY_RAW_ID):(STORE_ENTRY_PATH?1:(STORE_ENTRY_PIN_ID||STORE_ENTRY_LEGACY_ID)));
 const STORE_ENTRY_LOCK=STORE_ENTRY_MODE==="store"||STORE_ENTRY_ID>0||STORE_ENTRY_PATH||STORE_ENTRY_INVALID;
 const STORE_ENTRY_URL=(id)=>location.pathname+"?mode=store&store="+encodeURIComponent(id)+"#pos";
 // Dedicated links fail closed until list_stores confirms an active READY store.
@@ -1573,6 +1591,19 @@ function openHqDashboard(){
   if(location.hash!=="#dashboard")history.pushState(null,"",location.pathname+location.search+"#dashboard");
   route();
 }
+// Make a restored manager's validated store survive later Safari storage loss.
+// This changes URL navigation only; admin_context remains the authorization.
+function stabilizeRecoveredStoreUrl(){
+ if(!STORE_ENTRY_FROM_PIN||STORE_ENTRY_RAW_ID!==null||STORE_ENTRY_MODE==="hq")return;
+ const id=Number(CURRENT_STORE_ID);
+ if(!Number.isSafeInteger(id)||id<1)return;
+ try{
+  const target=new URL(location.href);
+  target.searchParams.set("mode","store");
+  target.searchParams.set("store",String(id));
+  history.replaceState(history.state,"",target.pathname+target.search+target.hash);
+ }catch(_){}
+}
 function attendanceEntryUrl(staff=false){
  const id=Number(CURRENT_STORE_ID);
  if(!Number.isSafeInteger(id)||id<1)throw Error("STORE_SCOPE_REQUIRED");
@@ -1585,6 +1616,7 @@ function syncStoreSelectDisplay(){
 }
 async function loadStores(){
  STORE_ENTRY_FAILURE_KIND="";STORE_ENTRY_CONNECTION_FAILED=false;
+ let verifiedAdminContext=false;
  setStartupConnection("LOADING");
  // Verify existing credentials before any admin-scoped store lookup. In Safari,
  // a prior-tab token may have expired while its refresh token remains valid.
@@ -1619,7 +1651,10 @@ async function loadStores(){
       const own=Number(context.store_id);
       if(!Number.isSafeInteger(own)||own<1)throw Error("STORE_ACCOUNT_SCOPE_REQUIRED");
       rememberVerifiedManagerStore(context);
-      if(STORE_ENTRY_ID!==own){
+      // A restored pin may match the manager while the URL is still generic.
+      // Canonicalize even on an ID match so later Safari storage eviction
+      // cannot silently fall back to Inha.
+      if(STORE_ENTRY_ID!==own||STORE_ENTRY_RAW_ID===null||STORE_ENTRY_MODE!=="store"){
        const hash=/^#(?:pos|admin|attendance|recipe|pay|hours)$/.test(location.hash)?location.hash:"#admin";
        location.replace(location.pathname+"?mode=store&store="+own+hash);
        return;
@@ -1627,6 +1662,7 @@ async function loadStores(){
      }else if(context?.role==="HQ"&&STORE_ENTRY_FROM_PIN){
       restoreHqFromManagerPin();return;
      }else if(context?.role!=="HQ")throw Error("STORE_ACCOUNT_SCOPE_REQUIRED");
+     verifiedAdminContext=true;
     }
    }
    // A confirmed invalid session must not masquerade as a server outage.
@@ -1639,6 +1675,14 @@ async function loadStores(){
   }
  }
  STORE_ENTRY_PHASE="STORE";
+ // Unscoped private-entry bookmarks must NEVER choose Inha by default after
+ // losing all manager locators. Require a new server-verified manager login.
+ // Public #pos and staff #attendance remain available as before.
+ if(!verifiedAdminContext&&STORE_ENTRY_ID===0&&STORE_ENTRY_MODE!=="hq"&&
+    /^#(?:admin|pay|hours|report|sales|inventory|ops)$/.test(location.hash)){
+   STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;
+   STORE_ENTRY_FAILURE_KIND="AUTH_SCOPE_MISSING";setStartupConnection("AUTH");return;
+ }
  const sel=document.getElementById("storeSelect");
  if(!sel){
    if(STORE_ENTRY_LOCK){
@@ -1653,6 +1697,7 @@ async function loadStores(){
        const active=rows.find(x=>Number(x.id)===CURRENT_STORE_ID&&x.is_active!==false);
        if(!active){STORE_ENTRY_UNAVAILABLE=true;return;}
        sessionStorage.setItem("baekeok_store_name",String(active.name||""));
+       stabilizeRecoveredStoreUrl();
        STORE_ENTRY_UNAVAILABLE=false;STORE_ENTRY_CONNECTION_FAILED=false;
        setStartupConnection("READY");syncStoreContextUI();
      }catch(e){STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;console.warn("dedicated store not verified",e);STORE_ENTRY_FAILURE_KIND="STORE_NETWORK";setStartupConnection("NETWORK");}
@@ -1672,6 +1717,7 @@ async function loadStores(){
   CURRENT_STORE_ID=requested||(inha?1:Number(rows[0].id));
   sel.value=String(CURRENT_STORE_ID);sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));
   const name=STORE_NAME_BY_ID.get(CURRENT_STORE_ID);if(name)sessionStorage.setItem("baekeok_store_name",name);
+  if(STORE_ENTRY_FROM_PIN&&rows.some(x=>Number(x.id)===CURRENT_STORE_ID&&x.is_active!==false))stabilizeRecoveredStoreUrl();
   STORE_ENTRY_UNAVAILABLE=false;STORE_ENTRY_CONNECTION_FAILED=false;
   setStartupConnection("READY");syncStoreContextUI();
  }catch(e){console.warn("store list load failed",e);STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;STORE_ENTRY_FAILURE_KIND="STORE_NETWORK";setStartupConnection("NETWORK");syncStoreSelectDisplay()}
@@ -1983,8 +2029,8 @@ function route(){
     const label=document.getElementById("lockedStoreName");
     if(label){label.textContent="지점 확인 필요";label.hidden=false;label.classList.add("show");}
     if(STORE_ENTRY_CONNECTION_FAILED&&STORE_ENTRY_FAILURE_KIND.startsWith("AUTH")){
-      const denied=STORE_ENTRY_FAILURE_KIND==="AUTH_REQUIRED";
-      view.innerHTML='<div class="empty" role="alert"><b>'+ (denied?"이 계정의 관리자 권한을 확인할 수 없습니다.":"관리자 로그인 확인 서버에 연결하지 못했습니다.")+'</b><p>'+ (denied?"지점 서버 장애가 아닙니다. 본사 또는 배정된 지점 관리자 계정으로 로그인하세요.":"저장된 계정과 지점 정보는 유지했습니다. 연결을 다시 확인하거나 관리자 계정으로 로그인할 수 있습니다.")+'</p><button type="button" class="btn btn-primary" id="retryStoreConnect">다시 확인</button> <button type="button" class="btn btn-secondary" id="startupAdminLogin">관리자 다시 로그인</button></div>';
+      const denied=STORE_ENTRY_FAILURE_KIND==="AUTH_REQUIRED",missing=STORE_ENTRY_FAILURE_KIND==="AUTH_SCOPE_MISSING";
+      view.innerHTML='<div class="empty" role="alert"><b>'+ (missing?"배정된 지점 확인이 필요합니다.":denied?"이 계정의 관리자 권한을 확인할 수 없습니다.":"관리자 로그인 확인 서버에 연결하지 못했습니다.")+'</b><p>'+ (missing?"소속 지점이 확인되기 전에는 다른 지점으로 이동하지 않습니다. 관리자 로그인 후 배정된 지점을 확인합니다.":denied?"지점 서버 장애가 아닙니다. 본사 또는 배정된 지점 관리자 계정으로 로그인하세요.":"저장된 계정과 지점 정보는 유지했습니다. 연결을 다시 확인하거나 관리자 계정으로 로그인할 수 있습니다.")+'</p><button type="button" class="btn btn-primary" id="retryStoreConnect">다시 확인</button> <button type="button" class="btn btn-secondary" id="startupAdminLogin">관리자 다시 로그인</button></div>';
       document.getElementById("retryStoreConnect")?.addEventListener("click",retryStoreStartup);
       document.getElementById("startupAdminLogin")?.addEventListener("click",()=>{
        Auth.clear();
@@ -2080,6 +2126,10 @@ function requireAuth(then){
           rememberVerifiedManagerStore(ctx);
           if(Number(CURRENT_STORE_ID)!==ownStore){
             location.assign(STORE_ENTRY_URL(ownStore));return;
+          }
+          if(STORE_ENTRY_RAW_ID===null||STORE_ENTRY_MODE!=="store"){
+            const hash=/^#(?:pos|admin|attendance|recipe|pay|hours|report|sales|inventory|ops)$/.test(location.hash)?location.hash:"#admin";
+            location.replace(location.pathname+"?mode=store&store="+ownStore+hash);return;
           }
           // A limited manager never enters the legacy all-powerful admin UI.
           // Fetch effective grants on EVERY route to honor immediate revocations.

@@ -7,18 +7,18 @@ const root=resolve('.'),host='http://qa1243.invalid',proof=[];
 for(const engine of [chromium,webkit]){
  const browser=await engine.launch({headless:true});
  try{for(const width of [393,1280]){
-  for(const scenario of ['generic','foreign','attendance-close','legacy-attendance','foreign-attendance','revoked','hq','idle-expired']){
+  for(const scenario of ['generic','foreign','attendance-close','legacy-attendance','foreign-attendance','revoked','hq','idle-expired','idle-expired-legacy','idle-expired-no-locator']){
    const calls=[],context=await browser.newContext({viewport:{width,height:844}}),page=await context.newPage();
    await context.addInitScript(({scenario})=>{
     // Model a valid, not-yet-expired manager JWT in the fully intercepted
     // synthetic browser. v0.371 rejects malformed/expired saved sessions,
     // which are tested independently by Safari legacy-link regression.
-    const payload={exp:Math.floor(Date.now()/1000)+(scenario==='idle-expired'?-600:7200),sub:'synthetic-owner'};
+    const payload={exp:Math.floor(Date.now()/1000)+(scenario.startsWith('idle-expired')?-600:7200),sub:'synthetic-owner'};
     const encoded=btoa(JSON.stringify(payload)).split('+').join('-').split('/').join('_').replace(/=+$/,'');
     localStorage.setItem('baekeok_auth',JSON.stringify({
      access_token:'synthetic.'+encoded+'.signature',refresh_token:'synthetic-refresh'
     }));
-    sessionStorage.setItem('baekeok_store_id','1');sessionStorage.setItem('baekeok_store_name','이전 지점');
+    sessionStorage.setItem('baekeok_store_id',scenario==='idle-expired-legacy'?'290':'1');sessionStorage.setItem('baekeok_store_name','이전 지점');
     if(scenario==='idle-expired')localStorage.setItem('baekeok_verified_manager_store_v1',JSON.stringify({store_id:290,subject:'synthetic-owner',verified_at:Date.now()}));
    },{scenario});
    await page.route('**/*',async route=>{
@@ -33,7 +33,7 @@ for(const engine of [chromium,webkit]){
     if(url.hostname.endsWith('.supabase.co')){
      let args={};try{args=request.postDataJSON()||{}}catch(_){}
      const name=url.pathname.split('/').pop();calls.push({name,args});
-     if(name==='token'&&scenario==='idle-expired')return reply({error_code:'refresh_token_not_found'},400);
+     if(name==='token'&&scenario.startsWith('idle-expired'))return reply({error_code:'refresh_token_not_found'},400);
      if(name==='admin_context')return reply(scenario==='revoked'?{role:null,store_id:null}:scenario==='hq'?{role:'HQ',store_id:null}:{role:'STORE_MANAGER',store_id:80});
      if(name==='list_stores')return reply([{id:1,name:'인하대학교점',is_active:true},{id:80,name:'1호점',is_active:true},{id:290,name:'구미비산점',is_active:true}]);
      if(name==='list_store_employees')return reply([80,290].includes(Number(args.p_store_id))?[]:[{id:901,name:'FOREIGN_STAFF_MUST_NOT_APPEAR',store_id:1,employee_no:1}]);
@@ -51,7 +51,7 @@ for(const engine of [chromium,webkit]){
     scenario==='foreign-attendance'?'/actual_attendance.html?store=1':
     scenario==='attendance-close'?'/actual_attendance.html?store=80':
     scenario==='legacy-attendance'?'/actual_attendance.html':
-    scenario==='hq'?'/index.html?mode=store&store=1#pos':'/index.html#pos';
+    scenario==='hq'?'/index.html?mode=store&store=1#pos':scenario==='idle-expired-no-locator'||scenario==='idle-expired-legacy'?'/index.html#admin':'/index.html#pos';
    await page.goto(host+path,{waitUntil:'domcontentloaded'});
    if(scenario==='foreign-attendance'){
     await page.getByText('STORE_ACCOUNT_SCOPE_MISMATCH',{exact:false}).waitFor();
@@ -62,8 +62,13 @@ for(const engine of [chromium,webkit]){
    if(scenario.includes('attendance')){
     await page.locator('.calendar').waitFor();await page.locator('#back').click();
    }
-   if(scenario==='idle-expired'){
+   if(scenario==='idle-expired-no-locator'){
+    await page.locator('#startupAdminLogin').waitFor();
+    assert.ok(!calls.some(c=>/list_stores|employees|events_with_corrections/.test(c.name)),'unscoped stale manager reached Inha data');
+    assert.equal(await page.getByText('배정된 지점 확인이 필요합니다.',{exact:true}).count(),1);
+   }else if(scenario.startsWith('idle-expired')){
     await page.waitForFunction(()=>document.getElementById('lockedStoreName')?.textContent==='구미비산점');
+    await page.waitForURL(/index\.html\?mode=store&store=290#(?:pos|admin)/);
     assert.ok(!calls.some(c=>Number(c.args.p_store_id)===1),'idle session switched to Inha '+JSON.stringify(calls));
     assert.ok(calls.some(c=>c.name==='token'),'idle session refresh failure not exercised');
     assert.ok(!await page.getByText('FOREIGN_STAFF_MUST_NOT_APPEAR',{exact:false}).count());
