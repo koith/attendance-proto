@@ -34,8 +34,9 @@ function scan(path,text,origin) {
       // Only whitelist exact reviewed workflow+service host and record its count.
       if(kind==='credential_database_url' &&
          path==='.github/workflows/pin-server-security.yml' &&
-         /services:\\s*\\n\\s+postgres:/.test(text) &&
-         match.every(candidate=>{try{return new URL(candidate).hostname==='postgres'}catch{return false}})) {
+         text.includes('services:\n      postgres:') &&
+         text.includes('POSTGRES_PASSWORD: synthetic_') &&
+         match.every(candidate=>candidate.includes('@postgres:5432/'))) {
         stats.synthetic_postgres_fixture_urls=(stats.synthetic_postgres_fixture_urls||0)+match.length;
         continue;
       }
