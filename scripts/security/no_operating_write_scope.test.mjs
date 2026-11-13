@@ -13,6 +13,17 @@ const check=(changes=files,more={})=>assertNoOperatingWriteRelease({before,head,
 test('strict exact-scope guard accepts reviewed non-runtime changes only',()=>{
   const r=check();assert.equal(r.result,'PASS');assert.equal(r.changed_paths.length,4);
   assert.equal(check([{filename:'security/readonly_session_hook_audit_20261105.sql',status:'added'}]).result,'PASS');
+  const a2Sql='security/readonly_sec_a2_live_audit_orphan_custody_20261113.sql';
+  assert.equal(check([{filename:a2Sql,status:'added'}]).result,'PASS');
+  const evidence=fs.readFileSync(a2Sql,'utf8');
+  assert.match(evidence,/private\.attendance_mutation_audit_v1/);
+  assert.match(evidence,/without_event_payload/);
+  assert.match(evidence,/full_original_matches/);
+  assert.match(evidence,/immutable_guards/);
+  assert.doesNotMatch(evidence,/^\s*(?:INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE)\b/im);
+  assert.throws(()=>check([{filename:'security/readonly_sec_a2_undeclared.sql',status:'added'}]),
+    /SEC_NO_WRITE_DISALLOWED_CHANGE/);
+
   for(const p of ['qa_live_sec_s05_unauthorized_rpc_readonly_v1.mjs',
     'security/readonly_sec_s05_unauthorized_rpc_preflight_20261113.sql'])
     assert.equal(check([{filename:p,status:'added'}]).result,'PASS');
