@@ -122,3 +122,12 @@ test('public generic POS and staff attendance ignore a legacy HQ selection',()=>
  assert.equal(boot(base+'#attendance',storage(),session).app.id,0);
  assert.equal(boot(base,storage(),session).app.id,0);
 });
+
+test('restored verified Gumi locator is made URL-stable only after ACTIVE store verification',()=>{
+ assert.match(html,/function stabilizeRecoveredStoreUrl\(\)/);
+ assert.match(html,/history\.replaceState\(history\.state/);
+ const activeCheck=html.indexOf('const active=rows.find(x=>Number(x.id)===CURRENT_STORE_ID&&x.is_active!==false)');
+ const stabilize=html.indexOf('stabilizeRecoveredStoreUrl();',activeCheck);
+ assert.ok(activeCheck>0&&stabilize>activeCheck);
+ assert.match(html,/if\(!active\)\{STORE_ENTRY_UNAVAILABLE=true;return;\}/);
+});
