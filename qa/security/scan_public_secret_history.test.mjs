@@ -27,6 +27,12 @@ test("reject embedded production-style Postgres password", () => {
   const connection = ["postgres", "://", "dbuser", ":", "p".repeat(18), "@db.example.test:5432/app"].join("");
   assert.ok(scanText(connection).includes("postgres-embedded-password"));
 });
+test("ignore synthetic PostgreSQL fixture credentials on loopback or Docker service", () => {
+  for (const host of ["localhost", "127.0.0.1", "postgres"]) {
+    const value = ["postgres://demo:", "s".repeat(20), "@", host, ":5432/fixture"].join("");
+    assert.deepEqual(scanText(value), []);
+  }
+});
 test("ignore harmless docs, placeholder secrets and public URL", () => {
   assert.deepEqual(scanText("Read-only SUPABASE_URL=https://example.supabase.co\nGH_TOKEN=fake"), []);
 });
