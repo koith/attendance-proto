@@ -33,6 +33,20 @@ assert.deepEqual(cols.slice(0,14),[
   '0','0','0', '1','1', '2','0','0'
 ], 'Corrected KST->UTC pairing should remove false missing-IN and expose one intervening OUT');
 assert.equal(cols[14],'1.00','Only unmatched synthetic event has nominal one-hour span');
+
+const oldFile='security/readonly_auto_close_impact_20261103.sql';
+const oldText=fs.readFileSync(oldFile,'utf8');
+assert.equal((oldText.match(/public\.attendance_correction_effective_utc\(c\.new_event_at,c\.created_by,c\.created_at\)/g)||[]).length,2,
+  'Legacy audit must also use production canonical conversion for edited and added events');
+assert.doesNotMatch(oldText,/^\s*(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|GRANT|REVOKE|TRUNCATE)\b/im);
+const legacy=spawnSync('psql',['-X','-q','-A','-t','-v','ON_ERROR_STOP=1','-f',oldFile],
+  {encoding:'utf8',env,timeout:60000,maxBuffer:1024*1024});
+assert.equal(legacy.status,0,(legacy.stderr||'').slice(-900));
+const oldLines=legacy.stdout.trim().split(/\r?\n/).filter(x=>/^2026-10\|/.test(x));
+assert.equal(oldLines.length,1,'Expected a single legacy diagnostic synthetic month');
+assert.deepEqual(oldLines[0].split('|'),['2026-10','2','0','1','1.00'],
+  'Legacy readonly audit must not miss KST-corrected IN or ignore KST-corrected intervening OUT');
+
 console.log('PASS SEC-S11 real PG'+process.env.TEST_PG_MAJOR+
   ' synthetic UTC correction parity: missing_in=0,intervening_out=1,'+
   'nominal_nonpayable_hours=1.00; no live DB calls');
