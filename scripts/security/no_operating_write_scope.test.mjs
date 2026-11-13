@@ -87,6 +87,16 @@ test('explicitly reviewed security task catalog update cannot change runtime scr
  assert.equal(r.result,'PASS');
  assert.throws(()=>check([{filename:'security/autopilot/unsafe_runtime.js',status:'added'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
 });
+test('generated manifest validation remains an exact non-operating two-file scope',()=>{
+ const safe=[
+  {filename:'scripts/security/autopilot/manifest_guard.mjs',status:'modified'},
+  {filename:'qa/security/autopilot/manifest_guard.test.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(safe).result,'PASS');
+ assert.throws(()=>check(safe.concat({filename:'supabase/migrations/unsafe.sql',status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+});
 test('autopilot checkpoint selector repair is explicitly allowlisted but runtime changes remain forbidden',()=>{
   const permitted=[
     {filename:'scripts/security/autopilot/select_task.mjs',status:'modified'},

@@ -27,3 +27,18 @@ test('rejects truncated row declarations and malformed timestamps',()=>{
  assert.throws(()=>checkManifest({format:'attendance-privileged-data-escrow-v1',table_count:1,data:{'public.one':[{a:1}]},table_row_counts:{'public.one':2}}),/TRUNCATED_ROWS/);
  assert.throws(()=>checkManifest({format:'attendance-privileged-data-escrow-v1',table_count:1,data:{'public.one':[]},timestamp:'not-a-timestamp'}),/INVALID_TIMESTAMP/);
 });
+test('rejects malformed rows despite matching metadata',()=>{
+ for (const row of [null, 7, 'row', [], {a:undefined}]) {
+  const rows=[row];
+  const digest=createHash('sha256').update(JSON.stringify(rows)).digest('hex');
+  const receipt={format:'attendance-privileged-data-escrow-v1',table_count:1,data:{'public.one':rows},table_digests:{'public.one':digest},table_row_counts:{'public.one':1}};
+  assert.throws(()=>checkManifest(receipt),/INVALID_ROW/);
+ }
+});
+test('rejects nested unsafe values, getters, cycles and missing array slots',()=>{
+ const self={a:1}; self.b=self;
+ const withGetter={}; Object.defineProperty(withGetter,'a',{get(){throw Error('should never run getter')},enumerable:true});
+ for(const row of [{a:[1,undefined]},{a:NaN},{a:self},withGetter,{a:new Date(0)},{a:[,2]}]) {
+  assert.throws(()=>checkManifest({format:'attendance-privileged-data-escrow-v1',table_count:1,data:{'public.one':[row]}}),/INVALID_ROW/);
+ }
+});

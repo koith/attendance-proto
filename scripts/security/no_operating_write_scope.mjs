@@ -80,6 +80,8 @@ const allowedPaths=new Set([
   ".github/workflows/sec-s11-auto-close-canonical-utc-regression.yml",
   ".github/workflows/sec-autopilot-boundary-regression.yml",
   "security/autopilot/tasks.json",
+  "scripts/security/autopilot/manifest_guard.mjs",
+  "qa/security/autopilot/manifest_guard.test.mjs",
   "scripts/security/autopilot/select_task.mjs",
   "scripts/security/autopilot/propose.mjs",
   "scripts/security/autopilot/provider_env.mjs",
