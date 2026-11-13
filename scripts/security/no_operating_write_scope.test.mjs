@@ -13,6 +13,14 @@ const check=(changes=files,more={})=>assertNoOperatingWriteRelease({before,head,
 test('strict exact-scope guard accepts reviewed non-runtime changes only',()=>{
   const r=check();assert.equal(r.result,'PASS');assert.equal(r.changed_paths.length,4);
   assert.equal(check([{filename:'security/readonly_session_hook_audit_20261105.sql',status:'added'}]).result,'PASS');
+  const auditPath='security/readonly_sec_s08_authenticated_acl_20261113.sql';
+  assert.equal(check([{filename:auditPath,status:'added'}]).result,'PASS');
+  const audit=fs.readFileSync(auditPath,'utf8');
+  assert.match(audit,/WITH inventory AS MATERIALIZED/);
+  assert.match(audit,/has_function_privilege\('authenticated'/);
+  assert.match(audit,/unexpected_signatures/);
+  assert.doesNotMatch(audit,/^\s*(?:INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|GRANT|REVOKE)\b/im);
+
 });
 test('reviewed PG16/17 delegated manager SQL and workflow qualify as non-operating release',()=>{
   const changed=[
