@@ -13,6 +13,7 @@ INSERT INTO auth.sessions(id,user_id,created_at) VALUES
  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','11111111-1111-1111-1111-111111111111',now()-interval '1 hour'),
  ('cccccccc-cccc-cccc-cccc-cccccccccccc','22222222-2222-2222-2222-222222222222',now()-interval '1 hour');
 \ir supabase/migrations/20261017050000_single_admin_session_guard_prepare.sql
+\ir security/sec01_session_revocation_guard_v1.sql
 DO $qa$
 DECLARE selected uuid;
 BEGIN
@@ -71,6 +72,22 @@ BEGIN
  BEGIN
   PERFORM session_guard.require_latest_session();
   RAISE EXCEPTION 'Superseded previously-newest admin session unexpectedly authorized' USING ERRCODE='PT001';
+ EXCEPTION WHEN SQLSTATE 'P0001' THEN
+   IF SQLERRM <> 'SESSION_SUPERSEDED' THEN RAISE; END IF;
+ END;
+END $qa$;
+RESET ROLE;
+-- NEW: server-side signout/revocation removes a session from GoTrue.
+-- A still-cryptographically-valid JWT for the removed session must fail.
+DELETE FROM auth.sessions
+ WHERE id='dddddddd-dddd-dddd-dddd-dddddddddddd'::uuid;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-1111-1111-111111111111","session_id":"dddddddd-dddd-dddd-dddd-dddddddddddd"}',true);
+DO $qa$
+BEGIN
+ BEGIN
+  PERFORM session_guard.require_latest_session();
+  RAISE EXCEPTION 'Revoked latest admin session unexpectedly authorized' USING ERRCODE='PT001';
  EXCEPTION WHEN SQLSTATE 'P0001' THEN
    IF SQLERRM <> 'SESSION_SUPERSEDED' THEN RAISE; END IF;
  END;

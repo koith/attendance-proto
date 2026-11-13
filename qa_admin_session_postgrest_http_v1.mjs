@@ -50,4 +50,17 @@ assert.ok(revoked.status>=400,'old once-latest admin session must be rejected on
 assert.match(revoked.body,/SESSION_SUPERSEDED/);
 const stillAnon=await rpc(null);
 assert.equal(stillAnon.status,200,'new login must not disrupt shared POS');
+// A latest-session pointer must NOT resurrect a GoTrue-removed session.
+// A valid signed JWT is insufficient after logout or server-side revocation.
+execFileSync('psql',['-d','postgres','-v','ON_ERROR_STOP=1','-c',
+ "DELETE FROM auth.sessions WHERE id='"+next+"' AND user_id='"+uid+"'"],
+ {encoding:'utf8',stdio:'pipe',timeout:10000});
+const revokedLogout=await rpc(jwt('authenticated',uid,next));
+assert.ok(revokedLogout.status>=400,
+ 'deleted GoTrue session JWT unexpectedly authorized after signout');
+assert.match(revokedLogout.body,/SESSION_SUPERSEDED/,
+ 'session revocation must be rejected by server-side pre-request guard');
+const stillStaffAfterLogout=await rpc(jwt('authenticated',staff,null));
+assert.equal(stillStaffAfterLogout.status,200,'admin logout must not affect employees');
+assert.equal((await rpc(null)).status,200,'admin logout must not affect shared POS');
 console.log('PASS SEC-01 real HTTP: unguarded stale JWT=200 (reproduced), guarded stale JWT denied; anon=200, staff=200, fresh admin=200, missing denied, new login revokes previous; PG16/17 isolated');
