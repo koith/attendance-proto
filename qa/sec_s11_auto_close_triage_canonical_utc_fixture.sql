@@ -50,3 +50,6 @@ INSERT INTO public.employment_contracts VALUES
 -- operator corrected OUT at local 16:00 => UTC 07:00, before auto UTC 09:00
 -- operator corrected IN at local 17:00 => UTC 08:00, before auto UTC 09:00
 -- legacy incorrect logic would count one false missing IN and no intervening OUT.
+
+-- This commits only the synthetic fixture inside a disposable CI container.
+COMMIT;
