@@ -40,10 +40,12 @@ export function chooseTask(catalog,ledgers,comments,liveBranches=[]){
   }
   return {selected:false,reason:'NO_SAFE_UNATTEMPTED_TASK'};
 }
-async function readIssueComments(repo,issue,token){
+// Keep full trusted comment history for idempotency; a partial page range could
+// silently repeat already-published security tasks. 100 pages = 10,000 comments.
+export async function readIssueComments(repo,issue,token,fetchImpl=fetch){
  const comments=[];
- for(let page=1;page<=4;page++){
-  const response=await fetch('https://api.github.com/repos/'+repo+'/issues/'+issue+'/comments?per_page=100&page='+page,{
+ for(let page=1;page<=100;page++){
+  const response=await fetchImpl('https://api.github.com/repos/'+repo+'/issues/'+issue+'/comments?per_page=100&page='+page,{
    headers:{authorization:'Bearer '+token,accept:'application/vnd.github+json','user-agent':'sec-recovery-autopilot'},
    signal:AbortSignal.timeout(15000),redirect:'error'
   });

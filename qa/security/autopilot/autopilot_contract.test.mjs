@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
 import fs from 'node:fs';
-import {chooseTask,statusOfLedger} from '../../../scripts/security/autopilot/select_task.mjs';
+import {chooseTask,statusOfLedger,readIssueComments} from '../../../scripts/security/autopilot/select_task.mjs';
 import {pathsFor,staticSourceCheck,parseEdits,applyValidated} from '../../../scripts/security/autopilot/safe_edits.mjs';
 import {mkdtempSync,writeFileSync,mkdirSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -63,4 +63,32 @@ test('a failed source-and-QA replacement does not mutate files',()=>{
   assert.throws(()=>applyValidated([{path:task.source,old:'export function',new:'process.env'}, {path:task.test,old:'test(',new:'test('}],task,dir),/DANGEROUS_MODEL_SOURCE|NO_REAL_CHANGE|AMBIGUOUS_SOURCE_ANCHOR/);
   assert.equal(fs.readFileSync(path.join(dir,task.source),'utf8'),fs.readFileSync(task.source,'utf8'));
  }finally{rmSync(dir,{force:true,recursive:true})}
+});
+
+test('checkpoint pagination reads 415 comments and retains oldest trusted completion before choosing next task',async()=>{
+ const calls=[],trusted={user:{login:'github-actions[bot]'},body:`[SEC-AUTO:SUBMITTED task=SEC-S04-MANIFEST run=1234 head=${head}]`};
+ const fakeFetch=async(url,options)=>{
+  const page=Number(new URL(url).searchParams.get('page'));
+  calls.push(page);
+  assert.equal(options.headers.authorization,'Bearer synthetic-fixture');
+  const rows=page<=4?Array.from({length:100},(_,i)=>page===1&&i===0?trusted:{user:{login:'unknown'},body:'not a trusted checkpoint'}):
+   page===5?Array.from({length:15},()=>({user:{login:'unknown'},body:'untrusted'})):[];
+  return {ok:true,json:async()=>rows};
+ };
+ const comments=await readIssueComments('koith/attendance-proto',1492,'synthetic-fixture',fakeFetch);
+ assert.equal(comments.length,415);
+ assert.deepEqual(calls,[1,2,3,4,5]);
+ assert.equal(chooseTask(catalog,data,comments).task.id,'SEC-S01-ROLES');
+});
+test('checkpoint history exceeding bounded maximum fails closed instead of replaying completed tasks',async()=>{
+ let requests=0;
+ const fakeFetch=async()=>{requests++;return{ok:true,json:async()=>Array.from({length:100},()=>({user:{login:'unknown'},body:'fake'}))};};
+ await assert.rejects(readIssueComments('koith/attendance-proto',1492,'synthetic',fakeFetch),/CHECKPOINT_PAGINATION_LIMIT/);
+ assert.equal(requests,100);
+});
+test('unavailable checkpoint pages fail closed rather than selecting an unsafe new task',async()=>{
+ let requests=0;
+ const fakeFetch=async()=>{requests++;return{ok:false,status:429};};
+ await assert.rejects(readIssueComments('koith/attendance-proto',1492,'synthetic',fakeFetch),/ISSUE_READ_FAILED_HTTP_429/);
+ assert.equal(requests,1);
 });
