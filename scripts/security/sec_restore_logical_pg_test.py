@@ -522,6 +522,37 @@ def _fresh(*dbs):
         _psql('postgres','DROP DATABASE IF EXISTS '+db+';'); _psql('postgres','CREATE DATABASE '+db+' TEMPLATE template0;')
 
 
+def _normalize_opaque_attribute_version(line):
+    """Ignore only PG's volatile pg_attver numeric marker, not schema options.
+
+    PostgreSQL's November 2026 backpatch adds per-column versioning; its
+    opaque value is regenerated on a different database, even for identical
+    restored DDL. Do not strip the option or any other ALTER statement.
+    """
+    if re.match(r'^ALTER TABLE (?:ONLY )?.* ALTER COLUMN .* SET \(', line):
+        return re.sub(r'(\bpg_attver=)[0-9]+(?=[,)])', r'\g<1><opaque>', line)
+    return line
+
+
+class TestOpaquePgAttributeVersionNormalization(unittest.TestCase):
+    def test_same_column_version_value_is_not_schema_drift(self):
+        left='ALTER TABLE ONLY public.employees ALTER COLUMN id SET (pg_attver=57000000);'
+        right='ALTER TABLE ONLY public.employees ALTER COLUMN id SET (pg_attver=61007288);'
+        self.assertEqual(_normalize_opaque_attribute_version(left),
+                         _normalize_opaque_attribute_version(right))
+
+    def test_real_schema_drift_and_missing_attribute_option_still_fail(self):
+        base='ALTER TABLE ONLY public.employees ALTER COLUMN id SET (pg_attver=57000000, custom=3);'
+        wrong='ALTER TABLE ONLY public.employees ALTER COLUMN id SET (pg_attver=61007288, custom=4);'
+        missing='ALTER TABLE ONLY public.employees ALTER COLUMN id SET (custom=3);'
+        self.assertNotEqual(_normalize_opaque_attribute_version(base),
+                            _normalize_opaque_attribute_version(wrong))
+        self.assertNotEqual(_normalize_opaque_attribute_version(base),
+                            _normalize_opaque_attribute_version(missing))
+        line="SELECT 'pg_attver=57000000';"
+        self.assertEqual(_normalize_opaque_attribute_version(line),line)
+
+
 @unittest.skipUnless(os.environ.get('SEC_RESTORE_E2E')=='1','needs a disposable local PostgreSQL (SEC_RESTORE_E2E=1)')
 class TestSchemaObjectRestoreE2E(unittest.TestCase):
     SRC='sec_capture_src_obj'; DST='sec_restore_obj'
@@ -591,7 +622,8 @@ class TestSchemaObjectRestoreE2E(unittest.TestCase):
         scope=[x for s in E2E_SCHEMAS for x in ('-n',s)]
         def schema(db):
             text=subprocess.run(['pg_dump','-s',*scope,db],stdout=subprocess.PIPE,check=True).stdout.decode()
-            return [l for l in text.splitlines() if not l.startswith(('\\restrict','\\unrestrict','-- Dumped'))]
+            return [_normalize_opaque_attribute_version(l) for l in text.splitlines()
+                    if not l.startswith(('\\restrict','\\unrestrict','-- Dumped'))]
         self.assertEqual(schema(self.SRC),schema(self.DST))
         rt='sec_restore_obj_rt'; _fresh(rt)
         _psql(rt,'CREATE SCHEMA extensions; CREATE EXTENSION pgcrypto SCHEMA extensions; DROP SCHEMA public;')
