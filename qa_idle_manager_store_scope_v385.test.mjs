@@ -115,3 +115,10 @@ test('missing all locators requires manager login instead of silently loading In
  assert.match(html,/!verifiedAdminContext&&STORE_ENTRY_ID===0/);
  assert.match(html,/STORE_ENTRY_RAW_ID===null\|\|STORE_ENTRY_MODE!=="store"/);
 });
+
+test('public generic POS and staff attendance ignore a legacy HQ selection',()=>{
+ const session=storage();session.setItem('baekeok_store_id','290');
+ assert.equal(boot(base+'#pos',storage(),session).app.id,0);
+ assert.equal(boot(base+'#attendance',storage(),session).app.id,0);
+ assert.equal(boot(base,storage(),session).app.id,0);
+});
