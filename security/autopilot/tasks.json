@@ -47,6 +47,30 @@
       "source": "scripts/security/autopilot/qa_environment_guard.mjs",
       "test": "qa/security/autopilot/qa_environment_guard.test.mjs",
       "objective": "Build an offline metadata-only denied-environment-name validator for synthetic test descriptors, detecting high-privilege credentials by key NAME only and ensuring no values are ever returned. Add negative tests."
+    },
+    {
+      "id": "SEC-S04-ROW-SHAPE",
+      "ledger": "SEC-S04",
+      "priority": 60,
+      "source": "scripts/security/autopilot/manifest_guard.mjs",
+      "test": "qa/security/autopilot/manifest_guard.test.mjs",
+      "objective": "Offline synthetic recovery manifest hardening: reject null, primitive or array rows (each logical database row must be a plain object); safely reject unexpected nested types and ensure a malformed row cannot hide behind valid count and digest metadata. Preserve existing valid synthetic fixture and exported API. No production data, network, file I/O or secrets."
+    },
+    {
+      "id": "SEC-S01-ROLE-ID-CASE",
+      "ledger": "SEC-S01",
+      "priority": 70,
+      "source": "scripts/security/autopilot/role_catalog_guard.mjs",
+      "test": "qa/security/autopilot/role_catalog_guard.test.mjs",
+      "objective": "Pure synthetic role-catalog validation: prevent case-folded duplicate role IDs or privileged role name confusion, and reject malformed required privilege metadata, with negative tests. Preserve correct lower-case role IDs and existing exported API. Do not contact databases or inspect any real role names."
+    },
+    {
+      "id": "SEC-S02-AUTH-METADATA-ONLY",
+      "ledger": "SEC-S02",
+      "priority": 80,
+      "source": "scripts/security/autopilot/auth_config_guard.mjs",
+      "test": "qa/security/autopilot/auth_config_guard.test.mjs",
+      "objective": "Pure synthetic GoTrue/Auth configuration receipt metadata: fail closed if a descriptor contains raw value, token, client_secret, password, private_key or nested credential payload; enforce unique key names and configured boolean, output summary counts only; test positive synthetic metadata and malicious raw-secret field cases. No actual credentials, Auth API or production reads."
     }
   ]
 }
