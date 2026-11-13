@@ -5,6 +5,34 @@ import {readFileSync, writeFileSync} from 'node:fs';
 import {execFileSync,spawnSync} from 'node:child_process';
 
 const history=process.argv.includes('--history');
+
+// SEC-S15: keep only numeric classifications; never log/email-hash any address.
+const currentQaSource=readFileSync('scripts/qa1243_build_isolated_gas.mjs','utf8');
+const publicContactSource=readFileSync('privacy.html','utf8');
+const privateQaAddress=currentQaSource.match(/QA1243_EXPECTED_OWNER\s*=\s*['"]([^'"]+@[^'"]+)['"]/i)?.[1]?.toLowerCase();
+const publicContactAddress=publicContactSource.match(/(?:gmail|naver|daum|kakao|hanmail)\.(?:com|net)/i)
+  ? publicContactSource.match(/[A-Z0-9._%+-]+@(?:gmail|naver|daum|kakao|hanmail)\.(?:com|net)/i)?.[0]?.toLowerCase()
+  : null;
+if(!privateQaAddress||!publicContactAddress||privateQaAddress===publicContactAddress)
+  throw Error('SEC_S15_OWNER_CLASSIFICATION_UNAVAILABLE');
+const emailStats={
+  HEAD:{qa_account_mentions:0,public_contact_mentions:0,synthetic_fixture_mentions:0,applied_migration_mentions:0,legacy_removed_path_mentions:0,unclassified_mentions:0,distinct:new Set(),unclassified_paths:new Set()},
+  HISTORY:{qa_account_mentions:0,public_contact_mentions:0,synthetic_fixture_mentions:0,applied_migration_mentions:0,legacy_removed_path_mentions:0,unclassified_mentions:0,distinct:new Set(),unclassified_paths:new Set()}
+};
+function classifyEmail(value,path,origin){
+ const record=emailStats[origin]; if(!record)return;
+ const email=value.toLowerCase();
+ record.distinct.add(email);
+ if(email===privateQaAddress)record.qa_account_mentions++;
+ else if(email===publicContactAddress)record.public_contact_mentions++;
+ else if(/^qa\/qa_monthly_owner_delivery_1435\.test\.mjs$/.test(path))record.synthetic_fixture_mentions++;
+ else if(/^supabase\/migrations\/(?:20261016_owner_invite_autoactivation_921|20261031112000_inha_dual_hq_primary_owner)\.sql$/.test(path))
+   record.applied_migration_mentions++;
+ else if(origin==='HISTORY' && /^(?:docs\/auth-invite-email-delivery\.md|docs\/monthly-owner-gmail-reports-1435\.md|gas\/monthly-owner-report\/Code\.gs)$/.test(path))
+   record.legacy_removed_path_mentions++;
+ else {record.unclassified_mentions++; record.unclassified_paths.add(path);}
+}
+
 const enforce=process.argv.includes('--require-no-credential-hits');
 const patterns=[
  ['credential_private_key',/-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----/g],
@@ -40,6 +68,7 @@ function scan(path,text,origin) {
         stats.synthetic_postgres_fixture_urls=(stats.synthetic_postgres_fixture_urls||0)+match.length;
         continue;
       }
+      if(kind==='person_email')for(const matchedAddress of match)classifyEmail(matchedAddress,path,origin);
       // Never emit matched content, even into CI artifacts. Paths and line numbers only.
       findings.push({kind,path,origin,line:i+1,count:match.length});
     }
@@ -86,9 +115,24 @@ for(const f of findings) {
   if(summary.sample_paths[k].length<15&&!summary.sample_paths[k].includes(f.path))
     summary.sample_paths[k].push(f.path);
 }
+const emailCategories={};
+for(const [origin,stat] of Object.entries(emailStats)) {
+ const {distinct,unclassified_paths,...counts}=stat;
+ emailCategories[origin]={...counts,unique_addresses:distinct.size,unclassified_paths:[...unclassified_paths].sort().slice(0,30)};
+}
+summary.email_classification=emailCategories;
 writeFileSync('security-inventory-summary.json',JSON.stringify(summary,null,2)+'\n');
 process.stdout.write('SECURITY_INVENTORY_SUMMARY '+JSON.stringify({mode:summary.mode,scanned:stats,counts:summary.counts})+'\n');
 process.stdout.write('NOTE: matches are detection candidates, not verified exposures; no values or private data emitted.\n');
+process.stdout.write('SEC_S15_EMAIL_CLASSIFICATION '+JSON.stringify(summary.email_classification)+'\n');
+
+if(process.argv.includes('--require-no-unclassified-current-email') &&
+  summary.email_classification.HEAD.unclassified_mentions>0) {
+  process.stderr.write('SEC_S15_NEW_EMAIL_EXPOSURE_NEEDS_REVIEW count='+
+    summary.email_classification.HEAD.unclassified_mentions+'\n');
+  process.exitCode=1;
+}
+// This is risk classification, NOT erasure of historic public commits or owner emails.
 if(enforce && Object.entries(summary.counts).some(([key,n])=>key.startsWith('credential_')&&n>0)){
   process.stderr.write('SEC_S15_CREDENTIAL_CANDIDATES_REQUIRE_OWNER_TRIAGE (counts only; no matched content)\n');
   process.exitCode=1;

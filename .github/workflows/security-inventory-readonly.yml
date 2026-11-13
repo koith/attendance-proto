@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validate current source credential and personal email classes
+        run: node scripts/security_inventory_readonly.mjs --require-no-credential-hits --require-no-unclassified-current-email
       - name: Scan all reachable history, current source and secret candidates (no values output)
         run: node scripts/security_inventory_readonly.mjs --history --require-no-credential-hits
       - name: Scan actual published same-origin Pages HTML/JS/CSS (read-only)
