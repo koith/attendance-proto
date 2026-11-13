@@ -1591,6 +1591,19 @@ function openHqDashboard(){
   if(location.hash!=="#dashboard")history.pushState(null,"",location.pathname+location.search+"#dashboard");
   route();
 }
+// Make a restored manager's validated store survive later Safari storage loss.
+// This changes URL navigation only; admin_context remains the authorization.
+function stabilizeRecoveredStoreUrl(){
+ if(!STORE_ENTRY_FROM_PIN||STORE_ENTRY_RAW_ID!==null||STORE_ENTRY_MODE==="hq")return;
+ const id=Number(CURRENT_STORE_ID);
+ if(!Number.isSafeInteger(id)||id<1)return;
+ try{
+  const target=new URL(location.href);
+  target.searchParams.set("mode","store");
+  target.searchParams.set("store",String(id));
+  history.replaceState(history.state,"",target.pathname+target.search+target.hash);
+ }catch(_){}
+}
 function attendanceEntryUrl(staff=false){
  const id=Number(CURRENT_STORE_ID);
  if(!Number.isSafeInteger(id)||id<1)throw Error("STORE_SCOPE_REQUIRED");
@@ -1684,6 +1697,7 @@ async function loadStores(){
        const active=rows.find(x=>Number(x.id)===CURRENT_STORE_ID&&x.is_active!==false);
        if(!active){STORE_ENTRY_UNAVAILABLE=true;return;}
        sessionStorage.setItem("baekeok_store_name",String(active.name||""));
+       stabilizeRecoveredStoreUrl();
        STORE_ENTRY_UNAVAILABLE=false;STORE_ENTRY_CONNECTION_FAILED=false;
        setStartupConnection("READY");syncStoreContextUI();
      }catch(e){STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;console.warn("dedicated store not verified",e);STORE_ENTRY_FAILURE_KIND="STORE_NETWORK";setStartupConnection("NETWORK");}
@@ -1703,6 +1717,7 @@ async function loadStores(){
   CURRENT_STORE_ID=requested||(inha?1:Number(rows[0].id));
   sel.value=String(CURRENT_STORE_ID);sessionStorage.setItem("baekeok_store_id",String(CURRENT_STORE_ID));
   const name=STORE_NAME_BY_ID.get(CURRENT_STORE_ID);if(name)sessionStorage.setItem("baekeok_store_name",name);
+  if(STORE_ENTRY_FROM_PIN&&rows.some(x=>Number(x.id)===CURRENT_STORE_ID&&x.is_active!==false))stabilizeRecoveredStoreUrl();
   STORE_ENTRY_UNAVAILABLE=false;STORE_ENTRY_CONNECTION_FAILED=false;
   setStartupConnection("READY");syncStoreContextUI();
  }catch(e){console.warn("store list load failed",e);STORE_ENTRY_UNAVAILABLE=true;STORE_ENTRY_CONNECTION_FAILED=true;STORE_ENTRY_FAILURE_KIND="STORE_NETWORK";setStartupConnection("NETWORK");syncStoreSelectDisplay()}
