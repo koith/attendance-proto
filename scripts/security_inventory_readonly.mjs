@@ -16,8 +16,8 @@ const publicContactAddress=publicContactSource.match(/(?:gmail|naver|daum|kakao|
 if(!privateQaAddress||!publicContactAddress||privateQaAddress===publicContactAddress)
   throw Error('SEC_S15_OWNER_CLASSIFICATION_UNAVAILABLE');
 const emailStats={
-  HEAD:{qa_account_mentions:0,public_contact_mentions:0,synthetic_fixture_mentions:0,unclassified_mentions:0,distinct:new Set()},
-  HISTORY:{qa_account_mentions:0,public_contact_mentions:0,synthetic_fixture_mentions:0,unclassified_mentions:0,distinct:new Set()}
+  HEAD:{qa_account_mentions:0,public_contact_mentions:0,synthetic_fixture_mentions:0,unclassified_mentions:0,distinct:new Set(),unclassified_paths:new Set()},
+  HISTORY:{qa_account_mentions:0,public_contact_mentions:0,synthetic_fixture_mentions:0,unclassified_mentions:0,distinct:new Set(),unclassified_paths:new Set()}
 };
 function classifyEmail(value,path,origin){
  const record=emailStats[origin]; if(!record)return;
@@ -26,7 +26,7 @@ function classifyEmail(value,path,origin){
  if(email===privateQaAddress)record.qa_account_mentions++;
  else if(email===publicContactAddress)record.public_contact_mentions++;
  else if(/^qa\/qa_monthly_owner_delivery_1435\.test\.mjs$/.test(path))record.synthetic_fixture_mentions++;
- else record.unclassified_mentions++;
+ else {record.unclassified_mentions++; record.unclassified_paths.add(path);}
 }
 
 const enforce=process.argv.includes('--require-no-credential-hits');
@@ -113,8 +113,8 @@ for(const f of findings) {
 }
 const emailCategories={};
 for(const [origin,stat] of Object.entries(emailStats)) {
- const {distinct,...counts}=stat;
- emailCategories[origin]={...counts,unique_addresses:distinct.size};
+ const {distinct,unclassified_paths,...counts}=stat;
+ emailCategories[origin]={...counts,unique_addresses:distinct.size,unclassified_paths:[...unclassified_paths].sort().slice(0,30)};
 }
 summary.email_classification=emailCategories;
 writeFileSync('security-inventory-summary.json',JSON.stringify(summary,null,2)+'\n');
