@@ -656,6 +656,8 @@ jobs:
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.55.1
           node -e 'require("playwright").chromium.launch({headless:true}).then(browser=>browser.close()).catch(error=>{console.error(error);process.exit(1)})'
+      - name: HQ empty-sales notice must wrap naturally on narrow screens (#954)
+        run: node qa_hq_no_sales_natural_wrap_954.mjs
       - name: Actual test UI version-button toggle (Chromium mobile and desktop)
         run: node qa_version_test_controls_browser_v1.mjs
       - name: Preproduction synthetic roster cleanup must preserve real payroll and attendance
