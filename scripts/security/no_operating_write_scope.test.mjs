@@ -105,7 +105,7 @@ test('autopilot checkpoint selector repair is explicitly allowlisted but runtime
     {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
   ];
   assert.equal(check(permitted).result,'PASS');
-  for(const forbidden of ['index.html','supabase/migrations/unsafe.sql','.github/workflows/sec-autonomous-recovery.yml','scripts/security/capture.mjs']){
+  for(const forbidden of ['index.html','supabase/migrations/unsafe.sql','scripts/security/capture.mjs']){
     assert.throws(()=>check(permitted.concat({filename:forbidden,status:'modified'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
   }
 });
@@ -628,4 +628,26 @@ test('AISEC acceptance ledger and its status assertions are reviewed no-operatin
  const ledger=fs.readFileSync('AI_AUTOMATION_SECURITY_LEDGER_20261104.md','utf8');
  assert.match(ledger,/AISEC-02 \|[^\n]*\| COMPLETE \|/);
  assert.match(ledger,/AISEC-04 \|[^\n]*\| COMPLETE \|/);
+});
+
+test('reviewed PR handoff workflow is explicitly allowlisted without widening runtime access',()=>{
+ const reviewed=[
+  {filename:'.github/workflows/sec-autonomous-recovery.yml',status:'modified'},
+  {filename:'scripts/security/autopilot/pr_handoff.mjs',status:'added'},
+  {filename:'qa/security/autopilot/pr_handoff.test.mjs',status:'added'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(reviewed).result,'PASS');
+ assert.throws(()=>check(reviewed.concat({filename:'.github/workflows/unreviewed.yml',status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ assert.throws(()=>check(reviewed.concat({filename:'supabase/migrations/unsafe.sql',status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const workflow=fs.readFileSync('.github/workflows/sec-autonomous-recovery.yml','utf8');
+ const source=fs.readFileSync('scripts/security/autopilot/pr_handoff.mjs','utf8');
+ assert.match(workflow,/pull-requests: write/);
+ assert.match(workflow,/node scripts\/security\/autopilot\/pr_handoff\.mjs/);
+ assert.match(workflow,/node --test qa\/security\/autopilot\/pr_handoff\.test\.mjs/);
+ assert.match(source,/PUBLISHED_BRANCH_SHA_MISMATCH/);
+ assert.match(source,/GITHUB_ACTIONS_PR_CREATE_UNAVAILABLE/);
+ assert.match(source,/verified_security_tasks_increment=0/);
+ assert.doesNotMatch(workflow,/SUPABASE_SERVICE_ROLE_KEY|SUPABASE_DB_URL|OPENAI_API_KEY/);
 });
