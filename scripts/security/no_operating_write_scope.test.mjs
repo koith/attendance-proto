@@ -814,8 +814,8 @@ test('PAY-02 signed owner tokeninfo repair is isolated to source provision and e
   {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
  ];
  assert.equal(check(changed).result,'PASS');
- for(const forbidden of ['supabase/functions/monthly-owner-report/index.ts','gas/monthly-owner-report/Code.gs',
-  '.github/workflows/monthly-owner-gas-provision.yml','index.html','supabase/migrations/20261116_unsafe.sql']){
+ for(const forbidden of ['supabase/functions/monthly-owner-report/index.ts','index.html',
+  '.github/workflows/unreviewed-mail-trigger.yml','supabase/migrations/20261116_unsafe.sql']){
   assert.throws(()=>check([...changed,{filename:forbidden,status:'modified'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
  }
  execFileSync(process.execPath,['--test','qa/qa_monthly_owner_gas_provision_fallback.test.mjs'],{
