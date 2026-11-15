@@ -55,7 +55,7 @@ test('label dispatch is precisely bound to existing issue 1435 in same repo, nev
 
 test('official tokeninfo binds Google client, expected owner and exact least-privilege scopes',()=>{
  const clientId='synthetic-12345.apps.googleusercontent.com';
- const opts={expectedOwner:'webuielf@gmail.com',clientId};
+ const opts={expectedOwner:'webuielf@gmail.com',clientId,driveAbout:{user:{me:true,emailAddress:'webuielf@gmail.com',permissionId:'12345678901'}}};
  const claims={email:'webuielf@gmail.com',email_verified:'true',aud:clientId,
   sub:'123456789012345678901',expires_in:'3000',scope:QA1243_RUNNER_SCOPES.join(' ')};
  assert.deepEqual(verifyMonthlyGasIdentity(claims,opts),
@@ -83,8 +83,11 @@ test('original owner wins, and two separate matching verified grants allow disab
   {name:'qa',clientId:id,clientSecret:'qa-secret',refreshToken:'qa-refresh'},
   {name:'legacy',clientId:id,clientSecret:'legacy-secret',refreshToken:'legacy-refresh'}
  ];
- const probe=(mapping)=>async f=>({accessToken:'token-'+f.name,
-  info:{...info,...mapping[f.name]}});
+ const probe=(mapping)=>async f=>{
+  const identity={...info,...mapping[f.name]};
+  return {accessToken:'token-'+f.name,info:identity,
+    driveAbout:{user:{me:true,emailAddress:identity.email,permissionId:'12345678901'}}};
+ };
  const original=await selectTrustedMonthlyGasCredential({
   families,expectedOwner:email,probe:probe({qa:{email:other},legacy:{email}})
  });
@@ -116,6 +119,22 @@ test('original owner wins, and two separate matching verified grants allow disab
   families:[{...families[0],clientSecret:''}],expectedOwner:email,
   probe:async()=>{throw Error('MUST_NOT_PROBE_INCOMPLETE');}
  }),/OAUTH_NOT_CONFIGURED/);
+
+ assert.match(provision,/drive\/v3\/about\?fields=user\(emailAddress,me,permissionId\)/);
+ assert.throws(()=>verifyMonthlyGasIdentity(
+  {email:email,email_verified:'true',aud:id,sub:info.sub,scope:info.scope},
+  {expectedOwner:email,clientId:id,driveAbout:{user:{me:true,emailAddress:'wrong@example.test',permissionId:'12345678901'}}}
+ ),/OAUTH_DRIVE_IDENTITY_MISMATCH/);
+ assert.throws(()=>verifyMonthlyGasIdentity(info,{
+  expectedOwner:email,clientId:id,driveAbout:{user:{me:false,emailAddress:email,permissionId:'12345678901'}}
+ }),/OAUTH_DRIVE_IDENTITY_MISMATCH/);
+ // The access token does not need to advertise email_verified if Google Drive
+ // independently identifies its verified current user with the same bearer.
+ const noFlag={...info};delete noFlag.email_verified;
+ assert.deepEqual(verifyMonthlyGasIdentity(noFlag,{
+  expectedOwner:email,clientId:id,driveAbout:{user:{me:true,emailAddress:email,permissionId:'12345678901'}}
+ }),{ownerVerified:true,scopesVerified:true,clientVerified:true});
+
  const onlyLegacy=await selectTrustedMonthlyGasCredential({
   families:[{...families[0],clientSecret:''},families[1]],expectedOwner:email,
   probe:probe({legacy:{email}})

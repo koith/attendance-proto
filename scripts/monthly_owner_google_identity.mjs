@@ -3,14 +3,21 @@
 import {assertQa1243RunnerScopes} from './qa1243_oauth_scopes.mjs';
 const err=code=>{throw Error('MONTHLY_OWNER_GAS_'+code)};
 
-export function inspectMonthlyGasTokenInfo(info,{clientId}={}){
+export function inspectMonthlyGasTokenInfo(info,{clientId,driveAbout}={}){
  if(!info||typeof info!=='object')err('TOKENINFO_MISSING');
  if(typeof clientId!=='string'||!clientId)err('CLIENT_ID_REQUIRED');
  const email=String(info.email||'').trim().toLowerCase();
- const verified=info.email_verified===true||info.email_verified==='true'||
-   info.verified_email===true||info.verified_email==='true';
- if(!verified)err('OAUTH_EMAIL_UNVERIFIED');
+ // Google tokeninfo on an access-token grant can omit email_verified.
+ // A field explicitly saying FALSE is never overridden. When absent, accept
+ // only independent Google Drive about.get proof for the very same bearer.
+ if(info.email_verified===false||info.email_verified==='false'||
+    info.verified_email===false||info.verified_email==='false')err('OAUTH_EMAIL_UNVERIFIED');
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))err('OAUTH_EMAIL_MISSING');
+ const driveUser=driveAbout?.user;
+ if(!driveUser||driveUser.me!==true||
+    String(driveUser.emailAddress||'').trim().toLowerCase()!==email||
+    !/^[A-Za-z0-9_-]{5,}$/.test(String(driveUser.permissionId||'')))
+    err('OAUTH_DRIVE_IDENTITY_MISMATCH');
  if(String(info.aud||'')!==clientId)err('OAUTH_CLIENT_MISMATCH');
  const sub=String(info.sub||'');
  if(!/^[A-Za-z0-9_-]{8,}$/.test(sub))err('OAUTH_SUBJECT_INVALID');
@@ -21,10 +28,10 @@ export function inspectMonthlyGasTokenInfo(info,{clientId}={}){
  catch{err('OAUTH_SCOPES_INCOMPATIBLE')}
  return {email,sub};
 }
-export function verifyMonthlyGasIdentity(info,{expectedOwner,clientId}={}){
+export function verifyMonthlyGasIdentity(info,{expectedOwner,clientId,driveAbout}={}){
  const email=String(expectedOwner||'').trim().toLowerCase();
  if(!email)err('EXPECTED_IDENTITY_MISSING');
- const actual=inspectMonthlyGasTokenInfo(info,{clientId});
+ const actual=inspectMonthlyGasTokenInfo(info,{clientId,driveAbout});
  if(actual.email!==email)err('OAUTH_OWNER_MISMATCH');
  return {ownerVerified:true,scopesVerified:true,clientVerified:true};
 }
@@ -50,7 +57,7 @@ export async function selectTrustedMonthlyGasCredential({families,probe,expected
     const result=await probe(f);
     if(!result||typeof result.accessToken!=='string'||!result.accessToken)
       err('OAUTH_TOKEN_MISSING');
-    const identity=inspectMonthlyGasTokenInfo(result.info,{clientId:f.clientId});
+    const identity=inspectMonthlyGasTokenInfo(result.info,{clientId:f.clientId,driveAbout:result.driveAbout});
     const candidate={accessToken:result.accessToken,family:f.name,
       ownerEmail:identity.email,subject:identity.sub,refreshToken:f.refreshToken};
     if(identity.email===original)
@@ -60,6 +67,7 @@ export async function selectTrustedMonthlyGasCredential({families,probe,expected
   }catch(e){
     const message=String(e?.message||'');
     if(message.includes('OAUTH_EMAIL_UNVERIFIED'))failures.add('UNVERIFIED');
+    else if(message.includes('OAUTH_DRIVE_IDENTITY_MISMATCH'))failures.add('DRIVE_IDENTITY');
     else if(message.includes('OAUTH_SCOPES_INCOMPATIBLE'))failures.add('SCOPE');
     else if(message.includes('OAUTH_CLIENT_MISMATCH'))failures.add('CLIENT');
     else failures.add('PROBE');
