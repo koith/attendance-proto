@@ -68,6 +68,8 @@ const allowedPaths=new Set([
   "AI_AUTOMATION_SECURITY_LEDGER_20261104.md",
   "qa/security/autopilot/autopilot_contract.test.mjs",
   "qa_ai_agent_security_boundary.mjs",
+  "docs/research/NOV14_PAY01_COMPARATIVE_DESIGN_20261115.md",
+  "qa_nov14_pay01_comparison_v1.mjs",
   "qa_release_recovery_workflow_contract.mjs",
   ".github/workflows/autonomous-development-agent.yml",
   "scripts/ai-dev/auto_pick_issue.mjs",
