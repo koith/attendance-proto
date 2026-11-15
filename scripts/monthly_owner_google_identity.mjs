@@ -14,10 +14,14 @@ export function inspectMonthlyGasTokenInfo(info,{clientId,driveAbout}={}){
     info.verified_email===false||info.verified_email==='false')err('OAUTH_EMAIL_UNVERIFIED');
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))err('OAUTH_EMAIL_MISSING');
  const driveUser=driveAbout?.user;
- if(!driveUser||driveUser.me!==true||
+ if(driveAbout!==null && driveAbout!==undefined &&
+   (!driveUser||driveUser.me!==true||
     String(driveUser.emailAddress||'').trim().toLowerCase()!==email||
-    !/^[A-Za-z0-9_-]{5,}$/.test(String(driveUser.permissionId||'')))
+    !/^[A-Za-z0-9_-]{5,}$/.test(String(driveUser.permissionId||''))))
     err('OAUTH_DRIVE_IDENTITY_MISMATCH');
+ const tokenVerified=info.email_verified===true||info.email_verified==='true'||
+   info.verified_email===true||info.verified_email==='true';
+ const independentProof=tokenVerified||!!driveUser;
  if(String(info.aud||'')!==clientId)err('OAUTH_CLIENT_MISMATCH');
  const sub=String(info.sub||'');
  if(!/^[A-Za-z0-9_-]{8,}$/.test(sub))err('OAUTH_SUBJECT_INVALID');
@@ -26,13 +30,14 @@ export function inspectMonthlyGasTokenInfo(info,{clientId,driveAbout}={}){
   err('OAUTH_TOKEN_EXPIRED_OR_NEAR_EXPIRY');
  try{assertQa1243RunnerScopes(info.scope);}
  catch{err('OAUTH_SCOPES_INCOMPATIBLE')}
- return {email,sub};
+ return {email,sub,independentProof};
 }
 export function verifyMonthlyGasIdentity(info,{expectedOwner,clientId,driveAbout}={}){
  const email=String(expectedOwner||'').trim().toLowerCase();
  if(!email)err('EXPECTED_IDENTITY_MISSING');
  const actual=inspectMonthlyGasTokenInfo(info,{clientId,driveAbout});
  if(actual.email!==email)err('OAUTH_OWNER_MISMATCH');
+ if(!actual.independentProof)err('OAUTH_SINGLE_GRANT_NOT_VERIFIED');
  return {ownerVerified:true,scopesVerified:true,clientVerified:true};
 }
 
@@ -60,7 +65,7 @@ export async function selectTrustedMonthlyGasCredential({families,probe,expected
     const identity=inspectMonthlyGasTokenInfo(result.info,{clientId:f.clientId,driveAbout:result.driveAbout});
     const candidate={accessToken:result.accessToken,family:f.name,
       ownerEmail:identity.email,subject:identity.sub,refreshToken:f.refreshToken};
-    if(identity.email===original)
+    if(identity.email===original&&identity.independentProof)
       return {accessToken:candidate.accessToken,family:candidate.family,
         ownerEmail:identity.email,ownerPolicy:'original'};
     valid.push(candidate);
@@ -68,6 +73,8 @@ export async function selectTrustedMonthlyGasCredential({families,probe,expected
     const message=String(e?.message||'');
     if(message.includes('OAUTH_EMAIL_UNVERIFIED'))failures.add('UNVERIFIED');
     else if(message.includes('OAUTH_DRIVE_IDENTITY_MISMATCH'))failures.add('DRIVE_IDENTITY');
+    else if(message.includes('OAUTH_SUBJECT_INVALID'))failures.add('SUBJECT');
+    else if(message.includes('OAUTH_EMAIL_MISSING'))failures.add('EMAIL');
     else if(message.includes('OAUTH_SCOPES_INCOMPATIBLE'))failures.add('SCOPE');
     else if(message.includes('OAUTH_CLIENT_MISMATCH'))failures.add('CLIENT');
     else failures.add('PROBE');
