@@ -34,3 +34,14 @@ test('only specific reviewed main commit can trigger disabled code-only provisio
  assert.match(source,/MONTHLY_OWNER_ENABLED/);
  assert.ok(manifest.oauthScopes.includes('https://www.googleapis.com/auth/script.send_mail'));
 });
+
+test('label dispatch is precisely bound to existing issue 1435 in same repo, never external PR',()=>{
+ assert.match(workflow,/issues:\s*\n\s*types: \[labeled\]/);
+ assert.match(workflow,/github\.event\.action == 'labeled'/);
+ assert.match(workflow,/github\.event\.label\.name == 'monthly-owner-gas-source-provision'/);
+ assert.match(workflow,/github\.event\.issue\.number == 1435/);
+ assert.match(workflow,/github\.repository == 'koith\/attendance-proto'/);
+ assert.match(workflow,/github\.ref == 'refs\/heads\/main'/);
+ assert.match(workflow,/provision-isolated-source:\s*\n\s*needs: safety/);
+ assert.doesNotMatch(workflow,/monthlyOwnerDigestTick\(\)|MONTHLY_OWNER_ENABLED: true/);
+});
