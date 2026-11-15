@@ -772,3 +772,17 @@ test('reviewed PAY-02 isolated GAS batch-export source is not an active payroll/
  execFileSync(process.execPath,['qa/qa_monthly_owner_delivery_1435.test.mjs'],
   {encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
 });
+
+test('PAY-02 disabled GAS OAuth fallback is only exact source provision and no direct operating send',()=>{
+ const changes=[
+  {filename:'.github/workflows/monthly-owner-gas-provision.yml',status:'modified'},
+  {filename:'qa/qa_monthly_owner_gas_provision_fallback.test.mjs',status:'added'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(changes).result,'PASS');
+ for(const forbidden of ['gas/monthly-owner-report/send-production.js','supabase/functions/monthly-owner-report/index.ts','index.html'])
+  assert.throws(()=>check([...changes,{filename:forbidden,status:'modified'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ execFileSync(process.execPath,['--test','qa/qa_monthly_owner_gas_provision_fallback.test.mjs'],
+   {encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
+});
