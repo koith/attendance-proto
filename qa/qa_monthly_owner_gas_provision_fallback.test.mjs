@@ -1,24 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {verifyMonthlyGasIdentity} from '../scripts/monthly_owner_google_identity.mjs';
+import {verifyMonthlyGasIdentity,selectTrustedMonthlyGasCredential} from '../scripts/monthly_owner_google_identity.mjs';
 import {QA1243_RUNNER_SCOPES} from '../scripts/qa1243_oauth_scopes.mjs';
 const workflow=fs.readFileSync('.github/workflows/monthly-owner-gas-provision.yml','utf8');
 const provision=fs.readFileSync('scripts/provision_monthly_owner_gas.mjs','utf8');
 const source=fs.readFileSync('gas/monthly-owner-report/Code.gs','utf8');
 const manifest=JSON.parse(fs.readFileSync('gas/monthly-owner-report/appsscript.json','utf8'));
-test('one complete secret family: no accidental Google refresh-token cross-use',()=>{
+test('each OAuth credential family uses its own complete GitHub Secret set only',()=>{
  for(const part of ['CLIENT_ID','CLIENT_SECRET','REFRESH_TOKEN']){
-  const name='QA1243_GOOGLE_OAUTH_'+part;
-  const fallback='GOOGLE_OAUTH_'+part;
-  const clause=workflow.split('\n').find(s=>s.trim().startsWith(name+':'));
-  assert.ok(clause,name+' explicitly supplied');
-  for(const required of ['QA1243_GOOGLE_OAUTH_CLIENT_ID','QA1243_GOOGLE_OAUTH_CLIENT_SECRET','QA1243_GOOGLE_OAUTH_REFRESH_TOKEN'])
-    assert.ok(clause.includes('secrets.'+required),required+' must bind the selected secret family');
-  assert.ok(clause.includes('secrets.'+fallback),'safe general OAuth fallback for '+part);
-  assert.ok(clause.includes(' && '),'family completion guard');
+  const qa='QA1243_GOOGLE_OAUTH_'+part;
+  const legacy='LEGACY_GOOGLE_OAUTH_'+part;
+  const lines=workflow.split('\n');
+  const q=lines.find(x=>x.trim().startsWith(qa+':'));
+  const l=lines.find(x=>x.trim().startsWith(legacy+':'));
+  assert.ok(q&&l,'both explicit families must be available for verified fallback');
+  assert.ok(q.includes('secrets.'+qa));
+  assert.ok(l.includes('secrets.GOOGLE_OAUTH_'+part));
+  assert.ok(!q.includes('|| secrets.GOOGLE_OAUTH'),'no mixed credential families');
+  assert.ok(!l.includes('QA1243_GOOGLE_OAUTH_'),'legacy credentials must not borrow QA values');
  }
 });
+
 test('only specific reviewed main commit can trigger disabled code-only provisioning',()=>{
  assert.match(workflow,/github\.ref == 'refs\/heads\/main'/);
  assert.match(workflow,/github\.event_name == 'push'/);
@@ -26,7 +29,7 @@ test('only specific reviewed main commit can trigger disabled code-only provisio
  assert.match(workflow,/No owner mail, no trigger, no script secrets or payroll reads/);
  assert.doesNotMatch(workflow,/\bMailApp\.sendEmail\b|\binstallMonthlyOwnerTrigger\(/);
  assert.match(provision,/OWNER_AND_SCOPES_VERIFIED/);
- assert.match(provision,/verifyMonthlyGasIdentity\(tokenInfo/);
+ assert.match(provision,/selectTrustedMonthlyGasCredential\(/);
  assert.match(provision,/https:\/\/oauth2\.googleapis\.com\/tokeninfo\?access_token=/);
  assert.doesNotMatch(provision,/https:\/\/www\.googleapis\.com\/oauth2\/v3\/userinfo/);
  assert.match(provision,/PROJECT_OWNER_MISMATCH/);
@@ -68,4 +71,40 @@ test('official tokeninfo binds Google client, expected owner and exact least-pri
  }
  assert.throws(()=>verifyMonthlyGasIdentity({},opts),/MONTHLY_OWNER_GAS_/);
  assert.throws(()=>verifyMonthlyGasIdentity(claims,{...opts,clientId:''}),/MONTHLY_OWNER_GAS_/);
+});
+
+
+test('verified fallback prefers trusted owner, never mixed or unverified OAuth tokens',async()=>{
+ const id='synthetic-12345.apps.googleusercontent.com';
+ const claims={email:'webuielf@gmail.com',email_verified:'true',aud:id,
+  sub:'123456789012345678901',expires_in:'3000',scope:QA1243_RUNNER_SCOPES.join(' ')};
+ const families=[
+  {name:'qa',clientId:id,clientSecret:'qa-secret',refreshToken:'qa-refresh'},
+  {name:'legacy',clientId:id,clientSecret:'legacy-secret',refreshToken:'legacy-refresh'}
+ ];
+ const called=[];
+ const result=await selectTrustedMonthlyGasCredential({
+  families,expectedOwner:'webuielf@gmail.com',
+  probe:async family=>{
+   called.push(family.name);
+   assert.ok(family.name==='qa'?family.refreshToken==='qa-refresh':family.refreshToken==='legacy-refresh');
+   return {accessToken:'token-'+family.name,
+    info:{...claims,email:family.name==='qa'?'wrong@example.test':'webuielf@gmail.com'}};
+  }
+ });
+ assert.deepEqual(result,{accessToken:'token-legacy',family:'legacy'});
+ assert.deepEqual(called,['qa','legacy']);
+ await assert.rejects(selectTrustedMonthlyGasCredential({
+  families,expectedOwner:'webuielf@gmail.com',
+  probe:async family=>({accessToken:'test-'+family.name,info:{...claims,email:'wrong@example.test'}})
+ }),/NO_TRUSTED_OAUTH_FAMILY_OWNER/);
+ await assert.rejects(selectTrustedMonthlyGasCredential({
+  families:[{...families[0],clientSecret:''}],expectedOwner:'webuielf@gmail.com',
+  probe:async()=>{throw Error('MUST_NOT_PROBE_INCOMPLETE');}
+ }),/OAUTH_NOT_CONFIGURED/);
+ const onlyLegacy=await selectTrustedMonthlyGasCredential({
+  families:[{...families[0],clientSecret:''},families[1]],expectedOwner:'webuielf@gmail.com',
+  probe:async f=>({accessToken:'okay',info:claims})
+ });
+ assert.equal(onlyLegacy.family,'legacy');
 });
