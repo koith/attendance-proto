@@ -65,6 +65,7 @@ const allowedPaths=new Set([
   "qa_live_version_test_controls_v1.mjs",
   "qa_store_scoped_permissions_postgres.sql",
   "SECURITY_STABILITY_LEDGER_20261103.md",
+  "PROJECT_BACKLOG_20261017.md",
   "AI_AUTOMATION_SECURITY_LEDGER_20261104.md",
   "qa/security/autopilot/autopilot_contract.test.mjs",
   "qa_ai_agent_security_boundary.mjs",
