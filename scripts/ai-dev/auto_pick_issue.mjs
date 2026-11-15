@@ -24,6 +24,9 @@ export function canSelect(candidate,issue,comments,branches,now=Date.now()){
  const claims=comments.filter(c=>c.user?.login==='github-actions[bot]')
   .map(c=>String(c.body||'').match(claim)).filter(m=>m&&m[1]===candidate.id&&Number(m[2])===candidate.issue)
   .map(m=>Date.parse(m[4])).filter(t=>Number.isFinite(t)&&t<=now);
+ // A separately approved issue is already eligible for the GitHub issues:labeled
+ // trigger; never start a competing scheduled run before a bot claim exists.
+ if((issue.labels||[]).some(x=>x.name==='agent-approved')&&!claims.length)return false;
  if(claims.some(t=>now-t<24*3600e3))return false;
  if(claims.filter(t=>now-t<7*24*3600e3).length>=2)return false;
  return true;
