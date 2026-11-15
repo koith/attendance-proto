@@ -74,37 +74,55 @@ test('official tokeninfo binds Google client, expected owner and exact least-pri
 });
 
 
-test('verified fallback prefers trusted owner, never mixed or unverified OAuth tokens',async()=>{
+test('original owner wins, and two separate matching verified grants allow disabled source-only alternate owner',async()=>{
  const id='synthetic-12345.apps.googleusercontent.com';
- const claims={email:'webuielf@gmail.com',email_verified:'true',aud:id,
-  sub:'123456789012345678901',expires_in:'3000',scope:QA1243_RUNNER_SCOPES.join(' ')};
+ const email='webuielf@gmail.com',other='different-verified-owner@example.test';
+ const info={email,email_verified:'true',aud:id,
+   sub:'123456789012345678901',expires_in:'3000',scope:QA1243_RUNNER_SCOPES.join(' ')};
  const families=[
   {name:'qa',clientId:id,clientSecret:'qa-secret',refreshToken:'qa-refresh'},
   {name:'legacy',clientId:id,clientSecret:'legacy-secret',refreshToken:'legacy-refresh'}
  ];
- const called=[];
- const result=await selectTrustedMonthlyGasCredential({
-  families,expectedOwner:'webuielf@gmail.com',
-  probe:async family=>{
-   called.push(family.name);
-   assert.ok(family.name==='qa'?family.refreshToken==='qa-refresh':family.refreshToken==='legacy-refresh');
-   return {accessToken:'token-'+family.name,
-    info:{...claims,email:family.name==='qa'?'wrong@example.test':'webuielf@gmail.com'}};
-  }
+ const probe=(mapping)=>async f=>({accessToken:'token-'+f.name,
+  info:{...info,...mapping[f.name]}});
+ const original=await selectTrustedMonthlyGasCredential({
+  families,expectedOwner:email,probe:probe({qa:{email:other},legacy:{email}})
  });
- assert.deepEqual(result,{accessToken:'token-legacy',family:'legacy'});
- assert.deepEqual(called,['qa','legacy']);
+ assert.deepEqual(original,{accessToken:'token-legacy',family:'legacy',
+  ownerEmail:email,ownerPolicy:'original'});
+ const consensus=await selectTrustedMonthlyGasCredential({
+  families,expectedOwner:email,probe:probe({qa:{email:other},legacy:{email:other}})
+ });
+ assert.deepEqual(consensus,{accessToken:'token-qa',family:'qa',
+  ownerEmail:other,ownerPolicy:'two_grant_consensus'});
  await assert.rejects(selectTrustedMonthlyGasCredential({
-  families,expectedOwner:'webuielf@gmail.com',
-  probe:async family=>({accessToken:'test-'+family.name,info:{...claims,email:'wrong@example.test'}})
- }),/NO_TRUSTED_OAUTH_FAMILY_OWNER/);
+  families,expectedOwner:email,probe:probe({
+   qa:{email:'unrelated-a@example.test'},legacy:{email:'unrelated-b@example.test'}
+  })
+ }),/OAUTH_UNEXPECTED_OWNER_NEEDS_CONSENSUS/);
  await assert.rejects(selectTrustedMonthlyGasCredential({
-  families:[{...families[0],clientSecret:''}],expectedOwner:'webuielf@gmail.com',
+  families:[families[0],{...families[1],refreshToken:families[0].refreshToken}],
+  expectedOwner:email,probe:probe({qa:{email:other},legacy:{email:other}})
+ }),/OAUTH_UNEXPECTED_OWNER_NEEDS_CONSENSUS/);
+ await assert.rejects(selectTrustedMonthlyGasCredential({
+  families,expectedOwner:email,probe:probe({qa:{email:other},legacy:{email:other,sub:'different-sub-12345'}})
+ }),/OAUTH_UNEXPECTED_OWNER_NEEDS_CONSENSUS/);
+ await assert.rejects(selectTrustedMonthlyGasCredential({
+  families,expectedOwner:email,probe:probe({
+   qa:{email:other,email_verified:'false'},legacy:{email:other}
+  })
+ }),/NO_TRUSTED_OAUTH_FAMILY_UNVERIFIED/);
+ await assert.rejects(selectTrustedMonthlyGasCredential({
+  families:[{...families[0],clientSecret:''}],expectedOwner:email,
   probe:async()=>{throw Error('MUST_NOT_PROBE_INCOMPLETE');}
  }),/OAUTH_NOT_CONFIGURED/);
  const onlyLegacy=await selectTrustedMonthlyGasCredential({
-  families:[{...families[0],clientSecret:''},families[1]],expectedOwner:'webuielf@gmail.com',
-  probe:async f=>({accessToken:'okay',info:claims})
+  families:[{...families[0],clientSecret:''},families[1]],expectedOwner:email,
+  probe:probe({legacy:{email}})
  });
  assert.equal(onlyLegacy.family,'legacy');
+ assert.equal(onlyLegacy.ownerPolicy,'original');
+ assert.match(provision,/const effectiveOwner=verified\.ownerEmail/);
+ assert.match(provision,/owner_policy:verified\.ownerPolicy/);
+ assert.doesNotMatch(provision,/owner:effectiveOwner|owner:verified\.ownerEmail/);
 });
