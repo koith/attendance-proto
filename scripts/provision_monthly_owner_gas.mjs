@@ -39,7 +39,12 @@ const verified=await selectTrustedMonthlyGasCredential({
   });
   if(!res.access_token)throw Error(ERR+'OAUTH_TOKEN_MISSING');
   const info=await call('https://oauth2.googleapis.com/tokeninfo?access_token='+encodeURIComponent(res.access_token));
-  return {accessToken:res.access_token,info};
+  // Independent Google Drive self-identity read; does not list files or
+  // change any data. Same bearer as tokeninfo, mandatory before Script write.
+  const driveAbout=await call('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,me,permissionId)',{
+   headers:{Authorization:'Bearer '+res.access_token}
+  });
+  return {accessToken:res.access_token,info,driveAbout};
  }
 });
 const auth={Authorization:'Bearer '+verified.accessToken};
