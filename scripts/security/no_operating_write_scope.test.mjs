@@ -748,3 +748,27 @@ test('original NOV14-INS-01 official research and synthetic matching are no oper
   assert.ok(note.includes(phrase),'research evidence missing '+phrase);
  execFileSync(process.execPath,['--test','qa/nov14_ins01_edi_matching.test.mjs'],{encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
 });
+
+test('reviewed PAY-02 isolated GAS batch-export source is not an active payroll/mail release',()=>{
+ const changes=[
+  {filename:'gas/monthly-owner-report/Code.gs',status:'modified'},
+  {filename:'gas/monthly-owner-report/appsscript.json',status:'modified'},
+  {filename:'qa/qa_monthly_owner_delivery_1435.test.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(changes).result,'PASS');
+ for(const forbidden of ['supabase/functions/monthly-owner-report/index.ts',
+  'supabase/migrations/unsafe.sql','index.html','.github/workflows/monthly-owner-mail-live.yml'])
+  assert.throws(()=>check([...changes,{filename:forbidden,status:'modified'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const gas=fs.readFileSync('gas/monthly-owner-report/Code.gs','utf8');
+ assert.match(gas,/MONTHLY_OWNER_EXPORT_ENABLED/);
+ assert.match(gas,/EXPORT_FOLDER_OWNER_MISMATCH/);
+ assert.match(gas,/EXPORT_PDF_INVALID/);
+ assert.match(gas,/EXPORT_ALREADY_STARTED_OR_DONE/);
+ assert.match(gas,/EXPORT_INCOMPLETE_REVIEW_REQUIRED/);
+ assert.match(gas,/monthlyOwnerExportBatch\(/);
+ assert.match(gas,/MONTHLY_OWNER_ENABLED/);
+ execFileSync(process.execPath,['qa/qa_monthly_owner_delivery_1435.test.mjs'],
+  {encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
+});
