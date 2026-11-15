@@ -69,6 +69,8 @@ const allowedPaths=new Set([
   "AI_AUTOMATION_SECURITY_LEDGER_20261104.md",
   "qa/security/autopilot/autopilot_contract.test.mjs",
   "qa_ai_agent_security_boundary.mjs",
+  ".github/workflows/monthly-owner-gas-provision.yml",
+  "qa/qa_monthly_owner_gas_provision_fallback.test.mjs",
   "gas/monthly-owner-report/Code.gs",
   "gas/monthly-owner-report/appsscript.json",
   "qa/qa_monthly_owner_delivery_1435.test.mjs",
