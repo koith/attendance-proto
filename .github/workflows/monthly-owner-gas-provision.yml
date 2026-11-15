@@ -8,6 +8,7 @@ on:
   pull_request:
     paths:
       - 'scripts/provision_monthly_owner_gas.mjs'
+      - 'scripts/monthly_owner_google_identity.mjs'
       - 'qa/qa_monthly_owner_gas_provision_fallback.test.mjs'
       - '.github/workflows/monthly-owner-gas-provision.yml'
       - 'gas/monthly-owner-report/**'
@@ -15,6 +16,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/provision_monthly_owner_gas.mjs'
+      - 'scripts/monthly_owner_google_identity.mjs'
       - '.github/workflows/monthly-owner-gas-provision.yml'
       - 'gas/monthly-owner-report/**'
 permissions:
