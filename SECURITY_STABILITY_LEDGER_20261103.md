@@ -721,3 +721,26 @@
 - **실제 공개 서비스 검사:** 메인 진입점뿐 아니라 루트 HTML 진입점 15개를 시작으로 동일 origin HTML 16+JS 46+CSS 16 **총 78개** 게시 자산 GET 검사. 높은 확신 비밀키 후보 **0**, 이메일 형식 **2**: `privacy.html`, `terms.html`의 공개 연락처 각 1. 서비스 개인정보/관리자·급여 정보 원문을 출력하거나 읽지 않았다.
 - **실제 안전 조치:** [PR #1585](https://github.com/koith/attendance-proto/pull/1585)에서 공개 QA 문서 3개에 있던 불필요한 개인 계정 하드코딩 8개를 제거. [PR #1583](https://github.com/koith/attendance-proto/pull/1583)에서 Git 역사 기록을 빠짐없이 조사하는 이력 전용 비밀값 비출력 검사 추가. #1592에서 15개 Pages 진입점 실검사, 이메일 현존·역사적 용도 분류, 신규 미분류 현재 이메일을 **CI 실패**로 처리하는 통제 구현. 운영 데이터/계정/급여/Apps Script/Pages 코드 변경 0, 기존 마이그레이션 파일 수정 0.
 - **잔여 공개 위험을 숨기지 않는다:** 이미 실행되어 재해 복구 재현성에 연결된 마이그레이션 2개의 실제 승인된 관리자 계정 이메일(총 3회)은 현재 HEAD와 과거 Git에서 공개 조회 가능하다. 현재 관리/로그인 인증 비밀은 아니지만 개인정보 공개 가능성은 잔존한다. 공개 Git 이력의 강제 재작성·원격 모든 clone에서 회수·기존 운영 migration 임의 개변은 수행하지 않는다. **따라서 SEC-S15의 작업 범위(평가·안전 조치·신규 노출 재발 감시)는 수용했으나, 과거 모든 공개 개인정보 삭제 또는 공개 이메일에 대한 본인 수용/철회가 완료됐다고 주장하지 않는다.** 사용자가 계정 이메일 자체를 공개에서 없애도록 승인하면 비가역적 Git history remediation 작업은 별도 신중한 판단이 필요하다.
+
+
+## AF. 2026-11-15 운영 보안 선행 게이트 점검 (읽기 전용)
+
+> 신규 회의 일감 개발/운영 적용 전 사용자 요청에 따른 **운영 무변경 점검**. 2026-11-15 06:31 UTC 기준 운영 Supabase `attendance`(프로젝트 ref `waluhdgqhwjjwmflhrle`), GitHub SEC 원장·Issue/Actions를 대조했다. 실데이터 원문·비밀·세션·계정 식별자는 공개 기록하지 않음.
+
+### 실제 확인(VERIFIED)
+
+- 운영 프로젝트 `ACTIVE_HEALTHY`, PostgreSQL 17.6. 단 이는 데이터·인증·백업이 종단간 안전하다는 증거가 아니다.
+- 운영 `public` 일반 테이블의 RLS 비활성 개수 **0**. 실행 가능 `SECURITY DEFINER`는 anon **19**, authenticated **214**. 이 수치는 11/13 전수 ACL 감사 후와 일치하며 19/214를 곧장 취약점 건수로 간주하지 않는다. PIN 보호 설정은 실제 `enabled=true`; 근태 관련 감사/보존 트리거 활성 **8개**(정의/정책/업무 기능별 수용은 별도).
+- **SEC-S09/SEC-01 상태 갱신:** 11/14 [Issue #998 실제 적용 영수증](https://github.com/koith/attendance-proto/issues/998#issuecomment-6870336595)의 이전 '운영 pre-request 미활성화' 기록은 과거 시점 상태다. 현 운영 read-only SQL로 `session_guard.require_latest_session` SECURITY DEFINER 함수 존재, 정의에 GoTrue `auth.sessions` 유효성 확인 포함, `authenticator` 역할의 `pgrst.db_pre_request=session_guard.require_latest_session` **정확한 설정 존재**를 확인. 세션 검사 운영 **적용 VERIFIED**. 그러나 서로 다른 실기기 2대의 로그인→이전 JWT HTTP 거부→앱 자동 로그아웃→신규 정상 통과, 회귀 및 롤백 드릴은 **UNVERIFIED**. 따라서 SEC-S09/SEC-01의 **미완료** 판정 유지. 준비 PR #999는 아직 open/unmerged이므로 현 운영 훅에 중복 재적용·덮어쓰기 금지. 11/14 후크 활성화 이후 이 원장의 오래된 WIP 설명은 역사 기록이다.
+- **D5 정기 암호화 백업 실패 확인:** 2026-11-15 05:56 KST 실행된 [Actions #43640096846](https://github.com/koith/attendance-proto/actions/runs/43640096846)의 `sealed-capture` **failure**, 실패 알림 job **success**. [Issue #1492 경보](https://github.com/koith/attendance-proto/issues/1492#issuecomment-6884079295). 실패 단계의 로그에 `BACKUP_BLOCKED_DB_CONNECTION`, `BACKUP_BLOCKED_STORAGE_CREDENTIAL`, `BACKUP_BLOCKED_AUTH_CONFIG_CREDENTIAL`, `BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL`가 함께 기록됨. 각 `SUPABASE_DB_URL`/`SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_ACCESS_TOKEN` 런타임 필수 입력이 비어 있었으며 백업 생성 **이전** 실패. 이는 기존 비공개 소유자 통제 수동 암호화 스냅샷의 존재를 부정하지 않지만 **D5 자동 최신 전체 백업 COMPLETE의 증거는 없음**. 단순 재실행은 같은 누락을 해결하지 않으므로 먼저 자격증명/안전한 대체 연결 경로를 조사.
+- Supabase Security Advisors 2026-11-15 06:30 UTC: `rls_enabled_no_policy` INFO **64**(대체로 의도된 비공개 테이블), `anon_security_definer_function_executable` WARN **19**, `authenticated_security_definer_function_executable` WARN **214**, `auth_leaked_password_protection` WARN **1**. 비밀번호 유출 목록 차단은 공식 문서상 Pro 이상에서 제공되므로 현재 요금제·인증 위험 정책 확인 후 처리. 경고를 근거 없이 운영 접근 누출로 단정하지 않는다.
+
+### 보안 완료 이전의 실제 작업 순서
+
+1. **P0 데이터 보존:** D5 자동 암호화 백업 실패 원인 해소(기존 소유자 통제 키 분리 유지), 갱신된 실운영 백업의 원격 보관/복호화·실제 백업 읽기 재검증. B1 직접 운영 native 백업·B3 Auth 설정 확보·B6/R2/R3/R5 실제 DB/Auth/Storage 전체 통합 격리 복구와 결과 대조를 진행한다. 지금까지의 101-table PG17 부분 복원은 보존·재사용하고 중복 재작업하지 않는다.
+2. **P0 접근통제:** 이미 적용된 SEC-S09 훅을 재설치하지 말고 두 기기 실세션·롤백, 본사/점주/직원 타지점 RPC·Storage/Realtime 서명 JWT 실증(S3/S4/S5, SEC-S06), PIN 실제 PC/iPhone 경로(SEC-S10·S18)를 안전하게 수용한다.
+3. **P1 급여 데이터 정합:** 과거 자동퇴근 유효 10건/과거 미연결 VOID 8건의 실제 기록과 급여 영향 **읽기 전용** 검산 후 변경 승인·감사·원본 보존(SEC-S11/S12, A3). 회의 급여 자동화·PDF/이메일 발송 전에 금액 정본과 개인정보 노출·오발송 안전 조건을 확정한다.
+4. **P1 AI 운영경계:** AISEC-05 GitHub 보호 규칙/배포 승인 실제 권한, AISEC-06 과거 비밀 노출/연쇄침해, AISEC-07 복구키·운영키 별도 수명주기. 미검증 경고와 인증 설정의 영향·요금제 확인.
+5. **신규 지점 대량 개통·직원별 급여 이메일 등 실제 운영 변경**은 위 중 관련 보안·복구 필수 게이트가 충족되기 전 배포·실제 발송/대량 생성/운영 근태 변경을 실행하지 않는다. 격리 합성 QA, 읽기 전용 분석, 기존 수정 사항 독립 증거 수집은 운영 비파괴 조건에서 계속 가능하다.
+
+**상태 변화 없음:** 이 점검으로 SEC 18개 대과제 **6 COMPLETE / 12 OPEN**, 세부 28개 **13 COMPLETE / 15 OPEN**, AISEC 7개 **4 COMPLETE / 3 OPEN** 유지. 신규 COMPLETE **0**. 이번 조회 및 문서 기록의 운영 DB DML/DDL·메일·Auth 쓰기·Pages 배포 **0**, 비밀값 기록 **0**. 통합 복구/전체 보안 수용 **NO_GO**.
