@@ -730,3 +730,21 @@ test('reviewed QA-06 integrated boundary tests are explicitly code-only and do n
  const report=execFileSync(process.execPath,['qa_store_opening_matrix_boundary_coverage_v1.mjs'],{encoding:'utf8',timeout:30000});
  assert.match(report,/PASS QA-06/);
 });
+
+test('original NOV14-INS-01 official research and synthetic matching are no operating write',()=>{
+ const paths=[
+  {filename:'PROJECT_BACKLOG_20261017.md',status:'modified'},
+  {filename:'docs/research/NOV14_INS01_OFFICIAL_EDI_FEASIBILITY_20261115.md',status:'added'},
+  {filename:'scripts/research/edi_attachment_match.mjs',status:'added'},
+  {filename:'qa/nov14_ins01_edi_matching.test.mjs',status:'added'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(paths).result,'PASS');
+ for(const forbidden of ['index.html','supabase/migrations/unsafe.sql','real_employee_documents.pdf'])
+  assert.throws(()=>check([...paths,{filename:forbidden,status:'added'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const note=fs.readFileSync('docs/research/NOV14_INS01_OFFICIAL_EDI_FEASIBILITY_20261115.md','utf8');
+ for(const phrase of ['3,000','30~50','2mb','서식별','https://edi.nhis.or.kr','GO','NO_GO','UNVERIFIED'])
+  assert.ok(note.includes(phrase),'research evidence missing '+phrase);
+ execFileSync(process.execPath,['--test','qa/nov14_ins01_edi_matching.test.mjs'],{encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
+});
