@@ -19,6 +19,7 @@ test('never picks closed issues, unrelated issues or already delivered code bran
  assert.equal(canSelect(c,{...i,title:'unrelated'},[],[],now),false);
  assert.equal(canSelect(c,i,[],['agent/issue-1055-run-17'],now),false);
  assert.equal(canSelect(c,i,[],['agent/issue-1175-run-17'],now),true);
+ assert.equal(canSelect(c,{...i,labels:[{name:'agent-approved'}]},[],[],now),false);
 });
 test('trusted claims cooldown one day, skip after 2 in week, ignore untrusted',()=>{
  const c=candidates[0],i=issue(c.issue);
