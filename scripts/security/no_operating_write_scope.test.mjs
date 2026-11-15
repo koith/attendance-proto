@@ -669,3 +669,24 @@ test('reviewed general agent PR bridge is allowed but not production writes',()=
  assert.match(wf,/verified_task_increment=0/);
  assert.doesNotMatch(wf,/SUPABASE_DB_URL|SUPABASE_SERVICE_ROLE_KEY/);
 });
+
+test('scheduled canonical backlog autodev cannot widen production scope',()=>{
+ const changed=[
+  {filename:'.github/workflows/autonomous-development-agent.yml',status:'modified'},
+  {filename:'scripts/ai-dev/auto_pick_issue.mjs',status:'added'},
+  {filename:'scripts/ai-dev/auto_pick_issue.test.mjs',status:'added'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(changed).result,'PASS');
+ for(const path of ['index.html','supabase/migrations/unsafe.sql','.github/workflows/other.yml'])
+  assert.throws(()=>check(changed.concat({filename:path,status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const wf=fs.readFileSync('.github/workflows/autonomous-development-agent.yml','utf8');
+ const picker=fs.readFileSync('scripts/ai-dev/auto_pick_issue.mjs','utf8');
+ assert.match(wf,/run: node scripts\/ai-dev\/auto_pick_issue\.mjs/);
+ assert.match(wf,/steps\.pick\.outputs\.issue_number/);
+ assert.match(wf,/needs\.capture-intake\.outputs\.selected == 'true'/);
+ assert.match(picker,/PROJECT_BACKLOG_20261017\.md/);
+ assert.match(picker,/accepted_backlog_increment=0/);
+ assert.doesNotMatch(picker,/supabase\/migrations|SUPABASE_DB_URL|OPENAI_API_KEY|\\.env/);
+});
