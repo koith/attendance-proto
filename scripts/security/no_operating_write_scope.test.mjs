@@ -711,3 +711,22 @@ test('original NOV14-PAY-01 source research, official rates, and synthetic payro
  assert.match(evidence,/실제 Excel.*미실시/);
  execFileSync(process.execPath,['qa_nov14_pay01_comparison_v1.mjs'],{encoding:'utf8',timeout:45000,maxBuffer:1024*1024});
 });
+
+test('reviewed QA-06 integrated boundary tests are explicitly code-only and do not grant runtime writes',()=>{
+ const review=[
+  {filename:'qa_store_opening_matrix_v1.mjs',status:'modified'},
+  {filename:'qa_store_opening_matrix_boundary_coverage_v1.mjs',status:'added'},
+  {filename:'qa_employee_store_registration_v218.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(review).result,'PASS');
+ assert.throws(()=>check(review.concat({filename:'actual_attendance.js',status:'modified'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ assert.throws(()=>check(review.concat({filename:'supabase/migrations/unsafe.sql',status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const matrix=fs.readFileSync('qa_store_opening_matrix_v1.mjs','utf8');
+ for(const path of ['qa_actual_attendance_anomaly_correction_v1.mjs','qa_manual_attendance_recorrection_v1.mjs',
+  'qa_employment_contract_v1.mjs','qa_employee_store_registration_v218.mjs','qa_store_opening_matrix_boundary_coverage_v1.mjs'])
+   assert.ok(matrix.includes("'"+path+"'"),path);
+ const report=execFileSync(process.execPath,['qa_store_opening_matrix_boundary_coverage_v1.mjs'],{encoding:'utf8',timeout:30000});
+ assert.match(report,/PASS QA-06/);
+});
