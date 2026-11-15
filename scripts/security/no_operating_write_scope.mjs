@@ -71,6 +71,8 @@ const allowedPaths=new Set([
   "qa_ai_agent_security_boundary.mjs",
   ".github/workflows/monthly-owner-gas-provision.yml",
   "qa/qa_monthly_owner_gas_provision_fallback.test.mjs",
+  "scripts/provision_monthly_owner_gas.mjs",
+  "scripts/monthly_owner_google_identity.mjs",
   "gas/monthly-owner-report/Code.gs",
   "gas/monthly-owner-report/appsscript.json",
   "qa/qa_monthly_owner_delivery_1435.test.mjs",
