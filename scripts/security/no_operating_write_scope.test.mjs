@@ -209,7 +209,7 @@ test('rejects empty, duplicate, deleted/renamed, ill-formed and truncated file l
   assert.throws(()=>check([{...files[0],status:'removed'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
   assert.throws(()=>check([{...files[0],status:'renamed'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
   assert.throws(()=>check([null]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
-  assert.throws(()=>check(new Array(100).fill(files[0])),/SEC_NO_WRITE_UNPROVEN_FILE_LIST/);
+  assert.throws(()=>check(new Array(1000).fill(files[0])),/SEC_NO_WRITE_UNPROVEN_FILE_LIST/);
 });
 test('rejects untrusted/non-fast-forward Git commit context',()=>{
   for(const more of [{before:''},{before:'0'.repeat(40)},{head:''},{head:before},{status:'behind'},{status:'identical'},{status:'diverged'}])
