@@ -804,3 +804,21 @@ test('reviewed Auth metadata guard is restricted to two exact synthetic paths',(
   assert.throws(()=>check([...exact,exact[0]]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
   assert.throws(()=>check(exact,{status:'diverged'}),/SEC_NO_WRITE_NOT_FAST_FORWARD/);
 });
+
+test('PAY-02 signed owner tokeninfo repair is isolated to source provision and exact synthetic tests',()=>{
+ const changed=[
+  {filename:'scripts/provision_monthly_owner_gas.mjs',status:'modified'},
+  {filename:'scripts/monthly_owner_google_identity.mjs',status:'added'},
+  {filename:'qa/qa_monthly_owner_gas_provision_fallback.test.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(changed).result,'PASS');
+ for(const forbidden of ['supabase/functions/monthly-owner-report/index.ts','gas/monthly-owner-report/Code.gs',
+  '.github/workflows/monthly-owner-gas-provision.yml','index.html','supabase/migrations/20261116_unsafe.sql']){
+  assert.throws(()=>check([...changed,{filename:forbidden,status:'modified'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ }
+ execFileSync(process.execPath,['--test','qa/qa_monthly_owner_gas_provision_fallback.test.mjs'],{
+  encoding:'utf8',timeout:30000,maxBuffer:1048576
+ });
+});
