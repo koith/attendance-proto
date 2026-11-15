@@ -744,7 +744,7 @@ test('original NOV14-INS-01 official research and synthetic matching are no oper
  for(const forbidden of ['index.html','supabase/migrations/unsafe.sql','real_employee_documents.pdf'])
   assert.throws(()=>check([...paths,{filename:forbidden,status:'added'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
  const note=fs.readFileSync('docs/research/NOV14_INS01_OFFICIAL_EDI_FEASIBILITY_20261115.md','utf8');
- for(const phrase of ['3,000','30~50','2mb','서식별','https://edi.nhis.or.kr','GO','NO_GO','UNVERIFIED'])
+ for(const phrase of ['3,000','30~50','2MB','서식별','https://edi.nhis.or.kr','GO','NO_GO','UNVERIFIED'])
   assert.ok(note.includes(phrase),'research evidence missing '+phrase);
  execFileSync(process.execPath,['--test','qa/nov14_ins01_edi_matching.test.mjs'],{encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
 });
