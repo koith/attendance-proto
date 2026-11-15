@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {execFileSync} from 'node:child_process';
 import {assertNoOperatingWriteRelease} from './no_operating_write_scope.mjs';
 const before='a'.repeat(40),head='b'.repeat(40);
 const files=[
@@ -689,4 +690,22 @@ test('scheduled canonical backlog autodev cannot widen production scope',()=>{
  assert.match(picker,/PROJECT_BACKLOG_20261017\.md/);
  assert.match(picker,/accepted_backlog_increment=0/);
  assert.doesNotMatch(picker,/supabase\/migrations|SUPABASE_DB_URL|OPENAI_API_KEY|\\.env/);
+});
+
+test('original NOV14-PAY-01 source research, official rates, and synthetic payroll QA',()=>{
+ const changes=[
+  {filename:'PROJECT_BACKLOG_20261017.md',status:'modified'},
+  {filename:'docs/research/NOV14_PAY01_COMPARATIVE_DESIGN_20261115.md',status:'added'},
+  {filename:'qa_nov14_pay01_comparison_v1.mjs',status:'added'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(changes).result,'PASS');
+ for(const forbidden of ['index.html','supabase/migrations/payroll.sql','.github/workflows/unreviewed.yml'])
+  assert.throws(()=>check(changes.concat({filename:forbidden,status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const evidence=fs.readFileSync('docs/research/NOV14_PAY01_COMPARATIVE_DESIGN_20261115.md','utf8');
+ assert.match(evidence,/2026-11-15/);
+ assert.match(evidence,/Excel.*웹앱/);
+ assert.match(evidence,/실제 Excel.*미실시/);
+ execFileSync(process.execPath,['qa_nov14_pay01_comparison_v1.mjs'],{encoding:'utf8',timeout:45000,maxBuffer:1024*1024});
 });
