@@ -23,7 +23,7 @@ export const EXTERNAL_BLOCKERS = Object.freeze([
 // Classify all currently unchecked canonical rows without declaring any of them done.
 // A launch minimum and the full long-term completion criteria are distinct.
 export const REMAINING_WORK_PHASES=Object.freeze({
- beforeOpening:['QA-05','QA-06','QA-07','SEC-01','AUTH-01','MTG-03'],
+ beforeOpening:['QA-06','QA-07','SEC-01','AUTH-01','MTG-03'],
  humanIdentityApproval:['FIELD-01','MTG-04'],
  afterOpening:['FIELD-02','FIELD-03','MTG-05','MTG-06','MTG-07','MTG-08','MTG-11','MTG-12','MTG-13','MTG-16']
 });
