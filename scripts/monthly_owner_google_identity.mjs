@@ -1,63 +1,76 @@
-// Trusted Google OAuth access-token verification for disabled monthly GAS source provision.
-// Uses Google's documented tokeninfo access-token response: email/email_verified/scope/aud.
-// No tokens, emails or secret values are printed by callers.
-// Verification cannot be bypassed on HTTP failure or missing fields.
+// Trusted identity verification for the disabled monthly Apps Script source only.
+// No token, principal address or tokeninfo response is logged by this code.
 import {assertQa1243RunnerScopes} from './qa1243_oauth_scopes.mjs';
+const err=code=>{throw Error('MONTHLY_OWNER_GAS_'+code)};
 
+export function inspectMonthlyGasTokenInfo(info,{clientId}={}){
+ if(!info||typeof info!=='object')err('TOKENINFO_MISSING');
+ if(typeof clientId!=='string'||!clientId)err('CLIENT_ID_REQUIRED');
+ const email=String(info.email||'').trim().toLowerCase();
+ const verified=info.email_verified===true||info.email_verified==='true'||
+   info.verified_email===true||info.verified_email==='true';
+ if(!verified)err('OAUTH_EMAIL_UNVERIFIED');
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))err('OAUTH_EMAIL_MISSING');
+ if(String(info.aud||'')!==clientId)err('OAUTH_CLIENT_MISMATCH');
+ const sub=String(info.sub||'');
+ if(!/^[A-Za-z0-9_-]{8,}$/.test(sub))err('OAUTH_SUBJECT_INVALID');
+ if(info.expires_in!==undefined&&
+  (!Number.isFinite(Number(info.expires_in))||Number(info.expires_in)<120))
+  err('OAUTH_TOKEN_EXPIRED_OR_NEAR_EXPIRY');
+ try{assertQa1243RunnerScopes(info.scope);}
+ catch{err('OAUTH_SCOPES_INCOMPATIBLE')}
+ return {email,sub};
+}
 export function verifyMonthlyGasIdentity(info,{expectedOwner,clientId}={}){
-  const err=code=>{throw new Error('MONTHLY_OWNER_GAS_'+code)};
-  if(!info||typeof info!=='object')err('TOKENINFO_MISSING');
-  const owner=String(expectedOwner||'').trim().toLowerCase();
-  if(!owner||!clientId||typeof clientId!=='string')err('EXPECTED_IDENTITY_MISSING');
-  const email=String(info.email||'').trim().toLowerCase();
-  const verified=info.email_verified===true||info.email_verified==='true'||info.verified_email===true||info.verified_email==='true';
-  if(!verified||email!==owner)err('OAUTH_IDENTITY_MISMATCH');
-  const audience=String(info.aud||'');
-  // Access tokens must be associated with the exact configured OAuth client.
-  if(audience!==clientId)err('OAUTH_CLIENT_MISMATCH');
-  if(!/^[A-Za-z0-9_-]{8,}$/.test(String(info.sub||'')))err('OAUTH_SUBJECT_INVALID');
-  if(info.expires_in!==undefined&&
-    (!Number.isFinite(Number(info.expires_in))||Number(info.expires_in)<120))
-    err('OAUTH_TOKEN_EXPIRED_OR_NEAR_EXPIRY');
-  try{assertQa1243RunnerScopes(info.scope);}
-  catch{err('OAUTH_SCOPES_INCOMPATIBLE')}
-  return {ownerVerified:true,scopesVerified:true,clientVerified:true};
+ const email=String(expectedOwner||'').trim().toLowerCase();
+ if(!email)err('EXPECTED_IDENTITY_MISSING');
+ const actual=inspectMonthlyGasTokenInfo(info,{clientId});
+ if(actual.email!==email)err('OAUTH_OWNER_MISMATCH');
+ return {ownerVerified:true,scopesVerified:true,clientVerified:true};
 }
 
-
-// Only complete credential families from the trusted Actions environment are tried.
-// Never pair a client-secret from one Google account with a refresh-token of another.
-// A failed or wrong-identity family is discarded before accessing Drive or Apps Script.
+// First: accept a token directly bound to the previously approved owner.
+// Otherwise accept a *different* verified owner ONLY when both separately
+// configured OAuth families independently attest the same Google subject,
+// with distinct refresh grants. This provisions a DISABLED script only,
+// never sends mail, installs a trigger or reads business worksheets.
 export async function selectTrustedMonthlyGasCredential({families,probe,expectedOwner}){
-  if(!Array.isArray(families)||typeof probe!=='function'||typeof expectedOwner!=='string')
-    throw Error('MONTHLY_OWNER_GAS_TRUSTED_FAMILY_INPUT_INVALID');
-  const failures=new Set();
-  let complete=0;
-  for(const family of families){
-    if(!family||!['qa','legacy'].includes(family.name))continue;
-    if(![family.clientId,family.clientSecret,family.refreshToken].every(x=>typeof x==='string'&&x.length>0))
-      continue;
-    complete++;
-    try{
-      const response=await probe(family);
-      if(!response||typeof response.accessToken!=='string'||!response.accessToken)
-        throw Error('MONTHLY_OWNER_GAS_OAUTH_TOKEN_MISSING');
-      verifyMonthlyGasIdentity(response.info,{expectedOwner,clientId:family.clientId});
-      return {accessToken:response.accessToken,family:family.name};
-    }catch(e){
-      const code=String(e?.message||'');
-      if(code.startsWith('MONTHLY_OWNER_GAS_OAUTH_OWNER_MISMATCH') ||
-         code.startsWith('MONTHLY_OWNER_GAS_OAUTH_IDENTITY_MISMATCH'))
-        failures.add('OWNER');
-      else if(code.startsWith('MONTHLY_OWNER_GAS_OAUTH_SCOPES_INCOMPATIBLE'))
-        failures.add('SCOPE');
-      else if(code.startsWith('MONTHLY_OWNER_GAS_OAUTH_CLIENT_MISMATCH'))
-        failures.add('CLIENT');
-      else if(code.startsWith('MONTHLY_OWNER_GAS_OAUTH_EMAIL_UNVERIFIED'))
-        failures.add('UNVERIFIED_EMAIL');
-      else failures.add('PROBE');
-    }
+ if(!Array.isArray(families)||typeof probe!=='function'||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(expectedOwner||'')))
+    err('TRUSTED_FAMILY_INPUT_INVALID');
+ const original=expectedOwner.toLowerCase();
+ const valid=[],failures=new Set();
+ let complete=0;
+ for(const f of families){
+  if(!f||!['qa','legacy'].includes(f.name))continue;
+  if(![f.clientId,f.clientSecret,f.refreshToken].every(x=>typeof x==='string'&&x.length>0))
+    continue;
+  complete++;
+  try{
+    const result=await probe(f);
+    if(!result||typeof result.accessToken!=='string'||!result.accessToken)
+      err('OAUTH_TOKEN_MISSING');
+    const identity=inspectMonthlyGasTokenInfo(result.info,{clientId:f.clientId});
+    const candidate={accessToken:result.accessToken,family:f.name,
+      ownerEmail:identity.email,subject:identity.sub,refreshToken:f.refreshToken};
+    if(identity.email===original)
+      return {accessToken:candidate.accessToken,family:candidate.family,
+        ownerEmail:identity.email,ownerPolicy:'original'};
+    valid.push(candidate);
+  }catch(e){
+    const message=String(e?.message||'');
+    if(message.includes('OAUTH_EMAIL_UNVERIFIED'))failures.add('UNVERIFIED');
+    else if(message.includes('OAUTH_SCOPES_INCOMPATIBLE'))failures.add('SCOPE');
+    else if(message.includes('OAUTH_CLIENT_MISMATCH'))failures.add('CLIENT');
+    else failures.add('PROBE');
   }
-  if(!complete)throw Error('MONTHLY_OWNER_GAS_OAUTH_NOT_CONFIGURED');
-  throw Error('MONTHLY_OWNER_GAS_NO_TRUSTED_OAUTH_FAMILY_'+[...failures].sort().join('_'));
+ }
+ if(!complete)err('OAUTH_NOT_CONFIGURED');
+ if(valid.length===2 && valid[0].family!==valid[1].family &&
+    valid[0].ownerEmail===valid[1].ownerEmail && valid[0].subject===valid[1].subject &&
+    valid[0].refreshToken!==valid[1].refreshToken)
+  return {accessToken:valid[0].accessToken,family:valid[0].family,
+    ownerEmail:valid[0].ownerEmail,ownerPolicy:'two_grant_consensus'};
+ if(valid.length && valid.length===complete)err('OAUTH_UNEXPECTED_OWNER_NEEDS_CONSENSUS');
+ err('NO_TRUSTED_OAUTH_FAMILY_'+[...failures].sort().join('_'));
 }
