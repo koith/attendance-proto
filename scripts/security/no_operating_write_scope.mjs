@@ -71,6 +71,8 @@ const allowedPaths=new Set([
   "qa_ai_agent_security_boundary.mjs",
   "docs/research/NOV14_PAY01_COMPARATIVE_DESIGN_20261115.md",
   "qa_nov14_pay01_comparison_v1.mjs",
+  "scripts/qa1243_friday_preflight.mjs",
+  "scripts/qa1243_friday_preflight.test.mjs",
   "qa_release_recovery_workflow_contract.mjs",
   ".github/workflows/autonomous-development-agent.yml",
   "scripts/ai-dev/auto_pick_issue.mjs",
