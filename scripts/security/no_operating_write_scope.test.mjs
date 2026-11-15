@@ -786,3 +786,21 @@ test('PAY-02 disabled GAS OAuth fallback is only exact source provision and no d
  execFileSync(process.execPath,['--test','qa/qa_monthly_owner_gas_provision_fallback.test.mjs'],
    {encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
 });
+
+test('reviewed Auth metadata guard is restricted to two exact synthetic paths',()=>{
+  const exact=[
+    {filename:'scripts/security/autopilot/auth_config_guard.mjs',status:'modified'},
+    {filename:'qa/security/autopilot/auth_config_guard.test.mjs',status:'modified'}
+  ];
+  assert.deepEqual(check(exact).changed_paths,exact.map(x=>x.filename).sort());
+  for(const path of [
+    'scripts/security/autopilot/auth_config_guard.js',
+    'qa/security/autopilot/auth_config_guard.integration.mjs',
+    'supabase/migrations/auth_config_guard.sql',
+    '.github/workflows/auth-config-live.yml',
+    'index.html'
+  ]) assert.throws(()=>check([...exact,{filename:path,status:'added'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+  assert.throws(()=>check([{filename:exact[0].filename,status:'removed'}]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+  assert.throws(()=>check([...exact,exact[0]]),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+  assert.throws(()=>check(exact,{status:'diverged'}),/SEC_NO_WRITE_NOT_FAST_FORWARD/);
+});
