@@ -182,4 +182,60 @@ assert.ok(gas.includes('everyMinutes(15)'),"post-close re-check cadence");
 assert.ok(gas.includes("MONTHLY_OWNER_START_YM"),"historical mail guard");
 assert.ok(manifest.oauthScopes.includes("https://www.googleapis.com/auth/script.send_mail"));
 assert.ok(!gas.includes('MONTHLY_OWNER_STORES_JSON'),'no stale recipient list');
+
+// PAY-02 Drive folder batch output is gated, isolated, replay-safe, checked by actual
+// Apps Script source function executed in VM (no real operations or recipients).
+const exportFolderId='y'.repeat(32),exported=[];
+let scriptOwner='script-owner@gmail.com',folderOwner=scriptOwner,corruptPdf=false,shortWrite=false;
+context.Session={getEffectiveUser:()=>({getEmail:()=>scriptOwner})};
+context.Utilities.DigestAlgorithm={SHA_256:'SHA_256'};
+context.Utilities.computeDigest=()=>[1,2,3,4,5];
+context.Utilities.base64EncodeWebSafe=()=>'encoded-digest-synthetic';
+context.DriveApp.getFolderById=(id)=>{
+ assert.equal(id,exportFolderId);
+ return {
+  getOwner:()=>({getEmail:()=>folderOwner}),
+  getFilesByName:(name)=>({hasNext:()=>exported.some(f=>f.name===name&&!f.trashed)}),
+  createFile:(b)=>{
+   const file={name:b.getName(),getSize:()=>shortWrite?99:b.getBytes().length,
+    setTrashed(v){this.trashed=v;}};
+   exported.push(file);return file;
+  }
+ };
+};
+run('_monthlyExcel_=function(){return {getName:function(){return "dummy_2026_10.xlsx"},getBytes:function(){return [80,75].concat(Array(118).fill(0));}};};');
+run('_monthlyStatement_=function(){return {getName:function(){return "dummy_2026_10_992.pdf"},getBytes:function(){return globalCorruptPdf?[0,1,2,3].concat(Array(116).fill(0)):[37,80,68,70].concat(Array(116).fill(0));}};};');
+// VM-bridged flag drives deterministic corruption.
+context.globalCorruptPdf=false;
+props.set("MONTHLY_OWNER_EXPORT_ENABLED","true");
+props.delete('MONTHLY_EXPORT_FINAL_1_202610');
+assert.throws(()=>run('monthlyOwnerExportBatch(1,"2026-10","FINAL","bad")'),/EXPORT_FOLDER_INVALID/);
+folderOwner='different-owner@gmail.com';
+assert.throws(()=>run('monthlyOwnerExportBatch(1,"2026-10","FINAL","'+exportFolderId+'")'),/EXPORT_FOLDER_OWNER_MISMATCH/);
+folderOwner=scriptOwner;
+context.globalCorruptPdf=true;
+assert.throws(()=>run('monthlyOwnerExportBatch(1,"2026-10","FINAL","'+exportFolderId+'")'),/EXPORT_PDF_INVALID/);
+assert.equal(exported.length,0);
+context.globalCorruptPdf=false;
+shortWrite=true;
+assert.throws(()=>run('monthlyOwnerExportBatch(1,"2026-10","FINAL","'+exportFolderId+'")'),/EXPORT_INCOMPLETE_REVIEW_REQUIRED/);
+assert.equal(exported.filter(x=>!x.trashed).length,0,"partial files must be trashed");
+assert.equal(props.get('MONTHLY_EXPORT_FINAL_1_202610'),'UNCERTAIN');
+props.delete('MONTHLY_EXPORT_FINAL_1_202610');
+shortWrite=false;
+const done=run('monthlyOwnerExportBatch(1,"2026-10","FINAL","'+exportFolderId+'")');
+assert.equal(done.status,"EXPORTED");
+assert.equal(done.pdf_count,1);
+assert.equal(done.spreadsheet_count,1);
+assert.equal(exported.filter(x=>!x.trashed).length,2);
+assert.match(props.get('MONTHLY_EXPORT_FINAL_1_202610'),/^DONE:/);
+assert.throws(()=>run('monthlyOwnerExportBatch(1,"2026-10","FINAL","'+exportFolderId+'")'),/EXPORT_ALREADY_STARTED_OR_DONE/);
+assert.equal(exported.filter(x=>!x.trashed).length,2);
+props.delete('MONTHLY_EXPORT_FINAL_1_202610');
+assert.throws(()=>run('monthlyOwnerExportBatch(1,"2026-10","FINAL","'+exportFolderId+'")'),/EXPORT_EXISTING_FILE/);
+props.set('MONTHLY_OWNER_EXPORT_ENABLED','false');
+assert.throws(()=>run('monthlyOwnerExportBatch(1,"2026-10","FINAL","'+exportFolderId+'")'),/MONTHLY_EXPORT_DISABLED/);
+assert.ok(manifest.oauthScopes.includes('https://www.googleapis.com/auth/userinfo.email'));
+console.log('PASS PAY-02 synthetic complete/month/batch folder export: owner scope, XLSX/PDF signatures, count, rollback, crash checkpoint, replay, no mail');
+
 console.log("PASS #1435 40+ safety checks: KST end-of-month, open preview, owner changes, final mail, email idempotency, missing payroll flags, stale sheet and disabled gates.");

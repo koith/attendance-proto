@@ -289,6 +289,82 @@ function monthlyOwnerPreview(){
   });
   return out; // Never send or create temporary files.
 }
+/**
+ * PAY-02: one-click, owner-scoped batch PDF + current-month XLSX export.
+ * Use the verified report service; no tax/insurance amounts invented.
+ * To choose destination, call with a Drive folder ID the script owner can edit.
+ * This is a separate explicit action, not the monthly MailApp trigger.
+ */
+function monthlyOwnerExportBatch(storeId,ym,kind,folderId){
+  var props=_monthlyProps_();
+  if(props.getProperty('MONTHLY_OWNER_EXPORT_ENABLED')!=='true')
+    throw Error('MONTHLY_EXPORT_DISABLED');
+  if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(String(ym)) ||
+     (kind!=='PREVIEW'&&kind!=='FINAL'))
+    throw Error('EXPORT_REQUEST_INVALID');
+  if(!/^[A-Za-z0-9_-]{25,160}$/.test(String(folderId||'')))
+    throw Error('EXPORT_FOLDER_INVALID');
+  var lock=LockService.getScriptLock();
+  if(!lock.tryLock(5000))throw Error('MONTHLY_EXPORT_BUSY');
+  try{
+    var books=_monthlyBooks_(),store=books[String(storeId)];
+    var cfg=_monthlyConfig_(storeId,store),report=_monthlyFetchReport_(cfg,ym,kind);
+    if(report.skipped)throw Error('EXPORT_REPORT_NOT_READY');
+    if(!report.rows.length||report.rows.length>100)throw Error('EXPORT_EMPLOYEE_COUNT_UNSAFE');
+    cfg.name=report.store_name;
+    var sheet=_monthlySheet_(cfg,ym,report);
+    // Use exactly the folder selected by the script runner; no public URLs.
+    var folder=DriveApp.getFolderById(folderId);
+    var effective=String(Session.getEffectiveUser().getEmail()||'').toLowerCase();
+    var folderOwner=String(folder.getOwner()?.getEmail()||'').toLowerCase();
+    if(!effective||folderOwner!==effective)throw Error('EXPORT_FOLDER_OWNER_MISMATCH');
+    _monthlyCheckOwner_(cfg,ym,_monthlyVerifiedOwner_(report.owner));
+    var key='MONTHLY_EXPORT_'+kind+'_'+cfg.storeId+'_'+ym.replace('-','');
+    var old=props.getProperty(key)||'';
+    if(old)throw Error('EXPORT_ALREADY_STARTED_OR_DONE');
+    var files=[_monthlyExcel_(sheet,cfg,ym)];
+    report.rows.forEach(function(row){files.push(_monthlyStatement_(row,cfg,ym,report));});
+    if(files.length!==report.rows.length+1)throw Error('EXPORT_COUNT_MISMATCH');
+    var names=Object.create(null),bytes=0;
+    files.forEach(function(f,index){
+      var name=String(f.getName());
+      if(!name||name.length>180||names[name.toLowerCase()]||name.indexOf('/')>=0||name.indexOf('\\')>=0)
+        throw Error('EXPORT_FILENAME_COLLISION');
+      names[name.toLowerCase()]=true;
+      var raw=f.getBytes();
+      if(raw.length<100)throw Error('EXPORT_FILE_EMPTY');
+      if(index===0){
+        if(raw[0]!==80||raw[1]!==75)throw Error('EXPORT_XLSX_INVALID');
+      }else if(raw[0]!==37||raw[1]!==80||raw[2]!==68||raw[3]!==70)
+        throw Error('EXPORT_PDF_INVALID');
+      bytes+=raw.length;
+      if(bytes>25*1024*1024)throw Error('EXPORT_TOTAL_LIMIT');
+      if(folder.getFilesByName(name).hasNext())throw Error('EXPORT_EXISTING_FILE');
+    });
+    var manifest=JSON.stringify({storeId:cfg.storeId,ym:ym,kind:kind,source:report.source_fingerprint,count:report.rows.length});
+    if(!/^[0-9a-f]{64}$/.test(String(report.source_fingerprint||'')))
+      throw Error('EXPORT_SOURCE_FINGERPRINT_INVALID');
+    // SENDING/UNCERTAIN mirrors mail delivery; no silent duplicate on failure.
+    props.setProperty(key,'CREATING');
+    var created=[];
+    try{
+      files.forEach(function(f){
+        var item=folder.createFile(f);
+        created.push(item);
+        if(item.getSize()!==f.getBytes().length)throw Error('EXPORT_FILE_READBACK_MISMATCH');
+      });
+      props.setProperty(key,'DONE:'+Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,manifest)).slice(0,40));
+      return {status:'EXPORTED',store_id:cfg.storeId,ym:ym,kind:kind,pdf_count:report.rows.length,
+        spreadsheet_count:1,folder_id:folderId,total_bytes:bytes};
+    }catch(e){
+      // Partial creation is never reported as success; try to trash the new files.
+      created.forEach(function(f){try{f.setTrashed(true);}catch(ignore){}});
+      props.setProperty(key,'UNCERTAIN');
+      throw Error('EXPORT_INCOMPLETE_REVIEW_REQUIRED');
+    }
+  }finally{lock.releaseLock();}
+}
+
 function installMonthlyOwnerTrigger(){
   if(_monthlyProps_().getProperty('MONTHLY_OWNER_ENABLED')!=='true')
     throw Error('OWNER_DELIVERY_DISABLED');
