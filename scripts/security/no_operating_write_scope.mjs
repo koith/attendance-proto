@@ -70,6 +70,8 @@ const allowedPaths=new Set([
   "qa_ai_agent_security_boundary.mjs",
   "qa_release_recovery_workflow_contract.mjs",
   ".github/workflows/autonomous-development-agent.yml",
+  "scripts/ai-dev/auto_pick_issue.mjs",
+  "scripts/ai-dev/auto_pick_issue.test.mjs",
   "scripts/security/validate_agent_publish_patch.mjs",
   "security/SEC_S17_RECOVERY_HANDOVER_PUBLIC_20261106.md",
   "security/readonly_session_hook_audit_20261105.sql",
