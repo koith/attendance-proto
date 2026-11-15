@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {verifyMonthlyGasIdentity} from '../scripts/monthly_owner_google_identity.mjs';
+import {QA1243_RUNNER_SCOPES} from '../scripts/qa1243_oauth_scopes.mjs';
 const workflow=fs.readFileSync('.github/workflows/monthly-owner-gas-provision.yml','utf8');
 const provision=fs.readFileSync('scripts/provision_monthly_owner_gas.mjs','utf8');
 const source=fs.readFileSync('gas/monthly-owner-report/Code.gs','utf8');
@@ -24,8 +26,9 @@ test('only specific reviewed main commit can trigger disabled code-only provisio
  assert.match(workflow,/No owner mail, no trigger, no script secrets or payroll reads/);
  assert.doesNotMatch(workflow,/\bMailApp\.sendEmail\b|\binstallMonthlyOwnerTrigger\(/);
  assert.match(provision,/OWNER_AND_SCOPES_VERIFIED/);
- assert.match(provision,/assertQa1243RunnerScopes\(scopes.scope\)/);
- assert.match(provision,/identity\.email_verified!==true/);
+ assert.match(provision,/verifyMonthlyGasIdentity\(tokenInfo/);
+ assert.match(provision,/https:\/\/oauth2\.googleapis\.com\/tokeninfo\?access_token=/);
+ assert.doesNotMatch(provision,/https:\/\/www\.googleapis\.com\/oauth2\/v3\/userinfo/);
  assert.match(provision,/PROJECT_OWNER_MISMATCH/);
  assert.match(provision,/FOREIGN_EXISTING_SOURCE_REFUSED/);
  assert.match(provision,/REMOTE_READBACK_FAILED/);
@@ -44,4 +47,25 @@ test('label dispatch is precisely bound to existing issue 1435 in same repo, nev
  assert.match(workflow,/github\.ref == 'refs\/heads\/main'/);
  assert.match(workflow,/provision-isolated-source:\s*\n\s*needs: safety/);
  assert.doesNotMatch(workflow,/monthlyOwnerDigestTick\(\)|MONTHLY_OWNER_ENABLED: true/);
+});
+
+
+test('official tokeninfo binds Google client, expected owner and exact least-privilege scopes',()=>{
+ const clientId='synthetic-12345.apps.googleusercontent.com';
+ const opts={expectedOwner:'webuielf@gmail.com',clientId};
+ const claims={email:'webuielf@gmail.com',email_verified:'true',aud:clientId,
+  sub:'123456789012345678901',expires_in:'3000',scope:QA1243_RUNNER_SCOPES.join(' ')};
+ assert.deepEqual(verifyMonthlyGasIdentity(claims,opts),
+  {ownerVerified:true,scopesVerified:true,clientVerified:true});
+ for(const patch of [
+  {email:'other@gmail.com'},{email_verified:'false'},
+  {aud:'untrusted.apps.googleusercontent.com'},
+  {sub:''},{expires_in:12},{scope:'https://www.googleapis.com/auth/drive'},
+  {scope:claims.scope+' https://www.googleapis.com/auth/drive'},
+  {scope:QA1243_RUNNER_SCOPES.slice(0,-1).join(' ')}
+ ]){
+  assert.throws(()=>verifyMonthlyGasIdentity({...claims,...patch},opts),/MONTHLY_OWNER_GAS_/);
+ }
+ assert.throws(()=>verifyMonthlyGasIdentity({},opts),/MONTHLY_OWNER_GAS_/);
+ assert.throws(()=>verifyMonthlyGasIdentity(claims,{...opts,clientId:''}),/MONTHLY_OWNER_GAS_/);
 });
