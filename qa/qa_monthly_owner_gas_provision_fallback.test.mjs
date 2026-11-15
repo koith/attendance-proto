@@ -145,3 +145,36 @@ test('original owner wins, and two separate matching verified grants allow disab
  assert.match(provision,/owner_policy:verified\.ownerPolicy/);
  assert.doesNotMatch(provision,/owner:effectiveOwner|owner:verified\.ownerEmail/);
 });
+
+
+test('two independent Google OAuth grants may attest same owner when verified flag and Drive about unavailable',async()=>{
+ const id='synthetic-12345.apps.googleusercontent.com',email='verified-token-owner@example.test';
+ const common={email,aud:id,sub:'123456789012345678901',expires_in:'3500',scope:QA1243_RUNNER_SCOPES.join(' ')};
+ const fam=[
+  {name:'qa',clientId:id,clientSecret:'a',refreshToken:'A-distinct-refresh'},
+  {name:'legacy',clientId:id,clientSecret:'b',refreshToken:'B-distinct-refresh'}
+ ];
+ const opts={families:fam,expectedOwner:'webuielf@gmail.com'};
+ const probe=async f=>({accessToken:'isolated-'+f.name,info:common,driveAbout:null});
+ const result=await selectTrustedMonthlyGasCredential({...opts,probe});
+ assert.deepEqual(result,{accessToken:'isolated-qa',family:'qa',
+  ownerEmail:email,ownerPolicy:'two_grant_consensus'});
+ await assert.rejects(selectTrustedMonthlyGasCredential({
+  ...opts,families:[fam[0]],probe
+ }),/OAUTH_UNEXPECTED_OWNER_NEEDS_CONSENSUS/);
+ await assert.rejects(selectTrustedMonthlyGasCredential({
+  ...opts,families:[fam[0],{...fam[1],refreshToken:fam[0].refreshToken}],probe
+ }),/OAUTH_UNEXPECTED_OWNER_NEEDS_CONSENSUS/);
+ await assert.rejects(selectTrustedMonthlyGasCredential({
+  ...opts,probe:async f=>({accessToken:'x',info:{...common,
+   sub:f.name==='qa'?'123456789012345678901':'987654321012345678901'},driveAbout:null})
+ }),/OAUTH_UNEXPECTED_OWNER_NEEDS_CONSENSUS/);
+ await assert.rejects(selectTrustedMonthlyGasCredential({
+  ...opts,probe:async f=>({accessToken:'x',info:{...common,email_verified:'false'},driveAbout:null})
+ }),/NO_TRUSTED_OAUTH_FAMILY_UNVERIFIED/);
+ assert.throws(()=>verifyMonthlyGasIdentity(common,{
+  expectedOwner:email,clientId:id
+ }),/OAUTH_SINGLE_GRANT_NOT_VERIFIED/);
+ assert.match(provision,/MONTHLY_OWNER_GAS_API_HTTP_\(401\|403\|404\)/);
+ assert.match(provision,/driveAbout=null/);
+});

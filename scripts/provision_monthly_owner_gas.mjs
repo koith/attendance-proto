@@ -41,9 +41,17 @@ const verified=await selectTrustedMonthlyGasCredential({
   const info=await call('https://oauth2.googleapis.com/tokeninfo?access_token='+encodeURIComponent(res.access_token));
   // Independent Google Drive self-identity read; does not list files or
   // change any data. Same bearer as tokeninfo, mandatory before Script write.
-  const driveAbout=await call('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,me,permissionId)',{
-   headers:{Authorization:'Bearer '+res.access_token}
-  });
+  let driveAbout=null;
+  try{
+   driveAbout=await call('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,me,permissionId)',{
+    headers:{Authorization:'Bearer '+res.access_token}
+   });
+  }catch(e){
+   // If this OAuth client cannot access Drive about, do NOT invent verified
+   // identity. The selector permits only two DISTINCT token refresh grants
+   // with exactly the same tokeninfo email AND immutable Google subject.
+   if(!/^MONTHLY_OWNER_GAS_API_HTTP_(401|403|404)$/.test(String(e?.message||'')))throw e;
+  }
   return {accessToken:res.access_token,info,driveAbout};
  }
 });
