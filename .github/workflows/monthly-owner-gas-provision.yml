@@ -1,5 +1,10 @@
 name: Monthly Owner isolated Google Apps Script provisioning (no email)
 on:
+  # Token-restricted GitHub API merge may not fire a downstream push workflow.
+  # A maintainer's explicit label on the EXACT existing work item is a
+  # one-shot, auditable dispatch for disabled source-only provisioning.
+  issues:
+    types: [labeled]
   pull_request:
     paths:
       - 'scripts/provision_monthly_owner_gas.mjs'
@@ -29,7 +34,9 @@ jobs:
           node --test qa/qa_monthly_owner_gas_provision_fallback.test.mjs
   provision-isolated-source:
     needs: safety
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && contains(github.event.head_commit.message, '[MONTHLY-OWNER-GAS-PROVISION]')
+    if: >-
+      (github.ref == 'refs/heads/main' && github.event_name == 'push' && contains(github.event.head_commit.message, '[MONTHLY-OWNER-GAS-PROVISION]')) ||
+      (github.repository == 'koith/attendance-proto' && github.event_name == 'issues' && github.event.action == 'labeled' && github.event.issue.number == 1435 && github.event.label.name == 'monthly-owner-gas-source-provision' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     env:
