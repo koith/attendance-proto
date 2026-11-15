@@ -2,6 +2,8 @@ name: autonomous-development-agent
 on:
   issues:
     types: [labeled]
+  schedule:
+    - cron: '23 * * * *'
   workflow_dispatch:
     inputs:
       issue_number:
@@ -15,11 +17,14 @@ concurrency:
   cancel-in-progress: false
 jobs:
   capture-intake:
-    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'agent-approved'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event.label.name == 'agent-approved'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       issues: write
+    outputs:
+      issue_number: ${{ steps.pick.outputs.issue_number || github.event.issue.number || inputs.issue_number }}
+      selected: ${{ github.event_name != 'schedule' || steps.pick.outputs.selected == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,14 +32,32 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Preserve approved Issue as a separate trusted receipt
+      - name: Select and claim one actual unfinished existing backlog issue
+        if: github.event_name == 'schedule'
+        id: pick
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ai-dev/auto_pick_issue.mjs
+      - name: Preserve user-approved Issue as a separate trusted receipt
+        if: github.event_name != 'schedule'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/issue_intake_receipt.mjs
+      - name: Preserve scheduled issue receipt after verified claim
+        if: github.event_name == 'schedule' && steps.pick.outputs.selected == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          AUTO_ISSUE_NUMBER: ${{ steps.pick.outputs.issue_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$AUTO_ISSUE_NUMBER" =~ ^[0-9]{1,8}$ ]]
+          printf '{"inputs":{"issue_number":"%s"}}' "$AUTO_ISSUE_NUMBER" > "$RUNNER_TEMP/autodev-event.json"
+          GITHUB_EVENT_NAME=workflow_dispatch GITHUB_EVENT_PATH="$RUNNER_TEMP/autodev-event.json" node scripts/issue_intake_receipt.mjs
 
   develop:
     needs: capture-intake
-    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'agent-approved'
+    if: needs.capture-intake.result == 'success' && needs.capture-intake.outputs.selected == 'true'
     permissions:
       contents: read
       issues: read
@@ -45,7 +68,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GITHUB_TOKEN: ${{ github.token }}
-      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+      ISSUE_NUMBER: ${{ needs.capture-intake.outputs.issue_number }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -103,7 +126,7 @@ jobs:
       contents: read
       issues: read
     env:
-      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+      ISSUE_NUMBER: ${{ needs.capture-intake.outputs.issue_number }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -153,7 +176,7 @@ jobs:
       issues: write
       pull-requests: write
     env:
-      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+      ISSUE_NUMBER: ${{ needs.capture-intake.outputs.issue_number }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -219,7 +242,7 @@ jobs:
       - name: Record incomplete AI run without claiming code/PR success
         uses: actions/github-script@v7
         env:
-          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          ISSUE_NUMBER: ${{ needs.capture-intake.outputs.issue_number }}
           CAPTURE_RESULT: ${{ needs.capture-intake.result }}
           DEVELOP_RESULT: ${{ needs.develop.result }}
           QA_RESULT: ${{ needs.qa.result }}
