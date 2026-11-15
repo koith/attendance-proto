@@ -651,3 +651,20 @@ test('reviewed PR handoff workflow is explicitly allowlisted without widening ru
  assert.match(source,/verified_security_tasks_increment=0/);
  assert.doesNotMatch(workflow,/SUPABASE_SERVICE_ROLE_KEY|SUPABASE_DB_URL|OPENAI_API_KEY/);
 });
+
+test('reviewed general agent PR bridge is allowed but not production writes',()=>{
+ const changed=[
+  {filename:'.github/workflows/autonomous-development-agent.yml',status:'modified'},
+  {filename:'qa_ai_agent_security_boundary.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
+  {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
+ ];
+ assert.equal(check(changed).result,'PASS');
+ assert.throws(()=>check(changed.concat({filename:'index.html',status:'modified'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ assert.throws(()=>check(changed.concat({filename:'.github/workflows/secret-release.yml',status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
+ const wf=fs.readFileSync('.github/workflows/autonomous-development-agent.yml','utf8');
+ assert.match(wf,/state=BRIDGE_REQUIRED/);
+ assert.match(wf,/gh issue comment/);
+ assert.match(wf,/verified_task_increment=0/);
+ assert.doesNotMatch(wf,/SUPABASE_DB_URL|SUPABASE_SERVICE_ROLE_KEY/);
+});
