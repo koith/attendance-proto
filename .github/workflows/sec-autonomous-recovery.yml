@@ -9,6 +9,8 @@ on:
       - '.github/workflows/sec-autonomous-recovery.yml'
       - 'scripts/security/autopilot/select_task.mjs'
       - 'scripts/security/autopilot/*_guard.mjs'
+      - 'scripts/security/autopilot/pr_handoff.mjs'
+      - 'qa/security/autopilot/pr_handoff.test.mjs'
 permissions:
   contents: read
 concurrency:
@@ -35,6 +37,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify PR handoff idempotency and denied-PR fallback
+        run: node --test qa/security/autopilot/pr_handoff.test.mjs
       - name: Select strictly allowlisted incomplete task with trustworthy checkpoint
         id: pick
         env:
@@ -147,6 +151,7 @@ jobs:
     permissions:
       contents: write
       issues: write
+      pull-requests: write
     env:
       SEC_AUTO_TASK: ${{ needs.select.outputs.task }}
       SEC_AUTO_LEDGER: ${{ needs.select.outputs.ledger }}
@@ -196,13 +201,19 @@ jobs:
           base_sha=$GITHUB_SHA
           qa=PASS_ISOLATED_NO_NETWORK
           code_modified=true
-          review_pr=AWAITING_SEPARATE_AUTHORIZED_GITHUB_CONNECTOR
+          review_pr=HANDOFF_PENDING
           prior_failures=$SEC_AUTO_PREVIOUS_FAILURES
           verified_security_tasks_increment=0
           operating_changes=false
           run_url=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           gh api --method POST "repos/$GITHUB_REPOSITORY/issues/1492/comments" -f "body=$body" --silent
           echo 'SEC_AUTO_REVIEW_BRANCH_READY'
+      - name: Open review PR or record owner-connector bridge request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SEC_AUTO_BRANCH: ${{ steps.attest.outputs.branch }}
+          SEC_AUTO_HEAD: ${{ steps.attest.outputs.head }}
+        run: node scripts/security/autopilot/pr_handoff.mjs
   record-failure:
     needs: [select, develop, qa, publish]
     if: always() && needs.select.outputs.selected == 'true' && (needs.develop.result == 'failure' || needs.qa.result == 'failure' || needs.publish.result == 'failure')
