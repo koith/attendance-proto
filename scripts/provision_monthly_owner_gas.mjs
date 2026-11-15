@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-import {assertQa1243RunnerScopes} from './qa1243_oauth_scopes.mjs';
+import {verifyMonthlyGasIdentity} from './monthly_owner_google_identity.mjs';
 const TITLE='백억커피 월말 점주 자료발송 2026-10-31';
 const OWNER='webuielf@gmail.com';
 const ERR='MONTHLY_OWNER_GAS_';
@@ -34,13 +34,11 @@ const result=await call('https://oauth2.googleapis.com/token',{
 });
 if(!result.access_token)throw Error(ERR+'OAUTH_TOKEN_MISSING');
 const auth={Authorization:'Bearer '+result.access_token};
-const [identity,scopes]=await Promise.all([
- call('https://www.googleapis.com/oauth2/v3/userinfo',{headers:auth}),
- call('https://www.googleapis.com/oauth2/v2/tokeninfo?access_token='+encodeURIComponent(result.access_token),{headers:auth})
-]);
-if(String(identity.email||'').toLowerCase()!==OWNER||identity.email_verified!==true)
- throw Error(ERR+'OAUTH_IDENTITY_MISMATCH');
-assertQa1243RunnerScopes(scopes.scope);
+// Google's documented access-token introspection includes email and verification,
+// whereas userinfo may reject legacy grants even when the token is accepted by
+// Google API endpoints. Never fall back to unchecked token claims.
+const tokenInfo=await call('https://oauth2.googleapis.com/tokeninfo?access_token='+encodeURIComponent(result.access_token));
+verifyMonthlyGasIdentity(tokenInfo,{expectedOwner:OWNER,clientId:process.env.QA1243_GOOGLE_OAUTH_CLIENT_ID});
 console.log(ERR+'OWNER_AND_SCOPES_VERIFIED');
 const q="name = '"+TITLE.replace(/'/g,"\\'")+"' and trashed = false";
 const listUrl='https://www.googleapis.com/drive/v3/files?'+new URLSearchParams({
