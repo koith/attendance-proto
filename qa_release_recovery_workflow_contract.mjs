@@ -123,7 +123,7 @@ assert.doesNotMatch(qaJob,/contents: write|pull-requests: write|gh auth setup-gi
   'Untrusted QA must not gain publishing credentials');
 assert.match(publishJob,/needs: qa\s+if: needs\.qa\.result == 'success'/,
   'Privileged publisher requires independent QA success');
-assert.match(publishJob,/permissions:\s*\n\s*contents: write\s*\n\s*issues: read\s*\n\s*pull-requests: write/,
+assert.match(publishJob,/permissions:\s*\n\s*contents: write\s*\n\s*issues: write\s*\n\s*pull-requests: write/,
   'Only the publisher can request GitHub source writes');
 assert.match(publishJob,/git apply --check -- "\$patch"[\s\S]*?node scripts\/security\/validate_agent_publish_patch\.mjs/,
   'Publisher checks and validates the exact patch before applying it');
@@ -131,6 +131,10 @@ assert.match(publishJob,/gh auth setup-git\s+git push -u origin "\$branch"/,
   'Only after QA is a Git push credential helper installed');
 assert.match(publishJob,/gh pr create --base main --head "\$branch"/,
   'Privileged publisher creates a review-only pull request');
+assert.match(publishJob,/gh issue comment "\$ISSUE_NUMBER" --body "\[AGENT:\$state/,
+  'Only independently validated publisher may emit issue-local bridge checkpoint');
+assert.match(publishJob,/verified_task_increment=0/,
+  'Review PR handoff is not task acceptance');
 assert.doesNotMatch(agent,/gh auth setup-git|git push -u origin|gh pr create/,
   'Model-runner must not publish code directly');
 assert.doesNotMatch(publishJob,/aider|copilot|scripts\/autonomous_dev_agent\.sh|run_secretless_agent_qa\.sh/,

@@ -150,7 +150,7 @@ jobs:
     timeout-minutes: 8
     permissions:
       contents: write
-      issues: read
+      issues: write
       pull-requests: write
     env:
       ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
@@ -192,7 +192,21 @@ jobs:
           # No AI/QA code runs in this privileged job; push and PR creation only.
           gh auth setup-git
           git push -u origin "$branch"
-          gh pr create --base main --head "$branch" --title "agent: approved issue #$ISSUE_NUMBER" --body "Static verified patch for approved #$ISSUE_NUMBER. AI/provider and QA ran in a separate READ-only token job. Requires human review, CI and separate release approval; no auto-merge or production deployment."
+          # A GitHub Actions token may be forbidden from creating PRs by repo policy.
+          # Persist an actionable bridge receipt; do not leave a QA-passed branch orphaned.
+          if gh pr create --base main --head "$branch" --title "agent: approved issue #$ISSUE_NUMBER" --body "Static verified patch for approved #$ISSUE_NUMBER. AI/provider and QA ran in a separate READ-only token job. Review/CI and release approval required; no auto-merge or production deployment."; then
+            state=PR_OPEN
+          else
+            state=BRIDGE_REQUIRED
+          fi
+          head_sha="$(git rev-parse HEAD)"
+          gh issue comment "$ISSUE_NUMBER" --body "[AGENT:$state issue=$ISSUE_NUMBER run=$GITHUB_RUN_ID head=$head_sha]
+          branch=$branch
+          base_sha=$GITHUB_SHA
+          qa=PASS_SECRETLESS_ISOLATED
+          operating_changes=false
+          verified_task_increment=0"
+          echo "AGENT_PUBLISH_HANDOFF state=$state issue=$ISSUE_NUMBER"
 
   report-failure:
     needs: [capture-intake, develop, qa, publish]
