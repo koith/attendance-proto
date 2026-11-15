@@ -697,6 +697,8 @@ test('original NOV14-PAY-01 source research, official rates, and synthetic payro
   {filename:'PROJECT_BACKLOG_20261017.md',status:'modified'},
   {filename:'docs/research/NOV14_PAY01_COMPARATIVE_DESIGN_20261115.md',status:'added'},
   {filename:'qa_nov14_pay01_comparison_v1.mjs',status:'added'},
+  {filename:'scripts/qa1243_friday_preflight.mjs',status:'modified'},
+  {filename:'scripts/qa1243_friday_preflight.test.mjs',status:'modified'},
   {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
   {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
  ];
