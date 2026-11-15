@@ -656,6 +656,7 @@ test('reviewed general agent PR bridge is allowed but not production writes',()=
  const changed=[
   {filename:'.github/workflows/autonomous-development-agent.yml',status:'modified'},
   {filename:'qa_ai_agent_security_boundary.mjs',status:'modified'},
+  {filename:'qa_release_recovery_workflow_contract.mjs',status:'modified'},
   {filename:'scripts/security/no_operating_write_scope.mjs',status:'modified'},
   {filename:'scripts/security/no_operating_write_scope.test.mjs',status:'modified'}
  ];
