@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-import {verifyMonthlyGasIdentity} from './monthly_owner_google_identity.mjs';
+import {selectTrustedMonthlyGasCredential} from './monthly_owner_google_identity.mjs';
 const TITLE='백억커피 월말 점주 자료발송 2026-10-31';
 const OWNER='webuielf@gmail.com';
 const ERR='MONTHLY_OWNER_GAS_';
@@ -13,8 +13,6 @@ assert.match(code,/MONTHLY_OWNER_ENABLED/);
 assert.match(code,/PRIMARY_OWNER_CHANGED_RETRY/);
 assert.match(code,/MailApp\.sendEmail/);
 assert.ok(JSON.parse(manifest).oauthScopes.includes('https://www.googleapis.com/auth/script.send_mail'));
-const vars=['QA1243_GOOGLE_OAUTH_CLIENT_ID','QA1243_GOOGLE_OAUTH_CLIENT_SECRET','QA1243_GOOGLE_OAUTH_REFRESH_TOKEN'];
-if(!vars.every(k=>process.env[k]))throw Error(ERR+'OAUTH_NOT_CONFIGURED');
 async function call(url,options={}){
  let response;
  try{response=await fetch(url,{...options,redirect:'error',signal:AbortSignal.timeout(30000)});}
@@ -23,23 +21,29 @@ async function call(url,options={}){
  if(!response.ok)throw Error(ERR+'API_HTTP_'+response.status);
  return data;
 }
-const result=await call('https://oauth2.googleapis.com/token',{
- method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
- body:new URLSearchParams({
-  client_id:process.env.QA1243_GOOGLE_OAUTH_CLIENT_ID,
-  client_secret:process.env.QA1243_GOOGLE_OAUTH_CLIENT_SECRET,
-  refresh_token:process.env.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN,
-  grant_type:'refresh_token'
- })
+const families=[
+ {name:'qa',clientId:process.env.QA1243_GOOGLE_OAUTH_CLIENT_ID||'',
+  clientSecret:process.env.QA1243_GOOGLE_OAUTH_CLIENT_SECRET||'',
+  refreshToken:process.env.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN||''},
+ {name:'legacy',clientId:process.env.LEGACY_GOOGLE_OAUTH_CLIENT_ID||'',
+  clientSecret:process.env.LEGACY_GOOGLE_OAUTH_CLIENT_SECRET||'',
+  refreshToken:process.env.LEGACY_GOOGLE_OAUTH_REFRESH_TOKEN||''}
+];
+const verified=await selectTrustedMonthlyGasCredential({
+ families,expectedOwner:OWNER,
+ probe:async family=>{
+  const res=await call('https://oauth2.googleapis.com/token',{
+   method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
+   body:new URLSearchParams({client_id:family.clientId,client_secret:family.clientSecret,
+    refresh_token:family.refreshToken,grant_type:'refresh_token'})
+  });
+  if(!res.access_token)throw Error(ERR+'OAUTH_TOKEN_MISSING');
+  const info=await call('https://oauth2.googleapis.com/tokeninfo?access_token='+encodeURIComponent(res.access_token));
+  return {accessToken:res.access_token,info};
+ }
 });
-if(!result.access_token)throw Error(ERR+'OAUTH_TOKEN_MISSING');
-const auth={Authorization:'Bearer '+result.access_token};
-// Google's documented access-token introspection includes email and verification,
-// whereas userinfo may reject legacy grants even when the token is accepted by
-// Google API endpoints. Never fall back to unchecked token claims.
-const tokenInfo=await call('https://oauth2.googleapis.com/tokeninfo?access_token='+encodeURIComponent(result.access_token));
-verifyMonthlyGasIdentity(tokenInfo,{expectedOwner:OWNER,clientId:process.env.QA1243_GOOGLE_OAUTH_CLIENT_ID});
-console.log(ERR+'OWNER_AND_SCOPES_VERIFIED');
+const auth={Authorization:'Bearer '+verified.accessToken};
+console.log(ERR+'OWNER_AND_SCOPES_VERIFIED_'+verified.family.toUpperCase());
 const q="name = '"+TITLE.replace(/'/g,"\\'")+"' and trashed = false";
 const listUrl='https://www.googleapis.com/drive/v3/files?'+new URLSearchParams({
  q,fields:'nextPageToken,files(id,name,mimeType,owners(emailAddress),trashed)',page_size:'100'
