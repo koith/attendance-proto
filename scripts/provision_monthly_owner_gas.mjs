@@ -43,6 +43,7 @@ const verified=await selectTrustedMonthlyGasCredential({
  }
 });
 const auth={Authorization:'Bearer '+verified.accessToken};
+const effectiveOwner=verified.ownerEmail; // token verified, never printed
 console.log(ERR+'OWNER_AND_SCOPES_VERIFIED_'+verified.family.toUpperCase());
 const q="name = '"+TITLE.replace(/'/g,"\\'")+"' and trashed = false";
 const listUrl='https://www.googleapis.com/drive/v3/files?'+new URLSearchParams({
@@ -54,7 +55,7 @@ const matches=found.files||[];
 if(matches.length>1)throw Error(ERR+'DUPLICATE_PROJECT_NAMES');
 if(matches.some(f=>f.mimeType!=='application/vnd.google-apps.script'||
  !Array.isArray(f.owners)||f.owners.length!==1||
- String(f.owners[0]?.emailAddress||'').toLowerCase()!==OWNER))
+ String(f.owners[0]?.emailAddress||'').toLowerCase()!==effectiveOwner))
  throw Error(ERR+'PROJECT_OWNER_MISMATCH');
 let id=matches[0]?.id,created=false;
 if(!id){
@@ -85,6 +86,7 @@ const saved=await call(base+'/content',{headers:auth});
 const mapped=new Map((saved.files||[]).map(x=>[x.name,x.source]));
 if(mapped.size!==2||mapped.get('Code')!==code||mapped.get('appsscript')!==manifest)
  throw Error(ERR+'REMOTE_READBACK_FAILED');
-console.log(JSON.stringify({status:'SOURCE_PROVISIONED_DISABLED',script_id:id,owner:OWNER,
+console.log(JSON.stringify({status:'SOURCE_PROVISIONED_DISABLED',script_id:id,
+ owner_identity_verified:true,owner_policy:verified.ownerPolicy,
  source_sha256:createHash('sha256').update(code+'\n'+manifest).digest('hex'),
  created,mail_sent:false,triggers_created:false,script_properties_written:false}));
