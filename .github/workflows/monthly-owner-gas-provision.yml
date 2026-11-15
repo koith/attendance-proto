@@ -40,12 +40,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     env:
-      # Choose exactly one complete OAuth credential family; never mix client
-      # and refresh-token families. Provisioner independently validates owner
-      # webuielf@gmail.com and the exact OAuth scopes before any Google write.
-      QA1243_GOOGLE_OAUTH_CLIENT_ID: ${{ (secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID && secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET && secrets.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN) && secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID || secrets.GOOGLE_OAUTH_CLIENT_ID }}
-      QA1243_GOOGLE_OAUTH_CLIENT_SECRET: ${{ (secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID && secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET && secrets.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN) && secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET || secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
-      QA1243_GOOGLE_OAUTH_REFRESH_TOKEN: ${{ (secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID && secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET && secrets.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN) && secrets.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN || secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+      # Keep OAuth credential families separate. Select only the one with
+      # verified expected owner, client ID and exact OAuth scopes.
+      # Wrong-owner credentials cannot write any Google project or file.
+      QA1243_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_ID }}
+      QA1243_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.QA1243_GOOGLE_OAUTH_CLIENT_SECRET }}
+      QA1243_GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.QA1243_GOOGLE_OAUTH_REFRESH_TOKEN }}
+      LEGACY_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+      LEGACY_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+      LEGACY_GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with: {persist-credentials: false}
