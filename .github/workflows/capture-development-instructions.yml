@@ -1,26 +1,23 @@
 name: capture-development-instructions
+# On-demand source validation only. Original GitHub issues/comments are canonical;
+# never mirror user content to new comments or trigger for every comment.
 on:
-  issues:
-    types: [opened, edited, reopened]
-  issue_comment:
-    types: [created]
   workflow_dispatch:
     inputs:
       issue_number:
         type: string
         required: true
-        description: 'Existing issue snapshot to preserve'
+        description: 'Existing issue to validate by read-only fingerprint'
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
 concurrency:
-  group: intake-${{ github.event.issue.number || inputs.issue_number }}
+  group: intake-${ inputs.issue_number }}
   cancel-in-progress: false
 jobs:
-  capture:
-    if: github.event_name != 'issue_comment' || github.event.comment.user.type != 'Bot'
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,7 +25,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Preserve exact GitHub source text as an append-only issue receipt
+      - name: Validate nonduplicating intake policy
+        run: node qa_issue_receipt_v1.mjs
+      - name: Fingerprint existing source without creating another comment
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${ github.token }}
         run: node scripts/issue_intake_receipt.mjs

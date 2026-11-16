@@ -64,6 +64,10 @@ jobs:
           path: evidence.json
           retention-days: 30
       - run: node scripts/orchestrator.test.mjs
+      - name: Regression QA for bounded issue intake and ledger context
+        run: |
+          node qa_issue_receipt_v1.mjs
+          node --test qa_ledger_context_v1.test.mjs
       - id: state
         run: |
           node scripts/work-orchestrator.mjs next > next.json
