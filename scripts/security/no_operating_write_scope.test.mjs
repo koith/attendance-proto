@@ -557,7 +557,10 @@ test('D5 owner-protected scheduled sealed backup fails closed and notifies failu
   assert.match(workflow,/retention-days:\s*30/);
   assert.match(workflow,/notify-failure:/);
   assert.match(workflow,/issues:\s*write/);
-  assert.match(workflow,/SEC-D5-BACKUP-ALERT/);
+  assert.match(workflow,/node scripts\/security\/backup_alert\.mjs/);
+  const backupNote=fs.readFileSync('scripts/security/backup_alert.mjs','utf8');
+  assert.match(backupNote,/SEC_D5_BACKUP_ALERT/);
+  assert.match(backupNote,/upsertNote/);
   assert.doesNotMatch(workflow,/\bcontents:\s*write/);
   assert.doesNotMatch(workflow,/\b(?:pull_request_target|workflow_run):/);
 });
