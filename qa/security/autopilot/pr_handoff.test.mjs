@@ -4,7 +4,7 @@ import {ensureReviewPR,validateContext} from '../../../scripts/security/autopilo
 const head='a'.repeat(40);
 const base={repo:'koith/attendance-proto',task:'SEC-S04-MANIFEST',branch:'sec-autopilot/SEC-S04-MANIFEST-run-123',head,run:'123',token:'synthetic-only'};
 function fake({existing=false,creation=201,actualHead=head,commentStatus=201}={}) {
- const calls=[];
+ const calls=[];let note=null;
  const fetchImpl=async(url,opts)=>{
   const p=new URL(url);calls.push({path:p.pathname+p.search,method:opts.method||'GET'});
   let status=200,data={};
@@ -12,13 +12,20 @@ function fake({existing=false,creation=201,actualHead=head,commentStatus=201}={}
   else if(p.pathname.endsWith('/pulls')&&opts.method!=='POST')data=existing?[{number:70,head:{sha:head},base:{ref:'main'},html_url:'https://github.com/koith/attendance-proto/pull/70'}]:[];
   else if(p.pathname.endsWith('/pulls')&&opts.method==='POST'){
    status=creation;data=creation===201?{number:71,head:{sha:head},base:{ref:'main'},html_url:'https://github.com/koith/attendance-proto/pull/71'}:{};
-  }else if(p.pathname.endsWith('/issues/1492/comments')){
+  }else if(p.pathname.endsWith('/issues/1492/comments')&&(opts.method||'GET')==='GET'){
+   data=note?[note]:[];
+  }else if(p.pathname.endsWith('/issues/1492/comments')&&opts.method==='POST'){
    status=commentStatus;
    const body=JSON.parse(opts.body).body;
-   assert.match(body,/verified_security_tasks_increment=0/);
+   assert.match(body,/SEC_HANDOFF_SEC-S04-MANIFEST/);
+   assert.match(body,/operating_changes=false/);
    assert.doesNotMatch(body,/synthetic-only/);
+   note={id:89,body,user:{login:'github-actions[bot]'}};data={id:89};
+  }else if(p.pathname.endsWith('/issues/comments/89')&&opts.method==='PATCH'){
+   status=commentStatus;
+   note={...note,body:JSON.parse(opts.body).body};data={id:89};
   }else assert.fail('unexpected API route '+p.pathname);
-  return {status,json:async()=>data};
+  return {ok:status>=200&&status<300,status,json:async()=>data};
  };
  return {fetchImpl,calls};
 }
@@ -38,10 +45,17 @@ test('existing same-head open PR is reused without duplicate',async()=>{
  assert.equal(r.result,'PR_OPEN');assert.equal(r.prNumber,70);
  assert.equal(f.calls.filter(x=>x.method==='POST'&&x.path.endsWith('/pulls')).length,0);
 });
-test('authorized Actions token opens a review-only PR and records receipt',async()=>{
+test('authorized Actions token opens a review-only PR and records bounded status',async()=>{
  const f=fake();const r=await ensureReviewPR(base,f.fetchImpl);
  assert.equal(r.result,'PR_OPEN');assert.equal(r.prNumber,71);
  assert.equal(f.calls.filter(x=>x.method==='POST'&&x.path.endsWith('/pulls')).length,1);
+});
+test('repeated PR status uses the same bot note instead of adding more comments',async()=>{
+ const f=fake({existing:true});
+ await ensureReviewPR(base,f.fetchImpl);
+ await ensureReviewPR(base,f.fetchImpl);
+ assert.equal(f.calls.filter(x=>x.method==='POST'&&x.path.endsWith('/issues/1492/comments')).length,1);
+ assert.equal(f.calls.filter(x=>x.method==='PATCH').length,0);
 });
 test('Actions PR policy 403 records durable connector bridge without fake success',async()=>{
  const f=fake({creation:403});const r=await ensureReviewPR(base,f.fetchImpl);
@@ -50,5 +64,5 @@ test('Actions PR policy 403 records durable connector bridge without fake succes
 });
 test('GitHub error or missing checkpoint cannot be misreported as submitted',async()=>{
  await assert.rejects(ensureReviewPR(base,fake({creation:500}).fetchImpl),/PR_CREATION_UNEXPECTED_STATUS_500/);
- await assert.rejects(ensureReviewPR(base,fake({commentStatus:403}).fetchImpl),/CHECKPOINT_COMMENT_FAILED/);
+ await assert.rejects(ensureReviewPR(base,fake({commentStatus:403}).fetchImpl),/NOTE_GITHUB_HTTP_403/);
 });

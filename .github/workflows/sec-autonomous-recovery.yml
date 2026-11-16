@@ -185,7 +185,7 @@ jobs:
           git commit -m "security(autopilot): $SEC_AUTO_TASK isolated source+synthetic QA proposal"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
           echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-      - name: Publish review branch and checkpoint into existing security Issue
+      - name: Push reviewed branch without duplicate Issue receipts
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ steps.attest.outputs.branch }}
@@ -195,18 +195,6 @@ jobs:
           set -euo pipefail
           gh auth setup-git
           git push origin "$BRANCH"
-          body="[SEC-AUTO:SUBMITTED task=$SEC_AUTO_TASK run=$GITHUB_RUN_ID head=$HEAD_SHA]
-          ledger=$SEC_AUTO_LEDGER
-          branch=$BRANCH
-          base_sha=$GITHUB_SHA
-          qa=PASS_ISOLATED_NO_NETWORK
-          code_modified=true
-          review_pr=HANDOFF_PENDING
-          prior_failures=$SEC_AUTO_PREVIOUS_FAILURES
-          verified_security_tasks_increment=0
-          operating_changes=false
-          run_url=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/1492/comments" -f "body=$body" --silent
           echo 'SEC_AUTO_REVIEW_BRANCH_READY'
       - name: Open review PR or record owner-connector bridge request
         env:
@@ -220,6 +208,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     permissions:
+      contents: read
       issues: write
     env:
       SEC_AUTO_TASK: ${{ needs.select.outputs.task }}
@@ -227,19 +216,20 @@ jobs:
       QA_RESULT: ${{ needs.qa.result }}
       PUBLISH_RESULT: ${{ needs.publish.result }}
     steps:
-      - name: Record nonsecret retry reason and fail closed
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Upsert bounded failure state; keep full details in Actions run
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          cause=UNKNOWN_FAILURE
-          if [ "$DEVELOP_RESULT" = failure ]; then cause=DEVELOP_FAILED; fi
+          cause=DEVELOP_FAILED
           if [ "$QA_RESULT" = failure ]; then cause=QA_FAILED; fi
           if [ "$PUBLISH_RESULT" = failure ]; then cause=PUBLISH_FAILED; fi
-          body="[SEC-AUTO:FAILED task=$SEC_AUTO_TASK cause=$cause run=$GITHUB_RUN_ID]
-          evidence=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
-          no_operating_writes=true
-          verified_security_tasks_increment=0
-          retry_policy=two_same_cause_then_alternate"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/1492/comments" -f "body=$body" --silent
+          export FAILURE_CAUSE="$cause"
+          node scripts/security/autopilot/record_failure.mjs

@@ -1,0 +1,36 @@
+name: Legacy ledger growth guard
+on:
+  pull_request:
+    paths:
+      - 'PROJECT_BACKLOG_20261017.md'
+      - 'SECURITY_STABILITY_LEDGER_20261103.md'
+      - 'AI_AUTOMATION_SECURITY_LEDGER_20261104.md'
+      - 'scripts/ledger_growth_guard.mjs'
+      - 'scripts/ledger_growth_guard.test.mjs'
+      - '.github/workflows/ledger-growth-guard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'PROJECT_BACKLOG_20261017.md'
+      - 'SECURITY_STABILITY_LEDGER_20261103.md'
+      - 'AI_AUTOMATION_SECURITY_LEDGER_20261104.md'
+permissions:
+  contents: read
+jobs:
+  guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Unit QA for historical freeze and concise row corrections
+        run: node --test scripts/ledger_growth_guard.test.mjs
+      - name: Verify that no narrative history was appended or erased
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/ledger_growth_guard.mjs "$BASE_SHA"

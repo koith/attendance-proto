@@ -84,6 +84,13 @@ test('same failure cause twice advances to alternate safe work instead of infini
  const c=[1,2].map(x=>({user:{login:'github-actions[bot]'},body:`[SEC-AUTO:FAILED task=SEC-S04-MANIFEST cause=MODEL_EXIT run=${x}]`}));
  assert.equal(chooseTask(catalog,data,c).task.id,'SEC-S01-ROLES');
 });
+test('consolidated failure counts still enforce finite retry policy',()=>{
+ const message='[automation-state:v1 key=SEC_FAIL_SEC-S04-MANIFEST_DEVELOP_FAILED]\n'+
+   'attempts=2\ncause=DEVELOP_FAILED\nlast_run=101\nstatus=FAILED';
+ const c=[{user:{login:'github-actions[bot]'},body:message}];
+ assert.equal(chooseTask(catalog,data,c).task.id,'SEC-S01-ROLES');
+ assert.equal(chooseTask(catalog,data,[{...c[0],user:{login:'untrusted'}}]).task.id,'SEC-S04-MANIFEST');
+});
 test('paths cannot include workflow, migrations or production keys',()=>{
  assert.throws(()=>pathsFor('AISEC-04-ROOT',{tasks:[{id:'AISEC-04-ROOT',ledger:'AISEC-04',source:'.github/workflows/evil.yml',test:'qa/security/autopilot/a.test.mjs'}]}),/PATH_OUTSIDE_SECURITY_SANDBOX/);
 });

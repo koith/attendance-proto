@@ -17,7 +17,9 @@ if(!/contents: read/.test(dev)||/contents: write/.test(dev)||!/copilot-requests:
 if(/OPENAI_API_KEY:/.test(qa)||/GH_TOKEN:/.test(qa)||/SUPABASE_SERVICE_ROLE_KEY:/.test(qa))throw Error('QA_SECRET_EXPOSURE');
 if(!/contents: write/.test(publish)||/copilot-requests: write/.test(publish)||/OPENAI_API_KEY:/.test(publish))throw Error('PUBLISH_TOKEN_OVERREACH');
 if(!/needs: qa/.test(publish)||!/name: agent-qa-passed-patch/.test(publish))throw Error('QA_APPROVAL_GATE_MISSING');
-if(!/state=BRIDGE_REQUIRED/.test(publish)||!/gh issue comment/.test(publish)||!/verified_task_increment=0/.test(publish))throw Error('AUTODEV_PR_BRIDGE_FALLBACK_MISSING');
+if(!/state=BRIDGE_REQUIRED/.test(publish)||!/node scripts\/ai-dev\/agent_state_note\.mjs handoff/.test(publish))throw Error('AUTODEV_PR_BRIDGE_FALLBACK_MISSING');
+const statusWriter=fs.readFileSync(path.join(root,'scripts/ai-dev/agent_state_note.mjs'),'utf8');
+if(!/accepted_tasks_increment:'0'/.test(statusWriter)||!/upsertNote/.test(statusWriter))throw Error('AUTODEV_BOUNDED_STATUS_MISSING');
 if(/^\\s*(?:gh pr create|git push)\\b/m.test(agent)||!/git diff --cached --binary/.test(agent))throw Error('MODEL_CAN_PUBLISH_OR_ARTIFACT_MISSING');
 if(!/node --check/.test(agent)||/node qa_boot_syntax\.mjs/.test(agent))throw Error('MODEL_QA_EXECUTES_WITH_API_KEY');
 const run=(cmd,args,cwd,env)=>spawnSync(cmd,args,{cwd,encoding:'utf8',env:{...process.env,...env}});

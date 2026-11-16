@@ -2,6 +2,26 @@
 // non-runtime commits. This does not authorize DB, Sheet, Auth, or Pages writes.
 // No globs: a new path requires a separate reviewed policy change and QA.
 const allowedPaths=new Set([
+  "qa_autonomous_agent_bridge_receipt_v1.mjs",
+
+  ".github/workflows/capture-development-instructions.yml",
+  ".github/workflows/ledger-growth-guard.yml",
+  "scripts/issue_state_note.mjs",
+  "scripts/issue_state_note.test.mjs",
+  "scripts/security/autopilot/record_failure.mjs",
+  "qa/security/autopilot/record_failure.test.mjs",
+  "scripts/security/backup_alert.mjs",
+  "qa/security/backup_alert.test.mjs",
+  "scripts/ai-dev/agent_state_note.mjs",
+  "scripts/ai-dev/agent_state_note.test.mjs",
+  "scripts/ledger_status_index.mjs",
+  "scripts/ledger_status_index.test.mjs",
+  "scripts/ledger_growth_guard.mjs",
+  "scripts/ledger_growth_guard.test.mjs",
+  "AGENTS.md",
+  "SKILL.md",
+  ".github/workflows/work-orchestrator.yml",
+
   ".github/workflows/p0-pages-deploy.yml",
   ".github/workflows/verified-pages-deployment-notification.yml",
 ".github/workflows/sec-autopilot-contract-ci.yml",
