@@ -3605,9 +3605,46 @@ async function drawPay(ym){
     const gbox=document.createElement("div");
     gbox.className="payroll-action-block";
     gbox.innerHTML=`<div class="payroll-sheet-actions"><button class="btn btn-secondary" id="btnSyncSheet">지금 갱신</button><button class="btn btn-secondary" id="btnOpenSheet">구글시트 열기</button></div>
-      <div class="payroll-sheet-meta"><div id="syncMsg" class="payroll-sync-time">자동 갱신 대기</div><div class="payroll-invite-wrap"><button type="button" class="payroll-invite-help" id="btnOwnerInviteHelp">점주 초대 방법</button></div></div>`;
+      <div class="payroll-sheet-meta"><div id="syncMsg" class="payroll-sync-time">자동 갱신 대기</div><div class="payroll-invite-wrap"><button type="button" class="payroll-invite-help" id="btnOwnerInviteHelp">점주 초대 방법</button></div></div>
+      <div class="payroll-export-actions" style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
+        <button type="button" class="btn btn-secondary" id="btnExportPayrollBatch">직원별 급여명세 PDF 일괄 저장</button>
+        <span id="payrollExportStatus" role="status" style="font-size:.73rem;color:var(--text-muted);text-align:center">직원별 PDF와 월별 XLSX를 ZIP으로 저장 · 마감 전 자료는 검토용</span>
+      </div>`;
     el.appendChild(gbox);
     try{const st=JSON.parse(localStorage.getItem("baekeok_sheet_sync_v1")||"null"),msg=document.getElementById("syncMsg");if(st?.ok&&st?.at){msg.textContent=`${formatSyncStamp(new Date(st.at))} 자동 갱신됨`;}else if(st?.ok===false){msg.textContent="자동 갱신 재시도 예정";}else{msg.textContent="자동 갱신 중…";setTimeout(()=>SheetAutoSync.run("view"),0);}}catch(_){const msg=document.getElementById("syncMsg");if(msg)msg.textContent="자동 갱신 중…";setTimeout(()=>SheetAutoSync.run("view"),0);}
+    const exportBtn=document.getElementById("btnExportPayrollBatch");
+    exportBtn.textContent=closedSnapshot?"마감 급여명세서 PDF 일괄 저장":"미마감 급여 검토본 PDF 일괄 저장";
+    exportBtn.onclick=async()=>{
+      const status=document.getElementById("payrollExportStatus");
+      if(!LIVE||!Auth.token||!Number.isSafeInteger(Number(CURRENT_STORE_ID))||
+         !window.BaekeokPayrollBatchExport){
+        toast("err","급여명세서 저장 불가","지점 관리자 로그인·다운로드 모듈을 확인해 주세요.");return;
+      }
+      if(exportBtn.disabled)return;
+      exportBtn.disabled=true;
+      status.textContent="해당 월의 서버 급여 결과로 직원별 명세서를 생성 중…";
+      try{
+        const done=await window.BaekeokPayrollBatchExport.exportPayroll(R.rows,{
+          ym,storeId:CURRENT_STORE_ID,closed:!!closedSnapshot,
+          totalGross:R.totalGross,xlsx:window.XLSX
+        });
+        if(done?.cancelled){status.textContent="저장 취소됨";return;}
+        status.textContent="저장 완료: PDF "+done.pdfCount+"건 · 월별 XLSX "+done.monthlyXlsx+"개";
+        toast("in","급여명세서 파일 저장",done.final?"검증된 마감 월 자료":"미마감 · 검토용 · 지급액 확정 아님");
+      }catch(e){
+        const cause=String(e?.message||"PAY_BATCH_EXPORT_FAILED");
+        const errors={
+          PAY_BATCH_FINAL_DEDUCTIONS_NOT_VERIFIED:"4대보험·소득세 공제별 검증내역이 없어 확정 명세서는 출력할 수 없습니다.",
+          PAY_BATCH_FINAL_PAYROLL_NOT_RECONCILED:"마감 급여 상세 합계 또는 근태가 불일치합니다.",
+          PAY_BATCH_PAYROLL_MISSING_OR_UNVERIFIED:"직원 중 급여 산정이 완료되지 않은 대상이 있습니다.",
+          PAY_BATCH_MONTHLY_TOTAL_MISMATCH:"월별 세전 합계가 직원별 합계와 일치하지 않습니다.",
+          PAY_BATCH_XLSX_LIBRARY_UNAVAILABLE:"엑셀 변환 모듈을 불러오지 못했습니다. 인터넷 연결을 확인하세요.",
+          PAY_BATCH_CROSS_STORE_DENIED:"다른 지점 직원 기록이 섞여 있어 출력이 차단됐습니다."
+        };
+        status.textContent=errors[cause]||"생성 실패: "+cause.slice(0,90);
+        toast("err","급여명세서 저장 실패",status.textContent);
+      }finally{exportBtn.disabled=false;}
+    };
     document.getElementById("btnOwnerInviteHelp").onclick=showOwnerInviteHelp;
     document.getElementById("btnOpenSheet").onclick=()=>{
       let url=`https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/edit`;
@@ -4268,6 +4305,7 @@ Promise.resolve(storeStartupPromise).catch(e=>console.warn("store startup failed
  STORE_ENTRY_LOADING=false;if(!appReleaseUpgrading)route();
 });
 </script>
+<script src="payroll_batch_export_v1.js?v=20261116pay02"></script>
 <script src="store_controls_v1.js?v=20260929v066"></script>
 <script src="hq_store_onboarding_ui.js?v=20261027v370"></script>
 <script src="hq_owner_console.js?v=20261027v370"></script>
