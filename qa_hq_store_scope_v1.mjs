@@ -13,13 +13,7 @@ assert.match(migration,/GRANT EXECUTE ON FUNCTION public\.admin_store_events/);
 assert.match(html,/rpc\("admin_store_events",\{p_store_id:CURRENT_STORE_ID/);
 assert.match(html,/rpc\("admin_store_events_with_corrections",\{p_store_id:CURRENT_STORE_ID/);
 assert.match(html,/시연용 거래는 매출 집계에서 제외했습니다/);
-const noSales=html.match(/<p class="empty hq-sales-notice" role="status">([\s\S]*?)<\/p>/)?.[1];
-assert.ok(noSales,'HQ no-sales notice must be present');
-const noticeLines=[...noSales.matchAll(/<span class="hq-sales-notice-line" style="display:block">([^<]+)<\/span>/g)].map(x=>x[1]);
-assert.deepEqual(noticeLines,[
- '연결된 실제 매출 데이터가 없습니다.',
- '시연용 거래는 매출 집계에서 제외했습니다.'
-], 'Issue #952: preserve original sentences as two separate visible lines');
+assert.match(html,/role="status">연결된 실제 매출 데이터가 없습니다\. 시연용 거래는 매출 집계에서 제외했습니다\.<\/p>/,'Latest #954 natural wrapping retains both original sentences');
 assert.ok(html.includes('rpc("admin_store_pending_requests",{p_store_id:CURRENT_STORE_ID'));
 for(const name of ['admin_grant','admin_revoke','admin_list_auth_users','admin_list_admins']){
   const start=guards.indexOf('CREATE OR REPLACE FUNCTION public.'+name+'(');
