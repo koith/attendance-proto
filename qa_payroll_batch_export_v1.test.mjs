@@ -40,6 +40,16 @@ test('fail closed: cross-store, duplicate, missing pay, final mismatch, unverifi
  assert.throws(()=>api.prepare([sample()],{ym:'2026-13',storeId,totalGross:120000}),/SCOPE_INVALID/);
  assert.throws(()=>preview([{...sample(),pay:{...sample().pay,net:120001}}]),/NET_EXCEEDS_GROSS/);
 });
+test('PAY-02 rejects coerced or ambiguous monetary inputs in real employee records',()=>{
+ for(const invalid of [true,'  ','0x1d4c0','1e5','01','+120000','120000.0']){
+  const row={...sample(),pay:{...sample().pay,gross:invalid}};
+  assert.throws(()=>preview([row]),/PAYROLL_MISSING_OR_UNVERIFIED/);
+ }
+ for(const invalid of [true,'1e3','0x10','', '1.5']){
+  const row={...sample(),pay:{...sample().pay,adjust:invalid}};
+  assert.throws(()=>preview([row]),/PAYROLL_COMPONENT_INVALID/);
+ }
+});
 test('exact itemized deductions are mandatory for a real final record',()=>{
  const base={...sample(),verifiedDeductions:{
   pension:1000,health:1000,longtermCare:100,employment:900,incomeTax:900,localIncomeTax:100,other:0
