@@ -68,6 +68,7 @@ jobs:
         run: |
           node qa_issue_receipt_v1.mjs
           node --test qa_ledger_context_v1.test.mjs
+          node --test scripts/issue_state_note.test.mjs scripts/ledger_status_index.test.mjs scripts/ledger_growth_guard.test.mjs qa/security/backup_alert.test.mjs
       - id: state
         run: |
           node scripts/work-orchestrator.mjs next > next.json
