@@ -7,7 +7,10 @@ const required=[
  ['근태 이상 징후 즉시 정정 경계','qa_actual_attendance_anomaly_correction_v1.mjs'],
  ['관리자 수기 근태 재정정 단일 유효 교대','qa_manual_attendance_recorrection_v1.mjs'],
  ['고용 계약 생성·급여 조건 경계','qa_employment_contract_v1.mjs'],
- ['직원 지점 등록 경계','qa_employee_store_registration_v218.mjs']
+ ['시급제 계약시간창 조기출근 급여 산식','qa_payroll_hourly_scheduled_window_v1.mjs'],
+ ['관리자 주차 급여 승인 경계','qa_payroll_approval_engine_fixture_v1.mjs'],
+ ['직원별 PDF·XLSX ZIP 검증과 미확정 공제 차단','qa_payroll_batch_export_v1.test.mjs'],
+ ['재료 매입액 vs 실재료 사용원가 구분·원본 격리','qa_operations_material_cost_safe_v1.mjs'], ['직원 지점 등록 경계','qa_employee_store_registration_v218.mjs']
 ];
 for(const [label,file] of required){
  assert.equal(actual.split("'"+file+"'").length,2,'one-run matrix must include '+file+' once');
