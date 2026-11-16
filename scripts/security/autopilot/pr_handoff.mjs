@@ -1,6 +1,7 @@
 // Trusted GitHub Actions publish stage: safe review PR creation or connector bridge.
 // Never merges or marks security tasks complete. No production credentials/data.
 import {pathToFileURL} from 'node:url';
+import {upsertNote} from '../../issue_state_note.mjs';
 
 const shaPattern=/^[a-f0-9]{40}$/;
 const taskPattern=/^(?:SEC-S\d\d|AISEC-\d\d)-[A-Z0-9-]{3,40}$/;
@@ -37,11 +38,13 @@ export async function ensureReviewPR(context,fetchImpl=fetch) {
    if(!pr)result='BRIDGE_REQUIRED';
   }else throw Error('PR_CREATION_UNEXPECTED_STATUS_'+attempt.status);
  }
- const receipt='[SEC-AUTO:'+result+' task='+task+' run='+run+' head='+head+']\nbranch='+branch+'\n'+
-  (pr?'pr_number='+pr.number+'\npr_url='+pr.html_url+'\n':'reason=GITHUB_ACTIONS_PR_CREATE_UNAVAILABLE\n')+
-  'verified_security_tasks_increment=0\noperating_changes=false';
- const posted=await call('/issues/1492/comments',{method:'POST',body:JSON.stringify({body:receipt})});
- if(posted.status!==201)throw Error('CHECKPOINT_COMMENT_FAILED');
+ // Update one bot-owned per-task status note. The PR and run URL are the audit trail.
+ const note=await upsertNote({repo,issue:1492,token,
+   key:'SEC_HANDOFF_'+task,run,fetchImpl,
+   fields:{status:result,task,branch,head,pr_number:String(pr?.number||0),
+     evidence:pr?.html_url||'https://github.com/'+repo+'/actions/runs/'+run,
+     operating_changes:'false'}});
+ if(!['CREATED','UPDATED','UNCHANGED'].includes(note.result))throw Error('CHECKPOINT_NOTE_UNCONFIRMED');
  return {result,prNumber:pr?.number||null,branch};
 }
 async function main(){
