@@ -72,5 +72,5 @@ jobs:
                 scripts/security/recovery/recovery_plan.test.mjs \
                 scripts/security/recovery/verify_backup_completeness.test.mjs \
                 qa/security/backup_dispatch_guard.test.mjs
-              node -e "const r=require(process.argv[1]);if(r.result!==\x27PASS\x27)process.exit(1);console.log(\x27restore_verify_pg17\x27,r.result,r.stages.map(s=>s.stage+\x27:\x27+s.ok).join(\x27 \x27))" "$RESTORE_VERIFY_EVIDENCE"
+              node -e "const r=require(process.argv[1]);if(r.result!==String.fromCharCode(80,65,83,83))process.exit(1);console.log(r.result,r.stages.length)" "$RESTORE_VERIFY_EVIDENCE"
             '
