@@ -96,13 +96,14 @@ jobs:
       contents: read
       issues: write
     steps:
-      - name: Report sanitized failure status to canonical security issue
-        uses: actions/github-script@v7
+      - uses: actions/checkout@v4
         with:
-          script: |
-            const {owner,repo}=context.repo;
-            const result='${{ needs.sealed-capture.result }}';
-            await github.rest.issues.createComment({owner,repo,issue_number:1492,
-              body:'[SEC-D5-BACKUP-ALERT] '+new Date().toISOString().slice(0,10)
-                +' result='+result+' workflow_run='+context.runId
-                +' — protected sealed daily backup did not complete. No secret or data captured in this alert.'});
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Update one protected backup alert note without new comment per day
+        env:
+          GITHUB_TOKEN: ${ github.token }}
+          BACKUP_RESULT: ${ needs.sealed-capture.result }}
+        run: node scripts/security/backup_alert.mjs
