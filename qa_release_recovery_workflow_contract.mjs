@@ -131,9 +131,12 @@ assert.match(publishJob,/gh auth setup-git\s+git push -u origin "\$branch"/,
   'Only after QA is a Git push credential helper installed');
 assert.match(publishJob,/gh pr create --base main --head "\$branch"/,
   'Privileged publisher creates a review-only pull request');
-assert.match(publishJob,/gh issue comment "\$ISSUE_NUMBER" --body "\[AGENT:\$state/,
-  'Only independently validated publisher may emit issue-local bridge checkpoint');
-assert.match(publishJob,/verified_task_increment=0/,
+assert.match(publishJob,/node scripts\/ai-dev\/agent_state_note\.mjs handoff/,
+  'Only independently validated publisher may update the bounded issue-local state');
+const agentNote=fs.readFileSync('scripts/ai-dev/agent_state_note.mjs','utf8');
+assert.match(agentNote,/upsertNote/,
+  'State is updated in place instead of appending one issue comment per run');
+assert.match(agentNote,/accepted_tasks_increment:'0'/,
   'Review PR handoff is not task acceptance');
 assert.doesNotMatch(agent,/gh auth setup-git|git push -u origin|gh pr create/,
   'Model-runner must not publish code directly');
