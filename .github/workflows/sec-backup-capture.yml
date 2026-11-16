@@ -104,6 +104,6 @@ jobs:
           node-version: '22'
       - name: Update one protected backup alert note without new comment per day
         env:
-          GITHUB_TOKEN: ${ github.token }}
-          BACKUP_RESULT: ${ needs.sealed-capture.result }}
+          GITHUB_TOKEN: ${{ github.token }}
+          BACKUP_RESULT: ${{ needs.sealed-capture.result }}
         run: node scripts/security/backup_alert.mjs
