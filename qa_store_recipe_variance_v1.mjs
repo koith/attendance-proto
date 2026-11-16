@@ -36,6 +36,11 @@ for(const patch of [{observed:''},{observed:null},{observed:' '},{waste:''},{ser
  assert.throws(()=>compare(parts,[{...rows[0],...patch},rows[1]]),
   /USAGE_(?:OBSERVATION_REQUIRED|OBSERVATION_INVALID|TOLERANCE_RANGE)/);
 }
+// MTG-13: operator-entered quantities may never be combined across units.
+assert.throws(()=>compare(parts,[{...rows[0],unit:'ml'},rows[1]]),
+ /USAGE_VARIANCE_UNIT_MISMATCH/);
+assert.equal(compare(parts,[{...rows[0],unit:'g'},{...rows[1],unit:'ml'}])[0].status,'WITHIN');
+assert.match(sku,/unit:part\.unit/);
 assert.throws(()=>compare(parts,rows.slice(0,1)),/USAGE_VARIANCE_INCOMPLETE/);
 assert.throws(()=>compare(parts,[rows[1],rows[0]]),/USAGE_VARIANCE_INVALID/);
 assert.throws(()=>compare([{...parts[0],amount:0},parts[1]],rows),/USAGE_VARIANCE_INVALID/);
