@@ -32,5 +32,5 @@ jobs:
         run: node --test scripts/ledger_growth_guard.test.mjs
       - name: Verify that no narrative history was appended or erased
         env:
-          BASE_SHA: ${ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: node scripts/ledger_growth_guard.mjs "$BASE_SHA"
