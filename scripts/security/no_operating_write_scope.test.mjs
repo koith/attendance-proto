@@ -649,7 +649,8 @@ test('reviewed PR handoff workflow is explicitly allowlisted without widening ru
  assert.match(workflow,/node --test qa\/security\/autopilot\/pr_handoff\.test\.mjs/);
  assert.match(source,/PUBLISHED_BRANCH_SHA_MISMATCH/);
  assert.match(source,/GITHUB_ACTIONS_PR_CREATE_UNAVAILABLE/);
- assert.match(source,/verified_security_tasks_increment=0/);
+ assert.match(source,/operating_changes:'false'/);
+ assert.match(source,/upsertNote/);
  assert.doesNotMatch(workflow,/SUPABASE_SERVICE_ROLE_KEY|SUPABASE_DB_URL|OPENAI_API_KEY/);
 });
 
@@ -666,8 +667,9 @@ test('reviewed general agent PR bridge is allowed but not production writes',()=
  assert.throws(()=>check(changed.concat({filename:'.github/workflows/secret-release.yml',status:'added'})),/SEC_NO_WRITE_DISALLOWED_CHANGE/);
  const wf=fs.readFileSync('.github/workflows/autonomous-development-agent.yml','utf8');
  assert.match(wf,/state=BRIDGE_REQUIRED/);
- assert.match(wf,/gh issue comment/);
- assert.match(wf,/verified_task_increment=0/);
+ assert.match(wf,/node scripts\/ai-dev\/agent_state_note\.mjs handoff/);
+ const note=fs.readFileSync('scripts/ai-dev/agent_state_note.mjs','utf8');
+ assert.match(note,/accepted_tasks_increment:'0'/);
  assert.doesNotMatch(wf,/SUPABASE_DB_URL|SUPABASE_SERVICE_ROLE_KEY/);
 });
 
