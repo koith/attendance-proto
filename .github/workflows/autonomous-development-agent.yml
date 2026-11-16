@@ -247,10 +247,10 @@ jobs:
           node-version: '22'
       - name: Update bounded incomplete state; source run remains canonical
         env:
-          GITHUB_TOKEN: ${ github.token }}
-          ISSUE_NUMBER: ${ needs.capture-intake.outputs.issue_number }}
-          CAPTURE_RESULT: ${ needs.capture-intake.result }}
-          DEVELOP_RESULT: ${ needs.develop.result }}
-          QA_RESULT: ${ needs.qa.result }}
-          PUBLISH_RESULT: ${ needs.publish.result }}
+          GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ needs.capture-intake.outputs.issue_number }}
+          CAPTURE_RESULT: ${{ needs.capture-intake.result }}
+          DEVELOP_RESULT: ${{ needs.develop.result }}
+          QA_RESULT: ${{ needs.qa.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
         run: node scripts/ai-dev/agent_state_note.mjs failure
