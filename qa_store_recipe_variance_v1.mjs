@@ -41,6 +41,7 @@ assert.throws(()=>compare(parts,[{...rows[0],unit:'ml'},rows[1]]),
  /USAGE_VARIANCE_UNIT_MISMATCH/);
 assert.equal(compare(parts,[{...rows[0],unit:'g'},{...rows[1],unit:'ml'}])[0].status,'WITHIN');
 assert.match(sku,/unit:part\.unit/);
+assert.match(sku,/result\.ingredients\.find\(/,'observed units must come from the scoped recipe ingredients');
 assert.throws(()=>compare(parts,rows.slice(0,1)),/USAGE_VARIANCE_INCOMPLETE/);
 assert.throws(()=>compare(parts,[rows[1],rows[0]]),/USAGE_VARIANCE_INVALID/);
 assert.throws(()=>compare([{...parts[0],amount:0},parts[1]],rows),/USAGE_VARIANCE_INVALID/);
