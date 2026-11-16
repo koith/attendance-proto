@@ -11,7 +11,7 @@
  'use strict';
  const utf8=s=>new TextEncoder().encode(String(s));
  const err=s=>{throw Error('PAY_BATCH_'+s);};
- const money=n=>Number.isSafeInteger(Number(n))&&Number(n)>=0&&Number(n)<=9e12;
+ const money=n=>n!==null&&n!==undefined&&n!==''&&Number.isSafeInteger(Number(n))&&Number(n)>=0&&Number(n)<=9e12;
  const won=n=>Number(n).toLocaleString('ko-KR')+'원';
  const bytes=b=>b instanceof Uint8Array?b:(b instanceof ArrayBuffer?new Uint8Array(b):utf8(b));
  function join(parts){
