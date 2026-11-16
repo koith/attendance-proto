@@ -43,7 +43,7 @@ export async function ensureReviewPR(context,fetchImpl=fetch) {
    key:'SEC_HANDOFF_'+task,run,fetchImpl,
    fields:{status:result,task,branch,head,pr_number:String(pr?.number||0),
      evidence:pr?.html_url||'https://github.com/'+repo+'/actions/runs/'+run,
-     operating_changes:'false'}});
+     operating_changes:'false',reason:pr?'NONE':'GITHUB_ACTIONS_PR_CREATE_UNAVAILABLE'}});
  if(!['CREATED','UPDATED','UNCHANGED'].includes(note.result))throw Error('CHECKPOINT_NOTE_UNCONFIRMED');
  return {result,prNumber:pr?.number||null,branch};
 }
