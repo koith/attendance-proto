@@ -62,6 +62,10 @@ export function makeReference(source) {
   };
 }
 
+// Backward-compatible validation hook used by existing AI checkpoint integrity checks.
+// It validates text in memory and NEVER produces or publishes a copied body.
+export function makeReceipt(source) { return makeReference(source); }
+
 async function main() {
   const repo = process.env.GITHUB_REPOSITORY;
   const token = process.env.GITHUB_TOKEN;
