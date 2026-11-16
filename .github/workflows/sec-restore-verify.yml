@@ -54,7 +54,8 @@ jobs:
           FROM node:22-trixie-slim AS node
           FROM postgres:17-trixie
           COPY --from=node /usr/local/bin/node /usr/local/bin/node
-          RUN node --version && /usr/lib/postgresql/17/bin/pg_dump --version
+          RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/* \
+              && git --version && node --version && /usr/lib/postgresql/17/bin/pg_dump --version
           DOCKERFILE
       - name: Synthetic capture, sealed archive, disposable restore, source-snapshot comparison (PG17)
         shell: bash
