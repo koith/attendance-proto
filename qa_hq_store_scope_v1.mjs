@@ -13,9 +13,9 @@ assert.match(migration,/GRANT EXECUTE ON FUNCTION public\.admin_store_events/);
 assert.match(html,/rpc\("admin_store_events",\{p_store_id:CURRENT_STORE_ID/);
 assert.match(html,/rpc\("admin_store_events_with_corrections",\{p_store_id:CURRENT_STORE_ID/);
 assert.match(html,/시연용 거래는 매출 집계에서 제외했습니다/);
-const noSales=html.match(/<p class="empty hq-sales-notice" role="status">([\\s\\S]*?)<\\/p>/)?.[1];
+const noSales=html.match(/<p class="empty hq-sales-notice" role="status">([\s\S]*?)<\/p>/)?.[1];
 assert.ok(noSales,'HQ no-sales notice must be present');
-const noticeLines=[...noSales.matchAll(/<span class="hq-sales-notice-line" style="display:block">([^<]+)<\\/span>/g)].map(x=>x[1]);
+const noticeLines=[...noSales.matchAll(/<span class="hq-sales-notice-line" style="display:block">([^<]+)<\/span>/g)].map(x=>x[1]);
 assert.deepEqual(noticeLines,[
  '연결된 실제 매출 데이터가 없습니다.',
  '시연용 거래는 매출 집계에서 제외했습니다.'
