@@ -197,7 +197,7 @@ window.openStoreSaleSkuPreview=function(){
          throw Error("입력 판매수량이 변경됐습니다. 예상량을 다시 계산하세요.");
        const samples=[...variance.querySelectorAll("[data-usage-part]")].map(node=>{
          const read=field=>node.querySelector('[data-usage-field="'+field+'"]').value;
-         const part=parts.find(x=>Number(x.id)===Number(node.dataset.usagePart));
+         const part=result.ingredients.find(x=>Number(x.id)===Number(node.dataset.usagePart));
          if(!part)throw Error("USAGE_VARIANCE_INVALID");
          return {id:Number(node.dataset.usagePart),unit:part.unit,observed:read("observed"),
           waste:read("waste"),service:read("service"),tolerance:read("tolerance")};
