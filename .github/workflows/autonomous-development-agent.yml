@@ -181,6 +181,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - uses: actions/download-artifact@v4
         with:
           name: agent-qa-passed-patch
@@ -223,12 +226,9 @@ jobs:
             state=BRIDGE_REQUIRED
           fi
           head_sha="$(git rev-parse HEAD)"
-          gh issue comment "$ISSUE_NUMBER" --body "[AGENT:$state issue=$ISSUE_NUMBER run=$GITHUB_RUN_ID head=$head_sha]
-          branch=$branch
-          base_sha=$GITHUB_SHA
-          qa=PASS_SECRETLESS_ISOLATED
-          operating_changes=false
-          verified_task_increment=0"
+          export GITHUB_TOKEN="$GH_TOKEN"
+          export AGENT_STATE="$state" AGENT_BRANCH="$branch" AGENT_HEAD="$head_sha"
+          node scripts/ai-dev/agent_state_note.mjs handoff
           echo "AGENT_PUBLISH_HANDOFF state=$state issue=$ISSUE_NUMBER"
 
   report-failure:
@@ -239,34 +239,18 @@ jobs:
       issues: write
       contents: read
     steps:
-      - name: Record incomplete AI run without claiming code/PR success
-        uses: actions/github-script@v7
-        env:
-          ISSUE_NUMBER: ${{ needs.capture-intake.outputs.issue_number }}
-          CAPTURE_RESULT: ${{ needs.capture-intake.result }}
-          DEVELOP_RESULT: ${{ needs.develop.result }}
-          QA_RESULT: ${{ needs.qa.result }}
-          PUBLISH_RESULT: ${{ needs.publish.result }}
+      - uses: actions/checkout@v4
         with:
-          script: |
-            const issue=Number(process.env.ISSUE_NUMBER);
-            if(!Number.isSafeInteger(issue)||issue<1)throw Error('INVALID_ISSUE_NUMBER');
-            // Re-runs must not duplicate trusted failure receipts on the same issue.
-            // Exact prefix and GitHub-asserted bot identity prevent spoofed user text.
-            const marker='[agent-run:'+context.runId+']';
-            const existing=await github.paginate(github.rest.issues.listComments,{
-              ...context.repo,issue_number:issue,per_page:100
-            });
-            if(existing.some(c=>c?.user?.login==='github-actions[bot]' &&
-              typeof c.body==='string' &&
-              (c.body===marker || c.body.startsWith(marker+'\n'))))return;
-            const text=[
-              marker,
-              'AI 자동 개발 또는 승인/PR 게시가 미완료입니다. 서비스 배포 성공을 의미하지 않습니다.',
-              'capture='+process.env.CAPTURE_RESULT,
-              'develop='+process.env.DEVELOP_RESULT,
-              'qa='+process.env.QA_RESULT,
-              'publish='+process.env.PUBLISH_RESULT,
-              '실행: https://github.com/'+context.repo.owner+'/'+context.repo.repo+'/actions/runs/'+context.runId
-            ].join('\n');
-            await github.rest.issues.createComment({...context.repo,issue_number:issue,body:text});
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Update bounded incomplete state; source run remains canonical
+        env:
+          GITHUB_TOKEN: ${ github.token }}
+          ISSUE_NUMBER: ${ needs.capture-intake.outputs.issue_number }}
+          CAPTURE_RESULT: ${ needs.capture-intake.result }}
+          DEVELOP_RESULT: ${ needs.develop.result }}
+          QA_RESULT: ${ needs.qa.result }}
+          PUBLISH_RESULT: ${ needs.publish.result }}
+        run: node scripts/ai-dev/agent_state_note.mjs failure
