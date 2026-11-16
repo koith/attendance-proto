@@ -29,6 +29,17 @@ export function chooseTask(catalog,ledgers,comments,liveBranches=[]){
     if(submitted)delivered.add(submitted[1]);
     const failed=msg.match(/^\[SEC-AUTO:FAILED task=([A-Z0-9-]+) cause=([A-Z_]+) run=[0-9]+\]/m);
     if(failed){const byCause=failures.get(failed[1])||new Map();byCause.set(failed[2],(byCause.get(failed[2])||0)+1);failures.set(failed[1],byCause);}
+    // v2 records consolidate repeated retries into one bot-owned status comment.
+    // Legacy per-run failure receipts remain readable for historical accounting.
+    const state=msg.match(/^\[automation-state:v1 key=SEC_FAIL_([A-Z0-9-]+)_([A-Z_]+)\]\n/);
+    if(author==='github-actions[bot]' && state){
+      const count=msg.match(/^attempts=(\d{1,4})$/m);
+      if(count){
+        const byCause=failures.get(state[1])||new Map();
+        byCause.set(state[2],(byCause.get(state[2])||0)+Number(count[1]));
+        failures.set(state[1],byCause);
+      }
+    }
   }
   // Validate the entire catalog before choosing any task, including skipped ones.
   const ids=new Set();
