@@ -152,8 +152,8 @@ assert.match(agentWorkflow,/name: agent-validated-patch/,
   'Agent proposal transfers as an artifact, not a write-capable checkout');
 assert.match(agentWorkflow,/name: agent-qa-passed-patch/,
   'Only independently QA-passed patch transfers to the publisher');
-assert.match(agentWorkflow,/github\.rest\.issues\.createComment/,
-  'Failure reporter must leave a visible issue receipt');
+assert.match(agentWorkflow,/node scripts\/ai-dev\/agent_state_note\.mjs failure/,
+  'Failure reporter must maintain a visible bounded issue status note');
 
 assert.match(agent,/CODE-IMPLEMENTATION AGENT/,'Agent must produce validated source changes instead of text-only replies');
 assert.match(agent,/read-only Copilot outputs AGENT_EDITS JSON/,
