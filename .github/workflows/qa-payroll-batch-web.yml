@@ -1,0 +1,47 @@
+name: PAY-02 real payroll batch PDF+XLSX ZIP regression
+on:
+  pull_request:
+    paths:
+      - index.html
+      - payroll_batch_export_v1.js
+      - qa_payroll_batch_export_v1.test.mjs
+      - qa_payroll_batch_browser_v1.mjs
+      - .github/workflows/qa-payroll-batch-web.yml
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - payroll_batch_export_v1.js
+      - qa_payroll_batch_export_v1.test.mjs
+      - qa_payroll_batch_browser_v1.mjs
+      - .github/workflows/qa-payroll-batch-web.yml
+permissions:
+  contents: read
+jobs:
+  payroll-real-source-to-pdf-zip:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Exact independent monthly PDF/XLSX browser-agnostic binary and fail-closed tests
+        run: node --test qa_payroll_batch_export_v1.test.mjs
+      - name: Syntax and runtime-module contract
+        run: |
+          node --check payroll_batch_export_v1.js
+          node -e "const e=require('./payroll_batch_export_v1.js'); for(const n of ['prepare','makeZip','makePdfFromJpeg','exportPayroll'])if(typeof e[n]!=='function')process.exit(1)"
+
+  real-chromium-a4-pdf-download:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install pinned test-only browser and SheetJS
+        run: npm install --no-save --ignore-scripts playwright@1.56.1 xlsx@0.18.5
+      - name: Provision Chromium and Ubuntu headless browser dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Actual payroll UI click, Korean A4 PDF + genuine XLSX + ZIP read-back
+        run: node qa_payroll_batch_browser_v1.mjs
