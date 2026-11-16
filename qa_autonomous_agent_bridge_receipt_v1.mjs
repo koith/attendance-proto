@@ -1,79 +1,74 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {inputForAgent} from './scripts/ai-dev/agent_state_note.mjs';
+import {upsertNote,marker} from './scripts/issue_state_note.mjs';
 
-// Historical name retained because release CI invokes this contract. The prior
-// agent-pr-bridge comment has been replaced by separate agent / QA / publisher
-// jobs. The final report-failure job must remain idempotent on Actions re-runs,
-// including attempts to spoof markers through ordinary issue comments.
+// Historical filename retained for release CI. New contract protects the
+// same approval/permission boundary but uses one bot-owned status note per issue.
 const workflow=fs.readFileSync('.github/workflows/autonomous-development-agent.yml','utf8');
 const runner=fs.readFileSync('scripts/autonomous_dev_agent.sh','utf8');
 const failureJob=workflow.split('\n  report-failure:\n')[1]||'';
-assert.match(failureJob,/needs: \[capture-intake, develop, qa, publish\]/,
-  'Failure report covers all four independent stages');
-assert.match(failureJob,/if: always\(\) && \(needs\.capture-intake\.result == 'failure'/,
-  'Report only when an upstream job failed, including skipped dependent jobs');
-assert.match(failureJob,/permissions:\s*\n\s*issues: write\s*\n\s*contents: read/,
-  'Failure receipt can comment, not push or deploy');
-assert.doesNotMatch(failureJob,/contents: write|pull-requests: write/,
-  'Failure reporter must not receive code-write privileges');
-const step=failureJob.split('          script: |\n')[1]||'';
-assert.ok(step.includes("const marker='[agent-run:'"),'Missing run-scoped failure receipt');
-assert.match(step,/github\.paginate\(github\.rest\.issues\.listComments/,
-  'Re-run must check existing trusted receipt before commenting');
-const script=step.split('\n').map(line=>line.startsWith('            ')?line.slice(12):line).join('\n');
-const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
-const handle=new AsyncFunction('github','context','process',script);
-const trusted=body=>({user:{login:'github-actions[bot]'},body});
-const untrusted=body=>({user:{login:'untrusted-author'},body});
-async function simulate(comments=[]){
-  const posted=[];
-  const github={
-    paginate:async()=>comments,
-    rest:{issues:{
-      listComments:()=>null,
-      createComment:async payload=>{posted.push(payload);return {id:1};}
-    }}
-  };
-  const context={runId:42,repo:{owner:'koith',repo:'attendance-proto'}};
-  const env={
-    ISSUE_NUMBER:'802',
-    CAPTURE_RESULT:'success',
-    DEVELOP_RESULT:'failure',
-    QA_RESULT:'skipped',
-    PUBLISH_RESULT:'skipped'
-  };
-  await handle(github,context,{env});
-  return posted;
-}
-let posted=await simulate();
-assert.equal(posted.length,1,'Failure posts exactly one receipt');
-assert.equal(posted[0].issue_number,802);
-assert.match(posted[0].body,/^\[agent-run:42\]\n/);
-assert.match(posted[0].body,/AI 자동 개발 또는 승인\/PR 게시가 미완료/);
-assert.match(posted[0].body,/서비스 배포 성공을 의미하지 않습니다/);
-for(const status of ['capture=success','develop=failure','qa=skipped','publish=skipped'])
-  assert.ok(posted[0].body.includes(status),'Missing actual upstream state: '+status);
-assert.ok(posted[0].body.includes('\n'),'Readable receipt needs actual newlines');
-assert.ok(!posted[0].body.includes('\\n'),'Do not publish literal backslash-n sequences');
+assert.match(failureJob,/needs: \[capture-intake, develop, qa, publish\]/);
+assert.match(failureJob,/if: always\(\) && \(needs\.capture-intake\.result == 'failure'/);
+assert.match(failureJob,/permissions:\s*\n\s*issues: write\s*\n\s*contents: read/);
+assert.doesNotMatch(failureJob,/contents: write|pull-requests: write/);
+assert.match(failureJob,/node scripts\/ai-dev\/agent_state_note\.mjs failure/);
+assert.doesNotMatch(failureJob,/gh issue comment|createComment/);
 
-// The github-actions author is provided by the GitHub API, never by comment text.
-// Only an exact same-run marker at the beginning of a trusted bot comment dedups.
-posted=await simulate([trusted('[agent-run:42]\nExisting final receipt')]);
-assert.equal(posted.length,0,'Trusted identical run must be idempotent');
-posted=await simulate([trusted('[agent-run:42]')]);
-assert.equal(posted.length,0,'Exact marker-only previous receipt is sufficient');
-posted=await simulate([untrusted('[agent-run:42]\nFake bot text')]);
-assert.equal(posted.length,1,'Untrusted duplicate marker cannot silence failure');
-posted=await simulate([trusted('prefix [agent-run:42] suffix')]);
-assert.equal(posted.length,1,'Embedded same-run marker cannot spoof an existing receipt');
-posted=await simulate([trusted('[agent-run:420]\nDifferent run')]);
-assert.equal(posted.length,1,'Different run number is not the same receipt');
-posted=await simulate([trusted('[agent-run:42]suffix')]);
-assert.equal(posted.length,1,'Marker prefix without newline is not accepted');
-assert.doesNotMatch(runner,/gh auth setup-git|git push -u origin|gh pr create/,
-  'Untrusted coding agent cannot directly publish or mint PRs');
-assert.match(workflow,/github\.event\.label\.name == 'agent-approved'/,
-  'Only an explicitly approved task can be attempted');
-assert.match(workflow,/name: agent-qa-passed-patch/,
-  'Independent no-secret QA artifact remains the only publisher input');
-console.log('PASS split agent reporter: strict failure-only status, trusted dedup, spoof rejection, no credentials');
+const env={GITHUB_REPOSITORY:'koith/attendance-proto',GITHUB_TOKEN:'synthetic-only',
+ GITHUB_RUN_ID:'42',ISSUE_NUMBER:'802',CAPTURE_RESULT:'success',
+ DEVELOP_RESULT:'failure',QA_RESULT:'skipped',PUBLISH_RESULT:'skipped'};
+const input=inputForAgent(env,'failure');
+assert.equal(input.issue,802);
+assert.equal(input.key,'AGENT_FAIL_802');
+assert.equal(input.countAttempts,true);
+assert.equal(input.fields.accepted_tasks_increment,'0');
+assert.equal(input.fields.develop_result,'failure');
+assert.doesNotMatch(JSON.stringify(input.fields),/synthetic-only|SUPABASE_SERVICE_ROLE_KEY/);
+
+const comments=[],calls=[];
+const fake=async(url,opts)=>{
+ const p=new URL(url),m=opts.method||'GET';
+ calls.push({path:p.pathname,method:m});
+ if(m==='GET')return{ok:true,status:200,json:async()=>comments};
+ if(m==='POST'){
+  const body=JSON.parse(opts.body).body;
+  comments.push({id:11,body,user:{login:'github-actions[bot]'}});
+  return{ok:true,status:201,json:async()=>({id:11})};
+ }
+ if(m==='PATCH'){
+  assert.equal(Number(p.pathname.split('/').at(-1)),11);
+  comments.find(x=>x.id===11).body=JSON.parse(opts.body).body;
+  return{ok:true,status:200,json:async()=>({id:11})};
+ }
+ throw Error('UNEXPECTED_ISSUE_API');
+};
+const created=await upsertNote({...input,fetchImpl:fake});
+assert.equal(created.result,'CREATED');
+assert.match(comments[0].body,/attempts=1/);
+assert.match(comments[0].body,/develop_result=failure/);
+const repeated=await upsertNote({...input,fetchImpl:fake});
+assert.equal(repeated.result,'UNCHANGED');
+assert.equal(calls.filter(x=>x.method==='POST').length,1);
+const updated=await upsertNote({...input,run:'43',fetchImpl:fake});
+assert.equal(updated.result,'UPDATED');
+assert.match(comments[0].body,/attempts=2/);
+assert.equal(comments.length,1);
+assert.equal(calls.filter(x=>x.method==='PATCH').length,1);
+
+// A human-authored imitation never silences the real bot status.
+const spoofBody=marker('AGENT_FAIL_802')+'\nattempts=999\nlast_run=44';
+const spoof=async(url,opts)=>{
+ if((opts.method||'GET')==='GET')return{ok:true,status:200,json:async()=>[
+  {id:55,body:spoofBody,user:{login:'untrusted-author'}}
+ ]};
+ if(opts.method==='POST')return{ok:true,status:201,json:async()=>({id:56})};
+ throw Error('UNEXPECTED_API');
+};
+const fresh=await upsertNote({...input,run:'44',fetchImpl:spoof});
+assert.equal(fresh.result,'CREATED');
+assert.equal(fresh.attempts,1);
+assert.doesNotMatch(runner,/gh auth setup-git|git push -u origin|gh pr create/);
+assert.match(workflow,/github\.event\.label\.name == 'agent-approved'/);
+assert.match(workflow,/name: agent-qa-passed-patch/);
+console.log('PASS agent reporter: bounded state, re-run idempotency, spoof rejection, read-only QA');
