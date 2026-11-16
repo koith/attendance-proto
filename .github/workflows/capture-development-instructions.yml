@@ -12,7 +12,7 @@ permissions:
   contents: read
   issues: read
 concurrency:
-  group: intake-${ inputs.issue_number }}
+  group: intake-${{ inputs.issue_number }}
   cancel-in-progress: false
 jobs:
   validate:
@@ -29,5 +29,5 @@ jobs:
         run: node qa_issue_receipt_v1.mjs
       - name: Fingerprint existing source without creating another comment
         env:
-          GITHUB_TOKEN: ${ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/issue_intake_receipt.mjs
