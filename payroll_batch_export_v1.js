@@ -14,7 +14,7 @@
  // PAY-02: avoid coercing booleans/hex/scientific notation or whitespace
  // into statutory money. Only integer JSON numbers or plain digit strings.
  const money=n=>(typeof n==="number"&&Number.isSafeInteger(n)&&n>=0&&n<=9e12)||
-   (typeof n==="string"&&/^(?:0|[1-9]\\d{0,12})$/.test(n)&&Number(n)<=9e12);
+   (typeof n==="string"&&/^(?:0|[1-9]\d{0,12})$/.test(n)&&Number(n)<=9e12);
  const won=n=>Number(n).toLocaleString('ko-KR')+'원';
  const bytes=b=>b instanceof Uint8Array?b:(b instanceof ArrayBuffer?new Uint8Array(b):utf8(b));
  function join(parts){
@@ -101,7 +101,7 @@
    const adj=Number(pay.adjust||0),night=Number(pay.nightAllowance||0),breakPay=Number(pay.breakCompPay||0),sub=Number(pay.substitutePay||0);
    if(![pay.adjust??0,pay.nightAllowance??0,pay.breakCompPay??0,pay.substitutePay??0]
        .every(v=>(typeof v==="number"&&Number.isSafeInteger(v))||
-        (typeof v==="string"&&/^-?(?:0|[1-9]\\d{0,12})$/.test(v)&&Number.isSafeInteger(Number(v)))))
+        (typeof v==="string"&&/^-?(?:0|[1-9]\d{0,12})$/.test(v)&&Number.isSafeInteger(Number(v)))))
     err('PAYROLL_COMPONENT_INVALID');
    if(![adj,night,breakPay,sub].every(Number.isSafeInteger))err('PAYROLL_COMPONENT_INVALID');
    const sum=Number(pay.base)+Number(pay.juhyu)+adj+night+breakPay+sub;
