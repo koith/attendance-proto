@@ -46,25 +46,32 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install PostgreSQL 17 server binaries for production-major-version parity
+      - name: Build isolated PG17 plus Node runtime from official container images
         shell: bash
         run: |
           set -euo pipefail
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
-          echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg.list
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-17
-          test -x /usr/lib/postgresql/17/bin/initdb
-          /usr/lib/postgresql/17/bin/pg_dump --version
+          docker build -t attendance-pg17-restore-qa -f - . <<'DOCKERFILE'
+          FROM node:22-trixie-slim AS node
+          FROM postgres:17-trixie
+          COPY --from=node /usr/local/bin/node /usr/local/bin/node
+          RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/* \
+              && git --version && node --version && /usr/lib/postgresql/17/bin/pg_dump --version
+          DOCKERFILE
       - name: Synthetic capture, sealed archive, disposable restore, source-snapshot comparison (PG17)
-        env:
-          PG_BIN: /usr/lib/postgresql/17/bin
-          RESTORE_VERIFY_EVIDENCE: ${{ runner.temp }}/restore-verify-pg17-report.json
+        shell: bash
         run: |
-          node --test scripts/security/recovery/restore_verify.test.mjs \
-            scripts/security/recovery/key_custody.test.mjs \
-            scripts/security/recovery/recovery_plan.test.mjs \
-            scripts/security/recovery/verify_backup_completeness.test.mjs \
-            qa/security/backup_dispatch_guard.test.mjs
-          node -e "const r=require(process.argv[1]);if(r.result!=='PASS')process.exit(1);console.log('restore_verify_pg17',r.result,r.stages.map(s=>s.stage+':'+s.ok).join(' '))" "$RESTORE_VERIFY_EVIDENCE"
+          set -euo pipefail
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+            --user postgres --pids-limit 256 --memory 1g \
+            --tmpfs /tmp:rw,nosuid,size=512m \
+            -v "$PWD":/src:ro -w /src \
+            -e PG_BIN=/usr/lib/postgresql/17/bin \
+            -e RESTORE_VERIFY_EVIDENCE=/tmp/restore-verify-pg17-report.json \
+            --entrypoint /bin/bash attendance-pg17-restore-qa -ec '
+              node --test scripts/security/recovery/restore_verify.test.mjs \
+                scripts/security/recovery/key_custody.test.mjs \
+                scripts/security/recovery/recovery_plan.test.mjs \
+                scripts/security/recovery/verify_backup_completeness.test.mjs \
+                qa/security/backup_dispatch_guard.test.mjs
+              node -e "const r=require(process.argv[1]);if(r.result!==String.fromCharCode(80,65,83,83))process.exit(1);console.log(r.result,r.stages.length)" "$RESTORE_VERIFY_EVIDENCE"
+            '
