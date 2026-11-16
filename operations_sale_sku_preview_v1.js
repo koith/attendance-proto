@@ -13,6 +13,10 @@ function parseSkuPreview(rows,names){
   const id=r.product_id==null?null:Number(r.product_id);
   if((matched&&(!Number.isSafeInteger(id)||id<=0))||
      (!matched&&id!==null))throw Error("SKU_RESPONSE_INVALID_PRODUCT");
+  // MTG-07: a product id without a human-readable matched product/alias is
+  // not an auditable SKU mapping; reject rather than show false approval.
+  if(matched&&(!String(r.product_name||"").trim()||
+     !String(r.matched_alias||"").trim()))throw Error("SKU_RESPONSE_MISSING_PROVENANCE");
   return {name:names[i],status:r.match_status,product:id,
    productName:matched?String(r.product_name||""):"",alias:matched?String(r.matched_alias||""):""};
  });
@@ -193,7 +197,9 @@ window.openStoreSaleSkuPreview=function(){
          throw Error("입력 판매수량이 변경됐습니다. 예상량을 다시 계산하세요.");
        const samples=[...variance.querySelectorAll("[data-usage-part]")].map(node=>{
          const read=field=>node.querySelector('[data-usage-field="'+field+'"]').value;
-         return {id:Number(node.dataset.usagePart),observed:read("observed"),
+         const part=parts.find(x=>Number(x.id)===Number(node.dataset.usagePart));
+         if(!part)throw Error("USAGE_VARIANCE_INVALID");
+         return {id:Number(node.dataset.usagePart),unit:part.unit,observed:read("observed"),
           waste:read("waste"),service:read("service"),tolerance:read("tolerance")};
        });
        const checked=window.computeStoreRecipeVariance(result.ingredients,samples);
