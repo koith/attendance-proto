@@ -9,7 +9,7 @@ const html=fs.readFileSync('index.html','utf8');
 const context={window:{}};vm.runInNewContext(script,context);
 const compare=context.window.computeStoreRecipeVariance;
 assert.equal(typeof compare,'function');
-assert.match(html,/operations_recipe_variance_v1\.js\?v=20261019v341/);
+assert.match(html,/operations_recipe_variance_v1\.js\?v=20261117v388/);
 assert.match(sku,/compareStoreRecipeUsage|computeStoreRecipeVariance/);
 assert.match(sku,/관측 재료 사용량·폐기·서비스·허용오차 과부족 대조/);
 assert.match(sku,/판매수량이 변경되었습니다. 예상 사용량을 다시 계산해야 합니다/);
