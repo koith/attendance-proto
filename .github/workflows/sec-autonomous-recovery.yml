@@ -211,10 +211,10 @@ jobs:
       contents: read
       issues: write
     env:
-      SEC_AUTO_TASK: ${ needs.select.outputs.task }}
-      DEVELOP_RESULT: ${ needs.develop.result }}
-      QA_RESULT: ${ needs.qa.result }}
-      PUBLISH_RESULT: ${ needs.publish.result }}
+      SEC_AUTO_TASK: ${{ needs.select.outputs.task }}
+      DEVELOP_RESULT: ${{ needs.develop.result }}
+      QA_RESULT: ${{ needs.qa.result }}
+      PUBLISH_RESULT: ${{ needs.publish.result }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -224,7 +224,7 @@ jobs:
           node-version: '22'
       - name: Upsert bounded failure state; keep full details in Actions run
         env:
-          GITHUB_TOKEN: ${ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
