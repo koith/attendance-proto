@@ -24,6 +24,10 @@ function compareStoreRecipeUsage(expected,observations){
      base<=0||!part.name||!part.unit||!row||Number(row.id)!==id)
    throw Error("USAGE_VARIANCE_INVALID");
   seen.add(id);
+  // A measurement annotated in a different unit must not be compared as if
+  // it were the approved recipe unit (e.g. ml vs g).
+  if(row.unit!==undefined&&String(row.unit)!==String(part.unit))
+   throw Error("USAGE_VARIANCE_UNIT_MISMATCH");
   const observed=amount(row.observed),waste=amount(row.waste),service=amount(row.service);
   const tolerance=amount(row.tolerance);
   if(tolerance>100)throw Error("USAGE_TOLERANCE_RANGE");
