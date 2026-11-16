@@ -1,0 +1,31 @@
+name: PAY-02 real payroll batch PDF+XLSX ZIP regression
+on:
+  pull_request:
+    paths:
+      - index.html
+      - payroll_batch_export_v1.js
+      - qa_payroll_batch_export_v1.test.mjs
+      - .github/workflows/qa-payroll-batch-web.yml
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - payroll_batch_export_v1.js
+      - qa_payroll_batch_export_v1.test.mjs
+      - .github/workflows/qa-payroll-batch-web.yml
+permissions:
+  contents: read
+jobs:
+  payroll-real-source-to-pdf-zip:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Exact independent monthly PDF/XLSX browser-agnostic binary and fail-closed tests
+        run: node --test qa_payroll_batch_export_v1.test.mjs
+      - name: Syntax and runtime-module contract
+        run: |
+          node --check payroll_batch_export_v1.js
+          node -e "const e=require('./payroll_batch_export_v1.js'); for(const n of ['prepare','makeZip','makePdfFromJpeg','exportPayroll'])if(typeof e[n]!=='function')process.exit(1)"
