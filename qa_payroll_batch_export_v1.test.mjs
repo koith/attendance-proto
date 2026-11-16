@@ -135,7 +135,7 @@ test('one user action actually writes ZIP of one XLSX + one PDF using selected s
 });
 test('real payroll UI includes the new user-visible button, authenticated handler and shipped module',()=>{
  const html=fs.readFileSync('index.html','utf8');
- assert.match(html,/payroll_batch_export_v1\.js\?v=20261116pay02/);
+ assert.match(html,/payroll_batch_export_v1\.js\?v=20261117v388/);
  assert.match(html,/id="btnExportPayrollBatch"/);
  assert.match(html,/BaekeokPayrollBatchExport\.exportPayroll\(R\.rows/);
  assert.match(html,/!LIVE\|\|!Auth\.token/);
