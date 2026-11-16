@@ -16,7 +16,13 @@ function operationsCostStatus(summary){
   )?Number(raw):null;
  const report=summary?.material_cost;
  const material=report?.material_cost;
- const verified=report?.status==="VERIFIED"&&report.basis==="PRICED_MOVEMENTS_AND_POSTED_COUNTS"&&
+ // MTG-12: never display a verified material cost against contradictory
+ // store/month provenance, including after a rapid manager store switch.
+ const scopeMatches=(report?.store_id===undefined||
+   (summary?.store_id!==undefined&&Number(report.store_id)===Number(summary.store_id)))&&
+   (report?.ym===undefined||
+   (summary?.ym!==undefined&&String(report.ym)===String(summary.ym)));
+ const verified=scopeMatches&&report?.status==="VERIFIED"&&report.basis==="PRICED_MOVEMENTS_AND_POSTED_COUNTS"&&
    typeof material==="number"&&Number.isSafeInteger(material)&&material>=0&&
    Number.isSafeInteger(report.items)&&report.items>0;
  if(verified)return {purchaseAmount,materialCost:material,ready:true,

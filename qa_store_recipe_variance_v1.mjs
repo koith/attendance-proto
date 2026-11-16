@@ -9,7 +9,7 @@ const html=fs.readFileSync('index.html','utf8');
 const context={window:{}};vm.runInNewContext(script,context);
 const compare=context.window.computeStoreRecipeVariance;
 assert.equal(typeof compare,'function');
-assert.match(html,/operations_recipe_variance_v1\.js\?v=20261019v341/);
+assert.match(html,/operations_recipe_variance_v1\.js\?v=20261117v388/);
 assert.match(sku,/compareStoreRecipeUsage|computeStoreRecipeVariance/);
 assert.match(sku,/관측 재료 사용량·폐기·서비스·허용오차 과부족 대조/);
 assert.match(sku,/판매수량이 변경되었습니다. 예상 사용량을 다시 계산해야 합니다/);
@@ -36,6 +36,12 @@ for(const patch of [{observed:''},{observed:null},{observed:' '},{waste:''},{ser
  assert.throws(()=>compare(parts,[{...rows[0],...patch},rows[1]]),
   /USAGE_(?:OBSERVATION_REQUIRED|OBSERVATION_INVALID|TOLERANCE_RANGE)/);
 }
+// MTG-13: operator-entered quantities may never be combined across units.
+assert.throws(()=>compare(parts,[{...rows[0],unit:'ml'},rows[1]]),
+ /USAGE_VARIANCE_UNIT_MISMATCH/);
+assert.equal(compare(parts,[{...rows[0],unit:'g'},{...rows[1],unit:'ml'}])[0].status,'WITHIN');
+assert.match(sku,/unit:part\.unit/);
+assert.match(sku,/result\.ingredients\.find\(/,'observed units must come from the scoped recipe ingredients');
 assert.throws(()=>compare(parts,rows.slice(0,1)),/USAGE_VARIANCE_INCOMPLETE/);
 assert.throws(()=>compare(parts,[rows[1],rows[0]]),/USAGE_VARIANCE_INVALID/);
 assert.throws(()=>compare([{...parts[0],amount:0},parts[1]],rows),/USAGE_VARIANCE_INVALID/);

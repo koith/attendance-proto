@@ -32,6 +32,10 @@ const lanes=[
  // QA-06: verify the actual shipped payroll engine's clock deltas and rehire spans.
  ['실제 급여 엔진 시각차·지각/조퇴 시간 계산','qa_payroll_clock_variance_v1.mjs'],
  ['실제 급여 엔진 퇴사·재입사 공백/중복지급 차단','qa_payroll_rehire_periods_v1.mjs'],
+ // Existing QA-06 missing scenarios / PAY-02: separate failures in one run.
+ ['시급제 계약시간창 조기출근 급여 산식','qa_payroll_hourly_scheduled_window_v1.mjs'],
+ ['관리자 주차 급여 승인 경계','qa_payroll_approval_engine_fixture_v1.mjs'],
+ ['직원별 PDF·XLSX ZIP 검증과 미확정 공제 차단','qa_payroll_batch_export_v1.test.mjs'],
  ['급여 마감 서버 권한','qa_payroll_close_server_authority_v1.mjs'],
  ['지점간 급여 격리','qa_store_payroll_isolation_v1.mjs'],
  ['실제 엔진 다직원 근태→급여→시트 페이로드','qa_store_opening_payroll_sheet_v1.mjs'],
@@ -58,6 +62,8 @@ const lanes=[
  ['직원 공용 POS 모바일 실사 Enter 빠른 추가·수량 재입력','qa_staff_stocktake_fast_mobile_entry_v350.mjs'],
  ['미입고/부분입고 발주·포장단위 중복 차단','qa_stock_reorder_net_pending_v1.mjs'],
  ['온리원 공급사 미입고 발주 선택·단위·중복·지점 격리','qa_supplier_order_handoff_v1.mjs'],
+ // QA-07 / MTG-12: material cost must stay unverified without provenance.
+ ['재료 매입액 vs 실재료 사용원가 구분·원본 격리','qa_operations_material_cost_safe_v1.mjs'],
  ['재고 미확인·데모 수량 제외','qa_inventory_real_metrics_v1.mjs'],
  ['지점별 POS/배달/매출 접근 경계','qa_store_operations_isolation_v1.mjs'],
  ['POS/매출 CSV 형식·주입 오류 거부','qa_operations_csv_integrity_v1.mjs'],

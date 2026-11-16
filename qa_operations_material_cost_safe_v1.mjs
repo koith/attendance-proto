@@ -20,6 +20,18 @@ for(const value of [null,undefined,'',-1,'-7',1.5,'1.5',NaN,Infinity,'15,000',Nu
  assert.equal(r.purchaseAmount,null,'unsafe purchase must not become zero: '+String(value));
  assert.equal(r.materialCost,null,'unknown usage cost must not be estimated');
 }
+// MTG-12: verified price reports must match explicit store/month provenance.
+const scoped={purchases:600,store_id:1,ym:'2026-10',material_cost:{
+ status:'VERIFIED',basis:'PRICED_MOVEMENTS_AND_POSTED_COUNTS',
+ material_cost:550,items:3,store_id:1,ym:'2026-10'}};
+assert.equal(costGuard(scoped).materialCost,550);
+for(const bad of [{...scoped.material_cost,store_id:2},
+ {...scoped.material_cost,ym:'2026-09'}]){
+ assert.equal(costGuard({...scoped,material_cost:bad}).materialCost,null,
+  'cross-store or stale-month material cost must not be shown as verified');
+}
+assert.equal(costGuard({...scoped,store_id:undefined}).ready,false);
+assert.equal(costGuard({...scoped,ym:undefined}).ready,false);
 assert.equal(costGuard(null).materialCost,null);
 assert.match(src,/id="opsMaterialCostSafety"/);
 assert.match(src,/cost\.ready\?won\(cost\.materialCost\):"미산출/);

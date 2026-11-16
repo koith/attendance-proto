@@ -7,7 +7,7 @@ const ops=fs.readFileSync('operations_v1.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261018212000_store_sale_sku_preview.sql','utf8');
 const version=html.match(/const APP_VERSION="v0\.(\d+)"/)?.[1];
 assert.ok(Number(version)>=328,"SKU mapping preview must remain present in later releases");
-assert.match(html,/operations_sale_sku_preview_v1\.js\?v=20261019v341/);
+assert.match(html,/operations_sale_sku_preview_v1\.js\?v=20261117v388/);
 assert.match(html,/async saleNameCandidates\(from,to\)\{ return rpc\("admin_store_sale_name_candidates"/);
 assert.match(js,/id="opsLoadRealSaleNames"/);
 assert.match(js,/await BE\.saleNameCandidates\(from,to\)/);
@@ -45,6 +45,10 @@ assert.deepEqual(parse(responses,a).map(x=>[x.status,x.product]),[
 assert.throws(()=>parse(responses.slice(0,4),a),/SKU_RESPONSE_COUNT_MISMATCH/);
 assert.throws(()=>parse([{...responses[0],product_id:null},...responses.slice(1)],a),/SKU_RESPONSE_INVALID_PRODUCT/);
 assert.throws(()=>parse([{...responses[0],input_index:2},...responses.slice(1)],a),/SKU_RESPONSE_INVALID/);
+assert.throws(()=>parse([{...responses[0],matched_alias:''},...responses.slice(1)],a),
+ /SKU_RESPONSE_MISSING_PROVENANCE/);
+assert.throws(()=>parse([{...responses[0],product_name:' '},...responses.slice(1)],a),
+ /SKU_RESPONSE_MISSING_PROVENANCE/);
 assert.throws(()=>parse([{...responses[0],match_status:'AUTO_APPROVED'},...responses.slice(1)],a),/SKU_RESPONSE_INVALID/);
 const cstart=js.indexOf('function parseSaleNameCandidates('),cend=js.indexOf('window.openStoreSaleSkuPreview=',cstart);
 assert.ok(cstart>0&&cend>cstart);
