@@ -6,22 +6,27 @@ const err=code=>{throw Error('MONTHLY_OWNER_GAS_'+code)};
 export function inspectMonthlyGasTokenInfo(info,{clientId,driveAbout}={}){
  if(!info||typeof info!=='object')err('TOKENINFO_MISSING');
  if(typeof clientId!=='string'||!clientId)err('CLIENT_ID_REQUIRED');
- const email=String(info.email||'').trim().toLowerCase();
+ // tokeninfo on access-token grants may omit email. A separate signed
+ // Drive about.get self-identity response from the SAME bearer is acceptable
+ // only with me=true and a concrete permissionId; never trust a caller label.
+ const tokenEmail=String(info.email||'').trim().toLowerCase();
+ const driveUser=driveAbout?.user;
+ const driveEmail=String(driveUser?.emailAddress||'').trim().toLowerCase();
+ const verifiedDrive=driveUser?.me===true&&/^[A-Za-z0-9_-]{5,}$/.test(String(driveUser.permissionId||''));
+ if(tokenEmail&&driveEmail&&tokenEmail!==driveEmail)err('OAUTH_DRIVE_IDENTITY_MISMATCH');
+ const email=tokenEmail||(verifiedDrive?driveEmail:'');
  // Google tokeninfo on an access-token grant can omit email_verified.
  // A field explicitly saying FALSE is never overridden. When absent, accept
  // only independent Google Drive about.get proof for the very same bearer.
  if(info.email_verified===false||info.email_verified==='false'||
     info.verified_email===false||info.verified_email==='false')err('OAUTH_EMAIL_UNVERIFIED');
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))err('OAUTH_EMAIL_MISSING');
- const driveUser=driveAbout?.user;
- if(driveAbout!==null && driveAbout!==undefined &&
-   (!driveUser||driveUser.me!==true||
-    String(driveUser.emailAddress||'').trim().toLowerCase()!==email||
-    !/^[A-Za-z0-9_-]{5,}$/.test(String(driveUser.permissionId||''))))
+ if(driveAbout!==null&&driveAbout!==undefined&&
+    (!verifiedDrive||driveEmail!==email))
     err('OAUTH_DRIVE_IDENTITY_MISMATCH');
  const tokenVerified=info.email_verified===true||info.email_verified==='true'||
    info.verified_email===true||info.verified_email==='true';
- const independentProof=tokenVerified||!!driveUser;
+ const independentProof=tokenVerified||verifiedDrive;
  if(String(info.aud||'')!==clientId)err('OAUTH_CLIENT_MISMATCH');
  const sub=String(info.sub||'');
  if(!/^[A-Za-z0-9_-]{8,}$/.test(sub))err('OAUTH_SUBJECT_INVALID');

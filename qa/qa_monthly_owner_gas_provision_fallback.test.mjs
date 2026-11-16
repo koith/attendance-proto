@@ -178,3 +178,31 @@ test('two independent Google OAuth grants may attest same owner when verified fl
  assert.match(provision,/MONTHLY_OWNER_GAS_API_HTTP_\(401\|403\|404\)/);
  assert.match(provision,/driveAbout=null/);
 });
+
+test('missing tokeninfo email uses only verified Google Drive about self-proof',async()=>{
+ const id='synthetic-12345.apps.googleusercontent.com',email='webuielf@gmail.com';
+ const common={aud:id,sub:'123456789012345678901',expires_in:'3500',scope:QA1243_RUNNER_SCOPES.join(' ')};
+ const about={user:{me:true,emailAddress:email,permissionId:'123456789012345678'}};
+ assert.deepEqual(verifyMonthlyGasIdentity(common,{expectedOwner:email,clientId:id,driveAbout:about}),
+  {ownerVerified:true,scopesVerified:true,clientVerified:true});
+ for(const bad of [
+  {user:{...about.user,me:false}},
+  {user:{...about.user,emailAddress:'wrong@example.test'}},
+  {user:{...about.user,permissionId:'bad?'}},
+  {user:{}}
+ ])assert.throws(()=>verifyMonthlyGasIdentity(common,{expectedOwner:email,clientId:id,driveAbout:bad}),/MONTHLY_OWNER_GAS_/);
+ assert.throws(()=>verifyMonthlyGasIdentity({...common,email:'wrong@example.test'},{
+  expectedOwner:email,clientId:id,driveAbout:about}),/OAUTH_DRIVE_IDENTITY_MISMATCH/);
+ assert.throws(()=>verifyMonthlyGasIdentity({...common,email_verified:'false'},{
+  expectedOwner:email,clientId:id,driveAbout:about}),/OAUTH_EMAIL_UNVERIFIED/);
+ assert.throws(()=>verifyMonthlyGasIdentity(common,{
+  expectedOwner:email,clientId:id,driveAbout:null}),/OAUTH_EMAIL_MISSING/);
+ const family=[{name:'qa',clientId:id,clientSecret:'qa',refreshToken:'qa'}];
+ const verified=await selectTrustedMonthlyGasCredential({
+  families:family,expectedOwner:email,
+  probe:async()=>({accessToken:'synthetic',info:common,driveAbout:about})
+ });
+ assert.equal(verified.ownerPolicy,'original');
+ assert.match(provision,/oauth2\/v1\/userinfo\?alt=json/);
+ assert.match(provision,/OAUTH_SUBJECT_CONFLICT/);
+});

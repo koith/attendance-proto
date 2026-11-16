@@ -52,7 +52,27 @@ const verified=await selectTrustedMonthlyGasCredential({
    // with exactly the same tokeninfo email AND immutable Google subject.
    if(!/^MONTHLY_OWNER_GAS_API_HTTP_(401|403|404)$/.test(String(e?.message||'')))throw e;
   }
-  return {accessToken:res.access_token,info,driveAbout};
+  // Google's documented v1 userinfo endpoint is an independent read using
+  // the SAME access token. This can return verified_email/id for legacy grants
+  // when access-token tokeninfo does not include the email claim.
+  let identityInfo=info;
+  if(!String(info.email||'').trim()&&!String(driveAbout?.user?.emailAddress||'').trim()){
+   try{
+    const profile=await call('https://www.googleapis.com/oauth2/v1/userinfo?alt=json',{
+     headers:{Authorization:'Bearer '+res.access_token}
+    });
+    const sub=String(profile.id||'');
+    const verified=profile.verified_email===true||profile.verified_email==='true'||
+       profile.email_verified===true||profile.email_verified==='true';
+    if(verified&&typeof profile.email==='string'&&/^[A-Za-z0-9_-]{8,}$/.test(sub)){
+     if(info.sub&&String(info.sub)!==sub)throw Error(ERR+'OAUTH_SUBJECT_CONFLICT');
+     identityInfo={...info,email:profile.email,email_verified:true,sub:info.sub||sub};
+    }
+   }catch(e){
+    if(!/^MONTHLY_OWNER_GAS_API_HTTP_(401|403|404)$/.test(String(e?.message||'')))throw e;
+   }
+  }
+  return {accessToken:res.access_token,info:identityInfo,driveAbout};
  }
 });
 const auth={Authorization:'Bearer '+verified.accessToken};
