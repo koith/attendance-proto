@@ -3,6 +3,7 @@ BEGIN;
 -- Purely isolated fixture DB. Never import actual user emails/sessions.
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
+CREATE ROLE service_role NOLOGIN;
 CREATE ROLE authenticator NOLOGIN;
 CREATE SCHEMA auth;
 CREATE TABLE auth.sessions(id uuid PRIMARY KEY,user_id uuid NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
@@ -14,6 +15,7 @@ INSERT INTO auth.sessions(id,user_id,created_at) VALUES
  ('cccccccc-cccc-cccc-cccc-cccccccccccc','22222222-2222-2222-2222-222222222222',now()-interval '1 hour');
 \ir supabase/migrations/20261017050000_single_admin_session_guard_prepare.sql
 \ir security/sec01_session_revocation_guard_v1.sql
+\ir supabase/migrations/20261117104000_session_guard_service_role_pre_request.sql
 DO $qa$
 DECLARE selected uuid;
 BEGIN
@@ -24,11 +26,19 @@ BEGIN
  IF has_table_privilege('anon','session_guard.latest_session','SELECT')
  OR has_table_privilege('authenticated','session_guard.latest_session','SELECT')
  THEN RAISE EXCEPTION 'Sensitive session table readable'; END IF;
+ IF NOT has_schema_privilege('service_role','session_guard','USAGE')
+ OR NOT has_function_privilege('service_role','session_guard.require_latest_session()','EXECUTE')
+ THEN RAISE EXCEPTION 'Internal server role cannot execute pre-request hook'; END IF;
+ IF has_table_privilege('service_role','session_guard.latest_session','SELECT')
+ THEN RAISE EXCEPTION 'Internal server role gained private session table SELECT'; END IF;
  IF NOT has_function_privilege('anon','session_guard.require_latest_session()','EXECUTE')
  OR NOT has_function_privilege('authenticated','session_guard.require_latest_session()','EXECUTE')
  THEN RAISE EXCEPTION 'Guest/admin pre-request hook invocation privilege missing'; END IF;
 END $qa$;
 
+SET LOCAL ROLE service_role;
+SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
+SELECT session_guard.require_latest_session(); -- internal server writer must not get 42501
 SET LOCAL ROLE anon;
 SELECT set_config('request.jwt.claims','{"role":"anon"}',true);
 DO $qa$
