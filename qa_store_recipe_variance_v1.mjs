@@ -9,10 +9,12 @@ const html=fs.readFileSync('index.html','utf8');
 const context={window:{}};vm.runInNewContext(script,context);
 const compare=context.window.computeStoreRecipeVariance;
 assert.equal(typeof compare,'function');
-assert.match(html,/operations_recipe_variance_v1\.js\?v=20261117v388/);
+assert.match(html,/operations_recipe_variance_v1\.js\?v=20261117v389/);
 assert.match(sku,/compareStoreRecipeUsage|computeStoreRecipeVariance/);
 assert.match(sku,/관측 재료 사용량·폐기·서비스·허용오차 과부족 대조/);
 assert.match(sku,/판매수량이 변경되었습니다. 예상 사용량을 다시 계산해야 합니다/);
+assert.match(sku,/variance\.addEventListener\("input",event=>/);
+assert.match(sku,/관측 입력이 변경되었습니다. 과부족을 다시 계산하세요/);
 assert.doesNotMatch(script,/(?:\bfetch\(|\.rpc\(|\.insert\(|\.update\(|\.delete\()/);
 const parts=[{id:11,name:'원두',unit:'g',amount:150},{id:12,name:'우유',unit:'ml',amount:600}];
 const rows=[
