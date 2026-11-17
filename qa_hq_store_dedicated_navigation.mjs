@@ -1,19 +1,62 @@
 import {execFileSync} from 'node:child_process';
-execFileSync(process.execPath,['--check','hq_owner_console.js'],{stdio:'inherit'});
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+execFileSync(process.execPath,['--check','hq_owner_console.js'],{stdio:'inherit'});
 const html=fs.readFileSync('index.html','utf8');
 assert.match(html,/const STORE_ENTRY_URL=\(id\)=>location\.pathname\+"\?mode=store&store="\+encodeURIComponent\(id\)\+"#pos"/);
-assert.match(html,/const bindStoreButtons=\(\)=>[\s\S]{0,240}location\.assign\(STORE_ENTRY_URL\(Number\(c\.dataset\.store\)\)\)/);
-assert.match(html,/if\(location\.hash==="#dashboard"\)location\.assign\(STORE_ENTRY_URL\(id\)\)/);
+assert.match(html,/class="hq-store-detail-link" href="'\+safeHtml\(STORE_ENTRY_URL\(Number\(r\.store_id\)\)\)\+'" target="_blank" rel="noopener noreferrer">상세/);
+assert.match(html,/\.hq-store-head a\.hq-store-detail-link\{/);
+assert.doesNotMatch(html,/bindStoreButtons|hq-store-panel button"\)\.forEach/);
+assert.match(html,/sel\.innerHTML='<option value="" disabled>지점 선택<\/option>'/);
+assert.match(html,/if\(showSelector\)sel\.value=""/);
+assert.match(html,/window\.open\(STORE_ENTRY_URL\(id\),"_blank","noopener,noreferrer"\)/);
+assert.doesNotMatch(html,/location\.assign\(STORE_ENTRY_URL\(id\)\)/);
 assert.match(html,/if\(STORE_ENTRY_LOCK\)return;/);
 assert.match(html,/if\(h==="dashboard"\)\{if\(STORE_ENTRY_LOCK\)/);
 const version=html.match(/const APP_VERSION="(v[0-9.]+)"/)?.[1];
 assert.ok(version,'app version must exist');
-assert.ok(new RegExp('id="appVersion"[^>]*>'+version.replace(/[.]/g,'[.]')+'</button>').test(html),'header version button must match app version');
+assert.ok(new RegExp('id="appVersion"[^>]*>'+version.replace(/[.]/g,'[.]')+'</button>').test(html));
 assert.match(html,/id="hqOwnerManagement"[^>]*>지점 관리<\/button>/);
 assert.match(html,/getElementById\("hqOwnerManagement"\)\.onclick=\(\)=>\{ void openAccountMgmt\("owners"\); \}/);
 assert.match(html,/async function openAccountMgmt\(mode="accounts"\)/);
 assert.match(html,/window\.mountHqOwnerConsole/);
 assert.match(html,/hq_owner_console\.js\?v=/);
-console.log('PASS HQ store navigation always enters store-locked URL');
+
+// Execute the precise production selector handler with synthetic HQ and store contexts.
+const start=html.indexOf(' const applyStore=id=>');
+const end=html.indexOf('\n sel.onchange=',start);
+assert.ok(start>0 && end>start,'production selector handler found');
+const handler=html.slice(start,end);
+function fixture(hash,locked=false) {
+ const opens=[],storage=[],routes=[];
+ const location={hash,pathname:'/attendance-proto/index.html'};
+ const sel={value:'187',selectedOptions:[{text:'산본역점'}]};
+ const window={open(...args){opens.push(args);return null;}};
+ const sessionStorage={setItem(...args){storage.push(args);}};
+ const STORE_NAME_BY_ID=new Map([[1,'인하대학교점'],[187,'산본역점']]);
+ const make=new Function('location','window','sel','STORE_ENTRY_LOCK','STORE_ENTRY_URL','sessionStorage','STORE_NAME_BY_ID','route','CURRENT_STORE_ID',
+    handler+'\nreturn {applyStore, current:()=>CURRENT_STORE_ID};');
+ const instance=make(location,window,sel,locked,id=>location.pathname+'?mode=store&store='+encodeURIComponent(id)+'#pos',sessionStorage,STORE_NAME_BY_ID,()=>routes.push('route'),1);
+ return {instance,location,sel,opens,storage,routes};
+}
+const hq=fixture('#dashboard');
+hq.instance.applyStore('187');
+assert.deepEqual(hq.opens,[['/attendance-proto/index.html?mode=store&store=187#pos','_blank','noopener,noreferrer']]);
+assert.equal(hq.location.hash,'#dashboard');
+assert.equal(hq.instance.current(),1);
+assert.deepEqual(hq.storage,[]);
+assert.deepEqual(hq.routes,[]);
+assert.equal(hq.sel.value,'','combo resets so the same store can be opened again');
+hq.instance.applyStore('187');
+hq.instance.applyStore('1');
+assert.equal(hq.opens.length,3,'repeat and default store can both open in new tabs');
+const invalid=fixture('#dashboard');
+invalid.instance.applyStore('0');invalid.instance.applyStore('oops');
+assert.equal(invalid.opens.length,0,'invalid store ids cannot open tabs');
+const store=fixture('#pos');
+store.instance.applyStore('187');
+assert.equal(store.opens.length,0,'store-local route keeps existing behavior');
+assert.equal(store.instance.current(),187);
+assert.deepEqual(store.storage.slice(0,1),[['baekeok_store_id','187']]);
+assert.equal(store.routes.length,1);
+console.log('PASS HQ native details link + header combo open dedicated store in new tab, original dashboard intact');
