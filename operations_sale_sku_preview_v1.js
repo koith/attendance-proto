@@ -129,12 +129,13 @@ window.openStoreSaleSkuPreview=function(){
  });
  const load=modal.querySelector("#opsLoadRealSaleNames");
  const save=modal.querySelector("#opsSaleSkuExport"),usage=modal.querySelector("#opsSaleRecipeUsage");
- let verifiedPreview=null,verifiedInput="";
+ let verifiedPreview=null,verifiedInput="",verifiedStore=null;
+ const activeStore=()=>Number(CURRENT_STORE_ID)||1;
  modal.querySelector("#opsSaleNames").addEventListener("input",()=>{
-  verifiedPreview=null;verifiedInput="";save.disabled=true;usage.disabled=true;
+  verifiedPreview=null;verifiedInput="";verifiedStore=null;save.disabled=true;usage.disabled=true;
  });
  save.onclick=()=>{
-  if(!verifiedPreview||modal.querySelector("#opsSaleNames").value!==verifiedInput){
+  if(!verifiedPreview||verifiedStore!==activeStore()||modal.querySelector("#opsSaleNames").value!==verifiedInput){
    save.disabled=true;output.textContent="입력이 변경되었습니다. 먼저 다시 검사해 주세요.";return;
   }
   try{
@@ -149,7 +150,12 @@ window.openStoreSaleSkuPreview=function(){
  usage.onclick=async()=>{
   const area=modal.querySelector("#opsSaleNames");
   if(!verifiedPreview||area.value!==verifiedInput||usage.disabled)return;
-  const store=Number(CURRENT_STORE_ID)||1;
+  const store=activeStore();
+  if(verifiedStore!==store){
+   usage.disabled=true;
+   modal.querySelector("#opsSaleRecipeUsageResult").textContent="지점이 변경되었습니다. 품목 매핑부터 다시 검사하세요.";
+   return;
+  }
   const amounts=[...modal.querySelectorAll("[data-sale-units]")].map(el=>el.value);
   const display=modal.querySelector("#opsSaleRecipeUsageResult");
   usage.disabled=true;display.textContent="지점별 현재 적용 레시피를 조회해 예상 사용량 계산 중…";
@@ -187,10 +193,17 @@ window.openStoreSaleSkuPreview=function(){
      '<button type="button" id="opsUsageVarianceRun" class="btn btn-secondary">입력 증거 기준 과부족 확인</button>'+
      '<div id="opsUsageVarianceResult" role="status" aria-live="polite">검토 전 · 데이터 미입력은 안전/정상 판정이 아닙니다.</div>';
    display.appendChild(variance);
+   // Never leave a previously calculated over/under result visible after a
+   // manager edits observed quantities, waste, service, or tolerance.
+   variance.addEventListener("input",event=>{
+     if(event.target?.matches?.("[data-usage-field]"))
+       variance.querySelector("#opsUsageVarianceResult").textContent=
+         "관측 입력이 변경되었습니다. 과부족을 다시 계산하세요.";
+   });
    variance.querySelector("#opsUsageVarianceRun").onclick=()=>{
      const resultNode=variance.querySelector("#opsUsageVarianceResult");
      try{
-       if(area.value!==verifiedInput||(Number(CURRENT_STORE_ID)||1)!==store)
+       if(area.value!==verifiedInput||activeStore()!==store||verifiedStore!==store)
          throw Error("판매명 또는 지점이 변경되어 다시 검증해야 합니다.");
        const updated=[...modal.querySelectorAll("[data-sale-units]")].map(el=>el.value);
        if(updated.length!==amounts.length||updated.some((x,i)=>x!==amounts[i]))
@@ -224,11 +237,16 @@ window.openStoreSaleSkuPreview=function(){
    note.textContent="매출·매입 조회 기간을 먼저 설정해 주세요.";return;
   }
   if(area.value.trim()&&!window.confirm("현재 입력한 판매명을 확인된 실거래 메뉴명으로 바꾸시겠습니까?"))return;
-  load.disabled=true;save.disabled=true;usage.disabled=true;verifiedPreview=null;verifiedInput="";
+  const requestStore=activeStore();
+  load.disabled=true;save.disabled=true;usage.disabled=true;verifiedPreview=null;verifiedInput="";verifiedStore=null;
   note.textContent="확인된 실매출 메뉴명을 조회 중…";
   try{
    const rows=parseSaleNameCandidates(await BE.saleNameCandidates(from,to));
    if(!modal.isConnected)return;
+   if(activeStore()!==requestStore){
+    note.textContent="조회 중 지점이 변경되었습니다. 현재 지점에서 다시 조회하세요.";
+    return;
+   }
    if(!rows.length){
     note.textContent="선택 기간에 확인된 실거래 메뉴명이 없습니다. 시연 데이터는 불러오지 않습니다.";
     return;
@@ -244,13 +262,18 @@ window.openStoreSaleSkuPreview=function(){
   if(!names.length||names.length>100||names.some(x=>x.length>120)){
    output.textContent="판매명 1~100개를 입력하고 항목별 120자 이내로 제한해 주세요.";return;
   }
-  save.disabled=true;usage.disabled=true;verifiedPreview=null;verifiedInput="";
+  save.disabled=true;usage.disabled=true;verifiedPreview=null;verifiedInput="";verifiedStore=null;
+  const requestStore=activeStore();
   run.disabled=true;output.textContent="승인된 지점 품목 매핑 확인 중…";
   try{
    const original=modal.querySelector("#opsSaleNames").value;
    const rows=parseSkuPreview(await BE.saleSkuPreview(names),names);
    if(!modal.isConnected||modal.querySelector("#opsSaleNames").value!==original)return;
-   verifiedPreview=rows;verifiedInput=original;save.disabled=false;usage.disabled=rows.some(x=>x.status!=="EXACT");
+   if(activeStore()!==requestStore){
+    output.textContent="매핑 조회 중 지점이 변경되었습니다. 현재 지점에서 다시 검사하세요.";
+    return;
+   }
+   verifiedPreview=rows;verifiedInput=original;verifiedStore=requestStore;save.disabled=false;usage.disabled=rows.some(x=>x.status!=="EXACT");
    modal.querySelector("#opsSaleRecipeUsageResult").textContent=usage.disabled?"자동 소모량 계산 불가: 모든 판매명이 EXACT(지점 승인 별칭 일치)여야 합니다. 행사명 후보·미확인 SKU는 계산하지 않습니다.":"각 판매명의 실제 판매수량을 직접 입력해야만 예상 사용량을 계산합니다. 현재 POS 거래건수는 판매수량이 아닙니다.";
    const labels={EXACT:"지점 승인 별칭 일치",PROMOTION:"행사명 후보 (확인 필요)",
     AMBIGUOUS:"복수 품목 충돌 · 수동 검토",UNMAPPED:"매핑 미확인 · 판매량 반영 금지"};
