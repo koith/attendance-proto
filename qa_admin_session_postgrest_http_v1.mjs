@@ -30,6 +30,11 @@ assert.equal(unguarded.status,200,
  'Stale but cryptographically valid admin JWT should pass an intentionally unguarded HTTP API: '+unguarded.status+' '+unguarded.body.slice(0,180));
 const anon=await rpc(null);
 assert.equal(anon.status,200,'anon POS/public RPC must work when pre-request enabled: '+anon.status+' '+anon.body.slice(0,180));
+// Real PostgREST uses db_pre_request for the service-role Edge client too.
+// This once returned HTTP 42501 and blocked deployment payroll Sheet refresh.
+const internal=await rpc(jwt('service_role',uid,null));
+assert.equal(internal.status,200,
+ 'service_role pre-request was denied (deployment Sheet 42501): '+internal.status+' '+internal.body.slice(0,180));
 const working=await rpc(jwt('authenticated',uid,latest));
 assert.equal(working.status,200,'latest admin login denied: '+working.status+' '+working.body.slice(0,180));
 const stale=await rpc(jwt('authenticated',uid,old));
@@ -63,4 +68,4 @@ assert.match(revokedLogout.body,/SESSION_SUPERSEDED/,
 const stillStaffAfterLogout=await rpc(jwt('authenticated',staff,null));
 assert.equal(stillStaffAfterLogout.status,200,'admin logout must not affect employees');
 assert.equal((await rpc(null)).status,200,'admin logout must not affect shared POS');
-console.log('PASS SEC-01 real HTTP: unguarded stale JWT=200 (reproduced), guarded stale JWT denied; anon=200, staff=200, fresh admin=200, missing denied, new login revokes previous; PG16/17 isolated');
+console.log('PASS SEC-01 real HTTP: unguarded stale JWT=200 (reproduced), guarded stale JWT denied; anon=200, service_role=200, staff=200, fresh admin=200, missing denied, new login revokes previous; PG16/17 isolated');
