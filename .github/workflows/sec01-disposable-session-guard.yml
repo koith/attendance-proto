@@ -13,6 +13,7 @@ on:
     branches: [main, feat/admin-single-device-session-992]
     paths:
       - 'supabase/migrations/20261017050000_single_admin_session_guard_prepare.sql'
+      - 'supabase/migrations/20261117104000_session_guard_service_role_pre_request.sql'
       - 'qa_admin_single_session_postgres.sql'
       - 'qa_admin_session_postgrest_setup.sql'
       - 'qa_admin_session_postgrest_http_v1.mjs'
