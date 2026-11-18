@@ -6,7 +6,7 @@ const entry=readFileSync("owner_activation.html","utf8");
 assert.match(entry,/owner_activation\.js\?v=20261118hq390/);
 const index=readFileSync("index.html","utf8");
 
-assert.equal((index.match(/const APP_VERSION="(v\d+\.\d+)"/)||[])[1],"v0.390");
+assert.equal((index.match(/const APP_VERSION="(v\d+\.\d+)"/)||[])[1],"v0.391");
 assert.match(index,/href="\.\/hq_password_setup\.html" rel="noopener noreferrer"/);
 assert.match(owner,/sessionStorage\.setItem\("baekeok_hq_account_recovery_v1"/);
 assert.match(owner,/scope\?\.role!=="HQ"\|\|scope\.store_id!==null/);

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+<title>백억커피 · 본사 관리자 계정 개통</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;color:#20372b;background:#f4f8f5}
+*{box-sizing:border-box}body{margin:0;padding:26px 16px}main{max-width:480px;margin:32px auto;padding:28px 24px;background:#fff;border:1px solid #d7e8dc;border-radius:17px;box-shadow:0 6px 28px #173d2610}
+h1{font-size:1.35rem;line-height:1.5;margin:8px 0 14px}p{line-height:1.6;color:#476453;font-size:.91rem}
+label{display:block;margin:16px 0 5px;font-size:.91rem;font-weight:700}input{width:100%;min-height:48px;border:1px solid #aebeb3;border-radius:9px;padding:11px 12px;font-size:16px}
+button{width:100%;min-height:48px;margin-top:18px;background:#245e40;color:white;border:0;border-radius:9px;font-size:1rem;font-weight:750;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}#status{min-height:36px;white-space:pre-line;overflow-wrap:anywhere}a{color:#245e40}form[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+<h1>본사 관리자 계정 개통</h1>
+<p>이미 등록됐지만 이메일 인증이 완료되지 않은 본사 관리자 계정을, 로그인된 본사 운영자가 최초 1회 개통합니다. 구글 메일 계정 비밀번호와 관계없는 백억커피 앱 로그인 비밀번호입니다.</p>
+<form id="provisionForm" hidden>
+<label for="email">개통할 본사 관리자 이메일</label>
+<input id="email" type="email" autocomplete="off" maxlength="254" required>
+<label for="password">백억커피 앱 초기 비밀번호 (영문·숫자 포함, 10자 이상)</label>
+<input id="password" type="password" autocomplete="new-password" minlength="10" maxlength="128" required>
+<label for="repeat">초기 비밀번호 확인</label>
+<input id="repeat" type="password" autocomplete="new-password" minlength="10" maxlength="128" required>
+<button id="submitBtn" type="submit">본사 관리자 계정 개통 확정</button>
+</form>
+<p id="status" role="status" aria-live="polite">본사 운영자 로그인 권한을 확인하고 있습니다.</p>
+<p>개통 후에는 대상 계정으로 백억커피 앱에 로그인해 확인하세요. 이미 개통된 계정의 비밀번호는 이 화면에서 변경할 수 없습니다.</p>
+<p><a href="./index.html#dashboard">본사 대시보드로 돌아가기</a></p>
+</main>
+<script>
+(async function(){
+"use strict";
+const status=document.getElementById("status");
+const form=document.getElementById("provisionForm");
+const display=msg=>{status.textContent=String(msg)};
+const button=document.getElementById("submitBtn");
+let config,token;
+try {
+ const saved=JSON.parse(localStorage.getItem("baekeok_auth")||"null");
+ token=saved?.access_token;
+ if(typeof token!=="string"||!token)throw Error("LOGIN_REQUIRED");
+ const src=await fetch("./index.html",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("APP_CONFIG_UNAVAILABLE");return r.text()});
+ const url=src.match(/SUPABASE_URL:\s*"(https:\/\/[^"]+)"/)?.[1];
+ const key=src.match(/SUPABASE_ANON_KEY:\s*"([^"]+)"/)?.[1];
+ if(url!=="https://waluhdgqhwjjwmflhrle.supabase.co"||!key)throw Error("APP_CONFIG_INVALID");
+ config={url,key};
+ const headers={apikey:key,Authorization:"Bearer "+token,"Content-Type":"application/json"};
+ const [userResp,ctxResp]=await Promise.all([
+   fetch(url+"/auth/v1/user",{headers,cache:"no-store"}),
+   fetch(url+"/rest/v1/rpc/admin_context",{method:"POST",headers,body:"{}",cache:"no-store"})
+ ]);
+ const user=await userResp.json().catch(()=>null),ctx=await ctxResp.json().catch(()=>null);
+ if(!userResp.ok||!ctxResp.ok||!user?.id||!user.email_confirmed_at||
+    ctx?.role!=="HQ"||ctx.store_id!==null||
+    String(ctx.email||"").toLowerCase()!==String(user.email||"").toLowerCase())
+   throw Error("HQ_OPERATOR_REQUIRED");
+ form.hidden=false;
+ display("본사 운영자 인증 완료. 개통할 계정과 초기 비밀번호를 입력하세요.");
+} catch {
+ display("본사 운영자 로그인 확인이 필요합니다. 대시보드에서 본사 관리자 계정으로 로그인한 뒤 다시 열어주세요.");
+}
+form.addEventListener("submit",async event=>{
+ event.preventDefault();
+ const email=document.getElementById("email").value.trim().toLowerCase();
+ const password=document.getElementById("password").value;
+ const repeat=document.getElementById("repeat").value;
+ if(password!==repeat||password.length<10||password.length>128||
+    !/[A-Za-z]/.test(password)||!/[0-9]/.test(password)){
+   display("영문·숫자를 포함한 동일한 비밀번호(10~128자)를 입력하세요.");return;
+ }
+ if(!confirm("이 본사 관리자 계정을 초기 비밀번호로 개통하시겠습니까?\n\n대상: "+email+"\n\n이 작업은 아직 인증되지 않은 본사 관리자 계정에만 적용됩니다."))return;
+ button.disabled=true;display("서버에서 본사 권한과 대상 계정을 확인하고 있습니다.");
+ try {
+   const response=await fetch(config.url+"/functions/v1/hq-pending-account-provision",{
+     method:"POST",mode:"cors",cache:"no-store",referrerPolicy:"no-referrer",
+     headers:{apikey:config.key,Authorization:"Bearer "+token,"Content-Type":"application/json"},
+     body:JSON.stringify({email,password})
+   });
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok||data?.ok!==true){
+     const message={
+       ALREADY_CONFIRMED_USE_NORMAL_RECOVERY:"이미 인증된 계정입니다. 일반 비밀번호 복구 절차를 사용하세요.",
+       ACCOUNT_NOT_FOUND:"등록된 본사 계정을 찾지 못했습니다.",
+       TARGET_NOT_HQ:"본사 관리자 계정이 아닙니다.",
+       PASSWORD_REJECTED_BY_AUTH_POLICY:"Supabase 서버의 비밀번호 정책에 맞지 않습니다. 관리자에게 정책 확인이 필요합니다.",
+       HQ_OPERATOR_REQUIRED:"현재 로그인 계정은 본사 관리자 권한이 없습니다.",
+       OPERATOR_LOGIN_REQUIRED:"본사 관리자 로그인이 만료됐습니다. 다시 로그인해 주세요."
+     }[data?.code];
+     throw Error(message||"개통 실패 ("+String(data?.code||response.status)+")");
+   }
+   document.getElementById("password").value="";
+   document.getElementById("repeat").value="";
+   form.hidden=true;
+   display("계정 개통 완료. 대상 계정으로 백억커피 앱 로그인 여부를 확인하세요.");
+ } catch(error) { display(String(error?.message||error));button.disabled=false; }
+});
+})();
+</script>
+</body></html>
