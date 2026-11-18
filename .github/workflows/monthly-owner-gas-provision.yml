@@ -23,6 +23,10 @@ permissions:
   contents: read
 jobs:
   safety:
+    # A labeled unrelated Issue must not spend a runner on monthly-owner QA.
+    if: >-
+      github.event_name != 'issues' ||
+      (github.event.action == 'labeled' && github.event.issue.number == 1435 && github.event.label.name == 'monthly-owner-gas-source-provision' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -34,6 +38,7 @@ jobs:
           node --check scripts/provision_monthly_owner_gas.mjs
           node qa/qa_monthly_owner_delivery_1435.test.mjs
           node --test qa/qa_monthly_owner_gas_provision_fallback.test.mjs
+          node --test qa/qa_monthly_owner_label_scope.test.mjs
   provision-isolated-source:
     needs: safety
     if: >-
