@@ -5,6 +5,34 @@
 const hash=new URLSearchParams(location.hash.replace(/^#/,""));
 const token=hash.get("access_token"),refresh=hash.get("refresh_token");
 const error=hash.get("error_description")||hash.get("error");
+// Route an email-verified HQ recovery session into a separate HQ-only flow.
+// Owner and assistant recovery paths stay unchanged.
+async function routeConfirmedHqRecovery(access,refresh){
+ const source=await fetch("./index.html",{cache:"no-store"}).then(r=>{
+  if(!r.ok)throw Error("APP_CONFIG_UNAVAILABLE");return r.text();
+ });
+ const url=source.match(/SUPABASE_URL:\s*"(https:\/\/[^"]+)"/)?.[1];
+ const key=source.match(/SUPABASE_ANON_KEY:\s*"([^"]+)"/)?.[1];
+ if(url!=="https://waluhdgqhwjjwmflhrle.supabase.co"||!key)throw Error("APP_CONFIG_INVALID");
+ const headers={apikey:key,Authorization:"Bearer "+access,"Content-Type":"application/json"};
+ const scopeResp=await fetch(url+"/rest/v1/rpc/admin_context",{
+  method:"POST",headers,body:"{}"
+ });
+ if(!scopeResp.ok)return false;
+ const scope=await scopeResp.json().catch(()=>null);
+ if(scope?.role!=="HQ"||scope.store_id!==null)return false;
+ const userResp=await fetch(url+"/auth/v1/user",{headers});
+ if(!userResp.ok)throw Error("HQ_RECOVERY_USER_INVALID");
+ const user=await userResp.json().catch(()=>null);
+ if(!user?.id||String(user.email||"").toLowerCase()!==String(scope.email||"").toLowerCase())
+  throw Error("HQ_RECOVERY_SCOPE_MISMATCH");
+ sessionStorage.setItem("baekeok_hq_account_recovery_v1",JSON.stringify({
+  created_at:Date.now(),user_id:user.id,
+  session:{access_token:access,refresh_token:refresh}
+ }));
+ location.replace("./hq_password_setup.html");
+ return true;
+}
 // Official one-click recovery: email links to this static app before any
 // one-time Auth call. Mail prefetchers can GET the static URL without redeeming
 // the OTP; the browser POSTs the hash only after running the activation page.
@@ -33,6 +61,7 @@ if(hash.get("type")==="recovery"&&hash.get("token_hash")){
   const session=await result.json().catch(()=>({}));
   if(!result.ok||!session?.access_token||!session?.refresh_token||!session?.user?.id)
    throw Error("RECOVERY_LINK_INVALID_OR_EXPIRED");
+  if(await routeConfirmedHqRecovery(session.access_token,session.refresh_token))return;
   const entry={version:1,deadline:Date.now()+60*60*1000,
    session:{access_token:session.access_token,refresh_token:session.refresh_token},owner:null};
   sessionStorage.setItem("baekeok_owner_activation_pending_v1",JSON.stringify(entry));
@@ -47,7 +76,15 @@ if(hash.get("type")==="recovery"&&hash.get("token_hash")){
 // Supabase Auth verified the mailbox via a recovery link. Route this session
 // to the scoped first-login screen; it alone checks a live owner claim.
 if(hash.get("type")==="recovery"&&token&&refresh){
- location.replace("./owner_temp_activation.html"+location.hash);
+ const originalHash=location.hash;
+ history.replaceState(null,"",location.pathname);
+ try{
+  if(await routeConfirmedHqRecovery(token,refresh))return;
+ }catch(e){
+  document.getElementById("status").textContent="본사 인증 확인에 실패했습니다. 유효한 새 인증 링크를 요청해 주세요.";
+  return;
+ }
+ location.replace("./owner_temp_activation.html"+originalHash);
  return;
 }
 history.replaceState(null,"",location.pathname);

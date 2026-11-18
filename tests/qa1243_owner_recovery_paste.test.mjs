@@ -26,6 +26,9 @@ function browser({token=hash,verifyStatus=200,invalidConfig=false}={}){
     access_token:'synthetic-access',refresh_token:'synthetic-refresh',
     user:{id:'synthetic-user-id',email:'owner@example.test'}
    }:{code:'otp_expired'}};
+  if(u===url+'/rest/v1/rpc/admin_context')return {
+   ok:true,json:async()=>({role:'STORE_MANAGER',store_id:1,email:'owner@example.test'})
+  };
   throw Error('UNEXPECTED_HTTP_TARGET');
  };
  const sessionStorage={setItem(k,v){writes.set(k,v)},getItem(k){return writes.get(k)||null}};
@@ -39,7 +42,7 @@ test('single email click renders user-owned static callback, not Supabase GET',(
  assert.match(mail,/href="https:\/\/koith\.github\.io\/attendance-proto\/owner_activation\.html#type=recovery&amp;token_hash=\{\{ \.TokenHash \}\}"/);
  assert.doesNotMatch(mail,/\.ConfirmationURL/);
  assert.doesNotMatch(mail,/href="https:\/\/waluhdgqhwjjwmflhrle\.supabase\.co\/auth\/v1\/verify/);
- assert.match(html,/owner_activation\.js\?v=20261028password1/);
+ assert.match(html,/owner_activation\.js\?v=20261118hq390/);
  assert.doesNotMatch(html,/recoveryPastedLinkForm|복사한 인증 링크/);
 });
 
@@ -48,11 +51,14 @@ test('one click redeems OTP via POST and enters existing first-login page',async
  await b.done;
  assert.equal(b.form.hidden,true);
  assert.equal(b.location.replaced,'./owner_temp_activation.html');
- assert.equal(b.requests.length,2);
+ assert.equal(b.requests.length,4,'owner first-login still routes after read-only HQ role check');
+ assert.deepEqual(b.requests.map(x=>x.method),['GET','POST','GET','POST']);
  assert.equal(b.requests[0].url,'./index.html');
  assert.equal(b.requests[1].url,url+'/auth/v1/verify');
  assert.equal(b.requests[1].method,'POST');
  assert.deepEqual(JSON.parse(b.requests[1].body),{type:'recovery',token_hash:hash});
+ assert.equal(b.requests[2].url,'./index.html');
+ assert.equal(b.requests[3].url,url+'/rest/v1/rpc/admin_context');
  assert.ok(b.writes.has('baekeok_owner_activation_pending_v1'));
  const saved=JSON.parse(b.writes.get('baekeok_owner_activation_pending_v1'));
  assert.equal(saved.version,1);
