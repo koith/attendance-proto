@@ -118,7 +118,7 @@ jobs:
           retention-days: 2
 
   qa:
-    needs: develop
+    needs: [capture-intake, develop]
     if: needs.develop.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -167,7 +167,7 @@ jobs:
           retention-days: 2
 
   publish:
-    needs: qa
+    needs: [capture-intake, qa]
     if: needs.qa.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 8
