@@ -2712,7 +2712,7 @@ async function renderAccountMgmt(mode="accounts"){
       try{
         await new Promise((resolve,reject)=>{
           const script=document.createElement("script");
-          script.src="hq_owner_console.js?v=20261118hq391";
+          script.src="hq_owner_console.js?v=20261118v391";
           script.onload=resolve;
           script.onerror=()=>reject(new Error("관리자 관리 모듈 다운로드 실패"));
           document.head.appendChild(script);
@@ -4320,7 +4320,7 @@ Promise.resolve(storeStartupPromise).catch(e=>console.warn("store startup failed
 <script src="payroll_batch_export_v1.js?v=20261117v388"></script>
 <script src="store_controls_v1.js?v=20260929v066"></script>
 <script src="hq_store_onboarding_ui.js?v=20261027v370"></script>
-<script src="hq_owner_console.js?v=20261118hq391"></script>
+<script src="hq_owner_console.js?v=20261118v391"></script>
 <script src="store_manager_tab.js?v=20261017v300&amp;rev=376"></script>
 <script src="store_limited_manager.js?v=20261014v254&amp;rev=376"></script>
 <script src="version_test_toggle_982.js?v=315&amp;rev=379"></script>
