@@ -31,17 +31,20 @@ assert.match(sql,/REVOKE ALL ON FUNCTION public\.service_store_manager_attach_in
 assert.match(sql,/legacy_hq_invite_20261014/);
 
 // Password PUT must precede server-only appointment. Never trust client store_id.
-const preflightStep=activation.indexOf('"/rest/v1/rpc/store_invitation_activation_preflight"');
-const passwordStep=activation.indexOf('"/auth/v1/user"');
-const acceptStep=activation.indexOf('const activationRpc=nativeOwner?');
+// Scope ordering checks to the owner form, ignoring independent HQ recovery helpers.
+const ownerSubmit=activation.slice(activation.indexOf('form.onsubmit='));
+assert.ok(ownerSubmit.length>0,'owner activation form still exists');
+const preflightStep=ownerSubmit.indexOf('"/rest/v1/rpc/store_invitation_activation_preflight"');
+const passwordStep=ownerSubmit.indexOf('"/auth/v1/user"');
+const acceptStep=ownerSubmit.indexOf('const activationRpc=nativeOwner?');
 assert.match(activation,/store_primary_owner_accept_invitation/);
 assert.match(activation,/native_owner_invitation_complete/);
-const contextStep=activation.indexOf('"/rest/v1/rpc/admin_context"');
-const redirectStep=activation.indexOf('location.replace("index.html?mode=store');
+const contextStep=ownerSubmit.indexOf('"/rest/v1/rpc/admin_context"');
+const redirectStep=ownerSubmit.indexOf('location.replace("index.html?mode=store');
 assert.ok(preflightStep>=0 && preflightStep<passwordStep && passwordStep<acceptStep && acceptStep<contextStep && contextStep<redirectStep);
 assert.match(activation,/acceptedResponse\.ok\|\|accepted\?\.ok!==true/);
 assert.match(activation,/Number\(accepted\.store_id\)!==storeId/);
-assert.match(page,/owner_activation\.js\?v=20261028password1/);
+assert.match(page,/owner_activation\.js\?v=20261118hq390/);
 
 // HQ must display pending vs appointed separately, with no second manual click.
 assert.match(hq,/rpc\("hq_store_owner_pending_list"\)/);
