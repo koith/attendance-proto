@@ -16,7 +16,7 @@ const dev=job('develop','qa'),qa=job('qa','publish'),publish=job('publish','repo
 if(!/contents: read/.test(dev)||/contents: write/.test(dev)||!/copilot-requests: write/.test(dev))throw Error('DEVELOP_TOKEN_NOT_READ_ONLY');
 if(/OPENAI_API_KEY:/.test(qa)||/GH_TOKEN:/.test(qa)||/SUPABASE_SERVICE_ROLE_KEY:/.test(qa))throw Error('QA_SECRET_EXPOSURE');
 if(!/contents: write/.test(publish)||/copilot-requests: write/.test(publish)||/OPENAI_API_KEY:/.test(publish))throw Error('PUBLISH_TOKEN_OVERREACH');
-if(!/needs: qa/.test(publish)||!/name: agent-qa-passed-patch/.test(publish))throw Error('QA_APPROVAL_GATE_MISSING');
+if(!/needs: \[capture-intake, qa\]/.test(publish)||!/needs: \[capture-intake, develop\]/.test(qa)||!/name: agent-qa-passed-patch/.test(publish))throw Error('QA_APPROVAL_GATE_MISSING');
 if(!/state=BRIDGE_REQUIRED/.test(publish)||!/node scripts\/ai-dev\/agent_state_note\.mjs handoff/.test(publish))throw Error('AUTODEV_PR_BRIDGE_FALLBACK_MISSING');
 const statusWriter=fs.readFileSync(path.join(root,'scripts/ai-dev/agent_state_note.mjs'),'utf8');
 if(!/accepted_tasks_increment:'0'/.test(statusWriter)||!/upsertNote/.test(statusWriter))throw Error('AUTODEV_BOUNDED_STATUS_MISSING');
