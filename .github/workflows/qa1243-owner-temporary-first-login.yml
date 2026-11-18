@@ -12,6 +12,7 @@ on:
       - 'owner_temp_activation.html'
       - 'owner_temp_activation.js'
       - 'owner_activation.js'
+      - 'owner_activation.html'
       - 'hq_password_setup.html'
       - 'qa_hq_password_recovery_v390.mjs'
       - 'index.html'
