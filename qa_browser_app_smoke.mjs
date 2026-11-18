@@ -382,9 +382,25 @@ async function smoke(browser,label,viewport){
     'READY store URL should be easy to copy '+label);
   await page.locator('#accountClose').click();
 
-  await page.locator('.hq-store-panel button').first().click();
-  await page.waitForURL(/mode=store&store=/,{timeout:15000});
-  await check(!(await page.locator('#storeSelect').isVisible().catch(()=>false)),'Store should not show HQ switcher '+label);
+  // Native detail links now open a dedicated store tab. HQ must remain untouched.
+  const originalHqUrl=page.url();
+  const detailLink=page.locator('.hq-store-panel a.hq-store-detail-link').first();
+  assert.equal(await detailLink.getAttribute('target'),'_blank','detail opens a new tab '+label);
+  assert.equal(await detailLink.getAttribute('rel'),'noopener noreferrer','tab isolation '+label);
+  const [detailPage]=await Promise.all([context.waitForEvent('page',{timeout:15000}),detailLink.click()]);
+  await detailPage.waitForURL(/mode=store&store=/,{timeout:15000});
+  assert.equal(page.url(),originalHqUrl,'HQ dashboard must remain visible '+label);
+  assert.equal((new URL(page.url())).hash,'#dashboard');
+  await detailPage.close();
+  // The native select change is simulated, while window.open is observed rather than
+  // actually popping another tab (Playwright selectOption is not a trusted user tap).
+  await page.evaluate(()=>{window.__hqOpenCalls=[];window.open=(...args)=>{window.__hqOpenCalls.push(args);return null;};});
+  await page.locator('#storeSelect').selectOption('1');
+  assert.deepEqual(await page.evaluate(()=>window.__hqOpenCalls),
+    [[new URL(page.url()).pathname+'?mode=store&store=1#pos','_blank','noopener,noreferrer']],
+    'HQ header selector must request a separate store tab '+label);
+  assert.equal(await page.locator('#storeSelect').inputValue(),'','selector reselectable '+label);
+  assert.equal(page.url(),originalHqUrl,'header must not replace HQ dashboard '+label);
   if(viewport.width<500){
     const widths=await page.evaluate(()=>({doc:document.documentElement.scrollWidth,view:innerWidth}));
     assert.ok(widths.doc<=widths.view+30,'Mobile horizontal overflow: '+JSON.stringify(widths));
