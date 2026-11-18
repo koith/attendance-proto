@@ -11,6 +11,9 @@ on:
       - 'hq_store_onboarding_ui.js'
       - 'owner_temp_activation.html'
       - 'owner_temp_activation.js'
+      - 'owner_activation.js'
+      - 'hq_password_setup.html'
+      - 'qa_hq_password_recovery_v390.mjs'
       - 'index.html'
       - 'qa_store_owner_temp_first_login_1243.mjs'
       - '.github/workflows/qa1243-owner-temporary-first-login.yml'
@@ -31,6 +34,8 @@ jobs:
         run: node --check supabase/functions/server-sync-sheet/owner_invitation_email.mjs
       - name: Owner first-login security contract
         run: node qa_store_owner_temp_first_login_1243.mjs
+      - name: HQ verified email password recovery contract
+        run: node qa_hq_password_recovery_v390.mjs
       - name: Existing auth and owner eligibility regressions
         run: |
           node qa_confirmed_owner_permission_v1.mjs
