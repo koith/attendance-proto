@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 const owner=readFileSync("owner_activation.js","utf8");
 const hq=readFileSync("hq_password_setup.html","utf8");
+const entry=readFileSync("owner_activation.html","utf8");
+assert.match(entry,/owner_activation\.js\?v=20261118hq390/);
 const index=readFileSync("index.html","utf8");
 
 assert.equal((index.match(/const APP_VERSION="(v\d+\.\d+)"/)||[])[1],"v0.390");
