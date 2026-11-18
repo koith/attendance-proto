@@ -113,7 +113,7 @@ assert.match(agent,/unset GH_TOKEN GITHUB_TOKEN OPENAI_API_KEY/,
 // exact staged patch to a trusted publisher with GitHub WRITE access only after QA.
 const qaJob=agentWorkflow.split('\n  qa:\n')[1]?.split('\n  publish:\n')[0]||'';
 const publishJob=agentWorkflow.split('\n  publish:\n')[1]?.split('\n  report-failure:\n')[0]||'';
-assert.match(qaJob,/needs: develop\s+if: needs\.develop\.result == 'success'/,
+assert.match(qaJob,/needs: \[capture-intake, develop\]\s+if: needs\.develop\.result == 'success'/,
   'Independent QA must await a successful agent proposal');
 assert.match(qaJob,/permissions:\s*\n\s*contents: read/,
   'Independent QA has read-only repository permissions');
@@ -121,7 +121,7 @@ assert.match(qaJob,/run: bash scripts\/security\/run_secretless_agent_qa\.sh/,
   'Independent QA must run the secretless source acceptance suite');
 assert.doesNotMatch(qaJob,/contents: write|pull-requests: write|gh auth setup-git|git push|gh pr create/,
   'Untrusted QA must not gain publishing credentials');
-assert.match(publishJob,/needs: qa\s+if: needs\.qa\.result == 'success'/,
+assert.match(publishJob,/needs: \[capture-intake, qa\]\s+if: needs\.qa\.result == 'success'/,
   'Privileged publisher requires independent QA success');
 assert.match(publishJob,/permissions:\s*\n\s*contents: write\s*\n\s*issues: write\s*\n\s*pull-requests: write/,
   'Only the publisher can request GitHub source writes');
