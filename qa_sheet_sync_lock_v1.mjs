@@ -66,7 +66,11 @@ assert.equal(lockCount,5);
 assert.equal(openCount,4);
 assert.equal(writeCount,3);
 assert.equal(releaseCount,4);
-assert.ok(code.indexOf('tryLock(20000)')<code.indexOf('_annualBook(storeKey, year)'),
- 'the actual annual workbook must never open before the script lock');
-assert.ok(code.indexOf('_annualBook(storeKey, year)')<code.indexOf('syncLock.releaseLock()'));
+const legacyLockPos=code.indexOf('var syncLock = LockService.getScriptLock();');
+const legacyWritePos=code.indexOf('writeVerifiedMonth(_annualBook(storeKey,year))');
+const legacyReleasePos=code.indexOf('syncLock.releaseLock()');
+assert.ok(legacyLockPos>=0 && legacyWritePos>legacyLockPos && legacyReleasePos>legacyWritePos,
+ 'Legacy QA workbook must be opened and written while holding its script lock');
+assert.ok(code.includes('var lease = _beginStoreSheetWrite(storeKey,year);'),
+ 'Production workbook uses dedicated short global lock plus per-store lease');
 console.log('PASS QA-05 synchronized report write: busy fails without touching Sheets; lock released on success, mapping and write errors; malformed data rejected before lock');

@@ -46,29 +46,79 @@ function doPost(e){
     var storeKey = String(body.store_key==null?'INHA':body.store_key);
     if(!/^[A-Za-z0-9_-]{1,48}$/.test(storeKey))
       return _json({ok:false, error:'BAD_STORE_KEY'});
-    // QA-05: A workbook mapping and a monthly clear/write must be atomic
-    // relative to other web-app executions. Otherwise concurrent requests can
-    // create duplicate annual workbooks or interleave clear() and setValues().
-    // Use a script-wide lock because mappings and the legacy primary file share
-    // Script Properties. Never open, create, clear or rename a workbook without it.
-    var syncLock = LockService.getScriptLock();
-    if(!syncLock.tryLock(20000))
-      return _json({ok:false, error:'SHEET_SYNC_BUSY'});
-    try{
-      var ss = _annualBook(storeKey, year);
+    // Production stores use a short global lock only for workbook mapping
+    // and their individual lease. Different store workbooks can then be
+    // written concurrently. The legacy QA store path remains serialized.
+    function writeVerifiedMonth(ss){
       var meta = '마지막 동기화: ' + body.synced_at + '   |   상태: ' + body.status_label;
-
       var writeResult = _writeMonth(ss, month + '월', meta, body.attendance, body.sessions, body.payroll);
-
       return _json({ok:true, ym:body.ym,
         spreadsheet_id:ss.getId(), spreadsheet_url:ss.getUrl(), spreadsheet_name:ss.getName(),
         counts:{attendance:body.attendance.rows.length, sessions:body.sessions.rows.length, payroll:body.payroll.rows.length},
         sheet_format:writeResult});
+    }
+    if(/^(?:STORE_[0-9]+|1|INHA)$/.test(storeKey)){
+      var lease = _beginStoreSheetWrite(storeKey,year);
+      try{
+        return writeVerifiedMonth(lease.workbook);
+      }finally{
+        _endStoreSheetWrite(lease);
+      }
+    }
+    // Isolated QA callers keep the prior global write-lock behavior.
+    var syncLock = LockService.getScriptLock();
+    if(!syncLock.tryLock(20000))
+      return _json({ok:false, error:'SHEET_SYNC_BUSY'});
+    try{
+      return writeVerifiedMonth(_annualBook(storeKey,year));
     }finally{
       syncLock.releaseLock();
     }
   }catch(err){
     return _json({ok:false, error:String(err)});
+  }
+}
+
+/**
+ * Isolate independent production workbooks while retaining the atomic global
+ * Script Properties mapping. Store-level lease is acquired under ScriptLock,
+ * then ScriptLock is released BEFORE expensive month layout/write operations.
+ * Apps Script's 6-minute execution ceiling is below this 7-minute lease.
+ * A killed invocation will therefore fail closed until the lease expires.
+ */
+function _beginStoreSheetWrite(storeKey,year){
+  var lock=LockService.getScriptLock();
+  if(!lock.tryLock(20000))throw new Error('SHEET_SYNC_BUSY');
+  var key='ATTENDANCE_RUNNING_'+storeKey+'_'+year;
+  var token=Utilities.getUuid(),props=PropertiesService.getScriptProperties();
+  try{
+    var previous=props.getProperty(key);
+    if(previous){
+      var expires=Number(String(previous).split('|')[1]);
+      if(!Number.isFinite(expires)||expires>Date.now())
+        throw new Error('SHEET_SYNC_BUSY');
+    }
+    var value=token+'|'+String(Date.now()+7*60*1000);
+    props.setProperty(key,value);
+    try{
+      return {workbook:_annualBook(storeKey,year),key:key,token:token};
+    }catch(error){
+      if(props.getProperty(key)===value)props.deleteProperty(key);
+      throw error;
+    }
+  }finally{
+    lock.releaseLock();
+  }
+}
+function _endStoreSheetWrite(lease){
+  var lock=LockService.getScriptLock();
+  if(!lock.tryLock(20000))throw new Error('SHEET_SYNC_BUSY');
+  try{
+    var props=PropertiesService.getScriptProperties();
+    var current=props.getProperty(lease.key)||'';
+    if(current.split('|')[0]===lease.token)props.deleteProperty(lease.key);
+  }finally{
+    lock.releaseLock();
   }
 }
 

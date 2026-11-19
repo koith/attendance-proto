@@ -6,6 +6,9 @@ on:
       - 'edge-release/supabase/functions/server-sync-sheet/**'
       - 'supabase/migrations/20261119_ready_store_sheet_autosync_v1.sql'
       - 'qa1243_approved_sheet_route_guard.mjs'
+      - 'apps_script.gs'
+      - 'qa_sheet_parallel_store_lease_v1.mjs'
+      - 'supabase/migrations/20261119_parallel_ready_store_sheet_dispatch_v1.sql'
       - '.github/workflows/ready-store-sheets-contract.yml'
   push:
     branches: [main]
@@ -14,6 +17,9 @@ on:
       - 'edge-release/supabase/functions/server-sync-sheet/**'
       - 'supabase/migrations/20261119_ready_store_sheet_autosync_v1.sql'
       - 'qa1243_approved_sheet_route_guard.mjs'
+      - 'apps_script.gs'
+      - 'qa_sheet_parallel_store_lease_v1.mjs'
+      - 'supabase/migrations/20261119_parallel_ready_store_sheet_dispatch_v1.sql'
       - '.github/workflows/ready-store-sheets-contract.yml'
 permissions:
   contents: read
@@ -30,3 +36,4 @@ jobs:
           node qa1243_approved_sheet_route_guard.mjs
           node qa1243_live_edge_gas_contract.mjs
           node qa_sheet_store_isolation_v1.mjs
+          node qa_sheet_parallel_store_lease_v1.mjs
