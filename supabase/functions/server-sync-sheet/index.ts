@@ -755,9 +755,13 @@ Deno.serve(async req=>{
           ?{ok:true,skipped:true,reason:"NO_READY_STAFFED_STORES"}
           :await automaticCycle(selected));
       }
-      if(body.store_id!=null&&Number(body.store_id)!==1)
-        throw new HttpError(403,"STORE_NOT_ALLOWED");
-      return reply(await automaticCycle(1));
+      // Signed internal cron may dispatch independent READY store checks in
+      // parallel. automaticCycle() validates the store + isolated sheet route
+      // before any Google write; customer callers cannot access this path.
+      const storeId=body.store_id==null?1:Number(body.store_id);
+      if(!Number.isSafeInteger(storeId)||storeId<1)
+        throw new HttpError(400,"INVALID_STORE");
+      return reply(await automaticCycle(storeId));
     }
     const ym=String(body.ym||currentYm()),storeId=Number(body.store_id||1);
     if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(ym))throw new HttpError(400,"BAD_YM");
