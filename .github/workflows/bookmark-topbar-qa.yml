@@ -1,0 +1,35 @@
+name: Bookmark topbar UX QA
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'bookmark_guide_v1.js'
+      - 'bookmark_guide_v1.css'
+      - 'qa_bookmark_guide_topbar_v1.mjs'
+      - '.github/workflows/bookmark-topbar-qa.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'bookmark_guide_v1.js'
+      - 'bookmark_guide_v1.css'
+      - 'qa_bookmark_guide_topbar_v1.mjs'
+      - '.github/workflows/bookmark-topbar-qa.yml'
+permissions:
+  contents: read
+jobs:
+  bookmark-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Playwright
+        run: npm install --no-save --no-audit --no-fund --no-package-lock playwright@1.55.1
+      - name: Test HQ and all active store links on Chromium and iPhone WebKit
+        run: node qa_bookmark_guide_topbar_v1.mjs
