@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>백억커피 | 점주 이메일 초대·포스기 즐겨찾기 매뉴얼</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR","Malgun Gothic",sans-serif;color:#24313d;background:#f5f7f8;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0}main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:1.6rem;line-height:1.4;margin:8px 0}h2{font-size:1.24rem;margin:0 0 14px}h3{font-size:1rem;margin:20px 0 9px}
+p,li{font-size:1rem;line-height:1.8}li+li{margin-top:9px}
+small,.sub{color:#626e78}header{margin:8px 0 28px}
+section{background:white;border:1px solid #dde3e7;border-radius:16px;padding:20px;margin:14px 0}
+ol{padding-left:24px;margin:0}.note{border-left:3px solid #d28b37;padding:12px 14px;background:#fff9ef;border-radius:7px;line-height:1.75}
+a{color:#17639c;overflow-wrap:anywhere}.address{display:block;background:#f1f5f7;border:1px solid #e1e7ea;border-radius:8px;padding:12px;margin:12px 0;overflow-wrap:anywhere}
+kbd{border:1px solid #bfc9ce;background:#f2f4f6;border-radius:4px;padding:1px 5px;white-space:nowrap}
+footer{font-size:.85rem;color:#68757d;margin-top:28px;line-height:1.7}
+@media(max-width:480px){main{padding:16px 12px 40px}section{padding:17px}h1{font-size:1.34rem}}
+</style>
+</head><body><main>
+<header><p class="sub">백억커피 · 본사 및 매장 운영 안내</p>
+<h1>점주 이메일 초대와 포스기 PC 즐겨찾기</h1>
+<p class="sub">2026년 11월 19일 · 웹앱 v0.391 화면 기준</p></header>
+<section id="invite"><h2>1. 본사에서 점주 이메일 초대</h2>
+<ol>
+<li><a href="https://koith.github.io/attendance-proto/">근태관리 웹앱</a>에 <strong>본사 관리자 계정</strong>으로 로그인합니다.</li>
+<li>본사 대시보드에서 <strong>계정 관리</strong>를 열고, 점주를 지정할 <strong>지점을 검색·선택</strong>합니다.</li>
+<li><strong>관리자 초대</strong> 탭에서 역할을 <strong>대표 관리자</strong>로 선택합니다. (보조 관리자는 별도 역할입니다.)</li>
+<li>실제 점주가 사용하는 <strong>이메일 주소</strong>를 정확하게 입력합니다.</li>
+<li><strong>대표 초대·개통 승인 메일 발송</strong> 버튼을 눌러 결과를 확인합니다. 화면 버전에 따라 <strong>점주 개통 안내 메일 발송</strong>으로 표시될 수 있습니다.</li>
+<li>초대 대상이 <strong>초대 대기중</strong>으로 표시되는지 확인하고, 수신자에게 받은편지함·스팸함을 확인하도록 안내합니다.</li>
+<li>점주는 받은 메일의 공식 링크로 들어가 <strong>개인 비밀번호를 설정하고 최초 로그인</strong>합니다.</li>
+<li>본사는 <strong>관리자 현황</strong>에서 해당 지점 대표 지정 여부를 확인합니다. 실제 지점 계정으로 로그인한 뒤 자기 지점만 표시되는지 점검합니다.</li>
+</ol>
+<p class="note"><strong>주의:</strong> 초대 메일 발송 접수는 수신 완료가 아닙니다. 현재 운영 SMTP와 실제 수신 검증은 별도 확인이 필요합니다. 이메일이 도착하지 않거나 링크가 만료되면 무작정 여러 번 초대하지 말고 오류·초대 상태를 확인한 뒤 재발송합니다. 테스트 목적의 다른 지점 직원·급여 데이터는 변경하지 않습니다.</p>
+</section>
+<section id="bookmark"><h2>2. 포스기 PC에 근태 사이트 즐겨찾기</h2>
+<p>먼저 해당 매장의 <strong>지점 전용 주소</strong>를 열어 상단에 올바른 지점명이 보이는지 확인하세요. 다른 매장 URL을 저장하지 않도록 주의합니다.</p>
+<p>지점별 주소 형식:</p>
+<code class="address">https://koith.github.io/attendance-proto/index.html?mode=store&amp;store=지점ID#pos</code>
+<h3>Google Chrome (권장)</h3>
+<ol>
+<li>포스기 PC에서 <strong>Chrome</strong>을 열고 매장 전용 근태 URL로 접속합니다.</li>
+<li>주소창의 별표(☆) 또는 <kbd>Ctrl</kbd> + <kbd>D</kbd>로 즐겨찾기를 추가합니다.</li>
+<li>이름을 <strong>백억커피 근태관리</strong>로 정하고 <strong>북마크바</strong>에 저장합니다.</li>
+<li>필요하면 <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>로 북마크바를 표시합니다.</li>
+<li>브라우저를 닫았다가 다시 열고, 즐겨찾기를 눌러 <strong>올바른 지점명</strong>과 출퇴근 화면이 표시되는지 확인합니다.</li>
+</ol>
+<h3>Microsoft Edge (권장 대안)</h3>
+<p>매장 전용 URL 접속 → 주소창 별표 또는 <kbd>Ctrl</kbd> + <kbd>D</kbd> → 즐겨찾기 추가. 저장 후 브라우저를 다시 열어 점검합니다.</p>
+<h3>Internet Explorer (기존 포스기 환경)</h3>
+<p>Internet Explorer 11은 공식 지원이 종료된 오래된 브라우저입니다. 즐겨찾기 기능이 존재하더라도 <strong>현재 근태 웹앱의 정상 실행을 보장하지 않으므로 사용을 권장하지 않습니다.</strong> 가능하면 해당 포스기에 Chrome 또는 최신 Edge를 설치·사용합니다. Edge의 IE 호환 모드도 현대 웹앱을 위해 사용할 필요가 없습니다.</p>
+<p class="note"><strong>실제 포스기 확인 사항:</strong> 포스기 PC의 Windows 버전, 브라우저 설치 여부, 점주/관리자 설치 권한, POS 전용 잠금 모드에 따라 실제 즐겨찾기 등록이 제한될 수 있습니다. 현재 검증된 것은 웹앱의 PC Chrome 접속이며, 모든 매장의 실물 포스기에서 직접 실행한 것은 아닙니다. 출퇴근 테스트는 운영 직원 기록을 임의 생성하지 않는 방식으로 진행합니다.</p>
+</section>
+<footer>이 페이지에는 비밀번호와 실제 점주 이메일 주소가 포함되지 않습니다.<br>
+운영 정보: <a href="https://koith.github.io/attendance-proto/">근태관리 웹앱</a>.
+</footer>
+</main></body></html>
