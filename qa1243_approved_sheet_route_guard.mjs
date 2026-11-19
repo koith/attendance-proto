@@ -106,7 +106,7 @@ assert.equal(ready(1,{code:'INHA',name:'인하대학교점',is_active:true,onboa
 assert.ok(source.includes('if(body.store_id==="next")'),'Cron must have a ready-store entrypoint');
 assert.ok(source.includes('const r=await writeClaimed(ym,storeId,prepared,release,false,sheetRoute)'),
  'Auto writer must pass approved isolated store route');
-assert.ok(source.includes('if(!count)return {ok:true,store_id:storeId,skipped:true,reason:"NO_ACTIVE_STAFF"}'),
+assert.ok(source.includes('if(!count)return {ok:true,store_id:storeId,skipped:true,reason:"NO_STAFF"}'),
  'Unopened stores must not generate fake payroll workbooks');
 const sql=fs.readFileSync('supabase/migrations/20261119_ready_store_sheet_autosync_v1.sql','utf8');
 assert.match(sql,/baekeok-sheet-ready-stores-writer/);
