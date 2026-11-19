@@ -361,9 +361,9 @@ async function automaticCycle(storeId=1){
     if(!sheetRoute)throw new HttpError(403,"STORE_SHEET_SYNC_NOT_CONFIGURED");
     // No phantom payroll workbook before staff onboarding.
     const {count,error:staffError}=await client.from("employees")
-      .select("id",{count:"exact",head:true}).eq("store_id",storeId).eq("is_active",true);
+      .select("id",{count:"exact",head:true}).eq("store_id",storeId);
     if(staffError)throw new Error("STORE_STAFF_CHECK_FAILED");
-    if(!count)return {ok:true,store_id:storeId,skipped:true,reason:"NO_ACTIVE_STAFF"};
+    if(!count)return {ok:true,store_id:storeId,skipped:true,reason:"NO_STAFF"};
   }
   const {data:state,error}=await client.from("sheet_sync_change_state").select("fingerprint,synced_fingerprint,changed_at").eq("store_id",storeId).maybeSingle();
   if(error||!state)throw new Error("SERVER_CHANGE_DETECTOR_UNAVAILABLE");
@@ -399,7 +399,7 @@ async function automaticCycle(storeId=1){
   }
   return {ok:true,pending,processed,counts};
 }
-// The second minute-level cron invokes exactly one staffed READY branch per
+// The second minute-level cron invokes exactly one employee-bearing READY branch per
 // tick. This limits Google Apps Script's single global write lock and avoids
 // creating empty workbooks for unopened stores. New staffed branches are picked
 // up without edits to the Edge code, cron list, or any Google spreadsheet.
@@ -411,7 +411,7 @@ async function nextOperationalStoreId(){
   const approved=stores.filter(s=>approvedReadyStoreSheetRoute(Number(s.id),s));
   if(!approved.length)return null;
   const {data:employees,error:employeeError}=await client.from("employees")
-    .select("store_id").eq("is_active",true)
+    .select("store_id")
     .in("store_id",approved.map(s=>s.id)).limit(5000);
   if(employeeError||!Array.isArray(employees))throw new Error("AUTOSYNC_STAFF_READ_FAILED");
   const staffed=new Set(employees.map(e=>Number(e.store_id)));
