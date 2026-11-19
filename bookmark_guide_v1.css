@@ -1,0 +1,62 @@
+/* Bookmark setup guidance is global: HQ and all store routes share the topmost connection strip. */
+.connection-row #bookmarkGuideOpen{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  align-self:center;flex:0 0 auto;min-width:34px;min-height:28px;
+  margin:2px 2px 2px 4px;padding:3px 9px;
+  border:1px solid #94ba9f;border-radius:7px;
+  background:#fff;color:#175638;font:700 12px/1.1 inherit;
+  font-family:inherit;font-size:12px;font-weight:700;white-space:nowrap;
+  cursor:pointer;box-shadow:none;
+}
+.connection-row #bookmarkGuideOpen:hover{background:#eff8f1}
+.connection-row #bookmarkGuideOpen:focus-visible{outline:2px solid #17633d;outline-offset:2px}
+.connection-row #bookmarkGuideOpen .bookmark-guide-star{font-size:16px;line-height:1}
+.connection-row #conn{min-width:0}
+.connection-row #appVersion.connection-version{margin-left:0;padding:0 7px!important;margin-right:10px}
+@media(max-width:480px){
+ .connection-row #bookmarkGuideOpen{width:32px;min-width:32px;height:28px;padding:2px;margin-left:2px;margin-right:2px}
+ .connection-row #bookmarkGuideOpen .bookmark-guide-button-text{display:none}
+ .connection-row #appVersion.connection-version{margin-right:8px!important}
+ .connection-row #conn{font-size:11px;padding-inline:7px}
+}
+#bookmarkGuideVeil[hidden]{display:none!important}
+#bookmarkGuideVeil{
+ position:fixed;inset:0;z-index:10050;
+ display:flex;align-items:center;justify-content:center;
+ padding:16px;background:rgba(8,24,13,.54);
+}
+#bookmarkGuideDialog{
+ width:min(100%,450px);max-height:calc(100dvh - 32px);overflow-y:auto;
+ background:#fff;color:#172019;border:1px solid #dbe4de;border-radius:16px;
+ box-shadow:0 18px 48px rgba(0,0,0,.24);padding:18px;
+ font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+}
+#bookmarkGuideDialog *{box-sizing:border-box}
+#bookmarkGuideDialog .bookmark-guide-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+#bookmarkGuideTitle{font-size:18px;line-height:1.4;margin:0;font-weight:750;color:#172019}
+#bookmarkGuideDialog .bookmark-guide-close{
+ display:inline-flex;align-items:center;justify-content:center;flex:0 0 32px;
+ width:32px;height:32px;border:1px solid #dbe4de;border-radius:8px;
+ background:#fff;color:#364b3e;font-size:20px;cursor:pointer
+}
+#bookmarkGuideDialog .bookmark-guide-intro{color:#526158;font-size:13px;line-height:1.6;margin:0 0 13px}
+#bookmarkGuideDialog .bookmark-guide-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:13px}
+#bookmarkGuideDialog .bookmark-guide-tab{
+ min-width:0;min-height:38px;border:1px solid #cbd9cf;border-radius:8px;
+ background:#f5f8f6;color:#335642;font-size:13px;font-weight:700;cursor:pointer
+}
+#bookmarkGuideDialog .bookmark-guide-tab[aria-selected="true"]{background:#1d5d3a;border-color:#1d5d3a;color:#fff}
+#bookmarkGuideDialog .bookmark-guide-tab:focus-visible,#bookmarkGuideDialog button:focus-visible{outline:2px solid #225f42;outline-offset:2px}
+#bookmarkGuideDialog .bookmark-guide-instruction{min-height:84px;background:#f6f8f7;border-radius:9px;padding:13px;font-size:14px;line-height:1.65}
+#bookmarkGuideDialog .bookmark-guide-instruction strong{font-weight:800}
+#bookmarkGuideDialog .bookmark-guide-warning{color:#8a5b00;font-size:12px;margin:8px 0 0}
+#bookmarkGuideDialog .bookmark-guide-url-label{font-size:12px;color:#596961;margin:15px 0 5px;font-weight:700}
+#bookmarkGuideDialog .bookmark-guide-url{display:block;overflow-wrap:anywhere;word-break:break-word;background:#f3f7f4;border:1px solid #dbe4de;border-radius:7px;padding:9px;font-size:11px;line-height:1.5;user-select:text}
+#bookmarkGuideDialog .bookmark-guide-copy{
+ display:inline-flex;align-items:center;justify-content:center;width:100%;
+ min-height:42px;margin-top:10px;border:0;border-radius:9px;background:#1d5d3a;color:#fff;
+ font-size:14px;font-weight:750;cursor:pointer
+}
+#bookmarkGuideDialog .bookmark-guide-copy:hover{background:#16482d}
+#bookmarkGuideDialog .bookmark-guide-result{font-size:12px;line-height:1.5;min-height:18px;color:#335642;margin:8px 0 0}
+@media(max-width:360px){#bookmarkGuideDialog{padding:14px}#bookmarkGuideTitle{font-size:16px}#bookmarkGuideDialog .bookmark-guide-tab{font-size:12px}}
