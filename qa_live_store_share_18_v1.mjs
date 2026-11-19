@@ -8,7 +8,7 @@ const expected=[
  [131,'신길점'],[133,'신대방삼거리점'],[139,'암사중앙점'],
  [187,'산본역점'],[200,'아주대점'],[230,'하남풍산점'],
  [260,'청주가경점'],[290,'구미비산점'],[325,'수원시청역점'],
- [326,'광교상현점'],[327,'동해효가점'],[328,'용인역북점'],
+ [326,'광교상현점'],[331,'수원탑동점'],[328,'용인역북점'],
  [329,'용인양지점'],[330,'봉천현대점']
 ];
 assert.equal(expected.length,18);
@@ -74,5 +74,32 @@ for(const mode of modes){
   }
  }finally{await browser.close()}
 }
-console.log('LIVE_STORE_SHARE_QA',JSON.stringify({checked:expected.length*modes.length,failures:failures.length}));
+// A retired branch must remain deactivated even when an old deep link is used.
+// This is a read-only smoke check; do not log in or create any production data.
+let retiredChecks=0;
+for(const mode of modes){
+  const browser=await mode.type.launch({headless:true});
+  const context=await browser.newContext(mode.options);
+  try{
+    const page=await context.newPage();
+    const response=await page.goto(base+'?mode=store&store=327#pos',
+      {waitUntil:'domcontentloaded',timeout:25000});
+    assert.equal(response?.status(),200,'Retired deep link HTML must stay reachable');
+    await page.waitForFunction(()=>{
+      const text=document.getElementById('view')?.textContent||'';
+      return text.includes('지점 운영 준비 중');
+    },undefined,{timeout:18000});
+    const state=await page.evaluate(()=>({
+      visible:document.getElementById('view')?.textContent||'',
+      tabDisplay:document.querySelector('.tabwrap')?.style?.display||'',
+      label:document.getElementById('lockedStoreName')?.textContent||''
+    }));
+    assert.ok(state.visible.includes('지점 운영 준비 중'));
+    assert.equal(state.tabDisplay,'none','Old branch menus must be hidden');
+    assert.equal(state.label,'지점 확인 필요','Retired store must never assume another store');
+    retiredChecks++;
+    console.log('PASS retired '+mode.name+' store=327 is fail-closed');
+  }finally{await context.close();await browser.close()}
+}
+console.log('LIVE_STORE_SHARE_QA',JSON.stringify({checked:expected.length*modes.length,failures:failures.length,retiredChecks}));
 if(failures.length)process.exitCode=1;
