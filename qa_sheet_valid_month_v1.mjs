@@ -11,6 +11,14 @@ context.SHARED_SECRET='fixture_not_a_real_secret';
 context._json=obj=>obj;
 // Local fake lock: production uses Apps Script LockService for serialized report writes.
 context.LockService={getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})};
+const props=new Map();
+context.PropertiesService={getScriptProperties:()=>({
+  getProperty:k=>props.get(k)||null,
+  setProperty:(k,v)=>props.set(k,v),
+  deleteProperty:k=>props.delete(k)
+})};
+let token=0;
+context.Utilities={getUuid:()=>String(++token)};
 let workbookCalls=0,writeCalls=0,seen=null;
 const book={
   getId:()=> 'synthetic-spreadsheet',
