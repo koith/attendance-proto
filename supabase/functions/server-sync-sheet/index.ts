@@ -99,6 +99,21 @@ function approvedStore01SheetRoute(storeId,store){
     return null;
   return {url,secret,storeKey:"STORE_80"};
 }
+// Normal READY franchise stores share the existing signed writer, but not a workbook.
+// Use immutable DB store IDs so renamed branches and legacy source keys cannot collide.
+// QA/staged stores are never admitted through the operational route.
+function approvedReadyStoreSheetRoute(storeId,store){
+  if(!Number.isSafeInteger(storeId)||storeId<=1||storeId===80||
+     store?.is_active!==true||store?.onboarding_status!=="READY"||
+     !/^(?:REAL_|BC_)\d+$/.test(String(store?.code||""))||
+     String(store?.name||"").startsWith("[QA"))return null;
+  const url=Deno.env.get("SHEET_WEBAPP_URL")||"";
+  const secret=Deno.env.get("SHEET_SHARED_SECRET")||"";
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]{15,}\/exec$/.test(url)||!secret)
+    return null;
+  return {url,secret,storeKey:"STORE_"+storeId};
+}
+
 async function sourceFor(ym,storeId){
   const {data,error}=await client.rpc("sheet_server_payroll_source",{p_store_id:storeId,p_ym:ym});
   if(error||!data)throw new Error("SERVER_PAYROLL_SOURCE_FAILED: "+(error?.code||"NO_DATA"));
@@ -336,8 +351,20 @@ async function writeClaimed(ym,storeId,prepared,release,force=false,qaRoute=null
     throw error;
   }
 }
-async function automaticCycle(){
-  const storeId=1;
+async function automaticCycle(storeId=1){
+  let sheetRoute=null;
+  if(storeId!==1){
+    const {data:store,error:storeError}=await client.from("stores")
+      .select("id,name,code,is_active,onboarding_status").eq("id",storeId).maybeSingle();
+    if(storeError||!store)throw new HttpError(403,"STORE_NOT_ONBOARDED");
+    sheetRoute=approvedReadyStoreSheetRoute(storeId,store);
+    if(!sheetRoute)throw new HttpError(403,"STORE_SHEET_SYNC_NOT_CONFIGURED");
+    // No phantom payroll workbook before staff onboarding.
+    const {count,error:staffError}=await client.from("employees")
+      .select("id",{count:"exact",head:true}).eq("store_id",storeId);
+    if(staffError)throw new Error("STORE_STAFF_CHECK_FAILED");
+    if(!count)return {ok:true,store_id:storeId,skipped:true,reason:"NO_STAFF"};
+  }
   const {data:state,error}=await client.from("sheet_sync_change_state").select("fingerprint,synced_fingerprint,changed_at").eq("store_id",storeId).maybeSingle();
   if(error||!state)throw new Error("SERVER_CHANGE_DETECTOR_UNAVAILABLE");
   const release=await reportRelease();
@@ -354,7 +381,7 @@ async function automaticCycle(){
     const prepared=await buildReport(ym,storeId);counts.checked++;
     if(!shouldWriteMonth(ym,current,prepared.source))continue;
     counts.eligible++;
-    const r=await writeClaimed(ym,storeId,prepared,release,false);
+    const r=await writeClaimed(ym,storeId,prepared,release,false,sheetRoute);
     if(r.written){
       processed.push({ym,spreadsheet_id:r.result.spreadsheet_id});writes++;
       // A live shift accrues time continuously. Do not let today's changing
@@ -372,6 +399,27 @@ async function automaticCycle(){
   }
   return {ok:true,pending,processed,counts};
 }
+// The second minute-level cron invokes exactly one employee-bearing READY branch per
+// tick. This limits Google Apps Script's single global write lock and avoids
+// creating empty workbooks for unopened stores. New staffed branches are picked
+// up without edits to the Edge code, cron list, or any Google spreadsheet.
+async function nextOperationalStoreId(){
+  const {data:stores,error:storeError}=await client.from("stores")
+    .select("id,name,code,is_active,onboarding_status")
+    .eq("is_active",true).eq("onboarding_status","READY").order("id");
+  if(storeError||!Array.isArray(stores))throw new Error("AUTOSYNC_STORES_READ_FAILED");
+  const approved=stores.filter(s=>approvedReadyStoreSheetRoute(Number(s.id),s));
+  if(!approved.length)return null;
+  const {data:employees,error:employeeError}=await client.from("employees")
+    .select("store_id")
+    .in("store_id",approved.map(s=>s.id)).limit(5000);
+  if(employeeError||!Array.isArray(employees))throw new Error("AUTOSYNC_STAFF_READ_FAILED");
+  const staffed=new Set(employees.map(e=>Number(e.store_id)));
+  const ready=approved.filter(s=>staffed.has(Number(s.id)));
+  if(!ready.length)return null;
+  return Number(ready[Math.floor(Date.now()/60000)%ready.length].id);
+}
+
 function safeCompare(clientPayload,serverPayload){
   if(!clientPayload?.payroll?.rows)return null;
   const normalize=section=>JSON.stringify({header:section?.header||[],rows:(section?.rows||[]).map(row=>row.map(v=>String(v??"")))});
@@ -701,8 +749,15 @@ Deno.serve(async req=>{
       return reply({ok:true,mode:"dryrun",release_revision:await hash(release),ym,employees:(source.employees||[]).length,events:(source.events||[]).length,payroll_rows:report.payroll.rows.length,attendance_rows:report.attendance.rows.length});
     }
     if(mode==="cron"){
-      if(body.store_id!=null&&Number(body.store_id)!==1)throw new HttpError(403,"STORE_NOT_ALLOWED");
-      return reply(await automaticCycle());
+      if(body.store_id==="next"){
+        const selected=await nextOperationalStoreId();
+        return reply(selected===null
+          ?{ok:true,skipped:true,reason:"NO_READY_STAFFED_STORES"}
+          :await automaticCycle(selected));
+      }
+      if(body.store_id!=null&&Number(body.store_id)!==1)
+        throw new HttpError(403,"STORE_NOT_ALLOWED");
+      return reply(await automaticCycle(1));
     }
     const ym=String(body.ym||currentYm()),storeId=Number(body.store_id||1);
     if(!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(ym))throw new HttpError(400,"BAD_YM");
@@ -712,7 +767,7 @@ Deno.serve(async req=>{
     if(storeError||!store||!store.is_active||store.onboarding_status!=="READY")
       throw new HttpError(403,"STORE_NOT_ONBOARDED");
     const qaRoute=storeId===1?null:approvedQaSheetRoute(storeId,store);
-    const sheetRoute=qaRoute||approvedStore01SheetRoute(storeId,store);
+    const sheetRoute=qaRoute||approvedStore01SheetRoute(storeId,store)||approvedReadyStoreSheetRoute(storeId,store);
     if(["sync","parity"].includes(mode)&&storeId!==1&&!sheetRoute)
       throw new HttpError(403,"STORE_SHEET_SYNC_NOT_CONFIGURED");
     if(!actor.internal && actor.adminRole!=="HQ" && !(actor.adminRole==="STORE_MANAGER"&&Number(actor.storeId)===storeId))

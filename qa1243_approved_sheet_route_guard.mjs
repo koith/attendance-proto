@@ -21,7 +21,7 @@ const context={Deno:{env:{get:key=>configs.get(key)}},
       resized_columns:1,verified_column_widths:12}})};},
  console,Error};
 vm.runInNewContext('class HttpError extends Error{constructor(status,message){super(message);this.status=status}}\n'+routeCode+'\n'+writeCode+
- ';globalThis.checkedRoute=approvedQaSheetRoute;globalThis.checkedStore01Route=approvedStore01SheetRoute;globalThis.checkedWrite=googleWrite;',context);
+ ';globalThis.checkedRoute=approvedQaSheetRoute;globalThis.checkedStore01Route=approvedStore01SheetRoute;globalThis.checkedReadyRoute=approvedReadyStoreSheetRoute;globalThis.checkedWrite=googleWrite;',context);
 const route=(id,store)=>context.checkedRoute(id,store);
 const store={code:'QA1243_705',name:'[QA #1243] TEST A'};
 const sections={header:['value'],rows:[['only-synthetic-data']]};
@@ -80,6 +80,38 @@ lastFetch=null;
 await context.checkedWrite('2026-10',{...payload,store_key:'official_demo',store_name:'1호점'},false,null,null,80,approvedReal);
 assert.equal(lastFetch.url,prodUrl,'Approved real store uses operating Google account');
 assert.equal(lastFetch.body.store_key,'STORE_80','Never use reused official_demo key');
-assert.ok(source.includes('const sheetRoute=qaRoute||approvedStore01SheetRoute(storeId,store)'),
- 'Explicit QA precedence and exact real store route');
+assert.ok(source.includes('const sheetRoute=qaRoute||approvedStore01SheetRoute(storeId,store)||approvedReadyStoreSheetRoute(storeId,store)'),
+ 'QA precedence, 1ho legacy and normal READY operational route');
+// Verify isolation, account state, QA denial and immutable IDs for every real route.
+const ready=(id,store)=>context.checkedReadyRoute(id,store);
+for(const [id,code,name] of [[94,'REAL_15','구로고척점'],[290,'REAL_211','구미비산점'],
+ [325,'BC_1014','수원시청역점'],[326,'BC_1015','광교상현점'],[327,'BC_1016','동해효가점'],
+ [328,'BC_1017','용인역북점'],[329,'BC_1018','용인양지점'],[330,'BC_1019','봉천현대점']]){
+  const normalStore={code,name,is_active:true,onboarding_status:'READY'};
+  const approved=ready(id,normalStore);
+  assert.ok(approved,'READY normal branch must route: '+name);
+  assert.equal(approved.storeKey,'STORE_'+id);
+  assert.equal(approved.url,prodUrl);
+  assert.equal(ready(id,{...normalStore,onboarding_status:'STAGED'}),null);
+  assert.equal(ready(id,{...normalStore,is_active:false}),null);
+  assert.equal(ready(id,{...normalStore,code:'QA1243_'+id}),null);
+  assert.equal(ready(id,{...normalStore,name:'[QA #1243] fake'}),null);
+  await context.checkedWrite('2026-11',{...payload,store_key:'official_demo',store_name:name},
+    false,null,null,id,approved);
+  assert.equal(lastFetch.body.store_key,'STORE_'+id,'Never reuse a shared source key');
+}
+assert.equal(ready(80,realStore),null,'1ho testing must stay on its existing manual route');
+assert.equal(ready(1,{code:'INHA',name:'인하대학교점',is_active:true,onboarding_status:'READY'}),null,
+ 'INHA must stay on its existing writer');
+assert.ok(source.includes('if(body.store_id==="next")'),'Cron must have a ready-store entrypoint');
+assert.ok(source.includes('const r=await writeClaimed(ym,storeId,prepared,release,false,sheetRoute)'),
+ 'Auto writer must pass approved isolated store route');
+assert.ok(source.includes('if(!count)return {ok:true,store_id:storeId,skipped:true,reason:"NO_STAFF"}'),
+ 'Unopened stores must not generate fake payroll workbooks');
+const sql=fs.readFileSync('supabase/migrations/20261119_ready_store_sheet_autosync_v1.sql','utf8');
+assert.match(sql,/baekeok-sheet-ready-stores-writer/);
+assert.match(sql,/store_id":"next"/);
+assert.match(sql,/p.store_id=st.id/);
+assert.match(sql,/onboarding_status='READY'/);
+assert.match(sql,/id<>80/);
 console.log('PASS #1243 QA opt-in store route: absent flags, wrong store/secret/URL, no fallback, isolated write, legacy unchanged (read/write network stubs only; NOT live Edge→Apps Script)');
