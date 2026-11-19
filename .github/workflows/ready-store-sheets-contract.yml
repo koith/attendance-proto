@@ -1,0 +1,32 @@
+name: READY franchise Google Sheets autosync contract
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/server-sync-sheet/**'
+      - 'edge-release/supabase/functions/server-sync-sheet/**'
+      - 'supabase/migrations/20261119_ready_store_sheet_autosync_v1.sql'
+      - 'qa1243_approved_sheet_route_guard.mjs'
+      - '.github/workflows/ready-store-sheets-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/server-sync-sheet/**'
+      - 'edge-release/supabase/functions/server-sync-sheet/**'
+      - 'supabase/migrations/20261119_ready_store_sheet_autosync_v1.sql'
+      - 'qa1243_approved_sheet_route_guard.mjs'
+      - '.github/workflows/ready-store-sheets-contract.yml'
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Real/QA workbook identity and deployed-source parity
+        run: |
+          node qa1243_approved_sheet_route_guard.mjs
+          node qa1243_live_edge_gas_contract.mjs
+          node qa_sheet_store_isolation_v1.mjs
