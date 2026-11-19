@@ -56,6 +56,11 @@ assert.match(hq,/비밀번호 설정/);
 assert.match(hq,/대표 관리자는 동시에 여러 계정을 초대할 수 없습니다/);
 assert.match(html,/APP_VERSION="v\d+\.\d+"/);
 assert.match(html,/id="appVersion"[^>]*>v\d+\.\d+<\/button>/);
-assert.match(html,/hq_owner_console\.js\?v=20261027v370/);
+const hqAssetRevisions=[...html.matchAll(/hq_owner_console\.js\?v=(\d{8}v\d+)/g)].map(m=>m[1]);
+assert.equal(hqAssetRevisions.length,2,'Both HQ script loaders must use versioned assets');
+assert.equal(new Set(hqAssetRevisions).size,1,'HQ lazy/static loaders must use the same revision');
+const currentAppRevision=Number(html.match(/const APP_VERSION="v0\.(\d+)"/)?.[1]);
+assert.ok(Number(hqAssetRevisions[0].split('v')[1])>=currentAppRevision,
+  'HQ asset revision cannot lag the current visible app version');
 assert.match(inviteMail,/대표 권한 자동 확정 후 매장 입장/);
 console.log('PASS #921: HQ owner invite, email+password guard, atomic activation, pending UX and versions');
