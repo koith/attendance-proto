@@ -1,0 +1,29 @@
+name: Read-only production 18 store URL share QA
+
+on:
+  pull_request:
+    paths:
+      - 'qa_live_store_share_18_v1.mjs'
+      - '.github/workflows/qa-live-store-share-18.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-store-deeplinks:
+    name: Production 18 stores (Chromium desktop + WebKit iPhone)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Playwright runner, with no application changes
+        run: npm install --no-save --no-audit --no-fund --no-package-lock playwright@1.55.1
+      - name: Inspect 18 public live URLs and store identity, read-only
+        run: node qa_live_store_share_18_v1.mjs
