@@ -1,0 +1,41 @@
+name: Full owner deeper screen capture
+on:
+  push:
+    branches: [docs/manual-screenshots-20261120]
+    paths: ['.github/workflows/manual-owner-deep.yml']
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm install --no-save --no-audit --no-fund playwright@1.55.1
+      - name: Compose verified synthetic frontend test harness
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('qa_browser_app_smoke.mjs').read_text()
+          prefix=s.split('async function smoke(',1)[0]
+          Path('manual-owner-deep.mjs').write_text(prefix+'\n'+Path('scripts/manual_owner_deep_body.txt').read_text())
+          PY
+      - name: Start isolated app preview
+        run: |
+          node scripts/qa_browser_static_preview.mjs >/tmp/manual-deep.log 2>&1 &
+          for i in $(seq 1 20); do curl -fsS http://127.0.0.1:4173/index.html -o /dev/null && exit 0; sleep 1; done
+          cat /tmp/manual-deep.log; exit 1
+      - name: Capture recipe payroll contract and attendance
+        run: node manual-owner-deep.mjs
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-owner-deep-captures-v0392
+          path: manual-owner-deep/
+          if-no-files-found: warn
+          retention-days: 30
