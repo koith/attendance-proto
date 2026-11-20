@@ -1,0 +1,78 @@
+
+const browser=await chromium.launch({headless:true});
+const out='manual-owner-extra';fs.mkdirSync(out,{recursive:true});const report=[];
+async function snap(page,id,selector){
+ try{
+  const e=page.locator(selector).first();await e.waitFor({state:'visible',timeout:4000});
+  await page.waitForTimeout(150);await e.screenshot({path:out+'/'+id+'.png',animations:'disabled',timeout:8000});
+  report.push({id,status:'PASS',url:page.url(),selector,text:(await e.innerText().catch(()=>'' )).slice(0,800)});
+  console.log('CAPTURE',id);
+ }catch(err){report.push({id,status:'FAILED',why:String(err).slice(0,150)});console.log('FAILED',id,String(err).slice(0,120))}
+}
+async function tap(page,selector){
+ try {const e=page.locator(selector).first();if(await e.isVisible()){await e.click({timeout:2500});return true;}}catch{}
+ return false;
+}
+async function hash(page,path,visible){
+ await page.evaluate(path=>location.hash=path,path);
+ if(visible) await page.locator(visible).first().waitFor({state:'visible',timeout:12000}).catch(()=>{});
+ await page.waitForTimeout(650);
+}
+const context=await browser.newContext({viewport:{width:1440,height:930},deviceScaleFactor:2,locale:'ko-KR',timezoneId:'Asia/Seoul'});
+const page=await context.newPage();const calls=[];
+await configure(page,calls,'STORE_MANAGER',2);
+await page.route('**/rest/v1/rpc/**',route=>{
+ const rpc=new URL(route.request().url()).pathname.split('/').pop();
+ const fixture={
+  store_delegated_manager_list:[
+   {user_id:'qa-admin-id',store_id:2,email:'owner@sample.invalid',manager_role:'OWNER'},
+   {user_id:'assistant-id',store_id:2,email:'helper@sample.invalid',manager_role:'ASSISTANT'}],
+  store_manager_invitation_states:[
+   {user_id:'qa-admin-id',intended_role:'OWNER',account_state:'ACTIVE'},
+   {user_id:'assistant-id',intended_role:'ASSISTANT',account_state:'ACTIVE'}],
+  store_assistant_permissions_list:[{user_id:'assistant-id',staff_edit:true,attendance_view:true,attendance_approve:false}],
+  is_hq_admin:false
+ };
+ if(Object.hasOwn(fixture,rpc))return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(fixture[rpc])});
+ return route.fallback();
+});
+await page.goto('http://127.0.0.1:4173/index.html?mode=store&store=1#admin',{waitUntil:'domcontentloaded'});
+await page.waitForURL(/store=2/, {timeout:16000}).catch(()=>{});
+await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:16000});
+await snap(page,'01-owner-menu','#view');
+await tap(page,'#adAdd');
+await snap(page,'02-register-basic','#addVeil .modal');
+await page.locator('#newName').fill('교육용직원').catch(()=>{});
+await page.locator('#newPin').fill('1234').catch(()=>{});
+await tap(page,'#obNext');await snap(page,'03-register-pay','#addVeil .modal');
+await page.locator('#newPayAmount').fill('12000').catch(()=>{});
+await tap(page,'#obNext');await snap(page,'04-register-work','#addVeil .modal');
+await tap(page,'#obNext');await snap(page,'05-register-review','#addVeil .modal');
+await page.locator('#addVeil').evaluate(el=>el.classList.remove('show')).catch(()=>{});
+await tap(page,'#empTabRetired');await snap(page,'06-retired-list','#view');
+await tap(page,'#empTabActive');await snap(page,'07-contract-retire-actions','#adEmps .employee-manage-card');
+await snap(page,'08-owner-manager-rights','#storeManagerPanel');
+await tap(page,'.smt-add>summary');await snap(page,'09-assistant-invite','#storeManagerPanel');
+await tap(page,'[data-manager-manage]');await snap(page,'10-assistant-permissions','.manager-permissions-modal');
+await tap(page,'.manager-permissions-modal [data-close]');
+await tap(page,'#adminAccountTrigger');await snap(page,'11-account-menu','#adminAccountPopover');
+await tap(page,'#adminAccountSettings');await snap(page,'12-account-settings','#settingsVeil');
+await page.locator('#settingsVeil').evaluate(el=>el.classList.remove('show')).catch(()=>{});
+await hash(page,'#hours','#view');await snap(page,'13-store-hours','#view');
+await hash(page,'#recipe','#view');await snap(page,'14-recipe-browser','#view');
+await hash(page,'#pay','#payMonth');await snap(page,'15-payroll-month','#view');
+await page.locator('#payMonth').fill('2026-09').catch(()=>{});
+await page.locator('#payMonth').dispatchEvent('change').catch(()=>{});
+await page.waitForTimeout(700);await snap(page,'16-payroll-close-review','#view');
+await hash(page,'#pos','#empGrid');await snap(page,'17-pos-staff-picker','#view');
+await tap(page,'#empGrid .emp');await snap(page,'18-pos-pin','#padVeil');
+await page.locator('#padVeil').evaluate(el=>el.classList.remove('show')).catch(()=>{});
+await tap(page,'#bookmarkGuideOpen');await snap(page,'19-bookmark-guide','#bookmarkGuideDialog');
+await tap(page,'[data-bookmark-browser="edge"]');await snap(page,'20-bookmark-edge','#bookmarkGuideDialog');
+await tap(page,'#bookmarkGuideClose');
+await hash(page,'#attendance','#view');await snap(page,'21-attendance-entry','#view');
+await tap(page,'#attendanceStaffLogin');await snap(page,'22-my-attendance-pin','#addVeil .modal');
+await context.close();
+fs.writeFileSync(out+'/manifest.json',JSON.stringify(report,null,2));
+console.log('CAPTURE_SUMMARY',report.filter(x=>x.status==='PASS').length,'/',report.length);
+await browser.close();
