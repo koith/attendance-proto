@@ -1,0 +1,44 @@
+name: Full owner manual screenshot evidence
+on:
+  push:
+    branches: [docs/manual-screenshots-20261120]
+    paths: ['.github/workflows/manual-owner-full.yml']
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --no-audit --no-fund playwright@1.55.1
+      - name: Prepare actual app capture harness from existing synthetic QA
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('qa_browser_app_smoke.mjs').read_text()
+          prefix=s.split('async function smoke(',1)[0]
+          assert 'async function configure(' in prefix
+          body=Path('scripts/manual_owner_capture_body.txt').read_text()
+          Path('manual-owner-run.mjs').write_text(prefix+'\n'+body)
+          PY
+      - name: Start existing isolated app server
+        run: |
+          node scripts/qa_browser_static_preview.mjs > /tmp/manual-owner.log 2>&1 &
+          for i in $(seq 1 20); do curl -fsS http://127.0.0.1:4173/index.html -o /dev/null && exit 0; sleep 1; done
+          cat /tmp/manual-owner.log; exit 1
+      - name: Capture all store-owner flows
+        run: node manual-owner-run.mjs
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-owner-real-app-capture-v0392
+          path: manual-owner-extra/
+          if-no-files-found: warn
+          retention-days: 30
