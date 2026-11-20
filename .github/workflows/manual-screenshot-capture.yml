@@ -1,0 +1,149 @@
+name: Manual screenshot capture (isolated)
+on:
+  push:
+    branches: [docs/manual-screenshots-20261120]
+    paths: ['.github/workflows/manual-screenshot-capture.yml']
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.1-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser runner
+        run: npm install --no-save --no-audit --no-fund playwright@1.55.1
+      - name: Instrument EXISTING real app QA to capture actual rendered UI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('qa_browser_app_smoke.mjs')
+          s=p.read_text()
+          cap=""" 
+          // Manual evidence: the real frontend renders against local synthetic RPC fixtures only.
+          async function manualCapture(page,label,name,selector){
+            if(label!=='desktop')return;
+            fs.mkdirSync('manual-evidence', {recursive:true});
+            try{
+              const target=selector?page.locator(selector).first():page;
+              await target.screenshot({path:'manual-evidence/'+name+'.png',timeout:10000,animations:'disabled',fullPage:!selector});
+              console.log('MANUAL_SCREENSHOT',name);
+            }catch(err){console.log('MANUAL_SCREENSHOT_FAILED',name,String(err).slice(0,240))}
+          }
+          """
+          s=s.replace("async function smoke(browser,label,viewport){",cap+"\nasync function smoke(browser,label,viewport){")
+          def insert(anchor,code):
+            global s
+            if anchor not in s: raise SystemExit('Missing QA injection anchor: '+anchor)
+            s=s.replace(anchor,anchor+"\n  "+code,1)
+          insert("await page.locator('#padWho').innerText(),/PIN 입력 후 출퇴근 처리/);","") if False else None
+          insert("await page.locator('#testModeControls').waitFor({timeout:20000});",
+                 "await manualCapture(page,label,'01-store-attendance-home','#view');")
+          insert("await page.locator('#padVeil.show').waitFor({timeout:10000});",
+                 "await manualCapture(page,label,'02-store-pin-dialog','#padVeil');")
+          insert("await page.locator('#adEmps .employee-manage-card').first().waitFor({timeout:15000});",
+                 "await manualCapture(page,label,'03-store-employee-management','#view');")
+          insert("await page.getByRole('button',{name:'급여 마감 검토'}).waitFor({timeout:15000});",
+                 "await manualCapture(page,label,'04-store-payroll','#view');")
+          insert("await page.locator('.calendar').waitFor({timeout:20000});",
+                 "await manualCapture(page,label,'05-store-work-calendar','body');")
+          insert("await page.locator('.hq-store-panel').first().waitFor({timeout:20000});",
+                 "await manualCapture(page,label,'06-hq-dashboard','#view');")
+          insert("await page.locator('#hqOnboardingStore').waitFor({timeout:12000});",
+                 "await manualCapture(page,label,'07-hq-store-management','#hqOnboardingBody');")
+          insert("await page.locator('#hqManagerEmail').fill('owner@example.invalid');",
+                 "await manualCapture(page,label,'08-hq-owner-invite','#hqManagerCard');")
+          insert("await page.waitForFunction(()=>document.querySelector('#hqOnboardingBody')?.innerText.includes('owner@example.invalid'),null,{timeout:12000});",
+                 "await manualCapture(page,label,'09-hq-owner-pending','#hqManagerCard');")
+          insert("await page.locator('#hqStoreLink').waitFor({timeout:12000});",
+                 "await manualCapture(page,label,'10-hq-store-ready','#hqOnboardingBody');")
+          Path('manual-smoke.mjs').write_text(s)
+          print('Created evidence version of current real-app browser regression: ',len(s))
+          PY
+      - name: Start existing offline application preview
+        run: |
+          node scripts/qa_browser_static_preview.mjs > /tmp/manual-preview.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:4173/index.html -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/manual-preview.log
+          exit 1
+      - name: Screenshot all actual frontend screens with synthetic sample accounts
+        run: node manual-smoke.mjs
+        continue-on-error: true
+      - name: Capture actual HQ owner manager screen from existing QA
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('qa_hq_owner_browser_acceptance.mjs')
+          s=p.read_text()
+          mark="await page.locator('[data-manager-tab=\"invite\"]').click();"
+          if mark not in s: raise SystemExit('HQ invite test anchor missing')
+          s=s.replace(mark,mark+"""
+          if(name==='desktop'){
+            fs.mkdirSync('manual-evidence',{recursive:true});
+            await page.locator('.hq-owner-detail').first().screenshot({path:'manual-evidence/11-hq-owner-console-invite.png',timeout:10000,animations:'disabled'});
+          }
+          """,1)
+          Path('manual-hq-owner.mjs').write_text(s)
+          PY
+          node manual-hq-owner.mjs
+        continue-on-error: true
+      - name: Create screenshot-based HTML user manuals from REAL app browser captures
+        run: |
+          cat > manual-create.mjs <<'JS'
+          import fs from 'node:fs';
+          import {chromium} from 'playwright';
+          const dir='manual-evidence';
+          fs.mkdirSync(dir,{recursive:true});
+          const valid=(n)=>fs.existsSync(dir+'/'+n+'.png');
+          const sections={
+            store:[
+              ['직원 출퇴근 화면','01-store-attendance-home',['출퇴근 메뉴에서 직원 이름을 선택합니다.','직원별 PIN을 입력하고 처리 완료 화면을 확인합니다.']],
+              ['직원 PIN 입력','02-store-pin-dialog',['본인의 이름이 맞는지 확인합니다.','직원별 4자리 PIN을 입력하고 출퇴근 처리를 선택합니다.']],
+              ['직원 관리','03-store-employee-management',['관리에서 직원 관리를 엽니다.','직원 등록 및 재직/퇴직 상태를 확인합니다.']],
+              ['급여 조회','04-store-payroll',['관리에서 급여 탭으로 이동합니다.','해당 월과 금액을 확인합니다.']],
+              ['근무현황','05-store-work-calendar',['근무현황을 열어 달력에서 날짜를 고릅니다.','실제 기록을 확인한 뒤 정정 기능을 이용합니다.']]
+            ],
+            hq:[
+              ['본사 지점 대시보드','06-hq-dashboard',['지점 관리 메뉴를 엽니다.','관리할 지점을 검색하고 선택합니다.']],
+              ['개통 관리 화면','07-hq-store-management',['대상 지점을 선택합니다.','대표 관리자 지정 및 계정 관리 영역을 엽니다.']],
+              ['점주 초대 메일 발송','08-hq-owner-invite',['초대할 관리자 역할은 대표 관리자입니다.','점주 이메일을 입력한 다음 점주 개통 안내 메일 발송을 누릅니다.']],
+              ['초대 대기 확인','09-hq-owner-pending',['초대 요청 뒤 초대 대기 상태를 확인합니다.','점주가 메일 인증과 새 비밀번호 설정을 완료해야 합니다.']],
+              ['지점 개통 상태 확인','10-hq-store-ready',['실재 확인 및 대표 계정이 준비됐는지 확인합니다.','개통 완료 뒤 지점 공유 주소를 확인합니다.']],
+              ['다른 본사 관리자 초대 화면','11-hq-owner-console-invite',['지점 관리에서 관리자 초대 탭을 엽니다.','대표 관리자를 고른 뒤 이메일을 입력하고 발송합니다.']]
+            ]
+          };
+          const esc=x=>String(x).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+          const css=\`@page{size:A4 landscape;margin:13mm} body{font-family:"Noto Sans CJK KR",Arial,sans-serif;color:#193b2a} .page{break-after:page;page-break-after:always;margin:0;display:flex;flex-direction:column;height:176mm} h1{font-size:24pt;margin:0 0 4mm} p.meta{font-size:10pt;color:#73837a;margin:0 0 5mm}.frame{height:128mm;display:flex;align-items:center;justify-content:center;border:1px solid #d8e5dc;background:#fff}.frame img{max-width:100%;max-height:100%;object-fit:contain}.instructions{margin:5mm 0 0;display:flex;gap:8mm}.instructions p{font-size:13pt;margin:0;flex:1}.number{font-weight:bold;color:#18683a}.tip{font-size:9pt;color:#64766c;margin-top:3mm}.foot{font-size:8pt;color:#6d8074;margin-top:auto}\`;
+          const browser=await chromium.launch({headless:true});
+          for(const [type,items] of Object.entries(sections)){
+            const included=items.filter(x=>valid(x[1]));
+            const title=type==='hq'?'백억커피 본사 관리자 - 점주 이메일 초대':'백억커피 지점 관리자 - 실제 화면 안내';
+            const pages=included.map(([head,img,steps],i)=>\`<section class="page"><h1>\${i+1}. \${esc(head)}</h1><p class="meta">백억커피 v0.392 실제 프런트엔드 · 격리된 가상 점주/직원 자료</p><div class="frame"><img src="data:image/png;base64,\${fs.readFileSync(dir+'/'+img+'.png').toString('base64')}"></div><div class="instructions">\${steps.map((t,j)=>\`<p><span class="number">\${j+1}.</span> \${esc(t)}</p>\`).join('')}</div><div class="foot">실제 앱 코드의 Playwright 촬영 · 업무 데이터 변경 없음 · 운영 계정 실촬영이 아닌 격리 QA</div></section>\`).join('');
+            const html=\`<!doctype html><html lang="ko"><meta charset="UTF-8"><style>\${css}</style><body>\${pages}</body></html>\`;
+            fs.writeFileSync(dir+'/'+type+'-manual.html',html);
+            const page=await browser.newPage();
+            await page.setContent(html,{waitUntil:'load'});
+            await page.pdf({path:dir+'/백억커피_'+(type==='hq'?'본사용':'지점용')+'_실제앱화면_매뉴얼.pdf',format:'A4',landscape:true,printBackground:true,margin:{top:'13mm',bottom:'13mm',left:'13mm',right:'13mm'}});
+            await page.close();
+            console.log(type,included.length,'screens → real-frontend screenshot PDF');
+          }
+          await browser.close();
+          JS
+          node manual-create.mjs
+      - name: Upload screenshots and screenshot-based user manuals
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baekeok-real-app-manual-screenshots-v0392
+          path: manual-evidence/
+          if-no-files-found: error
+          retention-days: 30
