@@ -1,0 +1,116 @@
+
+const out='manual-owner-deep';fs.mkdirSync(out,{recursive:true});
+const report=[];const b=await chromium.launch({headless:true});
+async function capture(page,name,selector){
+ try{const e=page.locator(selector).first();await e.waitFor({state:'visible',timeout:5000});await page.waitForTimeout(250);
+ await e.screenshot({path:out+'/'+name+'.png',animations:'disabled',timeout:9000});
+ report.push({name,status:'PASS',text:(await e.innerText().catch(()=>'' )).slice(0,1200)});console.log('SAVED',name)}
+ catch(err){report.push({name,status:'FAILED',error:String(err).slice(0,160)});console.log('FAIL',name,String(err).slice(0,160))}
+}
+async function session(role='STORE_MANAGER'){
+ const ctx=await b.newContext({viewport:{width:1450,height:940},deviceScaleFactor:2,locale:'ko-KR',timezoneId:'Asia/Seoul'});
+ const page=await ctx.newPage(),calls=[];
+ await configure(page,calls,role,role==='STORE_MANAGER'?2:null);
+ return {ctx,page};
+}
+try{
+ const S=await session(),p=S.page;
+ const recipe=[
+  {menu_key:'sample-americano',menu_name:'예시 아메리카노',category:'커피&콜드브루',thumbnail_url:null,
+   instructions:[{label:'ICE 예시',content:'① 컵에 얼음 준비\n② 에스프레소 2샷\n③ 물을 넣고 마무리'}],
+   components:[{item_id:101,item_name:'예시 원두',quantity:18,unit:'g'}]},
+  {menu_key:'sample-latte',menu_name:'예시 카페라떼',category:'라떼&버블티',thumbnail_url:null,
+   instructions:[{label:'HOT 예시',content:'① 원두 추출\n② 따뜻한 우유 준비'}],
+   components:[{item_id:102,item_name:'예시 우유',quantity:180,unit:'ml'}]}
+ ];
+ await p.route('**/rest/v1/rpc/**',route=>{
+  const name=new URL(route.request().url()).pathname.split('/').pop();
+  if(name==='admin_store_recipe_list')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(recipe)});
+  if(name==='admin_store_inventory_items')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{id:101,name:'예시 원두',sku:'QA001',unit:'g'}])});
+  return route.fallback();
+ });
+ await p.route('**/functions/v1/server-sync-sheet',route=>{
+  let args={};try{args=JSON.parse(route.request().postData()||'{}')}catch{}
+  if(args.mode!=='payroll')return route.fallback();
+  const e={id:123,name:'급여예시직원',employee_no:1,is_active:true,wage:12000,store_id:2};
+  const row={employee_id:123,employee_name:e.name,emp:e,sec:28800,hours:8,issues:0,ov:{},hasWage:true,
+    payrollType:'HOURLY',contract:{id:1},pay:{wage:12000,base:96000,weekly:0,juhyu:0,adjust:0,
+       gross:96000,net:92832,rate:3.3,jweeks:0,breakCompPay:0},sessions:[],
+    nightMinutes:0,breakEligibleCount:0,breakConfirmedCount:0,breakNotProvidedCount:0,breakCompensateCount:0};
+  return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,ym:args.ym,
+    result:{active:[e],rows:[row],weeks:4,overrides:{},totalGross:96000,totalNet:92832}})});
+ });
+ await p.goto('http://127.0.0.1:4173/index.html?mode=store&store=1#admin',{waitUntil:'domcontentloaded'});
+ await p.waitForURL(/store=2/,{timeout:12000}).catch(()=>{});
+ await p.locator('#adEmps').waitFor({timeout:10000});
+ await p.evaluate(()=>location.hash='#recipe');await p.locator('.recipe-v220-card').first().waitFor({timeout:11000});
+ await capture(p,'01-recipe-real-UI-list','#view');
+ await p.locator('.recipe-v220-card .recipe-v220-open').first().click();
+ await capture(p,'02-recipe-detail','.recipe-v220-card.is-open');
+ await p.locator('.recipe-v220-card.is-open .recipe-v220-open').click();
+ await p.locator('.recipe-v220-edit').first().click();
+ await capture(p,'03-recipe-edit','.recipe-v220-modal');
+ await p.locator('.recipe-v220-modal header button').click();
+ await p.locator('#rvSearch').fill('라떼');
+ await capture(p,'04-recipe-search','#view');
+ await p.evaluate(()=>location.hash='#pay');
+ await p.locator('#payMonth').waitFor({timeout:12000});
+ await p.waitForTimeout(1200);
+ await capture(p,'05-payroll-filled','#view');
+ await p.locator('#payMonth').fill('2026-09');
+ await p.locator('#payMonth').dispatchEvent('change');
+ await p.waitForTimeout(1300);
+ await capture(p,'06-payroll-and-close','#view');
+ await S.ctx.close();
+ // Actual independent contract editor, using sample employment bundle.
+ const C=await session(),c=C.page;
+ await c.route('**/rest/v1/rpc/**',route=>{
+  const rpc=new URL(route.request().url()).pathname.split('/').pop();
+  const data={
+   admin_list_employees:[{id:123,name:'예시직원',employee_no:1,is_active:true,store_id:2}],
+   admin_employment_bundle:{periods:[],contracts:[],workdays:[],absence_decisions:[]},
+   is_admin:true
+  };
+  if(Object.hasOwn(data,rpc))return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data[rpc])});
+  return route.fallback();
+ });
+ await c.goto('http://127.0.0.1:4173/employment_contracts.html?employee=123&from=employees',{waitUntil:'domcontentloaded'});
+ await c.waitForTimeout(900);
+ await capture(c,'07-contract-main','body .wrap');
+ await capture(c,'08-contract-editor','#app');
+ await C.ctx.close();
+ // Actual independent attendance page: real JS + synthetic IN/OUT events.
+ const T=await session(),t=T.page;
+ await t.route('**/rest/v1/rpc/**',route=>{
+  const name=new URL(route.request().url()).pathname.split('/').pop();
+  const data={
+    admin_store_events_with_corrections:{
+       events:[
+        {id:40001,employee_id:123,store_id:2,event_type:'IN',event_at:'2026-11-11T09:00:00+09:00'},
+        {id:40002,employee_id:123,store_id:2,event_type:'OUT',event_at:'2026-11-11T17:00:00+09:00'}
+       ],corrections:[]},
+    list_store_employees:[{id:123,name:'예시직원',employee_no:1,is_active:true,store_id:2}]
+  };
+  if(Object.hasOwn(data,name))return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data[name])});
+  return route.fallback();
+ });
+ await t.goto('http://127.0.0.1:4173/actual_attendance.html?store=2',{waitUntil:'domcontentloaded'});
+ await t.locator('.calendar').waitFor({timeout:15000});
+ await capture(t,'09-attendance-month','.wrap');
+ await t.locator('[data-day="2026-11-11"]').click();
+ await capture(t,'10-attendance-day','.dayview');
+ if(await t.locator('#attendanceAddBtn').isVisible()){
+  await t.locator('#attendanceAddBtn').click();
+  await capture(t,'11-attendance-add','#actualCorrectionVeil .correction-modal');
+  await t.locator('#manualAttendanceClose').click();
+ }
+ if(await t.locator('.session-actions .session-fix').first().count()){
+  await t.locator('.session-actions .session-fix').first().click();
+  await capture(t,'12-attendance-correct','#actualCorrectionVeil .correction-modal');
+  await t.locator('#correctionClose').click();
+ }
+ await T.ctx.close();
+}finally{
+ fs.writeFileSync(out+'/manifest.json',JSON.stringify(report,null,2));await b.close();
+}
+console.log('DEEP_RESULT',report.map(r=>r.name+':'+r.status).join(','));
