@@ -39,3 +39,5 @@ jobs:
           path: manual-owner-deep/
           if-no-files-found: warn
           retention-days: 30
+
+# Revision: screenshot completion and source-aligned fixture updates
