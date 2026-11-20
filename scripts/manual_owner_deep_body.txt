@@ -37,7 +37,7 @@ try{
     payrollType:'HOURLY',contract:{id:1},pay:{wage:12000,base:96000,weekly:0,juhyu:0,adjust:0,
        gross:96000,net:92832,rate:3.3,jweeks:0,breakCompPay:0},sessions:[],
     nightMinutes:0,breakEligibleCount:0,breakConfirmedCount:0,breakNotProvidedCount:0,breakCompensateCount:0};
-  return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,ym:args.ym,
+  return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,engine_revision:'20261010-verified',ym:args.ym,
     result:{active:[e],rows:[row],weeks:4,overrides:{},totalGross:96000,totalNet:92832}})});
  });
  await p.goto('http://127.0.0.1:4173/index.html?mode=store&store=1#admin',{waitUntil:'domcontentloaded'});
@@ -76,6 +76,7 @@ try{
  });
  await c.goto('http://127.0.0.1:4173/employment_contracts.html?employee=123&from=employees',{waitUntil:'domcontentloaded'});
  await c.waitForTimeout(900);
+ await c.locator('#employee').selectOption('123').catch(()=>{});await c.waitForTimeout(700);
  await capture(c,'07-contract-main','body .wrap');
  await capture(c,'08-contract-editor','#app');
  await C.ctx.close();
@@ -86,8 +87,8 @@ try{
   const data={
     admin_store_events_with_corrections:{
        events:[
-        {id:40001,employee_id:123,store_id:2,event_type:'IN',event_at:'2026-11-11T09:00:00+09:00'},
-        {id:40002,employee_id:123,store_id:2,event_type:'OUT',event_at:'2026-11-11T17:00:00+09:00'}
+        {id:40001,employee_id:123,store_id:2,event_type:'IN',event_at:'2026-11-11 09:00:00'},
+        {id:40002,employee_id:123,store_id:2,event_type:'OUT',event_at:'2026-11-11 17:00:00'}
        ],corrections:[]},
     list_store_employees:[{id:123,name:'예시직원',employee_no:1,is_active:true,store_id:2}]
   };
@@ -100,12 +101,12 @@ try{
  await t.locator('[data-day="2026-11-11"]').click();
  await capture(t,'10-attendance-day','.dayview');
  if(await t.locator('#attendanceAddBtn').isVisible()){
-  await t.locator('#attendanceAddBtn').click();
+  await t.locator('#attendanceAddBtn').click({timeout:2500}).catch(err=>console.log('ADD_CLICK_ERROR',String(err).slice(0,150)));
   await capture(t,'11-attendance-add','#actualCorrectionVeil .correction-modal');
   await t.locator('#manualAttendanceClose').click();
  }
  if(await t.locator('.session-actions .session-fix').first().count()){
-  await t.locator('.session-actions .session-fix').first().click();
+  await t.locator('.session-actions .session-fix').first().click({timeout:2500}).catch(err=>console.log('CORRECT_CLICK_ERROR',String(err).slice(0,150)));
   await capture(t,'12-attendance-correct','#actualCorrectionVeil .correction-modal');
   await t.locator('#correctionClose').click();
  }
