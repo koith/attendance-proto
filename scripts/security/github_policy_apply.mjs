@@ -113,7 +113,10 @@ export async function apply(gh, {policy, phase, snap, confirm, now = Date.now()}
           green(must(await gh.get(`/commits/main/check-runs?check_name=${encodeURIComponent(c.context)}&per_page=20`), 'CHECK_RUNS'), c);
         for (const pr of merged) {
           if (ok) break;
-          ok = green(must(await gh.get(`/commits/${pr.head.sha}/check-runs?check_name=${encodeURIComponent(c.context)}&per_page=20`), 'CHECK_RUNS'), c);
+          ok = c.kind === 'commit_status'
+            ? (must(await gh.get(`/commits/${pr.head.sha}/status`), 'COMBINED_STATUS').statuses || [])
+              .some((x) => x.context === c.context && x.state === 'success' && x.creator?.login === 'github-actions[bot]')
+            : green(must(await gh.get(`/commits/${pr.head.sha}/check-runs?check_name=${encodeURIComponent(c.context)}&per_page=20`), 'CHECK_RUNS'), c);
         }
         if (!ok) throw Error(`REQUIRED_CHECK_NOT_YET_GREEN:${c.context}_MERGE_IT_FIRST`);
       }

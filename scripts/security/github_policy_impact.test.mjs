@@ -6,7 +6,7 @@ import {analyzePolicy, loadFiles, prTriggerUnfiltered, DEFAULT_POLICY} from './g
 
 const policy = () => JSON.parse(fs.readFileSync(DEFAULT_POLICY, 'utf8'));
 const gate = `name: g\non:\n  pull_request:\n  merge_group:\njobs:\n  required-gate:\n    name: required-gate\n    runs-on: x\n    steps:\n      - run: true\n`;
-const integ = `name: i\non:\n  pull_request_target:\n    types: [opened, synchronize, reopened, labeled, unlabeled, edited]\njobs:\n  gate-integrity:\n    name: gate-integrity\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: \${{ github.event.pull_request.base.sha }}\n      - run: node scripts/security/gate_integrity.mjs\n`;
+const integ = `name: i\npermissions:\n  statuses: write\non:\n  pull_request_target:\n    types: [opened, synchronize, reopened, labeled, unlabeled, edited]\njobs:\n  gate-integrity:\n    name: gate-integrity-judge\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: \${{ github.event.pull_request.base.sha }}\n      - run: node scripts/security/gate_integrity.mjs\n`;
 const INTEG = {name: 'pr-gate-integrity.yml', text: integ};
 const rules = (r) => r.blocking.map((b) => b.rule).sort();
 
@@ -76,5 +76,6 @@ test('gate-integrity must run on pull_request_target incl. synchronize, and neve
   assert.deepEqual(rules(both(integ.replace('opened, synchronize, ', 'opened, '))), ['REQUIRED_GATE_INVALID'], 'without synchronize a new push is never re-judged');
   assert.deepEqual(rules(both(integ.replace('pull_request_target:', 'pull_request:'))), ['REQUIRED_GATE_INVALID'], 'pull_request would run the PR version of the check');
   assert.deepEqual(rules(both(integ.replace('base.sha', 'head.sha'))), ['PULL_REQUEST_TARGET_RUNS_PR_CODE']);
+  assert.deepEqual(rules(both(integ.replace('  statuses: write\n', ''))), ['REQUIRED_GATE_INVALID'], 'must be able to post the head-sha status');
   assert.deepEqual(rules(both(integ.replace('      - run: node', '      - env:\n          T: ${{ secrets.X }}\n        run: node'))), ['REQUIRED_GATE_INVALID']);
 });

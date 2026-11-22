@@ -58,6 +58,8 @@ export function assessGateIntegrity({files, headWorkflows = {}, labels = [], lab
     }
     if (/^\s*pull_request_target\s*:|on:\s*\[[^\]]*pull_request_target/m.test(text) && !Object.values(canonical).includes(file))
       needsApproval.push({rule: 'PROTECTED_PATH_NEEDS_OWNER_APPROVAL', path: file, detail: 'adds or changes a pull_request_target workflow'});
+    if (/\b(statuses|checks)\s*:\s*write\b|\bwrite-all\b/.test(text) && !Object.values(canonical).includes(file))
+      needsApproval.push({rule: 'TOKEN_CAN_FORGE_STATUS', path: file});
     if (/^\s*pull_request\s*:|on:\s*\[[^\]]*pull_request[,\]\s]/m.test(text) && /^ {4}name:[^\n]*\$\{\{/m.test(text) && !Object.values(canonical).includes(file))
       needsApproval.push({rule: 'DYNAMIC_JOB_NAME_ON_PR', path: file});
   }
@@ -70,12 +72,13 @@ export function assessGateIntegrity({files, headWorkflows = {}, labels = [], lab
   return {verdict, reasons, approval_required: needsApproval.length > 0, approved: approval.approved && needsApproval.length > 0, remove_label: removeLabel};
 }
 
-async function gh(token, repo, method, p) {
+async function gh(token, repo, method, p, body) {
   const res = await fetch(`https://api.github.com/repos/${repo}${p}`, {method, headers: {authorization: `Bearer ${token}`,
-    accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28'}});
+    accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', ...(body ? {'content-type': 'application/json'} : {})},
+    body: body ? JSON.stringify(body) : undefined});
   if (res.status >= 500) throw Error(`GATE_INTEGRITY_UPSTREAM_${res.status}`);
-  const body = res.status === 204 ? null : await res.json().catch(() => null);
-  return {status: res.status, body};
+  const json = res.status === 204 ? null : await res.json().catch(() => null);
+  return {status: res.status, body: json};
 }
 async function pages(token, repo, p, max = 30) {
   const out = [];
@@ -107,6 +110,19 @@ async function main() {
   if (r.remove_label && !advisory) {
     await gh(token, repo, 'DELETE', `/issues/${num}/labels/${encodeURIComponent(policy.gate_integrity.approval_label)}`);
     console.log('GATE_APPROVAL_REVOKED new push to protected paths; owner must re-approve');
+  }
+  // A pull_request_target job's own check run is attached to the BASE sha and
+  // can never satisfy a required check on the PR. Report the verdict as a
+  // commit status on the exact PR HEAD sha instead (the ruleset requires it).
+  const dry = process.env.GATE_DRYRUN_STATUS_CONTEXT || '';
+  const context = advisory ? (/^[a-z-]+-dryrun$/.test(dry) ? dry : '') : policy.gate_integrity.status_context;
+  if (context) {
+    const runUrl = `${process.env.GITHUB_SERVER_URL || 'https://github.com'}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID || ''}`;
+    const st = await gh(token, repo, 'POST', `/statuses/${pr.head.sha}`, {state: r.verdict === 'PASS' ? 'success' : 'failure', context,
+      description: (r.verdict === 'PASS' ? 'Gate/policy integrity verified by base-branch code' : `Blocked: ${r.reasons.map((x) => x.rule).filter((v, i, a) => a.indexOf(v) === i).join(', ')}`).slice(0, 140),
+      target_url: runUrl});
+    if (st.status !== 201) throw Error(`GATE_INTEGRITY_STATUS_POST_HTTP_${st.status}`);
+    console.log(`GATE_INTEGRITY_STATUS_POSTED context=${context} sha=${pr.head.sha} state=${r.verdict === 'PASS' ? 'success' : 'failure'}`);
   }
   console.log(JSON.stringify({schema: 1, pr: Number(num), head_sha: pr.head.sha, advisory: Boolean(advisory), ...r}));
   console.log(`GATE_INTEGRITY_VERDICT ${r.verdict}`);

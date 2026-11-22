@@ -51,6 +51,7 @@ function fakeGitHub(initial) {
       const name = u.searchParams.get('check_name');
       return res(200, {check_runs: (st.checkRuns[m[1]] || []).filter((c) => c.name === name)});
     }
+    if ((m = p.match(/^\/commits\/([^/]+)\/status$/))) return res(200, {statuses: (st.statuses || {})[m[1]] || []});
     if (p === '/pulls') return res(200, st.pulls || []);
     if (p === '/rules/branches/main') {
       const rules = Object.values(st.rulesets).filter((r) => r.enforcement === 'active').flatMap((r) => r.rules);
@@ -92,12 +93,17 @@ test('phase C refuses until required-gate is green on main (prevents PR deadlock
   f.st.checkRuns = {main: [{name: 'required-gate', conclusion: 'success', app: {id: 15368}}]};
   await assert.rejects(apply(f.gh, {policy: policy(), phase: 'C', snap, confirm: REPO}), /NOT_YET_GREEN:gate-integrity/, 'integrity must be proven on a merged PR');
   f.st.checkRuns.prhead = [{name: 'gate-integrity', conclusion: 'success', app: {id: 15368}}];
+  await assert.rejects(apply(f.gh, {policy: policy(), phase: 'C', snap, confirm: REPO}), /NOT_YET_GREEN:gate-integrity/, 'a check RUN does not count: it must be a commit status on the PR head');
+  f.st.statuses = {prhead: [{context: 'gate-integrity', state: 'success', creator: {login: 'someone-else'}}]};
+  await assert.rejects(apply(f.gh, {policy: policy(), phase: 'C', snap, confirm: REPO}), /NOT_YET_GREEN:gate-integrity/, 'only GitHub Actions may have posted it');
+  f.st.statuses = {prhead: [{context: 'gate-integrity', state: 'success', creator: {login: 'github-actions[bot]'}}]};
   assert.match((await apply(f.gh, {policy: policy(), phase: 'C', snap, confirm: REPO}))[0], /RULESET UPDATED .*required_status_checks/);
 });
 
 test('A..E then probe PASS on policy checks, then rollback restores the exact starting state', async () => {
   const f = fakeGitHub(CURRENT); const snap = await snapshot(f.gh, REPO);
-  f.st.checkRuns = {main: [{name: 'required-gate', conclusion: 'success', app: {id: 15368}}], prhead: [{name: 'gate-integrity', conclusion: 'success', app: {id: 15368}}]};
+  f.st.checkRuns = {main: [{name: 'required-gate', conclusion: 'success', app: {id: 15368}}]};
+  f.st.statuses = {prhead: [{context: 'gate-integrity', state: 'success', creator: {login: 'github-actions[bot]'}}]};
   for (const phase of ['A', 'B', 'C', 'D', 'E']) await apply(f.gh, {policy: policy(), phase, snap, confirm: REPO});
   assert.equal(Object.keys(f.st.rulesets).length, 1, 'phases update one ruleset, never duplicate');
   assert.deepEqual(f.st.envs.production.branch_policies.map((b) => b.name), ['main']);

@@ -70,3 +70,10 @@ test('the real canonical gate workflows do not trip the spoof rule', () => {
   const r = run({files: Object.keys(headWorkflows).map((p) => f(p)), headWorkflows, labels: [LABEL], labelEvents: [human()]});
   assert.equal(r.verdict, 'PASS', JSON.stringify(r.reasons));
 });
+
+test('a changed workflow that can write statuses/checks could forge the required status: needs owner approval', () => {
+  for (const perm of ['statuses: write', 'checks: write', 'write-all']) {
+    const wf = `on: pull_request\npermissions:\n  ${perm.includes(':') ? perm : perm}\njobs:\n  x:\n    runs-on: x\n    steps:\n      - run: true\n`;
+    assert.deepEqual(rules(run({files: [f('.github/workflows/w.yml')], headWorkflows: {'.github/workflows/w.yml': wf}})), ['TOKEN_CAN_FORGE_STATUS'], perm);
+  }
+});

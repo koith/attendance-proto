@@ -90,7 +90,9 @@ export function analyzePolicy(files, policy) {
       if (job.needs.length) bad('job depends on other jobs');
       if (job.refs.length) bad('required check must not use secrets');
     }
-    if (!new RegExp(`^\\s{4}name:\\s*['"]?${gate.context}['"]?\\s*$`, 'm').test(gateFile.text)) bad(`job name must equal check context ${gate.context}`);
+    if (gate.kind === 'commit_status') {
+      if (!/\bstatuses\s*:\s*write\b/.test(gateFile.text)) bad('must be allowed to post the commit status (statuses: write)');
+    } else if (!new RegExp(`^\\s{4}name:\\s*['"]?${gate.context}['"]?\\s*$`, 'm').test(gateFile.text)) bad(`job name must equal check context ${gate.context}`);
   }
   // A pull_request_target job runs with the BASE token; it must never run PR code.
   for (const f of files) {

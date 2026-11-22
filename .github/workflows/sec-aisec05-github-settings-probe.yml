@@ -24,6 +24,8 @@ permissions:
   deployments: read
   pull-requests: read
   issues: read
+  # Dry-run proof that a commit status lands on the PR HEAD sha (separate context, never required).
+  statuses: write
 jobs:
   probe:
     runs-on: ubuntu-24.04
@@ -46,6 +48,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           EVENT_ACTION: ${{ github.event.action }}
           GATE_ADVISORY: '1'
+          GATE_DRYRUN_STATUS_CONTEXT: gate-integrity-dryrun
         run: node scripts/security/gate_integrity.mjs | tee gate-integrity-advisory.txt
       - name: Owner apply plan (offline, prints calls only)
         run: node scripts/security/github_policy_apply.mjs plan

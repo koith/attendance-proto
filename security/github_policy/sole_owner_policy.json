@@ -133,7 +133,9 @@
       "job": "gate-integrity",
       "context": "gate-integrity",
       "integration_id": 15368,
-      "trigger": "pull_request_target"
+      "trigger": "pull_request_target",
+      "kind": "commit_status",
+      "note": "pull_request_target check runs attach to the BASE sha, so the job posts a commit status on the PR HEAD sha; the ruleset requires that status."
     }
   ],
   "gate_integrity": {
@@ -152,7 +154,8 @@
       "security/aisec07_secret_policy_baseline.json",
       "security/aisec07_secret_classes.json",
       "scripts/ledger_growth_guard.mjs"
-    ]
+    ],
+    "status_context": "gate-integrity"
   },
   "applied_phases": [],
   "applied_phases_note": "Phases the owner has actually applied. The scheduled probe FAILS (drift alarm) if any check belonging to an applied phase is not PASS. Update only via an owner-approved PR after applying."

@@ -9,12 +9,14 @@ permissions:
   contents: read
   pull-requests: read
   issues: write
+  # Posts the verdict as a commit status on the PR HEAD sha (required check).
+  statuses: write
 concurrency:
   group: pr-gate-integrity-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 jobs:
   gate-integrity:
-    name: gate-integrity
+    name: gate-integrity-judge
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
