@@ -1,0 +1,28 @@
+name: Export public recovery tool for private offline verification
+on:
+  push:
+    branches: [sec/private-restore-tools-20261122]
+    paths: ['.github/workflows/sec-export-public-recovery-tool.yml']
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 1b9aa7ef08ecda204a7ccd52bfbede253a60e850
+          persist-credentials: false
+      - name: Verify exact public source blob
+        run: |
+          test "$(git hash-object scripts/security/sec_restore_logical_pg.py)" = 9ec9089b81092ddbdc3de56d8b353b4f453011e8
+          mkdir -p public-tools
+          cp scripts/security/sec_restore_logical_pg.py public-tools/
+          cp scripts/security/sec_restore_logical_pg_test.py public-tools/
+          git rev-parse HEAD > public-tools/SOURCE_COMMIT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-pg17-recovery-tool-1b9aa7ef
+          path: public-tools/
+          retention-days: 1
