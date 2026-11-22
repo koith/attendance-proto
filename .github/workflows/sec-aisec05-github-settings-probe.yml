@@ -1,0 +1,40 @@
+name: SEC AISEC-05 GitHub settings evidence probe (read-only)
+# GET-only evidence of real branch protection / rulesets / environment
+# approvals using this job's read-scoped GITHUB_TOKEN. No repository secrets,
+# no settings writes. A 403 is recorded as CANNOT_VERIFY, never PASS.
+on:
+  pull_request:
+    paths:
+      - 'scripts/security/github_settings_probe.mjs'
+      - 'scripts/security/github_settings_probe.test.mjs'
+      - '.github/workflows/sec-aisec05-github-settings-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Synthetic probe QA
+        run: node --test scripts/security/github_settings_probe.test.mjs
+      - name: Read real repository settings (GET only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PROBE_OUT: aisec05-settings-evidence.json
+        run: |
+          node scripts/security/github_settings_probe.mjs
+          { echo '```json'; cat aisec05-settings-evidence.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aisec05-settings-evidence
+          path: aisec05-settings-evidence.json
+          retention-days: 30

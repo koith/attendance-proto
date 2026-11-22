@@ -6,6 +6,9 @@ const allowedPaths=new Set([
 
   ".github/workflows/capture-development-instructions.yml",
   ".github/workflows/sec-aisec07-secret-lifecycle-guard.yml",
+  ".github/workflows/sec-aisec05-github-settings-probe.yml",
+  "scripts/security/github_settings_probe.mjs",
+  "scripts/security/github_settings_probe.test.mjs",
   "scripts/security/workflow_secret_inventory.mjs",
   "scripts/security/workflow_secret_inventory.test.mjs",
   "security/aisec07_secret_classes.json",
