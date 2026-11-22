@@ -134,3 +134,39 @@ GITHUB_ADMIN_TOKEN=... node scripts/security/github_policy_apply.mjs rollback \
   - 최근 main 실행: Payroll Edge #44465529842 성공(11/19), Pages #44483847511 성공(11/19).
 - 자동 백업: 일정(`47 16 * * *`)·`production-backup` 환경·main 한정 조건은 유지된다. 승인자를 두지 않으므로 매일 대기하지 않는다.
   - 단, 위 6절대로 **원래부터 한 번도 성공하지 못한 상태**다. 3단계 비밀 등록 후 첫 예약 실행이 실제 성공 증거가 된다.
+
+## 8. 병합 후 실제 적용·수용 절차 (순서 고정)
+
+`gate-integrity`의 판정은 **PR head SHA에 올라가는 commit status**다.
+- `pull_request_target`의 job check run은 base SHA에 붙어 필수 체크를 충족할 수 없으므로, status를 head SHA에 직접 올린다.
+- 이 메커니즘은 PR #1660에서 실증했다: head `002ea3cf`에 GitHub Actions 토큰으로 `gate-integrity-dryrun` status가 게시됨(run #45036941101).
+
+1. PR #1660 squash 병합 (expectedHeadSha 지정). → `required-gate`가 main push에서 실행·성공해야 한다.
+2. 라벨 `gate-change-approved` 생성 (Issues → Labels, 소유자).
+3. snapshot → 단계 A, B 적용 (`github_policy_apply.mjs`) → probe 수동 실행으로 A·B PASS 확인.
+4. **수용 PR**: `security/github_policy/sole_owner_policy.json`의 `applied_phases`를 `["A","B"]`로 바꾸는 PR을 연다(보호 경로).
+   - 기대 ①: PR head에 `gate-integrity` status = **failure** (라벨 없음).
+   - 소유자가 PR 화면에서 라벨을 부착한다.
+   - 기대 ②: 재실행 후 같은 head SHA에 status = **success**. `required-gate`도 success.
+   - 병합한다. 이 병합된 PR이 C단계 도구 검사의 근거가 된다.
+5. 단계 C 적용(도구가 두 체크의 초록 기록을 확인하고 나서만 적용) → `applied_phases`에 C를 추가하는 PR로 같은 확인을 반복한다.
+   - PR 화면에 `required-gate`, `gate-integrity`가 **Required**로 표시되는지 확인.
+   - 라벨이 없을 때 병합 버튼이 막히는지 확인(음성).
+   - 라벨 부착 후 병합 가능한지 확인(양성).
+6. 단계 D 적용 → 다음 날 예약 백업과 다음 main push의 Payroll Edge 배포가 대기 없이 성공하는지 확인 → `applied_phases`에 D 추가.
+7. 문제가 생기면 즉시 `rollback --snapshot …` 또는 Settings에서 ruleset Disable(4절).
+
+## 9. GPT(운영 DB 접근 가능)에게 분리 전달하는 작업
+
+| # | 작업 | 성격 | 승인 |
+|---|---|---|---|
+| G1 | `security/aisec07_backup_reader_prod_preflight_readonly.sql`을 postgres로 실행하고 결과 2섹션(role_capability JSON, `BLOCKS_BACKUP` 목록) 보고 | **읽기 전용**(BEGIN READ ONLY … ROLLBACK) | 불필요 |
+| G2 | G1에서 `has_bypassrls`·`can_grant_pg_read_all_data`가 true이고 #1660이 병합되었으면 `security/aisec07_backup_reader_role.sql` 실행 → 역할 존재·속성 재조회 | 운영 DDL(역할 생성) | **소유자 승인 필요** |
+| G3 | G1의 `BLOCKS_BACKUP` 함수마다 저장소에서 앱 호출처를 확인(`rpc('<name>'`) → 필요한 역할만 남기는 `REVOKE EXECUTE … FROM PUBLIC; GRANT EXECUTE … TO anon, authenticated` 초안 작성 → 적용 후 G1 재실행 | 운영 ACL 변경 | **소유자 승인 필요** |
+| G4 | 첫 백업 성공 후 `SEC restore verify` 결과와 운영 행 수 비교로 SEC-S01/S04 근거 보강 | 읽기 전용 비교 | 불필요 |
+
+- 소유자만 할 수 있는 일(GPT·Claude가 값을 보면 안 됨):
+  - `ALTER ROLE backup_reader PASSWORD …`
+  - `production-backup` 환경 비밀 3개 등록: `BACKUP_DB_READONLY_URL`, `BACKUP_STORAGE_SERVICE_KEY`(service role 키), `BACKUP_AUTH_CONFIG_TOKEN`(백업 전용 새 Supabase PAT)
+  - 그 뒤 "SEC backup capture isolated" 수동 실행.
+- 실패 시 확인할 것: preflight 단계의 `BACKUP_READER_*` 이유 코드. 함수 이름이 나오면 G3을 진행한다.
