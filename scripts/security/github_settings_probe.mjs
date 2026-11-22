@@ -15,7 +15,19 @@ import {fileURLToPath} from 'node:url';
 // WITHOUT reviewers (automation must not stall), optional production-write
 // with the owner as reviewer for manual Auth-config writes.
 export const POLICY_ENVIRONMENTS = ['production', 'production-backup', 'production-write'];
-export const REQUIRED_CHECK = 'required-gate';
+export const REQUIRED_CHECKS = ['required-gate', 'gate-integrity'];
+// Which probe checks prove which policy phase (for drift enforcement).
+export const PHASE_CHECKS = {
+  A: ['main_blocks_force_push', 'main_blocks_deletion', 'main_ruleset_has_no_bypass_actors'],
+  B: ['main_requires_pull_request'],
+  C: ['main_requires_required_checks'],
+  D: ['environment_production_matches_policy', 'environment_production-backup_matches_policy'],
+  E: ['environment_production-write_matches_policy'],
+};
+export function driftVerdict(report, appliedPhases = []) {
+  const failing = appliedPhases.flatMap((ph) => (PHASE_CHECKS[ph] || [`UNKNOWN_PHASE_${ph}`]).filter((c) => report.checks[c] !== 'PASS'));
+  return {applied_phases: appliedPhases, drift: failing, verdict: failing.length ? 'DRIFT' : 'OK'};
+}
 
 function verdict(ok, unknown) { return unknown ? 'CANNOT_VERIFY' : ok ? 'PASS' : 'FAIL'; }
 
@@ -75,7 +87,7 @@ export function evaluate({branch, raw, rulesetDetails, branchPolicies = {}}) {
       current_user_can_bypass: d.body.current_user_can_bypass ?? null}));
   const requiredContexts = (params.required_status_checks?.required_status_checks || []).map((c) => c.context)
     .concat(classic?.required_status_checks?.contexts || []);
-  const gateRequired = requiredContexts.includes(REQUIRED_CHECK);
+  const gateRequired = REQUIRED_CHECKS.every((c) => requiredContexts.includes(c));
   // Ruleset details hide bypass_actors from non-admin tokens: null => unknown.
   const bypassCounts = activeRulesets.map((r) => r.bypass_actor_count);
   const bypassUnknown = activeRulesets.length === 0 || bypassCounts.some((c) => c === null);
@@ -110,7 +122,7 @@ export function evaluate({branch, raw, rulesetDetails, branchPolicies = {}}) {
   const wf = raw.workflow_permissions.status === 200 ? raw.workflow_permissions.body : null;
   const checks = {
     main_requires_pull_request: verdict(prRequired, unknownBranch && !prRequired),
-    main_requires_required_gate_check: verdict(gateRequired, unknownBranch && !gateRequired),
+    main_requires_required_checks: verdict(gateRequired, unknownBranch && !gateRequired),
     main_blocks_force_push: verdict(noForce, unknownBranch && !noForce),
     main_blocks_deletion: verdict(noDelete, unknownBranch && !noDelete),
     main_ruleset_has_no_bypass_actors: activeRulesets.length === 0 ? (unknownBranch ? 'CANNOT_VERIFY' : 'FAIL') : verdict(noBypass, bypassUnknown),
@@ -149,10 +161,16 @@ async function main() {
   const report = evaluate(await collect(githubGetter({token, repo})));
   report.run = {sha: process.env.GITHUB_SHA || null, head_sha: process.env.PROBE_HEAD_SHA || null, run_id: process.env.GITHUB_RUN_ID || null,
     event: process.env.GITHUB_EVENT_NAME || null, at: new Date().toISOString()};
+  // Drift alarm: once the owner records a phase as applied, any regression of
+  // its checks (ruleset disabled, reviewers added to backup env...) FAILS.
+  const policy = JSON.parse(fs.readFileSync(new URL('../../security/github_policy/sole_owner_policy.json', import.meta.url), 'utf8'));
+  report.drift = driftVerdict(report, policy.applied_phases || []);
   const out = JSON.stringify(report, null, 2);
   console.log(out);
   if (process.env.PROBE_OUT) fs.writeFileSync(process.env.PROBE_OUT, out + '\n');
   console.log(`AISEC05_SETTINGS_VERDICT ${report.overall}`);
+  console.log(`AISEC05_DRIFT_VERDICT ${report.drift.verdict} applied=${report.drift.applied_phases.join(',') || 'none'}`);
+  if (process.env.PROBE_ENFORCE_APPLIED === '1' && report.drift.verdict !== 'OK') process.exitCode = 1;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

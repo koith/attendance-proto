@@ -1,7 +1,7 @@
 // AISEC-05 synthetic QA (sole-owner policy): stubbed GET responses only, no network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {collect, evaluate, githubGetter} from './github_settings_probe.mjs';
+import {collect, evaluate, githubGetter, driftVerdict} from './github_settings_probe.mjs';
 
 const stub = (map) => async (p) => { for (const [k, v] of Object.entries(map)) if (p.startsWith(k)) return v; return {status: 404, body: null}; };
 const ok = (body) => ({status: 200, body});
@@ -11,7 +11,7 @@ const mainOnlyEnv = (name, reviewers = []) => ({name, deployment_branch_policy: 
 const branchPolicies = (names) => ok({branch_policies: names.map((n) => ({name: n}))});
 const fullyApplied = {
   '/rules/branches/main': ok([{type: 'pull_request', parameters: {required_approving_review_count: 0}},
-    {type: 'required_status_checks', parameters: {required_status_checks: [{context: 'required-gate', integration_id: 15368}]}},
+    {type: 'required_status_checks', parameters: {required_status_checks: [{context: 'required-gate', integration_id: 15368}, {context: 'gate-integrity', integration_id: 15368}]}},
     {type: 'non_fast_forward'}, {type: 'deletion'}]),
   '/branches/main/protection': deny,
   '/branches/main': ok({protected: true}),
@@ -41,7 +41,7 @@ test('reviewers on automation environments are FAIL (they would stall backup/dep
 
 test('missing gate, bypass actors, or non-main branch policy fail', async () => {
   const noGate = {...fullyApplied, '/rules/branches/main': ok([{type: 'pull_request', parameters: {required_approving_review_count: 0}}, {type: 'non_fast_forward'}, {type: 'deletion'}])};
-  assert.equal(evaluate(await collect(stub(noGate))).checks.main_requires_required_gate_check, 'FAIL');
+  assert.equal(evaluate(await collect(stub(noGate))).checks.main_requires_required_checks, 'FAIL');
   const bypass = {...fullyApplied, '/rulesets/7': ok({name: 'x', enforcement: 'active', target: 'branch', bypass_actors: [{actor_id: 5}]})};
   assert.equal(evaluate(await collect(stub(bypass))).checks.main_ruleset_has_no_bypass_actors, 'FAIL');
   const hidden = {...fullyApplied, '/rulesets/7': ok({name: 'x', enforcement: 'active', target: 'branch'})};
@@ -57,7 +57,7 @@ test('current real state (unprotected main, open environments) is FAIL', async (
     '/actions/permissions/workflow': deny,
   })));
   assert.equal(r.overall, 'FAIL');
-  for (const k of ['main_requires_pull_request', 'main_requires_required_gate_check', 'main_blocks_force_push', 'main_blocks_deletion', 'main_ruleset_has_no_bypass_actors', 'environment_production_matches_policy'])
+  for (const k of ['main_requires_pull_request', 'main_requires_required_checks', 'main_blocks_force_push', 'main_blocks_deletion', 'main_ruleset_has_no_bypass_actors', 'environment_production_matches_policy'])
     assert.equal(r.checks[k], 'FAIL', k);
   assert.equal(r.checks.default_workflow_token_read_only, 'CANNOT_VERIFY');
 });
@@ -76,4 +76,21 @@ test('getter issues GET only, rejects bad repo, and surfaces 5xx', async () => {
   assert.throws(() => githubGetter({token: 't', repo: '../x'}), /INVALID_REPO/);
   const bad = githubGetter({token: 't', repo: 'o/r', fetchImpl: async () => ({status: 502, json: async () => ({})})});
   await assert.rejects(bad('/x'), /UPSTREAM_502/);
+});
+
+test('requiring only required-gate (without gate-integrity) fails: the gate could be neutered by its own PR', async () => {
+  const onlyGate = {...fullyApplied, '/rules/branches/main': ok([{type: 'pull_request', parameters: {required_approving_review_count: 0}},
+    {type: 'required_status_checks', parameters: {required_status_checks: [{context: 'required-gate', integration_id: 15368}]}},
+    {type: 'non_fast_forward'}, {type: 'deletion'}])};
+  assert.equal(evaluate(await collect(stub(onlyGate))).checks.main_requires_required_checks, 'FAIL');
+});
+
+test('drift alarm fires only for phases recorded as applied', async () => {
+  const applied = evaluate(await collect(stub(fullyApplied)));
+  assert.equal(driftVerdict(applied, ['A', 'B', 'C', 'D', 'E']).verdict, 'OK');
+  const disabled = evaluate(await collect(stub({...fullyApplied, '/rules/branches/main': ok([]), '/branches/main': ok({protected: false}), '/rulesets': ok([])})));
+  assert.equal(driftVerdict(disabled, []).verdict, 'OK', 'nothing applied yet: no alarm noise');
+  const d = driftVerdict(disabled, ['A', 'B']);
+  assert.equal(d.verdict, 'DRIFT'); assert.ok(d.drift.includes('main_requires_pull_request') && d.drift.includes('main_blocks_force_push'));
+  assert.deepEqual(driftVerdict(applied, ['Z']).drift, ['UNKNOWN_PHASE_Z']);
 });

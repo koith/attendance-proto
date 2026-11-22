@@ -104,9 +104,19 @@ export async function apply(gh, {policy, phase, snap, confirm, now = Date.now()}
   const log = [];
   if (ph.rules) {
     if (ph.rules.includes('required_status_checks')) {
-      const runs = must(await gh.get(`/commits/main/check-runs?check_name=${encodeURIComponent(policy.required_check.context)}&per_page=20`), 'CHECK_RUNS');
-      const passed = (runs.check_runs || []).some((c) => c.conclusion === 'success' && c.app?.id === policy.required_check.integration_id);
-      if (!passed) throw Error('REQUIRED_GATE_NOT_YET_GREEN_ON_MAIN_MERGE_IT_FIRST');
+      // Every required context must already be reporting green from GitHub
+      // Actions, or requiring it would deadlock every PR.
+      const green = (runs, c) => (runs?.check_runs || []).some((r) => r.conclusion === 'success' && r.app?.id === c.integration_id);
+      const merged = (must(await gh.get('/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=10'), 'PULLS') || []).filter((x) => x.merged_at);
+      for (const c of policy.required_checks) {
+        let ok = c.trigger === 'pull_request' &&
+          green(must(await gh.get(`/commits/main/check-runs?check_name=${encodeURIComponent(c.context)}&per_page=20`), 'CHECK_RUNS'), c);
+        for (const pr of merged) {
+          if (ok) break;
+          ok = green(must(await gh.get(`/commits/${pr.head.sha}/check-runs?check_name=${encodeURIComponent(c.context)}&per_page=20`), 'CHECK_RUNS'), c);
+        }
+        if (!ok) throw Error(`REQUIRED_CHECK_NOT_YET_GREEN:${c.context}_MERGE_IT_FIRST`);
+      }
     }
     const body = rulesetBody(policy, phase);
     const list = must(await gh.get('/rulesets?per_page=100'), 'RULESETS_LIST');

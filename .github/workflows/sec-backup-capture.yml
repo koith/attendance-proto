@@ -35,14 +35,14 @@ jobs:
     environment: production-backup
     timeout-minutes: 20
     env:
-      # AISEC-07 staged separation: dedicated backup-only credentials (stored
-      # only as production-backup ENVIRONMENT secrets) win when present; the
-      # legacy names keep the daily backup running until the owner switches.
-      SUPABASE_DB_URL: ${{ secrets.BACKUP_DB_READONLY_URL || secrets.SUPABASE_DB_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.BACKUP_AUTH_CONFIG_TOKEN || secrets.SUPABASE_ACCESS_TOKEN }}
-      BACKUP_DB_DEDICATED: ${{ secrets.BACKUP_DB_READONLY_URL != '' }}
-      BACKUP_AUTH_DEDICATED: ${{ secrets.BACKUP_AUTH_CONFIG_TOKEN != '' }}
+      # AISEC-07: backup-ONLY credentials, stored only as production-backup
+      # ENVIRONMENT secrets. No fallback to operating credentials (none were
+      # ever registered: every scheduled run before this change failed with
+      # BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL). Mapped onto the names the
+      # unchanged capture.mjs reads.
+      SUPABASE_DB_URL: ${{ secrets.BACKUP_DB_READONLY_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.BACKUP_STORAGE_SERVICE_KEY }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.BACKUP_AUTH_CONFIG_TOKEN }}
       SUPABASE_URL: https://waluhdgqhwjjwmflhrle.supabase.co
       PGSSLMODE: require
       SEC_BACKUP_OUT: ${{ github.workspace }}/attendance-live.sealed

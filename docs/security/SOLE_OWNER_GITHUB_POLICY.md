@@ -30,7 +30,7 @@
 |---|---|---|---|
 | A | main 강제 push·삭제 차단 | 없음 (현재 강제 push 사용처 0) | probe `main_blocks_*` PASS |
 | B | main은 PR로만 변경 (승인 0) | 소유자의 **main 직접 커밋이 막힘** → PR로 전환 필요. GPT·Claude 커넥터도 PR 생성 → 병합 경로만 사용 | probe `main_requires_pull_request` PASS |
-| C | `required-gate` 필수 체크 | `.github/workflows/pr-required-gate.yml`이 main에 병합되고 main에서 1회 이상 성공한 뒤에만 적용 가능 (도구가 강제) | `main_requires_required_gate_check` PASS |
+| C | `required-gate` + `gate-integrity` 필수 체크 | 두 체크가 이미 초록이어야만 적용 가능 (도구가 강제): `required-gate`는 main push에서, `gate-integrity`는 최근 병합된 PR에서 확인 | `main_requires_required_checks` PASS |
 | D | `production`, `production-backup` 배포 브랜치 = main | 영향 0 (정적 분석) | `environment_*_matches_policy` PASS |
 | E (선택) | `production-write` 환경 + 소유자 승인 (self-review 허용) | 현재 사용 job 없음. 수동 Auth 설정 쓰기 job을 옮길 때만 사용 | 위와 동일 |
 
@@ -65,31 +65,72 @@ GITHUB_ADMIN_TOKEN=... node scripts/security/github_policy_apply.mjs rollback \
 도구 없이 롤백할 때: Settings → Rules → Rulesets → `main-sole-owner-protection` → Disable/Delete. Settings → Environments → 각 환경 → Deployment branches를 "No restriction"으로 되돌린다.
 롤백 동작은 `github_policy_apply.test.mjs`의 가짜 GitHub API로 검증했다: A~E 적용 후 rollback하면 시작 상태와 정확히 같아짐.
 
-## 5. 운영 쓰기와 자동 백업 읽기 권한 분리 (AISEC-07)
+## 5. 필수 게이트 자체의 변조 방어
 
-| 백업이 쓰는 자격증명 | 현재 | 분리 후 (환경 비밀, `production-backup`에만) | 성질 |
-|---|---|---|---|
-| DB | `SUPABASE_DB_URL` (운영 쓰기 가능) | `BACKUP_DB_READONLY_URL` → `backup_reader` 로그인 | **읽기 전용 증명**: `pg_read_all_data` + BYPASSRLS, 쓰기·DDL 권한 없음. 매 실행 전 `backup_reader_preflight.sh`가 `aisec07_backup_reader_verify.sql`로 확인하고, 쓰기 가능하면 백업 중단 |
-| Auth 설정 읽기 | `SUPABASE_ACCESS_TOKEN` (공용 관리 토큰) | `BACKUP_AUTH_CONFIG_TOKEN` (백업 전용 별도 토큰) | Supabase PAT는 범위 제한이 불가 → 읽기 전용은 아니지만 **별도 폐기 가능** |
-| Storage 파일 다운로드 | `SUPABASE_SERVICE_ROLE_KEY` | 변경 없음 (잔여 위험) | 읽기 전용 Storage 키가 없음. 후속 과제: 전용 Auth 사용자 + `storage.objects` SELECT 정책 |
+`pull_request` 워크플로는 **PR 안의 워크플로 버전**으로 실행된다. 따라서 `required-gate`만 필수로 걸면 PR이 게이트를 무력화해도 통과할 수 있다.
 
-전환 절차 (소유자, 각 단계 승인 후):
+| 공격 | 방어 | 검증 |
+|---|---|---|
+| PR이 `pr-required-gate.yml`이나 정책·가드 스크립트를 약화 | `gate-integrity`(`pull_request_target`)가 **base 브랜치 코드**로 판정하고, 보호 경로가 바뀌었으면 소유자 승인 라벨 없이는 BLOCK | `gate_integrity.test.mjs` |
+| 다른 워크플로가 같은 이름의 체크 `required-gate`/`gate-integrity`를 만들어 위장 | 변경된 워크플로에 필수 체크 이름이 있으면 **승인으로도 해제 불가 BLOCK**. ruleset은 GitHub Actions 앱(15368)이 만든 체크만 인정 | 같은 테스트 |
+| AI 커넥터가 소유자 토큰으로 승인 라벨 부착 | `performed_via_github_app`이 있는 라벨은 무효. 소유자가 GitHub UI에서 직접 붙인 라벨만 인정 | 같은 테스트 |
+| 승인 후 내용 교체 | 보호 경로에 새 push가 오면 라벨 자동 제거 → 재승인 필요 | 같은 테스트 |
+| 게이트에서 `pull_request` 트리거 제거 | 필수 체크가 보고되지 않음 → ruleset이 병합을 막음(fail-safe). 보호 경로이기도 함 | `github_policy_impact.mjs` |
+| `pull_request_target`에서 PR 코드 실행 | head checkout이 있으면 정책 영향 검사가 BLOCK. `gate-integrity`는 API로 데이터만 읽음 | `github_policy_impact.test.mjs` |
+| 설정 화면에서 ruleset·환경 보호 해제 | 주간 probe가 `applied_phases`에 기록된 단계의 회귀를 **실패**로 알림(drift) | `github_settings_probe.test.mjs` |
+
+- 보호 경로·라벨 이름: 정책 파일의 `gate_integrity`. 승인 라벨: `gate-change-approved`. 소유자가 PR 화면에서 직접 부착한다.
+- 한계: `gate-integrity`는 main에 병합된 뒤부터 동작한다(`pull_request_target`은 base 브랜치의 워크플로를 쓴다). 이 PR에서는 같은 모듈을 advisory 모드로 실행해 탐지 결과를 증거로 남긴다.
+
+## 6. 운영 쓰기와 자동 백업 읽기 권한 분리 (AISEC-07)
+
+### 실측: 일일 자동 백업은 한 번도 성공한 적이 없다
+- 예약 실행 11건(11/11~11/21)이 모두 `BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL`로 실패했다(최근 #44953845777). DB·Storage·Auth 자격증명이 비어 있었다.
+- 11/07 presence 기록: `SUPABASE_DB_URL`·`SUPABASE_SERVICE_ROLE_KEY`·`SUPABASE_ACCESS_TOKEN` 모두 저장소에 없음.
+- 따라서 "기존 운영 자격증명으로 돌아가는 fallback"은 실제로 쓰인 적이 없다. **fallback은 계획이 아니라 지금 제거했다.**
+
+### 확정된 구조 (fallback 없음)
+| 백업이 쓰는 값 | 비밀 이름 (`production-backup` **환경 비밀** 전용) | 성질 |
+|---|---|---|
+| DB | `BACKUP_DB_READONLY_URL` → `backup_reader` | 매 실행 전 읽기 전용을 증명하지 못하면 백업 중단 |
+| Storage 다운로드 | `BACKUP_STORAGE_SERVICE_KEY` | Supabase에 읽기 전용 Storage 키가 없음 → 백업 전용으로 별도 폐기 가능하게 관리 |
+| Auth 설정 읽기 | `BACKUP_AUTH_CONFIG_TOKEN` | PAT 범위 제한 불가 → 백업 전용으로 별도 폐기 가능하게 관리 |
+
+- 운영 superuser URL을 실수로 `BACKUP_DB_READONLY_URL`에 넣으면 백업이 실행을 거부한다(E2E 검증).
+- AISEC-07 래칫: "백업이 운영 관리 토큰을 공유" 위험이 사라져 baseline이 19 → 18로 줄었다.
+
+### SECURITY DEFINER 함수
+- 위협 실증: `backup_reader`가 PUBLIC 실행 권한이 있는 plpgsql SECURITY DEFINER 함수를 호출하자 실제로 행이 써졌다.
+  - STABLE SQL 래퍼가 volatile 쓰기 함수를 호출해도 써졌다.
+  - 막은 것은 read-only *기본값*뿐인데, 이 기본값은 세션에서 끌 수 있다.
+- 검증기는 이제 fail-closed다. 실행 가능한 모든 definer 함수가 본문상 읽기 전용임이 증명되어야 한다. 조건:
+  - SQL 언어의 단일 SELECT/WITH/VALUES 문
+  - 쓰기·DDL·세션 변경 키워드(`nextval`, `set_config` 포함) 없음
+  - 부작용 없는 내장 함수 외의 호출 없음
+  - 하나라도 아니면 함수 이름과 함께 백업을 중단한다.
+- 운영의 `public.list_stores()`(GPT 조사에서 PUBLIC 실행으로 확인): 마이그레이션 원문을 그대로 넣은 E2E에서 **정적 읽기 전용으로 판정**됐다. 실행해도 데이터 변화가 없었다.
+- 쓰기 가능한 패턴 7종은 모두 거부됐다(plpgsql, volatile, STABLE 래퍼, 쓰기 CTE, 다중 문장, nextval, set_config). `REVOKE EXECUTE ... FROM PUBLIC` 후에는 호출 자체가 불가함을 확인했다.
+- 운영에서 거부되는 함수가 나오면: 앱 영향 확인 → `REVOKE EXECUTE ON FUNCTION … FROM PUBLIC; GRANT EXECUTE … TO anon, authenticated`(필요한 역할만). 소유자 승인이 필요하다.
+
+### 전환 절차 (소유자, 각 단계 승인 후)
 1. Supabase SQL editor(postgres)에서 `security/aisec07_backup_reader_role.sql` 실행.
-2. 비밀번호를 비밀번호 관리자에서 생성한 뒤 별도 문장 `ALTER ROLE backup_reader PASSWORD '…'`로 설정한다. 저장소나 채팅에 남기지 않는다.
-3. GitHub → Environments → `production-backup` → **Environment secret** `BACKUP_DB_READONLY_URL` 등록 (저장소 비밀 아님).
-4. Actions → "SEC backup capture isolated" 수동 실행 (capture_scope=AUTH_DB_STORAGE_ENCRYPTED_ONLY) → "Prove dedicated backup login is read-only" 단계 로그에 `BACKUP_DB_CREDENTIAL_SOURCE=dedicated_readonly`와 `BACKUP_READER_VERIFIED` 확인 (`capture.mjs`는 변경하지 않음. 선택은 워크플로의 `secrets.BACKUP_DB_READONLY_URL || secrets.SUPABASE_DB_URL`).
-5. 1주일 정상 백업 후, 백업 job에서 기존 `SUPABASE_DB_URL` 참조를 제거하는 별도 PR을 낸다. 그러면 AISEC-07 baseline이 줄어든다.
-
-롤백: 환경 비밀 `BACKUP_DB_READONLY_URL` 삭제 → 다음 실행부터 자동으로 기존 경로를 사용. 그 뒤 `security/aisec07_backup_reader_role_rollback.sql` 실행.
+2. 비밀번호를 비밀번호 관리자에서 생성한 뒤 별도 문장 `ALTER ROLE backup_reader PASSWORD '…'`로 설정한다(저장소·채팅 금지).
+3. GitHub → Environments → `production-backup` → **Environment secrets**에 `BACKUP_DB_READONLY_URL`, `BACKUP_STORAGE_SERVICE_KEY`, `BACKUP_AUTH_CONFIG_TOKEN` 등록. 저장소 비밀에는 넣지 않는다.
+4. Actions → "SEC backup capture isolated" 수동 실행(capture_scope=AUTH_DB_STORAGE_ENCRYPTED_ONLY). "Prove dedicated backup login is read-only" 단계에서 `BACKUP_READER_VERIFIED` 확인 → 다음 날 예약 실행 성공 확인.
+5. 롤백: 환경 비밀 삭제(백업은 원래처럼 자격증명 누락으로 중단) → `security/aisec07_backup_reader_role_rollback.sql`.
 
 ### 검증된 것 / 검증되지 않은 것
-- 검증: 로컬 PG16과 CI PG16/17의 일회용 DB에서 실제 `capture.mjs`를 `backup_reader`로 실행해 봉인 → 복원했고, RLS FORCE 테이블 전체 행이 복원됨.
-  - 쓰기·DDL 14종이 `default_transaction_read_only=off`로 우회를 시도해도 거부됨.
-  - 쓰기 권한을 준 로그인은 백업을 중단시킴(출력 없음).
-  - 기존 자격증명 경로는 변경 없이 동작.
-  - 롤백 후 재적용 반복 정상.
-- 미검증 (운영 적용 전 CANNOT_VERIFY):
-  - Supabase 호스팅 DB에서 `postgres`가 BYPASSRLS 역할을 만들 수 있는지.
-  - `pg_read_all_data`로 `auth`·`storage` 스키마 전체를 덤프할 수 있는지.
-  - 4단계 수동 실행에서 확인해야 하며, 실패하면 백업 job이 명확한 오류로 중단된다(기존 경로는 영향 없음).
-- 잔여 위험: `SECURITY DEFINER` 함수는 소유자 권한으로 실행되므로 백업 로그인도 호출할 수 있다. 앱 RPC의 자체 인증 검사에 의존한다. 개수는 매 실행 verify 출력에 기록된다.
+- 검증(로컬 PG16, CI PG16/17 일회용 DB): 변경하지 않은 `capture.mjs`를 워크플로와 같은 순서(preflight → capture)로 `backup_reader`로 실행했다.
+  - 봉인 → 복원 시 RLS FORCE 테이블 전체 행 복원.
+  - 쓰기·DDL 14종 거부.
+  - 쓰기 권한 로그인과 운영 superuser 로그인은 산출물 없이 중단.
+  - definer 판정 위 내용 그대로.
+  - 롤백·재적용 반복 정상.
+- 미검증(CANNOT_VERIFY): 호스팅 Supabase에서 BYPASSRLS 역할 생성 가능 여부, 운영 DB의 전체 definer 함수 판정 결과. 4단계 수동 실행에서 확인되며, 실패 시 함수 이름과 함께 중단된다.
+
+## 7. 자동 배포·자동 백업 유지 검증
+- 자동 배포 워크플로 5개(Payroll Edge, Pages p0/publish, Apps Script, 배포 알림)는 main과 **바이트 단위로 동일**하다(`automation_continuity.test.mjs`).
+  - 정책 영향 분석: 차단 0. 배포 job은 계속 main에서 실행된다.
+  - 최근 main 실행: Payroll Edge #44465529842 성공(11/19), Pages #44483847511 성공(11/19).
+- 자동 백업: 일정(`47 16 * * *`)·`production-backup` 환경·main 한정 조건은 유지된다. 승인자를 두지 않으므로 매일 대기하지 않는다.
+  - 단, 위 6절대로 **원래부터 한 번도 성공하지 못한 상태**다. 3단계 비밀 등록 후 첫 예약 실행이 실제 성공 증거가 된다.

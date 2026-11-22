@@ -5,6 +5,10 @@ name: PR required gate
 on:
   pull_request:
   merge_group:
+  # Also on main so the owner apply tool can prove the check is green on main
+  # before making it required (prevents a PR deadlock).
+  push:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,5 +37,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: node scripts/ledger_growth_guard.mjs "$BASE_SHA"
+      - name: Merge-gate tamper defence and automation continuity contracts
+        run: node --test scripts/security/gate_integrity.test.mjs qa/security/automation_continuity.test.mjs
       - name: AI development policy unit QA
         run: node --test scripts/ai-dev/*.test.mjs

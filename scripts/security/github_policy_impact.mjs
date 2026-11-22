@@ -41,17 +41,17 @@ const AUTOMATIC = ['push', 'schedule', 'workflow_run', 'pull_request', 'issues',
 // Events that GitHub always runs on the default branch.
 const DEFAULT_BRANCH_ONLY = ['schedule', 'workflow_run', 'issues', 'issue_comment'];
 
-export function prTriggerUnfiltered(text) {
+export function prTriggerUnfiltered(text, trigger = 'pull_request') {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const onIdx = lines.findIndex((l) => /^(["']?)on\1\s*:/.test(l));
   if (onIdx < 0) return false;
   const inline = lines[onIdx].replace(/^(["']?)on\1\s*:\s*/, '').replace(/\s+#.*$/, '');
-  if (inline) return /(^|[\s,[])pull_request($|[\s,\]])/.test(inline);
+  if (inline) return new RegExp(`(^|[\\s,[])${trigger}($|[\\s,\\]])`).test(inline);
   for (let i = onIdx + 1; i < lines.length; i++) {
     const l = lines[i];
     if (l.trim() === '' || l.trim().startsWith('#')) continue;
     if (!/^\s/.test(l)) break;
-    const m = l.match(/^(\s+)pull_request\s*:\s*(.*)$/);
+    const m = l.match(new RegExp(`^(\\s+)${trigger}\\s*:\\s*(.*)$`));
     if (!m) continue;
     if (m[2] && !/^(\{\s*\}|null|~)?\s*(#.*)?$/.test(m[2])) return false;
     for (let j = i + 1; j < lines.length; j++) {
@@ -60,7 +60,7 @@ export function prTriggerUnfiltered(text) {
       const ind = n.length - n.trimStart().length;
       if (ind <= m[1].length) return true;
       if (/^\s+(paths|paths-ignore|branches|branches-ignore)\s*:/.test(n)) return false;
-      if (/^\s+types\s*:/.test(n) && !/opened/.test(n) ) return false;
+      if (/^\s+types\s*:/.test(n) && !(/\bopened\b/.test(n) && /\bsynchronize\b/.test(n))) return false;
     }
     return true;
   }
@@ -77,21 +77,27 @@ const MAIN_WRITE_PATTERNS = [
 
 export function analyzePolicy(files, policy) {
   const blocking = []; const info = []; const envUse = [];
-  const gate = policy.required_check;
-  const gateFile = files.find((f) => f.name === gate.workflow);
-  if (!gateFile) blocking.push({rule: 'REQUIRED_GATE_INVALID', reason: 'workflow missing', workflow: gate.workflow});
-  else {
+  for (const gate of policy.required_checks) {
+    const bad = (reason) => blocking.push({rule: 'REQUIRED_GATE_INVALID', reason, workflow: gate.workflow, context: gate.context});
+    const gateFile = files.find((f) => f.name === gate.workflow);
+    if (!gateFile) { bad('workflow missing'); continue; }
     const wf = parseWorkflow(gateFile.text, gateFile.name);
     const job = wf.jobs.find((j) => j.id === gate.job);
-    const nameOk = new RegExp(`^\\s{4}name:\\s*['"]?${gate.context}['"]?\\s*$`, 'm').test(gateFile.text);
-    if (!prTriggerUnfiltered(gateFile.text)) blocking.push({rule: 'REQUIRED_GATE_INVALID', reason: 'pull_request trigger is filtered or absent', workflow: gate.workflow});
-    if (!job) blocking.push({rule: 'REQUIRED_GATE_INVALID', reason: 'job missing', workflow: gate.workflow});
+    if (!prTriggerUnfiltered(gateFile.text, gate.trigger)) bad(`${gate.trigger} trigger is filtered or absent`);
+    if (!job) bad('job missing');
     else {
-      if (job.if) blocking.push({rule: 'REQUIRED_GATE_INVALID', reason: 'job-level if can skip the check', workflow: gate.workflow});
-      if (job.needs.length) blocking.push({rule: 'REQUIRED_GATE_INVALID', reason: 'job depends on other jobs', workflow: gate.workflow});
-      if (job.refs.length) blocking.push({rule: 'REQUIRED_GATE_INVALID', reason: 'required gate must not use secrets', workflow: gate.workflow});
+      if (job.if) bad('job-level if can skip the check');
+      if (job.needs.length) bad('job depends on other jobs');
+      if (job.refs.length) bad('required check must not use secrets');
     }
-    if (!nameOk) blocking.push({rule: 'REQUIRED_GATE_INVALID', reason: `job name must equal check context ${gate.context}`, workflow: gate.workflow});
+    if (!new RegExp(`^\\s{4}name:\\s*['"]?${gate.context}['"]?\\s*$`, 'm').test(gateFile.text)) bad(`job name must equal check context ${gate.context}`);
+  }
+  // A pull_request_target job runs with the BASE token; it must never run PR code.
+  for (const f of files) {
+    if (prTriggerUnfiltered(f.text, 'pull_request_target') || /pull_request_target/.test(f.text)) {
+      if (/ref:\s*\$\{\{\s*github\.(event\.pull_request\.head|head_ref)/.test(f.text) || /refs\/pull\/\$\{\{/.test(f.text))
+        blocking.push({rule: 'PULL_REQUEST_TARGET_RUNS_PR_CODE', workflow: f.name});
+    }
   }
   for (const f of files) {
     const hit = MAIN_WRITE_PATTERNS.find((re) => re.test(f.text));

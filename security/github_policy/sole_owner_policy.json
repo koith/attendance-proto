@@ -2,36 +2,158 @@
   "schema": 1,
   "repository": "koith/attendance-proto",
   "note": "Sole-owner GitHub policy. Design only: applying it is an owner action (see docs/security/SOLE_OWNER_GITHUB_POLICY.md). 0 approvals because GitHub never lets an author approve their own PR; the PR + required CI gate is the control. No bypass actors: tools acting with the owner's token (AI connectors) cannot bypass; the owner's escape hatch is disabling the ruleset in Settings, which is audited.",
-  "required_check": {"workflow": "pr-required-gate.yml", "job": "required-gate", "context": "required-gate", "integration_id": 15368},
   "phases": {
-    "A": {"title": "Block force-push and deletion of main (no workflow impact)", "rules": ["deletion", "non_fast_forward"]},
-    "B": {"title": "Require a pull request for main (0 approvals)", "rules": ["deletion", "non_fast_forward", "pull_request"]},
-    "C": {"title": "Require the always-on required-gate check", "rules": ["deletion", "non_fast_forward", "pull_request", "required_status_checks"]},
-    "D": {"title": "Restrict production / production-backup deployments to main (no reviewers)", "environments": ["production", "production-backup"]},
-    "E": {"title": "Optional: production-write environment with owner approval for manual Auth-config writes", "environments": ["production-write"]}
+    "A": {
+      "title": "Block force-push and deletion of main (no workflow impact)",
+      "rules": [
+        "deletion",
+        "non_fast_forward"
+      ]
+    },
+    "B": {
+      "title": "Require a pull request for main (0 approvals)",
+      "rules": [
+        "deletion",
+        "non_fast_forward",
+        "pull_request"
+      ]
+    },
+    "C": {
+      "title": "Require the always-on required-gate and gate-integrity checks",
+      "rules": [
+        "deletion",
+        "non_fast_forward",
+        "pull_request",
+        "required_status_checks"
+      ]
+    },
+    "D": {
+      "title": "Restrict production / production-backup deployments to main (no reviewers)",
+      "environments": [
+        "production",
+        "production-backup"
+      ]
+    },
+    "E": {
+      "title": "Optional: production-write environment with owner approval for manual Auth-config writes",
+      "environments": [
+        "production-write"
+      ]
+    }
   },
   "ruleset": {
     "name": "main-sole-owner-protection",
     "target": "branch",
     "enforcement": "active",
-    "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
+    "conditions": {
+      "ref_name": {
+        "include": [
+          "refs/heads/main"
+        ],
+        "exclude": []
+      }
+    },
     "bypass_actors": [],
     "rules": {
-      "deletion": {"type": "deletion"},
-      "non_fast_forward": {"type": "non_fast_forward"},
-      "pull_request": {"type": "pull_request", "parameters": {
-        "required_approving_review_count": 0, "dismiss_stale_reviews_on_push": false,
-        "require_code_owner_review": false, "require_last_push_approval": false,
-        "required_review_thread_resolution": false, "allowed_merge_methods": ["squash", "merge", "rebase"]}},
-      "required_status_checks": {"type": "required_status_checks", "parameters": {
-        "strict_required_status_checks_policy": false, "do_not_enforce_on_create": false,
-        "required_status_checks": [{"context": "required-gate", "integration_id": 15368}]}}
+      "deletion": {
+        "type": "deletion"
+      },
+      "non_fast_forward": {
+        "type": "non_fast_forward"
+      },
+      "pull_request": {
+        "type": "pull_request",
+        "parameters": {
+          "required_approving_review_count": 0,
+          "dismiss_stale_reviews_on_push": false,
+          "require_code_owner_review": false,
+          "require_last_push_approval": false,
+          "required_review_thread_resolution": false,
+          "allowed_merge_methods": [
+            "squash",
+            "merge",
+            "rebase"
+          ]
+        }
+      },
+      "required_status_checks": {
+        "type": "required_status_checks",
+        "parameters": {
+          "strict_required_status_checks_policy": false,
+          "do_not_enforce_on_create": false,
+          "required_status_checks": [
+            {
+              "context": "required-gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "gate-integrity",
+              "integration_id": 15368
+            }
+          ]
+        }
+      }
     }
   },
   "environments": {
-    "production": {"required_reviewers": false, "deployment_branches": ["main"]},
-    "production-backup": {"required_reviewers": false, "deployment_branches": ["main"]},
-    "production-write": {"required_reviewers": true, "prevent_self_review": false, "deployment_branches": ["main"], "optional": true},
-    "github-pages": {"unchanged": true}
-  }
+    "production": {
+      "required_reviewers": false,
+      "deployment_branches": [
+        "main"
+      ]
+    },
+    "production-backup": {
+      "required_reviewers": false,
+      "deployment_branches": [
+        "main"
+      ]
+    },
+    "production-write": {
+      "required_reviewers": true,
+      "prevent_self_review": false,
+      "deployment_branches": [
+        "main"
+      ],
+      "optional": true
+    },
+    "github-pages": {
+      "unchanged": true
+    }
+  },
+  "required_checks": [
+    {
+      "workflow": "pr-required-gate.yml",
+      "job": "required-gate",
+      "context": "required-gate",
+      "integration_id": 15368,
+      "trigger": "pull_request"
+    },
+    {
+      "workflow": "pr-gate-integrity.yml",
+      "job": "gate-integrity",
+      "context": "gate-integrity",
+      "integration_id": 15368,
+      "trigger": "pull_request_target"
+    }
+  ],
+  "gate_integrity": {
+    "approval_label": "gate-change-approved",
+    "note": "Evaluated from the BASE branch by pull_request_target; PR content is data only. The label counts only when applied by the repository owner in the GitHub UI (not via an app) and after the latest push to protected paths.",
+    "protected_paths": [
+      ".github/workflows/pr-required-gate.yml",
+      ".github/workflows/pr-gate-integrity.yml",
+      ".github/workflows/sec-aisec05-github-settings-probe.yml",
+      "scripts/security/gate_integrity.mjs",
+      "scripts/security/github_policy_impact.mjs",
+      "scripts/security/github_settings_probe.mjs",
+      "scripts/security/github_policy_apply.mjs",
+      "scripts/security/workflow_secret_inventory.mjs",
+      "security/github_policy/",
+      "security/aisec07_secret_policy_baseline.json",
+      "security/aisec07_secret_classes.json",
+      "scripts/ledger_growth_guard.mjs"
+    ]
+  },
+  "applied_phases": [],
+  "applied_phases_note": "Phases the owner has actually applied. The scheduled probe FAILS (drift alarm) if any check belonging to an applied phase is not PASS. Update only via an owner-approved PR after applying."
 }

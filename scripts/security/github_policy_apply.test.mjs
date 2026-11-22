@@ -47,7 +47,11 @@ function fakeGitHub(initial) {
         return res(200, envView(name));
       }
     }
-    if (p.startsWith('/commits/main/check-runs')) return res(200, {check_runs: st.checkRuns});
+    if ((m = p.match(/^\/commits\/([^/]+)\/check-runs$/))) {
+      const name = u.searchParams.get('check_name');
+      return res(200, {check_runs: (st.checkRuns[m[1]] || []).filter((c) => c.name === name)});
+    }
+    if (p === '/pulls') return res(200, st.pulls || []);
     if (p === '/rules/branches/main') {
       const rules = Object.values(st.rulesets).filter((r) => r.enforcement === 'active').flatMap((r) => r.rules);
       return res(200, rules);
@@ -58,7 +62,7 @@ function fakeGitHub(initial) {
   };
   return {st, writes, gh: client({token: 'synthetic', repo: REPO, fetchImpl}), fetchImpl};
 }
-const CURRENT = {rulesets: {}, checkRuns: [], envs: {
+const CURRENT = {rulesets: {}, checkRuns: {}, pulls: [{merged_at: '2026-11-22T00:00:00Z', head: {sha: 'prhead'}}], envs: {
   production: {protection_rules: [], deployment_branch_policy: null, branch_policies: []},
   'production-backup': {protection_rules: [], deployment_branch_policy: null, branch_policies: []}}};
 
@@ -82,16 +86,18 @@ test('writes are refused without exact confirm or with a stale/foreign snapshot 
 test('phase C refuses until required-gate is green on main (prevents PR deadlock)', async () => {
   const f = fakeGitHub(CURRENT); const snap = await snapshot(f.gh, REPO);
   await apply(f.gh, {policy: policy(), phase: 'B', snap, confirm: REPO});
-  await assert.rejects(apply(f.gh, {policy: policy(), phase: 'C', snap, confirm: REPO}), /REQUIRED_GATE_NOT_YET_GREEN/);
-  f.st.checkRuns = [{conclusion: 'success', app: {id: 99}}];
-  await assert.rejects(apply(f.gh, {policy: policy(), phase: 'C', snap, confirm: REPO}), /REQUIRED_GATE_NOT_YET_GREEN/, 'only the GitHub Actions app counts');
-  f.st.checkRuns = [{conclusion: 'success', app: {id: 15368}}];
+  await assert.rejects(apply(f.gh, {policy: policy(), phase: 'C', snap, confirm: REPO}), /NOT_YET_GREEN:required-gate/);
+  f.st.checkRuns = {main: [{name: 'required-gate', conclusion: 'success', app: {id: 99}}]};
+  await assert.rejects(apply(f.gh, {policy: policy(), phase: 'C', snap, confirm: REPO}), /NOT_YET_GREEN:required-gate/, 'only the GitHub Actions app counts');
+  f.st.checkRuns = {main: [{name: 'required-gate', conclusion: 'success', app: {id: 15368}}]};
+  await assert.rejects(apply(f.gh, {policy: policy(), phase: 'C', snap, confirm: REPO}), /NOT_YET_GREEN:gate-integrity/, 'integrity must be proven on a merged PR');
+  f.st.checkRuns.prhead = [{name: 'gate-integrity', conclusion: 'success', app: {id: 15368}}];
   assert.match((await apply(f.gh, {policy: policy(), phase: 'C', snap, confirm: REPO}))[0], /RULESET UPDATED .*required_status_checks/);
 });
 
 test('A..E then probe PASS on policy checks, then rollback restores the exact starting state', async () => {
   const f = fakeGitHub(CURRENT); const snap = await snapshot(f.gh, REPO);
-  f.st.checkRuns = [{conclusion: 'success', app: {id: 15368}}];
+  f.st.checkRuns = {main: [{name: 'required-gate', conclusion: 'success', app: {id: 15368}}], prhead: [{name: 'gate-integrity', conclusion: 'success', app: {id: 15368}}]};
   for (const phase of ['A', 'B', 'C', 'D', 'E']) await apply(f.gh, {policy: policy(), phase, snap, confirm: REPO});
   assert.equal(Object.keys(f.st.rulesets).length, 1, 'phases update one ruleset, never duplicate');
   assert.deepEqual(f.st.envs.production.branch_policies.map((b) => b.name), ['main']);
@@ -102,7 +108,7 @@ test('A..E then probe PASS on policy checks, then rollback restores the exact st
   // The read-only probe, pointed at the same fake, sees the policy as applied.
   const get = async (p) => { const r = await f.fetchImpl(`https://api.github.com/repos/${REPO}${p}`, {method: 'GET'}); return {status: r.status, body: r.status === 200 ? await r.json() : null}; };
   const report = evaluate(await collect(get));
-  for (const k of ['main_requires_pull_request', 'main_requires_required_gate_check', 'main_blocks_force_push', 'main_blocks_deletion',
+  for (const k of ['main_requires_pull_request', 'main_requires_required_checks', 'main_blocks_force_push', 'main_blocks_deletion',
     'environment_production_matches_policy', 'environment_production-backup_matches_policy', 'environment_production-write_matches_policy'])
     assert.equal(report.checks[k], 'PASS', k);
   const log = await rollback(f.gh, {snap, repo: REPO, confirm: REPO, policy: policy()});
