@@ -126,7 +126,11 @@ GITHUB_ADMIN_TOKEN=... node scripts/security/github_policy_apply.mjs rollback \
   - 쓰기 권한 로그인과 운영 superuser 로그인은 산출물 없이 중단.
   - definer 판정 위 내용 그대로.
   - 롤백·재적용 반복 정상.
-- 미검증(CANNOT_VERIFY): 호스팅 Supabase에서 BYPASSRLS 역할 생성 가능 여부, 운영 DB의 전체 definer 함수 판정 결과. 4단계 수동 실행에서 확인되며, 실패 시 함수 이름과 함께 중단된다.
+- 운영 사전점검 G1(2026-11-22, GPT가 운영 Supabase에서 읽기 전용 실행, 사용자 보고):
+  - PostgreSQL 17.6, `postgres`: createrole·bypassrls true, `pg_read_all_data` 부여 가능, `backup_reader` 미존재.
+  - PUBLIC 실행 가능 SECURITY DEFINER 중 `BLOCKS_BACKUP` **0건**, `public.list_stores()` = `OK_STATIC_READ_ONLY`.
+  - → 역할 생성(G2)과 검증기 통과에 필요한 전제가 운영에서 충족됨. G3(권한 회수)는 불필요.
+- 남은 미검증: 실제 `backup_reader`로의 첫 백업 실행(역할 생성·비밀 등록 후 수동 실행에서 확인).
 
 ## 7. 자동 배포·자동 백업 유지 검증
 - 자동 배포 워크플로 5개(Payroll Edge, Pages p0/publish, Apps Script, 배포 알림)는 main과 **바이트 단위로 동일**하다(`automation_continuity.test.mjs`).
@@ -160,9 +164,9 @@ GITHUB_ADMIN_TOKEN=... node scripts/security/github_policy_apply.mjs rollback \
 
 | # | 작업 | 성격 | 승인 |
 |---|---|---|---|
-| G1 | `security/aisec07_backup_reader_prod_preflight_readonly.sql`을 postgres로 실행하고 결과 2섹션(role_capability JSON, `BLOCKS_BACKUP` 목록) 보고 | **읽기 전용**(BEGIN READ ONLY … ROLLBACK) | 불필요 |
+| G1 | **완료(2026-11-22)** `security/aisec07_backup_reader_prod_preflight_readonly.sql`을 postgres로 실행하고 결과 2섹션(role_capability JSON, `BLOCKS_BACKUP` 목록) 보고 | **읽기 전용**(BEGIN READ ONLY … ROLLBACK) | 불필요 |
 | G2 | G1에서 `has_bypassrls`·`can_grant_pg_read_all_data`가 true이고 #1660이 병합되었으면 `security/aisec07_backup_reader_role.sql` 실행 → 역할 존재·속성 재조회 | 운영 DDL(역할 생성) | **소유자 승인 필요** |
-| G3 | G1의 `BLOCKS_BACKUP` 함수마다 저장소에서 앱 호출처를 확인(`rpc('<name>'`) → 필요한 역할만 남기는 `REVOKE EXECUTE … FROM PUBLIC; GRANT EXECUTE … TO anon, authenticated` 초안 작성 → 적용 후 G1 재실행 | 운영 ACL 변경 | **소유자 승인 필요** |
+| G3 | (G1 결과 0건 → 현재 불필요) G1의 `BLOCKS_BACKUP` 함수마다 저장소에서 앱 호출처를 확인(`rpc('<name>'`) → 필요한 역할만 남기는 `REVOKE EXECUTE … FROM PUBLIC; GRANT EXECUTE … TO anon, authenticated` 초안 작성 → 적용 후 G1 재실행 | 운영 ACL 변경 | **소유자 승인 필요** |
 | G4 | 첫 백업 성공 후 `SEC restore verify` 결과와 운영 행 수 비교로 SEC-S01/S04 근거 보강 | 읽기 전용 비교 | 불필요 |
 
 - 소유자만 할 수 있는 일(GPT·Claude가 값을 보면 안 됨):
