@@ -68,34 +68,38 @@ openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out "$WORK/priv.pe
 openssl pkey -in "$WORK/priv.pem" -pubout -out "$WORK/pub.pem"
 node qa/security/fake_storage_server.mjs >/dev/null 2>&1 & SERVER=$!
 for _ in $(seq 1 20); do (exec 3<>/dev/tcp/127.0.0.1/4100) 2>/dev/null && break; sleep 0.25; done
-common(){ env -u SUPABASE_DB_URL -u BACKUP_DB_READONLY_URL -u SUPABASE_ACCESS_TOKEN -u BACKUP_AUTH_CONFIG_TOKEN \
-  SUPABASE_URL=http://127.0.0.1:4100 SUPABASE_SERVICE_ROLE_KEY=synthetic-storage-only \
-  SEC_BACKUP_ALLOW_LOCAL_AUTH_FIXTURE=1 SEC_BACKUP_AUTH_FIXTURE_URL=http://127.0.0.1:4100/v1/projects/waluhdgqhwjjwmflhrle/config/auth \
-  SEC_BACKUP_RECIPIENT_PEM="$WORK/pub.pem" "$@"; }
-check_archive(){ # $1 sealed  $2 expected db credential name  $3 expected auth credential name
+# Exactly the workflow sequence: preflight (AISEC-07), then the UNCHANGED capture.mjs.
+run_backup(){ # $1 db url  $2 dedicated flag  $3 out
+  env -u SUPABASE_ACCESS_TOKEN SUPABASE_DB_URL="$1" BACKUP_DB_DEDICATED="$2" BACKUP_AUTH_DEDICATED="$2" \
+    SUPABASE_ACCESS_TOKEN=synthetic-management-only RUNNER_TEMP="$WORK" \
+    SUPABASE_URL=http://127.0.0.1:4100 SUPABASE_SERVICE_ROLE_KEY=synthetic-storage-only \
+    SEC_BACKUP_ALLOW_LOCAL_AUTH_FIXTURE=1 SEC_BACKUP_AUTH_FIXTURE_URL=http://127.0.0.1:4100/v1/projects/waluhdgqhwjjwmflhrle/config/auth \
+    SEC_BACKUP_RECIPIENT_PEM="$WORK/pub.pem" SEC_BACKUP_OUT="$3" \
+    bash -c 'bash scripts/security/backup_reader_preflight.sh && node scripts/security/capture.mjs'; }
+check_archive(){ # $1 sealed
   rm -rf "$WORK/x" "$WORK/x.tar.gz"; mkdir "$WORK/x"
   node scripts/security/unseal.mjs "$1" "$WORK/priv.pem" "$WORK/x.tar.gz"
   tar -xzf "$WORK/x.tar.gz" -C "$WORK/x"
-  node -e "const m=require('$WORK/x/manifest.json');if(m.credential_sources.database!=='$2'||m.credential_sources.auth_config!=='$3')throw Error('SOURCE '+JSON.stringify(m.credential_sources));if(m.full_storage_count!==1||m.auth_config.captured!==true)throw Error('CONTENT')"
+  node -e "const m=require('$WORK/x/manifest.json');if(m.full_storage_count!==1||m.auth_config.captured!==true)throw Error('CONTENT')"
   psql_admin -c "DROP DATABASE IF EXISTS ${DB}_restore" -c "CREATE DATABASE ${DB}_restore"
   pg_restore --no-owner --no-acl --exit-on-error --dbname "${ADMIN_URL%/*}/${DB}_restore${ADMIN_URL##*/postgres}" "$WORK/x/database.dump"
   test "$(psql -X -At --dbname "${ADMIN_URL%/*}/${DB}_restore${ADMIN_URL##*/postgres}" -c 'SELECT count(*) FROM public.payroll')" = 2
 }
-common BACKUP_DB_READONLY_URL="$READER_URL" BACKUP_AUTH_CONFIG_TOKEN=synthetic-management-only SEC_BACKUP_OUT="$WORK/reader.sealed" \
-  node scripts/security/capture.mjs | grep -q 'db_credential=BACKUP_DB_READONLY_URL auth_credential=BACKUP_AUTH_CONFIG_TOKEN'
-check_archive "$WORK/reader.sealed" BACKUP_DB_READONLY_URL BACKUP_AUTH_CONFIG_TOKEN
-pass 'real capture.mjs as backup_reader: sealed archive, RLS-forced rows restored, credential sources recorded'
+run_backup "$READER_URL" true "$WORK/reader.sealed" > "$WORK/reader.log"
+grep -q 'BACKUP_DB_CREDENTIAL_SOURCE=dedicated_readonly' "$WORK/reader.log"; grep -q 'BACKUP_READER_VERIFIED' "$WORK/reader.log"
+grep -q 'ENCRYPTED_BACKUP_CREATED' "$WORK/reader.log"
+check_archive "$WORK/reader.sealed"
+pass 'workflow preflight + unchanged capture.mjs as backup_reader: sealed archive, RLS-forced rows restored'
 
 psql_db -c 'GRANT INSERT ON public.payroll TO backup_reader'
-if common BACKUP_DB_READONLY_URL="$READER_URL" BACKUP_AUTH_CONFIG_TOKEN=synthetic-management-only SEC_BACKUP_OUT="$WORK/bad.sealed" \
-  node scripts/security/capture.mjs >"$WORK/bad.log" 2>&1; then echo 'CRITICAL: capture ran with a writable backup login'; exit 1; fi
-test ! -e "$WORK/bad.sealed"; grep -q 'PSQL_FAILED' "$WORK/bad.log"
+if run_backup "$READER_URL" true "$WORK/bad.sealed" >"$WORK/bad.log" 2>&1; then echo 'CRITICAL: backup ran with a writable backup login'; exit 1; fi
+test ! -e "$WORK/bad.sealed"; grep -q 'BACKUP_BLOCKED_DEDICATED_LOGIN_NOT_READ_ONLY' "$WORK/bad.log"; grep -q 'BACKUP_READER_HAS_WRITE_PRIVILEGE' "$WORK/bad.log"
 psql_db -c 'REVOKE INSERT ON public.payroll FROM backup_reader'
 pass 'fail-closed: writable dedicated login produces no backup'
 
-common SUPABASE_DB_URL="$ADMIN_DB" SUPABASE_ACCESS_TOKEN=synthetic-management-only SEC_BACKUP_OUT="$WORK/legacy.sealed" \
-  node scripts/security/capture.mjs | grep -q 'db_credential=SUPABASE_DB_URL auth_credential=SUPABASE_ACCESS_TOKEN'
-check_archive "$WORK/legacy.sealed" SUPABASE_DB_URL SUPABASE_ACCESS_TOKEN
+run_backup "$ADMIN_DB" false "$WORK/legacy.sealed" > "$WORK/legacy.log"
+grep -q 'BACKUP_DB_CREDENTIAL_SOURCE=legacy' "$WORK/legacy.log"; ! grep -q 'BACKUP_READER_VERIFIED' "$WORK/legacy.log"
+check_archive "$WORK/legacy.sealed"
 pass 'legacy credential path unchanged (no outage before owner switches secrets)'
 
 psql_db -f security/aisec07_backup_reader_role_rollback.sql

@@ -18,6 +18,7 @@ const allowedPaths=new Set([
   "security/aisec07_backup_reader_role_rollback.sql",
   "security/aisec07_backup_reader_verify.sql",
   "qa/security/backup_reader_e2e.sh",
+  "scripts/security/backup_reader_preflight.sh",
   "docs/security/SOLE_OWNER_GITHUB_POLICY.md",
   "scripts/security/github_settings_probe.mjs",
   "scripts/security/github_settings_probe.test.mjs",

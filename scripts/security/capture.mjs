@@ -9,15 +9,9 @@ import {Readable} from 'node:stream';
 import {inventory} from './recovery/db_inventory.mjs';
 import {openExportedSnapshot,snapshotSql} from './recovery/exported_snapshot.mjs';
 const out=process.env.SEC_BACKUP_OUT;
-// AISEC-07 staged separation: a dedicated backup-only credential wins when set;
-// otherwise the legacy name keeps the daily backup working (no outage on rollout).
-const pick=(dedicated,legacy)=>process.env[dedicated]?{name:dedicated,value:process.env[dedicated]}:{name:legacy,value:process.env[legacy]};
-const dbCred=pick('BACKUP_DB_READONLY_URL','SUPABASE_DB_URL');
-const authCred=pick('BACKUP_AUTH_CONFIG_TOKEN','SUPABASE_ACCESS_TOKEN');
-const url=dbCred.value;
+const url=process.env.SUPABASE_DB_URL;
 const api=process.env.SUPABASE_URL;
 const storageKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
-const credentialSources={database:dbCred.name,auth_config:authCred.name,storage:'SUPABASE_SERVICE_ROLE_KEY'};
 const root=mkdtempSync(join(tmpdir(),'attendance-backup-'));
 function command(name,args,timeout=180000){try{return execFileSync(name,args,{encoding:'utf8',stdio:['ignore','pipe','pipe'],env:process.env,maxBuffer:4*1024*1024,timeout})}catch(e){throw Error(name.toUpperCase().replaceAll('-','_')+'_FAILED exit='+String(e.status??'unknown'))}}
 function sha(path){return createHash('sha256').update(readFileSync(path)).digest('hex')}
@@ -30,10 +24,7 @@ function roster(id){
 }
 async function run(){
  if(!url||!api||!storageKey||!out)throw Error('MISSING_PRIVATE_RUNTIME_BACKUP_CONFIGURATION');
- if(!authCred.value)throw Error('AUTH_CONFIG_READ_TOKEN_NOT_CONFIGURED');
- // A dedicated DB login must PROVE it cannot write before anything is read.
- if(dbCred.name==='BACKUP_DB_READONLY_URL')
-  command('psql',['-X','-q','-v','ON_ERROR_STOP=1','--dbname',url,'-f',process.env.SEC_BACKUP_READER_VERIFY_SQL||'security/aisec07_backup_reader_verify.sql'],60000);
+ if(!process.env.SUPABASE_ACCESS_TOKEN)throw Error('AUTH_CONFIG_READ_TOKEN_NOT_CONFIGURED');
  const stage=join(root,'snapshot');mkdirSync(stage,{recursive:true});
  const storage=join(stage,'storage');mkdirSync(storage);
  const keeper=await openExportedSnapshot(url);
@@ -83,7 +74,7 @@ async function run(){
   ? process.env.SEC_BACKUP_AUTH_FIXTURE_URL
   : 'https://api.supabase.com/v1/projects/waluhdgqhwjjwmflhrle/config/auth';
  let authResponse;
- try{authResponse=await fetch(authUrl,{headers:{Authorization:'Bearer '+authCred.value},redirect:'error',signal:AbortSignal.timeout(20000)});}
+ try{authResponse=await fetch(authUrl,{headers:{Authorization:'Bearer '+process.env.SUPABASE_ACCESS_TOKEN},redirect:'error',signal:AbortSignal.timeout(20000)});}
  catch{throw Error('HOSTED_AUTH_CONFIG_NETWORK_FAILED')}
  if(!authResponse.ok)throw Error('HOSTED_AUTH_CONFIG_FAILED_HTTP_'+authResponse.status);
  let authConfigData;
@@ -91,9 +82,9 @@ async function run(){
  if(!authConfigData||typeof authConfigData!=='object'||Array.isArray(authConfigData)||Object.keys(authConfigData).length<3)throw Error('HOSTED_AUTH_CONFIG_INCOMPLETE');
  writeFileSync(join(stage,'hosted-auth-config.json'),JSON.stringify(authConfigData),{mode:0o600});
  const authConfig={attempted:true,captured:true,scope:'hosted_config_only',redacted_remote_secrets_possible:true};
- writeFileSync(join(stage,'manifest.json'),JSON.stringify({format:'attendance-secure-backup-v1',database_sha256:sha(join(stage,'database.dump')),database_inventory_sha256:sha(join(stage,'database-inventory.json')),database_inventory_consistent_snapshot:true,roles_sha256:sha(join(stage,'roles.globals.sql')),database_snapshot_window:{start:databaseCaptureStart,end:databaseCaptureEnd},catalog_scope:catalogScope,catalog_data_scope:catalogDataScope,toc_scope:tocScope,toc_data_scope:tocDataScope,scope_gaps:scopeGaps,storage:hashes,auth_config:authConfig,credential_sources:credentialSources,full_storage_count:objects.length,created_at:new Date().toISOString()},null,2),{mode:0o600});
+ writeFileSync(join(stage,'manifest.json'),JSON.stringify({format:'attendance-secure-backup-v1',database_sha256:sha(join(stage,'database.dump')),database_inventory_sha256:sha(join(stage,'database-inventory.json')),database_inventory_consistent_snapshot:true,roles_sha256:sha(join(stage,'roles.globals.sql')),database_snapshot_window:{start:databaseCaptureStart,end:databaseCaptureEnd},catalog_scope:catalogScope,catalog_data_scope:catalogDataScope,toc_scope:tocScope,toc_data_scope:tocDataScope,scope_gaps:scopeGaps,storage:hashes,auth_config:authConfig,full_storage_count:objects.length,created_at:new Date().toISOString()},null,2),{mode:0o600});
  command('tar',['-czf',join(root,'snapshot.tar.gz'),'-C',stage,'.']);
  command('node',['scripts/security/seal.mjs',join(root,'snapshot.tar.gz'),process.env.SEC_BACKUP_RECIPIENT_PEM||'security/recipient_20261103.pub.pem',out]);
- console.log('ENCRYPTED_BACKUP_CREATED storage_objects='+objects.length+' db_archive_bytes='+statSync(join(stage,'database.dump')).size+' auth_config_captured='+authConfig.captured+' db_credential='+dbCred.name+' auth_credential='+authCred.name);
+ console.log('ENCRYPTED_BACKUP_CREATED storage_objects='+objects.length+' db_archive_bytes='+statSync(join(stage,'database.dump')).size+' auth_config_captured='+authConfig.captured);
 }
 try{await run()}finally{rmSync(root,{force:true,recursive:true})}

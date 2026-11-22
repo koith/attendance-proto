@@ -9,6 +9,7 @@ on:
       - 'security/aisec07_backup_reader_role_rollback.sql'
       - 'security/aisec07_backup_reader_verify.sql'
       - 'qa/security/backup_reader_e2e.sh'
+      - 'scripts/security/backup_reader_preflight.sh'
       - 'scripts/security/capture.mjs'
       - '.github/workflows/sec-backup-capture.yml'
       - '.github/workflows/sec-aisec07-backup-reader-e2e.yml'
@@ -18,6 +19,7 @@ on:
       - 'security/aisec07_backup_reader_role.sql'
       - 'security/aisec07_backup_reader_verify.sql'
       - 'qa/security/backup_reader_e2e.sh'
+      - 'scripts/security/backup_reader_preflight.sh'
       - 'scripts/security/capture.mjs'
   workflow_dispatch:
 permissions:

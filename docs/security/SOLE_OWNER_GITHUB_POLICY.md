@@ -69,7 +69,7 @@ GITHUB_ADMIN_TOKEN=... node scripts/security/github_policy_apply.mjs rollback \
 
 | 백업이 쓰는 자격증명 | 현재 | 분리 후 (환경 비밀, `production-backup`에만) | 성질 |
 |---|---|---|---|
-| DB | `SUPABASE_DB_URL` (운영 쓰기 가능) | `BACKUP_DB_READONLY_URL` → `backup_reader` 로그인 | **읽기 전용 증명**: `pg_read_all_data` + BYPASSRLS, 쓰기·DDL 권한 없음. 매 실행 전 `aisec07_backup_reader_verify.sql`이 확인하고, 쓰기 가능하면 백업 중단 |
+| DB | `SUPABASE_DB_URL` (운영 쓰기 가능) | `BACKUP_DB_READONLY_URL` → `backup_reader` 로그인 | **읽기 전용 증명**: `pg_read_all_data` + BYPASSRLS, 쓰기·DDL 권한 없음. 매 실행 전 `backup_reader_preflight.sh`가 `aisec07_backup_reader_verify.sql`로 확인하고, 쓰기 가능하면 백업 중단 |
 | Auth 설정 읽기 | `SUPABASE_ACCESS_TOKEN` (공용 관리 토큰) | `BACKUP_AUTH_CONFIG_TOKEN` (백업 전용 별도 토큰) | Supabase PAT는 범위 제한이 불가 → 읽기 전용은 아니지만 **별도 폐기 가능** |
 | Storage 파일 다운로드 | `SUPABASE_SERVICE_ROLE_KEY` | 변경 없음 (잔여 위험) | 읽기 전용 Storage 키가 없음. 후속 과제: 전용 Auth 사용자 + `storage.objects` SELECT 정책 |
 
@@ -77,7 +77,7 @@ GITHUB_ADMIN_TOKEN=... node scripts/security/github_policy_apply.mjs rollback \
 1. Supabase SQL editor(postgres)에서 `security/aisec07_backup_reader_role.sql` 실행.
 2. 비밀번호를 비밀번호 관리자에서 생성한 뒤 별도 문장 `ALTER ROLE backup_reader PASSWORD '…'`로 설정한다. 저장소나 채팅에 남기지 않는다.
 3. GitHub → Environments → `production-backup` → **Environment secret** `BACKUP_DB_READONLY_URL` 등록 (저장소 비밀 아님).
-4. Actions → "SEC backup capture isolated" 수동 실행 (capture_scope=AUTH_DB_STORAGE_ENCRYPTED_ONLY) → 로그에 `BACKUP_DB_CREDENTIAL_SOURCE=dedicated_readonly`, `db_credential=BACKUP_DB_READONLY_URL` 확인. 봉인된 manifest의 `credential_sources`에도 기록된다.
+4. Actions → "SEC backup capture isolated" 수동 실행 (capture_scope=AUTH_DB_STORAGE_ENCRYPTED_ONLY) → "Prove dedicated backup login is read-only" 단계 로그에 `BACKUP_DB_CREDENTIAL_SOURCE=dedicated_readonly`와 `BACKUP_READER_VERIFIED` 확인 (`capture.mjs`는 변경하지 않음. 선택은 워크플로의 `secrets.BACKUP_DB_READONLY_URL || secrets.SUPABASE_DB_URL`).
 5. 1주일 정상 백업 후, 백업 job에서 기존 `SUPABASE_DB_URL` 참조를 제거하는 별도 PR을 낸다. 그러면 AISEC-07 baseline이 줄어든다.
 
 롤백: 환경 비밀 `BACKUP_DB_READONLY_URL` 삭제 → 다음 실행부터 자동으로 기존 경로를 사용. 그 뒤 `security/aisec07_backup_reader_role_rollback.sql` 실행.
