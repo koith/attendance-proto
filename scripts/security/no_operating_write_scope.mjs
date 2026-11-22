@@ -5,6 +5,12 @@ const allowedPaths=new Set([
   "qa_autonomous_agent_bridge_receipt_v1.mjs",
 
   ".github/workflows/capture-development-instructions.yml",
+  ".github/workflows/sec-aisec07-secret-lifecycle-guard.yml",
+  "scripts/security/workflow_secret_inventory.mjs",
+  "scripts/security/workflow_secret_inventory.test.mjs",
+  "security/aisec07_secret_classes.json",
+  "security/aisec07_secret_policy_baseline.json",
+  "docs/ai-dev-workflow/receipts/github-app-403-validation-20261122.md",
   ".github/workflows/ledger-growth-guard.yml",
   "scripts/issue_state_note.mjs",
   "scripts/issue_state_note.test.mjs",
