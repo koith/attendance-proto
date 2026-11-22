@@ -7,6 +7,12 @@ on:
     paths:
       - 'scripts/security/github_settings_probe.mjs'
       - 'scripts/security/github_settings_probe.test.mjs'
+      - 'scripts/security/github_policy_impact.mjs'
+      - 'scripts/security/github_policy_impact.test.mjs'
+      - 'scripts/security/github_policy_apply.mjs'
+      - 'scripts/security/github_policy_apply.test.mjs'
+      - 'security/github_policy/**'
+      - '.github/workflows/pr-required-gate.yml'
       - '.github/workflows/sec-aisec05-github-settings-probe.yml'
   workflow_dispatch:
 permissions:
@@ -24,8 +30,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Synthetic probe QA
-        run: node --test scripts/security/github_settings_probe.test.mjs
+      - name: Synthetic probe, policy impact and owner apply/rollback QA
+        run: node --test scripts/security/github_settings_probe.test.mjs scripts/security/github_policy_impact.test.mjs scripts/security/github_policy_apply.test.mjs
+      - name: Policy impact on every workflow (no settings changed)
+        run: node scripts/security/github_policy_impact.mjs --report | tee aisec05-policy-impact.json
+      - name: Owner apply plan (offline, prints calls only)
+        run: node scripts/security/github_policy_apply.mjs plan
       - name: Read real repository settings (GET only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -37,5 +47,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: aisec05-settings-evidence
-          path: aisec05-settings-evidence.json
+          path: |
+            aisec05-settings-evidence.json
+            aisec05-policy-impact.json
           retention-days: 30

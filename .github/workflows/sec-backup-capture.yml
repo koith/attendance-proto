@@ -35,6 +35,11 @@ jobs:
     environment: production-backup
     timeout-minutes: 20
     env:
+      # AISEC-07 staged separation: dedicated backup-only credentials (stored
+      # only as production-backup ENVIRONMENT secrets) win when present; the
+      # legacy names keep the daily backup running until the owner switches.
+      BACKUP_DB_READONLY_URL: ${{ secrets.BACKUP_DB_READONLY_URL }}
+      BACKUP_AUTH_CONFIG_TOKEN: ${{ secrets.BACKUP_AUTH_CONFIG_TOKEN }}
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -53,9 +58,12 @@ jobs:
           # unconfigured redundant flag preventing legitimate protected backups.
           # Never bypass the real DB, Storage, or Auth credential requirements.
           ready=1
-          test -n "$SUPABASE_DB_URL" || { echo "BACKUP_BLOCKED_DB_CONNECTION"; ready=0; }
+          test -n "$BACKUP_DB_READONLY_URL$SUPABASE_DB_URL" || { echo "BACKUP_BLOCKED_DB_CONNECTION"; ready=0; }
           test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "BACKUP_BLOCKED_STORAGE_CREDENTIAL"; ready=0; }
-          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "BACKUP_BLOCKED_AUTH_CONFIG_CREDENTIAL"; ready=0; }
+          test -n "$BACKUP_AUTH_CONFIG_TOKEN$SUPABASE_ACCESS_TOKEN" || { echo "BACKUP_BLOCKED_AUTH_CONFIG_CREDENTIAL"; ready=0; }
+          # Names only, never values: which credential family this run uses.
+          echo "BACKUP_DB_CREDENTIAL_SOURCE=$([ -n "$BACKUP_DB_READONLY_URL" ] && echo dedicated_readonly || echo legacy)"
+          echo "BACKUP_AUTH_CREDENTIAL_SOURCE=$([ -n "$BACKUP_AUTH_CONFIG_TOKEN" ] && echo dedicated || echo legacy)"
           test "$ready" = 1 || { echo "BACKUP_BLOCKED_MISSING_REQUIRED_CREDENTIAL"; exit 1; }
           echo 'BACKUP_PROTECTED_CREDENTIALS_PRESENT=true'
       - name: Install matching PostgreSQL client
