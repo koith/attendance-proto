@@ -30,6 +30,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PROBE_OUT: aisec05-settings-evidence.json
+          PROBE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           node scripts/security/github_settings_probe.mjs
           { echo '```json'; cat aisec05-settings-evidence.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

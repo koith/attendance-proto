@@ -53,3 +53,27 @@ test('getter issues GET only, rejects bad repo, and surfaces 5xx', async () => {
   const bad = githubGetter({token: 't', repo: 'o/r', fetchImpl: async () => ({status: 502, json: async () => ({})})});
   await assert.rejects(bad('/x'), /UPSTREAM_502/);
 });
+
+test('protected:false with empty rules is a definite FAIL even when classic protection is 403', async () => {
+  const r = evaluate(await collect(stub({
+    '/rules/branches/main': ok([]), '/branches/main/protection': {status: 403, body: null},
+    '/branches/main': ok({protected: false}), '/rulesets': ok([]),
+    '/environments': envs([reviewed('production'), reviewed('production-backup')]),
+    '/actions/permissions/workflow': {status: 403, body: null},
+  })));
+  assert.equal(r.checks.main_requires_pull_request, 'FAIL');
+  assert.equal(r.checks.main_blocks_force_push, 'FAIL');
+  assert.equal(r.checks.default_workflow_token_read_only, 'CANNOT_VERIFY');
+  assert.equal(r.overall, 'FAIL');
+});
+
+test('protected:true but opaque classic details stay CANNOT_VERIFY', async () => {
+  const r = evaluate(await collect(stub({
+    '/rules/branches/main': ok([]), '/branches/main/protection': {status: 403, body: null},
+    '/branches/main': ok({protected: true}), '/rulesets': ok([]),
+    '/environments': envs([reviewed('production'), reviewed('production-backup')]),
+    '/actions/permissions/workflow': ok({default_workflow_permissions: 'read', can_approve_pull_request_reviews: false}),
+  })));
+  assert.equal(r.checks.main_requires_pull_request, 'CANNOT_VERIFY');
+  assert.equal(r.overall, 'CANNOT_VERIFY');
+});

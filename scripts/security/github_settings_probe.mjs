@@ -52,7 +52,9 @@ export function evaluate({branch, raw, rulesetDetails}) {
   const enforceAdmins = classic ? Boolean(classic.enforce_admins?.enabled) : null;
   // Only a definite answer from both sources can yield FAIL; one opaque source
   // with nothing found in the other is CANNOT_VERIFY.
-  const unknownBranch = !rulesKnown || (classicUnknown && !prRequired);
+  // GET /branches/{b} `protected:false` is authoritative: no classic
+  // protection and no ruleset applies, even when the classic endpoint is 403.
+  const unknownBranch = !rulesKnown || (classicUnknown && branchProtectedFlag !== false && !prRequired);
 
   const activeRulesets = rulesetDetails.filter((d) => d.status === 200 && d.body?.enforcement === 'active')
     .map((d) => ({id: d.id, name: d.body.name, target: d.body.target,
@@ -115,7 +117,7 @@ async function main() {
   const token = process.env.GITHUB_TOKEN; const repo = process.env.GITHUB_REPOSITORY;
   if (!token) throw Error('PROBE_TOKEN_MISSING');
   const report = evaluate(await collect(githubGetter({token, repo})));
-  report.run = {sha: process.env.GITHUB_SHA || null, run_id: process.env.GITHUB_RUN_ID || null,
+  report.run = {sha: process.env.GITHUB_SHA || null, head_sha: process.env.PROBE_HEAD_SHA || null, run_id: process.env.GITHUB_RUN_ID || null,
     event: process.env.GITHUB_EVENT_NAME || null, at: new Date().toISOString()};
   const out = JSON.stringify(report, null, 2);
   console.log(out);
