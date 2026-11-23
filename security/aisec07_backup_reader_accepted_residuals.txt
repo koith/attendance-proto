@@ -2,8 +2,11 @@
 # as schema.table:PRIVILEGE. EMPTY = nothing accepted = the backup refuses to
 # run while any of these exist. Only the repository owner may add a line, in a
 # PR that states the decision (this file is a gate-integrity protected path).
-# Candidates that cannot be removed without changing Supabase extension grants
-# (measured on supabase/postgres:17.12.0.002 and reported in production):
-#   cron.job_run_details:DELETE        run-history log; copy kept in every encrypted backup
-#   net.http_request_queue:MAINTAIN    LOCK/VACUUM only (availability), data writes are guarded
-#   net._http_response:MAINTAIN        LOCK/VACUUM only (availability), data writes are guarded
+# Owner approved these exact residuals on 2026-11-23 for protected backup only.
+# postgres-installed DML and DDL guards remain mandatory; this allowlist DOES
+# NOT authorize business-data writes or other unexpected privileges.
+# cron history deletion is a residual integrity risk; net MAINTAIN can lock
+# extension tables and delay requests. This is not a zero-risk read-only login.
+cron.job_run_details:DELETE
+net.http_request_queue:MAINTAIN
+net._http_response:MAINTAIN
