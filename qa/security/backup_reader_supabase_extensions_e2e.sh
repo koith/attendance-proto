@@ -60,11 +60,14 @@ test "$(pg -Atc 'SELECT count(*) FROM net._http_response')" -gt "$before_resp"
 pg -c 'CREATE TEMP TABLE ok(i int)' >/dev/null
 pass "guard: $denied backup_reader writes/DDL/bypasses denied; postgres request + pg_net worker response still work; extension grants unchanged"
 
-# 3. Only the 3 non-removable residuals remain; they block unless accepted.
-if SUPABASE_DB_URL="$R" RUNNER_TEMP="$WORK" bash scripts/security/backup_reader_preflight.sh >"$WORK/p1" 2>&1; then
-  echo 'CRITICAL: backup allowed without owner acceptance of residuals'; exit 1; fi
+# 3. Only three residuals remain. An EMPTY approval must fail even
+#    if the repository's owner-approved allowlist now contains these three.
+: > "$WORK/empty-approval"
+if SEC_BACKUP_ACCEPTED_RESIDUALS="$WORK/empty-approval" SUPABASE_DB_URL="$R" RUNNER_TEMP="$WORK" bash scripts/security/backup_reader_preflight.sh >"$WORK/p1" 2>&1; then
+  echo 'CRITICAL: backup allowed with empty approval file'; exit 1; fi
 grep -q 'unguarded=cron.job_run_details:DELETE, net._http_response:MAINTAIN, net.http_request_queue:MAINTAIN$' "$WORK/p1"
 printf 'cron.job_run_details:DELETE\nnet._http_response:MAINTAIN\nnet.http_request_queue:MAINTAIN\n' > "$WORK/acc"
+diff -u <(grep -vE '^[[:space:]]*(#|$)' security/aisec07_backup_reader_accepted_residuals.txt | tr -d ' \t' | sort) <(sort "$WORK/acc")
 SEC_BACKUP_ACCEPTED_RESIDUALS="$WORK/acc" SUPABASE_DB_URL="$R" RUNNER_TEMP="$WORK" bash scripts/security/backup_reader_preflight.sh > "$WORK/p2"
 grep -q 'BACKUP_READER_VERIFIED' "$WORK/p2"
 PGPASSWORD="$PW" pg_dump -h "$SB_HOST" -p "$SB_PORT" -U backup_reader -d postgres -Fc > "$WORK/full.dump"
