@@ -7,6 +7,8 @@ DECLARE
   writable_tables int; creatable_schemas int; other_roles int; writer_roles int;
   definer_functions int; f record; callee record; static_ok boolean;
   unreviewed text[] := '{}'; readonly_list text[] := '{}';
+  w record; guarded boolean; guard_fn regprocedure; ddl_fn regprocedure; ddl_guard_ok boolean;
+  unguarded text[] := '{}'; guarded_list text[] := '{}'; residual_list text[] := '{}';
 BEGIN
   SELECT * INTO r FROM pg_roles WHERE rolname = current_user;
   IF r.rolsuper OR r.rolcreaterole OR r.rolcreatedb OR r.rolreplication THEN
@@ -29,17 +31,50 @@ BEGIN
   IF other_roles > 0 OR writer_roles > 0 THEN
     RAISE EXCEPTION 'BACKUP_READER_EXTRA_ROLE_MEMBERSHIP %', other_roles;
   END IF;
-  SELECT count(*) INTO writable_tables
-    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-   WHERE c.relkind IN ('r','p','v','m','f')
-     AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\_toast%'
-     AND (has_table_privilege(c.oid, 'INSERT') OR has_table_privilege(c.oid, 'UPDATE')
-       OR has_table_privilege(c.oid, 'DELETE') OR has_table_privilege(c.oid, 'TRUNCATE')
-       OR has_table_privilege(c.oid, 'TRIGGER') OR pg_has_role(c.relowner, 'USAGE'));
+  -- Per (table, privilege). A write privilege granted to PUBLIC by an extension
+  -- (pg_net) is neutralised ONLY by a valid guard: an enabled, BEFORE,
+  -- statement-level trigger covering that exact operation and calling
+  -- backup_guard.deny_backup_reader_write(), a function this login neither owns
+  -- nor can replace (security/aisec07_backup_reader_net_guard.sql). Anything
+  -- else is reported by name. An entry in the owner-approved accepted list
+  -- (custom setting aisec07.accepted_residual, 'schema.table:PRIV,...', empty
+  -- by default) is reported as a residual, never silently passed.
+  guard_fn := to_regprocedure('backup_guard.deny_backup_reader_write()');
+  ddl_fn := to_regprocedure('backup_guard.deny_backup_reader_ddl()');
+  ddl_guard_ok := ddl_fn IS NOT NULL
+    AND NOT pg_has_role((SELECT proowner FROM pg_proc WHERE oid = ddl_fn), 'USAGE')
+    AND EXISTS (SELECT 1 FROM pg_event_trigger e WHERE e.evtfoid = ddl_fn AND e.evtevent = 'ddl_command_start'
+                   AND e.evtenabled IN ('O','A') AND (e.evttags IS NULL OR cardinality(e.evttags) = 0));
+  FOR w IN
+    SELECT c.oid, n.nspname||'.'||c.relname AS rel, p.priv
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      CROSS JOIN unnest(ARRAY['INSERT','UPDATE','DELETE','TRUNCATE','TRIGGER','REFERENCES','OWNER']
+        || CASE WHEN current_setting('server_version_num')::int >= 170000 THEN ARRAY['MAINTAIN'] ELSE '{}'::text[] END) AS p(priv)
+     WHERE c.relkind IN ('r','p','v','m','f')
+       AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\_toast%'
+       AND CASE WHEN p.priv = 'OWNER' THEN pg_has_role(c.relowner, 'USAGE') ELSE has_table_privilege(c.oid, p.priv) END
+     ORDER BY 2, 3
+  LOOP
+    -- TRIGGER/REFERENCES are only usable through DDL, which the event-trigger
+    -- guard rejects for this login.
+    guarded := (w.priv IN ('TRIGGER','REFERENCES') AND ddl_guard_ok) OR (guard_fn IS NOT NULL
+      AND NOT pg_has_role((SELECT proowner FROM pg_proc WHERE oid = guard_fn), 'USAGE')
+      AND EXISTS (SELECT 1 FROM pg_trigger t
+                   WHERE t.tgrelid = w.oid AND t.tgfoid = guard_fn AND t.tgenabled IN ('O','A')
+                     AND (t.tgtype & 1) = 0 AND (t.tgtype & 2) = 2
+                     AND (t.tgtype & CASE w.priv WHEN 'INSERT' THEN 4 WHEN 'DELETE' THEN 8
+                                                 WHEN 'UPDATE' THEN 16 WHEN 'TRUNCATE' THEN 32 ELSE 0 END) <> 0));
+    IF guarded THEN guarded_list := guarded_list || (w.rel||':'||w.priv);
+    ELSIF (w.rel||':'||w.priv) = ANY (string_to_array(coalesce(current_setting('aisec07.accepted_residual', true), ''), ','))
+      THEN residual_list := residual_list || (w.rel||':'||w.priv);
+    ELSE unguarded := unguarded || (w.rel||':'||w.priv);
+    END IF;
+  END LOOP;
+  writable_tables := cardinality(unguarded);
   SELECT count(*) INTO creatable_schemas FROM pg_namespace n
    WHERE has_schema_privilege(n.oid, 'CREATE') OR pg_has_role(n.nspowner, 'USAGE');
   IF writable_tables > 0 OR creatable_schemas > 0 OR has_database_privilege(current_database(), 'CREATE') THEN
-    RAISE EXCEPTION 'BACKUP_READER_HAS_WRITE_PRIVILEGE tables=% schemas=%', writable_tables, creatable_schemas;
+    RAISE EXCEPTION 'BACKUP_READER_HAS_WRITE_PRIVILEGE tables=% schemas=% unguarded=%', writable_tables, creatable_schemas, array_to_string(unguarded, ', ');
   END IF;
   -- SECURITY DEFINER functions run with their OWNER's rights, so a backup login
   -- that can EXECUTE one may write through it (proven in qa/security/
@@ -90,6 +125,7 @@ BEGIN
     'extra_roles', 0, 'bypassrls', true, 'pg_read_all_data', true,
     'default_read_only', current_setting('default_transaction_read_only'),
     'executable_security_definer', definer_functions,
-    'executable_security_definer_static_read_only', readonly_list);
+    'executable_security_definer_static_read_only', readonly_list,
+    'extension_public_writes_guarded', guarded_list, 'ddl_guard', ddl_guard_ok, 'owner_accepted_residual_writes', residual_list);
 END
 $verify$;

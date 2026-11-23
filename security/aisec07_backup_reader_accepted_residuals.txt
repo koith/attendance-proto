@@ -1,0 +1,9 @@
+# AISEC-07 owner-accepted residual privileges of the backup login, one per line
+# as schema.table:PRIVILEGE. EMPTY = nothing accepted = the backup refuses to
+# run while any of these exist. Only the repository owner may add a line, in a
+# PR that states the decision (this file is a gate-integrity protected path).
+# Candidates that cannot be removed without changing Supabase extension grants
+# (measured on supabase/postgres:17.12.0.002 and reported in production):
+#   cron.job_run_details:DELETE        run-history log; copy kept in every encrypted backup
+#   net.http_request_queue:MAINTAIN    LOCK/VACUUM only (availability), data writes are guarded
+#   net._http_response:MAINTAIN        LOCK/VACUUM only (availability), data writes are guarded
