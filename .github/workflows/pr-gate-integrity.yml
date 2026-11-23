@@ -1,0 +1,35 @@
+name: PR gate integrity
+# Runs the BASE branch's code (pull_request_target) so a PR cannot weaken the
+# check that judges it. SAFETY: never checks out or executes PR code, uses no
+# repository secrets; the PR's files are read through the API as data only.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+  # Posts the verdict as a commit status on the PR HEAD sha (required check).
+  statuses: write
+concurrency:
+  group: pr-gate-integrity-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  gate-integrity:
+    name: gate-integrity-judge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Judge gate/policy changes with trusted base code
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_ACTION: ${{ github.event.action }}
+        run: node scripts/security/gate_integrity.mjs

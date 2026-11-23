@@ -1,0 +1,70 @@
+name: SEC AISEC-05 GitHub settings evidence probe (read-only)
+# GET-only evidence of real branch protection / rulesets / environment
+# approvals using this job's read-scoped GITHUB_TOKEN. No repository secrets,
+# no settings writes. A 403 is recorded as CANNOT_VERIFY, never PASS.
+on:
+  pull_request:
+    paths:
+      - 'scripts/security/github_settings_probe.mjs'
+      - 'scripts/security/github_settings_probe.test.mjs'
+      - 'scripts/security/github_policy_impact.mjs'
+      - 'scripts/security/github_policy_impact.test.mjs'
+      - 'scripts/security/github_policy_apply.mjs'
+      - 'scripts/security/github_policy_apply.test.mjs'
+      - 'security/github_policy/**'
+      - '.github/workflows/pr-required-gate.yml'
+      - '.github/workflows/sec-aisec05-github-settings-probe.yml'
+  workflow_dispatch:
+  # Weekly drift alarm: fails if a phase recorded in applied_phases regressed.
+  schedule:
+    - cron: '41 2 * * 1'
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+  pull-requests: read
+  issues: read
+  # Dry-run proof that a commit status lands on the PR HEAD sha (separate context, never required).
+  statuses: write
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Synthetic probe, policy impact and owner apply/rollback QA
+        run: node --test scripts/security/github_settings_probe.test.mjs scripts/security/github_policy_impact.test.mjs scripts/security/github_policy_apply.test.mjs scripts/security/gate_integrity.test.mjs
+      - name: Policy impact on every workflow (no settings changed)
+        run: node scripts/security/github_policy_impact.mjs --report | tee aisec05-policy-impact.json
+      - name: Merge-gate integrity judgement of THIS PR (advisory, never writes)
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_ACTION: ${{ github.event.action }}
+          GATE_ADVISORY: '1'
+          GATE_DRYRUN_STATUS_CONTEXT: gate-integrity-dryrun
+        run: node scripts/security/gate_integrity.mjs | tee gate-integrity-advisory.txt
+      - name: Owner apply plan (offline, prints calls only)
+        run: node scripts/security/github_policy_apply.mjs plan
+      - name: Read real repository settings (GET only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PROBE_OUT: aisec05-settings-evidence.json
+          PROBE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PROBE_ENFORCE_APPLIED: ${{ github.event_name == 'schedule' && '1' || '0' }}
+        run: |
+          node scripts/security/github_settings_probe.mjs
+          { echo '```json'; cat aisec05-settings-evidence.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aisec05-settings-evidence
+          path: |
+            aisec05-settings-evidence.json
+            aisec05-policy-impact.json
+          retention-days: 30

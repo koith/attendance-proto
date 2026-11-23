@@ -1,0 +1,43 @@
+name: PR required gate
+# The ONE check a main ruleset can require. It must run on every pull request
+# (no paths/branches filter, no job-level if), stay fast, and use no secrets,
+# so requiring it can never deadlock an unrelated PR.
+on:
+  pull_request:
+  merge_group:
+  # Also on main so the owner apply tool can prove the check is green on main
+  # before making it required (prevents a PR deadlock).
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pr-required-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  required-gate:
+    name: required-gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Workflow secret lifecycle ratchet (AISEC-07)
+        run: node scripts/security/workflow_secret_inventory.mjs --check
+      - name: GitHub policy impact contract (AISEC-05)
+        run: node scripts/security/github_policy_impact.mjs --check
+      - name: Historical ledger freeze
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/ledger_growth_guard.mjs "$BASE_SHA"
+      - name: Merge-gate tamper defence and automation continuity contracts
+        run: node --test scripts/security/gate_integrity.test.mjs qa/security/automation_continuity.test.mjs
+      - name: AI development policy unit QA
+        run: node --test scripts/ai-dev/*.test.mjs

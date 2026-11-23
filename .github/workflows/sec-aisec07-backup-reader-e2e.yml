@@ -1,0 +1,63 @@
+name: SEC AISEC-07 read-only backup login end-to-end (PG16/17)
+# Disposable PostgreSQL + loopback fake Storage/Auth only. Proves the real
+# capture.mjs works with the dedicated backup_reader login, that the login
+# cannot write, that a writable login is refused, and that rollback is clean.
+on:
+  pull_request:
+    paths:
+      - 'security/aisec07_backup_reader_role.sql'
+      - 'security/aisec07_backup_reader_role_rollback.sql'
+      - 'security/aisec07_backup_reader_verify.sql'
+      - 'qa/security/backup_reader_e2e.sh'
+      - 'scripts/security/backup_reader_preflight.sh'
+      - 'scripts/security/capture.mjs'
+      - '.github/workflows/sec-backup-capture.yml'
+      - '.github/workflows/sec-aisec07-backup-reader-e2e.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'security/aisec07_backup_reader_role.sql'
+      - 'security/aisec07_backup_reader_verify.sql'
+      - 'qa/security/backup_reader_e2e.sh'
+      - 'scripts/security/backup_reader_preflight.sh'
+      - 'scripts/security/capture.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  e2e:
+    name: PG${{ matrix.pg }} backup_reader capture, write denial, fail-closed, rollback
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ['16', '17']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install matching PostgreSQL client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-${{ matrix.pg }}
+      - name: Disposable PostgreSQL ${{ matrix.pg }}
+        run: |
+          docker run -d --name aisec07-pg -p 55432:5432 -e POSTGRES_PASSWORD=synthetic_admin postgres:${{ matrix.pg }}-alpine
+          for i in $(seq 1 40); do docker exec aisec07-pg pg_isready -U postgres >/dev/null 2>&1 && break; sleep 1; done
+          sleep 2
+      - name: Real capture.mjs with backup_reader + negative and rollback proofs
+        env:
+          ADMIN_URL: postgresql://postgres:synthetic_admin@127.0.0.1:55432/postgres?sslmode=disable
+          READER_HOST: 127.0.0.1
+          READER_PORT: '55432'
+          PGCONNECT_TIMEOUT: '10'
+        run: |
+          export PATH=/usr/lib/postgresql/${{ matrix.pg }}/bin:$PATH
+          bash qa/security/backup_reader_e2e.sh
