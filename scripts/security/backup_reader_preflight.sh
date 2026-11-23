@@ -6,7 +6,13 @@
 set -euo pipefail
 : "${SUPABASE_DB_URL:?BACKUP_BLOCKED_DB_CONNECTION}"
 log="${RUNNER_TEMP:-/tmp}/backup-reader-verify.log"
-if ! psql -X -q -v ON_ERROR_STOP=1 --dbname "$SUPABASE_DB_URL" -f "${SEC_BACKUP_READER_VERIFY_SQL:-security/aisec07_backup_reader_verify.sql}" 2>"$log"; then
+# Owner-accepted residual privileges (repository file, empty by default).
+accepted="$(grep -vE '^\s*(#|$)' "${SEC_BACKUP_ACCEPTED_RESIDUALS:-security/aisec07_backup_reader_accepted_residuals.txt}" | tr -d ' \t' | paste -sd, - || true)"
+if [ -n "$accepted" ] && ! printf '%s' "$accepted" | grep -qE '^([a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*:(DELETE|MAINTAIN|INSERT|UPDATE|TRUNCATE))(,[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*:(DELETE|MAINTAIN|INSERT|UPDATE|TRUNCATE))*$'; then
+  echo 'BACKUP_BLOCKED_INVALID_ACCEPTED_RESIDUAL_LIST'; exit 1
+fi
+[ -n "$accepted" ] && echo "BACKUP_OWNER_ACCEPTED_RESIDUAL=$accepted"
+if ! psql -X -q -v ON_ERROR_STOP=1 --dbname "$SUPABASE_DB_URL" -c "SET aisec07.accepted_residual = '${accepted}'" -f "${SEC_BACKUP_READER_VERIFY_SQL:-security/aisec07_backup_reader_verify.sql}" 2>"$log"; then
   grep -oE 'BACKUP_READER_[A-Z_]+[^"]*' "$log" | head -1 || true
   echo 'BACKUP_BLOCKED_DB_LOGIN_NOT_PROVEN_READ_ONLY'; exit 1
 fi

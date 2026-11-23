@@ -174,3 +174,41 @@ GITHUB_ADMIN_TOKEN=... node scripts/security/github_policy_apply.mjs rollback \
   - `production-backup` 환경 비밀 3개 등록: `BACKUP_DB_READONLY_URL`, `BACKUP_STORAGE_SERVICE_KEY`(service role 키), `BACKUP_AUTH_CONFIG_TOKEN`(백업 전용 새 Supabase PAT)
   - 그 뒤 "SEC backup capture isolated" 수동 실행.
 - 실패 시 확인할 것: preflight 단계의 `BACKUP_READER_*` 이유 코드. 함수 이름이 나오면 G3을 진행한다.
+
+## 10. 확장(pg_net·pg_cron) PUBLIC 권한 문제와 해결 (2026-11-23)
+
+### 실측 (supabase/postgres:17.12.0.002, 운영 보고와 일치)
+- Supabase 기본 확장 권한상 PUBLIC이 `net.http_request_queue`·`net._http_response`에 INSERT/UPDATE/DELETE/TRUNCATE/TRIGGER/REFERENCES/MAINTAIN, `cron.job_run_details`에 DELETE를 갖고, schema `net` USAGE도 PUBLIC이다.
+- 따라서 `backup_reader`(사실상 **모든 직접 DB 로그인**)가 할 수 있는 일:
+  - outbound HTTP 요청 큐 삽입(SSRF), cron 실행 이력 삭제.
+  - 임시 함수로 net 테이블에 트리거를 심어 pg_net worker 방해.
+  - LOCK 획득.
+- `pg_read_all_data`는 유지해야 한다. `postgres`는 `auth` 테이블 SELECT를 GRANT할 수 없으므로 명시적 권한 방식으로는 전체 백업이 불가능하다.
+
+### 해결: `security/aisec07_backup_reader_net_guard.sql` (확장 권한 무변경)
+- net 두 테이블에 postgres 소유 statement-level BEFORE 트리거 → `backup_reader`의 INSERT/UPDATE/DELETE/TRUNCATE와 `net.http_*()` 호출 거부.
+- 이벤트 트리거 → `backup_reader`의 모든 DDL 거부(트리거 심기·임시 객체 차단).
+- `postgres`, pg_net worker, 다른 모든 역할은 영향 없음.
+- 검증(E2E `qa/security/backup_reader_supabase_extensions_e2e.sh`, CI job `supabase-extensions`):
+  - 우회 15종(쓰기·DDL·`session_replication_role`·트리거 비활성화·이벤트 트리거 삭제) 거부.
+  - 확장 권한 해시 불변, worker 응답 정상.
+  - `backup_reader`로 전체 pg_dump(auth·cron.job 포함) 정상.
+- 롤백: `…_net_guard_rollback.sql`. postgres는 net 테이블 소유자가 아니라 `DROP TRIGGER`가 불가하다 → 우리 함수 `DROP … CASCADE`로 제거한다(실측 확인).
+
+### 제거 불가능한 잔여 3건 → 소유자 결정 필요 (기본: 백업 차단)
+| 잔여 권한 | 영향 | 제거하려면 |
+|---|---|---|
+| `cron.job_run_details:DELETE` | cron 실행 이력 삭제(업무 데이터 아님). 매 암호화 백업에 사본이 남아 변조 탐지 가능 | supabase_admin 권한 변경(Supabase 지원 요청) |
+| `net.http_request_queue:MAINTAIN` | LOCK/VACUUM → 가용성(시트 자동동기화 지연). 데이터 쓰기는 차단됨 | 동일 |
+| `net._http_response:MAINTAIN` | 동일 | 동일 |
+
+- 수용하려면 소유자가 `security/aisec07_backup_reader_accepted_residuals.txt`에 위 줄을 추가하는 PR을 승인한다(gate-integrity 보호 경로).
+- 수용하지 않으면 백업은 계속 차단된다(fail-closed).
+- 공통 완화: 자격증명은 `production-backup` 환경 비밀(main 전용)에만 있고, 연결 수 제한 3, DDL 전면 차단.
+
+### GPT 실행 작업 (운영 DB)
+| # | 작업 | 승인 |
+|---|---|---|
+| G5 | postgres로 `security/aisec07_backup_reader_net_guard.sql` 실행 → `SELECT tgname, tgrelid::regclass FROM pg_trigger WHERE tgname LIKE 'aisec07_%'`(4행), `SELECT evtname, evtenabled FROM pg_event_trigger WHERE evtname='aisec07_deny_backup_reader_ddl'`(1행, O) 보고 | 소유자 승인 |
+| G6 | `backup_reader`로 접속해 `security/aisec07_backup_reader_verify.sql` 실행 → `unguarded=` 목록이 정확히 위 3건인지 보고(그 외가 있으면 중단·보고) | 불필요(읽기 전용) |
+| G7 | 문제가 생기면 `security/aisec07_backup_reader_net_guard_rollback.sql` 실행 → 트리거 0행·이벤트 트리거 0행 확인 | 소유자 승인 |

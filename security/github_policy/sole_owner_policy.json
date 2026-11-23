@@ -153,7 +153,10 @@
       "security/github_policy/",
       "security/aisec07_secret_policy_baseline.json",
       "security/aisec07_secret_classes.json",
-      "scripts/ledger_growth_guard.mjs"
+      "scripts/ledger_growth_guard.mjs",
+      "security/aisec07_backup_reader_accepted_residuals.txt",
+      "security/aisec07_backup_reader_verify.sql",
+      "scripts/security/backup_reader_preflight.sh"
     ],
     "status_context": "gate-integrity"
   },
