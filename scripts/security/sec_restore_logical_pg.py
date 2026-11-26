@@ -62,6 +62,13 @@ def quote(v):
     return '"' + v + '"'
 
 
+def quote_check_name(v):
+    # Legacy Auth CHECK constraints use quoted names containing spaces.
+    if not isinstance(v, str) or not re.fullmatch(r'[A-Za-z_][A-Za-z_0-9 ]{0,62}', v):
+        raise ValueError('unsafe CHECK constraint name')
+    return '"' + v + '"'
+
+
 def require_type(v, allowed_enum):
     if v in BASE_TYPES or TYPE_PARAMS.fullmatch(v):
         return v
@@ -189,7 +196,7 @@ CATALOG_TAG = 'SEC_RESTORE_CATALOG:'
 ERROR_TAG = 'SEC_RESTORE_ERROR:'
 # Extensions that only add SQL-callable helpers. Anything else (pg_net, pg_cron,
 # supabase_vault, pg_graphql ...) is provider infrastructure and is reported.
-EXT_ALLOW = {'pgcrypto', 'uuid-ossp', 'citext', 'pg_trgm', 'btree_gin', 'btree_gist', 'hstore', 'unaccent'}
+EXT_ALLOW = {'pgcrypto', 'uuid-ossp', 'citext', 'pg_trgm', 'btree_gin', 'btree_gist', 'hstore', 'unaccent', 'pg_stat_statements'}
 EXT_NAME = re.compile(r'^[a-z_][a-z0-9_-]{0,62}$')
 ACLITEM = re.compile(r'^([A-Za-z_][A-Za-z_0-9]*|)=([a-zA-Z*]+)/(.+)$')
 PRIVS = {'r': 'SELECT', 'a': 'INSERT', 'w': 'UPDATE', 'd': 'DELETE', 'D': 'TRUNCATE', 'x': 'REFERENCES',
@@ -579,7 +586,7 @@ def emit_schema_objects(out, snapshot, tables, seqs, inline_generated, target_ma
         for c in t.get('constraints', []):
             clabel = label + '.' + str(c.get('name'))
             if c.get('type') == 'c':
-                attempt('check', clabel, lambda c=c: 'ALTER TABLE ' + tid + ' ADD CONSTRAINT ' + quote(c['name']) + ' ' + check_ddl(c['ddl']))
+                attempt('check', clabel, lambda c=c: 'ALTER TABLE ' + tid + ' ADD CONSTRAINT ' + quote_check_name(c['name']) + ' ' + check_ddl(c['ddl']))
             elif c.get('type') not in ('p', 'u', 'f'):
                 out('SELECT pg_temp.sec_log(' + lit('constraint_other') + ', ' + lit(clabel) + ", false, 'UNSUP');")
         for n, ddl in enumerate(t.get('indexes') or []):

@@ -716,6 +716,17 @@ class TestSchemaObjectRestoreE2E(unittest.TestCase):
 
 
 class TestSchemaObjectSqlValidation(unittest.TestCase):
+    def test_quoted_auth_check_constraint_names_are_safe(self):
+        self.assertEqual(r.quote_check_name('entity_id not empty'), '"entity_id not empty"')
+        self.assertEqual(r.quote_check_name('ordinary_check'), '"ordinary_check"')
+        for name in ('bad"; DROP TABLE auth.users; --', 'bad\nname', 'a'*64, ''):
+            with self.assertRaises(ValueError):
+                r.quote_check_name(name)
+        self.assertIn('pg_stat_statements', r.EXT_ALLOW)
+        for managed in ('pg_cron', 'pg_net', 'supabase_vault'):
+            self.assertNotIn(managed, r.EXT_ALLOW)
+
+
     def test_single_statement_lexer_fails_closed(self):
         for bad in ("1; DROP TABLE x", "1 -- c", "1 /* c */", "'open", '"open', "$a$ open", "1) OR (1", "a \\gexec",
                     "'\\'; DROP TABLE x; --'", "$$ x $$; SELECT 1", "((1)", "x[1", None, "a\x00b"):
